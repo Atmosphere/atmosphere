@@ -67,13 +67,14 @@ public class JSR356Endpoint extends Endpoint {
     public void onOpen(Session session, EndpointConfig endpointConfig) {
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
-        // TODO: Configurable
+        // TODO: Tomcat fail to map a WebSocket request of the WebSocket path contains the ServletPath.
         String matchAll = "";//"/chat";
 
         Map<String, String> headers = new HashMap<String, String>();
         headers.put("Connection", "Upgrade");
         headers.put("Upgrade", "websocket");
 
+        // TODO: Construct the pathInfo from the pathParam
         StringBuffer pathInfo = new StringBuffer();
         for (Map.Entry<String,String> e : session.getPathParameters().entrySet()) {
 
