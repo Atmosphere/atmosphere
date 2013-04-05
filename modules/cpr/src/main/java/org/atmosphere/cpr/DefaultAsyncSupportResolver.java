@@ -61,6 +61,7 @@ import org.atmosphere.container.Grizzly2WebSocketSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.JBossWebSocketSupport;
+import org.atmosphere.container.JSR356Endpoint;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.Jetty9AsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
@@ -75,6 +76,7 @@ import org.atmosphere.container.TomcatCometSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -104,6 +106,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String GRIZZLY2_WEBSOCKET = "org.glassfish.grizzly.websockets.WebSocketEngine";
     public final static String NETTY = "org.jboss.netty.channel.Channel";
     public final static String JBOSS_AS7_WEBSOCKET = "org.atmosphere.jboss.as.websockets.servlet.WebSocketServlet";
+    public final static String JSR356_WEBSOCKET = "javax.websocket.Endpoint";
 
     private final AtmosphereConfig config;
 
@@ -179,12 +182,18 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     public List<Class<? extends AsyncSupport>> detectWebSocketPresent(boolean useNativeIfPossible) {
+        if (testClassExists(JSR356_WEBSOCKET)) {
+            logger.info("JSR356 WebSocket detected. Underlying WebServer will install {}", JSR356Endpoint.class.getName());
+            return Collections.emptyList();
+        }
+
         if (useNativeIfPossible) {
             return detectServlet3WebSocketPresent();
         }
 
         List l = new LinkedList<Class<? extends AsyncSupport>>() {
             {
+
                 if (testClassExists(TOMCAT_WEBSOCKET))
                     add(Tomcat7AsyncSupportWithWebSocket.class);
 
