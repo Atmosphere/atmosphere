@@ -59,6 +59,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -133,7 +134,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     private void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        if (!req.isAsyncStarted()) {
+        if (!req.isAsyncStarted() && !Utils.webSocketEnabled(req)) {
             AsyncContext asyncContext = req.startAsync(req, res);
             asyncContext.addListener(new CometListener(this));
             // Do nothing except setting the times out

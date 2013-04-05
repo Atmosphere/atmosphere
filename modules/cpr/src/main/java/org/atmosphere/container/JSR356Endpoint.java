@@ -31,6 +31,8 @@ import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.Map;
 
 public class JSR356Endpoint extends Endpoint {
 
@@ -63,9 +65,19 @@ public class JSR356Endpoint extends Endpoint {
     public void onOpen(Session session, EndpointConfig endpointConfig) {
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
+        // TODO: Configurable
+        String matchAll = "";//"/chat";
+
+        Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Connection", "Upgrade");
+        headers.put("Upgrade", "websocket");
+
         try {
             request = new AtmosphereRequest.Builder()
                     .requestURI(session.getRequestURI().toString())
+                    .headers(headers)
+                    .contextPath(framework.getServletContext().getContextPath())
+                    .pathInfo(matchAll)
                     .queryString(session.getQueryString())
                     .build();
 

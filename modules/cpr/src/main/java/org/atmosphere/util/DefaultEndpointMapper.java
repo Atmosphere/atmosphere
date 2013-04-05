@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.HashMap;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Default implementation of the {@link EndpointMapper} used by the {@link org.atmosphere.cpr.AsynchronousProcessor}
@@ -102,7 +101,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
                 }
 
                 // Glassfish 3.1.2 issue .. BEUUUURRRRKKKKKK!!
-                if (handler == null) {
+                if (handler == null && req.getContextPath().length() < path.length()) {
                     path = path.substring(req.getContextPath().length());
                     handler = map(path, handlers);
                 }

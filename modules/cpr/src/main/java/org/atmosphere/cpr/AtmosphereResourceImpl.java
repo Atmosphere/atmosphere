@@ -757,6 +757,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public String toString() {
+        try {
         return "AtmosphereResourceImpl{" +
                 "\n uuid=" + uuid +
                 ",\n transport=" + transport() +
@@ -768,6 +769,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 ",\n isInScope=" + isInScope +
                 ",\n listeners=" + listeners +
                 '}';
+        } catch (NullPointerException ex) {
+            // Prevent logger
+            return "AtmosphereResourceImpl{" + uuid + "}";
+        }
     }
 
     public AtmosphereResourceImpl disableSuspend(boolean disableSuspend) {
