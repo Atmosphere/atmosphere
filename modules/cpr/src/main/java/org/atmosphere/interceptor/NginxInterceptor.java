@@ -29,9 +29,9 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeanfrancois Arcand
  */
-public class NgnixInterceptor implements AtmosphereInterceptor {
+public class NginxInterceptor implements AtmosphereInterceptor {
 
-    private final Logger logger = LoggerFactory.getLogger(NgnixInterceptor.class);
+    private final Logger logger = LoggerFactory.getLogger(NginxInterceptor.class);
 
     @Override
     public void configure(AtmosphereConfig config) {
