@@ -692,6 +692,7 @@ public class DefaultBroadcaster implements Broadcaster {
     /**
      * Return the default number of reactive threads that will be waiting for work when a broadcast operation
      * is executed.
+     *
      * @return the default number of reactive threads
      */
     protected int reactiveThreadsCount() {
@@ -763,29 +764,31 @@ public class DefaultBroadcaster implements Broadcaster {
 
         entry.message = finalMsg;
 
-        if (resources.isEmpty()) {
-            logger.trace("Broadcaster {} doesn't have any associated resource. " +
-                    "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
+        synchronized (resources) {
+            if (resources.isEmpty()) {
+                logger.trace("Broadcaster {} doesn't have any associated resource. " +
+                        "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
 
-            AtmosphereResource r = null;
-            if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
-                r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
-            }
-
-            // Make sure we execute the filter
-            if (r == null) {
-                r = noOpsResource;
-            }
-            if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                if (bc.hasPerRequestFilters()) {
-                    logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
+                AtmosphereResource r = null;
+                if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
+                    r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
                 }
-                perRequestFilter(r, entry, true, true);
-            } else {
-                trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, entry);
+
+                // Make sure we execute the filter
+                if (r == null) {
+                    r = noOpsResource;
+                }
+                if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                    if (bc.hasPerRequestFilters()) {
+                        logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
+                    }
+                    perRequestFilter(r, entry, true, true);
+                } else {
+                    trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry);
+                }
+                entryDone(entry.future);
+                return;
             }
-            entryDone(entry.future);
-            return;
         }
 
         // https://github.com/Atmosphere/atmosphere/issues/864
@@ -932,7 +935,7 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
 
         if (cache && after) {
-            trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null: r) : r, msg);
+            trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, msg);
         }
         return finalMsg;
     }
@@ -1119,7 +1122,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.warn("", ex);
             }
         } else {
-            invokeOnStateChange(r,e);
+            invokeOnStateChange(r, e);
         }
     }
 
@@ -1426,29 +1429,31 @@ public class DefaultBroadcaster implements Broadcaster {
                 return this;
             }
 
-            // Re-add yourself
-            if (resources.isEmpty()) {
-                config.getBroadcasterFactory().add(this, name);
-            }
+            synchronized (resources) {
+                // Re-add yourself
+                if (resources.isEmpty()) {
+                    config.getBroadcasterFactory().add(this, name);
+                }
 
-            boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
-            if (!wasResumed && isAtmosphereResourceValid(r)) {
-                logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
+                boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+                if (!wasResumed && isAtmosphereResourceValid(r)) {
+                    logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
 
-                String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
-                if (!backwardCompatible && parentUUID != null) {
-                    AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
-                    if (p != null && !resources.contains(p)) {
-                        resources.add(p);
-                    } else if (p == null) {
+                    String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+                    Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
+                    if (!backwardCompatible && parentUUID != null) {
+                        AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
+                        if (p != null && !resources.contains(p)) {
+                            resources.add(p);
+                        } else if (p == null) {
+                            resources.add(r);
+                        }
+                    } else {
                         resources.add(r);
                     }
-                } else {
-                    resources.add(r);
+                } else if (!wasResumed) {
+                    logger.debug("Unable to add AtmosphereResource {}", r.uuid());
                 }
-            } else if (!wasResumed) {
-                logger.debug("Unable to add AtmosphereResource {}", r.uuid());
             }
         } finally {
             // OK reset
