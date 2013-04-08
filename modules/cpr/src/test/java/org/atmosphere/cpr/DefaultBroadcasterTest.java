@@ -19,7 +19,6 @@ import org.atmosphere.cache.AbstractBroadcasterCache;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.BroadcasterCacheTest.AR;
-import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -44,16 +43,43 @@ public class DefaultBroadcasterTest {
     private Broadcaster broadcaster;
     private final AtomicReference<List<CacheMessage>> cachedMessage = new AtomicReference<List<CacheMessage>>();
 
+    public static final class B extends DefaultBroadcaster {
+
+        public B(String id, AtmosphereConfig config) {
+            super(id, config);
+        }
+
+        protected void cacheAndSuspend(AtmosphereResource r) {
+            System.out.println("========> cacheAndSuspend");
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            super.cacheAndSuspend(r);
+        }
+
+        protected boolean invokeFiltersAndCache(Entry entry) {
+            System.out.println("========> invokeFiltersAndCache");
+
+            try {
+                Thread.sleep(100);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return super.invokeFiltersAndCache(entry);
+        }
+    }
+
     @BeforeMethod
     public void setUp() throws Exception {
         AtmosphereFramework framework = new AtmosphereFramework();
         framework.addInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY, "beforeFilter");
         AtmosphereConfig config = framework.getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(B.class, "NEVER", config);
         broadcaster = factory.get("test");
         config.framework().setBroadcasterFactory(factory);
-
     }
 
     @Test
@@ -105,13 +131,12 @@ public class DefaultBroadcasterTest {
                 broadcaster.addAtmosphereResource(ar);
             }
         };
-        int remainingTest = 1;
+        int remainingTest = 10;
         ExecutorService newFixedThreadPool = Executors.newFixedThreadPool(2);
 
-        int iterations = 0;
         while (remainingTest > 0) {
             remainingTest--;
-           Future<?> pollFuture = newFixedThreadPool.submit(pollRunnable);
+            Future<?> pollFuture = newFixedThreadPool.submit(pollRunnable);
 
             Future<?> broadcastFuture = newFixedThreadPool.submit(broadcastRunnable);
             broadcastFuture.get();

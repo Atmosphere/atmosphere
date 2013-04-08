@@ -765,33 +765,15 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         if (resources.isEmpty()) {
-            synchronized (resources) {
-                // While waiting, a new resource may have been added.
-                if (resources.isEmpty()) {
-                    logger.trace("Broadcaster {} doesn't have any associated resource. " +
-                            "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
-
-                    AtmosphereResource r = null;
-                    if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
-                        r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
-                    }
-
-                    // Make sure we execute the filter
-                    if (r == null) {
-                        r = noOpsResource;
-                    }
-                    if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                        if (bc.hasPerRequestFilters()) {
-                            logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
-                        }
-                        perRequestFilter(r, entry, true, true);
-                    } else {
-                        trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry);
-                    }
-                    entryDone(entry.future);
-                    return;
+            boolean continueProcessing = true;
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
+                synchronized (resources) {
+                    continueProcessing = invokeFiltersAndCache(entry);
                 }
+            } else {
+                continueProcessing = invokeFiltersAndCache(entry);
             }
+            if (!continueProcessing) return;
         }
 
         // https://github.com/Atmosphere/atmosphere/issues/864
@@ -857,6 +839,35 @@ public class DefaultBroadcaster implements Broadcaster {
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
+    }
+
+    protected boolean invokeFiltersAndCache(Entry entry) {
+        // While waiting, a new resource may have been added.
+        if (resources.isEmpty()) {
+            logger.trace("Broadcaster {} doesn't have any associated resource. " +
+                    "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
+
+            AtmosphereResource r = null;
+            if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
+                r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
+            }
+
+            // Make sure we execute the filter
+            if (r == null) {
+                r = noOpsResource;
+            }
+            if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                if (bc.hasPerRequestFilters()) {
+                    logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
+                }
+                perRequestFilter(r, entry, true, true);
+            } else {
+                trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry);
+            }
+            entryDone(entry.future);
+            return false;
+        }
+        return true;
     }
 
     protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
@@ -1433,7 +1444,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // Only synchronize if we have a valid BroadcasterCache
-            if (!BroadcasterConfig.DefaultBroadcasterCache.class.isAssignableFrom(bc.getBroadcasterCache().getClass())) {
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
                 // In case we are adding messages to the cache, we need to make sure the operation is done before.
                 synchronized (resources) {
                     cacheAndSuspend(r);
