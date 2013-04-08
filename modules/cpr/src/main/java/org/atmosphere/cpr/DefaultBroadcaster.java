@@ -784,26 +784,15 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         if (resources.isEmpty()) {
-            logger.debug("Broadcaster {} doesn't have any associated resource. " +
-                    "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
-
-            AtmosphereResource r = null;
-            if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
-                r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
-            }
-
-            // Make sure we execute the filter
-            if (r == null) {
-                r = noOpsResource;
-            }
-            if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
-                perRequestFilter(r, entry, true, true);
+            boolean continueProcessing = true;
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
+                synchronized (resources) {
+                    continueProcessing = invokeFiltersAndCache(entry);
+                }
             } else {
-                trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry.originalMessage);
+                continueProcessing = invokeFiltersAndCache(entry);
             }
-            entryDone(entry.future);
-            return;
+            if (!continueProcessing) return;
         }
 
         // https://github.com/Atmosphere/atmosphere/issues/864
@@ -867,6 +856,35 @@ public class DefaultBroadcaster implements Broadcaster {
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
+    }
+
+    protected boolean invokeFiltersAndCache(Entry entry) {
+        // While waiting, a new resource may have been added.
+        if (resources.isEmpty()) {
+            logger.trace("Broadcaster {} doesn't have any associated resource. " +
+                    "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
+
+            AtmosphereResource r = null;
+            if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
+                r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
+            }
+
+            // Make sure we execute the filter
+            if (r == null) {
+                r = noOpsResource;
+            }
+            if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
+                if (bc.hasPerRequestFilters()) {
+                    logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
+                }
+                perRequestFilter(r, entry, true, true);
+            } else {
+                trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry.originalMessage);
+            }
+            entryDone(entry.future);
+            return false;
+        }
+        return true;
     }
 
     protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
@@ -1445,29 +1463,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 return this;
             }
 
-            // Re-add yourself
-            if (resources.isEmpty()) {
-                config.getBroadcasterFactory().add(this, name);
-            }
-
-            boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
-            if (!wasResumed && isAtmosphereResourceValid(r)) {
-                logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
-
-                String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
-                if (!backwardCompatible && parentUUID != null && !parentUUID.equals(r.uuid())) {
-                    logger.warn("You are trying to add an AtmosphereResource {} for a WebSocket message. The original AtmosphereResource " +
-                            " {} will be added instead.", r.uuid(), parentUUID);
-                    AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
-                    if (p != null && !resources.contains(p)) {
-                        resources.add(p);
-                    }
-                } else {
-                    resources.add(r);
+            // Only synchronize if we have a valid BroadcasterCache
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
+                // In case we are adding messages to the cache, we need to make sure the operation is done before.
+                synchronized (resources) {
+                    cacheAndSuspend(r);
                 }
-            } else if (!wasResumed) {
-                logger.debug("Unable to add AtmosphereResource {}", r.uuid());
+            } else {
+                cacheAndSuspend(r);
             }
         } finally {
             // OK reset
@@ -1480,12 +1483,42 @@ public class DefaultBroadcaster implements Broadcaster {
         return this;
     }
 
+    /**
+     * Look in the cache to see of there are messages available, and takes the appropriate actions.
+     * @param r AtmosphereResource
+     */
+    protected void cacheAndSuspend(AtmosphereResource r) {
+        if (resources.isEmpty()) {
+            config.getBroadcasterFactory().add(this, name);
+        }
+
+        boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+        if (!wasResumed && isAtmosphereResourceValid(r)) {
+            logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
+
+            String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+            Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
+            if (!backwardCompatible && parentUUID != null && !parentUUID.equals(r.uuid())) {
+                logger.warn("You are trying to add an AtmosphereResource {} for a WebSocket message. The original AtmosphereResource " +
+                        " {} will be added instead.", r.uuid(), parentUUID);
+                AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
+                if (p != null && !resources.contains(p)) {
+                    resources.add(p);
+                }
+            } else {
+                resources.add(r);
+            }
+        } else if (!wasResumed) {
+            logger.debug("Unable to add AtmosphereResource {}", r.uuid());
+        }
+    }
+
+
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
         return !AtmosphereResourceImpl.class.cast(r).isResumed()
                 && !AtmosphereResourceImpl.class.cast(r).isCancelled()
                 && AtmosphereResourceImpl.class.cast(r).isInScope();
     }
-
 
     protected void entryDone(final BroadcasterFuture<?> f) {
         notifyBroadcastListener();
