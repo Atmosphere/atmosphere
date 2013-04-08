@@ -1432,31 +1432,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 return this;
             }
 
-            synchronized (resources) {
-                // Re-add yourself
-                if (resources.isEmpty()) {
-                    config.getBroadcasterFactory().add(this, name);
+            // Only synchronize if we have a valid BroadcasterCache
+            if (!BroadcasterConfig.DefaultBroadcasterCache.class.isAssignableFrom(bc.getBroadcasterCache().getClass())) {
+                // In case we are adding messages to the cache, we need to make sure the operation is done before.
+                synchronized (resources) {
+                    cacheAndSuspend(r);
                 }
-
-                boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
-                if (!wasResumed && isAtmosphereResourceValid(r)) {
-                    logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
-
-                    String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                    Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
-                    if (!backwardCompatible && parentUUID != null) {
-                        AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
-                        if (p != null && !resources.contains(p)) {
-                            resources.add(p);
-                        } else if (p == null) {
-                            resources.add(r);
-                        }
-                    } else {
-                        resources.add(r);
-                    }
-                } else if (!wasResumed) {
-                    logger.debug("Unable to add AtmosphereResource {}", r.uuid());
-                }
+            } else {
+                cacheAndSuspend(r);
             }
         } finally {
             // OK reset
@@ -1468,6 +1451,37 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         return this;
     }
+
+    /**
+     * Look in the cache to see of there are messages available, and takes the appropriate actions.
+     * @param r AtmosphereResource
+     */
+    protected void cacheAndSuspend(AtmosphereResource r) {
+        if (resources.isEmpty()) {
+            config.getBroadcasterFactory().add(this, name);
+        }
+
+        boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+        if (!wasResumed && isAtmosphereResourceValid(r)) {
+            logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
+
+            String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+            Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
+            if (!backwardCompatible && parentUUID != null) {
+                AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
+                if (p != null && !resources.contains(p)) {
+                    resources.add(p);
+                } else if (p == null) {
+                    resources.add(r);
+                }
+            } else {
+                resources.add(r);
+            }
+        } else if (!wasResumed) {
+            logger.debug("Unable to add AtmosphereResource {}", r.uuid());
+        }
+    }
+
 
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
         return !AtmosphereResourceImpl.class.cast(r).isResumed()
