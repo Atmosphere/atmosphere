@@ -36,6 +36,8 @@ import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.Map;
 
+import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
+
 public class JSR356Endpoint extends Endpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);
@@ -87,6 +89,9 @@ public class JSR356Endpoint extends Endpoint {
                     .pathInfo(pathInfo.toString())
                     .queryString(session.getQueryString())
                     .build();
+
+            // TODO: Fix this crazy code.
+            framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "false");
 
             webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
         } catch (Throwable e) {
