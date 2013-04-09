@@ -1940,9 +1940,9 @@ jQuery.atmosphere = function() {
                                             if (!skipCallbackInvocation && !_handleProtocol(rq, _response.responseBody)){
                                                 return "";
                                             }
-                                        }
 
-                                        if (!skipCallbackInvocation) _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
+                                            if (!skipCallbackInvocation) _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
+                                        }
 
                                         rq.lastIndex = 0;
                                     }
