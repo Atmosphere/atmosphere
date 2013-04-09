@@ -74,10 +74,9 @@ public class JSR356Endpoint extends Endpoint {
         headers.put("Connection", "Upgrade");
         headers.put("Upgrade", "websocket");
 
-        // TODO: Construct the pathInfo from the pathParam
-        StringBuffer pathInfo = new StringBuffer();
-        for (Map.Entry<String,String> e : session.getPathParameters().entrySet()) {
-
+        StringBuffer pathInfo = new StringBuffer("/");
+        for (Map.Entry<String, String> e : session.getPathParameters().entrySet()) {
+            pathInfo.append(e.getValue());
         }
 
         try {
@@ -85,7 +84,7 @@ public class JSR356Endpoint extends Endpoint {
                     .requestURI(session.getRequestURI().toString())
                     .headers(headers)
                     .contextPath(framework.getServletContext().getContextPath())
-                    .pathInfo(matchAll)
+                    .pathInfo(pathInfo.toString())
                     .queryString(session.getQueryString())
                     .build();
 
@@ -107,7 +106,7 @@ public class JSR356Endpoint extends Endpoint {
             }
         });
 
-        session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>(){
+        session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
             @Override
             public void onMessage(ByteBuffer bb) {
                 byte[] b = new byte[bb.limit()];
