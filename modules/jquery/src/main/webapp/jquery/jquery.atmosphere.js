@@ -139,6 +139,7 @@ jQuery.atmosphere = function() {
              */
             var _response = {
                 status: 200,
+                reasonPhrase : "OK",
                 responseBody : '',
                 headers : [],
                 state : "messageReceived",
@@ -738,7 +739,7 @@ jQuery.atmosphere = function() {
                         if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
-                            _onError("Error: " + jqXHR.status);
+                            _onError(jqXHR.status, errorThrown);
                         }
                     },
                     jsonp : "jsonpTransport",
@@ -770,7 +771,7 @@ jQuery.atmosphere = function() {
                             }
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
-                            _onError("maxRequest reached");
+                            _onError(0, "maxRequest reached");
                         }
                     },
                     data : rq.data,
@@ -817,7 +818,7 @@ jQuery.atmosphere = function() {
                         if (jqXHR.status < 300) {
                             _reconnect(_jqxhr, rq);
                         } else {
-                            _onError("Error: " + jqXHR.status);
+                            _onError(jqXHR.status, errorThrown);
                         }
                     },
                     success: function(data, textStatus, jqXHR) {
@@ -836,7 +837,7 @@ jQuery.atmosphere = function() {
                             }
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["AJAX reconnect maximum try reached " + _request.requestCount]);
-                            _onError("maxRequest reached");
+                            _onError(0, "maxRequest reached");
                         }
                     },
                     beforeSend : function(jqXHR) {
@@ -924,7 +925,7 @@ jQuery.atmosphere = function() {
                 try {
                      _sse = new EventSource(location, {withCredentials: _request.withCredentials});
                 } catch (e) {
-                    _onError(e);
+                    _onError(0, e);
                     _reconnectWithFallbackTransport("SSE failed. Downgrading to fallback transport and resending");
                     return;
                 }
@@ -999,8 +1000,8 @@ jQuery.atmosphere = function() {
                             }, _request.reconnectInterval);
                             _response.responseBody = "";
                         } else {
-                             jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _requestCount]);
-                                _onError("maxReconnectOnClose reached");
+                            jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _requestCount]);
+                            _onError(0, "maxReconnectOnClose reached");
                         }
                     }
                 };
@@ -1183,7 +1184,7 @@ jQuery.atmosphere = function() {
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["Websocket reconnect maximum try reached " + _request.requestCount]);
                             jQuery.atmosphere.warn("Websocket error, reason: " + message.reason);
-                            _onError("maxReconnectOnClose reached");
+                            _onError(0, "maxReconnectOnClose reached");
                         }
                     }
                 };
@@ -1201,12 +1202,13 @@ jQuery.atmosphere = function() {
                 return true;
             }
 
-            function _onError(message) {
+            function _onError(code, reason) {
                 _clearState();
 
                 _response.state = 'error';
+                _response.reasonPhrase = reason
                 _response.responseBody = "";
-                _response.status = 500 + " Reason: " + message;
+                _response.status = code;
                 _invokeCallback();
             }
 
@@ -1446,7 +1448,7 @@ jQuery.atmosphere = function() {
                             if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
                                 _reconnect(ajaxRequest, rq, true);
                             } else {
-                                _onError("maxReconnectOnClose reached");
+                                _onError(0, "maxReconnectOnClose reached");
                             }
                         };
                     }
@@ -1500,7 +1502,7 @@ jQuery.atmosphere = function() {
                                 if (_requestCount++ < _request.maxReconnectOnClose) {
                                     _reconnect(ajaxRequest, rq, false);
                                 } else {
-                                    _onError("Status code higher than 500 " + ajaxRequest.status);
+                                    _onError(ajaxRequest.status, "maxReconnectOnClose reached");
                                 }
                                 return;
                             }
@@ -1623,7 +1625,7 @@ jQuery.atmosphere = function() {
                     if (rq.logLevel == 'debug') {
                         jQuery.atmosphere.log(rq.logLevel, ["Max re-connection reached."]);
                     }
-                    _onError("maxRequest reached");
+                    _onError(0, "maxRequest reached");
                 }
             }
 
@@ -1946,7 +1948,7 @@ jQuery.atmosphere = function() {
                                         _ieStreaming(rq);
                                     }, rq.reconnectInterval);
                                 } else {
-                                    _onError("maxReconnectOnClose reached");
+                                    _onError(0, "maxReconnectOnClose reached");
                                 }
                                 doc.execCommand("Stop");
                                 doc.close();
