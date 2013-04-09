@@ -1493,7 +1493,6 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
         return !AtmosphereResourceImpl.class.cast(r).isResumed()
                 && !AtmosphereResourceImpl.class.cast(r).isCancelled()
