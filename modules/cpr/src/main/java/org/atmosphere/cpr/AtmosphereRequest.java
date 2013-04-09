@@ -494,10 +494,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * @return this
      */
     public AtmosphereRequest queryString(String queryString) {
+
         // Don't override the builder
-        if (!queryString.isEmpty()) {
-            b.queryString = queryString;
-            QueryStringDecoder decoder = new QueryStringDecoder(getRequestURI() + "?" + queryString);
+        String qs = queryString;
+        if (qs.isEmpty()) {
+            qs = b.queryString;
+        }
+        if (!qs.isEmpty()){
+            QueryStringDecoder decoder = new QueryStringDecoder(getRequestURI() + "?" + qs);
             Map<String, List<String>> m = decoder.getParameters();
             Map<String, String[]> newM = new HashMap<String, String[]>();
             for (Map.Entry<String, List<String>> q : m.entrySet()) {
@@ -866,7 +870,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<Locale> getLocales() {
-        return  isNotNoOps() ? b.request.getLocales() : Collections.enumeration(b.locales);
+        return isNotNoOps() ? b.request.getLocales() : Collections.enumeration(b.locales);
     }
 
     /**
@@ -920,9 +924,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public int getContentLength() {
         if (b.contentLength == null) {
-        	return b.request.getContentLength();
+            return b.request.getContentLength();
         } else {
-        	return b.contentLength.intValue();
+            return b.contentLength.intValue();
         }
     }
 
@@ -1105,10 +1109,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             this.contentType = contentType;
             return this;
         }
-        
+
         public Builder contentLength(Long contentLength) {
-        	this.contentLength = contentLength;
-        	return this;
+            this.contentLength = contentLength;
+            return this;
         }
 
         public Builder body(String data) {
@@ -1158,7 +1162,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
-        public Builder locale(Locale locale){
+        public Builder locale(Locale locale) {
             locales.add(locale);
             return this;
         }
@@ -1584,7 +1588,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         Cookie[] cs = request.getCookies();
         Set<Cookie> hs = new HashSet();
-        for (Cookie c: cs) {
+        for (Cookie c : cs) {
             hs.add(c);
         }
 
