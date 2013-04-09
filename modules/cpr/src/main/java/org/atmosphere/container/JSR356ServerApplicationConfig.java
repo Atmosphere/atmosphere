@@ -33,27 +33,34 @@ public class JSR356ServerApplicationConfig implements ServerApplicationConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356ServerApplicationConfig.class);
 
+    private final AtmosphereConfigurator configurator = new AtmosphereConfigurator();
+
     @Override
     public Set<ServerEndpointConfig> getEndpointConfigs(Set<Class<? extends Endpoint>> endpointClasses) {
         logger.debug("{} detected by the WebServer", JSR356ServerApplicationConfig.class.getName());
         return new HashSet<ServerEndpointConfig>() {{
-            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}").configurator(new ServerEndpointConfig.Configurator() {
-                public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
-                    if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
-                        AtmosphereConfig config = BroadcasterFactory.getDefault().lookup("/*", true).getBroadcasterConfig().getAtmosphereConfig();
-                        AtmosphereFramework f = config.framework();
-                        return (T) new JSR356Endpoint(f, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(f));
-                    } else {
-                        return super.getEndpointInstance(endpointClass);
-                    }
-                }
-
-            }).build());
+            // TODO: Need a way to support wildcard
+            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}").configurator(configurator).build());
+            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path2}").configurator(configurator).build());
+            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path2}/{path3}").configurator(configurator).build());
+            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path2}/{path3}/{path4}").configurator(configurator).build());
         }};
     }
 
     @Override
     public Set<Class<?>> getAnnotatedEndpointClasses(Set<Class<?>> scanned) {
         return Collections.emptySet();
+    }
+
+    public final static class AtmosphereConfigurator extends ServerEndpointConfig.Configurator {
+        public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
+            if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
+                AtmosphereConfig config = BroadcasterFactory.getDefault().lookup("/*", true).getBroadcasterConfig().getAtmosphereConfig();
+                AtmosphereFramework f = config.framework();
+                return (T) new JSR356Endpoint(f, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(f));
+            } else {
+                return super.getEndpointInstance(endpointClass);
+            }
+        }
     }
 }
