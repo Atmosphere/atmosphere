@@ -1257,23 +1257,13 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.onTransportFailure(errorMessage, _request);
                 }
 
-                var r = false;
-                if (_requestCount++ < _request.maxReconnectOnClose) {
-                    r = true;
-                } else if ( _request.maxReconnectOnClose <= 1 && _requestCount == 1) {
-                    r  = true;
-                }
-
                 _request.transport = _request.fallbackTransport;
-                var reconnect = _request.reconnect && r;
-                if (reconnect && _request.transport != 'none' || _request.transport == null) {
+                if (_request.reconnect && _request.transport != 'none' || _request.transport == null) {
                     _request.method = _request.fallbackMethod;
                     _response.transport = _request.fallbackTransport;
                     _request.id = setTimeout(function() {
                         _execute();
                     }, _request.reconnectInterval);
-                } else if (!reconnect) {
-                    _onError("maxReconnectOnClose reached");
                 }
             }
 
@@ -1477,7 +1467,11 @@ jQuery.atmosphere = function() {
 
                             // MSIE status can be higher than 1000, Chrome can be 0
                             if (ajaxRequest.status >= 500 || ajaxRequest.status == 0) {
-                                _onError("Status code higher than 500 " + ajaxRequest.status);
+                                if (_requestCount++ < _request.maxReconnectOnClose) {
+                                    _reconnect(ajaxRequest, rq, false);
+                                } else {
+                                    _onError("Status code higher than 500 " + ajaxRequest.status);
+                                }
                                 return;
                             }
 
@@ -1683,25 +1677,13 @@ jQuery.atmosphere = function() {
             }
 
             function _reconnect(ajaxRequest, request, force) {
-
-                var r = false;
-                if (_requestCount++ < request.maxReconnectOnClose) {
-                    r = true;
-                } else if ( request.maxReconnectOnClose <=1 && _requestCount == 1) {
-                    r = true;
-                }
-
-                var reconnect = request.reconnect && r;
-
-                if (reconnect && force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
+                if (request.reconnect && force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
                         _open('re-opening', request.transport, request);
                         request.id = setTimeout(function() {
                             _executeRequest();
                         }, request.reconnectInterval);
                     }
-                } else if (!reconnect) {
-                    _onError("maxReconnectOnClose reached");
                 }
             }
 
