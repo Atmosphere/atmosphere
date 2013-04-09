@@ -79,18 +79,23 @@ public class JSR356Endpoint extends Endpoint {
         }
 
         try {
+
             request = new AtmosphereRequest.Builder()
                     .requestURI(session.getRequestURI().toString())
                     .headers(headers)
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo.toString())
-                    .queryString(session.getQueryString())
-                    .build();
+                    .build()
+                    .queryString(session.getQueryString());
+
 
             // TODO: Fix this crazy code.
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "false");
 
             webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+
+            framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
+
         } catch (Throwable e) {
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
