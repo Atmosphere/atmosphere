@@ -1469,8 +1469,9 @@ jQuery.atmosphere = function() {
 
                         if (update) {
                             // MSIE status can be higher than 1000, Chrome can be 0
-                            if (ajaxRequest.status >= 500 || ajaxRequest.status == 0) {
-                                if (_requestCount++ < _request.maxReconnectOnClose) {
+                            if (ajaxRequest.status >= 300 || ajaxRequest.status == 0) {
+                                // Allow recovering from cached content.
+                                if (ajaxRequest.status < 400 && _requestCount++ < _request.maxReconnectOnClose) {
                                     _reconnect(ajaxRequest, rq, false);
                                 } else {
                                     _onError(ajaxRequest.status, "maxReconnectOnClose reached");
@@ -1681,7 +1682,7 @@ jQuery.atmosphere = function() {
             }
 
             function _reconnect(ajaxRequest, request, force) {
-                if (request.reconnect && force || (request.suspend && ajaxRequest.status == 200 && request.transport != 'streaming' && _subscribed)) {
+                if (request.reconnect && force || (request.suspend && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
                         _open('re-opening', request.transport, request);
                         request.id = setTimeout(function() {
