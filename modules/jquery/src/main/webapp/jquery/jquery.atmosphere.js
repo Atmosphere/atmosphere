@@ -146,6 +146,7 @@ jQuery.atmosphere = function() {
                 error: null,
                 request : null,
                 partialMessage : "",
+                errorHandled: false,
                 id : 0
             };
 
@@ -1406,27 +1407,28 @@ jQuery.atmosphere = function() {
                         _response.transport = rq.transport;
                     }
 
-                    if (!jQuery.browser.msie) {
-                        ajaxRequest.onerror = function() {
-                            _response.error = true;
-                            try {
-                                _response.status = XMLHttpRequest.status;
-                            } catch(e) {
-                                _response.status = 500;
-                            }
+                    ajaxRequest.onerror = function() {
+                        _response.error = true;
+                        try {
+                            _response.status = XMLHttpRequest.status;
+                        } catch(e) {
+                            _response.status = 500;
+                        }
 
-                            if (!_response.status) {
-                                _response.status = 500;
-                            }
-                            _clearState();
+                        if (!_response.status) {
+                            _response.status = 500;
+                        }
+                        _clearState();
 
+                        if (!_response.errorHandled) {
                             if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
                                 _reconnect(ajaxRequest, rq, true);
                             } else {
                                 _onError(0, "maxReconnectOnClose reached");
                             }
-                        };
-                    }
+                        }
+                        _response.errorHandled = true;
+                    };
 
                     ajaxRequest.onreadystatechange = function() {
                         if (_abordingConnection) {
@@ -1473,6 +1475,10 @@ jQuery.atmosphere = function() {
 
                                 var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
                                 // Allow recovering from cached content.
+                                clearTimeout(rq.id);
+
+                                // Prevent onerror callback to be called
+                                _response.errorHandled = true;
                                 if (status < 400 && _requestCount++ < _request.maxReconnectOnClose) {
                                     _reconnect(ajaxRequest, rq, false);
                                 } else {
