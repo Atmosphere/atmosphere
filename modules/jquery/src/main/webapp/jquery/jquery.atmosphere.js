@@ -689,7 +689,6 @@ jQuery.atmosphere = function() {
                     _response.request = request;
                     var prevState = _response.state;
                     _response.state = state;
-                    _response.status = 200;
                     var prevTransport = _response.transport;
                     _response.transport = transport;
 
