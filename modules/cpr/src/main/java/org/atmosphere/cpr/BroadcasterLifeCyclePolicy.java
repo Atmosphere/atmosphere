@@ -28,6 +28,7 @@ public class BroadcasterLifeCyclePolicy {
 
     public final static BroadcasterLifeCyclePolicy IDLE = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.IDLE);
     public final static BroadcasterLifeCyclePolicy IDLE_DESTROY = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY);
+    public final static BroadcasterLifeCyclePolicy IDLE_RESUME = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME);
     public final static BroadcasterLifeCyclePolicy EMPTY = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.EMPTY);
     public final static BroadcasterLifeCyclePolicy EMPTY_DESTROY = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY);
     public final static BroadcasterLifeCyclePolicy NEVER = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.NEVER);
