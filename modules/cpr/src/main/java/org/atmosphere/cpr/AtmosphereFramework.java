@@ -106,6 +106,7 @@ import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
 import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 
@@ -939,6 +940,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                 @Override
                 public void onRequest(AtmosphereResource r) throws IOException {
                     logger.debug("No AtmosphereHandler defined.");
+                    if (!r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
+                        r.getResponse().sendError(501, X_ATMOSPHERE_ERROR);
+                    }
                 }
 
                 @Override
