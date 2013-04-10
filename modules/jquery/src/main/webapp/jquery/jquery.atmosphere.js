@@ -1500,13 +1500,15 @@ jQuery.atmosphere = function() {
 
                             if (responseText.length == 0) return;
 
-                            // MSIE status can be higher than 1000, Chrome can be 0
+                            // MSIE 9 and lower status can be higher than 1000, Chrome can be 0
                             if (ajaxRequest.status >= 300 || ajaxRequest.status == 0) {
+
+                                var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
                                 // Allow recovering from cached content.
-                                if (ajaxRequest.status < 400 && _requestCount++ < _request.maxReconnectOnClose) {
+                                if (status < 400 && _requestCount++ < _request.maxReconnectOnClose) {
                                     _reconnect(ajaxRequest, rq, false);
                                 } else {
-                                    _onError(ajaxRequest.status, "maxReconnectOnClose reached");
+                                    _onError(status, "maxReconnectOnClose reached");
                                 }
                                 return;
                             }
@@ -1696,6 +1698,9 @@ jQuery.atmosphere = function() {
             function _reconnect(ajaxRequest, request, force) {
                 if (request.reconnect && force || (request.suspend && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
+                        var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
+                        _response.status = status == 0 ? 204 : status;
+                        _response.reason = status == 0 ? "Server resumed the connection or down." : "OK";
                         request.id = setTimeout(function() {
                             request.isReopen = true;
                             _executeRequest(request);
