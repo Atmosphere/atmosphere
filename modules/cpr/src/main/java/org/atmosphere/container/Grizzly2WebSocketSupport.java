@@ -23,7 +23,6 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.glassfish.grizzly.filterchain.Filter;
 import org.glassfish.grizzly.filterchain.FilterChain;
 import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.http.server.HttpServerFilter;
@@ -52,7 +51,6 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Iterator;
 
 public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
 
@@ -231,8 +229,8 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
                 servletResponse = HttpServletResponseImpl.create();
                 try {
                     WebappContext context = (WebappContext) config.getServletContext();
-                    servletRequest.initialize(req, context);
-                    servletResponse.initialize(res);
+                    servletRequest.initialize(req, servletResponse, context);
+                    servletResponse.initialize(res, servletRequest);
                     mapRequest(context, request, servletRequest);
                 } catch (IOException e) {
                     throw new WebSocketException("Unable to initialize WebSocket instance", e);
@@ -247,11 +245,9 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
              * @return null or the found HttpServerFilter
              */
             private HttpServerFilter getHttpServerFilterFromChain(FilterChain filterChain) {
-                Iterator<Filter> filterIterator = filterChain.iterator();
-                while(filterIterator.hasNext()) {
-                    Filter candidate = filterIterator.next();
-                    if(candidate instanceof HttpServerFilter) {
-                        return (HttpServerFilter)candidate;
+                for (Object candidate : filterChain) {
+                    if (candidate instanceof HttpServerFilter) {
+                        return (HttpServerFilter) candidate;
                     }
                 }
                 return null;
