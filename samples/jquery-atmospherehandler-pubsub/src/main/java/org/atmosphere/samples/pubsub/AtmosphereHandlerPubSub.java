@@ -16,24 +16,31 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.config.service.AtmosphereHandlerService;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 
 import java.io.IOException;
 
+import static org.atmosphere.cpr.HeaderConfig.JSONP_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
  * Atmosphere JQuery Plugin and AtmosphereHandler extension.  You can compare that implementation
  * with the MeteorPubSub and the JQueryPubsub sample
- *
- * This sample support out of the box WebSocket, Long-Polling and Streaming
+ * <br/>
+ * This sample support out of the box WebSocket, JSONP, Long-Polling and Streaming
+ * <br/>
+ * This sample is for demonstration purpose only. It is recommended to install the
+ * {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor} and
+ * {@link org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor} to
+ * significantly reduce the complexity of the code.
  *
  * @author Jeanfrancois Arcand
  */
@@ -57,8 +64,10 @@ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler 
             Broadcaster b = lookupBroadcaster(req.getPathInfo());
             r.setBroadcaster(b);
 
-            if (req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
-                req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, Boolean.TRUE);
+            // All of  this logic can be transparently done using the AtmosphereResourceLifecycleInterceptor
+            if (req.getHeader(X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(LONG_POLLING_TRANSPORT)
+                    || req.getHeader(X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(JSONP_TRANSPORT)) {
+                r.resumeOnBroadcast(true);
                 r.suspend(-1, false);
             } else {
                 r.suspend(-1);
@@ -66,8 +75,8 @@ public class AtmosphereHandlerPubSub extends AbstractReflectorAtmosphereHandler 
         } else if ("POST".equalsIgnoreCase(method)) {
             Broadcaster b = lookupBroadcaster(req.getPathInfo());
 
+            // All of  this logic can be transparently done using the BroadcastOnPostAtmosphereInterceptor
             String message = req.getReader().readLine();
-
             if (message != null && message.indexOf("message") != -1) {
                 b.broadcast(message.substring("message=".length()));
             }

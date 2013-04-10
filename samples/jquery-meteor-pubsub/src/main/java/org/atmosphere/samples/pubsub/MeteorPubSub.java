@@ -16,10 +16,8 @@
 package org.atmosphere.samples.pubsub;
 
 import org.atmosphere.config.service.MeteorService;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.Meteor;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 
@@ -27,6 +25,10 @@ import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
+
+import static org.atmosphere.cpr.HeaderConfig.JSONP_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
@@ -50,10 +52,11 @@ public class MeteorPubSub extends HttpServlet {
         Broadcaster b = lookupBroadcaster(req.getPathInfo());
         m.setBroadcaster(b);
 
-        String header = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (header != null && header.equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
-            req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, Boolean.TRUE);
-            m.suspend(-1, false);
+        // All of  this logic can be transparently done using the AtmosphereResourceLifecycleInterceptor
+        String header = req.getHeader(X_ATMOSPHERE_TRANSPORT);
+        if (header != null && header.equalsIgnoreCase(LONG_POLLING_TRANSPORT)
+                || header.equalsIgnoreCase(JSONP_TRANSPORT)) {
+            m.resumeOnBroadcast(true).suspend(-1, false);
         } else {
             m.suspend(-1);
         }
@@ -63,8 +66,9 @@ public class MeteorPubSub extends HttpServlet {
     public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
         Broadcaster b = lookupBroadcaster(req.getPathInfo());
 
+        // All of  this logic can be transparently done using the BroadcastOnPostAtmosphereInterceptor.
+        // For demonstration purpose only.
         String message = req.getReader().readLine();
-
         if (message != null && message.indexOf("message") != -1) {
             b.broadcast(message.substring("message=".length()));
         }
