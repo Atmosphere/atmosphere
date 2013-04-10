@@ -230,6 +230,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     try {
                         Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) loadClass(className);
                         framework.setBroadcasterFactory(bf.newInstance());
+                        framework.configureBroadcasterFactory();
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }

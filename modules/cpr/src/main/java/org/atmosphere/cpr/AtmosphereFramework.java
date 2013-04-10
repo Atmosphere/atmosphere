@@ -554,6 +554,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             doInitParamsForWebSocket(scFacade);
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
+            configureBroadcasterFactory();
             configureScanningPackage(scFacade);
             installAnnotationProcessor(scFacade);
 
