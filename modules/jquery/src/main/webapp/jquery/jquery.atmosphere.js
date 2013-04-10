@@ -1465,8 +1465,6 @@ jQuery.atmosphere = function() {
                         }
 
                         if (update) {
-                            var responseText = ajaxRequest.responseText;
-
                             // MSIE status can be higher than 1000, Chrome can be 0
                             if (ajaxRequest.status >= 500 || ajaxRequest.status == 0) {
                                 if (_requestCount++ < _request.maxReconnectOnClose) {
@@ -1476,6 +1474,7 @@ jQuery.atmosphere = function() {
                                 }
                                 return;
                             }
+                            var responseText = jQuery.trim(ajaxRequest.responseText);
 
                             _readHeaders(ajaxRequest, _request);
 
