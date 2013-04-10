@@ -1684,6 +1684,7 @@ jQuery.atmosphere = function() {
             function _reconnect(ajaxRequest, request, force) {
                 if (request.reconnect && force || (request.suspend && request.transport != 'streaming' && _subscribed)) {
                     if (request.reconnect) {
+                        _response.status = ajaxRequest.status;
                         _open('re-opening', request.transport, request);
                         request.id = setTimeout(function() {
                             _executeRequest();
