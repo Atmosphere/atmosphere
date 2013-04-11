@@ -23,34 +23,17 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.glassfish.grizzly.filterchain.FilterChain;
 import org.glassfish.grizzly.http.HttpRequestPacket;
-import org.glassfish.grizzly.http.server.HttpServerFilter;
-import org.glassfish.grizzly.http.server.Request;
-import org.glassfish.grizzly.http.server.Response;
-import org.glassfish.grizzly.http.server.util.DispatcherHelper;
-import org.glassfish.grizzly.http.server.util.MappingData;
-import org.glassfish.grizzly.http.util.DataChunk;
-import org.glassfish.grizzly.servlet.HttpServletRequestImpl;
-import org.glassfish.grizzly.servlet.HttpServletResponseImpl;
-import org.glassfish.grizzly.servlet.WebappContext;
 import org.glassfish.grizzly.websockets.DataFrame;
 import org.glassfish.grizzly.websockets.DefaultWebSocket;
-import org.glassfish.grizzly.websockets.ProtocolHandler;
 import org.glassfish.grizzly.websockets.WebSocket;
 import org.glassfish.grizzly.websockets.WebSocketApplication;
 import org.glassfish.grizzly.websockets.WebSocketEngine;
-import org.glassfish.grizzly.websockets.WebSocketException;
-import org.glassfish.grizzly.websockets.WebSocketListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 
 public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
 
@@ -126,17 +109,14 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
             return request.getRequestURI().startsWith(contextPath);
         }
 
-        @Override
-        public WebSocket createSocket(ProtocolHandler handler, HttpRequestPacket requestPacket, WebSocketListener... listeners) {
-            return new G2WebSocket(handler, requestPacket, listeners);
-        }
+
 
         @Override
         public void onClose(WebSocket socket, DataFrame frame) {
             super.onClose(socket, frame);
             LOGGER.trace("onClose {} ", socket);
-            G2WebSocket g2w = G2WebSocket.class.cast(socket);
-            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getRequest().getAttribute("grizzly.webSocket");
+            DefaultWebSocket g2w = DefaultWebSocket.class.cast(socket);
+            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getUpgradeRequest().getAttribute("grizzly.webSocket");
             if (webSocket != null) {
                 webSocketProcessor.close(webSocket, 1000);
             }
@@ -147,16 +127,16 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
             super.onConnect(socket);
             LOGGER.trace("onConnect {} ", socket);
 
-            if (!G2WebSocket.class.isAssignableFrom(socket.getClass())) {
+            if (!DefaultWebSocket.class.isAssignableFrom(socket.getClass())) {
                 throw new IllegalStateException();
             }
 
-            G2WebSocket g2WebSocket = G2WebSocket.class.cast(socket);
+            DefaultWebSocket g2WebSocket = DefaultWebSocket.class.cast(socket);
             try {
 
-                AtmosphereRequest r = AtmosphereRequest.wrap(g2WebSocket.getRequest());
+                AtmosphereRequest r = AtmosphereRequest.wrap(g2WebSocket.getUpgradeRequest());
                 org.atmosphere.websocket.WebSocket webSocket = new Grizzly2WebSocket(g2WebSocket, config);
-                g2WebSocket.getRequest().setAttribute("grizzly.webSocket", webSocket);
+                g2WebSocket.getUpgradeRequest().setAttribute("grizzly.webSocket", webSocket);
                 webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
             } catch (Exception e) {
                 LOGGER.warn("failed to connect to web socket", e);
@@ -167,8 +147,8 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
         public void onMessage(WebSocket socket, String text) {
             super.onMessage(socket, text);
             LOGGER.trace("onMessage(String) {} ", socket);
-            G2WebSocket g2w = G2WebSocket.class.cast(socket);
-            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getRequest().getAttribute("grizzly.webSocket");
+            DefaultWebSocket g2w = DefaultWebSocket.class.cast(socket);
+            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getUpgradeRequest().getAttribute("grizzly.webSocket");
             if (webSocket != null) {
                 webSocketProcessor.invokeWebSocketProtocol(webSocket, text);
             }
@@ -178,8 +158,8 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
         public void onMessage(WebSocket socket, byte[] bytes) {
             super.onMessage(socket, bytes);
             LOGGER.trace("onMessage(byte[]) {} ", socket);
-            G2WebSocket g2w = G2WebSocket.class.cast(socket);
-            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getRequest().getAttribute("grizzly.webSocket");
+            DefaultWebSocket g2w = DefaultWebSocket.class.cast(socket);
+            org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getUpgradeRequest().getAttribute("grizzly.webSocket");
             if (webSocket != null) {
                 webSocketProcessor.invokeWebSocketProtocol(webSocket, bytes, 0, bytes.length);
             }
@@ -204,92 +184,6 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
         public void onFragment(WebSocket socket, byte[] fragment, boolean last) {
             LOGGER.trace("onFragment(byte) {} ", socket);
         }
-
-        // ---------------------------------------------------------- Nested Classes
-
-
-        private final class G2WebSocket extends DefaultWebSocket {
-
-            private final HttpServletRequestImpl servletRequest;
-            private final HttpServletResponseImpl servletResponse;
-
-
-            // -------------------------------------------------------- Constructors
-
-
-            public G2WebSocket(ProtocolHandler protocolHandler,
-                               HttpRequestPacket request,
-                               WebSocketListener... listeners) {
-                super(protocolHandler, request, listeners);
-                Request req = Request.create();
-                Response res = req.getResponse();
-                req.initialize(request, protocolHandler.getFilterChainContext(), getHttpServerFilterFromChain(protocolHandler.getFilterChainContext().getFilterChain()));
-                res.initialize(req, request.getResponse(), protocolHandler.getFilterChainContext(), null, null);
-                servletRequest = HttpServletRequestImpl.create();
-                servletResponse = HttpServletResponseImpl.create();
-                try {
-                    WebappContext context = (WebappContext) config.getServletContext();
-                    servletRequest.initialize(req, servletResponse, context);
-                    servletResponse.initialize(res, servletRequest);
-                    mapRequest(context, request, servletRequest);
-                } catch (IOException e) {
-                    throw new WebSocketException("Unable to initialize WebSocket instance", e);
-                }
-
-            }
-
-
-            /**
-             * Find the HttpServerFilter in the FilterChain.
-             * @param filterChain the FilterChain to search for the HttpServerFilter
-             * @return null or the found HttpServerFilter
-             */
-            private HttpServerFilter getHttpServerFilterFromChain(FilterChain filterChain) {
-                for (Object candidate : filterChain) {
-                    if (candidate instanceof HttpServerFilter) {
-                        return (HttpServerFilter) candidate;
-                    }
-                }
-                return null;
-            }
-
-
-            // -------------------------------------------------- Public Methods
-
-
-            public HttpServletRequest getRequest() {
-                return servletRequest;
-            }
-
-            public HttpServletResponse getResponse() {
-                return servletResponse;
-            }
-
-
-            // ------------------------------------------------- Private Methods
-
-            /*
-             * Hold your nose!
-             */
-            private void mapRequest(WebappContext ctx, HttpRequestPacket request, HttpServletRequestImpl servletRequest) {
-                try {
-                    Field dispatcher = WebappContext.class.getDeclaredField("dispatcherHelper");
-                    dispatcher.setAccessible(true);
-                    MappingData data = new MappingData();
-                    DispatcherHelper helper = (DispatcherHelper) dispatcher.get(ctx);
-                    DataChunk host = DataChunk.newInstance();
-                    host.setString(request.getHeader("host"));
-                    helper.mapPath(host, request.getRequestURIRef().getDecodedRequestURIBC(), data);
-                    servletRequest.setServletPath(data.wrapperPath.toString());
-                    Method m = HttpServletRequestImpl.class.getDeclaredMethod("setPathInfo", String.class);
-                    m.setAccessible(true);
-                    m.invoke(servletRequest, data.pathInfo.toString());
-                } catch (Exception e) {
-                    throw new RuntimeException(e);
-                }
-            }
-
-        } // END G2WebSocket
 
     } // END Grizzly2WebSocketApplication
 
