@@ -1683,11 +1683,11 @@ jQuery.atmosphere = function() {
                     if (request.trackMessageLength) {
                         ajaxRequest.setRequestHeader("X-Atmosphere-TrackMessageSize", "true")
                     }
-
-                    if (request.contentType != '') {
-                        ajaxRequest.setRequestHeader("Content-Type", request.contentType);
-                    }
                     ajaxRequest.setRequestHeader("X-Atmosphere-tracking-id", request.uuid);
+                }
+
+                if (request.contentType != '') {
+                    ajaxRequest.setRequestHeader("Content-Type", request.contentType);
                 }
 
                 jQuery.each(request.headers, function(name, value) {
