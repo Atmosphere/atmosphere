@@ -746,34 +746,35 @@ jQuery.atmosphere = function() {
                     },
                     jsonp : "jsonpTransport",
                     success: function(json) {
+                        if (rq.reconnect) {
+                            if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
+                                _readHeaders(_jqxhr, rq);
 
-                        if (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
-                            _readHeaders(_jqxhr, rq);
-
-                            if (!rq.executeCallbackBeforeReconnect) {
-                                _reconnect(_jqxhr, rq);
-                            }
-
-                            var msg = json.message;
-                            if (msg != null && typeof msg != 'string') {
-                                try {
-                                    msg = jQuery.stringifyJSON(msg);
-                                } catch (err) {
-                                    // The message was partial
+                                if (!rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(_jqxhr, rq);
                                 }
-                            }
 
-                            var skipCallbackInvocation = _trackMessageSize(msg, rq, _response);
-                            if (!skipCallbackInvocation) {
-                                _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
-                            }
+                                var msg = json.message;
+                                if (msg != null && typeof msg != 'string') {
+                                    try {
+                                        msg = jQuery.stringifyJSON(msg);
+                                    } catch (err) {
+                                        // The message was partial
+                                    }
+                                }
 
-                            if (rq.executeCallbackBeforeReconnect) {
-                                _reconnect(_jqxhr, rq);
+                                var skipCallbackInvocation = _trackMessageSize(msg, rq, _response);
+                                if (!skipCallbackInvocation) {
+                                    _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
+                                }
+
+                                if (rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(_jqxhr, rq);
+                                }
+                            } else {
+                                jQuery.atmosphere.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
+                                _onError(0, "maxRequest reached");
                             }
-                        } else {
-                            jQuery.atmosphere.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
-                            _onError(0, "maxRequest reached");
                         }
                     },
                     data : rq.data,
@@ -825,21 +826,23 @@ jQuery.atmosphere = function() {
                     },
                     success: function(data, textStatus, jqXHR) {
 
-                        if (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
-                            if (!rq.executeCallbackBeforeReconnect) {
-                                _reconnect(_jqxhr, rq);
-                            }
-                            var skipCallbackInvocation = _trackMessageSize(data, rq, _response);
-                            if (!skipCallbackInvocation) {
-                                _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
-                            }
+                        if (rq.reconnect) {
+                            if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
+                                if (!rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(_jqxhr, rq);
+                                }
+                                var skipCallbackInvocation = _trackMessageSize(data, rq, _response);
+                                if (!skipCallbackInvocation) {
+                                    _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
+                                }
 
-                            if (rq.executeCallbackBeforeReconnect) {
-                                _reconnect(_jqxhr, rq);
+                                if (rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(_jqxhr, rq);
+                                }
+                            } else {
+                                jQuery.atmosphere.log(_request.logLevel, ["AJAX reconnect maximum try reached " + _request.requestCount]);
+                                _onError(0, "maxRequest reached");
                             }
-                        } else {
-                            jQuery.atmosphere.log(_request.logLevel, ["AJAX reconnect maximum try reached " + _request.requestCount]);
-                            _onError(0, "maxRequest reached");
                         }
                     },
                     beforeSend : function(jqXHR) {
@@ -1513,7 +1516,7 @@ jQuery.atmosphere = function() {
                                 // Prevent onerror callback to be called
                                 _response.errorHandled = true;
                                 if (status < 400 && _requestCount++ < _request.maxReconnectOnClose) {
-                                    _reconnect(ajaxRequest, rq, false);
+                                    _reconnect(ajaxRequest, rq, true);
                                 } else {
                                     _onError(status, "maxReconnectOnClose reached");
                                 }
@@ -1559,10 +1562,15 @@ jQuery.atmosphere = function() {
                                                 _invokeCallback();
                                             }
                                             if ((rq.transport == 'streaming') && (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
-                                                // Close and reopen connection on large data received
-                                                _clearState()
                                                 rq.isReopen = true;
-                                                _executeRequest(rq);
+                                                _response.partialMessage = "";
+                                                if (rq.enableProtocol) {
+                                                    var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.uuid;
+                                                    var url = rq.url.replace(/([?&])_=[^&]*/, query);
+                                                    url = url + (url === rq.url ? (/\?/.test(rq.url) ? "&" : "?") + query : "");
+                                                    jQuery.ajax({url: url, async:false});
+                                                }
+                                                _clearState();
                                             }
                                         }
                                     }, 0);
@@ -1609,9 +1617,17 @@ jQuery.atmosphere = function() {
 
                             if ((rq.transport == 'streaming') && (responseText.length > rq.maxStreamingLength)) {
                                 // Close and reopen connection on large data received
-                                _clearState();
                                 rq.isReopen = true;
-                                _executeRequest(rq);
+                                setTimeout(function () {
+                                    _response.partialMessage = "";
+                                    if (rq.enableProtocol) {
+                                        var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.uuid;
+                                        var url = rq.url.replace(/([?&])_=[^&]*/, query);
+                                        url = url + (url === rq.url ? (/\?/.test(rq.url) ? "&" : "?") + query : "");
+                                        jQuery.ajax({url: url, async:false});
+                                    }
+                                    _clearState();
+                                }, rq.reconnectInterval)
                             }
                         }
                     };
@@ -1699,8 +1715,8 @@ jQuery.atmosphere = function() {
             }
 
             function _reconnect(ajaxRequest, request, force) {
-                if (request.reconnect && force || (request.suspend && request.transport != 'streaming' && _subscribed)) {
-                    if (request.reconnect) {
+                if (force || request.transport != 'streaming') {
+                    if ( request.reconnect || (request.suspend && _subscribed)) {
                         var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
                         _response.status = status == 0 ? 204 : status;
                         _response.reason = status == 0 ? "Server resumed the connection or down." : "OK";
@@ -2367,6 +2383,12 @@ jQuery.atmosphere = function() {
                 }
             }
 
+            function _closeUrl(rq) {
+                var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID();
+                var url = rq.getUrl().replace(/([?&])_=[^&]*/, query);
+                return url + (url === rq.getUrl() ? (/\?/.test(rq.getUrl()) ? "&" : "?") + query : "");
+            };
+
             this.subscribe = function(options) {
                 _subscribe(options);
                 _execute();
@@ -2460,12 +2482,6 @@ jQuery.atmosphere = function() {
             }
             jQuery.atmosphere.requests = [];
             jQuery.atmosphere.callbacks = [];
-        },
-
-        _closeUrl : function(rq) {
-            var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID();
-            var url = rq.getUrl().replace(/([?&])_=[^&]*/, query);
-            return url + (url === rq.getUrl() ? (/\?/.test(rq.getUrl()) ? "&" : "?") + query : "");
         },
 
         unsubscribeUrl: function(url) {
