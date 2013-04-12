@@ -2379,12 +2379,6 @@ jQuery.atmosphere = function() {
                 if (_localStorageService != null) {
                     _localStorageService.close();
                 }
-            }
-
-            function _closeUrl(rq) {
-                var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID();
-                var url = rq.getUrl().replace(/([?&])_=[^&]*/, query);
-                return url + (url === rq.getUrl() ? (/\?/.test(rq.getUrl()) ? "&" : "?") + query : "");
             };
 
             this.subscribe = function(options) {
@@ -2472,6 +2466,12 @@ jQuery.atmosphere = function() {
             }
             jQuery.atmosphere.requests = [];
             jQuery.atmosphere.callbacks = [];
+        },
+
+        _closeUrl : function(rq) {
+            var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + rq.getUUID();
+            var url = rq.getUrl().replace(/([?&])_=[^&]*/, query);
+            return url + (url === rq.getUrl() ? (/\?/.test(rq.getUrl()) ? "&" : "?") + query : "");
         },
 
         unsubscribeUrl: function(url) {
