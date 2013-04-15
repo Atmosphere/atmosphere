@@ -1550,7 +1550,14 @@ public class DefaultBroadcaster implements Broadcaster {
             return this;
         }
 
-        logger.trace("Removing AtmosphereResource {}", r.uuid());
+        boolean removed;
+        synchronized(resources) {
+            removed = resources.remove(r);
+        }
+
+        if (!removed) return this;
+
+        logger.trace("Removing AtmosphereResource {} for Broadcaster {}", r.uuid(), name);
         writeQueues.remove(r.uuid());
 
         // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
@@ -1563,7 +1570,6 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
-        resources.remove(r);
         if (resources.isEmpty()) {
             notifyEmptyListener();
             if (scope != SCOPE.REQUEST && lifeCyclePolicy.getLifeCyclePolicy() == EMPTY) {
