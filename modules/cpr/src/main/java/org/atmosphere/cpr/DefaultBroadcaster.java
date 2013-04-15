@@ -955,6 +955,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
         } else {
+            logger.warn("Request is not longer valid {}", r.uuid());
             // The resource is no longer valid.
             removeAtmosphereResource(r);
             config.getBroadcasterFactory().removeAllAtmosphereResource(r);
@@ -1428,7 +1429,6 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     @Override
     public Broadcaster addAtmosphereResource(AtmosphereResource r) {
-
         try {
             if (destroyed.get()) {
                 logger.debug(DESTROYED, getID(), "addAtmosphereResource(AtmosphereResource r");
@@ -1550,6 +1550,7 @@ public class DefaultBroadcaster implements Broadcaster {
             return this;
         }
 
+        logger.trace("Removing AtmosphereResource {}", r.uuid());
         writeQueues.remove(r.uuid());
 
         // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
