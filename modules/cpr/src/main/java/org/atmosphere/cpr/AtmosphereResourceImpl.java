@@ -281,6 +281,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public AtmosphereResource resume() {
         try {
             if (!isResumed.getAndSet(true) && isInScope) {
+                logger.trace("AtmosphereResource {} is resuming", uuid());
+
                 action.type(Action.TYPE.RESUME);
 
                 // We need it as Jetty doesn't support timeout
