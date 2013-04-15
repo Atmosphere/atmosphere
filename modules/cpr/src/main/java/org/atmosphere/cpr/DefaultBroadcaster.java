@@ -898,6 +898,7 @@ public class DefaultBroadcaster implements Broadcaster {
             writeQueue.queue.put(w);
             synchronized (writeQueue) {
                 if (!writeQueue.monitored.getAndSet(true)) {
+                    logger.trace("Broadcaster {} is about to queueWriteIO for AtmosphereResource {}", name, r.uuid());
                     bc.getAsyncWriteService().submit(getAsyncWriteHandler(writeQueue));
                 }
             }
