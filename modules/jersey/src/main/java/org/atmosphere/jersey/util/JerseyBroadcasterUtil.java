@@ -125,6 +125,7 @@ public final class JerseyBroadcasterUtil {
                 }
             } catch (Throwable t) {
                 boolean notifyAndCache = true;
+                logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster {}", r.uuid(), broadcaster.getID());
                 for (StackTraceElement element : t.getStackTrace()) {
                     if (element.getClassName().equals("java.io.BufferedWriter")
                             && element.getMethodName().equals("flush")) {
