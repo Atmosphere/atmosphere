@@ -94,7 +94,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtmosphereResourceEventImpl event;
     private AtomicBoolean isResumed = new AtomicBoolean();
     private AtomicBoolean isCancelled = new AtomicBoolean();
-    private AtomicBoolean resumeOnBroadcast = new AtomicBoolean();;
+    private AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
     private Object writeOnTimeout = null;
     private boolean disableSuspend = false;
     private final AtomicBoolean disconnected = new AtomicBoolean();
@@ -237,7 +237,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public boolean resumeOnBroadcast() {
-        return resumeOnBroadcast.get();
+        boolean rob = resumeOnBroadcast.get();
+        if (!rob) {
+            Boolean b = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+            return b ==  null ? false : b;
+        }
+        return rob;
     }
 
     /**
