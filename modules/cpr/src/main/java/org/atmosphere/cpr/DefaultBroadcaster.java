@@ -626,6 +626,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                     synchronized (token.resource) {
                         try {
+                            logger.trace("About to write to {}", token.resource);
                             executeAsyncWrite(token);
                         } catch (Throwable ex) {
                             if (!started.get() || destroyed.get()) {
@@ -757,7 +758,7 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.originalMessage = (entry.originalMessage != entry.message ? callable(entry.originalMessage) : finalMsg);
 
         if (entry.originalMessage == null) {
-            logger.debug("Broascast message was null {}", prevM);
+            logger.trace("Broadcast message was null {}", prevM);
             entryDone(entry.future);
             return;
         }
@@ -876,6 +877,7 @@ public class DefaultBroadcaster implements Broadcaster {
         // Without synchronizing we may end up with a out of order BroadcasterCache queue.
         if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
             if (r.isResumed() || r.isCancelled()) {
+                logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), finalMsg);
                 // https://github.com/Atmosphere/atmosphere/issues/864
                 // FIX ME IN 1.1 -- For legacy, we need to leave the logic here
                 if (!uuidCache) {
@@ -985,6 +987,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
+                logger.trace("AtmosphereResource {} state is invalid for Broadcaster {}", r.uuid(), name);
                 removeAtmosphereResource(r);
                 lostCandidate = true;
                 return;
