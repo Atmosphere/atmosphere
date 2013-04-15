@@ -806,6 +806,13 @@ public class DefaultBroadcaster implements Broadcaster {
         // We cache first, and if the broadcast succeed, we will remove it.
 
         try {
+
+            if (logger.isTraceEnabled()) {
+                for (AtmosphereResource r : resources) {
+                    logger.trace("AtmosphereResources available for {}", r.uuid());
+                }
+            }
+
             if (entry.multipleAtmoResources == null) {
                 for (AtmosphereResource r : resources) {
                     finalMsg = perRequestFilter(r, entry, true);
@@ -1137,6 +1144,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         try {
+            logger.trace("{} is broadcasting to {}", name, r.uuid());
             r.getAtmosphereHandler().onStateChange(e);
         } catch (Throwable t) {
             if (!InterruptedException.class.isAssignableFrom(t.getClass())) {
