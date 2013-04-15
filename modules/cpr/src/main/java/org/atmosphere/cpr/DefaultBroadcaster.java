@@ -1199,9 +1199,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
+        logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster " + name, ar.uuid(), t);
 
         if (notifyAndCache) {
-            logger.debug("onException()", t);
             final AtmosphereResourceEventImpl event = r.getAtmosphereResourceEvent();
             event.setThrowable(t);
 
