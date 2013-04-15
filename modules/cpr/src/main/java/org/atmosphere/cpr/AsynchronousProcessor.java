@@ -63,7 +63,6 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.HashMap;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -412,95 +411,116 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * {@link Action}, tells the proprietary Comet {@link Servlet}
      * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link AtmosphereRequest}
-     * @param response the {@link AtmosphereResponse}
+     * @param req  the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action timedout(AtmosphereRequest request, AtmosphereResponse response)
+    public Action timedout(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        AtmosphereResourceImpl r = null;
-
-        try {
-            SessionTimeoutSupport.restoreTimeout(request);
-
-            if (trackActiveRequest) {
-                long l = (Long) request.getAttribute(MAX_INACTIVE);
-                if (l == -1) {
-                    // The closedDetector closed the connection.
-                    return timedoutAction;
-                }
-                request.setAttribute(MAX_INACTIVE, (long) -1);
-            }
-
-            logger.debug("Timing out the connection for request {}", request);
-
-            // Something went wrong.
-            if (request == null || response == null) {
-                logger.warn("Invalid Request/Response: {}/{}", request, response);
-                return timedoutAction;
-            }
-
-            r = (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-
-            if (r != null && r.isCancelled()) {
-                return cancelledAction;
-            }
-
-            if (r == null) {
-                logger.debug("AtmosphereResource was null, failed to timeout AtmosphereRequest {}", request);
-            }
-
-            if (r != null && r.getAtmosphereResourceEvent().isSuspended()) {
-                r.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
-
-                Broadcaster b = r.getBroadcaster();
-                if (b instanceof DefaultBroadcaster) {
-                    ((DefaultBroadcaster) b).broadcastOnResume(r);
-                }
-
-                if (request.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT) != null) {
-                    r.getAtmosphereResourceEvent().setIsResumedOnTimeout(
-                            (Boolean) request.getAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT));
-                }
-
-                invokeAtmosphereHandler(r);
-            }
-        } catch (Throwable t) {
-            logger.error("failed to timeout resource {}", r, t);
-        } finally {
-            config.framework().notify(Action.TYPE.TIMEOUT, request, response);
-            try {
-                if (r != null) {
-                    r.notifyListeners();
-                    r.setIsInScope(false);
-                    r.cancel();
-                }
-            } catch (Throwable t) {
-                logger.trace("timedout", t);
-            } finally {
-                try {
-                    response.getOutputStream().close();
-                } catch (Throwable t) {
-                    try {
-                        response.getWriter().close();
-                    } catch (Throwable t2) {
-                    }
-                }
-
-                if (r != null) {
-                    r._destroy();
-                }
-            }
+        logger.trace("Timing out {}", req);
+        if (trackActiveRequest(req) && completeLifecycle(req.resource(), false)) {
+            config.framework().notify(Action.TYPE.TIMEOUT, req, res);
         }
-
         return timedoutAction;
     }
 
-    void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
-        if (!r.isInScope()) return;
+    protected boolean trackActiveRequest(AtmosphereRequest req) {
+        SessionTimeoutSupport.restoreTimeout(req);
+
+        if (trackActiveRequest) {
+            try {
+                long l = (Long) req.getAttribute(MAX_INACTIVE);
+                if (l == -1) {
+                    // The closedDetector closed the connection.
+                    return false;
+                }
+                req.setAttribute(MAX_INACTIVE, (long) -1);
+                // GlassFish
+            } catch (Throwable ex) {
+                logger.trace("Request already recycled", req);
+                // Request is no longer active, return
+                return false;
+
+            }
+        }
+        return true;
+    }
+
+    /**
+     * Cancel or times out an {@link AtmosphereResource} by invoking it's associated {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
+     *
+     * @param r an {@link AtmosphereResource}
+     * @param cancelled true if cancelled, false if timedout
+     * @return true if the operation was executed.
+     */
+    protected boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
+        if (r != null) {
+            logger.debug("Finishing lifecycle for AtmosphereResource {}", r.uuid());
+            final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
+            synchronized (impl) {
+                try {
+                    if (impl.isCancelled()) {
+                        logger.trace("{} is already cancelled", impl.uuid());
+                        return false;
+                    }
+
+                    if (cancelled) {
+                        impl.getAtmosphereResourceEvent().setCancelled(true);
+                    } else {
+                        impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
+
+                        Broadcaster b = r.getBroadcaster();
+                        if (b instanceof DefaultBroadcaster) {
+                            ((DefaultBroadcaster) b).broadcastOnResume(r);
+                        }
+
+                        impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
+                    }
+                    invokeAtmosphereHandler(impl);
+
+                    try {
+                        impl.getResponse().getOutputStream().close();
+                    } catch (Throwable t) {
+                        try {
+                            impl.getResponse().getWriter().close();
+                        } catch (Throwable t2) {
+                        }
+                    }
+                } catch (Throwable ex) {
+                    // Something wrong happenned, ignore the exception
+                    logger.trace("Failed to cancel resource: {}", impl.uuid(), ex);
+                } finally {
+                    try {
+                        impl.notifyListeners();
+                        impl.setIsInScope(false);
+                        impl.cancel();
+                    } catch (Throwable t) {
+                        logger.trace("completeLifecycle", t);
+                    } finally {
+                        impl._destroy();
+                    }
+                }
+            }
+            return true;
+        } else {
+            logger.debug("AtmosphereResource was null, failed to cancel AtmosphereRequest {}");
+            return false;
+        }
+    }
+
+    /**
+     * Invoke the associated {@link AtmosphereHandler}. This method must be synchronized on an AtmosphereResource
+     * @param r a {@link AtmosphereResourceImpl}
+     * @throws IOException
+     */
+    protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
+        if (!r.isInScope()) {
+            logger.trace("AtmosphereResource out of scope {}", r.uuid());
+            return;
+        }
 
         AtmosphereRequest req = r.getRequest(false);
         String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
@@ -512,16 +532,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                                 req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
 
                 if (atmosphereHandler != null) {
-                    synchronized (r) {
-                        try {
-                            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-                        } finally {
-                            Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                            if (m != null) {
-                                m.destroy();
-                            }
-                            req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                    try {
+                        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                    } finally {
+                        Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                        if (m != null) {
+                            m.destroy();
                         }
+                        req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                     }
                 }
             }
@@ -548,70 +566,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     public Action cancelled(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        synchronized (req) {
-            SessionTimeoutSupport.restoreTimeout(req);
-
-            AtmosphereResourceImpl r = null;
-            try {
-                if (trackActiveRequest) {
-                    try {
-                        long l = (Long) req.getAttribute(MAX_INACTIVE);
-                        if (l == -1) {
-                            // The closedDetector closed the connection.
-                            return timedoutAction;
-                        }
-                        req.setAttribute(MAX_INACTIVE, (long) -1);
-                        // GlassFish
-                    } catch (NullPointerException ex) {
-                        // Request is no longer active, return
-                        return cancelledAction;
-
-                    }
-                }
-
-                r = (AtmosphereResourceImpl) req.resource();
-                if (r != null) {
-                    logger.debug("Cancelling the connection for AtmosphereResource {}", r.uuid());
-
-                    if (r.isCancelled()) {
-                        logger.trace("{} is already cancelled", r.uuid());
-                        return cancelledAction;
-                    }
-                    r.getAtmosphereResourceEvent().setCancelled(true);
-                    invokeAtmosphereHandler(r);
-
-                    try {
-                        r.getResponse().getOutputStream().close();
-                    } catch (Throwable t) {
-                        try {
-                            r.getResponse().getWriter().close();
-                        } catch (Throwable t2) {
-                        }
-                    }
-                }  else {
-                    logger.debug("AtmosphereResource was null, failed to cancel AtmosphereRequest {}", req);
-                }
-            } catch (Throwable ex) {
-                // Something wrong happenned, ignore the exception
-                logger.debug("failed to cancel resource: {}", r == null ? "" : r.uuid() , ex);
-            } finally {
-                config.framework().notify(Action.TYPE.CANCELLED, req, res);
-                try {
-                    if (r != null) {
-                        r.notifyListeners();
-                        r.setIsInScope(false);
-                        r.cancel();
-                    }
-                } catch (Throwable t) {
-                    logger.trace("cancel", t);
-                } finally {
-                    if (r != null) {
-                        r._destroy();
-                    }
-                }
-            }
+        logger.trace("Cancelling {}", req);
+        if (trackActiveRequest(req) && completeLifecycle(req.resource(), true)) {
+            config.framework().notify(Action.TYPE.CANCELLED, req, res);
         }
-
         return cancelledAction;
     }
 
@@ -627,6 +585,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
     }
 
+    @Override
     public boolean supportWebSocket() {
         return false;
     }
