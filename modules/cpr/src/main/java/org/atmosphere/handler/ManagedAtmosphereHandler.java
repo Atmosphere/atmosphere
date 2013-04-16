@@ -86,6 +86,23 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     @SuppressWarnings("unchecked")
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
 
+        // Original Value
+        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+        Boolean resumeOnBroadcast = r.resumeOnBroadcast();
+        if (!resumeOnBroadcast) {
+            // For legacy reason, check the attribute as well
+            Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+            if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
+                resumeOnBroadcast = Boolean.class.cast(o);
+            }
+        }
+
+        // Disable resume so cached message can be send in one chunk.
+        if (resumeOnBroadcast) {
+            r.resumeOnBroadcast(false);
+            r.getRequest(false).setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, "false");
+        }
+
         AtmosphereResource resource = event.getResource();
         if (event.isCancelled()) {
             invoke(onDisconnectMethod, resource);
@@ -103,20 +120,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             }
         }
 
-        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
-        Boolean resumeOnBroadcast = r.resumeOnBroadcast();
-        if (!resumeOnBroadcast) {
-            // For legacy reason, check the attribute as well
-            Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
-                resumeOnBroadcast = Boolean.class.cast(o);
-            }
-        }
-
-        if (resumeOnBroadcast != null && resumeOnBroadcast && r.isSuspended()) {
+        if (resumeOnBroadcast && r.isSuspended()) {
             r.resume();
         }
-
     }
 
     private void invoke(AtmosphereResourceEvent event, Object message) throws IOException {
