@@ -35,6 +35,7 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 
 /**
  * An internal implementation of {@link AtmosphereHandler} that implement supports for Atmosphere 1.1 annotation.
@@ -82,6 +83,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     @Override
+    @SuppressWarnings("unchecked")
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
 
         AtmosphereResource resource = event.getResource();
@@ -90,11 +92,14 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else if (event.isResumedOnTimeout() || event.isResuming()) {
             invoke(onTimeoutMethod, resource);
         } else {
-            Object m = invoke(onMessageMethod, event.getMessage().toString());
-            if (m != null) {
-                super.onStateChange(event.setMessage(m));
-            } else if (onMessageMethod == null) {
-                super.onStateChange(event);
+            Object m = event.getMessage();
+            // Cached message
+            if (List.class.isAssignableFrom(m.getClass())) {
+                for (String s : (List<String>)m) {
+                    invoke(event, s);
+                }
+            } else {
+                invoke(event, m.toString());
             }
         }
 
@@ -114,6 +119,14 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     }
 
+    private void invoke(AtmosphereResourceEvent event, Object message) throws IOException {
+        Object m = invoke(onMessageMethod,message);
+        if (m != null) {
+            super.onStateChange(event.setMessage(m));
+        } else if (onMessageMethod == null) {
+            super.onStateChange(event);
+        }
+    }
 
     private Method populate(Object c, Class<? extends Annotation> annotation) {
         for (Method m : c.getClass().getMethods()) {
