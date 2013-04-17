@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
-import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 
 public class TomcatWebSocketHandler extends StreamInbound {
@@ -50,7 +49,7 @@ public class TomcatWebSocketHandler extends StreamInbound {
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.valueOf(1);
+            webSocketWriteTimeout = Integer.valueOf(s);
         } else {
             webSocketWriteTimeout = -1;
         }
