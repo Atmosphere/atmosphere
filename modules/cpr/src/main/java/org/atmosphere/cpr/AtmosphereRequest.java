@@ -508,6 +508,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 newM.put(q.getKey(), q.getValue().toArray(new String[q.getValue().size()]));
             }
             b.queryStrings(newM);
+            b.queryString = qs;
         }
         return this;
     }
