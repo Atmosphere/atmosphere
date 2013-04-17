@@ -21,22 +21,14 @@ import org.atmosphere.container.version.TomcatWebSocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.io.UnsupportedEncodingException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CONNECT;
-import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.MESSAGE;
 
 public class TomcatWebSocketHandler extends MessageInbound {
 
@@ -55,7 +47,7 @@ public class TomcatWebSocketHandler extends MessageInbound {
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.valueOf(1);
+            webSocketWriteTimeout = Integer.valueOf(s);
         } else {
             webSocketWriteTimeout =  -1;
         }
