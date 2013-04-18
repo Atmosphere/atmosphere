@@ -100,7 +100,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         // Disable resume so cached message can be send in one chunk.
         if (resumeOnBroadcast) {
             r.resumeOnBroadcast(false);
-            r.getRequest(false).setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, "false");
+            r.getRequest(false).setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, false);
         }
 
         AtmosphereResource resource = event.getResource();

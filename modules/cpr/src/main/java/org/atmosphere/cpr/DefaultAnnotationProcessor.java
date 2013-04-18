@@ -323,9 +323,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
-
-                    framework.addAtmosphereHandler(a.path(), handler, l);
                     framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
+                    framework.addAtmosphereHandler(a.path(), handler, l);
                 }
 
         };
