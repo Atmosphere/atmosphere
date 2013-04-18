@@ -182,6 +182,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
         uuidCache = UUIDBroadcasterCache.class.isAssignableFrom(bc.getBroadcasterCache().getClass());
+        logger.info("{} support Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
     }
 
     public DefaultBroadcaster(String name, AtmosphereConfig config) {
@@ -557,10 +558,9 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Runnable getBroadcastHandler() {
-        final AtomicBoolean init = new AtomicBoolean(true);
         return new Runnable() {
             public void run() {
-                while (init.getAndSet(false) || (!isDestroyed() && !outOfOrderBroadcastSupported.get())) {
+                while (!isDestroyed()) {
                     Entry msg = null;
                     try {
                         msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
@@ -574,7 +574,6 @@ public class DefaultBroadcaster implements Broadcaster {
                         return;
                     } finally {
                         if (outOfOrderBroadcastSupported.get()) {
-                            init.set(true);
                             bc.getExecutorService().submit(this);
                         }
                     }
@@ -590,6 +589,10 @@ public class DefaultBroadcaster implements Broadcaster {
                             logger.warn("This message {} will be lost", msg);
                             logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
                         }
+                    }  finally {
+                        if (outOfOrderBroadcastSupported.get()) {
+                            return;
+                        }
                     }
                 }
             }
@@ -597,21 +600,22 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Runnable getAsyncWriteHandler(final WriteQueue writeQueue) {
-        final AtomicBoolean init = new AtomicBoolean(true);
         return new Runnable() {
             public void run() {
-                while (init.getAndSet(false) || (!isDestroyed() && !outOfOrderBroadcastSupported.get())) {
+                while (!isDestroyed()) {
                     AsyncWriteToken token = null;
                     try {
                         token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
-                        if (token == null) {
-                            synchronized (writeQueue) {
+                        if (token == null && !outOfOrderBroadcastSupported.get()) {
+                            synchronized (writeQueue ) {
                                 if (writeQueue.queue.size() == 0) {
                                     writeQueue.monitored.set(false);
                                     writeQueues.remove(writeQueue.uuid);
                                     return;
                                 }
                             }
+                        } else if (token == null) {
+                            return;
                         }
                     } catch (InterruptedException ex) {
                         logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
@@ -619,7 +623,6 @@ public class DefaultBroadcaster implements Broadcaster {
                         return;
                     } finally {
                         if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
-                            init.set(true);
                             bc.getAsyncWriteService().submit(this);
                         }
                     }
@@ -639,6 +642,10 @@ public class DefaultBroadcaster implements Broadcaster {
                                     cacheLostMessage(token.resource, token, true);
                                 }
                                 logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
+                            }
+                        } finally {
+                            if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
+                                return;
                             }
                         }
                     }
