@@ -15,6 +15,7 @@
  */
 package org.atmosphere.config.service;
 
+import org.atmosphere.cache.DefaultBroadcasterCache;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
@@ -46,7 +47,7 @@ public @interface WebSocketHandlerService {
      *
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
      */
-    Class<? extends BroadcasterCache> broadcasterCache();
+    Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
 
     /**
      * The mapping path, or context-root used to map this WebSocketHandler

@@ -54,6 +54,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cache.CacheMessage;
+import org.atmosphere.cache.DefaultBroadcasterCache;
 
 import java.util.List;
 
@@ -67,43 +68,7 @@ import java.util.List;
  */
 public interface BroadcasterCache {
 
-    BroadcasterCache DEFAULT = new BroadcasterCache(){
-
-        @Override
-        public void start() {
-
-        }
-
-        @Override
-        public void stop() {
-
-        }
-
-        @Override
-        public void configure(AtmosphereConfig config) {
-
-        }
-
-        @Override
-        public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e) {
-            return null;
-        }
-
-        @Override
-        public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
-            return null;
-        }
-
-        @Override
-        public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage cache) {
-
-        }
-
-        @Override
-        public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
-            return null;
-        }
-    };
+    BroadcasterCache DEFAULT = new DefaultBroadcasterCache();
 
     public enum STRATEGY {BEFORE_FILTER, AFTER_FILTER}
 

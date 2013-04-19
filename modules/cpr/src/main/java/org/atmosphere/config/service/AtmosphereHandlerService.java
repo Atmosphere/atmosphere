@@ -15,6 +15,7 @@
  */
 package org.atmosphere.config.service;
 
+import org.atmosphere.cache.DefaultBroadcasterCache;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
@@ -86,5 +87,5 @@ public @interface AtmosphereHandlerService {
      *
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
      */
-    Class<? extends BroadcasterCache> broadcasterCache();
+    Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
 }
