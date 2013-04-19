@@ -415,7 +415,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      */
     protected boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
         if (r != null) {
-            logger.debug("Finishing lifecycle for AtmosphereResource {}", r.uuid());
+            logger.trace("Finishing lifecycle for AtmosphereResource {}", r.uuid());
             final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
             synchronized (impl) {
                 try {
