@@ -1224,10 +1224,9 @@ jQuery.atmosphere = function() {
              * @param response
              */
             function _trackMessageSize(message, request, response) {
+                if (!_handleProtocol( _request, message)) return true;
+
                 if (request.trackMessageLength) {
-
-                    if (!_handleProtocol( _request, message)) return true;
-
                     // If we have found partial message, prepend them.
                     if (response.partialMessage.length != 0) {
                         message = response.partialMessage + message;
