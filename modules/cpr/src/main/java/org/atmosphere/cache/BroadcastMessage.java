@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Jeanfrancois Arcand
+ * Copyright 2012 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,38 +15,25 @@
  */
 package org.atmosphere.cache;
 
-public class CacheMessage {
 
-    private final Object message;
+import java.util.UUID;
 
-    private final String id;
-    private long createTime;
+/**
+ * A wrapper around a the object passed to {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
+ *
+ * @author Jeanfrancois Arcand
+ */
+public final class BroadcastMessage {
 
-    public CacheMessage(String id, Object message) {
+    public final String id;
+    public final Object message;
+
+    public BroadcastMessage(String id, Object message) {
         this.id = id;
         this.message = message;
-        this.createTime = System.nanoTime();
     }
 
-    public CacheMessage(String id, Long now, Object message) {
-        this.id = id;
-        this.message = message;
-        this.createTime = now;
-    }
-
-    public Object getMessage() {
-        return message;
-    }
-
-    public String getId() {
-        return id;
-    }
-
-    public String toString(){
-        return message.toString();
-    }
-
-    public long getCreateTime() {
-        return createTime;
+    public BroadcastMessage(Object message) {
+        this(UUID.randomUUID().toString(), message);
     }
 }

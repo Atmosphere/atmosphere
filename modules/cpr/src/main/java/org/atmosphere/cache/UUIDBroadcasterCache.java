@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,11 +55,10 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private final Map<String, Long> activeClients = new HashMap<String, Long>();
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
-    protected ScheduledExecutorService taskScheduler = Executors.newSingleThreadScheduledExecutor();
-
+    protected ScheduledExecutorService taskScheduler;
     private long clientIdleTime = TimeUnit.MINUTES.toMillis(2);//2 minutes
-
     private long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
+    private boolean shared = true;
 
     public static class ClientQueue {
 
@@ -75,57 +75,31 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
 
         @Override
-        public String toString(){
+        public String toString() {
             return queue.toString();
         }
     }
 
-    public static class CacheMessage {
-
-        private final Object message;
-
-        private final String id;
-
-        private CacheMessage(String id, Object message) {
-            this.id = id;
-            this.message = message;
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void configure(AtmosphereConfig config) {
+        Object o = config.properties().get("shared");
+        if (o != null) {
+            shared = Boolean.parseBoolean(o.toString());
         }
 
-        public Object getMessage() {
-            return message;
-        }
-
-        public String getId() {
-            return id;
-        }
-
-        public String toString(){
-            return message.toString();
+        if (shared) {
+            taskScheduler = ExecutorsFactory.getScheduler(config);
+        } else {
+            taskScheduler = Executors.newSingleThreadScheduledExecutor();
         }
     }
 
-    public void setInvalidateCacheInterval(long invalidateCacheInterval) {
-        this.invalidateCacheInterval = invalidateCacheInterval;
-        scheduledFuture.cancel(true);
-        start();
-    }
-
-    public void setClientIdleTime(long clientIdleTime) {
-        this.clientIdleTime = clientIdleTime;
-    }
-
-    public void setExecutorService(ScheduledExecutorService reaper) {
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
-            scheduledFuture = null;
-        }
-
-        if (taskScheduler != null) {
-            stop();
-        }
-        this.taskScheduler = reaper;
-    }
-
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void start() {
         scheduledFuture = taskScheduler.scheduleWithFixedDelay(new Runnable() {
@@ -136,27 +110,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
     }
 
-    protected void invalidateExpiredEntries() {
-        long now = System.currentTimeMillis();
-        synchronized (messages) {
-
-            Set<String> inactiveClients = new HashSet<String>();
-
-            for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
-                if (now - entry.getValue() > clientIdleTime) {
-                    logger.debug("Invalidate client {}", entry.getKey());
-                    inactiveClients.add(entry.getKey());
-                }
-            }
-
-            for (String clientId : inactiveClients) {
-                activeClients.remove(clientId);
-                messages.remove(clientId);
-            }
-
-        }
-    }
-
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void stop() {
         if (scheduledFuture != null) {
@@ -166,20 +122,12 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         taskScheduler.shutdown();
     }
 
-    @Override
-    public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
-        if (!inspect(e)) return;
-        addCacheCandidate(broadcasterId, r, e.message);
-    }
-
     /**
-     * For backward compatibility with 1.0.9 and lower, use the method above.
-     * @param broadcasterId
-     * @param r
-     * @param e
-     * @return
+     * {@inheritDoc}
      */
-    public CacheMessage addCacheCandidate(String broadcasterId, AtmosphereResource r, Object e) {
+    @Override
+    public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
+        Object e = message.message;
         if (logger.isTraceEnabled()) {
             logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
             logger.trace("Active clients {}", activeClients());
@@ -228,9 +176,74 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return cacheMessage;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
+        String clientId = uuid(r);
+        long now = System.currentTimeMillis();
+
+        List<Object> result = new ArrayList<Object>();
+
+        ClientQueue clientQueue;
+        synchronized (messages) {
+            activeClients.put(clientId, now);
+            clientQueue = messages.remove(clientId);
+        }
+        List<CacheMessage> clientMessages;
+        if (clientQueue == null) {
+            clientMessages = Collections.emptyList();
+        } else {
+            clientMessages = clientQueue.getQueue();
+        }
+
+        for (CacheMessage cacheMessage : clientMessages) {
+            result.add(cacheMessage.getMessage());
+        }
+
+        if (logger.isTraceEnabled()) {
+            synchronized (messages) {
+                logger.trace("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
+                logger.trace("Available cached message {}", messages);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage message) {
+        if (message == null) {
+            return;
+        }
+
+        String clientId = uuid(r);
+        ClientQueue clientQueue;
+        synchronized (messages) {
+            clientQueue = messages.get(clientId);
+            if (clientQueue != null) {
+                logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
+                clientQueue.getQueue().remove(message);
+            }
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public BroadcasterCache inspector(BroadcasterCacheInspector b) {
+        inspectors.add(b);
+        return this;
+    }
+
     protected String uuid(AtmosphereResource r) {
         return r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                                ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
+                ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
     }
 
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
@@ -277,51 +290,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return clientQueue != null && clientQueue.getIds().contains(messageId);
     }
 
-    @Override
-    public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
-        String clientId = uuid(r);
-        long now = System.currentTimeMillis();
-
-        List<Object> result = new ArrayList<Object>();
-
-        ClientQueue clientQueue;
-        synchronized (messages) {
-            activeClients.put(clientId, now);
-            clientQueue = messages.remove(clientId);
-        }
-        List<CacheMessage> clientMessages;
-        if (clientQueue == null) {
-            clientMessages = Collections.emptyList();
-        } else {
-            clientMessages = clientQueue.getQueue();
-        }
-
-        for (CacheMessage cacheMessage : clientMessages) {
-            result.add(cacheMessage.getMessage());
-        }
-
-        if (logger.isTraceEnabled()) {
-            synchronized (messages) {
-                logger.trace("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
-                logger.trace("Available cached message {}", messages);
-            }
-        }
-
-        return result;
-    }
-
-    public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage message) {
-        String clientId =  uuid(r);
-        ClientQueue clientQueue;
-        synchronized (messages) {
-            clientQueue = messages.get(clientId);
-            if (clientQueue != null) {
-                logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
-                clientQueue.getQueue().remove(message);
-            }
-        }
-    }
-
     public Map<String, ClientQueue> messages() {
         return messages;
     }
@@ -330,16 +298,41 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return activeClients;
     }
 
-    @Override
-    public BroadcasterCache inspector(BroadcasterCacheInspector b) {
-        inspectors.add(b);
-        return this;
-    }
-
-    protected boolean inspect(Message m) {
+    protected boolean inspect(BroadcastMessage m) {
         for (BroadcasterCacheInspector b : inspectors) {
-              if (!b.inspect(m)) return false;
+            if (!b.inspect(m)) return false;
         }
         return true;
+    }
+
+    public void setInvalidateCacheInterval(long invalidateCacheInterval) {
+        this.invalidateCacheInterval = invalidateCacheInterval;
+        scheduledFuture.cancel(true);
+        start();
+    }
+
+    public void setClientIdleTime(long clientIdleTime) {
+        this.clientIdleTime = clientIdleTime;
+    }
+
+    protected void invalidateExpiredEntries() {
+        long now = System.currentTimeMillis();
+        synchronized (messages) {
+
+            Set<String> inactiveClients = new HashSet<String>();
+
+            for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
+                if (now - entry.getValue() > clientIdleTime) {
+                    logger.debug("Invalidate client {}", entry.getKey());
+                    inactiveClients.add(entry.getKey());
+                }
+            }
+
+            for (String clientId : inactiveClients) {
+                activeClients.remove(clientId);
+                messages.remove(clientId);
+            }
+
+        }
     }
 }

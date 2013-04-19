@@ -51,10 +51,11 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.cache.CacheMessage;
 
 import java.util.List;
-import java.util.UUID;
 
 /**
  * A BroadcasterCache is used to persist broadcasted Object {@link Broadcaster#broadcast(Object)}. Disconnected clients
@@ -65,6 +66,44 @@ import java.util.UUID;
  * defining it in your web/application.xml or by using the {@link org.atmosphere.config.service.BroadcasterCacheService}
  */
 public interface BroadcasterCache {
+
+    BroadcasterCache DEFAULT = new BroadcasterCache(){
+
+        @Override
+        public void start() {
+
+        }
+
+        @Override
+        public void stop() {
+
+        }
+
+        @Override
+        public void configure(AtmosphereConfig config) {
+
+        }
+
+        @Override
+        public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e) {
+            return null;
+        }
+
+        @Override
+        public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+            return null;
+        }
+
+        @Override
+        public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage cache) {
+
+        }
+
+        @Override
+        public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
+            return null;
+        }
+    };
 
     public enum STRATEGY {BEFORE_FILTER, AFTER_FILTER}
 
@@ -78,14 +117,21 @@ public interface BroadcasterCache {
      */
     void stop();
 
+
+    /**
+     * Configure the cache.
+     */
+    void configure(AtmosphereConfig config);
+
     /**
      * Start tracking messages associated with {@link AtmosphereResource} from the cache
      *
-     * @param id The associated {@link Broadcaster#addAtmosphereResource(AtmosphereResource).getID}
-     * @param r  {@link AtmosphereResource}
-     * @param e  a broadcasted message.
+     * @param broadcasterId The associated {@link Broadcaster#addAtmosphereResource(AtmosphereResource).getID}
+     * @param r             {@link AtmosphereResource}
+     * @param e             {@link BroadcastMessage}.
+     * @return The {@link CacheMessage}
      */
-    void addToCache(String id, AtmosphereResource r, Message e);
+    CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e);
 
     /**
      * Retrieve messages associated with {@link AtmosphereResource}
@@ -97,27 +143,19 @@ public interface BroadcasterCache {
     List<Object> retrieveFromCache(String id, AtmosphereResource r);
 
     /**
+     * Remove the previously cached message.
+     * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param r an {@link AtmosphereResource}
+     * @param cache the {@link CacheMessage}
+     */
+    void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage cache);
+
+    /**
      * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.
+     *
      * @param interceptor
-     * @return  this
+     * @return this
      */
     BroadcasterCache inspector(BroadcasterCacheInspector interceptor);
 
-    /**
-     * A wrapper around a the object passed to {@link Broadcaster#broadcast(Object)}
-     */
-    public final static class Message {
-
-        public final String id;
-        public final Object message;
-
-        public Message(String id, Object message) {
-            this.id = id;
-            this.message = message;
-        }
-
-        public Message(Object message) {
-            this(UUID.randomUUID().toString(), message);
-        }
-    }
 }

@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.AbstractBroadcasterCache;
+import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.BroadcasterCacheTest.AR;
@@ -58,17 +59,6 @@ public class DefaultBroadcasterTest {
             }
             super.cacheAndSuspend(r);
         }
-
-        protected boolean invokeFiltersAndCache(Entry entry) {
-            System.out.println("========> invokeFiltersAndCache");
-
-            try {
-                Thread.sleep(100);
-            } catch (InterruptedException e) {
-                e.printStackTrace();
-            }
-            return super.invokeFiltersAndCache(entry);
-        }
     }
 
     @BeforeMethod
@@ -84,13 +74,14 @@ public class DefaultBroadcasterTest {
 
     @Test
     public void testSimultaneousAddResourceAndPush() throws ExecutionException, InterruptedException, ServletException {
-        final Map<String, BroadcasterCache.Message> cache = new HashMap<String, BroadcasterCache.Message>();
+        final Map<String, BroadcastMessage> cache = new HashMap<String, BroadcastMessage>();
 
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public void addToCache(String id, AtmosphereResource r, BroadcasterCache.Message e) {
-                put(e, System.nanoTime());
+            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime());
                 cache.put(id, e);
+                return c;
             }
 
             @Override

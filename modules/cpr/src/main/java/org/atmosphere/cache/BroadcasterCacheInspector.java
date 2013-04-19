@@ -15,20 +15,18 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.BroadcasterCache;
-
 /**
- * Inspect {@link BroadcasterCache.Message} before they gets added to the BroadcasterCache. Message can also be modified
+ * Inspect {@link BroadcastMessage} before they gets added to the BroadcasterCache. Message can also be modified
  * before they get added to the cache.
  *
  * @author Jeanfrancois Arcand
  */
 public interface BroadcasterCacheInspector {
     /**
-     * Inspect the {@link BroadcasterCache.Message} and return true if the message can be cached, false if not. A
+     * Inspect the {@link BroadcastMessage} and return true if the message can be cached, false if not. A
      * Message can also be modified
-     * @param message {@link BroadcasterCache.Message}
+     * @param message {@link BroadcastMessage}
      * @return true if allowed to be cached, false if not.
      */
-    boolean inspect(BroadcasterCache.Message message);
+    boolean inspect(BroadcastMessage message);
 }

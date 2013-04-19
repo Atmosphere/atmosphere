@@ -128,7 +128,9 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                             }
                         }
                         framework.addAtmosphereHandler(a.path(), handler, l);
-                        framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
+                        Class<? extends BroadcasterCache> e = a.broadcasterCache();
+                        if (e != null)
+                            framework.setBroadcasterCacheClassName(e.getName());
                         framework.sessionSupport(a.supportSession());
                     } catch (Throwable e) {
                         logger.warn("", e);
@@ -201,7 +203,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         for (Class<? extends BroadcastFilter> b : bf) {
                             framework.broadcasterFilters().add(b.getName());
                         }
-                        framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
+
+                        Class<? extends BroadcasterCache> e = m.broadcasterCache();
+                        if (e != null)
+                            framework.setBroadcasterCacheClassName(e.getName());
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }

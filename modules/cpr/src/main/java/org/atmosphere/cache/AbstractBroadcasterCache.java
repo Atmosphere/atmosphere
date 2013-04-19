@@ -15,7 +15,10 @@
  */
 package org.atmosphere.cache;
 
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,22 +93,24 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         }
     }
 
-    protected void put(Message message, Long now) {
-        if (!inspect(message)) return;
+    protected CacheMessage put(BroadcastMessage message, Long now) {
+        if (!inspect(message)) return null;
 
         logger.trace("Caching message {} for Broadcaster {}", message.message);
 
         readWriteLock.writeLock().lock();
+        CacheMessage cacheMessage = null;
         try {
             boolean hasMessageWithSameId = messagesIds.contains(message.id);
             if (!hasMessageWithSameId) {
-                CacheMessage cacheMessage = new CacheMessage(message.id, now, message.message);
+                cacheMessage = new CacheMessage(message.id, now, message.message);
                 messages.add(cacheMessage);
                 messagesIds.add(message.id);
             }
         } finally {
             readWriteLock.writeLock().unlock();
         }
+        return cacheMessage;
     }
 
     protected List<Object> get(long cacheHeaderTime) {
@@ -124,40 +129,6 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
         logger.trace("Retrieved messages {}", result);
         return result;
-    }
-
-    /**
-     * Set to true the associated {@link #getReaper()} is shared amongs {@link BroadcasterCache}
-     *
-     * @param isShared to true if shared. False by default.
-     * @return this
-     */
-    public AbstractBroadcasterCache setShared(boolean isShared) {
-        this.isShared = isShared;
-        return this;
-    }
-
-    /**
-     * Set the {@link ScheduledExecutorService} to clear the cached message.
-     *
-     * @param reaper the {@link ScheduledExecutorService} to clear the cached message.
-     * @return this
-     */
-    public AbstractBroadcasterCache setReaper(ScheduledExecutorService reaper) {
-        if (this.reaper != null) {
-            this.reaper.shutdown();
-        }
-        this.reaper = reaper;
-        return this;
-    }
-
-    /**
-     * Return the {@link ScheduledExecutorService}
-     *
-     * @return the {@link ScheduledExecutorService}
-     */
-    public ScheduledExecutorService getReaper() {
-        return reaper;
     }
 
     /**
@@ -188,10 +159,32 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         return this;
     }
 
-    protected boolean inspect(Message m) {
+    protected boolean inspect(BroadcastMessage m) {
         for (BroadcasterCacheInspector b : inspectors) {
-              if (!b.inspect(m)) return false;
+            if (!b.inspect(m)) return false;
         }
         return true;
+    }
+
+    @Override
+    public void configure(AtmosphereConfig config) {
+        Object o = config.properties().get("shared");
+        if (o != null) {
+            isShared = Boolean.parseBoolean(o.toString());
+        }
+
+        if (isShared) {
+            reaper = ExecutorsFactory.getScheduler(config);
+        } else {
+            reaper = Executors.newSingleThreadScheduledExecutor();
+        }
+    }
+
+    @Override
+    public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage cache) {
+        if (cache != null) {
+            messages.remove(cache);
+            messagesIds.remove(cache.getId());
+        }
     }
 }

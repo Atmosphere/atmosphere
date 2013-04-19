@@ -29,7 +29,6 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import java.io.File;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutionException;
@@ -47,9 +46,7 @@ public class ManagedAtmosphereHandlerTest {
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName()) ;
-        //String name = new File("./modules/cpr/target/").getAbsolutePath();
-        String name = new File("./target/").getAbsolutePath();
-        framework.setHandlersPath(name);
+        framework.addAnnotationPackage(ManagedGet.class);
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
 
             @Override

@@ -75,17 +75,17 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
     }
 
     @Override
-    public void addToCache(String broadcasterId, AtmosphereResource r, Message message) {
+    public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
         long now = System.nanoTime();
-        put(message, now);
+        CacheMessage cacheMessage = put(message, now);
 
-        if (r == null) return;
+        if (r == null) return cacheMessage;
 
         try {
             HttpSession session = r.session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
-                return;
+                return cacheMessage;
             }
 
             session.setAttribute(broadcasterId, String.valueOf(now));
@@ -93,6 +93,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
             logger.trace("",ex);
             logger.warn("The Session has been invalidated. Message will be loat.");
         }
+        return cacheMessage;
     }
 
     @Override

@@ -53,15 +53,12 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheInspector;
-import org.atmosphere.cache.AbstractBroadcasterCache;
-import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -85,7 +82,7 @@ public class BroadcasterConfig {
     private ExecutorService executorService;
     private ExecutorService asyncWriteService;
     private ScheduledExecutorService scheduler;
-    private BroadcasterCache broadcasterCache = new DefaultBroadcasterCache();
+    private BroadcasterCache broadcasterCache = BroadcasterCache.DEFAULT;
     private final AtmosphereConfig config;
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
@@ -149,15 +146,11 @@ public class BroadcasterConfig {
         }
     }
 
-    private void configureSharedCacheExecutor() {
+    protected void configureSharedCacheExecutor() {
         if (!shared) return;
 
-        // Ugly, will be fixed in 1.1 new BroadcasterCache API
-        if (AbstractBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())){
-            AbstractBroadcasterCache.class.cast(broadcasterCache).setReaper(scheduler);
-        } else if (UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())){
-            UUIDBroadcasterCache.class.cast(broadcasterCache).setExecutorService(scheduler);
-        }
+        config.properties().put("shared", "true");
+        broadcasterCache.configure(config);
     }
 
     protected BroadcasterConfig broadcasterID(String name) {
@@ -506,30 +499,6 @@ public class BroadcasterConfig {
      */
     public BroadcasterCache getBroadcasterCache() {
         return broadcasterCache;
-    }
-
-    public static class DefaultBroadcasterCache implements BroadcasterCache {
-        private final List<Object> list = new ArrayList<Object>();
-
-        public void start() {
-        }
-
-        public void stop() {
-        }
-
-        @Override
-        public void addToCache(String id, AtmosphereResource r, Message e) {
-        }
-
-        @Override
-        public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
-            return list;
-        }
-
-        @Override
-        public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
-            return this;
-        }
     }
 
     void configureBroadcasterFilter(List<String> list) {

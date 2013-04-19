@@ -16,7 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -25,9 +24,7 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
-import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -243,7 +240,7 @@ public class BroadcastFilterTest {
 
         @Override
         public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
-            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, originalMessage);
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
         }
     }
 

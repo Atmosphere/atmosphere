@@ -17,11 +17,11 @@ package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -30,6 +30,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_CACHE_DATE;
 /**
  * {@link BroadcasterCache} implementation based on the X-Cache-Date headers sent by the client.
  *
+ * @deprecated Use UUIDBroadcasterCache.
  * @author Jeanfrancois Arcand
  */
 public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
@@ -37,14 +38,15 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
     private final Logger logger = LoggerFactory.getLogger(HeaderBroadcasterCache.class);
 
     @Override
-    public void addToCache(String broadcasterId, AtmosphereResource r, Message e) {
+    public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e) {
 
         long now = System.nanoTime();
-        put(e, now);
+        CacheMessage cacheMessage = put(e, now);
 
         if (r != null) {
             r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
         }
+        return cacheMessage;
     }
 
     @Override
@@ -66,4 +68,5 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
         }
         return get(cacheHeaderTime);
     }
+
 }

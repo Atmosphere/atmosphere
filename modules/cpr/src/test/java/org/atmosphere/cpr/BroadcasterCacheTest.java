@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.AbstractBroadcasterCache;
+import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.container.BlockingIOCometSupport;
@@ -34,7 +35,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 public class BroadcasterCacheTest {
 
@@ -70,9 +70,10 @@ public class BroadcasterCacheTest {
     public void testRejectedCache() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public void addToCache(String id, AtmosphereResource r, Message e) {
-                put(e, System.nanoTime());
+            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
+                return c;
             }
 
             @Override
@@ -81,7 +82,7 @@ public class BroadcasterCacheTest {
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override
-            public boolean inspect(BroadcasterCache.Message message) {
+            public boolean inspect(BroadcastMessage message) {
                 return false;
             }
         });
@@ -94,9 +95,10 @@ public class BroadcasterCacheTest {
     public void testCache() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public void addToCache(String id, AtmosphereResource r, Message e) {
-                put(e, System.nanoTime());
+            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
+                return c;
             }
 
             @Override
@@ -105,13 +107,13 @@ public class BroadcasterCacheTest {
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override
-            public boolean inspect(BroadcasterCache.Message message) {
+            public boolean inspect(BroadcastMessage message) {
                 return true;
             }
         });
 
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(cachedMessage.get().size(), 1);
+        assertEquals(cachedMessage.get().size(), 0);
     }
 
     @Test
@@ -119,10 +121,11 @@ public class BroadcasterCacheTest {
         final CountDownLatch latch = new CountDownLatch(1);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public void addToCache(String id, AtmosphereResource r, Message e) {
-                put(e, System.nanoTime());
+            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
                 latch.countDown();
+                return c;
             }
 
             @Override
@@ -131,7 +134,7 @@ public class BroadcasterCacheTest {
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override
-            public boolean inspect(BroadcasterCache.Message message) {
+            public boolean inspect(BroadcastMessage message) {
                 return false;
             }
         });
@@ -146,10 +149,11 @@ public class BroadcasterCacheTest {
         final CountDownLatch latch = new CountDownLatch(1);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public void addToCache(String id, AtmosphereResource r, Message e) {
-                put(e, System.nanoTime());
+            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
                 latch.countDown();
+                return c;
             }
 
             @Override
@@ -158,7 +162,7 @@ public class BroadcasterCacheTest {
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override
-            public boolean inspect(BroadcasterCache.Message message) {
+            public boolean inspect(BroadcastMessage message) {
                 return true;
             }
         });

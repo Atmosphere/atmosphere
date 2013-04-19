@@ -65,7 +65,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.
@@ -89,11 +88,14 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         if (bc == null) {
             bc = new BroadcasterConfig(config.framework().broadcasterFilters(), config, false, getID())
                     .setScheduledExecutorService(ExecutorsFactory.getScheduler(config));
-            config.properties().put(BroadcasterConfig.class.getName(), bc);
         }
         return bc;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     protected void start() {
         if (!started.getAndSet(true)) {
             setID(name);
@@ -188,9 +190,9 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
      * {@inheritDoc}
      */
     @Override
-    protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
+    protected void queueWriteIO(AtmosphereResource r, Entry entry) throws InterruptedException {
         synchronized (r) {
-            executeAsyncWrite(new AsyncWriteToken(r, finalMsg, entry.future, entry.originalMessage, entry.cache));
+            executeAsyncWrite(new AsyncWriteToken(r, entry.message, entry.future, entry.originalMessage, entry.cache));
         }
     }
 }
