@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
 
+import java.util.Collections;
 import java.util.List;
 
 public class DefaultBroadcasterCache implements BroadcasterCache {
@@ -35,7 +36,6 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void configure(AtmosphereConfig config) {
-
     }
 
     @Override
@@ -45,7 +45,7 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
-        return null;
+        return Collections.<Object>emptyList();
     }
 
     @Override
@@ -55,6 +55,6 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
-        return null;
+        return this;
     }
 }
