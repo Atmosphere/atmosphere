@@ -495,6 +495,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     public AtmosphereRequest queryString(String queryString) {
 
+        if (queryString == null) return this;
+
         // Don't override the builder
         String qs = queryString;
         if (qs.isEmpty()) {
