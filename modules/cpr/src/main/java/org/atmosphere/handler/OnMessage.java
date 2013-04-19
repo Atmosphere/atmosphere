@@ -51,7 +51,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
         AtmosphereResponse response = ((AtmosphereResourceImpl)event.getResource()).getResponse(false);
 
-        logger.debug("{} with event {}", event.getResource().uuid(), event);
+        logger.trace("{} with event {}", event.getResource().uuid(), event);
         if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
             List<T> messages = List.class.cast(event.getMessage());
             for (T t: messages) {
