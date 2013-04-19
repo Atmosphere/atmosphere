@@ -491,8 +491,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResourceImpl setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
-        // Starting with 1.1, always add.
-        broadcaster.addAtmosphereResource(this);
         return this;
     }
 
