@@ -104,7 +104,11 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                 throw new IOException(ex);
             }
         } else {
-            boolean isUsingStream = (Boolean) event.getResource().getRequest().getAttribute(PROPERTY_USE_STREAM);
+            boolean isUsingStream = true;
+            Object o = event.getResource().getRequest().getAttribute(PROPERTY_USE_STREAM);
+            if (o != null) {
+                isUsingStream = (Boolean)o;
+            }
 
             if (!isUsingStream) {
                 try {
