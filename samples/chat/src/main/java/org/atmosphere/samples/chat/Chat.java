@@ -15,41 +15,63 @@
  */
 package org.atmosphere.samples.chat;
 
-import org.atmosphere.config.service.AtmosphereHandlerService;
+import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.Message;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.handler.OnMessage;
-import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
-import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
+import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
 import java.util.Date;
 
-/**
- * Simple AtmosphereHandler that implement the logic to build a Chat application.
- *
- * @author Jeanfrancois Arcand
- */
-@AtmosphereHandlerService(path="/chat",
-        interceptors = {AtmosphereResourceLifecycleInterceptor.class,
-                        BroadcastOnPostAtmosphereInterceptor.class})
-public class Chat extends OnMessage<String> {
+@ManagedService(path = "/chat")
+public class Chat {
+    private final ObjectMapper mapper = new ObjectMapper();
 
-    @Override
-    public void onMessage(AtmosphereResponse response, String message) throws IOException {
-        response.getWriter().write(message +"\r\n");
+    @Message
+    public String onMessage(String message) throws IOException {
+        return mapper.writeValueAsString(mapper.readValue(message, Data.class));
     }
 
-    private final static class Data {
+    public final static class Data {
 
-        private final String text;
-        private final String author;
+        private String message;
+        private String author;
+        private long time;
 
-        public Data(String author, String text) {
+        public Data() {
+            this("", "");
+        }
+
+        public Data(String author, String message) {
             this.author = author;
-            this.text = text;
+            this.message = message;
+            this.time = new Date().getTime();
         }
-        public String toString() {
-            return "{ \"text\" : \"" + text + "\", \"author\" : \"" + author + "\" , \"time\" : " + new Date().getTime() + "}";
+
+        public String getMessage() {
+            return message;
         }
+
+        public String getAuthor() {
+            return author;
+        }
+
+        public void setAuthor(String author) {
+            this.author = author;
+        }
+
+        public void setMessage(String message) {
+            this.message = message;
+        }
+
+        public long getTime() {
+            return time;
+        }
+
+        public void setTime(long time) {
+            this.time = time;
+        }
+
     }
 }
