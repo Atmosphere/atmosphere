@@ -16,13 +16,22 @@
 package org.atmosphere.container.version;
 
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.websocket.Session;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 
+/**
+ * TODO: Add async support,
+ *       Add binary support for text.
+ */
 public class JSR356WebSocket extends WebSocket {
+
+    private final Logger logger = LoggerFactory.getLogger(JSR356WebSocket.class);
 
     private final Session session;
 
@@ -38,14 +47,28 @@ public class JSR356WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
-        session.getBasicRemote().sendText(s);
+        try {
+            session.getBasicRemote().sendText(s);
+        } catch (NullPointerException e) {
+            patchGlassFish(e);
+        }
         return this;
     }
 
     @Override
     public WebSocket write(byte[] data, int offset, int length) throws IOException {
-        session.getBasicRemote().sendBinary(ByteBuffer.wrap(data, offset, length));
+        try {
+            session.getBasicRemote().sendBinary(ByteBuffer.wrap(data, offset, length));
+        } catch (NullPointerException e) {
+            patchGlassFish(e);
+        }
         return this;
+    }
+
+    void patchGlassFish(NullPointerException e) {
+        // https://java.net/jira/browse/TYRUS-175
+        logger.trace("", e);
+        WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config().framework()).close(this, 1002);
     }
 
     @Override
@@ -54,7 +77,7 @@ public class JSR356WebSocket extends WebSocket {
         try {
             session.close();
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.trace("", e);
         }
     }
 }
