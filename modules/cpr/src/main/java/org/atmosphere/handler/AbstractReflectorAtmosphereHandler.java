@@ -146,9 +146,14 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
-        if (event.isResuming()) return;
+        if (event.isResuming() || event.isCancelled()) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+        // Between event.isCancelled and event.getResource(), the connection has been remotly closed.
+        if (r == null) {
+            logger.trace("Event {} returned a null AtmosphereResource", event);
+            return;
+        }
         Boolean resumeOnBroadcast = r.resumeOnBroadcast();
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well

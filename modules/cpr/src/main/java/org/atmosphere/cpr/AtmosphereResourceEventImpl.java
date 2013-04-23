@@ -233,6 +233,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     }
 
     public AtmosphereResourceEvent destroy() {
+        isCancelled.set(true);
         resource = null;
         message = null;
         return this;
