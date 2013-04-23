@@ -125,6 +125,7 @@ public class JSR356Endpoint extends Endpoint {
 
     @Override
     public void onClose(javax.websocket.Session session, javax.websocket.CloseReason closeCode) {
+        logger.trace("{} closed {}", session, closeCode);
         request.destroy();
         webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
     }
