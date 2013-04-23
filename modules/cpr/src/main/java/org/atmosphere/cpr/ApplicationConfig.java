@@ -543,5 +543,11 @@ public interface ApplicationConfig {
      * Value: "org.atmosphere.cpr.Broadcaster.POLICY.maximumSuspended"
      */
     String BROADCASTER_POLICY_TIMEOUT = Broadcaster.POLICY.class.getName() + ".maximumSuspended";
+    /**
+     * Allows suppressing the message about commercial support during startup.
+     * Default is true
+     * Value: org.atmosphere.cpr.showSupportMessage
+     */
+    String SHOW_SUPPORT_MESSAGE = ApplicationConfig.class.getPackage().getName() + ".showSupportMessage";
 }
 
