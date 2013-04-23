@@ -16,6 +16,14 @@
             <param-name>org.atmosphere.cpr.packages</param-name>
             <param-value>org.atmosphere.samples</param-value>
         </init-param>
+        <init-param>
+            <param-name>org.atmosphere.cpr.Broadcaster.supportOutOfOrderBroadcast</param-name>
+            <param-value>false</param-value>
+        </init-param>
+        <!--<init-param>-->
+            <!--<param-name>org.atmosphere.cpr.broadcasterClass</param-name>-->
+            <!--<param-value>org.atmosphere.util.SimpleBroadcaster</param-value>-->
+        <!--</init-param>-->
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>

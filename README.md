@@ -8,6 +8,12 @@ The Atmosphere Framework contains client and server side components for building
 
 Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
+Don't want to use a JavaEE server? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
+
+Looking for a Java Client for working with Atmosphere, Andoid or Node.js? Look at [wAsync](https://github.com/Atmosphere/wasync)
+
+Using the Play Framework? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-play)
+
 ### Tutorial
 
 Get started using this step by step [tutorial](http://async-io.org/tutorial.html)
