@@ -564,5 +564,11 @@ public interface ApplicationConfig {
      * Value: "org.atmosphere.client.ApplicationConfig.mappingRegex"
      */
     String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
+    /*
+     * Allows suppressing the message about commercial support during startup.
+     * Default is true
+     * Value: org.atmosphere.cpr.showSupportMessage
+     */
+    String SHOW_SUPPORT_MESSAGE = ApplicationConfig.class.getPackage().getName() + ".showSupportMessage";
 }
 
