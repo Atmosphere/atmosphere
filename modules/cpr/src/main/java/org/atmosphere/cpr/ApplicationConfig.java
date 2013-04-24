@@ -371,7 +371,7 @@ public interface ApplicationConfig {
      * WebSocket version to exclude and downgrade to comet. Versions are separated by comma.
      * <p></p>
      * Default: ""
-	 * Value: org.atmosphere.websocket.bannedVersion
+     * Value: org.atmosphere.websocket.bannedVersion
      */
     String WEB_SOCKET_BANNED_VERSION = "org.atmosphere.websocket.bannedVersion";
     /**
@@ -552,7 +552,7 @@ public interface ApplicationConfig {
     String BROADCASTER_POLICY = Broadcaster.POLICY.class.getName();
     /**
      * Allow defining the Broadcaster's maximum Suspended Atmosphere Policy {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}.
-	 * <p></p>
+     * <p></p>
      * Default: -1 (unlimited)
      * Value: org.atmosphere.cpr.Broadcaster.POLICY.maximumSuspended
      */
@@ -566,7 +566,7 @@ public interface ApplicationConfig {
     String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
     /**
      * Allows suppressing the message about commercial support during startup.
-	 * <p></p>
+     * <p></p>
      * Default: true
      * Value: org.atmosphere.cpr.showSupportMessage
      */
