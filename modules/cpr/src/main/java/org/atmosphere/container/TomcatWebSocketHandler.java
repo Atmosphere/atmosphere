@@ -74,10 +74,13 @@ public class TomcatWebSocketHandler extends StreamInbound {
 
     @Override
     protected void onClose(int closeCode) {
-        request.destroy();
         if (webSocketProcessor == null) return;
-
-        webSocketProcessor.close(webSocket, closeCode);
+        logger.trace("onClose {}", closeCode);
+        try {
+            webSocketProcessor.close(webSocket, closeCode);
+        } finally {
+            request.destroy();
+        }
     }
 
     protected void onTextMessage(CharBuffer message) throws IOException {

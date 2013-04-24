@@ -47,8 +47,12 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
 
     @Override
     public void onWebSocketClose(int closeCode, String s) {
-        request.destroy();
-        webSocketProcessor.close(webSocket, closeCode);
+        logger.trace("onClose {}:{}", closeCode, s);
+        try {
+            webSocketProcessor.close(webSocket, closeCode);
+        } finally {
+            request.destroy();
+        }
     }
 
     @Override
