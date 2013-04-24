@@ -140,6 +140,7 @@ jQuery.atmosphere = function() {
                 status: 200,
                 reasonPhrase : "OK",
                 responseBody : '',
+                messages : [],
                 headers : [],
                 state : "messageReceived",
                 transport : "polling",
@@ -975,6 +976,7 @@ jQuery.atmosphere = function() {
                     if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
+                        _response.messages = [];
                     }
                 };
 
@@ -983,6 +985,7 @@ jQuery.atmosphere = function() {
                     clearTimeout(_request.id);
                     _response.state = 'closed';
                     _response.responseBody = "";
+                    _response.messages = [];
                     _response.status = !sseOpened ? 501 : 200;
                     _invokeCallback();
                     _clearState();
@@ -997,6 +1000,7 @@ jQuery.atmosphere = function() {
                                 _executeSSE(true);
                             }, _request.reconnectInterval);
                             _response.responseBody = "";
+                            _response.messages = [];
                         } else {
                             jQuery.atmosphere.log(_request.logLevel, ["SSE reconnect maximum try reached " + _requestCount]);
                             _onError(0, "maxReconnectOnClose reached");
@@ -1105,6 +1109,7 @@ jQuery.atmosphere = function() {
                     if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
+                        _response.messages = [];
                     }
                 };
 
@@ -1152,6 +1157,7 @@ jQuery.atmosphere = function() {
 
                     _response.state = 'closed';
                     _response.responseBody = "";
+                    _response.messages = [];
                     _response.status = !webSocketOpened ? 501 : 200;
                     _invokeCallback();
 
@@ -1167,6 +1173,7 @@ jQuery.atmosphere = function() {
                         if (_request.reconnect && _requestCount++ < _request.maxReconnectOnClose) {
                             _request.id = setTimeout(function() {
                                 _response.responseBody = "";
+                                _response.messages = [];
                                 _executeWebSocket(true);
                             }, _request.reconnectInterval);
                         } else {
@@ -1196,6 +1203,7 @@ jQuery.atmosphere = function() {
                 _response.state = 'error';
                 _response.reasonPhrase = reason
                 _response.responseBody = "";
+                _response.messages = [];
                 _response.status = code;
                 _invokeCallback();
             }
@@ -1237,9 +1245,11 @@ jQuery.atmosphere = function() {
 
                     if (messages.length != 0) {
                         response.responseBody = messages.join(request.messageDelimiter);
+                        response.messages = messages;
                         return false;
                     } else {
                         response.responseBody = "";
+                        response.messages = [];
                         return true;
                     }
                 } else {
@@ -2272,7 +2282,7 @@ jQuery.atmosphere = function() {
                 _request.reconnect = _request.mrequest;
 
                 var messages = (typeof(_response.responseBody) == 'string' && _request.trackMessageLength) ?
-                    _response.responseBody.split(_request.messageDelimiter) : new Array(_response.responseBody);
+                    (_response.messages.length>0 ? _response.messages : ['']) : new Array(_response.responseBody);
                 for (var i = 0; i < messages.length; i++) {
 
                     if (messages.length > 1 && messages[i].length == 0) {
@@ -2324,6 +2334,7 @@ jQuery.atmosphere = function() {
                 _response.request = _request;
                 _response.state = 'unsubscribe';
                 _response.responseBody = "";
+                _response.messages = [];
                 _response.status = 408;
                 _invokeCallback();
 
