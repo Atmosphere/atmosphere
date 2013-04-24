@@ -72,10 +72,12 @@ public class TomcatWebSocketHandler extends MessageInbound {
 
     @Override
     protected void onClose(int closeCode) {
-        request.destroy();
         if (webSocketProcessor == null) return;
-
-        webSocketProcessor.close(webSocket,closeCode);
+        try {
+            webSocketProcessor.close(webSocket,closeCode);
+        } finally {
+            request.destroy();
+        }
     }
 
     @Override

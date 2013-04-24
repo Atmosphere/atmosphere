@@ -18,11 +18,9 @@ package org.atmosphere.container;
 import org.atmosphere.container.version.Jetty8WebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.WebSocketProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,8 +108,11 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
 
     @Override
     public void onClose(int closeCode, String message) {
-        request.destroy();
-        webSocketProcessor.close(webSocket, closeCode);
-
+        logger.trace("onClose {}:{}", closeCode, message);
+        try {
+            webSocketProcessor.close(webSocket, closeCode);
+        } finally {
+            request.destroy();
+        }
     }
 }
