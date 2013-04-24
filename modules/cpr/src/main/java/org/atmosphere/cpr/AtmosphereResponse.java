@@ -658,6 +658,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                         asyncIOWriter.write(AtmosphereResponse.this, new String(chars, offset, lenght));
                     } catch (IOException e) {
                         handleException(e);
+                        throw new RuntimeException(e);
                     } finally {
                         forceAsyncIOWriter = b;
                     }
@@ -673,6 +674,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                         asyncIOWriter.write(AtmosphereResponse.this, new String(chars));
                     } catch (IOException e) {
                         handleException(e);
+                        throw new RuntimeException(e);
                     } finally {
                         forceAsyncIOWriter = b;
                     }
@@ -688,6 +690,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                         asyncIOWriter.write(AtmosphereResponse.this, new String(s.substring(offset, lenght)));
                     } catch (IOException e) {
                         handleException(e);
+                        throw new RuntimeException(e);
                     } finally {
                         forceAsyncIOWriter = b;
                     }
@@ -703,6 +706,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                         asyncIOWriter.write(AtmosphereResponse.this, s);
                     } catch (IOException e) {
                         handleException(e);
+                        throw new RuntimeException(e);
                     } finally {
                         forceAsyncIOWriter = b;
                     }
