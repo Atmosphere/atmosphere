@@ -1209,7 +1209,7 @@ jQuery.atmosphere = function() {
                 _clearState();
 
                 _response.state = 'error';
-                _response.reasonPhrase = reason
+                _response.reasonPhrase = reason;
                 _response.responseBody = "";
                 _response.status = code;
                 _invokeCallback();
@@ -1403,6 +1403,9 @@ jQuery.atmosphere = function() {
                     rq = request;
                 }
 
+                rq.lastIndex = 0;
+                rq.readyState = 0;
+
                 // CORS fake using JSONP
                 if ((rq.transport == 'jsonp') || ((rq.enableXDR) && (jQuery.atmosphere.checkCORSSupport()))) {
                     _jsonp(rq);
@@ -1554,25 +1557,20 @@ jQuery.atmosphere = function() {
                                             //any message from the server will reset the last ping time
                                             rq.lastPingTime = (new Date()).getTime();
                                             _response.state = "messageReceived";
-                                            _response.responseBody = ajaxRequest.responseText.substring(rq.lastIndex);
+
+                                            var message = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
-                                            if (!skipCallbackInvocation) {
-                                                _invokeCallback();
-                                            }
+                                            if (_handleProtocol( _request, message)) {
+                                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                                                if (!skipCallbackInvocation) {
+                                                    _invokeCallback();
+                                                }
 
-                                            if ((rq.transport == 'streaming') && (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
-                                                rq.isReopen = true;
-                                                _response.partialMessage = "";
-                                                rq.disconnect();
-                                                _clearState();
+                                                _verifyStreamingLength(ajaxRequest, rq);
                                             }
                                         }
                                     }, 0);
-                                }
-
-                                if (skipCallbackInvocation) {
-                                    return;
                                 }
                             } else {
                                 skipCallbackInvocation = _trackMessageSize(responseText, rq, _response);
@@ -1580,8 +1578,10 @@ jQuery.atmosphere = function() {
                                     _reconnect(ajaxRequest, rq, false);
                                     return;
                                 }
+                            }
 
-                                rq.lastIndex = responseText.length;
+                            if (skipCallbackInvocation) {
+                                return;
                             }
 
                             try {
@@ -1610,13 +1610,7 @@ jQuery.atmosphere = function() {
                                 _reconnect(ajaxRequest, rq, false);
                             }
 
-                            if ((rq.transport == 'streaming') && (responseText.length > rq.maxStreamingLength)) {
-                                // Close and reopen connection on large data received
-                                rq.isReopen = true;
-                                _response.partialMessage = "";
-                                rq.disconnect();
-                                _clearState();
-                            }
+                            _verifyStreamingLength(ajaxRequest, rq);
                         }
                     };
                     ajaxRequest.send(rq.data);
@@ -2313,6 +2307,40 @@ jQuery.atmosphere = function() {
             }
 
             /**
+             *
+             * @private
+             */
+            function _verifyStreamingLength(ajaxRequest, rq){
+                // Wait to be sure we have the full message before closing.
+                if (_response.partialMessage == "" &&
+                        (rq.transport == 'streaming') &&
+                        (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
+                    _response.messages = [];
+                    _disconnect();
+                    _clearState();
+                    _reconnect(ajaxRequest, rq, true);
+                }
+            }
+
+            /**
+             * Disconnect
+             * @private
+             */
+            function _disconnect() {
+                if (_request.enableProtocol) {
+                    var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + _request.uuid;
+                    var url = _request.url.replace(/([?&])_=[^&]*/, query);
+                    url = url + (url === _request.url ? (/\?/.test(_request.url) ? "&" : "?") + query : "");
+
+                    if (_request.connectTimeout > -1) {
+                        jQuery.ajax({url: url, async: false, timeout: _request.connectTimeout});
+                    } else {
+                        jQuery.ajax({url: url, async: false});
+                    }
+                }
+            }
+
+            /**
              * Close request.
              *
              * @private
@@ -2389,17 +2417,7 @@ jQuery.atmosphere = function() {
             };
 
             this.disconnect = function () {
-                if (_request.enableProtocol) {
-                    var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + _request.uuid;
-                    var url = _request.url.replace(/([?&])_=[^&]*/, query);
-                    url = url + (url === _request.url ? (/\?/.test(_request.url) ? "&" : "?") + query : "");
-
-                    if (_request.connectTimeout > -1) {
-                        jQuery.ajax({url: url, async: false, timeout: _request.connectTimeout});
-                    } else {
-                        jQuery.ajax({url: url, async: false});
-                    }
-                }
+                _disconnect();
             };
 
             this.getUrl = function() {
@@ -2681,8 +2699,8 @@ jQuery.atmosphere = function() {
 /*
  * jQuery stringifyJSON
  * http://github.com/flowersinthesand/jquery-stringifyJSON
- * 
- * Copyright 2011, Donghwan Kim 
+ *
+ * Copyright 2011, Donghwan Kim
  * Licensed under the Apache License, Version 2.0
  * http://www.apache.org/licenses/LICENSE-2.0
  */
