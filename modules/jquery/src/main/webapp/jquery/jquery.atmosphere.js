@@ -2407,9 +2407,7 @@ jQuery.atmosphere = function() {
                     url = url + (url === _request.url ? (/\?/.test(_request.url) ? "&" : "?") + query : "");
 
                     if (_request.connectTimeout > -1) {
-                        setTimeout(function () {
-                            jQuery.ajax({url: url, async: false});
-                        }, _request.connectTimeout);
+                        jQuery.ajax({url: url, async: false, timeout: _request.connectTimeout});
                     } else {
                         jQuery.ajax({url: url, async: false});
                     }
