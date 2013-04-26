@@ -1585,10 +1585,6 @@ jQuery.atmosphere = function() {
                                 rq.lastIndex = responseText.length;
                             }
 
-                            if (skipCallbackInvocation) {
-                                return;
-                            }
-
                             try {
                                 _response.status = ajaxRequest.status;
                                 _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
@@ -1613,7 +1609,9 @@ jQuery.atmosphere = function() {
                                 jQuery.atmosphere.log(rq.logLevel, ["parent.callback no longer supported with 0.8 version and up. Please upgrade"]);
                             }
 
-                            _invokeCallback();
+                            if (!skipCallbackInvocation) {
+                                _invokeCallback();
+                            }
 
                             if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
