@@ -30,7 +30,7 @@ $(function () {
         try {
             var json = jQuery.parseJSON(message);
         } catch (e) {
-            console.log('This doesn\'t look like a valid JSON: ', message.data);
+            console.log('This doesn\'t look like a valid JSON: ', message);
             return;
         }
 
