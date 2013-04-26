@@ -1533,7 +1533,7 @@ jQuery.atmosphere = function() {
                                 var message = responseText.substring(rq.lastIndex, responseText.length);
                                 skipCallbackInvocation = _trackMessageSize(message, rq, _response);
 
-                                if (!skipCallbackInvocation) {
+                                if (skipCallbackInvocation) {
                                     rq.lastIndex = responseText.length;
                                     return;
                                 }
