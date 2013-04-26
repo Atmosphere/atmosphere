@@ -1535,8 +1535,6 @@ jQuery.atmosphere = function() {
                                 return;
                             }
 
-                            _triggerOpen(rq);
-
                             _readHeaders(ajaxRequest, _request);
 
                             if (rq.transport == 'streaming') {
@@ -1610,6 +1608,10 @@ jQuery.atmosphere = function() {
                             if (rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
                             }
+
+                            setTimeout(function () {
+                                _triggerOpen(rq);
+                            }, 100);
 
                             _verifyStreamingLength(ajaxRequest, rq);
                         }
