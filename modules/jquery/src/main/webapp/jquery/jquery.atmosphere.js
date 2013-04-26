@@ -1584,14 +1584,6 @@ jQuery.atmosphere = function() {
                                 }
                             } else {
                                 skipCallbackInvocation = _trackMessageSize(responseText, rq, _response);
-                                if (!skipCallbackInvocation) {
-                                    _reconnect(ajaxRequest, rq, false);
-                                    return;
-                                }
-                            }
-
-                            if (skipCallbackInvocation) {
-                                return;
                             }
 
                             try {
@@ -1608,7 +1600,6 @@ jQuery.atmosphere = function() {
                             } else {
                                 _response.state = "messagePublished";
                             }
-
 
                             if (!rq.executeCallbackBeforeReconnect) {
                                 _reconnect(ajaxRequest, rq, false);
