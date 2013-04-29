@@ -1946,9 +1946,6 @@ jQuery.atmosphere = function () {
                                     res = cdoc.body.lastChild;
                                 }
 
-                                // Handles open event
-                                _prepareCallback(readResponse(), "opening", 200, rq.transport);
-
                                 // Handles message and close event
                                 stop = jQuery.atmosphere.iterate(function () {
                                     var text = readResponse();
@@ -1975,6 +1972,7 @@ jQuery.atmosphere = function () {
 
                                     if (cdoc.readyState === "complete") {
                                         _invokeClose(true);
+                                        _open('re-connecting', rq.transport, rq);
                                         rq.id = setTimeout(function () {
                                             _ieStreaming(rq);
                                         }, rq.reconnectInterval);
@@ -1985,6 +1983,7 @@ jQuery.atmosphere = function () {
                                 return false;
                             } catch (err) {
                                 _response.error = true;
+                                _open('re-connecting', rq.transport, rq);
                                 if (_requestCount++ < rq.maxReconnectOnClose) {
                                     rq.id = setTimeout(function () {
                                         _ieStreaming(rq);
