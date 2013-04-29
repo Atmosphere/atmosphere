@@ -66,7 +66,7 @@ public class BroadcasterListenerTest {
         framework.destroy();
     }
 
-    public final static class L implements BroadcasterListener {
+    public final static class L extends BroadcasterListenerAdapter {
 
         @Override
         public void onPostCreate(Broadcaster b) {

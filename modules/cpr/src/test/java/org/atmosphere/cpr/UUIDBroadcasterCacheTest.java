@@ -100,7 +100,7 @@ public class UUIDBroadcasterCacheTest {
     @Test
     public void concurrentCache() throws ExecutionException, InterruptedException, ServletException {
         final CountDownLatch latch = new CountDownLatch(101);
-        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }

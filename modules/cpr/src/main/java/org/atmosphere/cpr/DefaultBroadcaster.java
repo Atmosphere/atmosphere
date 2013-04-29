@@ -1407,16 +1407,21 @@ public class DefaultBroadcaster implements Broadcaster {
             if (!backwardCompatible && parentUUID != null) {
                 AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
                 if (p != null && !resources.contains(p)) {
-                    resources.add(p);
+                    notifyAndAdd(p);
                 } else if (p == null) {
-                    resources.add(r);
+                    notifyAndAdd(r);
                 }
             } else {
-                resources.add(r);
+                notifyAndAdd(r);
             }
         } else if (!wasResumed) {
-            logger.debug("Unable to add AtmosphereResource {}", r.uuid());
+            logger.debug("Unable to add AtmosphereResource {} to {}", r.uuid(), name);
         }
+    }
+
+    protected void notifyAndAdd(AtmosphereResource r) {
+        resources.add(r);
+        notifyOnAddAtmosphereResourceListener(r);
     }
 
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
@@ -1430,10 +1435,30 @@ public class DefaultBroadcaster implements Broadcaster {
         if (f != null) f.done();
     }
 
-    void notifyBroadcastListener() {
+    protected void notifyBroadcastListener() {
         for (BroadcasterListener b : broadcasterListeners) {
             try {
                 b.onComplete(this);
+            } catch (Exception ex) {
+                logger.warn("", ex);
+            }
+        }
+    }
+
+    protected void notifyOnAddAtmosphereResourceListener(AtmosphereResource r){
+        for (BroadcasterListener b : broadcasterListeners) {
+            try {
+                b.onAddAtmosphereResource(this, r);
+            } catch (Exception ex) {
+                logger.warn("", ex);
+            }
+        }
+    }
+
+    protected void notifyOnRemoveAtmosphereResourceListener(AtmosphereResource r){
+        for (BroadcasterListener b : broadcasterListeners) {
+            try {
+                b.onRemoveAtmosphereResource(this, r);
             } catch (Exception ex) {
                 logger.warn("", ex);
             }
@@ -1457,6 +1482,7 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean removed;
         synchronized (resources) {
             removed = resources.remove(r);
+            notifyOnRemoveAtmosphereResourceListener(r);
         }
 
         if (!removed) return this;
@@ -1486,19 +1512,19 @@ public class DefaultBroadcaster implements Broadcaster {
         return this;
     }
 
-    private void notifyIdleListener() {
+    protected void notifyIdleListener() {
         for (BroadcasterLifeCyclePolicyListener b : lifeCycleListeners) {
             b.onIdle();
         }
     }
 
-    private void notifyDestroyListener() {
+    protected void notifyDestroyListener() {
         for (BroadcasterLifeCyclePolicyListener b : lifeCycleListeners) {
             b.onDestroy();
         }
     }
 
-    private void notifyEmptyListener() {
+    protected void notifyEmptyListener() {
         for (BroadcasterLifeCyclePolicyListener b : lifeCycleListeners) {
             b.onEmpty();
         }

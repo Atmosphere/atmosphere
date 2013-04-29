@@ -152,7 +152,7 @@ public class MetaBroadcaster {
         return metaBroadcaster;
     }
 
-    private final static class CompleteListener implements BroadcasterListener {
+    private final static class CompleteListener extends BroadcasterListenerAdapter {
 
         private final MetaBroadcasterFuture f;
 

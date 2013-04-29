@@ -112,7 +112,7 @@ public class ConcurrentBroadcasterTest {
 
         broadcaster.addAtmosphereResource(ar);
         final CountDownLatch latch = new CountDownLatch(1000);
-        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
@@ -149,7 +149,7 @@ public class ConcurrentBroadcasterTest {
         }
 
         final CountDownLatch latch = new CountDownLatch(count * client);
-        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
@@ -194,7 +194,7 @@ public class ConcurrentBroadcasterTest {
         }
 
         final CountDownLatch latch = new CountDownLatch(count * client);
-        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
@@ -239,7 +239,7 @@ public class ConcurrentBroadcasterTest {
         }
 
         final CountDownLatch latch = new CountDownLatch(count * client);
-        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
@@ -281,7 +281,7 @@ public class ConcurrentBroadcasterTest {
         }
 
         final CountDownLatch latch = new CountDownLatch(count * client);
-        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
@@ -325,7 +325,7 @@ public class ConcurrentBroadcasterTest {
 
         broadcaster.addAtmosphereResource(ar);
         final CountDownLatch latch = new CountDownLatch(1000);
-        broadcaster.addBroadcasterListener(new BroadcasterListener() {
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }

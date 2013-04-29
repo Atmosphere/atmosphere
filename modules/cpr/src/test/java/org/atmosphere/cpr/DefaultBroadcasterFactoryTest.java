@@ -166,7 +166,7 @@ public class DefaultBroadcasterFactoryTest {
         final CountDownLatch latch = new CountDownLatch(100);
         final AtomicInteger created = new AtomicInteger();
 
-        f.addBroadcasterListener(new BroadcasterListener() {
+        f.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
@@ -212,7 +212,7 @@ public class DefaultBroadcasterFactoryTest {
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         final CountDownLatch latch = new CountDownLatch(1000);
         final AtomicInteger created = new AtomicInteger();
-        f.addBroadcasterListener(new BroadcasterListener() {
+        f.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();

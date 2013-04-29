@@ -207,7 +207,7 @@ public class BroadcasterTest {
     public void testBroadcasterListenerOnPostCreate() {
 
         final AtomicReference<Boolean> create = new AtomicReference<Boolean>();
-        BroadcasterListener l = new BroadcasterListener() {
+        BroadcasterListener l = new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 create.set(Boolean.TRUE);
@@ -229,7 +229,7 @@ public class BroadcasterTest {
     public void testBroadcasterListenerOnPreDestroy() {
 
         final AtomicReference<Boolean> deleted = new AtomicReference<Boolean>();
-        BroadcasterListener l = new BroadcasterListener() {
+        BroadcasterListener l = new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
@@ -251,7 +251,7 @@ public class BroadcasterTest {
     public void testBroadcasterOnComplete() throws ExecutionException, InterruptedException {
 
         final AtomicReference<Boolean> complete = new AtomicReference<Boolean>(false);
-        BroadcasterListener l = new BroadcasterListener() {
+        BroadcasterListener l = new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
