@@ -32,6 +32,8 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 /**
  * Padding interceptor for Browser that needs whitespace when streaming is used.
  *
@@ -45,7 +47,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private static final String paddingText;
 
     static {
-        StringBuffer whitespace = new StringBuffer();
+        StringBuilder whitespace = new StringBuilder();
         for (int i = 0; i < 4096; i++) {
             whitespace.append(" ");
         }
@@ -68,6 +70,11 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         response.write(padding, true);
+        try {
+            response.flushBuffer();
+        } catch (IOException e) {
+            logger.trace("", e);
+        }
     }
 
     @Override

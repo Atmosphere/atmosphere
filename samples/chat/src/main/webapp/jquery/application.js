@@ -18,6 +18,7 @@ $(function () {
         logLevel : 'debug',
         transport : transport ,
         trackMessageLength : true,
+        reconnectInterval : 5000,
         fallbackTransport: 'long-polling'};
 
 
@@ -26,6 +27,10 @@ $(function () {
         input.removeAttr('disabled').focus();
         status.text('Choose name:');
         transport = response.transport;
+    };
+
+    request.onReopen = function(response) {
+        content.html($('<p>', { text: 'Atmosphere re-connected using ' + response.transport }));
     };
 
     <!-- For demonstration of how you can customize the fallbackTransport using the onTransportFailure function -->
@@ -60,12 +65,16 @@ $(function () {
 
     request.onClose = function(response) {
         subSocket.push(jQuery.stringifyJSON({ author: author, message: 'disconnecting' }));
-        logged = false;
     };
 
     request.onError = function(response) {
         content.html($('<p>', { text: 'Sorry, but there\'s some problem with your '
             + 'socket or the server is down' }));
+        logged = false;
+    };
+
+    request.onReconnect = function(request, response) {
+        content.html($('<p>', { text: 'Connection lost, trying to reconnect. Trying to reconnect ' + request.reconnectInterval}));
     };
 
     subSocket = socket.subscribe(request);
