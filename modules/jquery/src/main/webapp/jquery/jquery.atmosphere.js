@@ -1205,8 +1205,13 @@ jQuery.atmosphere = function () {
                 if (request.enableProtocol && request.firstMessage) {
                     request.firstMessage = false;
                     var messages = message.split(request.messageDelimiter);
-                    request.uuid = messages[0];
-                    request.stime = messages[1];
+                    if (request.trackMessageLength) {
+                        request.uuid = messages[1];
+                        request.stime = messages[2];
+                    } else {
+                        request.uuid = messages[0];
+                        request.stime = messages[1];
+                    }
                     return false;
                 }
                 return true;
@@ -1946,6 +1951,11 @@ jQuery.atmosphere = function () {
                                     res = cdoc.body.lastChild;
                                 }
 
+                                if (rq.closed) {
+                                    rq.isReopen = true;
+                                }
+                                _triggerOpen(rq);
+
                                 // Handles message and close event
                                 stop = jQuery.atmosphere.iterate(function () {
                                     var text = readResponse();
@@ -1956,7 +1966,6 @@ jQuery.atmosphere = function () {
                                         // Empties response every time that it is handled
                                         res.innerText = "";
                                         if (text.length != 0) {
-                                            _triggerOpen(rq);
 
                                             var skipCallbackInvocation = _trackMessageSize(text, rq, _response);
 
@@ -1964,7 +1973,7 @@ jQuery.atmosphere = function () {
                                                 return "";
                                             }
 
-                                            if (!skipCallbackInvocation) _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
+                                            _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
                                         }
 
                                         rq.lastIndex = 0;
