@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListener;
+import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.cpr.MetaBroadcaster;
@@ -70,7 +71,7 @@ public class MetaBroadcasterLoadTest {
 
         final CountDownLatch latch = new CountDownLatch(run);
 
-        BroadcasterListener l = new BroadcasterListener() {
+        BroadcasterListener l = new BroadcasterListenerAdapter() {
 
             @Override
             public void onPostCreate(Broadcaster b) {
