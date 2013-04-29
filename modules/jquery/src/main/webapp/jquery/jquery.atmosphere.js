@@ -1567,17 +1567,18 @@ jQuery.atmosphere = function () {
                             _readHeaders(ajaxRequest, _request);
 
                             if (rq.transport == 'streaming') {
-                                var message = responseText.substring(rq.lastIndex, responseText.length);
-                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                                if (!jQuery.browser.opera) {
+                                    var message = responseText.substring(rq.lastIndex, responseText.length);
+                                    skipCallbackInvocation = _trackMessageSize(message, rq, _response);
 
-                                if (skipCallbackInvocation) {
+                                    if (skipCallbackInvocation) {
+                                        rq.lastIndex = responseText.length;
+                                        return;
+                                    }
+
                                     rq.lastIndex = responseText.length;
-                                    return;
-                                }
 
-                                rq.lastIndex = responseText.length;
-
-                                if (jQuery.browser.opera) {
+                                } else {
                                     jQuery.atmosphere.iterate(function () {
                                         if (ajaxRequest.responseText.length > rq.lastIndex) {
                                             try {
