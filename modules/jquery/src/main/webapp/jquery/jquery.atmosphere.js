@@ -1448,8 +1448,20 @@ jQuery.atmosphere = function () {
                     }
                 }
 
+                var reconnectF =  function() {
+                    if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
+                        _open('re-connecting', request.transport, request);
+                        _reconnect(ajaxRequest, rq, true);
+                    } else {
+                        _onError(0, "maxReconnectOnClose reached");
+                    }
+                };
+
+
                 if (rq.reconnect && ( rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
                     var ajaxRequest = _buildAjaxRequest();
+                    ajaxRequest.hasData = false;
+
                     _doRequest(ajaxRequest, rq, true);
 
                     if (rq.suspend) {
@@ -1475,14 +1487,8 @@ jQuery.atmosphere = function () {
                                 _response.status = 500;
                             }
                             _clearState();
-
                             if (!_response.errorHandled) {
-                                if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
-                                    _open('re-connecting', request.transport, request);
-                                    _reconnect(ajaxRequest, rq, true);
-                                } else {
-                                    _onError(0, "maxReconnectOnClose reached");
-                                }
+                                reconnectF();
                             }
                         };
                     }
@@ -1491,6 +1497,7 @@ jQuery.atmosphere = function () {
                         if (_abordingConnection) {
                             return;
                         }
+
                         _response.error = null;
                         var skipCallbackInvocation = false;
                         var update = false;
@@ -1509,6 +1516,7 @@ jQuery.atmosphere = function () {
 
                         rq.readyState = ajaxRequest.readyState;
 
+                        clearTimeout(rq.id);
                         if (ajaxRequest.readyState == 4) {
                             if (jQuery.browser.msie) {
                                 update = true;
@@ -1516,14 +1524,11 @@ jQuery.atmosphere = function () {
                                 update = true;
                             } else if (rq.transport == 'long-polling') {
                                 update = true;
-                                clearTimeout(rq.id);
                             }
                         } else if (rq.transport == 'streaming' && jQuery.browser.msie && ajaxRequest.readyState >= 3) {
                             update = true;
                         } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200 && rq.transport != 'long-polling') {
                             update = true;
-                        } else {
-                            clearTimeout(rq.id);
                         }
 
                         if (rq.transport != 'polling' && ajaxRequest.readyState == 2) {
@@ -1531,29 +1536,29 @@ jQuery.atmosphere = function () {
                         }
 
                         if (update) {
+                            // MSIE 9 and lower status can be higher than 1000, Chrome can be 0
+                            var status = ajaxRequest.status > 1000 ? 0 : ajaxRequest.status;
+                            if (status >= 300 || status == 0) {
+                                // Prevent onerror callback to be called
+                                _response.errorHandled = true;
+                                reconnectF();
+                                return;
+                            }
                             var responseText = jQuery.trim(ajaxRequest.responseText);
 
                             if (responseText.length == 0) {
-                                return;
-                            }
-
-                            // MSIE 9 and lower status can be higher than 1000, Chrome can be 0
-                            if (ajaxRequest.status >= 300 || ajaxRequest.status == 0) {
-
-                                var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
-                                // Allow recovering from cached content.
-                                clearTimeout(rq.id);
-
-                                // Prevent onerror callback to be called
-                                _response.errorHandled = true;
-                                if (status < 400) {
-                                    _open('re-connecting', request.transport, request);
-                                    _reconnect(ajaxRequest, rq, true);
-                                } else if (_requestCount++ >= rq.maxReconnectOnClose) {
-                                    _onError(status, "maxReconnectOnClose reached");
+                                // For browser that aren't support onabort
+                                if (rq.transport == 'long-polling') {
+                                    if (!ajaxRequest.hasData) {
+                                        reconnectF();
+                                    }  else {
+                                        ajaxRequest.hasData = false;
+                                    }
                                 }
                                 return;
                             }
+                            ajaxRequest.hasData = true;
+
                             _readHeaders(ajaxRequest, _request);
 
                             if (rq.transport == 'streaming') {
