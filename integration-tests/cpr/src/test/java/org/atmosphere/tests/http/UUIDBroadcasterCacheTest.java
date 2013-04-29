@@ -27,6 +27,7 @@ import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterListener;
+import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.HeaderConfig;
 import org.eclipse.jetty.server.Server;
@@ -257,7 +258,7 @@ public class UUIDBroadcasterCacheTest {
                 }
                 event.getResource().resume();
             }
-        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "cache").addBroadcasterListener(new BroadcasterListener() {
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "cache").addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
             }
