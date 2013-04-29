@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -571,5 +572,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.showSupportMessage
      */
     String SHOW_SUPPORT_MESSAGE = ApplicationConfig.class.getPackage().getName() + ".showSupportMessage";
+    /**
+     * The timeout, in milliseconds, before an {@link AtmosphereResource}'s state get discarded.
+     * <p></p>
+     * Default: 300000 (5 minutes)
+     * Value: org.atmosphere.interceptor.AtmosphereResourceStateRecovery.timeout
+     */
+    String STATE_RECOVERY_TIMEOUT = AtmosphereResourceStateRecovery.class.getName() + ".timeout";
 }
 
