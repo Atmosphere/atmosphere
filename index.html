@@ -103,7 +103,7 @@ import org.atmosphere.handler.OnMessage;
 public class Echo extends OnMessage&lt;String&gt; {
     @Override
     public void onMessage(AtmosphereResponse res, String m) {
-        res.write("Echo: " + n);
+        res.write("Echo: " + m);
     }
 }</pre>
                 </div>
