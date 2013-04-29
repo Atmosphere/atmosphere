@@ -1963,7 +1963,7 @@ jQuery.atmosphere = function () {
 
                                             var skipCallbackInvocation = _trackMessageSize(text, rq, _response);
 
-                                            if (!skipCallbackInvocation) {
+                                            if (skipCallbackInvocation) {
                                                 return "";
                                             }
 
