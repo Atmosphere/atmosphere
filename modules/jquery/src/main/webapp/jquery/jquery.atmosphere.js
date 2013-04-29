@@ -1507,15 +1507,13 @@ jQuery.atmosphere = function () {
                         var skipCallbackInvocation = false;
                         var update = false;
 
-                        // Remote server disconnected us, reconnect.
+                        // Opera doesn't call onerror if the server disconnect.
                         if (rq.transport == 'streaming'
                             && rq.readyState > 2
                             && ajaxRequest.readyState == 4) {
 
-                            rq.readyState = 0;
-                            rq.lastIndex = 0;
-
-                            _reconnect(ajaxRequest, rq, true);
+                            _clearState();
+                            reconnectF();
                             return;
                         }
 
@@ -1546,19 +1544,18 @@ jQuery.atmosphere = function () {
                             if (status >= 300 || status == 0) {
                                 // Prevent onerror callback to be called
                                 _response.errorHandled = true;
+                                _clearState();
                                 reconnectF();
                                 return;
                             }
                             var responseText = jQuery.trim(ajaxRequest.responseText);
 
-                            if (responseText.length == 0) {
+                            if (responseText.length == 0 && rq.transport == 'long-polling') {
                                 // For browser that aren't support onabort
-                                if (rq.transport == 'long-polling') {
-                                    if (!ajaxRequest.hasData) {
-                                        reconnectF();
-                                    }  else {
-                                        ajaxRequest.hasData = false;
-                                    }
+                                if (!ajaxRequest.hasData) {
+                                    reconnectF();
+                                }  else {
+                                    ajaxRequest.hasData = false;
                                 }
                                 return;
                             }
@@ -1579,34 +1576,31 @@ jQuery.atmosphere = function () {
                                     rq.lastIndex = responseText.length;
 
                                 } else {
+                                    ajaxRequest.stop = false;
                                     jQuery.atmosphere.iterate(function () {
-                                        if (ajaxRequest.responseText.length > rq.lastIndex) {
+                                        if (_response.status != 500 && ajaxRequest.responseText.length > rq.lastIndex) {
                                             try {
                                                 _response.status = ajaxRequest.status;
                                                 _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
 
                                                 _readHeaders(ajaxRequest, _request);
 
-                                            }
-                                            catch (e) {
+                                            } catch (e) {
                                                 _response.status = 404;
                                             }
 
-                                            //any message from the server will reset the last ping time
-                                            rq.lastPingTime = (new Date()).getTime();
                                             _response.state = "messageReceived";
-
                                             var message = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
-                                            if (_handleProtocol(_request, message)) {
-                                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                                                if (!skipCallbackInvocation) {
-                                                    _invokeCallback();
-                                                }
-
-                                                _verifyStreamingLength(ajaxRequest, rq);
+                                            skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                                            if (!skipCallbackInvocation) {
+                                                _invokeCallback();
                                             }
+
+                                            _verifyStreamingLength(ajaxRequest, rq);
+                                        } else if (_response.status > 400){
+                                            return false;
                                         }
                                     }, 0);
                                 }
