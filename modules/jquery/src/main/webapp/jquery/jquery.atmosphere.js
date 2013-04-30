@@ -1576,7 +1576,6 @@ jQuery.atmosphere = function () {
                                     rq.lastIndex = responseText.length;
 
                                 } else {
-                                    ajaxRequest.stop = false;
                                     jQuery.atmosphere.iterate(function () {
                                         if (_response.status != 500 && ajaxRequest.responseText.length > rq.lastIndex) {
                                             try {
@@ -1600,6 +1599,8 @@ jQuery.atmosphere = function () {
 
                                             _verifyStreamingLength(ajaxRequest, rq);
                                         } else if (_response.status > 400){
+                                            // Prevent replaying the last message.
+                                            rq.lastIndex = ajaxRequest.responseText.length;
                                             return false;
                                         }
                                     }, 0);
