@@ -735,7 +735,7 @@ jQuery.atmosphere = function() {
                     dataType: "jsonp",
                     error : function(jqXHR, textStatus, errorThrown) {
                         _response.error = true;
-                        if (jqXHR.status < 300) {
+                        if (jqXHR.status < 300 && rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
                             _reconnect(_jqxhr, rq);
                         } else {
                             _onError(jqXHR.status, errorThrown);
