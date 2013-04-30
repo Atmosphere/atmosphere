@@ -983,11 +983,7 @@ jQuery.atmosphere = function() {
                 _sse.onerror = function(message) {
 
                     clearTimeout(_request.id);
-                    _response.state = 'closed';
-                    _response.responseBody = "";
-                    _response.messages = [];
-                    _response.status = !sseOpened ? 501 : 200;
-                    _invokeCallback();
+                    _invokeClose(sseOpened);
                     _clearState();
 
                     if (_abordingConnection) {
@@ -1155,12 +1151,7 @@ jQuery.atmosphere = function() {
                     jQuery.atmosphere.warn("Websocket closed, reason: " + reason);
                     jQuery.atmosphere.warn("Websocket closed, wasClean: " + message.wasClean);
 
-                    _response.state = 'closed';
-                    _response.responseBody = "";
-                    _response.messages = [];
-                    _response.status = !webSocketOpened ? 501 : 200;
-                    _invokeCallback();
-
+                    _invokeClose(webSocketOpened);
                     closed = true;
 
                     if (_abordingConnection) {
@@ -1411,6 +1402,14 @@ jQuery.atmosphere = function() {
                     }
                 }
 
+                var reconnectF =  function() {
+                    if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
+                        _reconnect(ajaxRequest, rq, true);
+                    } else {
+                        _onError(0, "maxReconnectOnClose reached");
+                    }
+                };
+
                 if (rq.reconnect && ( rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
                     var ajaxRequest = _buildAjaxRequest();
                     _doRequest(ajaxRequest, rq, true);
@@ -1423,8 +1422,11 @@ jQuery.atmosphere = function() {
                         _response.transport = rq.transport;
                     }
 
+                    ajaxRequest.onabort = function () {
+                        _invokeClose(true);
+                    };
+
                     ajaxRequest.onerror = function() {
-                        clearTimeout(rq.id);
                         _response.error = true;
                         try {
                             _response.status = XMLHttpRequest.status;
@@ -1436,15 +1438,9 @@ jQuery.atmosphere = function() {
                             _response.status = 500;
                         }
                         _clearState();
-
                         if (!_response.errorHandled) {
-                            if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
-                                _reconnect(ajaxRequest, rq, true);
-                            } else {
-                                _onError(0, "maxReconnectOnClose reached");
-                            }
+                            reconnectF();
                         }
-                        _response.errorHandled = true;
                     };
 
                     ajaxRequest.onreadystatechange = function() {
@@ -1463,7 +1459,7 @@ jQuery.atmosphere = function() {
                             rq.readyState = 0;
                             rq.lastIndex = 0;
 
-                            _reconnect(ajaxRequest, rq, true);
+                            reconnectF();
                             return;
                         }
 
@@ -1478,20 +1474,26 @@ jQuery.atmosphere = function() {
 
                         if (update) {
                             // MSIE 9 and lower status can be higher than 1000, Chrome can be 0
-                            if (ajaxRequest.status >= 300 || ajaxRequest.status == 0) {
-
-                                var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
+                            var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
+                            if (status >= 300 || status == 0) {
                                 // Prevent onerror callback to be called
                                 _response.errorHandled = true;
-
-                                if (status < 400 && _requestCount++ < _request.maxReconnectOnClose) {
-                                    _reconnect(ajaxRequest, rq, true);
-                                } else {
-                                    _onError(status, "maxReconnectOnClose reached");
-                                }
+                                _clearState();
+                                reconnectF();
                                 return;
                             }
                             var responseText = jQuery.trim(ajaxRequest.responseText);
+
+                            if (responseText.length == 0 && rq.transport == 'long-polling') {
+                                // For browser that aren't support onabort
+                                if (!ajaxRequest.hasData) {
+                                    reconnectF();
+                                }  else {
+                                    ajaxRequest.hasData = false;
+                                }
+                                return;
+                            }
+                            ajaxRequest.hasData = true;
 
                             _readHeaders(ajaxRequest, _request);
 
@@ -1688,11 +1690,12 @@ jQuery.atmosphere = function() {
                         var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
                         _response.status = status == 0 ? 204 : status;
                         _response.reason = status == 0 ? "Server resumed the connection or down." : "OK";
+                        var reconnectInterval = request.connectTimeout == -1 ? 0 : request.connectTimeout;
 
                         _open('re-opening', request.transport, request);
                         request.id = setTimeout(function() {
                             _executeRequest();
-                        }, request.reconnectInterval);
+                        }, reconnectInterval);
                     }
                 }
             }
@@ -2242,6 +2245,14 @@ jQuery.atmosphere = function() {
                 }
             }
 
+            function _invokeClose(wasOpen) {
+                _response.state = 'closed';
+                _response.responseBody = "";
+                _response.messages = [];
+                _response.status = !wasOpen ? 501 : 200;
+                _invokeCallback();
+            }
+
             /**
              * Invoke request callbacks.
              *
@@ -2310,6 +2321,7 @@ jQuery.atmosphere = function() {
                         (rq.transport == 'streaming') &&
                         (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
                     _response.messages = [];
+                    _invokeClose(true);
                     _disconnect();
                     _clearState();
                     _reconnect(ajaxRequest, rq, true);
