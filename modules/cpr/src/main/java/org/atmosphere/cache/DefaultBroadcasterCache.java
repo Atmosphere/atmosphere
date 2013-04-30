@@ -58,6 +58,10 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
+    public void clearBan(String broadcasterId, AtmosphereResource r) {
+    }
+
+    @Override
     public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
         return this;
     }

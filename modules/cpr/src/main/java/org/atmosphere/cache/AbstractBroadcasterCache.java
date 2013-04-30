@@ -202,4 +202,12 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         bannedResources.put(broadcasterId, list);
     }
 
+    @Override
+    public void clearBan(String broadcasterId, AtmosphereResource r) {
+        List<String> list = bannedResources.get(broadcasterId);
+        if (list != null) {
+            list.remove(r.uuid());
+        }
+    }
+
 }
