@@ -1469,7 +1469,9 @@ jQuery.atmosphere = function() {
 
                         rq.readyState = ajaxRequest.readyState;
 
-                        if (rq.transport != 'polling' && ajaxRequest.readyState >= 3) {
+                        if (rq.transport == 'streaming' && ajaxRequest.readyState >= 3) {
+                            update = true;
+                        } else if (rq.transport == 'long-polling' && ajaxRequest.readyState === 4) {
                             update = true;
                         }
                         clearTimeout(rq.id);
