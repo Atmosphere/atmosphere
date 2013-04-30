@@ -1469,31 +1469,19 @@ jQuery.atmosphere = function() {
 
                         rq.readyState = ajaxRequest.readyState;
 
-                        if (ajaxRequest.readyState == 4) {
-                            if (jQuery.browser.msie) {
-                                update = true;
-                            } else if (rq.transport == 'streaming') {
-                                update = true;
-                            } else if (rq.transport == 'long-polling') {
-                                update = true;
-                                clearTimeout(rq.id);
-                            }
-                        } else if (rq.transport == 'streaming' && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
+                        if (rq.transport != 'polling' && ajaxRequest.readyState >= 3) {
                             update = true;
-                        } else {
-                            clearTimeout(rq.id);
                         }
+                        clearTimeout(rq.id);
 
                         if (update) {
                             // MSIE 9 and lower status can be higher than 1000, Chrome can be 0
                             if (ajaxRequest.status >= 300 || ajaxRequest.status == 0) {
 
                                 var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
-                                // Allow recovering from cached content.
-                                clearTimeout(rq.id);
-
                                 // Prevent onerror callback to be called
                                 _response.errorHandled = true;
+
                                 if (status < 400 && _requestCount++ < _request.maxReconnectOnClose) {
                                     _reconnect(ajaxRequest, rq, true);
                                 } else {
