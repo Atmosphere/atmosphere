@@ -1568,13 +1568,10 @@ jQuery.atmosphere = function () {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
                                     skipCallbackInvocation = _trackMessageSize(message, rq, _response);
 
+                                    rq.lastIndex = responseText.length;
                                     if (skipCallbackInvocation) {
-                                        rq.lastIndex = responseText.length;
                                         return;
                                     }
-
-                                    rq.lastIndex = responseText.length;
-
                                 } else {
                                     jQuery.atmosphere.iterate(function () {
                                         if (_response.status != 500 && ajaxRequest.responseText.length > rq.lastIndex) {
@@ -2356,11 +2353,11 @@ jQuery.atmosphere = function () {
              *
              * @private
              */
-            function _verifyStreamingLength(ajaxRequest, rq) {
+            function _verifyStreamingLength(ajaxRequest, rq){
                 // Wait to be sure we have the full message before closing.
                 if (_response.partialMessage == "" &&
-                    (rq.transport == 'streaming') &&
-                    (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
+                        (rq.transport == 'streaming') &&
+                        (ajaxRequest.responseText.length > rq.maxStreamingLength)) {
                     _response.messages = [];
                     _invokeClose(true);
                     _disconnect();
