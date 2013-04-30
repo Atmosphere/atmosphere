@@ -1212,6 +1212,7 @@ jQuery.atmosphere = function () {
                         request.uuid = messages[0];
                         request.stime = messages[1];
                     }
+                    _triggerOpen(request);
                     return false;
                 }
                 return true;
@@ -1237,6 +1238,8 @@ jQuery.atmosphere = function () {
              * @param response
              */
             function _trackMessageSize(message, request, response) {
+                if (message.length == 0) return true;
+
                 if (!_handleProtocol(_request, message)) return true;
 
                 if (request.trackMessageLength) {
@@ -1534,7 +1537,7 @@ jQuery.atmosphere = function () {
                             update = true;
                         }
 
-                        if (rq.transport != 'polling' && ajaxRequest.readyState == 2) {
+                        if ((!rq.enableProtocol || !request.firstMessage) && rq.transport != 'polling' && ajaxRequest.readyState == 2) {
                             _triggerOpen(rq);
                         }
 
