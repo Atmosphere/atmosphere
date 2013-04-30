@@ -17,7 +17,6 @@ package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,9 +49,16 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
     }
 
     @Override
-    public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+    public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
         if (r == null) {
             throw new IllegalArgumentException("AtmosphereResource can't be null");
+        }
+
+        if (!bannedResources.isEmpty()) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list != null && list.contains(r.uuid())) {
+                return emptyList;
+            }
         }
 
         AtmosphereRequest request = r.getRequest();

@@ -19,6 +19,7 @@ import org.atmosphere.cache.AbstractBroadcasterCache;
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cache.CacheMessage;
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -35,6 +36,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.AssertJUnit.assertNotNull;
 
 public class BroadcasterCacheTest {
 
@@ -187,4 +189,21 @@ public class BroadcasterCacheTest {
         public void destroy() {
         }
     }
+
+    @Test
+    public void testBannedCache() throws ExecutionException, InterruptedException, ServletException {
+        BroadcasterCache cache = new UUIDBroadcasterCache();
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
+
+        cache.banFromCache(broadcaster.getID(), r);
+
+        broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
+        broadcaster.removeAtmosphereResource(r);
+        broadcaster.broadcast("foo").get();
+
+        assertNotNull(cache.retrieveFromCache(broadcaster.getID(), r));
+        assertEquals(cache.retrieveFromCache(broadcaster.getID(), r).isEmpty(), true);
+    }
+
+
 }

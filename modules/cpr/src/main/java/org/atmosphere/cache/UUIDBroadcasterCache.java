@@ -35,6 +35,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -59,6 +60,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private long clientIdleTime = TimeUnit.MINUTES.toMillis(2);//2 minutes
     private long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
     private boolean shared = true;
+    protected final ConcurrentHashMap<String, List<String>> bannedResources = new ConcurrentHashMap<String, List<String>>();
+    protected final List<Object> emptyList = Collections.<Object>emptyList();
 
     public static class ClientQueue {
 
@@ -182,6 +185,14 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
         String clientId = uuid(r);
+
+        if (!bannedResources.isEmpty()) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list != null && list.contains(r.uuid())) {
+                return emptyList;
+            }
+        }
+
         long now = System.currentTimeMillis();
 
         List<Object> result = new ArrayList<Object>();
@@ -216,7 +227,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
      * {@inheritDoc}
      */
     @Override
-    public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage message) {
+    public void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage message) {
         if (message == null) {
             return;
         }
@@ -334,5 +345,15 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             }
 
         }
+    }
+
+    @Override
+    public void banFromCache(String broadcasterId, AtmosphereResource r) {
+        List<String> list = bannedResources.get(broadcasterId);
+        if (list == null) {
+            list = new ArrayList<String>();
+        }
+        list.add(r.uuid());
+        bannedResources.put(broadcasterId, list);
     }
 }

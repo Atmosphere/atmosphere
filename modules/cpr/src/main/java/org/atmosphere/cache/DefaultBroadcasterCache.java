@@ -17,7 +17,6 @@ package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
 
 import java.util.Collections;
@@ -49,7 +48,12 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage cache) {
+    public void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache) {
+
+    }
+
+    @Override
+    public void banFromCache(String broadcasterId, AtmosphereResource r) {
 
     }
 

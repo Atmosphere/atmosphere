@@ -113,7 +113,14 @@ public interface BroadcasterCache {
      * @param r an {@link AtmosphereResource}
      * @param cache the {@link CacheMessage}
      */
-    void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage cache);
+    void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache);
+
+    /**
+     * Allow an application to ban, or block, an {@link AtmosphereResource} to received cached message.
+     * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param r an {@link AtmosphereResource}
+     */
+    void banFromCache(String broadcasterId, AtmosphereResource r);
 
     /**
      * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.

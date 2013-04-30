@@ -16,17 +16,19 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -53,6 +55,8 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     protected boolean isShared = false;
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
+    protected final ConcurrentHashMap<String, List<String>> bannedResources = new ConcurrentHashMap<String, List<String>>();
+    protected final List<Object> emptyList = Collections.<Object>emptyList();
 
     @Override
     public void start() {
@@ -181,10 +185,21 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage cache) {
+    public void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache) {
         if (cache != null) {
             messages.remove(cache);
             messagesIds.remove(cache.getId());
         }
     }
+
+    @Override
+    public void banFromCache(String broadcasterId, AtmosphereResource r) {
+        List<String> list = bannedResources.get(broadcasterId);
+        if (list == null) {
+            list = new ArrayList<String>();
+        }
+        list.add(r.uuid());
+        bannedResources.put(broadcasterId, list);
+    }
+
 }

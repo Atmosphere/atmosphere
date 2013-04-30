@@ -102,6 +102,13 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
             throw new IllegalArgumentException("AtmosphereResource can't be null");
         }
 
+        if (!bannedResources.isEmpty()) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list != null && list.contains(r.uuid())) {
+                return emptyList;
+            }
+        }
+
         List<Object> result = new ArrayList<Object>();
         try {
             HttpSession session = r.session();
