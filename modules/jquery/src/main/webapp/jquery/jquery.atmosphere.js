@@ -1424,6 +1424,7 @@ jQuery.atmosphere = function() {
                     }
 
                     ajaxRequest.onerror = function() {
+                        clearTimeout(rq.id);
                         _response.error = true;
                         try {
                             _response.status = XMLHttpRequest.status;
@@ -1477,9 +1478,7 @@ jQuery.atmosphere = function() {
                                 update = true;
                                 clearTimeout(rq.id);
                             }
-                        } else if (rq.transport == 'streaming' && jQuery.browser.msie && ajaxRequest.readyState >= 3) {
-                            update = true;
-                        } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200 && rq.transport != 'long-polling') {
+                        } else if (rq.transport == 'streaming' && ajaxRequest.readyState == 3 && ajaxRequest.status == 200) {
                             update = true;
                         } else {
                             clearTimeout(rq.id);
@@ -1528,35 +1527,27 @@ jQuery.atmosphere = function() {
                                     var junkEnd = text.indexOf(endOfJunk) + endOfJunkLength;
 
                                     if (junkEnd > endOfJunkLength && junkEnd != text.length) {
-                                        _response.responseBody = text.substring(junkEnd);
-                                        rq.lastIndex = responseText.length;
-                                        if (!_handleProtocol( _request, _response.responseBody)) {
-                                            return;
-                                        }
-                                        skipCallbackInvocation = _trackMessageSize(_response.responseBody, rq, _response);
-                                    } else {
-                                        skipCallbackInvocation = true;
+                                        rq.lastIndex = junkEnd;
                                     }
-                                } else {
+                                }
+
+                                if (!jQuery.browser.opera) {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
                                     rq.lastIndex = responseText.length;
-                                    if (!_handleProtocol( _request, message)) {
+                                    if (!_handleProtocol(_request, message)) {
                                         return;
                                     }
                                     skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                                }
-                                rq.lastIndex = responseText.length;
-
-                                if (jQuery.browser.opera) {
-                                    jQuery.atmosphere.iterate(function() {
-                                        if (ajaxRequest.responseText.length > rq.lastIndex) {
+                                } else {
+                                    jQuery.atmosphere.iterate(function () {
+                                        if (_response.status != 500 && ajaxRequest.responseText.length > rq.lastIndex) {
                                             try {
                                                 _response.status = ajaxRequest.status;
                                                 _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
 
                                                 _readHeaders(ajaxRequest, _request);
                                             }
-                                            catch(e) {
+                                            catch (e) {
                                                 _response.status = 404;
                                             }
                                             _response.state = "messageReceived";
@@ -1564,7 +1555,7 @@ jQuery.atmosphere = function() {
                                             var message = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
-                                            if (_handleProtocol( _request, message)) {
+                                            if (_handleProtocol(_request, message)) {
                                                 skipCallbackInvocation = _trackMessageSize(message, rq, _response);
                                                 if (!skipCallbackInvocation) {
                                                     _invokeCallback();
@@ -1572,6 +1563,9 @@ jQuery.atmosphere = function() {
 
                                                 _verifyStreamingLength(ajaxRequest, rq);
                                             }
+                                        } else if (_response.status > 400){
+                                            rq.lastIndex = ajaxRequest.responseText.length;
+                                            return false;
                                         }
                                     }, 0);
                                 }
