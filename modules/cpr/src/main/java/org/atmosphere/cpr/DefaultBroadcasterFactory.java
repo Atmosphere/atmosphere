@@ -332,21 +332,14 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             try {
                 b = e.nextElement();
                 b.resumeAll();
-                b.destroy();
                 bc = b.getBroadcasterConfig();
+                bc.forceDestroy();
+                b.destroy();
             } catch (Throwable t) {
                 // Shield us from any bad behaviour
-                logger.trace("Destroy", t);
+                logger.debug("Destroy", t);
             }
         }
-
-        try {
-            if (bc != null) bc.forceDestroy();
-        } catch (Throwable t) {
-            logger.trace("Destroy", t);
-
-        }
-
         store.clear();
         factory = null;
     }

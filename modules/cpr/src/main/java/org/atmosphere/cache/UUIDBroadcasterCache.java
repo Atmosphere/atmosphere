@@ -122,7 +122,10 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
         }
-        taskScheduler.shutdown();
+
+        if (taskScheduler != null) {
+            taskScheduler.shutdown();
+        }
     }
 
     /**
