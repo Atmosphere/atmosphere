@@ -53,7 +53,6 @@ package org.atmosphere.cpr;
 
 import java.util.Collection;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * {@link Broadcaster} factory used by Atmosphere when creating broadcaster.
@@ -90,7 +89,7 @@ public abstract class BroadcasterFactory {
      * @param id The unique ID used to retrieve {@link Broadcaster}
      * @return a new instance of {@link Broadcaster}
      */
-    abstract public Broadcaster get(Class<? extends Broadcaster> c, Object id);
+    abstract public  <T extends Broadcaster> T get(Class<T> c, Object id);
 
     /**
      * Shutdown all {@link Broadcaster}
@@ -122,7 +121,7 @@ public abstract class BroadcasterFactory {
      * @param id The Broadcaster's unique ID, or name.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public Broadcaster lookup(Class<? extends Broadcaster> c, Object id);
+    abstract public <T extends Broadcaster> T lookup(Class<T> c, Object id);
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
@@ -133,7 +132,7 @@ public abstract class BroadcasterFactory {
      * @param createIfNull If the broadcaster is not found, create it.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull);
+    abstract public  <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull);
 
      /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
@@ -142,7 +141,7 @@ public abstract class BroadcasterFactory {
      * @param id The Broadcaster's unique ID, or name.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public Broadcaster lookup(Object id);
+    abstract public <T extends Broadcaster> T  lookup(Object id);
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
@@ -152,7 +151,7 @@ public abstract class BroadcasterFactory {
      * @param createIfNull If the broadcaster is not found, create it.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public Broadcaster lookup(Object id, boolean createIfNull);
+    abstract public <T extends Broadcaster> T  lookup(Object id, boolean createIfNull);
 
     /**
      * Remove all instance of {@link AtmosphereResource} from all registered {@link Broadcaster}

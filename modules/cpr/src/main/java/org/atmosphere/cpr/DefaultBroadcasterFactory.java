@@ -152,7 +152,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public final Broadcaster get(Class<? extends Broadcaster> c, Object id) {
+    public final <T extends Broadcaster> T get(Class<T> c, Object id) {
 
         if (id == null) {
             throw new NullPointerException("id is null");
@@ -164,9 +164,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         return lookup(c, id, true, true);
     }
 
-    private Broadcaster createBroadcaster(Class<? extends Broadcaster> c, Object id) throws BroadcasterCreationException {
+    private <T extends Broadcaster> T  createBroadcaster(Class<T> c, Object id) throws BroadcasterCreationException {
         try {
-            Broadcaster b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
+            T b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
             InjectorProvider.getInjector().inject(b);
 
             b.setSuspendPolicy(defaultPolicyInteger, defaultPolicy);
@@ -213,7 +213,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    public final Broadcaster lookup(Class<? extends Broadcaster> c, Object id) {
+    public final  <T extends Broadcaster> T lookup(Class<T> c, Object id) {
         return lookup(c, id, false);
     }
 
@@ -234,19 +234,18 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     /**
      * {@inheritDoc}
      */
-    @Override
-    public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
+    public  <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull) {
         return lookup(c, id, createIfNull, false);
     }
 
-    public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull, boolean unique) {
+    public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
         synchronized(id) {
             logger.trace("About to create {}", id);
             if (unique && store.get(id) != null) {
                 throw new IllegalStateException("Broadcaster already existing " + id + ". Use BroadcasterFactory.lookup instead");
             }
 
-            Broadcaster b = store.get(id);
+            T b = (T) store.get(id);
             logger.trace("Looking in the store using {} returned {}", id, b);
             if (b != null && !c.isAssignableFrom(b.getClass())) {
                 String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
@@ -270,7 +269,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                     logger.trace("Added Broadcaster {} . Factory size: {}", id, store.size());
                 }
 
-                b = nb;
+                b = (T) nb;
             }
             return b;
         }

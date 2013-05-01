@@ -88,7 +88,7 @@ public class AtmosphereFrameworkTest {
         }
 
         @Override
-        public Broadcaster get(Class<? extends Broadcaster> c, Object id) {
+        public <T extends Broadcaster> T get(Class<T> c, Object id) {
             return null;
         }
 
@@ -108,22 +108,22 @@ public class AtmosphereFrameworkTest {
         }
 
         @Override
-        public Broadcaster lookup(Class<? extends Broadcaster> c, Object id) {
+        public <T extends Broadcaster> T lookup(Class<T> c, Object id) {
             return null;
         }
 
         @Override
-        public Broadcaster lookup(Class<? extends Broadcaster> c, Object id, boolean createIfNull) {
+        public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull) {
             return null;
         }
 
         @Override
-        public Broadcaster lookup(Object id) {
+        public <T extends Broadcaster> T lookup(Object id) {
             return null;
         }
 
         @Override
-        public Broadcaster lookup(Object id, boolean createIfNull) {
+        public <T extends Broadcaster> T lookup(Object id, boolean createIfNull) {
             return null;
         }
 
