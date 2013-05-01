@@ -63,7 +63,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected final ConcurrentHashMap<String, List<String>> bannedResources = new ConcurrentHashMap<String, List<String>>();
     protected final List<Object> emptyList = Collections.<Object>emptyList();
 
-    public static class ClientQueue {
+    public final static class ClientQueue {
 
         private final LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
 
@@ -130,6 +130,14 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
      */
     @Override
     public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
+
+        if (r != null && !bannedResources.isEmpty()) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list != null && list.contains(r.uuid())) {
+                return null;
+            }
+        }
+
         Object e = message.message;
         if (logger.isTraceEnabled()) {
             logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
@@ -348,20 +356,25 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void banFromCache(String broadcasterId, AtmosphereResource r) {
-        List<String> list = bannedResources.get(broadcasterId);
-        if (list == null) {
-            list = new ArrayList<String>();
+    public void excludeFromCache(String broadcasterId, AtmosphereResource r) {
+        synchronized (r) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list == null) {
+                list = new ArrayList<String>();
+            }
+            list.add(r.uuid());
+            bannedResources.put(broadcasterId, list);
         }
-        list.add(r.uuid());
-        bannedResources.put(broadcasterId, list);
     }
 
     @Override
-    public void clearBan(String broadcasterId, AtmosphereResource r) {
-        List<String> list = bannedResources.get(broadcasterId);
-        if (list != null) {
-            list.remove(r.uuid());
+    public boolean includeInCache(String broadcasterId, AtmosphereResource r) {
+        synchronized (r) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list != null) {
+                return list.remove(r.uuid());
+            }
+            return false;
         }
     }
 }

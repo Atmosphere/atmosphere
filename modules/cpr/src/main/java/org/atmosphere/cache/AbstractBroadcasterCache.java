@@ -193,20 +193,25 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void banFromCache(String broadcasterId, AtmosphereResource r) {
-        List<String> list = bannedResources.get(broadcasterId);
-        if (list == null) {
-            list = new ArrayList<String>();
+    public void excludeFromCache(String broadcasterId, AtmosphereResource r) {
+        synchronized (r) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list == null) {
+                list = new ArrayList<String>();
+            }
+            list.add(r.uuid());
+            bannedResources.put(broadcasterId, list);
         }
-        list.add(r.uuid());
-        bannedResources.put(broadcasterId, list);
     }
 
     @Override
-    public void clearBan(String broadcasterId, AtmosphereResource r) {
-        List<String> list = bannedResources.get(broadcasterId);
-        if (list != null) {
-            list.remove(r.uuid());
+    public boolean includeInCache(String broadcasterId, AtmosphereResource r) {
+        synchronized (r) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list != null) {
+                return list.remove(r.uuid());
+            }
+            return false;
         }
     }
 

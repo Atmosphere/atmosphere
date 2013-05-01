@@ -171,7 +171,9 @@ public class DefaultBroadcaster implements Broadcaster {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
         noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
-        logger.info("{} support Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
+        if (outOfOrderBroadcastSupported.get()) {
+            logger.debug("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
+        }
     }
 
     public DefaultBroadcaster(String name, AtmosphereConfig config) {
@@ -1420,6 +1422,9 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyAndAdd(AtmosphereResource r) {
+        boolean b = bc.getBroadcasterCache().includeInCache(getID(), r);
+        if (b) logger.debug("Excluded from {} : {}", getID(), r.uuid());
+
         resources.add(r);
         notifyOnAddAtmosphereResourceListener(r);
     }
@@ -1445,7 +1450,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void notifyOnAddAtmosphereResourceListener(AtmosphereResource r){
+    protected void notifyOnAddAtmosphereResourceListener(AtmosphereResource r) {
         for (BroadcasterListener b : broadcasterListeners) {
             try {
                 b.onAddAtmosphereResource(this, r);
@@ -1455,7 +1460,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void notifyOnRemoveAtmosphereResourceListener(AtmosphereResource r){
+    protected void notifyOnRemoveAtmosphereResourceListener(AtmosphereResource r) {
         for (BroadcasterListener b : broadcasterListeners) {
             try {
                 b.onRemoveAtmosphereResource(this, r);
@@ -1482,7 +1487,11 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean removed;
         synchronized (resources) {
             removed = resources.remove(r);
-            notifyOnRemoveAtmosphereResourceListener(r);
+            if (removed && r.isSuspended()) {
+                logger.debug("Excluded from {} : {}", getID(), r.uuid());
+                bc.getBroadcasterCache().excludeFromCache(getID(), r);
+            }
+            if (removed) notifyOnRemoveAtmosphereResourceListener(r);
         }
 
         if (!removed) return this;

@@ -53,12 +53,12 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void banFromCache(String broadcasterId, AtmosphereResource r) {
-
+    public void excludeFromCache(String broadcasterId, AtmosphereResource r) {
     }
 
     @Override
-    public void clearBan(String broadcasterId, AtmosphereResource r) {
+    public boolean includeInCache(String broadcasterId, AtmosphereResource r) {
+        return false;
     }
 
     @Override

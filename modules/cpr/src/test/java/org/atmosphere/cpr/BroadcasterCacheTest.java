@@ -21,6 +21,7 @@ import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -191,19 +192,73 @@ public class BroadcasterCacheTest {
     }
 
     @Test
-    public void testBannedCache() throws ExecutionException, InterruptedException, ServletException {
+    public void testBasicExcludeCache() throws ExecutionException, InterruptedException, ServletException {
         BroadcasterCache cache = new UUIDBroadcasterCache();
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
-        cache.banFromCache(broadcaster.getID(), r);
+        cache.excludeFromCache(broadcaster.getID(), r);
 
         broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
         broadcaster.removeAtmosphereResource(r);
         broadcaster.broadcast("foo").get();
 
-        assertNotNull(cache.retrieveFromCache(broadcaster.getID(), r));
-        assertEquals(cache.retrieveFromCache(broadcaster.getID(), r).isEmpty(), true);
+        List<Object> l = cache.retrieveFromCache(broadcaster.getID(), ar);
+        assertNotNull(l);
+        assertEquals(l.isEmpty(), true);
     }
 
+    @Test
+    public void testExcludeCache() throws ExecutionException, InterruptedException, ServletException {
+        BroadcasterCache cache = new UUIDBroadcasterCache();
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
+        broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
+        broadcaster.addAtmosphereResource(r);
+        broadcaster.broadcast("foo").get();
+        broadcaster.removeAtmosphereResource(r);
+        broadcaster.broadcast("foo").get();
+
+        List<Object> l = cache.retrieveFromCache(broadcaster.getID(), r);
+        assertNotNull(l);
+        assertEquals(l.isEmpty(), false);
+    }
+
+    @Test
+    public void testCloseExcludeCache() throws ExecutionException, InterruptedException, ServletException, IOException {
+        UUIDBroadcasterCache cache = new UUIDBroadcasterCache();
+        SimpleBroadcaster b = BroadcasterFactory.getDefault().lookup(SimpleBroadcaster.class, "uuidTest", true);
+        b.getBroadcasterConfig().setBroadcasterCache(cache);
+        // Reset
+        b.removeAtmosphereResource(ar);
+
+        b.addAtmosphereResource(ar);
+        b.broadcast("foo").get();
+
+        ar.close();
+        b.removeAtmosphereResource(ar);
+
+        b.broadcast("raide").get();
+
+        assertEquals(cache.messages().isEmpty(), false);
+        List<Object> l = cache.retrieveFromCache(b.getID(), ar);
+        assertNotNull(l);
+        assertEquals(l.isEmpty(), false);
+    }
+
+    @Test
+    public void testSuspendExcludeCache() throws ExecutionException, InterruptedException, ServletException, IOException {
+        UUIDBroadcasterCache cache = new UUIDBroadcasterCache();
+        SimpleBroadcaster b = BroadcasterFactory.getDefault().lookup(SimpleBroadcaster.class, "uuidTest", true);
+        b.getBroadcasterConfig().setBroadcasterCache(cache);
+        // Reset
+        b.removeAtmosphereResource(ar);
+
+        ar.suspend();
+        b.removeAtmosphereResource(ar);
+
+        b.broadcast("raide").get();
+
+        // Blocked by the cache because suspend has been called.
+        assertEquals(cache.messages().isEmpty(), true);
+    }
 }

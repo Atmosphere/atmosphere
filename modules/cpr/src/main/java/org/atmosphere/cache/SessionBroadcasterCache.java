@@ -76,6 +76,14 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
     @Override
     public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
+
+        if (r != null && !bannedResources.isEmpty()) {
+            List<String> list = bannedResources.get(broadcasterId);
+            if (list != null && list.contains(r.uuid())) {
+                return null;
+            }
+        }
+
         long now = System.nanoTime();
         CacheMessage cacheMessage = put(message, now);
 
