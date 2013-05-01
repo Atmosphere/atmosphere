@@ -19,9 +19,11 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
@@ -83,6 +85,19 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
+    private final AtmosphereHandler voidHandler = new AtmosphereHandler() {
+        @Override
+        public void onRequest(AtmosphereResource resource) throws IOException {
+        }
+
+        @Override
+        public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        }
+
+        @Override
+        public void destroy() {
+        }
+    };
 
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
@@ -132,6 +147,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
+        }
+
+        if (framework.getAtmosphereConfig().handlers().size() == 0) {
+            framework.addAtmosphereHandler("/*", voidHandler);
         }
 
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
