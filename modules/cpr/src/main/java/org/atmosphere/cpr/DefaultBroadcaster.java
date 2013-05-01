@@ -1487,11 +1487,16 @@ public class DefaultBroadcaster implements Broadcaster {
         boolean removed;
         synchronized (resources) {
             removed = resources.remove(r);
-            if (removed && r.isSuspended()) {
-                logger.debug("Excluded from {} : {}", getID(), r.uuid());
-                bc.getBroadcasterCache().excludeFromCache(getID(), r);
+            if (removed) {
+                if (r.isSuspended()) {
+                    logger.debug("Excluded from {} : {}", getID(), r.uuid());
+                    bc.getBroadcasterCache().excludeFromCache(getID(), r);
+                } else {
+                    // Prevent OOM
+                    bc.getBroadcasterCache().includeInCache(getID(), r);
+                }
+                notifyOnRemoveAtmosphereResourceListener(r);
             }
-            if (removed) notifyOnRemoveAtmosphereResourceListener(r);
         }
 
         if (!removed) return this;

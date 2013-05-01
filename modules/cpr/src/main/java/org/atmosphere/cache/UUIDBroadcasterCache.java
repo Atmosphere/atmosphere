@@ -370,11 +370,15 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public boolean includeInCache(String broadcasterId, AtmosphereResource r) {
         synchronized (r) {
+            boolean b = false;
             List<String> list = bannedResources.get(broadcasterId);
             if (list != null) {
-                return list.remove(r.uuid());
+                b = list.remove(r.uuid());
+                if (list.isEmpty()) {
+                    bannedResources.remove(broadcasterId);
+                }
             }
-            return false;
+            return b;
         }
     }
 }
