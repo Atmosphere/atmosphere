@@ -106,6 +106,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private AtmosphereHandler atmosphereHandler;
     private final String uuid;
     protected HttpSession session;
+    private boolean disableSuspendEvent;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -683,12 +684,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     void onSuspend(AtmosphereResourceEvent e) {
+        if (disableSuspendEvent) return;
         for (AtmosphereResourceEventListener r : listeners) {
             r.onSuspend(e);
         }
     }
 
     void onPreSuspend(AtmosphereResourceEvent e) {
+        if (disableSuspendEvent) return;
         for (AtmosphereResourceEventListener r : listeners) {
             r.onPreSuspend(e);
         }
@@ -826,5 +829,27 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         setBroadcaster(r.getBroadcaster());
         atmosphereHandler(r.getAtmosphereHandler());
         return this;
+    }
+
+
+    /**
+     * Disable invocation of {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
+     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)}. You normall disable those events
+     * after the first onSupend has been called so all transport behave the same way.
+     * @param disableSuspendEvent
+     * @return this
+     */
+    public AtmosphereResourceImpl disableSuspendEvent(boolean disableSuspendEvent) {
+        this.disableSuspendEvent = disableSuspendEvent;
+        return this;
+    }
+
+    /**
+     * Return true is {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
+     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)} events are disabled.
+     * @return true if disabled.
+     */
+    public boolean disableSuspendEvent() {
+        return disableSuspendEvent;
     }
 }

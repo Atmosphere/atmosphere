@@ -13,8 +13,8 @@
     <name>atmosphere-samples</name>
     <modules>
         <!-- sample using jQuery.atmosphere.js-->
-        <module>commons</module>
         <module>chat</module>
+        <module>commons</module>
         <module>rest-chat</module>
         <module>scala-chat</module>
         <module>meteor-chat</module>

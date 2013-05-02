@@ -25,6 +25,7 @@ import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
+import org.atmosphere.interceptor.SuspendTrackerInterceptor;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -82,13 +83,15 @@ public @interface ManagedService {
 
     /**
      * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are {@link AtmosphereResourceLifecycleInterceptor}
-     * , {@link BroadcastOnPostAtmosphereInterceptor}, {@link TrackMessageSizeInterceptor}, {@link HeartbeatInterceptor}
+     * , {@link BroadcastOnPostAtmosphereInterceptor}, {@link TrackMessageSizeInterceptor}, {@link HeartbeatInterceptor}  and {@link SuspendTrackerInterceptor}
      */
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             AtmosphereResourceLifecycleInterceptor.class,
             BroadcastOnPostAtmosphereInterceptor.class,
             TrackMessageSizeInterceptor.class,
-            HeartbeatInterceptor.class};
+            HeartbeatInterceptor.class,
+            SuspendTrackerInterceptor.class
+    };
 
     /**
      * The {@link org.atmosphere.cpr.BroadcasterCache} class name

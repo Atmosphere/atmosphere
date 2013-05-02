@@ -15,11 +15,15 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Message;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.handler.OnMessage;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Date;
@@ -27,6 +31,26 @@ import java.util.Date;
 @ManagedService(path = "/chat")
 public class Chat {
     private final ObjectMapper mapper = new ObjectMapper();
+    private final Logger logger = LoggerFactory.getLogger(Chat.class);
+
+    @Get
+    public void onOpen(final AtmosphereResource r) {
+        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            @Override
+            public void onSuspend(AtmosphereResourceEvent event) {
+                logger.info("User {} connected.", r.uuid());
+            }
+
+            @Override
+            public void onDisconnect(AtmosphereResourceEvent event) {
+                if (event.isCancelled()) {
+                    logger.info("User {} unexpectedly disconnected", r.uuid());
+                } else if (event.isClosedByClient()) {
+                    logger.info("User {} closed the connection", r.uuid());
+                }
+            }
+        });
+    }
 
     @Message
     public String onMessage(String message) throws IOException {
