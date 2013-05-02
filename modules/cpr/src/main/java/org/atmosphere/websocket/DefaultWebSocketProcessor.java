@@ -439,15 +439,18 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                         }
                     }
+
                     // We must always destroy the root resource (the one created when the websocket was opened
                     // to prevent memory leaks.
-                    resource.setIsInScope(false);
-                    try {
-                        resource.cancel();
-                    } catch (IOException e) {
-                        logger.trace("", e);
+                    if (resource.isInScope()) {
+                        resource.setIsInScope(false);
+                        try {
+                            resource.cancel();
+                        } catch (IOException e) {
+                            logger.trace("", e);
+                        }
+                        AtmosphereResourceImpl.class.cast(resource)._destroy();
                     }
-                    AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
             } finally {
                 if (r != null) {

@@ -52,7 +52,7 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
             logger.debug("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
             if (ss != null) {
-                ss.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, true, null));
+                ss.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(ss), false, false, true, null));
                 try {
                     try {
                         // https://github.com/Atmosphere/atmosphere/issues/983

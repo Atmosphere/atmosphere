@@ -638,7 +638,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action oldAction = action;
         try {
-            if (event.isCancelled()) {
+            if (event.isCancelled() || event.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
                     onDisconnect(event);
                 }
