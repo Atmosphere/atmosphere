@@ -103,7 +103,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
                         Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
                         for (Class<? extends BroadcastFilter> b : bf) {
-                            framework.broadcasterFilters().add(b.getName());
+                            addBroadcastFilter(b.getName());
                         }
 
                         for (String s : a.properties()) {
@@ -155,7 +155,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
                         Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
                         for (Class<? extends BroadcastFilter> b : bf) {
-                            framework.broadcasterFilters().add(b.getName());
+                            addBroadcastFilter(b.getName());
                         }
                         for (String i : m.atmosphereConfig()) {
                             String[] nv = i.split("=");
@@ -177,7 +177,11 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         logger.warn("", e);
                     }
                 } else if (BroadcasterFilterService.class.equals(annotation)) {
-                    framework.broadcasterFilters().add(className);
+                    try {
+                        addBroadcastFilter(className);
+                    } catch (Exception e) {
+                        logger.warn("", e);
+                    }
                 } else if (BroadcasterService.class.equals(annotation)) {
                     framework.setDefaultBroadcasterClassName(className);
                 } else if (WebSocketHandlerService.class.equals(annotation)) {
@@ -201,7 +205,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
                         Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
                         for (Class<? extends BroadcastFilter> b : bf) {
-                            framework.broadcasterFilters().add(b.getName());
+                            addBroadcastFilter(b.getName());
                         }
 
                         Class<? extends BroadcasterCache> e = m.broadcasterCache();
@@ -272,6 +276,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                         logger.warn("", e);
                     }
                 }
+            }
+
+            void addBroadcastFilter(String f) throws Exception {
+                framework.broadcasterFilters((BroadcastFilter)loadClass(f).newInstance());
             }
 
             void managed(AtmosphereHandler handler, Class<? extends Annotation> annotation) {

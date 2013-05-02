@@ -1858,6 +1858,19 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
+     * Add a {@link BroadcastFilter}
+     * @return
+     */
+    public AtmosphereFramework broadcasterFilters(BroadcastFilter f) {
+        broadcasterFilters.add(f.getClass().getName());
+
+        for (Broadcaster b: config.getBroadcasterFactory().lookupAll()) {
+            b.getBroadcasterConfig().addFilter(f);
+        }
+        return this;
+    }
+
+    /**
      * Returns true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
      *
      * @return true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
