@@ -184,10 +184,11 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             }
         } else {
             String data = null;
+            String charset = r.getCharacterEncoding() == null ? "UTF-8" : r.getCharacterEncoding();
             if (transform) {
-                data = new String(transform(b, offset, length), r.getCharacterEncoding());
+                data = new String(transform(b, offset, length), charset);
             } else {
-                data = new String(b, offset, length, r.getCharacterEncoding());
+                data = new String(b, offset, length, charset);
             }
 
             if (data != null) {

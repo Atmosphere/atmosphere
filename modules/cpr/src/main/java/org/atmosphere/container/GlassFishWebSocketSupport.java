@@ -27,7 +27,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
