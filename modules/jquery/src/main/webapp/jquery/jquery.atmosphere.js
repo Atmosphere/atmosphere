@@ -1522,20 +1522,12 @@ jQuery.atmosphere = function () {
 
                         rq.readyState = ajaxRequest.readyState;
 
-                        clearTimeout(rq.id);
-                        if (ajaxRequest.readyState == 4) {
-                            if (jQuery.browser.msie) {
-                                update = true;
-                            } else if (rq.transport == 'streaming') {
-                                update = true;
-                            } else if (rq.transport == 'long-polling') {
-                                update = true;
-                            }
-                        } else if (rq.transport == 'streaming' && jQuery.browser.msie && ajaxRequest.readyState >= 3) {
+                        if (rq.transport == 'streaming' && ajaxRequest.readyState >= 3) {
                             update = true;
-                        } else if (!jQuery.browser.msie && ajaxRequest.readyState == 3 && ajaxRequest.status == 200 && rq.transport != 'long-polling') {
+                        } else if (rq.transport == 'long-polling' && ajaxRequest.readyState === 4) {
                             update = true;
                         }
+                        clearTimeout(rq.id);
 
                         if ((!rq.enableProtocol || !request.firstMessage) && rq.transport != 'polling' && ajaxRequest.readyState == 2) {
                             _triggerOpen(rq);
