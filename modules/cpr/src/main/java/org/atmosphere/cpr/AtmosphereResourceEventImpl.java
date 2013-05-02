@@ -71,6 +71,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     // The current message
     protected Object message;
     protected AtmosphereResourceImpl resource;
+    private final AtomicBoolean isClosedByClient = new AtomicBoolean(false);
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource) {
         this.resource = resource;
@@ -94,6 +95,18 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.throwable = throwable;
     }
 
+    public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource,
+                                       boolean isCancelled,
+                                       boolean isResumedOnTimeout,
+                                       boolean isClosedByClient,
+                                       Throwable throwable) {
+        this.isCancelled.set(isCancelled);
+        this.isResumedOnTimeout.set(isResumedOnTimeout);
+        this.resource = resource;
+        this.throwable = throwable;
+        this.isClosedByClient.set(isClosedByClient);
+    }
+
     /**
      * {@inheritDoc}
      */
@@ -106,6 +119,13 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      */
     public boolean isSuspended() {
         return resource == null ? false : resource.action().type() == Action.TYPE.SUSPEND;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public boolean isClosedByClient() {
+        return isClosedByClient.get();
     }
 
     /**

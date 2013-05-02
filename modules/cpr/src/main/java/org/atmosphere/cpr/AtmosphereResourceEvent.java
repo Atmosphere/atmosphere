@@ -122,6 +122,14 @@ public interface AtmosphereResourceEvent {
     public AtmosphereResource getResource();
 
     /**
+     * Return true if the client closed the connection and send the Atmosphere close message. You must
+     * use the {@link org.atmosphere.interceptor.OnDisconnectInterceptor} in order to receive the proper value,
+     * and enableProtocol set to true on the client side (enabledProtocol is true by default).
+     * @return
+     */
+    public boolean isClosedByClient();
+
+    /**
      * Write the {@link Object} using the {@link OutputStream} by invoking
      * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}
      * will be directly written using the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()}
