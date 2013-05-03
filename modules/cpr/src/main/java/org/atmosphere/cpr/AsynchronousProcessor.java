@@ -477,7 +477,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                             ((DefaultBroadcaster) b).broadcastOnResume(r);
                         }
 
-                        impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
+                        // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
                     }
                     invokeAtmosphereHandler(impl);
 
