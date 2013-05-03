@@ -68,6 +68,8 @@ public class AtmosphereServlet30 extends HttpServlet{
 
     public void init(final ServletConfig sc) throws ServletException {
         super.init(sc);
+        // No native supported
+        framework.setUseNativeImplementation(false);
         framework.init(sc);
     }
 
