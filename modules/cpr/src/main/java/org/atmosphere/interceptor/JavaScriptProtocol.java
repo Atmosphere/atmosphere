@@ -77,21 +77,20 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                 protocolMessage.set((String) f.filter(r, protocolMessage.get(), protocolMessage.get()).message());
             }
 
-            if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
-                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                    @Override
-                    public void onSuspend(AtmosphereResourceEvent event) {
-                        r.getResponse().write(protocolMessage.get());
-                        try {
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    r.getResponse().write(protocolMessage.get());
+                    try {
+                        if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
                             r.getResponse().flushBuffer();
-                        } catch (IOException e) {
-                            logger.trace("", e);
                         }
+                    } catch (IOException e) {
+                        logger.trace("", e);
                     }
-                });
-            } else {
-                r.getResponse().write(protocolMessage.get());
-            }
+                }
+            });
+
 
             // We don't need to reconnect here
             if (r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
