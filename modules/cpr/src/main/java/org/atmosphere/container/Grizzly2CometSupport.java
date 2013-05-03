@@ -225,6 +225,7 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
                 if (ce.getCometContext().getExpirationDelay() > 0
                         && (System.currentTimeMillis() - timeStamp) >= ce.getCometContext().getExpirationDelay()) {
                     timedout(req, res);
+                    grizzlyResponse.finish();
                 } else {
                     cancelled(req, res);
                 }
