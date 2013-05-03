@@ -64,7 +64,7 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
             // https://github.com/Atmosphere/atmosphere/issues/993
             boolean track = false;
             if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
-                for(BroadcastFilter bf: r.getBroadcaster().getBroadcasterConfig().filters()) {
+                for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
                     if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
                         track = true;
                         break;
@@ -72,35 +72,34 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                 }
             }
 
-           final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
+            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
             if (track) {
                 protocolMessage.set((String) f.filter(r, protocolMessage.get(), protocolMessage.get()).message());
             }
 
-            if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
-                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                    @Override
-                    public void onSuspend(AtmosphereResourceEvent event) {
-                        r.getResponse().write(protocolMessage.get());
-                        try {
-                            r.getResponse().flushBuffer();
-                        } catch (IOException e) {
-                            logger.trace("",e);
-                        }
-                    }
-                });
-            } else {
-                r.getResponse().write(protocolMessage.get());
-            }
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    r.getResponse().write(protocolMessage.get());
 
-            // We don't need to reconnect here
-            if (r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                    || r.transport() == AtmosphereResource.TRANSPORT.STREAMING
-                    || r.transport() == AtmosphereResource.TRANSPORT.SSE) {
-                return Action.CONTINUE;
-            } else {
-                return Action.CANCELLED;
-            }
+                    switch (r.transport()) {
+                        case JSONP:
+                        case AJAX:
+                        case LONG_POLLING:
+                            r.resume();
+                            break;
+                        default:
+                            try {
+                                r.getResponse().flushBuffer();
+                            } catch (IOException e) {
+                                logger.trace("", e);
+                            }
+                            break;
+                    }
+                }
+            });
+
+            return Action.CONTINUE;
         }
         return Action.CONTINUE;
     }
