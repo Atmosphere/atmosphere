@@ -1512,7 +1512,8 @@ jQuery.atmosphere = function () {
                         var update = false;
 
                         // Opera doesn't call onerror if the server disconnect.
-                        if (rq.transport == 'streaming'
+                        if (jQuery.browser.opera
+                            && rq.transport == 'streaming'
                             && rq.readyState > 2
                             && ajaxRequest.readyState == 4) {
 
