@@ -1726,14 +1726,16 @@ jQuery.atmosphere = function () {
                         _response.status = status == 0 ? 204 : status;
                         _response.reason = status == 0 ? "Server resumed the connection or down." : "OK";
 
-                        var reconnectInterval = request.connectTimeout == -1 ? 0 : request.connectTimeout;
-                        if (force) {
-                            reconnectInterval = request.reconnectInterval;
-                        }
+                        var reconnectInterval = (request.connectTimeout == -1) ? 0 : request.connectTimeout;
 
-                        request.id = setTimeout(function () {
+                        // Reconnect immedialtely
+                        if (!force) {
+                            request.id = setTimeout(function () {
+                                _executeRequest(request);
+                            }, reconnectInterval);
+                        } else {
                             _executeRequest(request);
-                        }, reconnectInterval);
+                        }
                     }
                 }
             }
