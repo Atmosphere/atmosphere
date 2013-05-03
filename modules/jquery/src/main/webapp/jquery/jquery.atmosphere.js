@@ -1452,8 +1452,10 @@ jQuery.atmosphere = function() {
                         var skipCallbackInvocation = false;
                         var update = false;
 
-                        // Remote server disconnected us, reconnect.
-                        if (rq.transport == 'streaming'
+
+                        // Opera doesn't call onerror if the server disconnect.
+                        if (jQuery.browser.opera
+                            && rq.transport == 'streaming'
                             && rq.readyState > 2
                             && ajaxRequest.readyState == 4) {
 
