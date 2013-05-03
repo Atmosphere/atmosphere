@@ -1691,12 +1691,17 @@ jQuery.atmosphere = function() {
                         var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
                         _response.status = status == 0 ? 204 : status;
                         _response.reason = status == 0 ? "Server resumed the connection or down." : "OK";
-                        var reconnectInterval = request.connectTimeout == -1 ? 0 : request.connectTimeout;
 
-                        _open('re-opening', request.transport, request);
-                        request.id = setTimeout(function() {
-                            _executeRequest();
-                        }, reconnectInterval);
+                        var reconnectInterval = (request.connectTimeout == -1) ? 0 : request.connectTimeout;
+
+                        // Reconnect immedialtely
+                        if (!force) {
+                            request.id = setTimeout(function () {
+                                _executeRequest(request);
+                            }, reconnectInterval);
+                        } else {
+                            _executeRequest(request);
+                        }
                     }
                 }
             }
