@@ -1265,14 +1265,15 @@ jQuery.atmosphere = function() {
                 }
 
                 _request.transport = _request.fallbackTransport;
+                var reconnectInterval = _request.connectTimeout == -1 ? 0 : _request.connectTimeout;
                 if (_request.reconnect && _request.transport != 'none' || _request.transport == null) {
                     _request.method = _request.fallbackMethod;
                     _response.transport = _request.fallbackTransport;
                     _request.fallbackTransport = 'none';
                     _request.id = setTimeout(function() {
                         _execute();
-                    }, _request.reconnectInterval);
-                }  else {
+                    }, reconnectInterval);
+                } else {
                     _onError(500, "Unable to reconnect with fallback transport");
                 }
             }
