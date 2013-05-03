@@ -1551,7 +1551,7 @@ jQuery.atmosphere = function() {
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
                                             if (_handleProtocol(_request, message)) {
-                                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                                                skipCallbackInvocation = _trackMessageSize(jQuery.trim(message), rq, _response);
                                                 if (!skipCallbackInvocation) {
                                                     _invokeCallback();
                                                 }
