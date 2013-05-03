@@ -81,25 +81,25 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     r.getResponse().write(protocolMessage.get());
-                    try {
-                        if (r.transport() == AtmosphereResource.TRANSPORT.STREAMING) {
-                            r.getResponse().flushBuffer();
-                        }
-                    } catch (IOException e) {
-                        logger.trace("", e);
+
+                    switch (r.transport()) {
+                        case JSONP:
+                        case AJAX:
+                        case LONG_POLLING:
+                            r.resume();
+                            break;
+                        default:
+                            try {
+                                r.getResponse().flushBuffer();
+                            } catch (IOException e) {
+                                logger.trace("", e);
+                            }
+                            break;
                     }
                 }
             });
 
-
-            // We don't need to reconnect here
-            if (r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                    || r.transport() == AtmosphereResource.TRANSPORT.STREAMING
-                    || r.transport() == AtmosphereResource.TRANSPORT.SSE) {
-                return Action.CONTINUE;
-            } else {
-                return Action.CANCELLED;
-            }
+            return Action.CONTINUE;
         }
         return Action.CONTINUE;
     }
