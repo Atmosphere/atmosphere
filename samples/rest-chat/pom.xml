@@ -39,7 +39,6 @@
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-jquery</artifactId>
             <version>${project.version}</version>
-            <type>war</type>
         </dependency>
     </dependencies>
 </project>
