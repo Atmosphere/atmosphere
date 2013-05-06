@@ -196,8 +196,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // Create the session needed to support the Resume
             // operation from disparate requests.
             HttpSession session = req.getSession(true);
-            // Do not allow times out.
-            SessionTimeoutSupport.setupTimeout(session);
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
@@ -270,6 +268,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         Action action = skipAtmosphereHandler ? Action.CANCELLED : resource.action();
+        if (supportSession() && action.type().equals(Action.TYPE.SUSPEND)) {
+            // Do not allow times out.
+            SessionTimeoutSupport.setupTimeout(req.getSession());
+        }
         logger.trace("Action for {} was {}", req.resource() != null ? req.resource().uuid() : "null", action);
         return action;
     }
