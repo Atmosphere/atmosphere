@@ -68,6 +68,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -246,6 +247,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
+        req.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
 
         // Globally defined
         Action a = invokeInterceptors(config.framework().interceptors(), resource);
@@ -259,7 +261,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             return a;
         }
 
-        boolean skipAtmosphereHandler = (Boolean) resource.getRequest().getAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name());
+        //Unit test mock the request and will throw NPE.
+        boolean skipAtmosphereHandler = req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
+                ?  (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
         if (!skipAtmosphereHandler) {
             try {
                 handlerWrapper.atmosphereHandler.onRequest(resource);
@@ -294,12 +298,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 a = Action.CANCELLED;
             }
 
-            boolean skip = a.type() == Action.TYPE.SKIP_ATMOSPHEREHANDLER;
+            boolean skip = a.type() == SKIP_ATMOSPHEREHANDLER;
             if (skip) {
                 logger.debug("AtmosphereInterceptor {} asked to skip the AtmosphereHandler", arc);
-                r.getRequest().setAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
-            } else if (r.getRequest().getAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name()) == null) {
-                r.getRequest().setAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
+                r.getRequest().setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
             }
 
             if (a.type() != Action.TYPE.CONTINUE) {
