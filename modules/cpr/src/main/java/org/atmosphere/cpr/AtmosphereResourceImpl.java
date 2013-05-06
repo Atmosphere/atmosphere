@@ -728,6 +728,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (!isCancelled.getAndSet(true)) {
             logger.trace("Cancelling {}", uuid);
+            if (action.type() == Action.TYPE.SUSPEND) {
+                SessionTimeoutSupport.restoreTimeout(req);
+            }
             action.type(Action.TYPE.RESUME);
             if (asyncSupport != null) asyncSupport.action(this);
             // We must close the underlying WebSocket as well.
