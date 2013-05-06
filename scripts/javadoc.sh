@@ -3,7 +3,7 @@
 # Author: Hubert Iwaniuk
 # Licence: ../LICENSE-2.0.txt
 
-git checkout atmosphere-1.0.x && \
+git checkout master && \
 git pull && \
 mvn clean jxr:aggregate javadoc:aggregate && \
 git checkout gh-pages && \
