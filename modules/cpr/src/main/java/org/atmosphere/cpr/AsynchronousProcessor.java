@@ -241,21 +241,24 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         // Globally defined
         Action a = invokeInterceptors(config.framework().interceptors(), resource);
-        if (a == null || a.type() != Action.TYPE.CONTINUE) {
+        if (a.type() != Action.TYPE.CONTINUE) {
             return a;
         }
 
         // Per AtmosphereHandler
         a = invokeInterceptors(handlerWrapper.interceptors, resource);
-        if (a == null || a.type() != Action.TYPE.CONTINUE) {
+        if (a.type() != Action.TYPE.CONTINUE) {
             return a;
         }
 
-        try {
-            handlerWrapper.atmosphereHandler.onRequest(resource);
-        } catch (IOException t) {
-            resource.onThrowable(t);
-            throw t;
+        boolean skipAtmosphereHandler = (Boolean) resource.getRequest().getAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name());
+        if (!skipAtmosphereHandler) {
+            try {
+                handlerWrapper.atmosphereHandler.onRequest(resource);
+            } catch (IOException t) {
+                resource.onThrowable(t);
+                throw t;
+            }
         }
 
         postInterceptors(handlerWrapper.interceptors, resource);
@@ -266,7 +269,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             aliveRequests.put(req, resource);
         }
 
-        Action action = resource.action();
+        Action action = skipAtmosphereHandler ? Action.CANCELLED : resource.action();
         logger.trace("Action for {} was {}", req.resource() != null ? req.resource().uuid() : "null", action);
         return action;
     }
@@ -275,7 +278,19 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         Action a = Action.CONTINUE;
         for (AtmosphereInterceptor arc : c) {
             a = arc.inspect(r);
-            if (a == null || a.type() != Action.TYPE.CONTINUE) {
+            if (a == null) {
+                a = Action.CANCELLED;
+            }
+
+            boolean skip = a.type() == Action.TYPE.SKIP_ATMOSPHEREHANDLER;
+            if (skip) {
+                logger.debug("AtmosphereInterceptor {} asked to skip the AtmosphereHandler", arc);
+                r.getRequest().setAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
+            } else if (r.getRequest().getAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name()) == null) {
+                r.getRequest().setAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
+            }
+
+            if (a.type() != Action.TYPE.CONTINUE) {
                 logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
                 return a;
             }

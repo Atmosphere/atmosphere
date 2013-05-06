@@ -21,12 +21,13 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
-import static org.atmosphere.cpr.ApplicationConfig.*;
+import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 
 /**
  * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
@@ -90,7 +91,8 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     @Override
     public void postInspect(final AtmosphereResource r) {
 
-        if (r.getRequest().getMethod().equalsIgnoreCase(method)) {
+        if (!AtmosphereResourceImpl.class.cast(r).action().equals(Action.CANCELLED)
+                && r.getRequest().getMethod().equalsIgnoreCase(method)) {
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onBroadcast(AtmosphereResourceEvent event) {
