@@ -1477,7 +1477,11 @@ jQuery.atmosphere = function() {
 
                         if (update) {
                             // MSIE 9 and lower status can be higher than 1000, Chrome can be 0
-                            var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
+                            var status = 0;
+                            if (ajaxRequest.readyState != 0) {
+                                status  = ajaxRequest.status > 1000 ? 0 : ajaxRequest.status;
+                            }
+
                             if (status >= 300 || status == 0) {
                                 // Prevent onerror callback to be called
                                 _response.errorHandled = true;
@@ -1690,7 +1694,10 @@ jQuery.atmosphere = function() {
             function _reconnect(ajaxRequest, request, force) {
                 if (force || request.transport != 'streaming') {
                     if ( request.reconnect || (request.suspend && _subscribed)) {
-                        var status = ajaxRequest.status > 1000 ? ajaxRequest.status = 0 : ajaxRequest.status;
+                        var status = 0;
+                        if (ajaxRequest.readyState != 0) {
+                            status  = ajaxRequest.status > 1000 ? 0 : ajaxRequest.status;
+                        }
                         _response.status = status == 0 ? 204 : status;
                         _response.reason = status == 0 ? "Server resumed the connection or down." : "OK";
 
