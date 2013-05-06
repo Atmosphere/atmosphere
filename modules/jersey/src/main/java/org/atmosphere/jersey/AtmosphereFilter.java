@@ -105,7 +105,6 @@ import java.util.List;
 import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
@@ -1047,7 +1046,9 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         if (am.isAnnotationPresent(Subscribe.class)) {
-            f = new Filter(Action.SUBSCRIBE, 30000, -1, Suspend.SCOPE.APPLICATION,
+            int timeout = am.getAnnotation(Subscribe.class).timeout();
+
+            f = new Filter(Action.SUBSCRIBE, timeout, -1, Suspend.SCOPE.APPLICATION,
                     false, null, am.getAnnotation(Subscribe.class).value(), am.getAnnotation(Subscribe.class).writeEntity());
             f.setListeners(am.getAnnotation(Subscribe.class).listeners());
 
