@@ -57,4 +57,10 @@ public @interface Subscribe {
      * @return true if the entity needs to be written back to the calling connection.
      */
     public boolean writeEntity() default true;
+
+    /**
+     * The timeout in millseconds before the connection is resumed. Default is 30 seconds
+     * @return The timeout before the connection is resumed. Default is 30 seconds
+     */
+    int timeout() default 30000;
 }

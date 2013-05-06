@@ -979,8 +979,10 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         }
 
         if (am.isAnnotationPresent(Subscribe.class)) {
-            f = new Filter(Action.SUBSCRIBE, 30000, -1, Suspend.SCOPE.APPLICATION,
+            int timeout = am.getAnnotation(Subscribe.class).timeout();
+            f = new Filter(Action.SUBSCRIBE, timeout, -1, Suspend.SCOPE.APPLICATION,
                      null, am.getAnnotation(Subscribe.class).value(), am.getAnnotation(Subscribe.class).writeEntity());
+
             f.setListeners(am.getAnnotation(Subscribe.class).listeners());
 
             list.addFirst(f);
