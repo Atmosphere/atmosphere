@@ -70,6 +70,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
@@ -236,6 +237,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
+        req.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
 
         // Globally defined
         Action a = invokeInterceptors(config.framework().interceptors(), resource);
@@ -249,7 +251,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             return a;
         }
 
-        boolean skipAtmosphereHandler = (Boolean) resource.getRequest().getAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name());
+        //Unit test mock the request and will throw NPE.
+        boolean skipAtmosphereHandler = req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
+                ?  (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
         if (!skipAtmosphereHandler) {
             try {
                 handlerWrapper.atmosphereHandler.onRequest(resource);
@@ -284,12 +288,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 a = Action.CANCELLED;
             }
 
-            boolean skip = a.type() == Action.TYPE.SKIP_ATMOSPHEREHANDLER;
+            boolean skip = a.type() == SKIP_ATMOSPHEREHANDLER;
             if (skip) {
                 logger.debug("AtmosphereInterceptor {} asked to skip the AtmosphereHandler", arc);
-                r.getRequest().setAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
-            } else if (r.getRequest().getAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name()) == null) {
-                r.getRequest().setAttribute(Action.TYPE.SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
+                r.getRequest().setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
             }
 
             if (a.type() != Action.TYPE.CONTINUE) {
@@ -427,7 +429,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * {@link Action}, tells the proprietary Comet {@link Servlet}
      * to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param req  the {@link AtmosphereRequest}
+     * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
@@ -468,7 +470,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     /**
      * Cancel or times out an {@link AtmosphereResource} by invoking it's associated {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
      *
-     * @param r an {@link AtmosphereResource}
+     * @param r         an {@link AtmosphereResource}
      * @param cancelled true if cancelled, false if timedout
      * @return true if the operation was executed.
      */
@@ -529,6 +531,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
     /**
      * Invoke the associated {@link AtmosphereHandler}. This method must be synchronized on an AtmosphereResource
+     *
      * @param r a {@link AtmosphereResourceImpl}
      * @throws IOException
      */
