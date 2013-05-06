@@ -56,7 +56,11 @@ public final class Action {
         /**
          * Mark this action as destroyed. All objects associated with this action will be candidate for being garbage collected.
          */
-        DESTROYED
+        DESTROYED,
+        /**
+         *  Skip the invocation of {@link AtmosphereHandler}, but invoke all {@link AtmosphereInterceptor}.
+         */
+        SKIP_ATMOSPHEREHANDLER
     }
 
     public final static Action CANCELLED = new Action(TYPE.CANCELLED);
@@ -65,6 +69,7 @@ public final class Action {
     public final static Action RESUME = new Action(TYPE.RESUME);
     public final static Action SUSPEND = new Action(TYPE.SUSPEND);
     public final static Action DESTROYED = new Action(TYPE.DESTROYED);
+    public final static Action SKIP_ATMOSPHEREHANDLER = new Action(TYPE.SKIP_ATMOSPHEREHANDLER);
 
     private long timeout;
     private TYPE type;
