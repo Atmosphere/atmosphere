@@ -80,6 +80,8 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
             throw unableToDetectComet;
         }
 
+        logger.trace("event {} with request {}", event, req);
+
         Action action = null;
         // For now, we are just interested in CometEvent.READ
         if (event.getEventType() == EventType.BEGIN) {
