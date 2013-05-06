@@ -417,7 +417,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      */
     public Action resumed(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
-        SessionTimeoutSupport.restoreTimeout(request);
         return action(request, response);
     }
 
