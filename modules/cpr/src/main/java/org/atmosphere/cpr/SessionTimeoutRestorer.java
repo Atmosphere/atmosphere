@@ -15,12 +15,14 @@
 */
 package org.atmosphere.cpr;
 
-import java.io.Serializable;
-import java.util.concurrent.atomic.AtomicInteger;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpSessionActivationListener;
 import javax.servlet.http.HttpSessionEvent;
+import java.io.Serializable;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Capable of restoring HTTP session timeout to given value.
@@ -29,6 +31,7 @@ import javax.servlet.http.HttpSessionEvent;
  * @author Miro Bezjak
  */
 public final class SessionTimeoutRestorer implements Serializable, HttpSessionActivationListener {
+    private static final Logger logger = LoggerFactory.getLogger(SessionTimeoutRestorer.class);
 
     private static final long serialVersionUID = -126253550299206646L;
 
@@ -42,6 +45,7 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
 
     public void setup(HttpSession session) {
         int oldCount = requestCount.getAndIncrement();
+        logger.trace("requestCount => {}",requestCount );
 
         if (oldCount == 0)
             refreshTimeout(session);
@@ -49,6 +53,7 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
 
     public void restore(HttpSession session) {
         int count = requestCount.decrementAndGet();
+        logger.trace("requestCount <= {}",requestCount );
 
         if (count == 0)
             refreshTimeout(session);
