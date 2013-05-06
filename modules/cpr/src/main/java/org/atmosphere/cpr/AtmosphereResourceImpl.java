@@ -309,7 +309,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     asyncSupport.action(this);
                 }
             } else {
-                logger.debug("Cannot resume an already resumed/cancelled request {}", this);
+                logger.trace("Cannot resume an already resumed/cancelled request {}", this);
                 return this;
             }
         } catch (Throwable t) {
@@ -728,7 +728,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (!isCancelled.getAndSet(true)) {
             logger.trace("Cancelling {}", uuid);
-            if (action.type() == Action.TYPE.SUSPEND) {
+            if (action.type() == Action.TYPE.CANCELLED) {
                 SessionTimeoutSupport.restoreTimeout(req);
             }
             action.type(Action.TYPE.RESUME);

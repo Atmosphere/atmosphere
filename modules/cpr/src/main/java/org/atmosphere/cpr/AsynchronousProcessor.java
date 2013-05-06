@@ -403,8 +403,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
     protected boolean trackActiveRequest(AtmosphereRequest req) {
-        SessionTimeoutSupport.restoreTimeout(req);
-
         if (trackActiveRequest) {
             try {
                 long l = (Long) req.getAttribute(MAX_INACTIVE);
