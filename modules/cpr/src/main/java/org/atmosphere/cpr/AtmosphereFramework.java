@@ -1894,13 +1894,14 @@ public class AtmosphereFramework implements ServletContextProvider {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
         String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : sc.getRealPath(handlersPath);
+        AnnotationProcessor annotationProcessor = null;
         try {
-            AnnotationProcessor p = (AnnotationProcessor) getClass().getClassLoader().loadClass(annotationProcessorClassName).newInstance();
+            annotationProcessor = (AnnotationProcessor) getClass().getClassLoader().loadClass(annotationProcessorClassName).newInstance();
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
 
-            p.configure(this);
+            annotationProcessor.configure(this);
             if (path != null) {
-                p.scan(new File(path));
+                annotationProcessor.scan(new File(path));
             }
 
             String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : sc.getRealPath(DEFAULT_LIB_PATH);
@@ -1916,20 +1917,24 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                 if (jars != null) {
                     for (File file : jars) {
-                        p.scan(file);
+                        annotationProcessor.scan(file);
                     }
                 }
             }
 
             if (packages.size() > 0) {
                 for (String s : packages) {
-                    p.scan(s);
+                    annotationProcessor.scan(s);
                 }
             }
         } catch (Throwable e) {
             logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service");
             logger.trace("", e);
             return;
+        } finally {
+            if (annotationProcessor != null) {
+                annotationProcessor.destroy();
+            }
         }
     }
 

@@ -47,4 +47,9 @@ public interface AnnotationProcessor {
      * @return this
      */
     public AnnotationProcessor scan(String packageName) throws IOException;
+
+    /**
+     * Destroy all resources associated with this object. Once destroyed, this object can no longer be used.
+     */
+    public void destroy();
 }

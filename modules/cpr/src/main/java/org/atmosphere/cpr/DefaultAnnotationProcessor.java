@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import eu.infomas.annotation.AnnotationDetector;
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
@@ -38,8 +37,10 @@ import org.atmosphere.handler.ManagedAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.IntrospectionUtils;
+import org.atmosphere.util.annotation.AnnotationDetector;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
@@ -58,7 +59,7 @@ import java.util.List;
  */
 public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
-    private org.slf4j.Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
+    private Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
     protected AnnotationDetector detector;
 
     public DefaultAnnotationProcessor() {
@@ -356,6 +357,11 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         logger.trace("Scanning @Service annotations in {}", packageName);
         detector.detect(packageName);
         return this;
+    }
+
+    @Override
+    public void destroy() {
+        detector.destroy();
     }
 
     protected Class<?> loadClass(String className) throws Exception {
