@@ -1420,6 +1420,11 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public AtmosphereFramework setDefaultBroadcasterClassName(String bccn) {
         broadcasterClassName = bccn;
+
+        // Must reconfigure.
+        broadcasterFactory = null;
+        configureBroadcasterFactory();
+
         return this;
     }
 
