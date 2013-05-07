@@ -32,12 +32,6 @@
             <groupId>org.apache.geronimo.specs</groupId>
             <artifactId>geronimo-servlet_3.0_spec</artifactId>
         </dependency>
-        <!-- This is ONLY required if you use Atmosphere's annotation. If you use atmosphere.xml, not required -->
-        <dependency>
-            <groupId>eu.infomas</groupId>
-            <artifactId>annotation-detector</artifactId>
-            <version>3.0.0</version>
-        </dependency>
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-mapper-asl</artifactId>

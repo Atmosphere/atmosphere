@@ -43,7 +43,6 @@
                             org.apache.tomcat*;resolution:=optional,
                             org.eclipse.jetty*;resolution:=optional,
                             org.jboss.servlet*;resolution:=optional,
-							eu.infomas.annotation*;resolution:=optional,
 							org.apache.coyote*;resolution:=optional,
                             org.mortbay.util.ajax*;resolution:=optional,
                             org.atmosphere.jboss;resolution:=optional,
