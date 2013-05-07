@@ -125,13 +125,13 @@
 
 		<applicationConfig>
 			<param-name>org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive
-			</param-name>
+            </param-name>
 			<param-value></param-value>
 		</applicationConfig>
 
 		<applicationConfig>
 			<param-name>org.atmosphere.cpr.AtmosphereServlet.resumedOnTimeout
-			</param-name>
+            </param-name>
 			<param-value></param-value>
 		</applicationConfig>
 

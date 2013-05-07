@@ -64,7 +64,10 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 
-import static org.atmosphere.cpr.ApplicationConfig.*;
+import static org.atmosphere.cpr.ApplicationConfig.FILTER_CLASS;
+import static org.atmosphere.cpr.ApplicationConfig.FILTER_NAME;
+import static org.atmosphere.cpr.ApplicationConfig.MAPPING;
+import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
 
 /**
  * Simple Servlet to use when Atmosphere {@link Meteor} are used. This Servlet will look
@@ -89,7 +92,11 @@ public class MeteorServlet extends AtmosphereServlet {
     }
 
     public MeteorServlet(boolean isFilter) {
-        super(isFilter, false);
+        this(isFilter, false);
+    }
+
+    public MeteorServlet(boolean isFilter, boolean autoDetectHandlers) {
+        super(isFilter, autoDetectHandlers);
     }
 
     public MeteorServlet(Servlet delegate, String delegateMapping, Filter... filters) {

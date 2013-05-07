@@ -87,6 +87,11 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         super(config);
         Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
         closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
+        try {
+            Class.forName(HttpEvent.class.getName());
+        } catch (Throwable e) {
+            throw new IllegalStateException(unableToDetectComet());
+        }
     }
 
     /**
@@ -196,6 +201,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         StringBuilder sb = new StringBuilder();
         sb.append("JBoss failed to detect this is a Comet application because the APR Connector is not enabled. ");
         sb.append("\nMake sure atmosphere-compat-jboss.jar is not under your WEB-INF/lib and ");
+        sb.append("You must use the AtmosphereCometNativeServlet in order to use native Comet Support");
         sb.append("\nthere is no context.xml under WEB-INF");
         return sb.toString();
     }

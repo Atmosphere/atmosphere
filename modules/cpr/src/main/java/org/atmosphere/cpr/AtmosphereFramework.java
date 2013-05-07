@@ -154,6 +154,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean useNativeImplementation = false;
     protected boolean useBlockingImplementation = false;
     protected boolean useStreamForFlushingComments = false;
+    protected boolean useServlet30 = true;
     protected AsyncSupport asyncSupport;
     protected String broadcasterClassName = DefaultBroadcaster.class.getName();
     protected boolean isCometSupportSpecified = false;
@@ -794,6 +795,11 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (s != null) {
             webSocketProcessorClassName = s;
         }
+
+        s = config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT_SERVLET3);
+        if (s != null) {
+            useServlet30 = Boolean.parseBoolean(s);
+        }
     }
 
     /**
@@ -1249,7 +1255,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         // Was defined in atmosphere.xml
         if (getAsyncSupport() == null) {
             setAsyncSupport(createAsyncSupportResolver()
-                    .resolve(useNativeImplementation, useBlockingImplementation, webSocketEnabled));
+                    .resolve(useNativeImplementation, useBlockingImplementation, useServlet30));
         }
 
         logger.info("Atmosphere is using async support: {} running under container: {}",

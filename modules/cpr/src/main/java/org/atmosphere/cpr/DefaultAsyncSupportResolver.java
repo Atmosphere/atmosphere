@@ -54,6 +54,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.GlassFishServlet30WebSocketSupport;
 import org.atmosphere.container.GlassFishWebSocketSupport;
 import org.atmosphere.container.GlassFishv2CometSupport;
 import org.atmosphere.container.Grizzly2CometSupport;
@@ -180,42 +181,40 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         };
     }
 
-    public List<Class<? extends AsyncSupport>> detectWebSocketPresent(final boolean useNativeIfPossible) {
+    public List<Class<? extends AsyncSupport>> detectWebSocketPresent(final boolean useNativeIfPossible, final boolean useServlet30Async) {
 
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                if (!useNativeIfPossible && testClassExists(JSR356_WEBSOCKET))
-                    add(JSR356AsyncSupport.class);
+                if (!useNativeIfPossible) {
+                    if (testClassExists(JSR356_WEBSOCKET))
+                        add(JSR356AsyncSupport.class);
 
-                if (testClassExists(TOMCAT_WEBSOCKET))
-                    add(Tomcat7AsyncSupportWithWebSocket.class);
+                    if (useServlet30Async && testClassExists(TOMCAT_WEBSOCKET))
+                        add(Tomcat7Servlet30SupportWithWebSocket.class);
 
-                if (testClassExists(JETTY_9))
-                    add(Jetty9AsyncSupportWithWebSocket.class);
+                    if (useServlet30Async && testClassExists(JETTY_8))
+                        add(JettyServlet30AsyncSupportWithWebSocket.class);
 
-                if (testClassExists(JETTY_8))
-                    add(JettyAsyncSupportWithWebSocket.class);
+                    if (useServlet30Async && testClassExists(GRIZZLY_WEBSOCKET))
+                        add(GlassFishServlet30WebSocketSupport.class);
+                } else {
+                    if (testClassExists(TOMCAT_WEBSOCKET))
+                        add(Tomcat7AsyncSupportWithWebSocket.class);
 
-                if (testClassExists(GRIZZLY_WEBSOCKET))
-                    add(GlassFishWebSocketSupport.class);
+                    if (testClassExists(JETTY_9))
+                        add(Jetty9AsyncSupportWithWebSocket.class);
 
-                if (testClassExists(GRIZZLY2_WEBSOCKET))
-                    add(Grizzly2WebSocketSupport.class);
+                    if (testClassExists(JETTY_8))
+                        add(JettyAsyncSupportWithWebSocket.class);
+
+                    if (testClassExists(GRIZZLY_WEBSOCKET))
+                        add(GlassFishWebSocketSupport.class);
+
+                    if (testClassExists(GRIZZLY2_WEBSOCKET))
+                        add(Grizzly2WebSocketSupport.class);
+                }
             }
         };
-    }
-
-    public List<Class<? extends AsyncSupport>> detectServlet3WebSocketPresent() {
-        List l = new LinkedList<Class<? extends AsyncSupport>>() {
-            {
-                if (testClassExists(TOMCAT_WEBSOCKET))
-                    add(Tomcat7Servlet30SupportWithWebSocket.class);
-
-                if (testClassExists(JETTY_8))
-                    add(JettyServlet30AsyncSupportWithWebSocket.class);
-            }
-        };
-        return l;
     }
 
     /**
@@ -281,28 +280,14 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         return servletAsyncSupport;
     }
 
-    public AsyncSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useWebsocketIfPossible) {
-        AsyncSupport cs;
-        List<Class<? extends AsyncSupport>> l;
-        if (!useWebsocketIfPossible) {
-            cs = resolve(useNativeIfPossible, defaultToBlocking);
-        } else {
-            boolean use30 = false;
-            String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT_SERVLET3);
-            if (s != null) {
-                use30 = Boolean.valueOf(s);
-            }
+    public AsyncSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useServlet30Async) {
+        AsyncSupport cs = null;
+        if (!defaultToBlocking) {
+            List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
 
-            if (use30) {
-                l = detectServlet3WebSocketPresent();
-            } else {
-                l = detectWebSocketPresent(useNativeIfPossible);
+            if (!l.isEmpty()) {
+                cs = resolveWebSocket(l);
             }
-
-            if (l.isEmpty()) {
-                return resolve(useNativeIfPossible, defaultToBlocking);
-            }
-            cs = resolveWebSocket(l);
         }
 
         if (cs == null) {

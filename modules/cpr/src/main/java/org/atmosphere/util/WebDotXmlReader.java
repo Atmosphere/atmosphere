@@ -52,7 +52,6 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -156,7 +155,7 @@ public class WebDotXmlReader {
     }
 
     /**
-     * Return an {@link ArrayList} which maps to the {@link AtmosphereServlet}
+     * Return an {@link ArrayList} which maps to the {@link org.atmosphere.cpr.AtmosphereServlet}
      */
     public ArrayList<String> getMappings() {
         return mappings;

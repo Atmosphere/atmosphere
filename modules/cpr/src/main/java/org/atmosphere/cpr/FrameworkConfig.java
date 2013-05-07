@@ -50,7 +50,7 @@ public interface FrameworkConfig {
      */
     String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     /**
-     * A request attribute used to lookup the {@link AtmosphereServlet}. This attribute is for framework integrator and not recommend for normal application.
+     * A request attribute used to lookup the {@link AtmosphereNativeCometServlet}. This attribute is for framework integrator and not recommend for normal application.
      */
     String ATMOSPHERE_SERVLET = "org.atmosphere.cpr.AtmosphereServlet";
     /**
