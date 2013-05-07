@@ -185,17 +185,17 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                if (!useNativeIfPossible) {
+                if (useServlet30Async && !useNativeIfPossible) {
                     if (testClassExists(JSR356_WEBSOCKET))
                         add(JSR356AsyncSupport.class);
 
-                    if (useServlet30Async && testClassExists(TOMCAT_WEBSOCKET))
+                    if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7Servlet30SupportWithWebSocket.class);
 
-                    if (useServlet30Async && testClassExists(JETTY_8))
+                    if (testClassExists(JETTY_8))
                         add(JettyServlet30AsyncSupportWithWebSocket.class);
 
-                    if (useServlet30Async && testClassExists(GRIZZLY_WEBSOCKET))
+                    if (testClassExists(GRIZZLY_WEBSOCKET))
                         add(GlassFishServlet30WebSocketSupport.class);
                 } else {
                     if (testClassExists(TOMCAT_WEBSOCKET))
