@@ -1206,7 +1206,7 @@ jQuery.atmosphere = function () {
 
             function _handleProtocol(request, message) {
                 // The first messages is always the uuid.
-                var b = false;
+                var b = true;
                 if (request.enableProtocol && request.firstMessage) {
                     request.firstMessage = false;
                     var messages = message.split(request.messageDelimiter);
@@ -1217,7 +1217,7 @@ jQuery.atmosphere = function () {
                         request.uuid = messages[0];
                         request.stime = messages[1];
                     }
-                    b = true;
+                    b = false;
                 }
                 _triggerOpen(request);
                 return b;
