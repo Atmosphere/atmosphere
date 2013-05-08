@@ -282,6 +282,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
     public AsyncSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useServlet30Async) {
         AsyncSupport cs = null;
+
+        // Validate the value for old Servlet Container.
+        useServlet30Async = testClassExists(SERVLET_30);
+
         if (!defaultToBlocking) {
             List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
 
