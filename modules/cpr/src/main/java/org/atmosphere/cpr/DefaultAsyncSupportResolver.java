@@ -192,6 +192,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7Servlet30SupportWithWebSocket.class);
 
+                    if (testClassExists(JETTY_9))
+                        add(Jetty9AsyncSupportWithWebSocket.class);
+
                     if (testClassExists(JETTY_8))
                         add(JettyServlet30AsyncSupportWithWebSocket.class);
 
@@ -200,9 +203,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                 } else {
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7AsyncSupportWithWebSocket.class);
-
-                    if (testClassExists(JETTY_9))
-                        add(Jetty9AsyncSupportWithWebSocket.class);
 
                     if (testClassExists(JETTY_8))
                         add(JettyAsyncSupportWithWebSocket.class);

@@ -29,10 +29,7 @@ import org.eclipse.jetty.websocket.api.UpgradeRequest;
 import org.eclipse.jetty.websocket.api.UpgradeResponse;
 import org.eclipse.jetty.websocket.api.WebSocketBehavior;
 import org.eclipse.jetty.websocket.api.WebSocketPolicy;
-import org.eclipse.jetty.websocket.common.events.EventDriver;
 import org.eclipse.jetty.websocket.server.ServletWebSocketRequest;
-import org.eclipse.jetty.websocket.server.ServletWebSocketResponse;
-import org.eclipse.jetty.websocket.server.UpgradeContext;
 import org.eclipse.jetty.websocket.server.WebSocketServerFactory;
 import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
 import org.slf4j.Logger;
@@ -50,7 +47,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
  *
  * @author Jeanfrancois Arcand
  */
-public class Jetty9AsyncSupportWithWebSocket extends Jetty7CometSupport {
+public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
     private static final Logger logger = LoggerFactory.getLogger(Jetty9AsyncSupportWithWebSocket.class);
     private final WebSocketServerFactory webSocketFactory;
 
