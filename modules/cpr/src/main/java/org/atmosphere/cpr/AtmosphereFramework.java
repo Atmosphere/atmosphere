@@ -1434,6 +1434,11 @@ public class AtmosphereFramework implements ServletContextProvider {
         broadcasterFactory = null;
         configureBroadcasterFactory();
 
+        // We must recreate all previously created Broadcaster.
+        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
+            w.broadcaster = broadcasterFactory.lookup(w.broadcaster.getID(), true);
+        }
+
         return this;
     }
 
@@ -1760,29 +1765,30 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
 
             p.configure(this);
-            if (path != null) {
-                p.scan(new File(path));
-            }
-
-            String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
-            if (pathLibs != null) {
-                File libFolder = new File(pathLibs);
-                File jars[] = libFolder.listFiles(new FilenameFilter() {
-
-                    @Override
-                    public boolean accept(File arg0, String arg1) {
-                        return arg1.endsWith(".jar");
-                    }
-                });
-
-                for (File file : jars) {
-                    p.scan(file);
-                }
-            }
 
             if (packages.size() > 0) {
                 for (String s: packages){
                     p.scan(s);
+                }
+            } else {
+                if (path != null) {
+                    p.scan(new File(path));
+                }
+
+                String pathLibs = sc.getRealPath(DEFAULT_LIB_PATH);
+                if (pathLibs != null) {
+                    File libFolder = new File(pathLibs);
+                    File jars[] = libFolder.listFiles(new FilenameFilter() {
+
+                        @Override
+                        public boolean accept(File arg0, String arg1) {
+                            return arg1.endsWith(".jar");
+                        }
+                    });
+
+                    for (File file : jars) {
+                        p.scan(file);
+                    }
                 }
             }
         } catch (Throwable e) {
