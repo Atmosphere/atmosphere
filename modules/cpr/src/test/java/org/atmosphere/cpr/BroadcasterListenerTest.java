@@ -56,7 +56,7 @@ public class BroadcasterListenerTest {
                     e.printStackTrace();
                 }
             }
-        }).addAtmosphereHandler("/*", new AR()).addBroadcasterListener(new L()).init();
+        }).addBroadcasterListener(new L()).addAtmosphereHandler("/*", new AR()).init();
     }
 
     @AfterMethod

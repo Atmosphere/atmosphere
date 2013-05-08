@@ -522,8 +522,12 @@ public class AtmosphereFramework implements ServletContextProvider {
             doInitParamsForWebSocket(scFacade);
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
+            configureBroadcasterFactory();
             configureScanningPackage(sc);
             autoConfigureService(scFacade.getServletContext());
+
+            // Reconfigure in case an annotation changed the default
+            configureBroadcasterFactory();
             patchContainer();
             configureBroadcaster();
             loadConfiguration(scFacade);
@@ -661,23 +665,17 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void configureBroadcaster() {
-
+    protected void configureBroadcasterFactory() {
         try {
-            // Check auto supported one
-            if (isBroadcasterSpecified == false) {
-                broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
-            }
-
-            Class<? extends Broadcaster> bc =
-                    (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
-                            .loadClass(broadcasterClassName);
             if (broadcasterFactoryClassName != null) {
                 broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
                         .loadClass(broadcasterFactoryClassName).newInstance();
             }
 
             if (broadcasterFactory == null) {
+                Class<? extends Broadcaster> bc =
+                        (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader()
+                                .loadClass(broadcasterClassName);
                 broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
             }
 
@@ -687,6 +685,17 @@ public class AtmosphereFramework implements ServletContextProvider {
 
             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
             InjectorProvider.getInjector().inject(broadcasterFactory);
+        } catch (Exception ex) {
+            logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
+        }
+    }
+
+    protected void configureBroadcaster() {
+        try {
+            // Check auto supported one
+            if (isBroadcasterSpecified == false) {
+                broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
+            }
 
             Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
             AtmosphereHandlerWrapper w;
@@ -1690,11 +1699,8 @@ public class AtmosphereFramework implements ServletContextProvider {
      * Add {@link BroadcasterListener} to all created {@link Broadcaster}
      */
     public AtmosphereFramework addBroadcasterListener(BroadcasterListener b) {
-        if (isInit) {
-            broadcasterFactory.addBroadcasterListener(b);
-        } else {
-            broadcasterListeners.add(b);
-        }
+        broadcasterFactory.addBroadcasterListener(b);
+        broadcasterListeners.add(b);
         return this;
     }
 
@@ -1784,6 +1790,17 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.trace("", e);
             return;
         }
+    }
+
+    /**
+     * Add support for package detecttion of Atmosphere's Component.
+     *
+     * @param clazz a Class
+     * @return this.
+     */
+    public AtmosphereFramework addAnnotationPackage(Class<?> clazz) {
+        packages.add(clazz.getPackage().getName());
+        return this;
     }
 
     protected void notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {

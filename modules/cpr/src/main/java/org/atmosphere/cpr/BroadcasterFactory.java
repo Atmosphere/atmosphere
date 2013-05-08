@@ -184,7 +184,9 @@ public abstract class BroadcasterFactory {
      * {@inheritDoc}
      */
     public BroadcasterFactory addBroadcasterListener(BroadcasterListener b) {
-        broadcasterListeners.add(b);
+        if (!broadcasterListeners.contains(b)) {
+            broadcasterListeners.add(b);
+        }
         return this;
     }
 
@@ -192,7 +194,6 @@ public abstract class BroadcasterFactory {
      * {@inheritDoc}
      */
     public BroadcasterFactory removeBroadcasterListener(BroadcasterListener b) {
-        broadcasterListeners.remove(b);
         return this;
     }
 

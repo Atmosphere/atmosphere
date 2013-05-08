@@ -374,4 +374,26 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             super(t);
         }
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    public BroadcasterFactory addBroadcasterListener(BroadcasterListener l) {
+        super.addBroadcasterListener(l);
+        for (Broadcaster b: store.values()) {
+            b.addBroadcasterListener(l);
+        }
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    public BroadcasterFactory removeBroadcasterListener(BroadcasterListener l) {
+        super.removeBroadcasterListener(l);
+        for (Broadcaster b: store.values()) {
+            b.removeBroadcasterListener(l);
+        }
+        return this;
+    }
 }

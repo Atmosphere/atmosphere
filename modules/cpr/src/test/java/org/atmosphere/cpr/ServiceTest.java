@@ -16,7 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.config.service.BroadcasterService;
-import org.atmosphere.config.service.Post;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -67,11 +66,6 @@ public class ServiceTest {
 
         public B(String id, AtmosphereConfig config) {
             super(id, config);
-        }
-
-        @Post
-        public void post(AtmosphereResource resource) {
-            resource.suspend();
         }
     }
 
