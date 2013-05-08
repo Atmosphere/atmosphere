@@ -98,7 +98,14 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
         if (event.getResource().getSerializer() != null) {
             try {
-                event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), message);
+
+                if (message instanceof List) {
+                    for (Object s : (List<Object>) message) {
+                         event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), s);
+                    }
+                }  else {
+                    event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), message);
+                }
             } catch (Throwable ex) {
                 logger.warn("Serializer exception: message: " + message, ex);
                 throw new IOException(ex);
