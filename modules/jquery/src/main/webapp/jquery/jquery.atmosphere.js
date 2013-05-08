@@ -957,10 +957,12 @@ jQuery.atmosphere = function () {
                         jQuery.atmosphere.debug("SSE successfully opened");
                     }
 
-                    if (!sseOpened) {
-                        _open('opening', "sse", _request);
-                    } else {
-                        _open('re-opening', "sse", _request);
+                    if (!request.enableProtocol) {
+                        if (!sseOpened) {
+                            _open('opening', "sse", _request);
+                        } else {
+                            _open('re-opening', "sse", _request);
+                        }
                     }
                     sseOpened = true;
 
@@ -1086,10 +1088,12 @@ jQuery.atmosphere = function () {
                         jQuery.atmosphere.debug("Websocket successfully opened");
                     }
 
-                    if (!webSocketOpened) {
-                        _open('opening', "websocket", _request);
-                    } else {
-                        _open('re-opening', "websocket", _request);
+                    if (!request.enableProtocol) {
+                        if (!webSocketOpened) {
+                            _open('opening', "websocket", _request);
+                        } else {
+                            _open('re-opening', "websocket", _request);
+                        }
                     }
 
                     webSocketOpened = true;
@@ -1202,6 +1206,7 @@ jQuery.atmosphere = function () {
 
             function _handleProtocol(request, message) {
                 // The first messages is always the uuid.
+                var b = false;
                 if (request.enableProtocol && request.firstMessage) {
                     request.firstMessage = false;
                     var messages = message.split(request.messageDelimiter);
@@ -1212,10 +1217,10 @@ jQuery.atmosphere = function () {
                         request.uuid = messages[0];
                         request.stime = messages[1];
                     }
-                    _triggerOpen(request);
-                    return false;
+                    b = true;
                 }
-                return true;
+                _triggerOpen(request);
+                return b;
             }
 
             function _onError(code, reason) {
