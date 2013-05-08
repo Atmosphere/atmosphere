@@ -560,6 +560,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             installAnnotationProcessor(scFacade);
 
             autoConfigureService(scFacade.getServletContext());
+
+            // Reconfigure in case an annotation changed the default.
             configureBroadcasterFactory();
             patchContainer();
             configureBroadcaster();
@@ -1813,11 +1815,8 @@ public class AtmosphereFramework implements ServletContextProvider {
      * Add {@link BroadcasterListener} to all created {@link Broadcaster}
      */
     public AtmosphereFramework addBroadcasterListener(BroadcasterListener b) {
-        if (isInit) {
-            broadcasterFactory.addBroadcasterListener(b);
-        } else {
-            broadcasterListeners.add(b);
-        }
+        broadcasterFactory.addBroadcasterListener(b);
+        broadcasterListeners.add(b);
         return this;
     }
 

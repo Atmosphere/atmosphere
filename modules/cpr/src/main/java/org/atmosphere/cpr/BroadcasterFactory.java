@@ -185,7 +185,9 @@ public abstract class BroadcasterFactory {
      * {@inheritDoc}
      */
     public BroadcasterFactory addBroadcasterListener(BroadcasterListener b) {
-        broadcasterListeners.add(b);
+        if (!broadcasterListeners.contains(b)){
+            broadcasterListeners.add(b);
+        }
         return this;
     }
 
