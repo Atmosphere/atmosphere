@@ -110,14 +110,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             invoke(onTimeoutMethod, resource);
         } else {
             Object m = event.getMessage();
-            // Cached message
-            if (List.class.isAssignableFrom(m.getClass())) {
-                for (String s : (List<String>)m) {
-                    invoke(event, s);
-                }
-            } else {
-                invoke(event, m.toString());
-            }
+            invoke(event, m);
         }
 
         if (resumeOnBroadcast && r.isSuspended()) {
