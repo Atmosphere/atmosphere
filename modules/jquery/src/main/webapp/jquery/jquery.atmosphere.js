@@ -957,7 +957,7 @@ jQuery.atmosphere = function () {
                         jQuery.atmosphere.debug("SSE successfully opened");
                     }
 
-                    if (!request.enableProtocol) {
+                    if (!_request.enableProtocol) {
                         if (!sseOpened) {
                             _open('opening', "sse", _request);
                         } else {
@@ -1088,7 +1088,7 @@ jQuery.atmosphere = function () {
                         jQuery.atmosphere.debug("Websocket successfully opened");
                     }
 
-                    if (!request.enableProtocol) {
+                    if (!_request.enableProtocol) {
                         if (!webSocketOpened) {
                             _open('opening', "websocket", _request);
                         } else {
