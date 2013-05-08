@@ -21,20 +21,9 @@
             <param-value>org.atmosphere.samples.pubsub</param-value>
         </init-param>
         <init-param>
-            <param-name>org.atmosphere.useNative</param-name>
-            <param-value>true</param-value>
-        </init-param>
-        <init-param>
             <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
             <param-value>org.atmosphere.client.TrackMessageSizeFilter</param-value>
         </init-param>
-        <!-- Uncomment to use Redis
-        <init-param>
-            <param-name>org.atmosphere.cpr.broadcasterClassName</param-name>
-            <param-value>org.atmosphere.plugin.org.atmosphere.plugin.redis.RedisBroadcaster</param-value>
-        </init-param>
-        -->
-
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
