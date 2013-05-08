@@ -961,18 +961,15 @@ jQuery.atmosphere = function() {
                         return;
                     }
 
-                    if (!_handleProtocol(_request, message.data)) return;
+                    var data = jQuery.trim(message.data);
+                    if (data.length == 0) return;
+
+                    if (!_handleProtocol(_request, data)) return;
 
                     _response.state = 'messageReceived';
                     _response.status = 200;
 
-                    message = message.data;
-                    var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
-
-                    if (jQuery.trim(message).length == 0) {
-                        skipCallbackInvocation = true;
-                    }
-
+                    var skipCallbackInvocation = _trackMessageSize(data, _request, _response);
                     if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
@@ -1094,14 +1091,15 @@ jQuery.atmosphere = function() {
                         }, _request.reconnectInterval)
                     }, _request.timeout);
 
-                    if (!_handleProtocol(_request, message.data)) return;
+                    var data = jQuery.trim(message.data);
+                    if (data.length == 0) return;
+
+                    if (!_handleProtocol(_request, data)) return;
 
                     _response.state = 'messageReceived';
                     _response.status = 200;
 
-                    var message = message.data;
-                    var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
-
+                    var skipCallbackInvocation = _trackMessageSize(data, _request, _response);
                     if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
@@ -1520,6 +1518,7 @@ jQuery.atmosphere = function() {
                                     _response.isJunkEnded = false;
                                 }
 
+                                var junkCompleted = false;
                                 if (!_response.isJunkEnded) {
                                     var endOfJunk = "<!-- EOD -->";
                                     var endOfJunkLength = endOfJunk.length;
@@ -1527,13 +1526,15 @@ jQuery.atmosphere = function() {
 
                                     if (junkEnd > endOfJunkLength && junkEnd != text.length) {
                                         rq.lastIndex = junkEnd;
+                                    } else {
+                                        junkCompleted = true;;
                                     }
                                 }
 
                                 if (!jQuery.browser.opera) {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
                                     rq.lastIndex = responseText.length;
-                                    if (!_handleProtocol(_request, message)) {
+                                    if (junkCompleted || !_handleProtocol(_request, message)) {
                                         return;
                                     }
                                     skipCallbackInvocation = _trackMessageSize(message, rq, _response);
@@ -1554,7 +1555,7 @@ jQuery.atmosphere = function() {
                                             var message = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
-                                            if (_handleProtocol(_request, message)) {
+                                            if (!junkCompleted &&  _handleProtocol(_request, message)) {
                                                 skipCallbackInvocation = _trackMessageSize(jQuery.trim(message), rq, _response);
                                                 if (!skipCallbackInvocation) {
                                                     _invokeCallback();
@@ -1920,8 +1921,6 @@ jQuery.atmosphere = function() {
                                     }
 
                                     text = text.substring(0, text.length - 1);
-
-                                    _handleProtocol(rq, text);
                                     return text;
 
                                 };
@@ -1952,10 +1951,12 @@ jQuery.atmosphere = function() {
                                         _response.status = 200;
                                         _response.error = null;
 
-                                        // Empties response every time that it is handled
-                                        res.innerText = "";
-                                        _prepareCallback(text, "messageReceived", 200, rq.transport);
-
+                                        var message = jQuery.trim(text);
+                                        if (message.length != 0 && _handleProtocol(rq, message)) {
+                                            // Empties response every time that it is handled
+                                            res.innerText = "";
+                                            _prepareCallback(message, "messageReceived", 200, rq.transport);
+                                        }
                                         rq.lastIndex = 0;
                                     }
 
