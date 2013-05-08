@@ -41,10 +41,9 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.socketio.transport.SocketIOSessionManagerImpl.mapper;
 
@@ -158,6 +157,8 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
             if (transport != null) {
                 if (!SocketIOAtmosphereHandler.class.isAssignableFrom(atmosphereHandler.getClass())) {
                     response.asyncIOWriter(new AsyncIOWriterAdapter() {
+
+                        private final AtomicBoolean closed = new AtomicBoolean();
                         @Override
                         public AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException {
                             SocketIOSessionOutbound outbound = (SocketIOSessionOutbound)
@@ -217,6 +218,7 @@ public class SocketIOAtmosphereInterceptor implements AtmosphereInterceptor {
 
                         @Override
                         public void close(AtmosphereResponse r) throws IOException {
+                            if (closed.getAndSet(true)) return;
                             try {
                                 r.getResponse().getOutputStream().close();
                             } catch (IllegalStateException ex) {
