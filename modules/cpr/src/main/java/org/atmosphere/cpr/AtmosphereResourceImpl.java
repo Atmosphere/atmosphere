@@ -153,6 +153,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         req.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
         padding = config.getInitParameter(ApplicationConfig.STREAMING_PADDING_MODE);
+        if (padding == null) {
+            padding = FrameworkConfig.WHITESPACE_PADDING;
+        }
         req.setAttribute(ApplicationConfig.STREAMING_PADDING_MODE, padding);
 
         String s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
@@ -702,7 +705,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
             s.append("<!-- EOD -->");
         } else if (padding.equalsIgnoreCase(FrameworkConfig.WHITESPACE_PADDING)) {
-            for (int i = 0; i < 4096; i++) {
+            for (int i = 0; i < 8192; i++) {
                 s.append(" ");
             }
         } else {

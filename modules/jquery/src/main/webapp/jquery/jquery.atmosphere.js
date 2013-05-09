@@ -1477,7 +1477,7 @@ jQuery.atmosphere = function() {
                             // MSIE 9 and lower status can be higher than 1000, Chrome can be 0
                             var status = 0;
                             if (ajaxRequest.readyState != 0) {
-                                status  = ajaxRequest.status > 1000 ? 0 : ajaxRequest.status;
+                                status = ajaxRequest.status > 1000 ? 0 : ajaxRequest.status;
                             }
 
                             if (status >= 300 || status == 0) {
@@ -1503,38 +1503,10 @@ jQuery.atmosphere = function() {
                             _readHeaders(ajaxRequest, _request);
 
                             if (rq.transport == 'streaming') {
-                                var text = responseText.substring(rq.lastIndex, responseText.length);
-                                _response.isJunkEnded = true;
-
-                                //fix junk is comming in parts
-                                if (!_response.junkFull && (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1 || text.indexOf("<!-- EOD -->") == -1)) {
-                                    return;
-                                }
-                                _response.junkFull = true;
-
-                                //if it's the start and we see the junk start
-                                //fix for reconnecting on chrome - junk is comming in parts
-                                if (rq.lastIndex == 0 && text.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1 && text.indexOf("<!-- EOD -->") != -1) {
-                                    _response.isJunkEnded = false;
-                                }
-
-                                var junkCompleted = false;
-                                if (!_response.isJunkEnded) {
-                                    var endOfJunk = "<!-- EOD -->";
-                                    var endOfJunkLength = endOfJunk.length;
-                                    var junkEnd = text.indexOf(endOfJunk) + endOfJunkLength;
-
-                                    if (junkEnd > endOfJunkLength && junkEnd != text.length) {
-                                        rq.lastIndex = junkEnd;
-                                    } else {
-                                        junkCompleted = true;;
-                                    }
-                                }
-
                                 if (!jQuery.browser.opera) {
                                     var message = responseText.substring(rq.lastIndex, responseText.length);
                                     rq.lastIndex = responseText.length;
-                                    if (junkCompleted || !_handleProtocol(_request, message)) {
+                                    if (!_handleProtocol(_request, message)) {
                                         return;
                                     }
                                     skipCallbackInvocation = _trackMessageSize(message, rq, _response);
@@ -1555,7 +1527,7 @@ jQuery.atmosphere = function() {
                                             var message = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
-                                            if (!junkCompleted &&  _handleProtocol(_request, message)) {
+                                            if (_handleProtocol(_request, message)) {
                                                 skipCallbackInvocation = _trackMessageSize(jQuery.trim(message), rq, _response);
                                                 if (!skipCallbackInvocation) {
                                                     _invokeCallback();
@@ -1737,21 +1709,6 @@ jQuery.atmosphere = function() {
                 var lastIndex = 0;
                 var xdrCallback = function (xdr) {
                     var responseBody = xdr.responseText;
-                    var isJunkEnded = false;
-
-                    if (responseBody.indexOf("<!-- Welcome to the Atmosphere Framework.") != -1) {
-                        isJunkEnded = true;
-                    }
-
-                    if (isJunkEnded) {
-                        var endOfJunk = "<!-- EOD -->";
-                        var endOfJunkLenght = endOfJunk.length;
-                        var junkEnd = responseBody.indexOf(endOfJunk);
-                        if (junkEnd !== -1) {
-                            responseBody = responseBody.substring(junkEnd + endOfJunkLenght + lastIndex);
-                            lastIndex += responseBody.length;
-                        }
-                    }
 
                     if (!_handleProtocol(request, responseBody)) return;
 
@@ -1906,20 +1863,6 @@ jQuery.atmosphere = function() {
                                     clone.appendChild(cdoc.createTextNode("."));
 
                                     var text = clone.innerText;
-                                    var isJunkEnded = true;
-
-                                    if (text.indexOf("<!-- Welcome to the Atmosphere Framework.") == -1) {
-                                        isJunkEnded = false;
-                                    }
-
-                                    if (isJunkEnded) {
-                                        var endOfJunk = "<!-- EOD -->";
-                                        var endOfJunkLength = endOfJunk.length;
-                                        var junkEnd = text.indexOf(endOfJunk) + endOfJunkLength;
-
-                                        text = text.substring(junkEnd);
-                                    }
-
                                     text = text.substring(0, text.length - 1);
                                     return text;
 
