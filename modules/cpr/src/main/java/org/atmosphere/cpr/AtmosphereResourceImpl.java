@@ -692,6 +692,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         StringBuilder s = new StringBuilder();
 
         if (padding == null || padding.equalsIgnoreCase(FrameworkConfig.ATMOSPHERE_PADDING)) {
+            logger.error("Atmosphere PADDING no longer supported started with 1.0.13");
             s.append("<!-- ----------------------------------------------------------" +
                     "------ http://github.com/Atmosphere ----------------------------" +
                     "-------------------------------------------- -->\n");
