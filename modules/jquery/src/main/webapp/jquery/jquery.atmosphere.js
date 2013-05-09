@@ -1210,13 +1210,9 @@ jQuery.atmosphere = function () {
                 if (request.enableProtocol && request.firstMessage) {
                     request.firstMessage = false;
                     var messages = message.split(request.messageDelimiter);
-                    if (request.trackMessageLength) {
-                        request.uuid = messages[1];
-                        request.stime = messages[2];
-                    } else {
-                        request.uuid = messages[0];
-                        request.stime = messages[1];
-                    }
+                    var pos = messages.length == 2 ? 0 : 1;
+                    request.uuid = messages[pos];
+                    request.stime = messages[pos + 1];
                     b = false;
                 }
                 _triggerOpen(request);
