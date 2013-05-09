@@ -721,6 +721,11 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     protected void configureBroadcasterFactory() {
         try {
+            // Check auto supported one
+            if (isBroadcasterSpecified == false) {
+                broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
+            }
+
             if (broadcasterFactoryClassName != null) {
                 broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
                         .loadClass(broadcasterFactoryClassName).newInstance();
@@ -747,11 +752,6 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void configureBroadcaster() {
 
         try {
-            // Check auto supported one
-            if (isBroadcasterSpecified == false) {
-                broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
-            }
-
             Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
             AtmosphereHandlerWrapper w;
             Entry<String, AtmosphereHandlerWrapper> e;
