@@ -33,7 +33,7 @@ public class ModuleDetection {
     public final static String detect() {
         for (Map.Entry<String, String> e : modules.entrySet()) {
             if (check(e.getValue())) {
-                e.getKey();
+                return e.getKey();
             }
         }
         return "runtime";
