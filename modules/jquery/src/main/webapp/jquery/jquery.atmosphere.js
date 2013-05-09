@@ -961,8 +961,7 @@ jQuery.atmosphere = function() {
                         return;
                     }
 
-                    var data = jQuery.trim(message.data);
-                    if (data.length == 0) return;
+                    var data = message.data;
 
                     if (!_handleProtocol(_request, data)) return;
 
@@ -1091,8 +1090,7 @@ jQuery.atmosphere = function() {
                         }, _request.reconnectInterval)
                     }, _request.timeout);
 
-                    var data = jQuery.trim(message.data);
-                    if (data.length == 0) return;
+                    var data = message.data;
 
                     if (!_handleProtocol(_request, data)) return;
 
@@ -1176,11 +1174,12 @@ jQuery.atmosphere = function() {
 
             function _handleProtocol(request, message) {
                 // The first messages is always the uuid.
-                if (request.enableProtocol && request.firstMessage) {
+                if (jQuery.trim(message) != 0 && request.enableProtocol && request.firstMessage) {
                     request.firstMessage  = false;
                     var messages =  message.split(request.messageDelimiter);
-                    request.uuid = messages[0];
-                    request.stime = messages[1];
+                    var pos = messages.length == 2 ? 0 : 1;
+                    request.uuid = jQuery.trim(messages[pos]);
+                    request.stime = jQuery.trim(messages[pos + 1]);
                     return false;
                 }
                 return true;
@@ -1487,9 +1486,9 @@ jQuery.atmosphere = function() {
                                 reconnectF();
                                 return;
                             }
-                            var responseText = jQuery.trim(ajaxRequest.responseText);
+                            var responseText = ajaxRequest.responseText;
 
-                            if (responseText.length == 0 && rq.transport == 'long-polling') {
+                            if (jQuery.trim(responseText.length) == 0 && rq.transport == 'long-polling') {
                                 // For browser that aren't support onabort
                                 if (!ajaxRequest.hasData) {
                                     reconnectF();
@@ -1515,9 +1514,6 @@ jQuery.atmosphere = function() {
                                         if (_response.status != 500 && ajaxRequest.responseText.length > rq.lastIndex) {
                                             try {
                                                 _response.status = ajaxRequest.status;
-                                                _response.headers = parseHeaders(ajaxRequest.getAllResponseHeaders());
-
-                                                _readHeaders(ajaxRequest, _request);
                                             }
                                             catch (e) {
                                                 _response.status = 404;
@@ -1526,9 +1522,8 @@ jQuery.atmosphere = function() {
 
                                             var message = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
-
                                             if (_handleProtocol(_request, message)) {
-                                                skipCallbackInvocation = _trackMessageSize(jQuery.trim(message), rq, _response);
+                                                skipCallbackInvocation = _trackMessageSize(message, rq, _response);
                                                 if (!skipCallbackInvocation) {
                                                     _invokeCallback();
                                                 }
@@ -1894,7 +1889,7 @@ jQuery.atmosphere = function() {
                                         _response.status = 200;
                                         _response.error = null;
 
-                                        var message = jQuery.trim(text);
+                                        var message = text;
                                         if (message.length != 0 && _handleProtocol(rq, message)) {
                                             // Empties response every time that it is handled
                                             res.innerText = "";
