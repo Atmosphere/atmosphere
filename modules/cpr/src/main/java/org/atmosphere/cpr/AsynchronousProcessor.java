@@ -290,7 +290,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
             boolean skip = a.type() == SKIP_ATMOSPHEREHANDLER;
             if (skip) {
-                logger.debug("AtmosphereInterceptor {} asked to skip the AtmosphereHandler", arc);
+                logger.trace("AtmosphereInterceptor {} asked to skip the AtmosphereHandler", arc);
                 r.getRequest().setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
             }
 
