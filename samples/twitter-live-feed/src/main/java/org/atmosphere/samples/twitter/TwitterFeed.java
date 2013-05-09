@@ -19,6 +19,7 @@ import com.ning.http.client.AsyncCompletionHandler;
 import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.client.Response;
 import com.sun.jersey.spi.resource.Singleton;
+import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.jersey.SuspendResponse;
@@ -99,7 +100,7 @@ public class TwitterFeed {
                     return null;
                 }
 
-            }, 5, TimeUnit.SECONDS);
+            }, 1, TimeUnit.SECONDS);
 
             futures.put(tagid, future);
         }

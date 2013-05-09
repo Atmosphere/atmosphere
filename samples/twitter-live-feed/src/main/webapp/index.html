@@ -1,152 +1,73 @@
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<!DOCTYPE html>
+
+<script type="text/javascript" src="jquery/jquery-1.7.2.js"></script>
+<script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
+<script type="text/javascript" src="jquery/application.js"></script>
+
+
+<html>
+
 <head>
-    <script type="text/javascript" src="jquery/jquery-1.7.2.js"></script>
-    <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
-    <script type="text/javascript" src="jquery/jquery.list.js"></script>
-    <script type="text/javascript" src="jquery/jquery.form.js"></script>
-    <script type="text/javascript">
-        $(document).ready(function() {
-            var socket = $.atmosphere;
-            var subSocket;
-            var incompleteMessage = "";
+    <meta charset="utf-8">
+    <title>Twitter Search</title>
 
-            function getKeyCode(ev) {
-                if (window.event) return window.event.keyCode;
-                return ev.keyCode;
-            }
+    <style>
+        * {
+            font-family: tahoma;
+            font-size: 12px;
+            padding: 0px;
+            margin: 0px;
+        }
 
-            function getElementById() {
-                return document.getElementById(arguments[0]);
-            }
-
-            function getTransport(t) {
-                transport = t.options[t.selectedIndex].value;
-                if (transport == 'autodetect') {
-                    transport = 'websocket';
-                }
-
-                return false;
-            }
-
-            function getElementByIdValue() {
-                return document.getElementById(arguments[0]).value;
-            }
-
-            function subscribe() {
-                var request = { url : document.location.toString() + 'search/' + getElementByIdValue('topic'),
-                    transport: getElementByIdValue('transport'),
-                    trackMessageLength : true
-                };
-
-                request.onMessage = function (response) {
-                    detectedTransport = response.transport;
-                    if (response.status == 200) {
-                        var data = response.responseBody;
-
-                        try {
-                            var result = $.parseJSON(data);
-                            incompleteMessage = "";
-                            var i = 0;
-                            for (i = result.results.length - 1; i > -1; i--) {
-                                $('#result').prepend($('<li>').append($('<a>').append(result.results[i].text))).highlight(getElementById('topic').value);
-                                $('#result').prepend($('<li>').append($('<h3>').append(result.results[i].from_user).append('</h3>')));
-                            }
-                        } catch (err) {
-                            incompleteMessage += data;
-                        }
-                    }
-                };
-
-                subSocket = socket.subscribe(request);
-            }
-
-            function connect() {
-                subscribe();
-                getElementById('connect').value = "Switch transport";
-            }
-
-            function stop() {
-                var request = { url : document.location.toString() + 'search/' + getElementByIdValue('topic') + "/stop" }
-                socket.publish(request);
-            }
-
-            getElementById('connect').onclick = function(event) {
-                if (getElementById('topic').value == '') {
-                    alert("Please enter a hashtag");
-                    return;
-                }
-                connect();
-            }
-
-            getElementById('stop').onclick = function(event) {
-                if (getElementById('topic').value == '') {
-                    alert("Please enter a hashtag");
-                    return;
-                }
-                stop();
-            }
-
-            getElementById('topic').onkeyup = function(event) {
-                var keyc = getKeyCode(event);
-                if (keyc == 13 || keyc == 10) {
-                    connect();
-                    return false;
-                }
-            }
-            getElementById('topic').focus();
-        });
-    </script>
-    <style type='text/css'>
-        body {
-            text-align: center;
+        p {
+            line-height: 18px;
         }
 
         div {
-            border: 0px solid black;
+            width: 1200px;
+            margin-left: auto;
+            margin-right: auto;
         }
 
-        .highlight {
-            background-color: yellow
+        #content {
+            padding: 5px;
+            background: #ddd;
+            border-radius: 5px;
+            border: 1px solid #CCC;
+            margin-top: 10px;
         }
 
-        input#topic {
-            width: 20em;
-            height: 3em;
-            font-size: 100%;
-            background-color: #e0f0f0;
+        #header {
+            padding: 5px;
+            background: #f5deb3;
+            border-radius: 5px;
+            border: 1px solid #CCC;
+            margin-top: 10px;
         }
 
-        ul {
-            list-style-type: none;
-            text-align: left;
+        #input {
+            border-radius: 2px;
+            border: 1px solid #ccc;
+            margin-top: 10px;
+            padding: 5px;
+            width: 1200px;
         }
 
+        #status {
+            width: 88px;
+            display: block;
+            float: left;
+            margin-top: 15px;
+        }
     </style>
 </head>
 <body>
-<h1>Twitter Search using Atmosphere's JQuery Plug In</h1>
-
-<h2>Enter an hashtag</h2>
-
-<div id='pubsub'>
-    <input id='topic' type='text'/>
+<div id="header"><h3>Twitter Streaming API</h3></div>
+<div id="content"></div>
+<div>
+    <span id="status">Connecting...</span>
+    <input type="text" id="input" disabled="disabled"/>
 </div>
-<h2>Select transport to use for subscribing</h2>
 
-<h3>You can change the transport any time.</h3>
-
-<div id='select_transport'>
-    <select id="transport">
-        <option id="autodetect" value="websocket">autodetect</option>
-        <option id="long-polling" value="long-polling">long-polling</option>
-        <option id="streaming" value="streaming">http streaming</option>
-        <option id="websocket" value="websocket">websocket</option>
-    </select>
-    <input id='connect' class='button' type='submit' name='connect' value='Get Real Time Tweet'/>
-    <input id='stop' class='button' type='submit' name='stop' value='Stop Real Time Tweet'/>
-
-</div>
-<h2>Real Time Twitter Search</h2>
-<ul id="result"></ul>
 </body>
 </html>
