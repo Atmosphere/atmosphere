@@ -47,15 +47,19 @@ import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import java.io.BufferedReader;
 import java.io.File;
 import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -484,6 +488,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework init(final ServletConfig sc) throws ServletException {
 
         if (isInit) return this;
+        pingVersion();
 
         try {
             ServletContextHolder.register(this);
@@ -583,6 +588,37 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         isInit = true;
         return this;
+    }
+
+    protected void pingVersion(){
+        new Thread() {
+            public void run() {
+                try {
+                  HttpURLConnection urlConnection = (HttpURLConnection)
+                          URI.create("http://async-io.org/version.html").toURL().openConnection();
+                  BufferedReader in = new BufferedReader(new InputStreamReader(
+                          urlConnection.getInputStream()));
+
+                  String inputLine;
+                  String newVersion = Version.getRawVersion();
+                  try {
+                      while ((inputLine = in.readLine().trim()) != null) {
+                          if (inputLine.startsWith("ATMO_VERSION=")) {
+                              newVersion = inputLine.substring("ATMO_VERSION=".length());
+                              break;
+                          }
+                      }
+                  } finally {
+                      in.close();
+                  }
+
+                  if (newVersion.compareTo(Version.getRawVersion()) != 0) {
+                      logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
+                  }
+              } catch (Throwable e) {
+              }
+            }
+        }.start();
     }
 
     /**
