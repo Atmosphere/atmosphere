@@ -58,6 +58,7 @@ org.atmosphere.socketio.cpr
 org.atmosphere.socketio.transport
 org.atmosphere.spring
 org.atmosphere.util
+org.atmosphere.util.analytics
 org.atmosphere.util.uri
 org.atmosphere.weblogic
 org.atmosphere.websocket
