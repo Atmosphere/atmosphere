@@ -30,13 +30,11 @@ The Atmosphere's Framework ships with many examples describing how to implements
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>1.0.12</version>
+         <version>1.0.13</version>
       </dependency>
 ```
       
 Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
-
-[IMPORTANT: Migrating 0.x to the new 1.0 API](https://github.com/Atmosphere/atmosphere/wiki/Migrating-your-Atmosphere-0.x-to-0.9-new-API)
 
 #### Jump directly inside the code: WebSockets, Server Side Events (SSE), Long-Polling, JSONP and Http Streaming!
 
@@ -56,7 +54,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 #### RoadMap
 
-Atmosphere 1.0.12 is our official release, and our work in progress version is 1.1, targeted for end of End of April 2013
+Atmosphere 1.0.13 is our official release, and our work in progress version is 1.1, targeted for end of End of May 2013
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
