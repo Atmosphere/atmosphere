@@ -426,7 +426,9 @@ public class BroadcasterConfig {
         for (BroadcastFilter mf : filters) {
             synchronized (mf) {
                 transformed = mf.filter(object, transformed.message());
-                if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                if (transformed == null
+                        || transformed.action() == BroadcastAction.ACTION.ABORT
+                        || transformed.action() == BroadcastAction.ACTION.SKIP) {
                     return transformed;
                 }
             }
@@ -442,13 +444,15 @@ public class BroadcasterConfig {
      * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage)  {
+    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
         try {
             BroadcastAction transformed = new BroadcastAction(message);
             for (PerRequestBroadcastFilter mf : perRequestFilters) {
                 synchronized (mf) {
                     transformed = mf.filter(r, originalMessage, transformed.message());
-                    if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                    if (transformed == null
+                            || transformed.action() == BroadcastAction.ACTION.ABORT
+                            || transformed.action() == BroadcastAction.ACTION.SKIP) {
                         return transformed;
                     }
                 }
