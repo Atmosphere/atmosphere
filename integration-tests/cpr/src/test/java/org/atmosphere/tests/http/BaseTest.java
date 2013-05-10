@@ -65,6 +65,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.cpr.PerRequestBroadcastFilter;
 import org.atmosphere.util.StringFilterAggregator;
@@ -287,7 +288,7 @@ public abstract class BaseTest {
             assertNotNull(r);
             assertEquals(r.getStatusCode(), 200);
             String resume = r.getResponseBody();
-            assertEquals(resume, AtmosphereResourceImpl.createStreamingPadding(null));
+            assertEquals(resume, AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -386,7 +387,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -458,7 +459,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -540,7 +541,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -689,7 +690,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -770,7 +771,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -850,7 +851,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -924,7 +925,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -1131,7 +1132,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
@@ -1198,7 +1199,7 @@ public abstract class BaseTest {
                 public String onCompleted(Response response) throws Exception {
                     try {
                         assertEquals(response.getResponseBody(),
-                                AtmosphereResourceImpl.createStreamingPadding(null));
+                                AtmosphereResourceImpl.createStreamingPadding(FrameworkConfig.WHITESPACE_PADDING));
                     } finally {
                         latch.countDown();
                     }
