@@ -109,7 +109,10 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     protected void broadcastReceivedMessage(Object message) {
         try {
             Object newMsg = filter(message);
-            push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg, this), message));
+            // if newSgw == null, that means the message has been filtered.
+            if (newMsg != null) {
+                push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg, this), message));
+            }
         } catch (Throwable t) {
             logger.error("failed to push message: " + message, t);
         }
