@@ -53,8 +53,8 @@
 package org.atmosphere.cpr;
 
 /**
- * Transform a message of type 'E" before it get broadcasted to
- * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent) }
+ * Transform a message before it get broadcasted to
+ * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent) }.
  * <p/>
  * See {@link org.atmosphere.util.XSSHtmlFilter} for an example.
  *
@@ -79,7 +79,19 @@ public interface BroadcastFilter {
         private Object originalMsg;
 
         public enum ACTION {
-            CONTINUE, ABORT
+            /**
+             * Return Continue to invoke all remaining {@link BroadcastFilter}
+             */
+            CONTINUE,
+            /**
+             * Return Abort to stop invoking all remaining {@link BroadcastFilter} and to discard the message
+             * for being delivered to {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
+             */
+            ABORT,
+            /**
+             *  Return Skip to stop invoking all remaining {@link BroadcastFilter}, but deliver the last transformed message.
+             */
+            SKIP
         }
 
         public BroadcastAction(ACTION a, Object o) {

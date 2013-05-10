@@ -176,6 +176,41 @@ public class BroadcastFilterTest {
     }
 
     @Test
+    public void testAbortFilter() throws ExecutionException, InterruptedException {
+        broadcaster.getBroadcasterConfig().addFilter(new AbortFilter(true));
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "");
+    }
+
+    @Test
+    public void testAbortPerFilter() throws ExecutionException, InterruptedException {
+        broadcaster.getBroadcasterConfig().addFilter(new AbortFilter(false));
+        broadcaster.getBroadcasterConfig().addFilter(new AbortFilter(true));
+
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "");
+    }
+
+    @Test
+    public void testSkipFilter() throws ExecutionException, InterruptedException {
+        broadcaster.getBroadcasterConfig().addFilter(new SlipFilter(true));
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "0-filter-perFilter");
+    }
+
+    @Test
+    public void testSkipPerFilter() throws ExecutionException, InterruptedException {
+        broadcaster.getBroadcasterConfig().addFilter(new SlipFilter(true));
+        broadcaster.getBroadcasterConfig().addFilter(new Filter("1"));
+        broadcaster.getBroadcasterConfig().addFilter(new SlipFilter(false));
+        broadcaster.getBroadcasterConfig().addFilter(new DoNohingFilter("b"));
+
+
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "0-filter-perFilter");
+      }
+
+    @Test
     public void testVoidAtmosphereResouce() throws ExecutionException, InterruptedException {
         broadcaster.removeAtmosphereResource(ar);
         broadcaster.getBroadcasterConfig().addFilter(new VoidAtmosphereResource("1"));
@@ -222,6 +257,44 @@ public class BroadcastFilterTest {
             } else {
                 return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, "error");
             }
+        }
+    }
+
+    private final static class AbortFilter implements PerRequestBroadcastFilter {
+
+        final boolean perRequest;
+
+        public AbortFilter(boolean perRequest) {
+            this.perRequest = perRequest;
+        }
+
+        @Override
+        public BroadcastAction filter(Object originalMessage, Object message) {
+            return new BroadcastAction(perRequest ? BroadcastAction.ACTION.ABORT : BroadcastAction.ACTION.CONTINUE, message);
+        }
+
+        @Override
+        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+            return new BroadcastAction(perRequest ? BroadcastAction.ACTION.ABORT : BroadcastAction.ACTION.CONTINUE, message);
+        }
+    }
+
+    private final static class SlipFilter implements PerRequestBroadcastFilter {
+
+        final boolean perRequest;
+
+        public SlipFilter(boolean perRequest) {
+            this.perRequest = perRequest;
+        }
+
+        @Override
+        public BroadcastAction filter(Object originalMessage, Object message) {
+            return new BroadcastAction(perRequest ? BroadcastAction.ACTION.SKIP : BroadcastAction.ACTION.CONTINUE, message + "-filter");
+        }
+
+        @Override
+        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+            return new BroadcastAction(perRequest ? BroadcastAction.ACTION.SKIP : BroadcastAction.ACTION.CONTINUE, message + "-perFilter");
         }
     }
 

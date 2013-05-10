@@ -16,20 +16,20 @@
 package org.atmosphere.cpr;
 
 /**
- * A markable interface that can be used in conjunction with {@link BroadcastFilter} to filter
- * message per request.
+ * An extended {@link BroadcastFilter} that can vbe used to filter based on {@link AtmosphereResource}
+ *
+ * @author Jean-francois Arcand
  */
 public interface PerRequestBroadcastFilter extends BroadcastFilter {
 
     /**
-     * Transform or Filter a message per request, with V as an indicator. Be careful when setting headers on the
+     * Transform or Filter a message per {@link AtmosphereResource}. Be careful when setting headers on the
      * {@link AtmosphereResponse} as the headers may have been already sent back to the browser.
      *
-     *
-     * @param atmosphereResource
+     * @param r
      * @param message  Object a message
-     * @param originalMessage
-     * @return a transformed message.
+     * @param originalMessage  The original message used when calling {@link Broadcaster#broadcast(Object)}
+     * @return a {@link BroadcastAction}
      */
-    BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message);
+    BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message);
 }

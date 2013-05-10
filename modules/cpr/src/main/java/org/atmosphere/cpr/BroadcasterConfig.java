@@ -425,7 +425,9 @@ public class BroadcasterConfig {
         for (BroadcastFilter mf : filters) {
             synchronized (mf) {
                 transformed = mf.filter(object, transformed.message());
-                if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                if (transformed == null
+                        || transformed.action() == BroadcastAction.ACTION.ABORT
+                        || transformed.action() == BroadcastAction.ACTION.SKIP) {
                     return transformed;
                 }
             }
@@ -446,7 +448,9 @@ public class BroadcasterConfig {
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
                 transformed = mf.filter(r, originalMessage, transformed.message());
-                if (transformed == null || transformed.action() == BroadcastAction.ACTION.ABORT) {
+                if (transformed == null
+                        || transformed.action() == BroadcastAction.ACTION.ABORT
+                        || transformed.action() == BroadcastAction.ACTION.SKIP) {
                     return transformed;
                 }
             }
