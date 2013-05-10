@@ -898,6 +898,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         s = sc.getInitParameter(PROPERTY_SESSION_SUPPORT);
         if (s != null) {
             config.setSupportSession(Boolean.valueOf(s));
+            sc.getServletContext().addListener(SessionSupport.class.getName());
             isSessionSupportSpecified = true;
         }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
