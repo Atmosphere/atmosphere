@@ -1202,12 +1202,12 @@ jQuery.atmosphere = function () {
             function _handleProtocol(request, message) {
                 // The first messages is always the uuid.
                 var b = true;
-                if (request.enableProtocol && request.firstMessage) {
-                    request.firstMessage = false;
-                    var messages = message.split(request.messageDelimiter);
+                if (jQuery.trim(message) != 0 && request.enableProtocol && request.firstMessage) {
+                    request.firstMessage  = false;
+                    var messages =  message.split(request.messageDelimiter);
                     var pos = messages.length == 2 ? 0 : 1;
-                    request.uuid = messages[pos];
-                    request.stime = messages[pos + 1];
+                    request.uuid = jQuery.trim(messages[pos]);
+                    request.stime = jQuery.trim(messages[pos + 1]);
                     b = false;
                 }
                 _triggerOpen(request);
@@ -1960,7 +1960,7 @@ jQuery.atmosphere = function () {
 
                                         // Empties response every time that it is handled
                                         res.innerText = "";
-                                        var skipCallbackInvocation = _trackMessageSize(text, rq, _response
+                                        var skipCallbackInvocation = _trackMessageSize(text, rq, _response);
                                         if (skipCallbackInvocation) {
                                             return "";
                                         }
