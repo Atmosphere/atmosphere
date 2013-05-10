@@ -983,11 +983,6 @@ jQuery.atmosphere = function () {
 
                     message = message.data;
                     var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
-
-                    if (jQuery.trim(message).length == 0) {
-                        skipCallbackInvocation = true;
-                    }
-
                     if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
@@ -1253,7 +1248,7 @@ jQuery.atmosphere = function () {
                     var messageLength = 0;
                     var messageStart = message.indexOf(request.messageDelimiter);
                     while (messageStart != -1) {
-                        messageLength = message.substring(messageLength, messageStart);
+                        messageLength = jQuery.trim(message.substring(messageLength, messageStart));
                         message = message.substring(messageStart + request.messageDelimiter.length, message.length);
 
                         if (message.length == 0 || message.length < messageLength) break;
@@ -1550,9 +1545,9 @@ jQuery.atmosphere = function () {
                                 reconnectF();
                                 return;
                             }
-                            var responseText = jQuery.trim(ajaxRequest.responseText);
+                            var responseText = ajaxRequest.responseText;
 
-                            if (responseText.length == 0 && rq.transport == 'long-polling') {
+                            if (jQuery.trim(responseText.length) == 0 && rq.transport == 'long-polling') {
                                 // For browser that aren't support onabort
                                 if (!ajaxRequest.hasData) {
                                     reconnectF();
@@ -1591,7 +1586,7 @@ jQuery.atmosphere = function () {
                                             var message = ajaxRequest.responseText.substring(rq.lastIndex);
                                             rq.lastIndex = ajaxRequest.responseText.length;
 
-                                            skipCallbackInvocation = _trackMessageSize(jQuery.trim(message), rq, _response);
+                                            skipCallbackInvocation = _trackMessageSize(message, rq, _response);
                                             if (!skipCallbackInvocation) {
                                                 _invokeCallback();
                                             }
@@ -1799,8 +1794,8 @@ jQuery.atmosphere = function () {
                 var handle = function (xdr) {
                     // XDomain loop forever on itself without this.
                     // TODO: Clearly I need to come with something better than that solution
-                    var message = jQuery.trim(xdr.responseText);
-                    if (message.length == 0 || rq.lastMessage == message) return;
+                    var message = jQuery.xdr.responseText;
+                    if (rq.lastMessage == message) return;
 
                     var reconnect = function () {
                         if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
@@ -1930,7 +1925,7 @@ jQuery.atmosphere = function () {
 
                                     var text = clone.innerText;
 
-                                    text = jQuery.trim(text.substring(0, text.length - 1));
+                                    text = jQuery.text.substring(0, text.length - 1);
                                     return text;
 
                                 };
@@ -1965,19 +1960,15 @@ jQuery.atmosphere = function () {
 
                                         // Empties response every time that it is handled
                                         res.innerText = "";
-                                        if (text.length != 0) {
-
-                                            var skipCallbackInvocation = _trackMessageSize(text, rq, _response);
-
-                                            if (skipCallbackInvocation) {
-                                                return "";
-                                            }
-
-                                            _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
+                                        var skipCallbackInvocation = _trackMessageSize(text, rq, _response
+                                        if (skipCallbackInvocation) {
+                                            return "";
                                         }
 
-                                        rq.lastIndex = 0;
+                                        _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
                                     }
+
+                                    rq.lastIndex = 0;
 
                                     if (cdoc.readyState === "complete") {
                                         _invokeClose(true);
