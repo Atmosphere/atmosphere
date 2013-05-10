@@ -1216,7 +1216,7 @@ jQuery.atmosphere = function() {
                     var messageLength = 0;
                     var messageStart = message.indexOf(request.messageDelimiter);
                     while (messageStart != -1) {
-                        messageLength = message.substring(messageLength, messageStart);
+                        messageLength = jQuery.trim(message.substring(messageLength, messageStart));
                         message = message.substring(messageStart + request.messageDelimiter.length, message.length);
 
                         if (message.length == 0 || message.length < messageLength) break;
