@@ -594,7 +594,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     protected void analytics() {
         final String container = getServletContext().getServerInfo();
-        new Thread() {
+        Thread t = new Thread() {
             public void run() {
                 try {
                     HttpURLConnection urlConnection = (HttpURLConnection)
@@ -637,7 +637,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                 } catch (Throwable e) {
                 }
             }
-        }.start();
+        };
+        t.setDaemon(true);
+        t.start();
     }
 
     /**
