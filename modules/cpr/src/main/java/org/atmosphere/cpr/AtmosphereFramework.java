@@ -632,7 +632,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     }
 
                     JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
-                    tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("JGoogleAnalyticsTest")));
+                    tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("AtmosphereFramework")));
 
                 } catch (Throwable e) {
                 }
