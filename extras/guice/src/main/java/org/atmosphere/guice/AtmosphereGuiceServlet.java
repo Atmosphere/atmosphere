@@ -128,10 +128,9 @@ public class AtmosphereGuiceServlet extends AtmosphereServlet {
                 boolean isJersey = false;
                 try {
                     Thread.currentThread().getContextClassLoader().loadClass(JERSEY_CONTAINER);
-                    setDefaultBroadcasterClassName(FrameworkConfig.JERSEY_BROADCASTER)
+                    setDefaultBroadcasterClassName(broadcasterClassName)
                             .setUseStreamForFlushingComments(true)
                             .getAtmosphereConfig().setSupportSession(false);
-                    DefaultBroadcasterFactory.buildAndReplaceDefaultfactory(JerseyBroadcaster.class, getAtmosphereConfig());
                     isJersey = true;
                 } catch (Throwable t) {
                 }
