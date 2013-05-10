@@ -91,6 +91,8 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     @Override
     public void postInspect(final AtmosphereResource r) {
 
+        if (r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED)) return;
+
         if (!AtmosphereResourceImpl.class.cast(r).action().equals(Action.CANCELLED)
                 && r.getRequest().getMethod().equalsIgnoreCase(method)) {
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
