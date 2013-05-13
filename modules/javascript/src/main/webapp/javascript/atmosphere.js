@@ -823,12 +823,11 @@
                     rq = request;
                 }
 
-                var script,
-                    called,
-                    count = 0,
-                    callback = jsonpCallbacks.pop() || ("atmosphere_" + (++guid));
+
 
                 _jqxhr = { open: function () {
+                    var callback = "atmosphere" + (++guid);
+
                     function poll() {
                         var url = rq.url;
                         if (rq.dispatchUrl != null) {
@@ -843,12 +842,10 @@
                             }
                             data = '';
                         }
-                        ++count;
 
                         var head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
 
-                        script = document.createElement("script");
-                        script.async = true;
+                        var script = document.createElement("script");
                         script.src =  url + "&jsonpTransport=" + callback;
                         script.clean = function () {
                             script.clean = script.onerror = script.onload = script.onreadystatechange = null;
@@ -859,15 +856,6 @@
                         script.onload = script.onreadystatechange = function () {
                             if (!script.readyState || /loaded|complete/.test(script.readyState)) {
                                 script.clean();
-                                if (called) {
-                                    called = true;
-                                    poll();
-                                } else if (count === 1) {
-                                    poll();
-                                } else {
-                                    window[callback] = function() {};
-                              		jsonpCallbacks.push(callback);
-                                }
                             }
                         };
                         script.onerror = function () {
@@ -880,14 +868,13 @@
 
                     // Attaches callback
                     window[callback] = function (msg) {
-                        called = true;
                         if (rq.reconnect) {
                             if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
-                                _readHeaders(_jqxhr, rq);
+                                //_readHeaders(_jqxhr, rq);
 
-//                                if (!rq.executeCallbackBeforeReconnect) {
-//                                    _reconnect(_jqxhr, rq);
-//                                }
+                                if (!rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(_jqxhr, rq);
+                                }
 
                                 if (msg != null && typeof msg != 'string') {
                                     try {
@@ -902,9 +889,9 @@
                                     _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
                                 }
 
-//                                if (rq.executeCallbackBeforeReconnect) {
-//                                    _reconnect(_jqxhr, rq);
-//                                }
+                                if (rq.executeCallbackBeforeReconnect) {
+                                    _reconnect(_jqxhr, rq);
+                                }
                             } else {
                                 atmosphere.util.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
                                 _onError(0, "maxRequest reached");
@@ -924,61 +911,6 @@
 
                 _jqxhr.open();
             };
-
-
-//
-//TODO:
-//                _jqxhr = jQuery.ajax({
-//                    url: url,
-//                    type: rq.method,
-//                    dataType: "jsonp",
-//                    error: function (jqXHR, textStatus, errorThrown) {
-//                        _response.error = true;
-//                        if (jqXHR.status < 300) {
-//                            _reconnect(_jqxhr, rq);
-//                        } else {
-//                            _onError(jqXHR.status, errorThrown);
-//                        }
-//                    },
-//                    jsonp: "jsonpTransport",
-//                    success: function (json) {
-//                        if (rq.reconnect) {
-//                            if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
-//                                _readHeaders(_jqxhr, rq);
-//
-//                                if (!rq.executeCallbackBeforeReconnect) {
-//                                    _reconnect(_jqxhr, rq);
-//                                }
-//
-//                                var msg = json.message;
-//                                if (msg != null && typeof msg != 'string') {
-//                                    try {
-//                                        msg = jQuery.stringifyJSON(msg);
-//                                    } catch (err) {
-//                                        // The message was partial
-//                                    }
-//                                }
-//
-//                                var skipCallbackInvocation = _trackMessageSize(msg, rq, _response);
-//                                if (!skipCallbackInvocation) {
-//                                    _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
-//                                }
-//
-//                                if (rq.executeCallbackBeforeReconnect) {
-//                                    _reconnect(_jqxhr, rq);
-//                                }
-//                            } else {
-//                                atmosphere.util.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
-//                                _onError(0, "maxRequest reached");
-//                            }
-//                        }
-//                    },
-//                    data: rq.data,
-//                    beforeSend: function (jqXHR) {
-//                        _doRequest(jqXHR, rq, false);
-//                    }
-//                });
-
 
 //
 //            /**
