@@ -32,6 +32,8 @@
         atmosphere = {},
         guid,
         requests = [],
+        // Callback names for JSONP
+		jsonpCallbacks = [],
         callbacks = [];
 
     atmosphere = {
@@ -804,38 +806,128 @@
                 }
             }
 
-//            /**
-//             * Execute request using jsonp transport.
-//             *
-//             * @param request
-//             *            {Object} request Request parameters, if
-//             *            undefined _request object will be used.
-//             * @private
-//             */
-//            function _jsonp(request) {
-//                // When CORS is enabled, make sure we force the proper transport.
-//                request.transport = "jsonp";
-//
-//                var rq = _request;
-//                if ((request != null) && (typeof(request) != 'undefined')) {
-//                    rq = request;
-//                }
-//
-//                var url = rq.url;
-//                if (rq.dispatchUrl != null) {
-//                    url += rq.dispatchUrl;
-//                }
-//
-//                var data = rq.data;
-//                if (rq.attachHeadersAsQueryString) {
-//                    url = _attachHeaders(rq);
-//                    if (data != '') {
-//                        url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(data);
-//                    }
-//                    data = '';
-//                }
+            /**
+             * Execute request using jsonp transport.
+             *
+             * @param request
+             *            {Object} request Request parameters, if
+             *            undefined _request object will be used.
+             * @private
+             */
+            function _jsonp(request) {
+                // When CORS is enabled, make sure we force the proper transport.
+                request.transport = "jsonp";
 
-// TODO:
+                var rq = _request;
+                if ((request != null) && (typeof(request) != 'undefined')) {
+                    rq = request;
+                }
+
+                var script,
+                    called,
+                    count = 0,
+                    callback = jsonpCallbacks.pop() || ("atmosphere_" + (++guid));
+
+                _jqxhr = { open: function () {
+                    function poll() {
+                        var url = rq.url;
+                        if (rq.dispatchUrl != null) {
+                            url += rq.dispatchUrl;
+                        }
+
+                        var data = rq.data;
+                        if (rq.attachHeadersAsQueryString) {
+                            url = _attachHeaders(rq);
+                            if (data != '') {
+                                url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(data);
+                            }
+                            data = '';
+                        }
+                        ++count;
+
+                        var head = document.head || document.getElementsByTagName("head")[0] || document.documentElement;
+
+                        script = document.createElement("script");
+                        script.async = true;
+                        script.src =  url + "&jsonpTransport=" + callback;
+                        script.clean = function () {
+                            script.clean = script.onerror = script.onload = script.onreadystatechange = null;
+                            if (script.parentNode) {
+                                script.parentNode.removeChild(script);
+                            }
+                        };
+                        script.onload = script.onreadystatechange = function () {
+                            if (!script.readyState || /loaded|complete/.test(script.readyState)) {
+                                script.clean();
+                                if (called) {
+                                    called = true;
+                                    poll();
+                                } else if (count === 1) {
+                                    poll();
+                                } else {
+                                    window[callback] = function() {};
+                              		jsonpCallbacks.push(callback);
+                                }
+                            }
+                        };
+                        script.onerror = function () {
+                            script.clean();
+                            _onError(0, "maxReconnectOnClose reached");
+                        };
+
+                        head.insertBefore(script, head.firstChild);
+                    }
+
+                    // Attaches callback
+                    window[callback] = function (msg) {
+                        called = true;
+                        if (rq.reconnect) {
+                            if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
+                                _readHeaders(_jqxhr, rq);
+
+//                                if (!rq.executeCallbackBeforeReconnect) {
+//                                    _reconnect(_jqxhr, rq);
+//                                }
+
+                                if (msg != null && typeof msg != 'string') {
+                                    try {
+                                        msg = msg.message;
+                                    } catch (err) {
+                                        // The message was partial
+                                    }
+                                }
+
+                                var skipCallbackInvocation = _trackMessageSize(msg, rq, _response);
+                                if (!skipCallbackInvocation) {
+                                    _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
+                                }
+
+//                                if (rq.executeCallbackBeforeReconnect) {
+//                                    _reconnect(_jqxhr, rq);
+//                                }
+                            } else {
+                                atmosphere.util.log(_request.logLevel, ["JSONP reconnect maximum try reached " + _request.requestCount]);
+                                _onError(0, "maxRequest reached");
+                            }
+                        }
+                    };
+                    setTimeout(function() {
+                        poll();
+                    }, 50);
+                },
+                    abort: function () {
+                        if (script.clean) {
+                            script.clean();
+                        }
+                    }
+                };
+
+                _jqxhr.open();
+            };
+
+
+//
+//TODO:
 //                _jqxhr = jQuery.ajax({
 //                    url: url,
 //                    type: rq.method,
@@ -886,7 +978,8 @@
 //                        _doRequest(jqXHR, rq, false);
 //                    }
 //                });
-//            }
+
+
 //
 //            /**
 //             * Execute request using ajax transport.
@@ -1810,7 +1903,7 @@
                 if (force || request.transport != 'streaming') {
                     if (request.reconnect || (request.suspend && _subscribed)) {
                         var status = 0;
-                        if (ajaxRequest.readyState != 0) {
+                        if (ajaxRequest && ajaxRequest.readyState != 0) {
                             status = ajaxRequest.status > 1000 ? 0 : ajaxRequest.status;
                         }
                         _response.status = status == 0 ? 204 : status;
@@ -2581,14 +2674,6 @@
             return encodeURI(decodeURI(div.firstChild.href));
         },
 
-        S4: function () {
-            return (((1 + Math.random()) * 0x10000) | 0).toString(16).substring(1);
-        },
-
-        guid: function () {
-            return (atmosphere.util.S4() + atmosphere.util.S4() + "-" + atmosphere.util.S4() + "-" + atmosphere.util.S4() + "-" + atmosphere.util.S4() + "-" + atmosphere.util.S4() + atmosphere.util.S4() + atmosphere.util.S4());
-        },
-
         prepareURL: function (url) {
             // Attaches a time stamp to prevent caching
             var ts = atmosphere.util.now();
@@ -2598,7 +2683,11 @@
         },
 
         trim: function (str) {
-            return str.replace(/^\s\s*/, '').replace(/\s\s*$/, '');
+            if (!String.prototype.trim) {
+                return str.toString().replace(/(?:(?:^|\n)\s+|\s+(?:$|\n))/g, "").replace(/\s+/g, " ");
+            } else {
+                return str.toString().trim();
+            }
         },
 
         param: function (params) {
@@ -2845,6 +2934,7 @@
         }
     };
 
+    guid = atmosphere.util.now();
 
 // Browser sniffing
     (function () {
