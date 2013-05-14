@@ -104,7 +104,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                     try {
                                         response.write(paddingText, true);
                                     } catch (Throwable t) {
-                                        logger.trace("", t);
+                                        logger.trace("{}",, r.uuid(), t);
                                         writeFuture.cancel(false);
                                     }
                                 } else {
