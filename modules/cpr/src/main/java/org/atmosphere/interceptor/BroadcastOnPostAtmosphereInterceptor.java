@@ -19,7 +19,6 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,9 +26,10 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 
 /**
- * This interceptor reads the request's body and invoke the associated {@link org.atmosphere.cpr.Broadcaster} of an {@link AtmosphereResource}.
+ * This read the request's body and invoke the associated {@link org.atmosphere.cpr.Broadcaster} of an {@link AtmosphereResource}.
  * The broadcast always happens AFTER the request has been delivered to an {@link org.atmosphere.cpr.AtmosphereHandler}
  *
  * @author Jeanfrancois Arcand
@@ -53,9 +53,20 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
             StringBuilder stringBuilder = new StringBuilder();
             BufferedReader bufferedReader = null;
             try {
-                InputStream inputStream = r.getRequest().getInputStream();
-                if (inputStream != null) {
-                    bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                try {
+                    InputStream inputStream = r.getRequest().getInputStream();
+                    if (inputStream != null) {
+                        bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                    }
+                } catch (IllegalStateException ex) {
+                    logger.trace("",ex);
+                    Reader reader = r.getRequest().getReader();
+                    if (reader != null) {
+                        bufferedReader = new BufferedReader(reader);
+                    }
+                }
+
+                if (bufferedReader != null) {
                     char[] charBuffer = new char[8192];
                     int bytesRead = -1;
                     while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
@@ -76,21 +87,10 @@ public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereIntercept
                 }
             }
             if (stringBuilder.length() > 0) {
-                // Find the suspended connection to broadcast to.
-                AtmosphereResource sr = AtmosphereResourceFactory.getDefault().find(r.uuid());
-                if (sr != null) {
-                    r = sr;
-                }
                 r.getBroadcaster().broadcast(stringBuilder.toString());
             } else {
                 logger.warn("{} received an empty body", BroadcastOnPostAtmosphereInterceptor.class.getSimpleName());
             }
         }
     }
-
-    @Override
-    public String toString() {
-        return "Broadcast POST Body Interceptor";
-    }
-
 }
