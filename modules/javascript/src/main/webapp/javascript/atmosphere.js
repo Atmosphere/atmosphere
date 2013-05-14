@@ -2822,6 +2822,10 @@
             event.preventDefault();
         }
     });
+
+    atmosphere.util.on(window, "offline", function () {
+        atmosphere.unsubscribe();
+    });
     window.atmosphere = atmosphere;
 
 })
