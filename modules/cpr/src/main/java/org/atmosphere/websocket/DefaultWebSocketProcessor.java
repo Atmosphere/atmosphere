@@ -257,24 +257,24 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (resource != null && resource.isInScope()) {
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
-                    if (h != null) {
-                        // Tomcat and Jetty differ, same with browser
-                        if (closeCode == 1002) {
-                            h.timedOut();
+                    if (!resource.isCancelled()) {
+                        if (h != null) {
+                            // Tomcat and Jetty differ, same with browser
+                            if (closeCode == 1002) {
+                                h.timedOut();
+                            } else {
+                                h.closed();
+                            }
                         } else {
-                            h.closed();
+                            logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
                         }
-                    } else {
-                        logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
-                    }
 
-                    // We must always destroy the root resource (the one created when the websocket was opened
-                    // to prevent memory leaks.
-                    resource.setIsInScope(false);
-                    try {
-                        resource.cancel();
-                    } catch (IOException e) {
-                        logger.trace("", e);
+                        resource.setIsInScope(false);
+                        try {
+                            resource.cancel();
+                        } catch (IOException e) {
+                            logger.trace("", e);
+                        }
                     }
                     AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
@@ -322,6 +322,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(resource);
 
         for (AtmosphereResourceEventListener l : r.atmosphereResourceEventListener()) {
+            r.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, true, null));
             if (WebSocketEventListener.class.isAssignableFrom(l.getClass())) {
                 try {
                     switch (event.type()) {
