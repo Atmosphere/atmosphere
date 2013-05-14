@@ -2019,9 +2019,7 @@ jQuery.atmosphere = function () {
              */
             function _push(message) {
 
-                if (_response.status == 408) {
-                    _pushOnClose(message);
-                } else if (_localStorageService != null) {
+                if (_localStorageService != null) {
                     _pushLocal(message);
                 } else if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
@@ -2395,6 +2393,7 @@ jQuery.atmosphere = function () {
                 _response.responseBody = "";
                 _response.status = 408;
                 _invokeCallback();
+                _disconnect();
 
                 _clearState();
             }
@@ -2529,7 +2528,6 @@ jQuery.atmosphere = function () {
                 var requestsClone = [].concat(jQuery.atmosphere.requests);
                 for (var i = 0; i < requestsClone.length; i++) {
                     var rq = requestsClone[i];
-                    rq.disconnect();
                     rq.close();
                     clearTimeout(rq.response.request.id);
                 }
@@ -2546,7 +2544,6 @@ jQuery.atmosphere = function () {
 
                     // Suppose you can subscribe once to an url
                     if (rq.getUrl() == url) {
-                        rq.disconnect();
                         rq.close();
                         clearTimeout(rq.response.request.id);
                         idx = i;
