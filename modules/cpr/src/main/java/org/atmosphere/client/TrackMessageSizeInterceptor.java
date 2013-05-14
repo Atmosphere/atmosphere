@@ -97,6 +97,9 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+        if (AtmosphereResource.TRANSPORT.UNDEFINED == r.transport())
+            return Action.CONTINUE;
+
         final AtmosphereResponse response = r.getResponse();
 
         super.inspect(r);
