@@ -101,7 +101,12 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                             public Object call() throws Exception {
                                 logger.trace("Writing heartbeat for {}", r.uuid());
                                 if (r.isSuspended()) {
-                                    response.write(paddingText, true);
+                                    try {
+                                        response.write(paddingText, true);
+                                    } catch (Throwable t) {
+                                        logger.trace("", t);
+                                        writeFuture.cancel(false);
+                                    }
                                 } else {
                                     writeFuture.cancel(false);
                                 }
