@@ -8,7 +8,7 @@ $(function () {
     var myName = false;
     var author = null;
     var logged = false;
-    var socket = $.atmosphere;
+    var socket = atmosphere;
     var subSocket;
     var transport = 'websocket';
 
@@ -35,7 +35,7 @@ $(function () {
 
     <!-- For demonstration of how you can customize the fallbackTransport using the onTransportFailure function -->
     request.onTransportFailure = function(errorMsg, request) {
-        jQuery.atmosphere.info(errorMsg);
+        atmosphere.util.info(errorMsg);
         if (window.EventSource) {
             request.fallbackTransport = "sse";
         }
@@ -46,7 +46,7 @@ $(function () {
 
         var message = response.responseBody;
         try {
-            var json = jQuery.parseJSON(message);
+            var json = atmosphere.util.parseJSON(message);
         } catch (e) {
             console.log('This doesn\'t look like a valid JSON: ', message);
             return;
@@ -64,7 +64,7 @@ $(function () {
     };
 
     request.onClose = function(response) {
-        subSocket.push(jQuery.stringifyJSON({ author: author, message: 'disconnecting' }));
+        subSocket.push(atmosphere.util.stringifyJSON({ author: author, message: 'disconnecting' }));
     };
 
     request.onError = function(response) {
@@ -88,7 +88,7 @@ $(function () {
                 author = msg;
             }
 
-            subSocket.push(jQuery.stringifyJSON({ author: author, message: msg }));
+            subSocket.push(atmosphere.util.stringifyJSON({ author: author, message: msg }));
             $(this).val('');
 
             input.attr('disabled', 'disabled');
