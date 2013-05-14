@@ -32,8 +32,6 @@
         atmosphere = {},
         guid,
         requests = [],
-        // Callback names for JSONP
-		jsonpCallbacks = [],
         callbacks = [];
 
     atmosphere = {
@@ -98,6 +96,7 @@
                 reconnectInterval: 0,
                 dropAtmosphereHeaders: true,
                 uuid: 0,
+                async: true,
                 shared: false,
                 readResponsesHeaders: false,
                 maxReconnectOnClose: 5,
@@ -283,12 +282,10 @@
                     var url = _request.url.replace(/([?&])_=[^&]*/, query);
                     url = url + (url === _request.url ? (/\?/.test(_request.url) ? "&" : "?") + query : "");
 
-                    //TODO
-//                        if (_request.connectTimeout > -1) {
-//                            jQuery.ajax({url: url, async: false, timeout: _request.connectTimeout});
-//                        } else {
-//                            jQuery.ajax({url: url, async: false});
-//                        }
+                    _request.attachHeadersAsQueryString = false;
+                    _request.dropAtmosphereHeaders = true;
+                    _request.url = url;
+                    _pushOnClose("", _request);
                 }
             }
 
@@ -305,7 +302,7 @@
                 _response.responseBody = "";
                 _response.status = 408;
                 _invokeCallback();
-
+                _disconnect();
                 _clearState();
             }
 
@@ -912,75 +909,6 @@
                 _jqxhr.open();
             };
 
-//
-//            /**
-//             * Execute request using ajax transport.
-//             *
-//             * @param request
-//             *            {Object} request Request parameters, if
-//             *            undefined _request object will be used.
-//             * @private
-//             */
-//            function _ajax(request) {
-//                var rq = _request;
-//                if ((request != null) && (typeof(request) != 'undefined')) {
-//                    rq = request;
-//                }
-//
-//                var url = rq.url;
-//                if (rq.dispatchUrl != null) {
-//                    url += rq.dispatchUrl;
-//                }
-//
-//                var data = rq.data;
-//                if (rq.attachHeadersAsQueryString) {
-//                    url = _attachHeaders(rq);
-//                    if (data != '') {
-//                        url += "&X-Atmosphere-Post-Body=" + encodeURIComponent(data);
-//                    }
-//                    data = '';
-//                }
-//
-//                var async = typeof(rq.async) != 'undefined' ? rq.async : true;
-//                _jqxhr = jQuery.ajax({
-//                    url: url,
-//                    type: rq.method,
-//                    error: function (jqXHR, textStatus, errorThrown) {
-//                        _response.error = true;
-//                        if (jqXHR.status < 300) {
-//                            _reconnect(_jqxhr, rq);
-//                        } else {
-//                            _onError(jqXHR.status, errorThrown);
-//                        }
-//                    },
-//                    success: function (data, textStatus, jqXHR) {
-//
-//                        if (rq.reconnect) {
-//                            if (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest) {
-//                                if (!rq.executeCallbackBeforeReconnect) {
-//                                    _reconnect(_jqxhr, rq);
-//                                }
-//                                var skipCallbackInvocation = _trackMessageSize(data, rq, _response);
-//                                if (!skipCallbackInvocation) {
-//                                    _prepareCallback(_response.responseBody, "messageReceived", 200, rq.transport);
-//                                }
-//
-//                                if (rq.executeCallbackBeforeReconnect) {
-//                                    _reconnect(_jqxhr, rq);
-//                                }
-//                            } else {
-//                                atmosphere.util.log(_request.logLevel, ["AJAX reconnect maximum try reached " + _request.requestCount]);
-//                                _onError(0, "maxRequest reached");
-//                            }
-//                        }
-//                    },
-//                    beforeSend: function (jqXHR) {
-//                        _doRequest(jqXHR, rq, false);
-//                    },
-//                    crossDomain: rq.enableXDR,
-//                    async: async
-//                });
-//            }
 
             /**
              * Build websocket object.
@@ -1554,11 +1482,6 @@
                     return;
                 }
 
-                if (rq.transport == 'ajax') {
-                    _ajax(request);
-                    return;
-                }
-
                 if (atmosphere.util.browser.msie && atmosphere.util.browser.version < 10) {
                     if ((rq.transport == 'streaming')) {
                         rq.enableXDR && window.XDomainRequest ? _ieXDR(rq) : _ieStreaming(rq);
@@ -1581,7 +1504,9 @@
                 };
 
 
-                if (rq.reconnect && ( rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest)) {
+                if (rq.force || (rq.reconnect && ( rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
+                    rq.force = false;
+
                     var ajaxRequest = _buildAjaxRequest();
                     ajaxRequest.hasData = false;
 
@@ -1787,7 +1712,7 @@
                 url = atmosphere.util.prepareURL(url);
 
                 if (create) {
-                    ajaxRequest.open(request.method, url, true);
+                    ajaxRequest.open(request.method, url, request.async);
                     if (request.connectTimeout > -1) {
                         request.id = setTimeout(function () {
                             if (request.requestCount == 0) {
@@ -2124,9 +2049,7 @@
              */
             function _push(message) {
 
-                if (_response.status == 408) {
-                    _pushOnClose(message);
-                } else if (_localStorageService != null) {
+                if (_localStorageService != null) {
                     _pushLocal(message);
                 } else if (_activeRequest != null || _sse != null) {
                     _pushAjaxMessage(message);
@@ -2139,12 +2062,16 @@
                 }
             }
 
-            function _pushOnClose(message) {
-                var rq = _getPushRequest(message);
-                rq.transport = "ajax";
+            function _pushOnClose(message, rq) {
+                if (!rq) {
+                    rq = _getPushRequest(message);
+                }
+                rq.transport = "polling";
                 rq.method = "GET";
                 rq.async = false;
                 rq.reconnect = false;
+                rq.force = true;
+                rq.suspend = false;
                 _executeRequest(rq);
             }
 
@@ -2524,7 +2451,6 @@
             var requestsClone = [].concat(requests);
             for (var i = 0; i < requestsClone.length; i++) {
                 var rq = requestsClone[i];
-                rq.disconnect();
                 rq.close();
                 clearTimeout(rq.response.request.id);
             }
@@ -2541,7 +2467,6 @@
 
                 // Suppose you can subscribe once to an url
                 if (rq.getUrl() == url) {
-                    rq.disconnect();
                     rq.close();
                     clearTimeout(rq.response.request.id);
                     idx = i;
@@ -2887,7 +2812,7 @@
         }
     })();
 
-    atmosphere.util.on(window, "unload.atmosphere", function (event) {
+    atmosphere.util.on(window, "unload", function (event) {
         atmosphere.unsubscribe();
     });
 
