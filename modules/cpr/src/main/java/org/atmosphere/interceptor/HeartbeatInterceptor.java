@@ -100,7 +100,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                             @Override
                             public Object call() throws Exception {
                                 logger.trace("Writing heartbeat for {}", r.uuid());
-                                response.write(paddingText, true);
+                                if (r.isSuspended()) {
+                                    response.write(paddingText, true);
+                                } else {
+                                    writeFuture.cancel(false);
+                                }
                                 return null;
                             }
                         }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS);
