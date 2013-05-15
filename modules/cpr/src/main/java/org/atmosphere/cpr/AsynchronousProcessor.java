@@ -395,22 +395,21 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     }
                 }
             }
-        }
 
-        // MeteorService
-        if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-            Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
-            if (s.getClass().getAnnotation(MeteorService.class) != null) {
-                String targetPath = s.getClass().getAnnotation(MeteorService.class).path();
-                if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
-                    try {
-                        ReflectorServletProcessor r = new ReflectorServletProcessor();
-
-                        r.setServlet(s.getClass().newInstance());
-                        config.framework().addAtmosphereHandler(path, r);
-                        return config.handlers().get(path);
-                    } catch (Throwable e) {
-                        logger.warn("Unable to create AtmosphereHandler", e);
+            // MeteorService
+            if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
+                Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
+                if (s.getClass().getAnnotation(MeteorService.class) != null) {
+                    String targetPath = s.getClass().getAnnotation(MeteorService.class).path();
+                    if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                        try {
+                            ReflectorServletProcessor r = new ReflectorServletProcessor();
+                            r.setServlet(s.getClass().newInstance());
+                            config.framework().addAtmosphereHandler(path, r);
+                            return config.handlers().get(path);
+                        } catch (Throwable e) {
+                            logger.warn("Unable to create AtmosphereHandler", e);
+                        }
                     }
                 }
             }
