@@ -16,11 +16,10 @@
 package org.atmosphere.samples.chat;
 
 import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.Suspend;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,14 +31,9 @@ public class Chat {
     private final ObjectMapper mapper = new ObjectMapper();
     private final Logger logger = LoggerFactory.getLogger(Chat.class);
 
-    @Get
-    public void onOpen(final AtmosphereResource r) {
-        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-            @Override
-            public void onSuspend(AtmosphereResourceEvent event) {
-                logger.info("User {} connected.", r.uuid());
-            }
-        });
+    @Suspend
+    public void onReady(final AtmosphereResource r) {
+        logger.info("Browser ID {} connected.", r.uuid());
     }
 
     @Disconnect

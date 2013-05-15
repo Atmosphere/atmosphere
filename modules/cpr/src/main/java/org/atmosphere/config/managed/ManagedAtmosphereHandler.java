@@ -22,11 +22,13 @@ import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
 import org.atmosphere.config.service.Resume;
+import org.atmosphere.config.service.Suspend;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
@@ -56,6 +58,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private final Method onPostMethod;
     private final Method onPutMethod;
     private final Method onDeleteMethod;
+    private final Method onSuspendMethod;
+    private final Method onResumeMethod;
+
     final List<Encoder<?, ?>> encoders = new CopyOnWriteArrayList<Encoder<?, ?>>();
     final List<Decoder<?, ?>> decoders = new CopyOnWriteArrayList<Decoder<?, ?>>();
 
@@ -68,6 +73,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onPostMethod = populate(c, Post.class);
         this.onPutMethod = populate(c, Put.class);
         this.onDeleteMethod = populate(c, Delete.class);
+        this.onSuspendMethod = populate(c, Suspend.class);
+        this.onResumeMethod = populate(c, Resume.class);
 
         if (onMessageMethod != null) {
             populateEncoders(onMessageMethod.getAnnotation(Message.class).encoders());
@@ -76,9 +83,30 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     @Override
-    public void onRequest(AtmosphereResource resource) throws IOException {
+    public void onRequest(final AtmosphereResource resource) throws IOException {
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
+
+        if (onSuspendMethod != null) {
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter(){
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    invoke(onSuspendMethod, event.getResource());
+                    resource.removeEventListener(this);
+                }
+            });
+        }
+
+        if (onResumeMethod != null) {
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter(){
+                @Override
+                public void onResume(AtmosphereResourceEvent event) {
+                    invoke(onResumeMethod, event.getResource());
+                    resource.removeEventListener(this);
+                }
+            });
+        }
+
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
         } else if (method.equalsIgnoreCase("post")) {

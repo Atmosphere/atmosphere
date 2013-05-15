@@ -21,6 +21,7 @@ import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
+import org.atmosphere.config.service.Suspend;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -204,5 +205,27 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(message.get());
         assertEquals(message.get(), "message");
 
+    }
+
+    @ManagedService(path = "/j")
+    public final static class ManagedSuspend {
+        @Get
+        public void get(AtmosphereResource resource) {
+            // Normally we don't need that, this will be done using an Interceptor.
+            resource.suspend();
+        }
+
+        @Suspend
+        public void suspend(AtmosphereResource resource) {
+            r.set(resource);
+        }
+    }
+
+    @Test
+    public void testSuspend() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/j").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
     }
 }
