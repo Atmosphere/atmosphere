@@ -21,7 +21,7 @@ import org.codehaus.jackson.map.ObjectMapper;
 import java.io.IOException;
 
 /**
- * Decode a String into a {@link Message}
+ * Decode a String into a {@link Message}.
  */
 public class JacksonDecoder implements Decoder<String, Message> {
 
