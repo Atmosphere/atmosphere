@@ -52,8 +52,11 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.handler.AnnotatedProxy;
+import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -362,18 +365,49 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = "/";
         }
 
-        if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass()) && config.handlers().get(path) == null) {
-            AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-            if (ap.target().getClass().getAnnotation(ManagedService.class) != null) {
-                String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
+        if (config.handlers().get(path) == null) {
+            // ManagedService
+            if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
+                AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
+                if (ap.target().getClass().getAnnotation(ManagedService.class) != null) {
+                    String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
+                    if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                        try {
+                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
+                                    .newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                            return config.handlers().get(path);
+                        } catch (Throwable e) {
+                            logger.warn("Unable to create AtmosphereHandler", e);
+                        }
+                    }
+                }
+            }
+
+            // AtmosphereHandlerService
+            if (w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class) != null) {
+                String targetPath = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class).path();
                 if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                     try {
-                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
-                                .newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().newInstance());
                         return config.handlers().get(path);
                     } catch (Throwable e) {
                         logger.warn("Unable to create AtmosphereHandler", e);
                     }
+                }
+            }
+        }
+
+        // MeteorService
+        if (w.atmosphereHandler.getClass().getAnnotation(MeteorService.class) != null) {
+            String targetPath = w.atmosphereHandler.getClass().getAnnotation(MeteorService.class).path();
+            if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                try {
+                    ReflectorServletProcessor r = new ReflectorServletProcessor();
+                    r.setServlet(ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet().getClass().newInstance());
+                    config.framework().addAtmosphereHandler(path, r);
+                    return config.handlers().get(path);
+                } catch (Throwable e) {
+                    logger.warn("Unable to create AtmosphereHandler", e);
                 }
             }
         }
