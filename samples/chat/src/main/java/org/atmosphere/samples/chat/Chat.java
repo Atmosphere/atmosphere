@@ -30,7 +30,7 @@ import java.io.IOException;
  * Simple annotated class that demonstrate the power of Atmosphere. This class supports all transports, support
  * message length garantee, heart beat, message cache thanks to the @managedAService.
  */
-@ManagedService(path = "/chat")
+@ManagedService(path = "/{chat}")
 public class Chat {
     private final ObjectMapper mapper = new ObjectMapper();
     private final Logger logger = LoggerFactory.getLogger(Chat.class);

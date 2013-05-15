@@ -368,10 +368,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
                 if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                     try {
-                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class).newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
+                                .newInstance(ap.target().getClass().newInstance()), w.interceptors);
                         return config.handlers().get(path);
                     } catch (Throwable e) {
-                        e.printStackTrace();
+                        logger.warn("Unable to create AtmosphereHandler", e);
                     }
                 }
             }
