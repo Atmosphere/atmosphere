@@ -49,8 +49,6 @@ public class JettyServlet30AsyncSupportWithWebSocket extends Servlet30CometSuppo
         } else {
             webSocketFactory = null;
         }
-        //TODO: Add Grizzly support here as well.
-
     }
 
     /**
