@@ -33,15 +33,15 @@ public class Chat {
 
     @Suspend
     public void onReady(final AtmosphereResource r) {
-        logger.info("Browser ID {} connected.", r.uuid());
+        logger.info("Browser {} connected.", r.uuid());
     }
 
     @Disconnect
     public void onDisconnect(AtmosphereResourceEvent event) {
         if (event.isCancelled()) {
-            logger.info("User {} unexpectedly disconnected", event.getResource().uuid());
+            logger.info("Browser {} unexpectedly disconnected", event.getResource().uuid());
         } else if (event.isClosedByClient()) {
-            logger.info("User {} closed the connection", event.getResource().uuid());
+            logger.info("Browser {} closed the connection", event.getResource().uuid());
         }
     }
 
