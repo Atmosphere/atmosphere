@@ -13,7 +13,7 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.handler;
+package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.Delete;
 import org.atmosphere.config.service.Disconnect;
@@ -28,6 +28,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,6 +37,7 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
  * An internal implementation of {@link AtmosphereHandler} that implement supports for Atmosphere 1.1 annotation.
@@ -54,6 +56,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private final Method onPostMethod;
     private final Method onPutMethod;
     private final Method onDeleteMethod;
+    final List<Encoder<?, ?>> encoders = new CopyOnWriteArrayList<Encoder<?, ?>>();
+    final List<Decoder<?, ?>> decoders = new CopyOnWriteArrayList<Decoder<?, ?>>();
 
     public ManagedAtmosphereHandler(Object c) {
         this.object = c;
@@ -65,6 +69,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onPutMethod = populate(c, Put.class);
         this.onDeleteMethod = populate(c, Delete.class);
 
+        if (onMessageMethod != null) {
+            populateEncoders(onMessageMethod.getAnnotation(Message.class).encoders());
+            populateDecoder(onMessageMethod.getAnnotation(Message.class).decoders());
+        }
     }
 
     @Override
@@ -119,7 +127,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     private void invoke(AtmosphereResourceEvent event, Object message) throws IOException {
-        Object m = invoke(onMessageMethod,message);
+        Object m = message(onMessageMethod, message);
         if (m != null) {
             super.onStateChange(event.setMessage(m));
         } else if (onMessageMethod == null) {
@@ -136,6 +144,34 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
+    private void populateEncoders(Class<? extends Encoder>[] encoder) {
+        for (Class<? extends Encoder> s : encoder) {
+            try {
+                encoders.add(s.newInstance());
+            } catch (Exception e) {
+                logger.error("Unable to load encoder {}", s);
+            }
+        }
+    }
+
+    private void populateDecoder(Class<? extends Decoder>[] decoder) {
+        for (Class<? extends Decoder> s : decoder) {
+            try {
+                decoders.add(s.newInstance());
+            } catch (Exception e) {
+                logger.error("Unable to load encoder {}", s);
+            }
+        }
+    }
+
+    protected Class<?> loadClass(String className) throws Exception {
+        try {
+            return Thread.currentThread().getContextClassLoader().loadClass(className);
+        } catch (Throwable t) {
+            return getClass().getClassLoader().loadClass(className);
+        }
+    }
+
     private Object invoke(Method m, Object o) {
         if (m != null) {
             try {
@@ -149,7 +185,14 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
-    public Object object(){
+    private Object message(Method m, Object o) {
+        if (m != null) {
+            return Invoker.invokeMethod(encoders, decoders, o, object, m);
+        }
+        return null;
+    }
+
+    public Object object() {
         return object;
     }
 }

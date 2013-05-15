@@ -33,7 +33,7 @@ import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.handler.ManagedAtmosphereHandler;
+import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.IntrospectionUtils;
