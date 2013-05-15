@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.chat;
 
+import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Message;
@@ -40,16 +41,16 @@ public class Chat {
             public void onSuspend(AtmosphereResourceEvent event) {
                 logger.info("User {} connected.", r.uuid());
             }
-
-            @Override
-            public void onDisconnect(AtmosphereResourceEvent event) {
-                if (event.isCancelled()) {
-                    logger.info("User {} unexpectedly disconnected", r.uuid());
-                } else if (event.isClosedByClient()) {
-                    logger.info("User {} closed the connection", r.uuid());
-                }
-            }
         });
+    }
+
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        if (event.isCancelled()) {
+            logger.info("User {} unexpectedly disconnected", event.getResource().uuid());
+        } else if (event.isClosedByClient()) {
+            logger.info("User {} closed the connection", event.getResource().uuid());
+        }
     }
 
     @Message
