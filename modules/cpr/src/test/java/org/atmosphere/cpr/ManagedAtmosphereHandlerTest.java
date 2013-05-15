@@ -21,7 +21,6 @@ import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
-import org.atmosphere.config.service.Suspend;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -215,7 +214,7 @@ public class ManagedAtmosphereHandlerTest {
             resource.suspend();
         }
 
-        @Suspend
+        @Ready
         public void suspend(AtmosphereResource resource) {
             r.set(resource);
         }
