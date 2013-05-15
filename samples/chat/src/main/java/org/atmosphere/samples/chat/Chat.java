@@ -17,7 +17,7 @@ package org.atmosphere.samples.chat;
 
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Suspend;
+import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -31,7 +31,7 @@ public class Chat {
     private final ObjectMapper mapper = new ObjectMapper();
     private final Logger logger = LoggerFactory.getLogger(Chat.class);
 
-    @Suspend
+    @Ready
     public void onReady(final AtmosphereResource r) {
         logger.info("Browser {} connected.", r.uuid());
     }

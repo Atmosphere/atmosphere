@@ -21,8 +21,8 @@ import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
+import org.atmosphere.config.service.Ready;
 import org.atmosphere.config.service.Resume;
-import org.atmosphere.config.service.Suspend;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -73,7 +73,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onPostMethod = populate(c, Post.class);
         this.onPutMethod = populate(c, Put.class);
         this.onDeleteMethod = populate(c, Delete.class);
-        this.onSuspendMethod = populate(c, Suspend.class);
+        this.onSuspendMethod = populate(c, Ready.class);
         this.onResumeMethod = populate(c, Resume.class);
 
         if (onMessageMethod != null) {
