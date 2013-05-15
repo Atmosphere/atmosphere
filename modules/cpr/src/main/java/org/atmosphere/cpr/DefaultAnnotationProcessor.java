@@ -287,7 +287,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     ManagedService a = handler.getClass().getAnnotation(ManagedService.class);
                     // POJO
                     if (a == null) {
-                        a = ManagedAtmosphereHandler.class.cast(handler).object().getClass().getAnnotation(ManagedService.class);
+                        a = ManagedAtmosphereHandler.class.cast(handler).target().getClass().getAnnotation(ManagedService.class);
                     }
 
                     framework.setDefaultBroadcasterClassName(a.broadcaster().getName());

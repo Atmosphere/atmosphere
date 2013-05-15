@@ -197,6 +197,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         public Broadcaster broadcaster;
         public String mapping;
         public List<AtmosphereInterceptor> interceptors = Collections.<AtmosphereInterceptor>emptyList();
+        public boolean create;
 
         public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, AtmosphereHandler atmosphereHandler, String mapping) {
             this.atmosphereHandler = atmosphereHandler;

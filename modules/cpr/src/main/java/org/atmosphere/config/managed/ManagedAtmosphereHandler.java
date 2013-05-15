@@ -31,6 +31,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.handler.AnnotatedProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +47,7 @@ import java.util.concurrent.CopyOnWriteArrayList;
  *
  * @author Jeanfrancois
  */
-public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler {
+public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler implements AnnotatedProxy {
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
 
@@ -220,7 +221,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
-    public Object object() {
+    @Override
+    public Object target() {
         return object;
     }
 }

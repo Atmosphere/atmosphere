@@ -52,6 +52,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -200,12 +202,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
-        AtmosphereHandlerWrapper handlerWrapper = mapper.map(req, config.handlers());
-
-        if (handlerWrapper == null) {
-            logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getPathInfo(), config.handlers());
-            throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + req.getPathInfo());
-        }
+        AtmosphereHandlerWrapper handlerWrapper = map(req);
         if (config.getBroadcasterFactory() == null) {
             logger.error("Atmosphere is misconfigured and will not work. BroadcasterFactory is null");
             return Action.CANCELLED;
@@ -342,7 +339,44 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());
-        return atmosphereHandlerWrapper;
+        return postProcessMapping(req, atmosphereHandlerWrapper);
+    }
+
+    protected AtmosphereHandlerWrapper postProcessMapping(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
+
+        String path;
+        String pathInfo = null;
+        try {
+            pathInfo = request.getPathInfo();
+        } catch (IllegalStateException ex) {
+            // http://java.net/jira/browse/GRIZZLY-1301
+        }
+
+        if (pathInfo != null) {
+            path = request.getServletPath() + pathInfo;
+        } else {
+            path = request.getServletPath();
+        }
+
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+
+        if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass()) && config.handlers().get(path) == null) {
+            AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
+            if (ap.target().getClass().getAnnotation(ManagedService.class) != null) {
+                String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
+                if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                    try {
+                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class).newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                        return config.handlers().get(path);
+                    } catch (Throwable e) {
+                        e.printStackTrace();
+                    }
+                }
+            }
+        }
+        return w;
     }
 
     /**
