@@ -1,5 +1,5 @@
 /*
- * Copyright 2012 Jeanfrancois Arcand
+ * Copyright 2013 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,7 +18,6 @@ package org.atmosphere.samples.chat;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Message;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
@@ -27,7 +26,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Date;
 
 @ManagedService(path = "/chat")
 public class Chat {
@@ -53,50 +51,10 @@ public class Chat {
         }
     }
 
-    @Message
-    public String onMessage(String message) throws IOException {
-        return mapper.writeValueAsString(mapper.readValue(message, Data.class));
+    @org.atmosphere.config.service.Message(encoders = {JacksonEncoder.class}, decoders = {JacksonDecoder.class})
+    public Message onMessage(Message message) throws IOException {
+        logger.info("{} just send {}", message.getAuthor(), message.getMessage());
+        return message;
     }
 
-    public final static class Data {
-
-        private String message;
-        private String author;
-        private long time;
-
-        public Data() {
-            this("", "");
-        }
-
-        public Data(String author, String message) {
-            this.author = author;
-            this.message = message;
-            this.time = new Date().getTime();
-        }
-
-        public String getMessage() {
-            return message;
-        }
-
-        public String getAuthor() {
-            return author;
-        }
-
-        public void setAuthor(String author) {
-            this.author = author;
-        }
-
-        public void setMessage(String message) {
-            this.message = message;
-        }
-
-        public long getTime() {
-            return time;
-        }
-
-        public void setTime(long time) {
-            this.time = time;
-        }
-
-    }
 }
