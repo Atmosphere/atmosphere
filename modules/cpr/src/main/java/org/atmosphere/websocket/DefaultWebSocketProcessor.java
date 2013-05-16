@@ -280,7 +280,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             logger.trace("", e);
                         }
                     }
-                    }
                     AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
             } finally {
