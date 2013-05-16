@@ -16,7 +16,6 @@
 package org.atmosphere.config.service;
 
 
-import org.atmosphere.config.managed.Decoder;
 import org.atmosphere.config.managed.Encoder;
 
 import java.lang.annotation.ElementType;
@@ -48,9 +47,4 @@ public @interface Ready {
      * A list of {@link org.atmosphere.config.managed.Encoder}
      */
     Class<? extends Encoder>[] encoders() default {};
-
-    /**
-     * A list of {@link org.atmosphere.config.managed.Decoder}
-     */
-    Class<? extends Decoder>[] decoders() default {};
 }
