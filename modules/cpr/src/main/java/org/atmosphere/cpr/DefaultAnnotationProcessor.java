@@ -259,13 +259,9 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 } else if (ManagedService.class.equals(annotation)) {
                     try {
 
-                        AtmosphereHandler handler;
-                        try {
-                            handler = (AtmosphereHandler) loadClass(className).newInstance();
-                        } catch (Throwable t) {
-                            Object c = loadClass(className).newInstance();
-                            handler = new ManagedAtmosphereHandler(c);
-                        }
+                        Object c = loadClass(className).newInstance();
+                        AtmosphereHandler handler = new ManagedAtmosphereHandler(c);
+
                         managed(handler, annotation);
                     } catch (Throwable e) {
                         logger.warn("", e);

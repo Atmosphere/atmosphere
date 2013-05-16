@@ -95,6 +95,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
+    private boolean wildcardMapping = false;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
@@ -135,8 +136,17 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
             }, 0, 1, TimeUnit.SECONDS);
         }
+
+        wildcardMapping();
     }
 
+    protected void wildcardMapping() {
+        for (String w : config.handlers().keySet()) {
+            if (w.contains("{") && w.contains("}")) {
+                wildcardMapping = true;
+            }
+        }
+    }
 
     /**
      * Is {@link HttpSession} supported
@@ -345,7 +355,16 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return postProcessMapping(req, atmosphereHandlerWrapper);
     }
 
+    /**
+     * Inspect the request and its mapped {@link AtmosphereHandler} to determine if the '{}' was used when defined the
+     * annotation's path value. It will create a new {@link AtmosphereHandler} in case {} is detected .
+     * @param request
+     * @param w
+     * @return
+     */
     protected AtmosphereHandlerWrapper postProcessMapping(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
+
+        if (!wildcardMapping) return w;
 
         String path;
         String pathInfo = null;
@@ -365,50 +384,55 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = "/";
         }
 
-        if (config.handlers().get(path) == null) {
-            // ManagedService
-            if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-                if (ap.target().getClass().getAnnotation(ManagedService.class) != null) {
-                    String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
+        synchronized (config.handlers()) {
+            if (config.handlers().get(path) == null) {
+                // ManagedService
+                if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
+                    AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
+                    if (ap.target().getClass().getAnnotation(ManagedService.class) != null) {
+                        String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
+                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                            try {
+                                synchronized (config.handlers()) {
+                                    config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
+                                            .newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                                }
+                                return config.handlers().get(path);
+                            } catch (Throwable e) {
+                                logger.warn("Unable to create AtmosphereHandler", e);
+                            }
+                        }
+                    }
+                }
+
+                // AtmosphereHandlerService
+                if (w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class) != null) {
+                    String targetPath = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class).path();
                     if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                         try {
-                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
-                                    .newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().newInstance());
                             return config.handlers().get(path);
                         } catch (Throwable e) {
                             logger.warn("Unable to create AtmosphereHandler", e);
                         }
                     }
                 }
-            }
 
-            // AtmosphereHandlerService
-            if (w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class) != null) {
-                String targetPath = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class).path();
-                if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
-                    try {
-                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().newInstance());
-                        return config.handlers().get(path);
-                    } catch (Throwable e) {
-                        logger.warn("Unable to create AtmosphereHandler", e);
-                    }
-                }
-            }
-
-            // MeteorService
-            if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
-                if (s.getClass().getAnnotation(MeteorService.class) != null) {
-                    String targetPath = s.getClass().getAnnotation(MeteorService.class).path();
-                    if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
-                        try {
-                            ReflectorServletProcessor r = new ReflectorServletProcessor();
-                            r.setServlet(s.getClass().newInstance());
-                            config.framework().addAtmosphereHandler(path, r);
-                            return config.handlers().get(path);
-                        } catch (Throwable e) {
-                            logger.warn("Unable to create AtmosphereHandler", e);
+                // MeteorService
+                if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
+                    Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
+                    if (s.getClass().getAnnotation(MeteorService.class) != null) {
+                        String targetPath = s.getClass().getAnnotation(MeteorService.class).path();
+                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                            try {
+                                ReflectorServletProcessor r = new ReflectorServletProcessor();
+                                r.setServlet(s.getClass().newInstance());
+                                r.init(config.getServletConfig());
+                                config.framework().addAtmosphereHandler(path, r);
+                                return config.handlers().get(path);
+                            } catch (Throwable e) {
+                                logger.warn("Unable to create AtmosphereHandler", e);
+                            }
                         }
                     }
                 }

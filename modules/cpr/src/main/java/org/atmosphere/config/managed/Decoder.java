@@ -46,7 +46,6 @@ public interface Decoder<U, T> {
     /**
      * Decode the specified object of type U into object of type T
      *
-     * @param e Event
      * @param s a object of type U
      * @return a new object of type T
      */
