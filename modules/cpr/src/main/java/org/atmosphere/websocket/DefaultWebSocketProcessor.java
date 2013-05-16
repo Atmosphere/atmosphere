@@ -260,10 +260,14 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     if (!resource.isCancelled()) {
                         if (h != null) {
                             // Tomcat and Jetty differ, same with browser
-                            if (closeCode == 1002) {
-                                h.timedOut();
-                            } else {
+                            if (closeCode == 1000 && framework.getAsyncSupport().getContainerName().contains("Tomcat")) {
+                                closeCode = 1005;
+                            }
+
+                            if (closeCode == 1005) {
                                 h.closed();
+                            } else {
+                                h.timedOut();
                             }
                         } else {
                             logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
@@ -275,6 +279,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         } catch (IOException e) {
                             logger.trace("", e);
                         }
+                    }
                     }
                     AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
@@ -322,7 +327,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(resource);
 
         for (AtmosphereResourceEventListener l : r.atmosphereResourceEventListener()) {
-            r.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, true, null));
             if (WebSocketEventListener.class.isAssignableFrom(l.getClass())) {
                 try {
                     switch (event.type()) {
