@@ -160,7 +160,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected String mappingRegex = MAPPING_REGEX;
     protected boolean useNativeImplementation = false;
     protected boolean useBlockingImplementation = false;
-    protected boolean useStreamForFlushingComments = false;
+    protected boolean useStreamForFlushingComments = true;
     protected boolean useServlet30 = true;
     protected AsyncSupport asyncSupport;
     protected String broadcasterClassName = DefaultBroadcaster.class.getName();

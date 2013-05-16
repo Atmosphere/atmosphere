@@ -52,9 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import java.io.IOException;
-import java.io.OutputStream;
-
 /**
  * An AtmosphereResourceEvent is created every time an event occurs like when a
  * {@link Broadcaster#broadcast(java.lang.Object)} is executed, when a Browser close
@@ -130,31 +127,11 @@ public interface AtmosphereResourceEvent {
     public boolean isClosedByClient();
 
     /**
-     * Write the {@link Object} using the {@link OutputStream} by invoking
-     * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}
-     * will be directly written using the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()}
-     *
-     * @param os {@link OutputStream}
-     * @param o  {@link Object}
-     *
-     * @throws java.io.IOException
-     */
-    public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException;
-
-    /**
      * Return a {@link Throwable} if an unexpected exception occured.
      *
      * @return {@link Throwable} if an unexpected exception occured.
      */
     public Throwable throwable();
-
-    /**
-     * Write the {@link byte} using the underlying {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()}
-     *
-     * @param o  {@link byte}
-     * @throws java.io.IOException
-     */
-    public AtmosphereResourceEvent write(byte[] o) throws IOException ;
 
     /**
      * Return the broadcaster associated with the {@link AtmosphereResource} this object contains.

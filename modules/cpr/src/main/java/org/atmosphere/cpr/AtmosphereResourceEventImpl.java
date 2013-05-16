@@ -52,8 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import java.io.IOException;
-import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -213,16 +211,6 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      * {@inheritDoc}
      */
     @Override
-    public AtmosphereResourceEvent write(byte[] o) throws IOException {
-        check();
-        resource.getResponse().getOutputStream().write(o);
-        return this;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    @Override
     public Broadcaster broadcaster() {
         return resource.getBroadcaster();
     }
@@ -232,15 +220,6 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      */
     public AtmosphereResource getResource() {
         return resource;
-    }
-
-    /**
-     * {@inheritDoc}
-     */
-    public AtmosphereResourceEvent write(OutputStream os, Object o) throws IOException {
-        check();
-        resource.write(os, o);
-        return this;
     }
 
     private void check() {

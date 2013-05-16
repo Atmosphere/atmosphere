@@ -98,7 +98,7 @@ public class WebSocketProcessorTest {
 
             @Override
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                event.write(event.getMessage().toString().getBytes());
+                event.getResource().write(event.getMessage().toString().getBytes());
             }
 
             @Override
@@ -165,7 +165,7 @@ public class WebSocketProcessorTest {
 
             @Override
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                event.write(event.getMessage().toString().getBytes());
+                event.getResource().write(event.getMessage().toString().getBytes());
             }
 
             @Override

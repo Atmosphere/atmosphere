@@ -55,7 +55,6 @@ package org.atmosphere.cpr;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.concurrent.TimeUnit;
 
 
@@ -205,6 +204,7 @@ public interface AtmosphereResource {
      * will be created if that resource hasn't been yet suspended.
      *
      * @param broadcaster
+     * @return this
      */
     AtmosphereResource setBroadcaster(Broadcaster broadcaster);
 
@@ -213,19 +213,23 @@ public interface AtmosphereResource {
      * execute the operation. By default, the {@link Serializer} is null.
      *
      * @param s the {@link Serializer}
+     * @return this
      */
     AtmosphereResource setSerializer(Serializer s);
 
     /**
-     * Write the {@link Object} using the {@link OutputStream} by invoking
-     * the current {@link Serializer}. If {@link Serializer} is null, the {@link Object}
-     * will be directly written using the {
-     *
-     * @param os {@link OutputStream}
-     * @param o  {@link Object}
-     * @throws java.io.IOException
+     * Write the String.
+     * @param s
+     * @return this
      */
-    AtmosphereResource write(OutputStream os, Object o) throws IOException;
+    AtmosphereResource write(String s);
+
+    /**
+     * Write the bytes
+     * @param s
+     * @return this
+     */
+    AtmosphereResource write(byte[] s);
 
     /**
      * Get the {@link Serializer} or null if not defined.
@@ -248,6 +252,7 @@ public interface AtmosphereResource {
 
     /**
      * Set a message that will be written when the resource times out. Cab be an {@link Object} or {@link java.util.concurrent.Callable}
+     * @return this
      */
     AtmosphereResource writeOnTimeout(Object o);
 
@@ -267,6 +272,7 @@ public interface AtmosphereResource {
      * Add a {@link AtmosphereResourceEventListener}.
      *
      * @param e an instance of AtmosphereResourceEventListener
+     * @return this
      */
     AtmosphereResource addEventListener(AtmosphereResourceEventListener e);
 
@@ -274,11 +280,13 @@ public interface AtmosphereResource {
      * Remove a{@link AtmosphereResourceEventListener}.
      *
      * @param e
+     * @return this
      */
     AtmosphereResource removeEventListener(AtmosphereResourceEventListener e);
 
     /**
      * Remove all {@link AtmosphereResourceEventListener}.
+     * @return this
      */
     AtmosphereResource removeEventListeners();
 
@@ -286,11 +294,13 @@ public interface AtmosphereResource {
      * Notify {@link AtmosphereResourceEventListener}.
      *
      * @param e an instance of AtmosphereResourceEvent
+     * @return this
      */
     AtmosphereResource notifyListeners(AtmosphereResourceEvent e);
 
     /**
      * Notify All {@link AtmosphereResourceEventListener}.
+     * @return this
      */
     AtmosphereResource notifyListeners();
 

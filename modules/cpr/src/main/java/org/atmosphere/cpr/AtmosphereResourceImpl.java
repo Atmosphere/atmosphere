@@ -57,7 +57,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -559,24 +558,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Write the broadcasted object using the {@link OutputStream}. If a
-     * {@link Serializer} is defined, the operation will be delagated to it. If
-     * not, the <F> (Response) OutputStream will be used by calling
-     * Object.toString.getBytes()
-     *
-     * @param os an {@link OutputStream}
-     * @param o  an Object
-     * @throws IOException
+     * {@inheritDoc}
      */
     @Override
-    public AtmosphereResource write(OutputStream os, Object o) throws IOException {
-        if (o == null) throw new IllegalStateException("Object cannot be null");
+    public AtmosphereResource write(String s) {
+        response.write(s);
+        return this;
+    }
 
-        if (serializer != null) {
-            serializer.write(os, o);
-        } else {
-            response.getOutputStream().write(o.toString().getBytes(response.getCharacterEncoding()));
-        }
+    @Override
+    public AtmosphereResource write(byte[] o) {
+        response.write(o);
         return this;
     }
 
