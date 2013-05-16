@@ -43,12 +43,7 @@ public class JettyServlet30AsyncSupportWithWebSocket extends Servlet30CometSuppo
         super(config);
         final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
-        boolean isJetty = config.getServletContext().getServerInfo().toLowerCase().startsWith("jetty");
-        if (isJetty) {
-            webSocketFactory = JettyWebSocketUtil.getFactory(config, webSocketProcessor);
-        } else {
-            webSocketFactory = null;
-        }
+        webSocketFactory = JettyWebSocketUtil.getFactory(config, webSocketProcessor);
     }
 
     /**
