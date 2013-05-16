@@ -20,7 +20,6 @@ import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.codehaus.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,11 +31,11 @@ import java.io.IOException;
  */
 @ManagedService(path = "/{chat}")
 public class Chat {
-    private final ObjectMapper mapper = new ObjectMapper();
     private final Logger logger = LoggerFactory.getLogger(Chat.class);
 
     /**
      * Invoked when the connection as been fully established and suspended, e.g ready for receiving messages.
+     *
      * @param r
      */
     @Ready
@@ -46,6 +45,7 @@ public class Chat {
 
     /**
      * Invoked when the client disconnect or when an unexpected closing of the underlying connection happens.
+     *
      * @param event
      */
     @Disconnect
@@ -60,6 +60,7 @@ public class Chat {
     /**
      * Simple annotated class that demonstrate how {@link org.atmosphere.config.managed.Encoder} and {@link org.atmosphere.config.managed.Decoder
      * can be used.
+     *
      * @param message an instance of {@link Message}
      * @return
      * @throws IOException

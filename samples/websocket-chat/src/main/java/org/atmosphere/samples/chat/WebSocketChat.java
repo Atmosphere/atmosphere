@@ -17,6 +17,8 @@ package org.atmosphere.samples.chat;
 
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.util.SimpleBroadcaster;
@@ -24,6 +26,8 @@ import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.codehaus.jackson.map.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Date;
@@ -36,11 +40,22 @@ import java.util.Date;
 @WebSocketHandlerService(path = "/chat", broadcaster = SimpleBroadcaster.class)
 public class WebSocketChat extends WebSocketHandlerAdapter {
 
+    private final Logger logger = LoggerFactory.getLogger(WebSocketChat.class);
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
     public void onOpen(WebSocket webSocket) throws IOException {
         webSocket.resource().setBroadcaster(BroadcasterFactory.getDefault().lookup("/chat", true));
+        webSocket.resource().addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            @Override
+            public void onDisconnect(AtmosphereResourceEvent event) {
+                if (event.isCancelled()) {
+                    logger.info("Browser {} unexpectedly disconnected", event.getResource().uuid());
+                } else if (event.isClosedByClient()) {
+                    logger.info("Browser {} closed the connection", event.getResource().uuid());
+                }
+            }
+        });
     }
 
     public void onTextMessage(WebSocket webSocket, String message) throws IOException {
