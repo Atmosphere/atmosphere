@@ -389,6 +389,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = "/";
         }
 
+        // Remove the Broadcaster with curly braces
+        config.getBroadcasterFactory().remove(w.broadcaster.getID());
+
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // ManagedService
