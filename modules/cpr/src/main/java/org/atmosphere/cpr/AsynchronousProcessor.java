@@ -389,8 +389,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = "/";
         }
 
-        System.out.println("\n\n\n\n=======>" + config.handlers().size());
-
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // ManagedService
