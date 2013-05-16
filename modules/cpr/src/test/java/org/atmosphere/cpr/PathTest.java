@@ -19,7 +19,11 @@ import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
+import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.util.SimpleBroadcaster;
+import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketHandlerAdapter;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -28,7 +32,9 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
@@ -180,7 +186,7 @@ public class PathTest {
     }
 
     @Test
-    public void testManagedManagedDoublePathPathMessage() throws IOException, ServletException {
+    public void testManagedManagedDoublePathMessage() throws IOException, ServletException {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/foo/bar/yo").method("GET").build();
@@ -190,4 +196,64 @@ public class PathTest {
         assertEquals(r.get(), "/foo/bar/yo");
 
     }
+
+    @WebSocketHandlerService(path = "/ws/{g}")
+    public final static class WebSocketHandlerPath extends WebSocketHandlerAdapter{
+
+        public WebSocketHandlerPath(){
+            ++instanceCount;
+        }
+
+        public void onOpen(WebSocket webSocket) throws IOException {
+            r.set(webSocket.resource().getRequest().getPathInfo());
+        }
+    }
+
+    @Test
+    public void testManagedWebSocketPathMessage() throws IOException, ServletException {
+        instanceCount = 0;
+
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/ws/bar").method("GET").build();
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        assertEquals(instanceCount, 1);
+        assertNotNull(r.get());
+        assertEquals(r.get(), "/ws/bar");
+    }
+
+    public final class ArrayBaseWebSocket extends WebSocket {
+
+        private final OutputStream outputStream;
+
+        public ArrayBaseWebSocket(OutputStream outputStream) {
+            super(framework.getAtmosphereConfig());
+            this.outputStream = outputStream;
+        }
+
+        @Override
+        public boolean isOpen() {
+            return true;
+        }
+
+        @Override
+        public WebSocket write(String s) throws IOException {
+            outputStream.write(s.getBytes());
+            return this;
+        }
+
+        @Override
+        public WebSocket write(byte[] b, int offset, int length) throws IOException {
+            outputStream.write(b, offset, length);
+            return this;
+        }
+
+        @Override
+        public void close() {
+        }
+    }
+
 }

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -149,6 +150,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
         }
 
+        // TODO: Fix this. Instead add an Interceptor.
         if (framework.getAtmosphereConfig().handlers().size() == 0) {
             framework.addAtmosphereHandler("/*", voidHandler);
         }
@@ -173,6 +175,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
                 throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
             }
+            handler = postProcessMapping(request, handler);
+
             // Force suspend.
             webSocket.webSocketHandler(handler).resource().suspend(-1);
             handler.onOpen(webSocket);
@@ -202,6 +206,47 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             logger.warn("AtmosphereResource was null");
         }
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
+    }
+
+    protected WebSocketHandler postProcessMapping(AtmosphereRequest request, WebSocketHandler w) {
+
+        if (!((AsynchronousProcessor)framework.getAsyncSupport()).wildcardMapping()) return w;
+
+        String path;
+        String pathInfo = null;
+        try {
+            pathInfo = request.getPathInfo();
+        } catch (IllegalStateException ex) {
+            // http://java.net/jira/browse/GRIZZLY-1301
+        }
+
+        if (pathInfo != null) {
+            path = request.getServletPath() + pathInfo;
+        } else {
+            path = request.getServletPath();
+        }
+
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+
+        synchronized (handlers) {
+            if (handlers.get(path) == null) {
+                // AtmosphereHandlerService
+                if (w.getClass().getAnnotation(WebSocketHandlerService.class) != null) {
+                    String targetPath = w.getClass().getAnnotation(WebSocketHandlerService.class).path();
+                    if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                        try {
+                            registerWebSocketHandler(path, w.getClass().newInstance());
+                            return handlers.get(path);
+                        } catch (Throwable e) {
+                            logger.warn("Unable to create WebSocketHandler", e);
+                        }
+                    }
+                }
+            }
+        }
+        return w;
     }
 
     private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {

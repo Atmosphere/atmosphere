@@ -137,15 +137,19 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             }, 0, 1, TimeUnit.SECONDS);
         }
 
-        wildcardMapping();
+        optimizeMapping();
     }
 
-    protected void wildcardMapping() {
+    protected void optimizeMapping() {
         for (String w : config.handlers().keySet()) {
             if (w.contains("{") && w.contains("}")) {
                 wildcardMapping = true;
             }
         }
+    }
+
+    public boolean wildcardMapping(){
+        return wildcardMapping;
     }
 
     /**
