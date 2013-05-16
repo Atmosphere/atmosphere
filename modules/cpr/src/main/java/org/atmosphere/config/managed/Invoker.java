@@ -46,7 +46,7 @@ public class Invoker {
         decodedObject = decodedObject == null ? instanceType : decodedObject;
 
         logger.trace("{} .on {}", method.getName(), decodedObject);
-        Object objectToEncode = null;
+        Object objectToEncode = decodedObject;
         try {
             objectToEncode = method.invoke(objectToInvoke, new Object[]{decodedObject});
             hasMatch = true;
@@ -69,7 +69,7 @@ public class Invoker {
     public static Object matchDecoder(Object instanceType, List<Decoder<?, ?>> decoders) {
         for (Decoder d : decoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Decoder.class);
-            if (instanceType != null && typeArguments.length > 0 && typeArguments[0].equals(instanceType.getClass())) {
+            if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {
 
                 logger.trace("{} is trying to decode {}", d, instanceType);
                 instanceType = d.decode(instanceType);
@@ -79,10 +79,11 @@ public class Invoker {
     }
 
     public static Object matchEncoder(Object instanceType, List<Encoder<?, ?>> encoders) {
+        if (instanceType == null) return null;
+
         for (Encoder d : encoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Encoder.class);
-            if (instanceType != null && typeArguments.length > 0 && typeArguments[0].equals(instanceType.getClass())) {
-
+            if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {
                 logger.trace("{} is trying to encode {}", d, instanceType);
                 instanceType = d.encode(instanceType);
             }
