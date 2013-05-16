@@ -16,6 +16,9 @@
 package org.atmosphere.config.service;
 
 
+import org.atmosphere.config.managed.Decoder;
+import org.atmosphere.config.managed.Encoder;
+
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
@@ -30,4 +33,24 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface Ready {
+
+    static enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
+
+    /**
+     * Broadcast the returned value to only the calling resource {@link org.atmosphere.config.service.Ready.DELIVER_TO#RESOURCE},
+     * to it's associated Broadcaster {@link org.atmosphere.config.service.Ready.DELIVER_TO#BROADCASTER}
+     * or to all created Broadcaster {@link org.atmosphere.config.service.Ready.DELIVER_TO#ALL}
+     * @return the {@link org.atmosphere.config.service.Ready.DELIVER_TO}
+     */
+    DELIVER_TO value() default  DELIVER_TO.RESOURCE;
+
+    /**
+     * A list of {@link org.atmosphere.config.managed.Encoder}
+     */
+    Class<? extends Encoder>[] encoders() default {};
+
+    /**
+     * A list of {@link org.atmosphere.config.managed.Decoder}
+     */
+    Class<? extends Decoder>[] decoders() default {};
 }

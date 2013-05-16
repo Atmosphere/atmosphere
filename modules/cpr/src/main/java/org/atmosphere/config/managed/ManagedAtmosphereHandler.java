@@ -30,6 +30,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.slf4j.Logger;
@@ -59,7 +60,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private final Method onPostMethod;
     private final Method onPutMethod;
     private final Method onDeleteMethod;
-    private final Method onSuspendMethod;
+    private final Method onReadyMethod;
     private final Method onResumeMethod;
 
     final List<Encoder<?, ?>> encoders = new CopyOnWriteArrayList<Encoder<?, ?>>();
@@ -74,7 +75,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onPostMethod = populate(c, Post.class);
         this.onPutMethod = populate(c, Put.class);
         this.onDeleteMethod = populate(c, Delete.class);
-        this.onSuspendMethod = populate(c, Ready.class);
+        this.onReadyMethod = populate(c, Ready.class);
         this.onResumeMethod = populate(c, Resume.class);
 
         if (onMessageMethod != null) {
@@ -88,18 +89,18 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
 
-        if (onSuspendMethod != null) {
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter(){
+        if (onReadyMethod != null) {
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    invoke(onSuspendMethod, event.getResource());
-                    resource.removeEventListener(this);
+                    processReady(event.getResource());
+                    event.getResource().removeEventListener(this);
                 }
             });
         }
 
         if (onResumeMethod != null) {
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter(){
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onResume(AtmosphereResourceEvent event) {
                     invoke(onResumeMethod, event.getResource());
@@ -158,6 +159,11 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private void invoke(AtmosphereResourceEvent event, Object message) throws IOException {
         Object m = message(onMessageMethod, message);
         if (m != null) {
+
+            if (byte[].class.isAssignableFrom(m.getClass())) {
+                m = new String((byte[])m, event.getResource().getResponse().getCharacterEncoding());
+            }
+
             super.onStateChange(event.setMessage(m));
         } else if (onMessageMethod == null) {
             super.onStateChange(event);
@@ -224,5 +230,30 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     @Override
     public Object target() {
         return object;
+    }
+
+    protected void processReady(AtmosphereResource r) {
+        Object o = message(onReadyMethod, r);
+
+        switch (onReadyMethod.getAnnotation(Ready.class).value()) {
+            case RESOURCE:
+                if (o != null) {
+                    if (String.class.isAssignableFrom(o.getClass())) {
+                        r.write(o.toString());
+                    } else if (byte[].class.isAssignableFrom(o.getClass())) {
+                        r.write((byte[]) o);
+                    }
+                }
+                break;
+            case BROADCASTER:
+                r.getBroadcaster().broadcast(o);
+                break;
+            case ALL:
+                for (Broadcaster b : r.getAtmosphereConfig().getBroadcasterFactory().lookupAll()) {
+                    b.broadcast(o);
+                }
+                break;
+
+        }
     }
 }
