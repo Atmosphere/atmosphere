@@ -61,6 +61,7 @@ public class BroadcasterTest {
     public void unSetUp() throws Exception {
         broadcaster.destroy();
         atmosphereHandler.value.set(new HashSet());
+        DefaultBroadcasterFactory.getDefault().destroy();
     }
 
     @Test

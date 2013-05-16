@@ -62,6 +62,7 @@ public class UUIDBroadcasterCacheTest {
     @AfterMethod
     public void addAR(){
         broadcaster.removeAtmosphereResource(ar);
+        BroadcasterFactory.getDefault().destroy();
     }
 
     @Test

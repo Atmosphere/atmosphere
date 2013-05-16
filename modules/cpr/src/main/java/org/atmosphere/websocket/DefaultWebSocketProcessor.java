@@ -15,6 +15,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
@@ -237,7 +238,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     String targetPath = w.getClass().getAnnotation(WebSocketHandlerService.class).path();
                     if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                         try {
-                            registerWebSocketHandler(path, w.getClass().newInstance());
+                            boolean singleton = w.getClass().getAnnotation(Singleton.class) != null;
+                            if (!singleton) {
+                                registerWebSocketHandler(path, w.getClass().newInstance());
+                            } else {
+                                registerWebSocketHandler(path, w);
+                            }
                             return handlers.get(path);
                         } catch (Throwable e) {
                             logger.warn("Unable to create WebSocketHandler", e);

@@ -13,13 +13,24 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.cpr;
+package org.atmosphere.annotation;
 
 import org.atmosphere.config.managed.Decoder;
 import org.atmosphere.config.managed.Encoder;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Message;
+import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
+import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;

@@ -59,6 +59,7 @@ public class ExcludeSessionBroadcasterTest {
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
         atmosphereHandler.value.set(new HashSet());
+        BroadcasterFactory.getDefault().destroy();
     }
 
     @Test

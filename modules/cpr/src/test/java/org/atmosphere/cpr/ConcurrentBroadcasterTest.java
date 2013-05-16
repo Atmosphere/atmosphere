@@ -21,23 +21,14 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 import java.io.IOException;
-import java.util.Enumeration;
-import java.util.HashSet;
-import java.util.Set;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.only;
 import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 public class ConcurrentBroadcasterTest {
 
@@ -53,12 +44,13 @@ public class ConcurrentBroadcasterTest {
 
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
-        broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
+        broadcaster = factory.get(DefaultBroadcaster.class, "test");
     }
 
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.destroy();
+        DefaultBroadcasterFactory.getDefault().destroy();
     }
 
     public final static class AR implements AtmosphereHandler {

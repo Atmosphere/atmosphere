@@ -55,6 +55,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
+import org.atmosphere.config.service.Singleton;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.EndpointMapper;
@@ -388,6 +389,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             path = "/";
         }
 
+        System.out.println("\n\n\n\n=======>" + config.handlers().size());
+
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // ManagedService
@@ -398,8 +401,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
                                 synchronized (config.handlers()) {
-                                    config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
-                                            .newInstance(ap.target().getClass().newInstance()), w.interceptors);
+
+                                    boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
+                                    if (!singleton) {
+                                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
+                                                .newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                                    } else {
+                                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
+                                    }
                                 }
                                 return config.handlers().get(path);
                             } catch (Throwable e) {
@@ -414,7 +423,12 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     String targetPath = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class).path();
                     if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                         try {
-                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().newInstance());
+                            boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
+                            if (!singleton) {
+                                config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().newInstance());
+                            } else {
+                                config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
+                            }
                             return config.handlers().get(path);
                         } catch (Throwable e) {
                             logger.warn("Unable to create AtmosphereHandler", e);
@@ -429,10 +443,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         String targetPath = s.getClass().getAnnotation(MeteorService.class).path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
-                                ReflectorServletProcessor r = new ReflectorServletProcessor();
-                                r.setServlet(s.getClass().newInstance());
-                                r.init(config.getServletConfig());
-                                config.framework().addAtmosphereHandler(path, r);
+                                boolean singleton = s.getClass().getAnnotation(Singleton.class) != null;
+                                if (!singleton) {
+                                    ReflectorServletProcessor r = new ReflectorServletProcessor();
+                                    r.setServlet(s.getClass().newInstance());
+                                    r.init(config.getServletConfig());
+                                    config.framework().addAtmosphereHandler(path, r);
+                                } else {
+                                    config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
+                                }
                                 return config.handlers().get(path);
                             } catch (Throwable e) {
                                 logger.warn("Unable to create AtmosphereHandler", e);

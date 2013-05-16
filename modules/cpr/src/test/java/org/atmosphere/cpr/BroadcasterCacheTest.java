@@ -67,6 +67,7 @@ public class BroadcasterCacheTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
+        DefaultBroadcasterFactory.getDefault().destroy();
     }
 
     @Test

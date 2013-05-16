@@ -22,7 +22,6 @@ import org.testng.annotations.Test;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.util.HashSet;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
@@ -31,7 +30,6 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 
 public class WriteTimeoutTest {
 
@@ -51,6 +49,7 @@ public class WriteTimeoutTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.destroy();
+        BroadcasterFactory.getDefault().destroy();
     }
 
     @Test
