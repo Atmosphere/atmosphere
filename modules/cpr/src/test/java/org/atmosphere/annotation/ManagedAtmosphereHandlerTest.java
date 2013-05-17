@@ -41,7 +41,6 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -181,16 +180,18 @@ public class ManagedAtmosphereHandlerTest {
     public final static class ManagedMessage {
 
         @Get
-        public void get(AtmosphereResource resource) {
+        public void get(AtmosphereResource resource) {                                                              gd
             r.set(resource);
             resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
+                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/e").method("POST").body("message").build();
+
                     try {
-                        event.getResource().getBroadcaster().broadcast("message").get();
-                    } catch (InterruptedException e) {
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                    } catch (IOException e) {
                         e.printStackTrace();
-                    } catch (ExecutionException e) {
+                    } catch (ServletException e) {
                         e.printStackTrace();
                     }
                 }
