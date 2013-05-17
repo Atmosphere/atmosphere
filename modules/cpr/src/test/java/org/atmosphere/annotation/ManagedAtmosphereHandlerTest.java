@@ -180,7 +180,7 @@ public class ManagedAtmosphereHandlerTest {
     public final static class ManagedMessage {
 
         @Get
-        public void get(AtmosphereResource resource) {                                                              gd
+        public void get(AtmosphereResource resource) {
             r.set(resource);
             resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
