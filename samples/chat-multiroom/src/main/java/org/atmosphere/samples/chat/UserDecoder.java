@@ -21,16 +21,16 @@ import org.codehaus.jackson.map.ObjectMapper;
 import java.io.IOException;
 
 /**
- * Decode a String into a {@link Message}.
+ * Decode a String into a {@link org.atmosphere.samples.chat.UserMessage}.
  */
-public class MessageDecoder implements Decoder<String, Message> {
+public class UserDecoder implements Decoder<String, UserMessage> {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public Message decode(String s) {
+    public UserMessage decode(String s) {
         try {
-            return mapper.readValue(s, Message.class);
+            return mapper.readValue(s, UserMessage.class);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }

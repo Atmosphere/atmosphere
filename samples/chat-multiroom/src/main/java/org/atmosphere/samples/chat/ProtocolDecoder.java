@@ -15,30 +15,24 @@
  */
 package org.atmosphere.samples.chat;
 
-import org.atmosphere.config.managed.Encoder;
+import org.atmosphere.config.managed.Decoder;
 import org.codehaus.jackson.map.ObjectMapper;
 
 import java.io.IOException;
 
 /**
- * Encode a {@link ChatProtocol} into a String
+ * Decode a String into a {@link ChatProtocol}.
  */
-public class JacksonEncoder implements Encoder<JacksonEncoder.Encodable, String> {
+public class ProtocolDecoder implements Decoder<String, ChatProtocol> {
 
     private final ObjectMapper mapper = new ObjectMapper();
 
     @Override
-    public String encode(Encodable m) {
+    public ChatProtocol decode(String s) {
         try {
-            return mapper.writeValueAsString(m);
+            return mapper.readValue(s, ChatProtocol.class);
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * Marker interface for Jackson.
-     */
-    public static interface Encodable {
     }
 }

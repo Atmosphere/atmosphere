@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Jeanfrancois Arcand
+ * Copyright 2012 Jeanfrancois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,46 +15,28 @@
  */
 package org.atmosphere.samples.chat;
 
-import java.util.Date;
-
-public class Message implements JacksonEncoder.Encodable {
+public class UserMessage {
 
     private String message;
-    private String author;
-    private long time;
+    private String user;
 
-    public Message() {
-        this("", "");
+    public UserMessage(){
     }
 
-    public Message(String author, String message) {
-        this.author = author;
-        this.message = message;
-        this.time = new Date().getTime();
+    public String getUser() {
+        return user;
+    }
+
+    public void setUser(String user) {
+        this.user = user;
     }
 
     public String getMessage() {
         return message;
     }
 
-    public String getAuthor() {
-        return author;
-    }
-
-    public void setAuthor(String author) {
-        this.author = author;
-    }
-
     public void setMessage(String message) {
         this.message = message;
-    }
-
-    public long getTime() {
-        return time;
-    }
-
-    public void setTime(long time) {
-        this.time = time;
     }
 
 }
