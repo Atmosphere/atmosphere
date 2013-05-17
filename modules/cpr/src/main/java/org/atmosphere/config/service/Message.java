@@ -17,7 +17,6 @@ package org.atmosphere.config.service;
 
 import org.atmosphere.config.managed.Decoder;
 import org.atmosphere.config.managed.Encoder;
-import org.atmosphere.cpr.BroadcastFilter;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

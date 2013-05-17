@@ -40,7 +40,11 @@ import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
@@ -51,9 +55,9 @@ import java.util.concurrent.CopyOnWriteArrayList;
 public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler implements AnnotatedProxy {
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
-
+    private final static List<Decoder<?,?>> EMPTY = Collections.<Decoder<?,?>>emptyList();
     private final Object object;
-    private final Method onMessageMethod;
+    private final List<Method> onRuntimeMethod;
     private final Method onDisconnectMethod;
     private final Method onTimeoutMethod;
     private final Method onGetMethod;
@@ -63,12 +67,12 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private final Method onReadyMethod;
     private final Method onResumeMethod;
 
-    final List<Encoder<?, ?>> encoders = new CopyOnWriteArrayList<Encoder<?, ?>>();
-    final List<Decoder<?, ?>> decoders = new CopyOnWriteArrayList<Decoder<?, ?>>();
+    final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
+    final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
 
     public ManagedAtmosphereHandler(Object c) {
         this.object = c;
-        this.onMessageMethod = populate(c, Message.class);
+        this.onRuntimeMethod = populateMessage(c, Message.class);
         this.onDisconnectMethod = populate(c, Disconnect.class);
         this.onTimeoutMethod = populate(c, Resume.class);
         this.onGetMethod = populate(c, Get.class);
@@ -78,9 +82,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onReadyMethod = populate(c, Ready.class);
         this.onResumeMethod = populate(c, Resume.class);
 
-        if (onMessageMethod != null) {
-            populateEncoders(onMessageMethod.getAnnotation(Message.class).encoders());
-            populateDecoder(onMessageMethod.getAnnotation(Message.class).decoders());
+        if (onRuntimeMethod.size() > 0) {
+            populateEncoders();
+            populateDecoders();
         }
     }
 
@@ -148,7 +152,12 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             invoke(onTimeoutMethod, resource);
         } else {
             Object m = event.getMessage();
-            invoke(event, m);
+
+            if (DirectWrite.class.isAssignableFrom(m.getClass())) {
+                super.onStateChange(event.setMessage(DirectWrite.class.cast(m).objectToWrite));
+                return;
+            }
+            invoke(event);
         }
 
         if (resumeOnBroadcast && r.isSuspended()) {
@@ -156,16 +165,27 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
-    private void invoke(AtmosphereResourceEvent event, Object message) throws IOException {
-        Object m = message(onMessageMethod, message);
-        if (m != null) {
+    private void invoke(AtmosphereResourceEvent event) throws IOException {
+        Object o = message(event.getMessage());
 
-            if (byte[].class.isAssignableFrom(m.getClass())) {
-                m = new String((byte[])m, event.getResource().getResponse().getCharacterEncoding());
+        // No method matched. Give a last chance by trying to decode the object.
+        // This makes application development more simpler.
+        // Chaining of encoder is not supported.
+        // TODO: This could be problematic with String + method
+        if (o == null) {
+            for (Method m : onRuntimeMethod) {
+                o = Invoker.encode(encoders.get(m), event.getMessage());
+                if (o != null) break;
             }
+            // No decoding, no write
+            if (o != null && o.equals(event.getMessage())) {
+                o = null;
+            }
+        }
 
-            super.onStateChange(event.setMessage(m));
-        } else if (onMessageMethod == null) {
+        if (o != null) {
+            super.onStateChange(event.setMessage(o));
+        } else if (onRuntimeMethod.size() == 0) {
             super.onStateChange(event);
         }
     }
@@ -179,23 +199,53 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
-    private void populateEncoders(Class<? extends Encoder>[] encoder) {
-        for (Class<? extends Encoder> s : encoder) {
-            try {
-                encoders.add(s.newInstance());
-            } catch (Exception e) {
-                logger.error("Unable to load encoder {}", s);
+    private List<Method> populateMessage(Object c, Class<? extends Annotation> annotation) {
+        ArrayList<Method> methods = new ArrayList<Method>();
+        for (Method m : c.getClass().getMethods()) {
+            if (m.isAnnotationPresent(annotation)) {
+                methods.add(m);
             }
+        }
+        return methods;
+    }
+
+    private void populateEncoders() {
+        for (Method m: onRuntimeMethod) {
+            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
+            for (Class<? extends Encoder> s : m.getAnnotation(Message.class).encoders()) {
+                try {
+                    l.add(s.newInstance());
+                } catch (Exception e) {
+                    logger.error("Unable to load encoder {}", s);
+                }
+            }
+            encoders.put(m, l);
+        }
+
+        if (onReadyMethod != null) {
+            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
+            for (Class<? extends Encoder> s : onReadyMethod.getAnnotation(Ready.class).encoders()) {
+                try {
+                    l.add(s.newInstance());
+                } catch (Exception e) {
+                    logger.error("Unable to load encoder {}", s);
+                }
+            }
+            encoders.put(onReadyMethod, l);
         }
     }
 
-    private void populateDecoder(Class<? extends Decoder>[] decoder) {
-        for (Class<? extends Decoder> s : decoder) {
-            try {
-                decoders.add(s.newInstance());
-            } catch (Exception e) {
-                logger.error("Unable to load encoder {}", s);
+    private void populateDecoders() {
+        for (Method m: onRuntimeMethod) {
+            List<Decoder<?, ?>> l = new CopyOnWriteArrayList<Decoder<?, ?>>();
+            for (Class<? extends Decoder> s : m.getAnnotation(Message.class).decoders()) {
+                try {
+                    l.add(s.newInstance());
+                } catch (Exception e) {
+                    logger.error("Unable to load encoder {}", s);
+                }
             }
+            decoders.put(m, l);
         }
     }
 
@@ -220,9 +270,28 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
+    private Object message(Object o) {
+        try {
+            for (Method m : onRuntimeMethod) {
+                Object decoded = Invoker.decode(decoders.get(m), o);
+                if (decoded == null) {
+                    decoded = o;
+                }
+
+                Object objectToEncode = Invoker.invokeMethod(m, object, decoded);
+                if (objectToEncode != null) {
+                    return Invoker.encode(encoders.get(m), objectToEncode);
+                }
+            }
+        } catch (Throwable t) {
+            logger.error("",t);
+        }
+        return null;
+    }
+
     private Object message(Method m, Object o) {
         if (m != null) {
-            return Invoker.invokeMethod(encoders, decoders, o, object, m);
+            return Invoker.all(encoders.get(m), EMPTY, o, object, m);
         }
         return null;
     }
@@ -246,14 +315,21 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 break;
             case BROADCASTER:
-                r.getBroadcaster().broadcast(o);
+                r.getBroadcaster().broadcast(new DirectWrite(o));
                 break;
             case ALL:
                 for (Broadcaster b : r.getAtmosphereConfig().getBroadcasterFactory().lookupAll()) {
-                    b.broadcast(o);
+                    b.broadcast(new DirectWrite(o));
                 }
                 break;
 
+        }
+    }
+
+    private final class DirectWrite{
+        public final Object objectToWrite;
+        private DirectWrite(Object objectToWrite) {
+            this.objectToWrite = objectToWrite;
         }
     }
 }

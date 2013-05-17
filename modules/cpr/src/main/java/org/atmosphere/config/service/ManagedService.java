@@ -21,11 +21,11 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
-import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.SuspendTrackerInterceptor;
+import org.atmosphere.util.SimpleBroadcaster;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -79,7 +79,7 @@ public @interface ManagedService {
      *
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
      */
-    Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
+    Class<? extends Broadcaster> broadcaster() default SimpleBroadcaster.class;
 
     /**
      * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are {@link AtmosphereResourceLifecycleInterceptor}

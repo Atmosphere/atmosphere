@@ -234,8 +234,8 @@ public class EncoderDecoderTest {
 
         response.asyncIOWriter(new AsyncIOWriterAdapter() {
             @Override
-            public AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException {
-                ref.set(data);
+            public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
+                ref.set(new String(data));
                 return this;
             }
         });

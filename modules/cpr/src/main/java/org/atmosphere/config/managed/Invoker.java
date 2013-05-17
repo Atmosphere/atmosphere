@@ -18,6 +18,7 @@ package org.atmosphere.config.managed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -30,65 +31,99 @@ public class Invoker {
 
     private final static Logger logger = LoggerFactory.getLogger(Invoker.class);
 
-    public static Object invokeMethod(
+    public static Object decode(
+            List<Decoder<?, ?>> decoders,
+            Object instanceType) {
+
+        Object decodedObject = matchDecoder(instanceType, decoders);
+        if (instanceType == null) {
+            logger.trace("No Encoder matching {}", instanceType);
+        }
+        return decodedObject;
+    }
+
+    public static Object invokeMethod(Method method, Object objectToInvoke, Object decodedObject) {
+        Object objectToEncode = null;
+        boolean hasMatch = true;
+        try {
+            objectToEncode = method.invoke(objectToInvoke, new Object[]{decodedObject});
+            hasMatch = true;
+        } catch (IllegalAccessException e) {
+            logger.trace("", e);
+        } catch (InvocationTargetException e) {
+            logger.trace("", e);
+        } catch (java.lang.IllegalArgumentException e) {
+            logger.trace("", e);
+        } catch (Throwable e) {
+            logger.error("", e);
+        }
+
+        if (!hasMatch) {
+            logger.trace("No Method's Arguments {} matching {}", method.getName(), objectToInvoke);
+        }
+        return objectToEncode;
+    }
+
+    public static Object encode(List<Encoder<?, ?>> encoders, Object objectToEncode) {
+        Object encodedObject = matchEncoder(objectToEncode, encoders);
+        if (encodedObject == null) {
+            logger.trace("No Encoder matching {}", objectToEncode);
+        }
+        return encodedObject;
+    }
+
+    public static Object all(
             List<Encoder<?, ?>> encoders,
             List<Decoder<?, ?>> decoders,
             Object instanceType,
             Object objectToInvoke,
             Method method) {
 
-        boolean hasMatch = false;
-        instanceType = matchDecoder(instanceType, decoders);
-        Object decodedObject = matchDecoder(instanceType, decoders);
+        Object decodedObject = decode(decoders, instanceType);
         if (instanceType == null) {
             logger.trace("No Encoder matching {}", instanceType);
         }
         decodedObject = decodedObject == null ? instanceType : decodedObject;
 
         logger.trace("{} .on {}", method.getName(), decodedObject);
-        Object objectToEncode = decodedObject;
-        try {
-            objectToEncode = method.invoke(objectToInvoke, new Object[]{decodedObject});
-            hasMatch = true;
-        } catch (Throwable e) {
-            logger.trace("{} is trying to invoke {}", method.getName(), instanceType);
-        }
+        Object objectToEncode = invokeMethod(method, objectToInvoke, decodedObject);
 
-        if (!hasMatch) {
-            logger.trace("No Method's Arguments {} matching {}", method.getName(), instanceType);
+        Object encodedObject = null;
+        if (objectToEncode != null) {
+            encodedObject = encode(encoders, objectToEncode);
         }
-
-        Object encodedObject = matchEncoder(objectToEncode, encoders);
-        if (encodedObject == null) {
-            logger.trace("No Encoder matching {}", objectToEncode);
-        }
-
         return encodedObject == null ? objectToEncode : encodedObject;
     }
 
     public static Object matchDecoder(Object instanceType, List<Decoder<?, ?>> decoders) {
+        Object decodedObject = null;
         for (Decoder d : decoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Decoder.class);
             if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {
 
                 logger.trace("{} is trying to decode {}", d, instanceType);
-                instanceType = d.decode(instanceType);
+                try {
+                    decodedObject = d.decode(instanceType);
+                } catch (Exception e) {
+                    logger.trace("", e);
+                }
             }
         }
-        return instanceType;
+        return decodedObject;
     }
 
     public static Object matchEncoder(Object instanceType, List<Encoder<?, ?>> encoders) {
         if (instanceType == null) return null;
 
+        Object encodedObject = null;
         for (Encoder d : encoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Encoder.class);
             if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {
                 logger.trace("{} is trying to encode {}", d, instanceType);
-                instanceType = d.encode(instanceType);
+                encodedObject = d.encode(instanceType);
             }
         }
-        return instanceType;
+        return encodedObject;
     }
 
 }
