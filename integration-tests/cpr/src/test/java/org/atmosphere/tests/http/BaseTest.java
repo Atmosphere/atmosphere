@@ -205,7 +205,7 @@ public abstract class BaseTest {
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
 
                 try {
-                    event.write(event.getMessage().toString().getBytes());
+                    event.getResource().write(event.getMessage().toString().getBytes());
                     assertTrue(event.isResumedOnTimeout());
                     long time = System.currentTimeMillis() - currentTime;
                     if (time > 5000 && time < 15000) {
