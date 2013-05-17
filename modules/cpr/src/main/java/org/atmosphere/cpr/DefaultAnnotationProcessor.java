@@ -16,6 +16,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.config.managed.ManagedAtmosphereHandler;
+import org.atmosphere.config.managed.ManagedServiceInterceptor;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -33,7 +35,6 @@ import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.IntrospectionUtils;
@@ -292,7 +293,12 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
                     for (Class i : interceptors) {
                         try {
-                            AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
+                            AtmosphereInterceptor ai;
+                            if (ManagedServiceInterceptor.class.isAssignableFrom(i)) {
+                                ai = new ManagedServiceInterceptor(ManagedAtmosphereHandler.class.cast(handler));
+                            } else {
+                                ai = (AtmosphereInterceptor) i.newInstance();
+                            }
                             l.add(ai);
                         } catch (Throwable e) {
                             logger.warn("", e);

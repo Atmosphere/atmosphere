@@ -52,6 +52,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.managed.ManagedAtmosphereHandler;
+import org.atmosphere.config.managed.ManagedServiceInterceptor;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
@@ -405,8 +407,19 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
                                     boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
                                     if (!singleton) {
-                                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().getConstructor(Object.class)
-                                                .newInstance(ap.target().getClass().newInstance()), w.interceptors);
+                                        ManagedAtmosphereHandler h = (ManagedAtmosphereHandler) w.atmosphereHandler.getClass().getConstructor(Object.class)
+                                                                                        .newInstance(ap.target().getClass().newInstance());
+                                        config.framework().addAtmosphereHandler(path, h, w.interceptors);
+
+                                        ManagedServiceInterceptor m = null;
+                                        for (AtmosphereInterceptor i : w.interceptors) {
+                                            if (ManagedServiceInterceptor.class.isAssignableFrom(i.getClass())) {
+                                                m = ManagedServiceInterceptor.class.cast(i);
+                                                break;
+                                            }
+                                        }
+                                        w.interceptors.remove(m);
+                                        w.interceptors.add(new ManagedServiceInterceptor(h));
                                     } else {
                                         config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
                                     }

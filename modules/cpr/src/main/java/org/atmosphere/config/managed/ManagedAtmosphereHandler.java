@@ -151,13 +151,21 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else if (event.isResumedOnTimeout() || event.isResuming()) {
             invoke(onTimeoutMethod, resource);
         } else {
-            Object m = event.getMessage();
-
-            if (DirectWrite.class.isAssignableFrom(m.getClass())) {
-                super.onStateChange(event.setMessage(DirectWrite.class.cast(m).objectToWrite));
-                return;
+            Object msg = event.getMessage();
+            Object o;
+            // No method matched. Give a last chance by trying to decode the object.
+            // This makes application development more simpler.
+            // Chaining of encoder is not supported.
+            // TODO: This could be problematic with String + method
+            for (Method m : onRuntimeMethod) {
+                o = Invoker.encode(encoders.get(m), msg);
+                if (o != null) {
+                    event.setMessage(o);
+                    break;
+                }
             }
-            invoke(event);
+
+            super.onStateChange(event);
         }
 
         if (resumeOnBroadcast && r.isSuspended()) {
@@ -165,29 +173,15 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
-    private void invoke(AtmosphereResourceEvent event) throws IOException {
-        Object o = message(event.getMessage());
-
-        // No method matched. Give a last chance by trying to decode the object.
-        // This makes application development more simpler.
-        // Chaining of encoder is not supported.
-        // TODO: This could be problematic with String + method
-        if (o == null) {
-            for (Method m : onRuntimeMethod) {
-                o = Invoker.encode(encoders.get(m), event.getMessage());
-                if (o != null) break;
-            }
-            // No decoding, no write
-            if (o != null && o.equals(event.getMessage())) {
-                o = null;
-            }
-        }
+    public Object invoke(Object msg) throws IOException {
+        Object o = message(msg);
 
         if (o != null) {
-            super.onStateChange(event.setMessage(o));
+            return o;
         } else if (onRuntimeMethod.size() == 0) {
-            super.onStateChange(event);
+            return msg;
         }
+        return o;
     }
 
     private Method populate(Object c, Class<? extends Annotation> annotation) {
@@ -315,21 +309,15 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 break;
             case BROADCASTER:
-                r.getBroadcaster().broadcast(new DirectWrite(o));
+                r.getBroadcaster().broadcast(o);
                 break;
             case ALL:
                 for (Broadcaster b : r.getAtmosphereConfig().getBroadcasterFactory().lookupAll()) {
-                    b.broadcast(new DirectWrite(o));
+                    b.broadcast(o);
                 }
                 break;
 
         }
     }
 
-    private final class DirectWrite{
-        public final Object objectToWrite;
-        private DirectWrite(Object objectToWrite) {
-            this.objectToWrite = objectToWrite;
-        }
-    }
 }
