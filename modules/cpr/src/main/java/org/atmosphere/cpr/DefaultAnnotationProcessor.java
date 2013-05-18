@@ -16,8 +16,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.config.managed.AnnotationServiceInterceptor;
 import org.atmosphere.config.managed.ManagedAtmosphereHandler;
-import org.atmosphere.config.managed.ManagedServiceInterceptor;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -294,8 +294,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     for (Class i : interceptors) {
                         try {
                             AtmosphereInterceptor ai;
-                            if (ManagedServiceInterceptor.class.isAssignableFrom(i)) {
-                                ai = new ManagedServiceInterceptor(ManagedAtmosphereHandler.class.cast(handler));
+                            if (AnnotationServiceInterceptor.class.isAssignableFrom(i)) {
+                                ai = new AnnotationServiceInterceptor(ManagedAtmosphereHandler.class.cast(handler));
                             } else {
                                 ai = (AtmosphereInterceptor) i.newInstance();
                             }

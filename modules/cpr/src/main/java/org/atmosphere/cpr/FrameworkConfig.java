@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+
 /**
  * Request Attribute a framework integrator can use to lookup Atmosphere internal object.
  *
@@ -68,7 +70,11 @@ public interface FrameworkConfig {
     /**
      * A request attribute used to lookup the {@link AtmosphereHandler}. This attribute is for framework integrator and not recommend for normal application.
      */
-    String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
+    String ATMOSPHERE_HANDLER_WRAPPER = AtmosphereHandlerWrapper.class.getName();
+    /**
+     * True if the {@link AtmosphereHandlerWrapper} has been modified by an {@link AtmosphereInterceptor}
+     */
+    String NEW_MAPPING = AtmosphereHandlerWrapper.class.getName() + ".newMapping";
     /**
      * A reference to the Jersey's {@link ContainerResponse}
      */

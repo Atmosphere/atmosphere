@@ -192,7 +192,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     public void onRequest(AtmosphereResource r)
             throws IOException {
         r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);
-        r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, this);
+        r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER, this);
         try {
             wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {

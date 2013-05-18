@@ -100,7 +100,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         public void destroy() {
         }
     };
-
+    private boolean wildcardMapping = false;
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;
@@ -134,6 +134,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
 
         scheduler = ExecutorsFactory.getScheduler(config);
+        optimizeMapping();
     }
 
     @Override
@@ -211,7 +212,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     protected WebSocketHandler postProcessMapping(AtmosphereRequest request, WebSocketHandler w) {
 
-        if (!((AsynchronousProcessor)framework.getAsyncSupport()).wildcardMapping()) return w;
+        if (!wildcardMapping()) return w;
 
         String path;
         String pathInfo = null;
@@ -693,5 +694,17 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      */
     public final void setCharBufferMaxSize(int charBufferMaxSize) {
         this.charBufferMaxSize = charBufferMaxSize;
+    }
+
+    protected void optimizeMapping() {
+        for (String w : framework.getAtmosphereConfig().handlers().keySet()) {
+            if (w.contains("{") && w.contains("}")) {
+                wildcardMapping = true;
+            }
+        }
+    }
+
+    public boolean wildcardMapping(){
+        return wildcardMapping;
     }
 }

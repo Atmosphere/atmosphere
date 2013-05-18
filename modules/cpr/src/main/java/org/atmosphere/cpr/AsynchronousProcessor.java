@@ -52,14 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
-import org.atmosphere.config.managed.ManagedServiceInterceptor;
-import org.atmosphere.config.service.AtmosphereHandlerService;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.MeteorService;
-import org.atmosphere.config.service.Singleton;
-import org.atmosphere.handler.AnnotatedProxy;
-import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -98,7 +90,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
-    private boolean wildcardMapping = false;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
@@ -139,20 +130,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
             }, 0, 1, TimeUnit.SECONDS);
         }
-
-        optimizeMapping();
-    }
-
-    protected void optimizeMapping() {
-        for (String w : config.handlers().keySet()) {
-            if (w.contains("{") && w.contains("}")) {
-                wildcardMapping = true;
-            }
-        }
-    }
-
-    public boolean wildcardMapping(){
-        return wildcardMapping;
     }
 
     /**
@@ -227,44 +204,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             logger.error("Atmosphere is misconfigured and will not work. BroadcasterFactory is null");
             return Action.CANCELLED;
         }
-        config.getBroadcasterFactory().add(handlerWrapper.broadcaster, handlerWrapper.broadcaster.getID());
-
-        // Check Broadcaster state. If destroyed, replace it.
-        Broadcaster b = handlerWrapper.broadcaster;
-        if (b.isDestroyed()) {
-            BroadcasterFactory f = config.getBroadcasterFactory();
-            synchronized (f) {
-                f.remove(b, b.getID());
-                try {
-                    handlerWrapper.broadcaster = f.get(b.getID());
-                } catch (IllegalStateException ex) {
-                    // Something wrong occurred, let's not fail and loookup the value
-                    logger.trace("", ex);
-                    // fallback to lookup
-                    handlerWrapper.broadcaster = f.lookup(b.getID(), true);
-                }
-            }
-        }
-
-        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
-        if (resource == null) {
-            // TODO: cast is dangerous
-            resource = (AtmosphereResourceImpl)
-                    AtmosphereResourceFactory.getDefault().create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
-        } else {
-            // TODO: This piece of code can be removed, but for backward compat with existing extension we needs it for now.
-            try {
-                // Make sure it wasn't set before
-                resource.getBroadcaster();
-            } catch (IllegalStateException ex) {
-                resource.setBroadcaster(handlerWrapper.broadcaster);
-            }
-            resource.atmosphereHandler(handlerWrapper.atmosphereHandler);
-        }
-
-        req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
-        req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER, handlerWrapper.atmosphereHandler);
-        req.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
+        AtmosphereResourceImpl resource = configureWorkflow(null, handlerWrapper, req, res);
 
         // Globally defined
         Action a = invokeInterceptors(config.framework().interceptors(), resource);
@@ -278,9 +218,16 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             return a;
         }
 
+        // Remap occured.
+        if (req.getAttribute(FrameworkConfig.NEW_MAPPING) != null) {
+            req.removeAttribute(FrameworkConfig.NEW_MAPPING);
+            handlerWrapper = config.handlers().get(path(req));
+            resource = configureWorkflow(resource, handlerWrapper, req, res);
+        }
+
         //Unit test mock the request and will throw NPE.
         boolean skipAtmosphereHandler = req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
-                ?  (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
+                ? (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
         if (!skipAtmosphereHandler) {
             try {
                 handlerWrapper.atmosphereHandler.onRequest(resource);
@@ -305,6 +252,74 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
         logger.trace("Action for {} was {}", req.resource() != null ? req.resource().uuid() : "null", action);
         return action;
+    }
+
+    private AtmosphereResourceImpl configureWorkflow(AtmosphereResourceImpl resource,
+                                                     AtmosphereHandlerWrapper handlerWrapper,
+                                                     AtmosphereRequest req, AtmosphereResponse res) {
+        config.getBroadcasterFactory().add(handlerWrapper.broadcaster, handlerWrapper.broadcaster.getID());
+
+        // Check Broadcaster state. If destroyed, replace it.
+        Broadcaster b = handlerWrapper.broadcaster;
+        if (b.isDestroyed()) {
+            BroadcasterFactory f = config.getBroadcasterFactory();
+            synchronized (f) {
+                f.remove(b, b.getID());
+                try {
+                    handlerWrapper.broadcaster = f.get(b.getID());
+                } catch (IllegalStateException ex) {
+                    // Something wrong occurred, let's not fail and loookup the value
+                    logger.trace("", ex);
+                    // fallback to lookup
+                    handlerWrapper.broadcaster = f.lookup(b.getID(), true);
+                }
+            }
+        }
+
+        if (resource == null) {
+            resource = (AtmosphereResourceImpl) req.getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
+        }
+
+        if (resource == null) {
+            // TODO: cast is dangerous
+            resource = (AtmosphereResourceImpl)
+                    AtmosphereResourceFactory.getDefault().create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
+        } else {
+            // TODO: This piece of code can be removed, but for backward compat with existing extension we needs it for now.
+            try {
+                // Make sure it wasn't set before
+                resource.getBroadcaster();
+            } catch (IllegalStateException ex) {
+                resource.setBroadcaster(handlerWrapper.broadcaster);
+            }
+            resource.atmosphereHandler(handlerWrapper.atmosphereHandler);
+        }
+
+        req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+        req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER, handlerWrapper);
+        req.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
+        return resource;
+    }
+
+    private String path(AtmosphereRequest request) {
+        String path;
+        String pathInfo = null;
+        try {
+            pathInfo = request.getPathInfo();
+        } catch (IllegalStateException ex) {
+            // http://java.net/jira/browse/GRIZZLY-1301
+        }
+
+        if (pathInfo != null) {
+            path = request.getServletPath() + pathInfo;
+        } else {
+            path = request.getServletPath();
+        }
+
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+        return path;
     }
 
     private Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
@@ -359,123 +374,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
                 atmosphereHandlerWrapper.broadcaster.getID());
-        return postProcessMapping(req, atmosphereHandlerWrapper);
-    }
-
-    /**
-     * Inspect the request and its mapped {@link AtmosphereHandler} to determine if the '{}' was used when defined the
-     * annotation's path value. It will create a new {@link AtmosphereHandler} in case {} is detected .
-     * @param request
-     * @param w
-     * @return
-     */
-    protected AtmosphereHandlerWrapper postProcessMapping(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
-
-        if (!wildcardMapping) return w;
-
-        String path;
-        String pathInfo = null;
-        try {
-            pathInfo = request.getPathInfo();
-        } catch (IllegalStateException ex) {
-            // http://java.net/jira/browse/GRIZZLY-1301
-        }
-
-        if (pathInfo != null) {
-            path = request.getServletPath() + pathInfo;
-        } else {
-            path = request.getServletPath();
-        }
-
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
-
-        // Remove the Broadcaster with curly braces
-        config.getBroadcasterFactory().remove(w.broadcaster.getID());
-
-        synchronized (config.handlers()) {
-            if (config.handlers().get(path) == null) {
-                // ManagedService
-                if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-                    if (ap.target().getClass().getAnnotation(ManagedService.class) != null) {
-                        String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
-                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
-                            try {
-                                synchronized (config.handlers()) {
-
-                                    boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
-                                    if (!singleton) {
-                                        ManagedAtmosphereHandler h = (ManagedAtmosphereHandler) w.atmosphereHandler.getClass().getConstructor(Object.class)
-                                                                                        .newInstance(ap.target().getClass().newInstance());
-                                        config.framework().addAtmosphereHandler(path, h, w.interceptors);
-
-                                        ManagedServiceInterceptor m = null;
-                                        for (AtmosphereInterceptor i : w.interceptors) {
-                                            if (ManagedServiceInterceptor.class.isAssignableFrom(i.getClass())) {
-                                                m = ManagedServiceInterceptor.class.cast(i);
-                                                break;
-                                            }
-                                        }
-                                        w.interceptors.remove(m);
-                                        w.interceptors.add(new ManagedServiceInterceptor(h));
-                                    } else {
-                                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
-                                    }
-                                }
-                                return config.handlers().get(path);
-                            } catch (Throwable e) {
-                                logger.warn("Unable to create AtmosphereHandler", e);
-                            }
-                        }
-                    }
-                }
-
-                // AtmosphereHandlerService
-                if (w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class) != null) {
-                    String targetPath = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class).path();
-                    if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
-                        try {
-                            boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
-                            if (!singleton) {
-                                config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().newInstance());
-                            } else {
-                                config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
-                            }
-                            return config.handlers().get(path);
-                        } catch (Throwable e) {
-                            logger.warn("Unable to create AtmosphereHandler", e);
-                        }
-                    }
-                }
-
-                // MeteorService
-                if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
-                    if (s.getClass().getAnnotation(MeteorService.class) != null) {
-                        String targetPath = s.getClass().getAnnotation(MeteorService.class).path();
-                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
-                            try {
-                                boolean singleton = s.getClass().getAnnotation(Singleton.class) != null;
-                                if (!singleton) {
-                                    ReflectorServletProcessor r = new ReflectorServletProcessor();
-                                    r.setServlet(s.getClass().newInstance());
-                                    r.init(config.getServletConfig());
-                                    config.framework().addAtmosphereHandler(path, r);
-                                } else {
-                                    config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
-                                }
-                                return config.handlers().get(path);
-                            } catch (Throwable e) {
-                                logger.warn("Unable to create AtmosphereHandler", e);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-        return w;
+        return atmosphereHandlerWrapper;
     }
 
     /**
@@ -501,7 +400,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         AtmosphereHandler atmosphereHandler =
                 (AtmosphereHandler)
-                        request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+                        request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
         AtmosphereResourceEvent event = r.getAtmosphereResourceEvent();
         if (event != null && event.isResuming() && !event.isCancelled()) {
@@ -637,7 +536,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
                 AtmosphereHandler atmosphereHandler =
                         (AtmosphereHandler)
-                                req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER);
+                                req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
                 if (atmosphereHandler != null) {
                     try {
