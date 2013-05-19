@@ -73,13 +73,14 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
         }
     }
 
-    public boolean wildcardMapping(){
+    public boolean wildcardMapping() {
         return wildcardMapping;
     }
 
     /**
      * Inspect the request and its mapped {@link AtmosphereHandler} to determine if the '{}' was used when defined the
      * annotation's path value. It will create a new {@link AtmosphereHandler} in case {} is detected .
+     *
      * @param request
      * @param w
      * @return
@@ -136,7 +137,6 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
                                         interceptors.add(new AnnotationServiceInterceptor(h));
 
                                         config.framework().addAtmosphereHandler(path, h, interceptors);
-
                                     } else {
                                         config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
                                     }

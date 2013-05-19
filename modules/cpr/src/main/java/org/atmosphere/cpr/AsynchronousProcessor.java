@@ -223,6 +223,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             req.removeAttribute(FrameworkConfig.NEW_MAPPING);
             handlerWrapper = config.handlers().get(path(req));
             resource = configureWorkflow(resource, handlerWrapper, req, res);
+            resource.setBroadcaster(handlerWrapper.broadcaster);
         }
 
         //Unit test mock the request and will throw NPE.
@@ -257,6 +258,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private AtmosphereResourceImpl configureWorkflow(AtmosphereResourceImpl resource,
                                                      AtmosphereHandlerWrapper handlerWrapper,
                                                      AtmosphereRequest req, AtmosphereResponse res) {
+
         config.getBroadcasterFactory().add(handlerWrapper.broadcaster, handlerWrapper.broadcaster.getID());
 
         // Check Broadcaster state. If destroyed, replace it.
