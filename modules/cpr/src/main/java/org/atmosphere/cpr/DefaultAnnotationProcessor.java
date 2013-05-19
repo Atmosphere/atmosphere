@@ -129,6 +129,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                                 logger.warn("", e);
                             }
                         }
+                        l.add(new AnnotationServiceInterceptor(null));
                         framework.addAtmosphereHandler(a.path(), handler, l);
                         Class<? extends BroadcasterCache> e = a.broadcasterCache();
                         if (e != null)
@@ -174,6 +175,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                                 logger.warn("", e);
                             }
                         }
+                        l.add(new AnnotationServiceInterceptor(null));
                         framework.addAtmosphereHandler(mapping, r, l);
                     } catch (Throwable e) {
                         logger.warn("", e);

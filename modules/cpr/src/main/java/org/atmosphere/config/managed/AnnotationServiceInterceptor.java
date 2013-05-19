@@ -38,6 +38,12 @@ import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Handle {@link Singleton}, {@link ManagedService}, {@link MeteorService} and {@link AtmosphereHandlerService}
+ * processing.
+ *
+ * @author Jeanfrancois Arcand
+ */
 public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(AnnotationServiceInterceptor.class);
@@ -196,8 +202,7 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
 
     @Override
     public void postInspect(AtmosphereResource r) {
-        if (r.getRequest().getMethod().equalsIgnoreCase("POST")) {
-
+        if (proxy != null && r.getRequest().getMethod().equalsIgnoreCase("POST")) {
             StringBuilder b = read(r);
             if (b.length() > 0) {
                 Object o = null;

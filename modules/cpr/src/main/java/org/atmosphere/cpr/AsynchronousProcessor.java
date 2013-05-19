@@ -400,9 +400,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         if (r == null) return Action.CANCELLED; // We are cancelled already
 
-        AtmosphereHandler atmosphereHandler =
-                (AtmosphereHandler)
-                        request.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
+        AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
         AtmosphereResourceEvent event = r.getAtmosphereResourceEvent();
         if (event != null && event.isResuming() && !event.isCancelled()) {
