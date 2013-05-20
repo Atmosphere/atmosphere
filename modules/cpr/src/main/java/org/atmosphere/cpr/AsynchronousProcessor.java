@@ -534,9 +534,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
         try {
             if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
-                AtmosphereHandler atmosphereHandler =
-                        (AtmosphereHandler)
-                                req.getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
+                AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
                 if (atmosphereHandler != null) {
                     try {
