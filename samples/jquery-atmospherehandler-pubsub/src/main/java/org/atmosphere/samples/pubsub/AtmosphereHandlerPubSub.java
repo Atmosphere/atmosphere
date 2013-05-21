@@ -21,8 +21,6 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.SuspendTrackerInterceptor;
@@ -65,17 +63,4 @@ public class AtmosphereHandlerPubSub implements AtmosphereHandler {
     @Override
     public void destroy() {
     }
-
-    /**
-     * Retrieve the {@link Broadcaster} based on the request's path info.
-     *
-     * @param pathInfo
-     * @return the {@link Broadcaster} based on the request's path info.
-     */
-    Broadcaster lookupBroadcaster(String pathInfo) {
-        String[] decodedPath = pathInfo.split("/");
-        Broadcaster b = BroadcasterFactory.getDefault().lookup(decodedPath[decodedPath.length - 1], true);
-        return b;
-    }
-
 }
