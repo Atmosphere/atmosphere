@@ -72,6 +72,7 @@ $(function () {
 
         request.onReopen = function (response) {
             content.html($('<p>', { text: 'Atmosphere re-connected using ' + response.transport }));
+            input.removeAttr('disabled').focus();
         };
 
         request.onMessage = function (response) {
@@ -127,6 +128,7 @@ $(function () {
 
         request.onReconnect = function (request, response) {
             content.html($('<p>', { text: 'Connection lost, trying to reconnect. Trying to reconnect ' + request.reconnectInterval}));
+            input.attr('disabled', 'disabled');
         };
 
         subSocket = socket.subscribe(request);

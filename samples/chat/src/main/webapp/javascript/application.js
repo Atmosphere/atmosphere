@@ -30,6 +30,7 @@ $(function () {
     };
 
     request.onReopen = function(response) {
+        input.removeAttr('disabled').focus();
         content.html($('<p>', { text: 'Atmosphere re-connected using ' + response.transport }));
     };
 
@@ -64,7 +65,9 @@ $(function () {
     };
 
     request.onClose = function(response) {
+        content.html($('<p>', { text: 'Client closed the connection after a timeout' }));
         subSocket.push(atmosphere.util.stringifyJSON({ author: author, message: 'disconnecting' }));
+        input.attr('disabled', 'disabled');
     };
 
     request.onError = function(response) {
@@ -75,6 +78,7 @@ $(function () {
 
     request.onReconnect = function(request, response) {
         content.html($('<p>', { text: 'Connection lost, trying to reconnect. Trying to reconnect ' + request.reconnectInterval}));
+        input.attr('disabled', 'disabled');
     };
 
     subSocket = socket.subscribe(request);

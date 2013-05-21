@@ -281,10 +281,10 @@
                     var query = "X-Atmosphere-Transport=close&X-Atmosphere-tracking-id=" + _request.uuid;
                     var url = _request.url.replace(/([?&])_=[^&]*/, query);
                     url = url + (url === _request.url ? (/\?/.test(_request.url) ? "&" : "?") + query : "");
-
                     _request.attachHeadersAsQueryString = false;
                     _request.dropAtmosphereHeaders = true;
                     _request.url = url;
+                    _request.transport = 'polling'
                     _pushOnClose("", _request);
                 }
             }
@@ -998,6 +998,12 @@
                     }, _request.connectTimeout);
                 }
 
+                _request.id = setTimeout(function () {
+                    setTimeout(function () {
+                        _clearState();
+                    }, _request.reconnectInterval)
+                }, _request.timeout);
+
                 _sse.onopen = function (event) {
                     if (_request.logLevel == 'debug') {
                         atmosphere.util.debug("SSE successfully opened");
@@ -1019,6 +1025,13 @@
                 };
 
                 _sse.onmessage = function (message) {
+                    clearTimeout(_request.id);
+                    _request.id = setTimeout(function () {
+                        _invokeClose(true);
+                        _disconnect();
+                        _clearState();
+                    }, _request.timeout);
+
                     if (message.origin != window.location.protocol + "//" + window.location.host) {
                         atmosphere.util.log(_request.logLevel, ["Origin was not " + window.location.protocol + "//" + window.location.host]);
                         return;
@@ -1118,12 +1131,6 @@
                     }, _request.connectTimeout);
                 }
 
-                _request.id = setTimeout(function () {
-                    setTimeout(function () {
-                        _clearState();
-                    }, _request.reconnectInterval)
-                }, _request.timeout);
-
                 _websocket.onopen = function (message) {
                     if (_request.logLevel == 'debug') {
                         atmosphere.util.debug("Websocket successfully opened");
@@ -1150,9 +1157,10 @@
 
                     clearTimeout(_request.id);
                     _request.id = setTimeout(function () {
-                        setTimeout(function () {
-                            _clearState();
-                        }, _request.reconnectInterval)
+                        closed = true;
+                        _invokeClose(true);
+                        _clearState();
+                        _disconnect();
                     }, _request.timeout);
 
                     _response.state = 'messageReceived';
@@ -1262,7 +1270,7 @@
 
             function _onError(code, reason) {
                 _clearState();
-
+                clearTimeout(_request.id);
                 _response.state = 'error';
                 _response.reasonPhrase = reason;
                 _response.responseBody = "";
@@ -1280,9 +1288,8 @@
              * @param response
              */
             function _trackMessageSize(message, request, response) {
-                if (message.length == 0) return true;
-
                 if (!_handleProtocol(_request, message)) return true;
+                if (message.length == 0) return true;
 
                 if (request.trackMessageLength) {
                     // If we have found partial message, prepend them.
@@ -1495,6 +1502,7 @@
                 }
 
                 var reconnectF = function () {
+                    rq.lastIndex = 0;
                     if (rq.reconnect && _requestCount++ < rq.maxReconnectOnClose) {
                         _open('re-connecting', request.transport, request);
                         _reconnect(ajaxRequest, rq, true);
@@ -1589,6 +1597,14 @@
                                 return;
                             }
                             var responseText = ajaxRequest.responseText;
+
+                            rq.id = setTimeout(function () {
+                                // Prevent onerror callback to be called
+                                _response.errorHandled = true;
+                                _invokeClose(true);
+                                _disconnect();
+                                _clearState();
+                            }, rq.timeout);
 
                             if (atmosphere.util.trim(responseText.length) == 0 && rq.transport == 'long-polling') {
                                 // For browser that aren't support onabort
@@ -1848,7 +1864,6 @@
                     };
 
                     var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                    _triggerOpen(rq);
 
                     if (rq.executeCallbackBeforeReconnect) {
                         reconnect();
