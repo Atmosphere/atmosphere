@@ -204,7 +204,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         }
 
         public void onComplete(AsyncEvent event) throws IOException {
-            logger.debug("Resumed (completed): event: {}", event.getAsyncContext().getRequest());
+            logger.trace("Resumed (completed): event: {}", event.getAsyncContext().getRequest());
         }
 
         public void onTimeout(AsyncEvent event) throws IOException {
