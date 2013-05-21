@@ -691,15 +691,19 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.error("Callable exception. Please catch all exception from you callable. Message {} will be lost and all AtmosphereResource " +
                     "associated with this Broadcaster resumed.", entry.message);
             entryDone(entry.future);
-            synchronized (resources) {
-                for (AtmosphereResource r : resources) {
-                    if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING))
-                        try {
-                            r.resume();
-                        } catch (Throwable t) {
-                            logger.trace("resumeAll", t);
-                        }
+            if (entry.type != Entry.TYPE.RESOURCE) {
+                synchronized (resources) {
+                    for (AtmosphereResource r : resources) {
+                        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING))
+                            try {
+                                r.resume();
+                            } catch (Throwable t) {
+                                logger.trace("resumeAll", t);
+                            }
+                    }
                 }
+            } else {
+                entry.resource.resume();
             }
             return;
         }
@@ -716,33 +720,18 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         // We cache first, and if the broadcast succeed, we will remove it.
-        entry.cache = bc.getBroadcasterCache().addToCache(getID(), null, new BroadcastMessage(entry.originalMessage));
+        AtmosphereResource cache = entry.type != Entry.TYPE.RESOURCE ? null : entry.resource;
+        entry.cache = bc.getBroadcasterCache().addToCache(getID(), cache, new BroadcastMessage(entry.originalMessage));
 
         if (resources.isEmpty()) {
-            // While waiting, a new resource may have been added.
-            if (resources.isEmpty()) {
-                logger.trace("Broadcaster {} doesn't have any associated resource. " +
-                        "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
-
-                AtmosphereResource r = null;
-                if (entry.type == Entry.TYPE.RESOURCE) {
-                    r = entry.resource;
-                }
-
-                // Make sure we execute the filter
-                if (r == null) {
-                    r = noOpsResource;
-                }
-                entryDone(entry.future);
-                return;
-            }
+            entryDone(entry.future);
+            return;
         }
 
         try {
-
             if (logger.isTraceEnabled()) {
                 for (AtmosphereResource r : resources) {
-                    logger.trace("AtmosphereResources available for {}", r.uuid());
+                    logger.trace("AtmosphereResource {} available for {}", r.uuid(), entry.message);
                 }
             }
 
@@ -774,18 +763,16 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                     break;
                 case SET:
-                    if (entry.resources.size() != 0) {
-                        for (AtmosphereResource r : entry.resources) {
-                            deliverMessage = perRequestFilter(r, entry, true);
+                    for (AtmosphereResource r : entry.resources) {
+                        deliverMessage = perRequestFilter(r, entry, true);
 
-                            if (!deliverMessage || entry.message == null) {
-                                logger.debug("Skipping broadcast delivery resource {} ", r);
-                                continue;
-                            }
+                        if (!deliverMessage || entry.message == null) {
+                            logger.debug("Skipping broadcast delivery resource {} ", r);
+                            continue;
+                        }
 
-                            if (entry.writeLocally) {
-                                queueWriteIO(r, entry);
-                            }
+                        if (entry.writeLocally) {
+                            queueWriteIO(r, entry);
                         }
                     }
                     break;
