@@ -100,7 +100,7 @@ public class ChatRoom {
 
         message.setUsers(users.keySet());
         logger.info("{} just send {}", message.getAuthor(), message.getMessage());
-        return message;
+        return new ChatProtocol(message.getAuthor(), message.getMessage(), users.keySet(), factory.lookupAll());
     }
 
     @Message(decoders = {UserDecoder.class})
@@ -110,13 +110,14 @@ public class ChatRoom {
             AtmosphereResource r = AtmosphereResourceFactory.getDefault().find(userUUID);
 
             if (r != null) {
-                ChatProtocol m = new ChatProtocol(user.getUser(), " sent you a private message: " + user.getMessage().split(":")[1]);
+                ChatProtocol m = new ChatProtocol(user.getUser(), " sent you a private message: " + user.getMessage().split(":")[1], users.keySet(), factory.lookupAll());
                 if (!user.getUser().equalsIgnoreCase("all")) {
                     factory.lookup(mappedPath).broadcast(m, r);
-                } else {
-                    MetaBroadcaster.getDefault().broadcastTo("/*", m);
                 }
             }
+        } else {
+            ChatProtocol m = new ChatProtocol(user.getUser(), " sent a message to all chatroom: " + user.getMessage().split(":")[1], users.keySet(), factory.lookupAll());
+            MetaBroadcaster.getDefault().broadcastTo("/*", m);
         }
     }
 
