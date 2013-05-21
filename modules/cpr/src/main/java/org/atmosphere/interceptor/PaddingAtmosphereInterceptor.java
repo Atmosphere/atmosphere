@@ -48,7 +48,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     static {
         StringBuilder whitespace = new StringBuilder();
-        for (int i = 0; i < 8192; i++) {
+        for (int i = 0; i < 4096; i++) {
             whitespace.append(" ");
         }
         whitespace.append("\n");
@@ -67,9 +67,6 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         if (response.resource().transport().equals(TRANSPORT.STREAMING)) {
             request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
             response.setContentType("text/plain");
-        } else if (response.resource().transport().equals(TRANSPORT.SSE)) {
-            request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.SSE_TRANSPORT);
-            response.setContentType("text/event-stream");
         }
 
         response.write(padding, true);
@@ -84,36 +81,38 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
-        super.inspect(r);
+        if (r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.LONG_POLLING)) {
+            super.inspect(r);
 
-        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-            @Override
-            public void onPreSuspend(AtmosphereResourceEvent event) {
-                writePadding(response);
-            }
-        });
-
-        AsyncIOWriter writer = response.getAsyncIOWriter();
-        if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-            AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
-                private void padding() {
-                    if (!r.isSuspended()) {
-                        writePadding(response);
-                        r.getRequest().setAttribute("paddingWritten", "true");
-                    }
-                }
-
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
-                public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                    padding();
-                }
-
-                @Override
-                public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                public void onPreSuspend(AtmosphereResourceEvent event) {
+                    writePadding(response);
                 }
             });
-        } else {
-            logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+
+            AsyncIOWriter writer = response.getAsyncIOWriter();
+            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
+                    private void padding() {
+                        if (!r.isSuspended()) {
+                            writePadding(response);
+                            r.getRequest().setAttribute("paddingWritten", "true");
+                        }
+                    }
+
+                    @Override
+                    public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                        padding();
+                    }
+
+                    @Override
+                    public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
+                    }
+                });
+            } else {
+                logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
+            }
         }
         return Action.CONTINUE;
     }
