@@ -22,6 +22,7 @@ import org.atmosphere.cpr.BroadcasterListener;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.cpr.Entry;
 import org.atmosphere.cpr.MetaBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;

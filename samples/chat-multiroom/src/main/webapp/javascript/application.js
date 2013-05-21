@@ -74,15 +74,6 @@ $(function () {
             content.html($('<p>', { text: 'Atmosphere re-connected using ' + response.transport }));
         };
 
-        <!-- For demonstration of how you can customize the fallbackTransport using the onTransportFailure function -->
-        request.onTransportFailure = function (errorMsg, request) {
-            atmosphere.util.info(errorMsg);
-            if (window.EventSource) {
-                request.fallbackTransport = "sse";
-            }
-            header.html($('<h3>', { text: 'Atmosphere Chat. Default transport is WebSocket, fallback is ' + request.fallbackTransport }));
-        };
-
         request.onMessage = function (response) {
 
             var message = response.responseBody;
