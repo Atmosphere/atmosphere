@@ -500,43 +500,6 @@ public class DefaultBroadcaster implements Broadcaster {
         return this;
     }
 
-    public static final class Entry {
-
-        public Object message;
-        public Object multipleAtmoResources;
-        public BroadcasterFuture<?> future;
-        public boolean writeLocally;
-        public Object originalMessage;
-
-        // https://github.com/Atmosphere/atmosphere/issues/864
-        public CacheMessage cache;
-
-        public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future, Object originalMessage) {
-            this.message = message;
-            this.multipleAtmoResources = multipleAtmoResources;
-            this.future = future;
-            this.writeLocally = true;
-            this.originalMessage = originalMessage;
-        }
-
-        public Entry(Object message, Object multipleAtmoResources, BroadcasterFuture<?> future, boolean writeLocally) {
-            this.message = message;
-            this.multipleAtmoResources = multipleAtmoResources;
-            this.future = future;
-            this.writeLocally = writeLocally;
-            this.originalMessage = message;
-        }
-
-        @Override
-        public String toString() {
-            return "Entry{" +
-                    "message=" + message +
-                    ", multipleAtmoResources=" + multipleAtmoResources +
-                    ", future=" + future +
-                    '}';
-        }
-    }
-
     protected Runnable getBroadcastHandler() {
         return new Runnable() {
             public void run() {
@@ -762,8 +725,8 @@ public class DefaultBroadcaster implements Broadcaster {
                         "Message will be cached in the configured BroadcasterCache {}", getID(), entry.message);
 
                 AtmosphereResource r = null;
-                if (entry.multipleAtmoResources != null && AtmosphereResource.class.isAssignableFrom(entry.multipleAtmoResources.getClass())) {
-                    r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
+                if (entry.type == Entry.TYPE.RESOURCE) {
+                    r = entry.resource;
                 }
 
                 // Make sure we execute the filter
@@ -783,35 +746,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
 
-            if (entry.multipleAtmoResources == null) {
-                for (AtmosphereResource r : resources) {
-                    boolean deliverMessage = perRequestFilter(r, entry, true);
-
-                    if (!deliverMessage || entry.message == null) {
-                        logger.debug("Skipping broadcast delivery resource {} ", r);
-                        continue;
-                    }
-
-                    if (entry.writeLocally) {
-                        queueWriteIO(r, entry);
-                    }
-                }
-            } else if (entry.multipleAtmoResources instanceof AtmosphereResource) {
-                boolean deliverMessage = perRequestFilter((AtmosphereResource) entry.multipleAtmoResources, entry, true);
-
-                if (!deliverMessage || entry.message == null) {
-                    logger.debug("Skipping broadcast delivery resource {} ", entry.multipleAtmoResources);
-                    return;
-                }
-
-                if (entry.writeLocally) {
-                    queueWriteIO((AtmosphereResource) entry.multipleAtmoResources, entry);
-                }
-            } else if (entry.multipleAtmoResources instanceof Set) {
-                Set<AtmosphereResource> sub = (Set<AtmosphereResource>) entry.multipleAtmoResources;
-
-                if (sub.size() != 0) {
-                    for (AtmosphereResource r : sub) {
+            switch (entry.type) {
+                case ALL:
+                    for (AtmosphereResource r : resources) {
                         boolean deliverMessage = perRequestFilter(r, entry, true);
 
                         if (!deliverMessage || entry.message == null) {
@@ -823,8 +760,37 @@ public class DefaultBroadcaster implements Broadcaster {
                             queueWriteIO(r, entry);
                         }
                     }
-                }
+                    break;
+                case RESOURCE:
+                    boolean deliverMessage = perRequestFilter(entry.resource, entry, true);
+
+                    if (!deliverMessage || entry.message == null) {
+                        logger.debug("Skipping broadcast delivery resource {} ", entry.resource);
+                        return;
+                    }
+
+                    if (entry.writeLocally) {
+                        queueWriteIO(entry.resource, entry);
+                    }
+                    break;
+                case SET:
+                    if (entry.resources.size() != 0) {
+                        for (AtmosphereResource r : entry.resources) {
+                            deliverMessage = perRequestFilter(r, entry, true);
+
+                            if (!deliverMessage || entry.message == null) {
+                                logger.debug("Skipping broadcast delivery resource {} ", r);
+                                continue;
+                            }
+
+                            if (entry.writeLocally) {
+                                queueWriteIO(r, entry);
+                            }
+                        }
+                    }
+                    break;
             }
+
             entry.message = prevMessage;
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
@@ -1232,7 +1198,7 @@ public class DefaultBroadcaster implements Broadcaster {
         int callee = resources.size() == 0 ? 1 : resources.size();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, callee, this);
-        dispatchMessages(new Entry(newMsg, null, f, msg));
+        dispatchMessages(new Entry(newMsg, f, msg));
         return f;
     }
 
@@ -1300,7 +1266,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return futureDone(msg);
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size(), this);
-        broadcastOnResume.offer(new Entry(newMsg, null, f, msg));
+        broadcastOnResume.offer(new Entry(newMsg, f, msg));
         return f;
     }
 
@@ -1308,8 +1274,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Iterator<Entry> i = broadcastOnResume.iterator();
         while (i.hasNext()) {
             Entry e = i.next();
-            e.multipleAtmoResources = r;
-            push(e);
+            push(new Entry(r, e));
         }
 
         if (resources.isEmpty()) {
@@ -1591,7 +1556,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (msg == null) return null;
 
         final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg, this);
-        final Entry e = new Entry(msg, null, future, o);
+        final Entry e = new Entry(msg, future, o);
         Future<Object> f;
         if (delay > 0) {
             f = bc.getScheduledExecutorService().schedule(new Callable<Object>() {
@@ -1603,7 +1568,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             Object r = Callable.class.cast(o).call();
                             final Object msg = filter(r);
                             if (msg != null) {
-                                Entry entry = new Entry(msg, null, future, r);
+                                Entry entry = new Entry(msg, future, r);
                                 push(entry);
                             }
                             return msg;
@@ -1613,7 +1578,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     final Object msg = filter(o);
-                    final Entry e = new Entry(msg, null, future, o);
+                    final Entry e = new Entry(msg, future, o);
                     push(e);
                     return msg;
                 }
@@ -1659,7 +1624,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         Object r = Callable.class.cast(o).call();
                         final Object msg = filter(r);
                         if (msg != null) {
-                            Entry entry = new Entry(msg, null, f, r);
+                            Entry entry = new Entry(msg, f, r);
                             push(entry);
                         }
                         return;
@@ -1668,7 +1633,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
                 final Object msg = filter(o);
-                final Entry e = new Entry(msg, null, f, o);
+                final Entry e = new Entry(msg, f, o);
                 push(e);
             }
         }, waitFor, period, t);

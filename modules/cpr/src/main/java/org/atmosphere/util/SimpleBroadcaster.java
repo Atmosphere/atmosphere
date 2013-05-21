@@ -60,6 +60,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.Entry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -130,7 +131,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
         entryDone(f);
-        push(new Entry(newMsg, null, f, msg));
+        push(new Entry(newMsg, f, msg));
         return f;
     }
 

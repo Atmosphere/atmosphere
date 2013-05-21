@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.Entry;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -111,7 +112,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
             Object newMsg = filter(message);
             // if newSgw == null, that means the message has been filtered.
             if (newMsg != null) {
-                push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg, this), message));
+                push(new Entry(newMsg, new BroadcasterFuture<Object>(newMsg, this), message));
             }
         } catch (Throwable t) {
             logger.error("failed to push message: " + message, t);
@@ -135,7 +136,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
         try {
             outgoingBroadcast(msg);
-            push(new Entry(newMsg, null, f, false));
+            push(new Entry(newMsg, f, false));
         } finally {
             futureDone(f);
         }
