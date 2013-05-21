@@ -691,19 +691,27 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.error("Callable exception. Please catch all exception from you callable. Message {} will be lost and all AtmosphereResource " +
                     "associated with this Broadcaster resumed.", entry.message);
             entryDone(entry.future);
-            if (entry.type != Entry.TYPE.RESOURCE) {
-                synchronized (resources) {
-                    for (AtmosphereResource r : resources) {
-                        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING))
-                            try {
-                                r.resume();
-                            } catch (Throwable t) {
-                                logger.trace("resumeAll", t);
-                            }
+            switch (entry.type) {
+                case ALL:
+                    synchronized (resources) {
+                        for (AtmosphereResource r : resources) {
+                            if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING))
+                                try {
+                                    r.resume();
+                                } catch (Throwable t) {
+                                    logger.trace("resumeAll", t);
+                                }
+                        }
                     }
-                }
-            } else {
-                entry.resource.resume();
+                    break;
+                case RESOURCE:
+                    entry.resource.resume();
+                    break;
+                case SET:
+                    for (AtmosphereResource r : entry.resources) {
+                        r.resume();
+                    }
+                    break;
             }
             return;
         }
