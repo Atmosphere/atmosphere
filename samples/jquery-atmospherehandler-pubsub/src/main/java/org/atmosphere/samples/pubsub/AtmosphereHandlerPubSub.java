@@ -18,9 +18,8 @@ package org.atmosphere.samples.pubsub;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.Singleton;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.SuspendTrackerInterceptor;
@@ -43,10 +42,7 @@ import java.io.IOException;
         TrackMessageSizeInterceptor.class,
         BroadcastOnPostAtmosphereInterceptor.class,
         SuspendTrackerInterceptor.class})
-public class AtmosphereHandlerPubSub implements AtmosphereHandler {
-
-    public void onRequest(AtmosphereResource r) throws IOException {
-    }
+public class AtmosphereHandlerPubSub extends AtmosphereHandlerAdapter {
 
     @Override
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
@@ -60,7 +56,4 @@ public class AtmosphereHandlerPubSub implements AtmosphereHandler {
         }
     }
 
-    @Override
-    public void destroy() {
-    }
 }
