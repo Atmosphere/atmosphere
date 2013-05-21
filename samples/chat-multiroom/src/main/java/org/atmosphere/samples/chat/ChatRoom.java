@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.MetaBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -110,7 +111,11 @@ public class ChatRoom {
 
             if (r != null) {
                 ChatProtocol m = new ChatProtocol(user.getUser(), " sent you a private message: " + user.getMessage().split(":")[1]);
-                factory.lookup(mappedPath).broadcast(m, r);
+                if (!user.getUser().equalsIgnoreCase("all")) {
+                    factory.lookup(mappedPath).broadcast(m, r);
+                } else {
+                    MetaBroadcaster.getDefault().broadcastTo("/*", m);
+                }
             }
         }
     }
