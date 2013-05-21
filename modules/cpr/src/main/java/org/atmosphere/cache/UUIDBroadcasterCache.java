@@ -380,4 +380,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
         return b;
     }
+
+    @Override
+    public String toString() {
+        return this.getClass().getName();
+    }
 }
