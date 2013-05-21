@@ -15,12 +15,17 @@
  */
 package org.atmosphere.samples.pubsub;
 
-import org.atmosphere.config.service.Get;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Message;
+import org.atmosphere.client.TrackMessageSizeInterceptor;
+import org.atmosphere.config.service.AtmosphereHandlerService;
+import org.atmosphere.config.service.Singleton;
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
+import org.atmosphere.interceptor.SuspendTrackerInterceptor;
 
 import java.io.IOException;
 
@@ -28,26 +33,38 @@ import java.io.IOException;
  * Simple PubSub resource that demonstrate many functionality supported by
  * Atmosphere JQuery Plugin and AtmosphereHandler extension.  You can compare that implementation
  * with the MeteorPubSub and the JQueryPubsub sample
- *
- * This sample support out of the box WebSocket, Long-Polling and Streaming
+ * <p/>
+ * This sample support out of the box WebSocket, Long-Polling, SSE and Streaming. You can also use the
+ * @ManagedService annotation for more out of the box supported feature.
  *
  * @author Jeanfrancois Arcand
  */
-@ManagedService(path = "/")
-public class AtmosphereHandlerPubSub  {
+@Singleton
+@AtmosphereHandlerService(path = "/", interceptors = {
+        AtmosphereResourceLifecycleInterceptor.class,
+        TrackMessageSizeInterceptor.class,
+        BroadcastOnPostAtmosphereInterceptor.class,
+        SuspendTrackerInterceptor.class})
+public class AtmosphereHandlerPubSub implements AtmosphereHandler {
 
-    @Get
     public void onRequest(AtmosphereResource r) throws IOException {
         r.setBroadcaster(lookupBroadcaster(r.getRequest().getPathInfo()));
     }
 
-    @Message
-    public String onMessage(String message) throws IOException {
-        if (message != null && message.indexOf("message") != -1) {
-            return (message.substring("message=".length()));
-        } else {
-            return "=error=";
+    @Override
+    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        if (event.isSuspended()) {
+            String message = event.getMessage() == null ? null : event.getMessage().toString();
+            if (message != null && message.indexOf("message") != -1) {
+                event.getResource().write(message.substring("message=".length()));
+            } else {
+                event.getResource().write("=error=");
+            }
         }
+    }
+
+    @Override
+    public void destroy() {
     }
 
     /**
