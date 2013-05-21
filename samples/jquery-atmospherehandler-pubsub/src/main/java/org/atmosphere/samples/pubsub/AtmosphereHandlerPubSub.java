@@ -40,7 +40,7 @@ import java.io.IOException;
  * @author Jeanfrancois Arcand
  */
 @Singleton
-@AtmosphereHandlerService(path = "/", interceptors = {
+@AtmosphereHandlerService(path = "/{chat}", interceptors = {
         AtmosphereResourceLifecycleInterceptor.class,
         TrackMessageSizeInterceptor.class,
         BroadcastOnPostAtmosphereInterceptor.class,
@@ -48,7 +48,6 @@ import java.io.IOException;
 public class AtmosphereHandlerPubSub implements AtmosphereHandler {
 
     public void onRequest(AtmosphereResource r) throws IOException {
-        r.setBroadcaster(lookupBroadcaster(r.getRequest().getPathInfo()));
     }
 
     @Override

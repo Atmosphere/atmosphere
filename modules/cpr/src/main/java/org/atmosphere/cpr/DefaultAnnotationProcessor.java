@@ -17,7 +17,9 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.config.managed.AnnotationServiceInterceptor;
+import org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor;
 import org.atmosphere.config.managed.ManagedAtmosphereHandler;
+import org.atmosphere.config.managed.MeteorServiceInterceptor;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -94,6 +96,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             }
 
             // TODO: Add annotation -> logicHandler callback
+            // TODO: Refactor this class, please!
             @Override
             public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
                 logger.info("Found Annotation in {} being scanned: {}", className, annotation);
@@ -129,7 +132,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                                 logger.warn("", e);
                             }
                         }
-                        l.add(new AnnotationServiceInterceptor(null));
+
+                        if (a.path().contains("{")) {
+                            l.add(new AtmosphereHandlerServiceInterceptor());
+                        }
                         framework.addAtmosphereHandler(a.path(), handler, l);
                         Class<? extends BroadcasterCache> e = a.broadcasterCache();
                         if (e != null)
@@ -175,7 +181,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                                 logger.warn("", e);
                             }
                         }
-                        l.add(new AnnotationServiceInterceptor(null));
+
+                        if (m.path().contains("{")) {
+                            l.add(new MeteorServiceInterceptor());
+                        }
                         framework.addAtmosphereHandler(mapping, r, l);
                     } catch (Throwable e) {
                         logger.warn("", e);
