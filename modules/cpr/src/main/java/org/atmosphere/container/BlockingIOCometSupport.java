@@ -117,7 +117,6 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         } finally {
             Object event = req.getAttribute(TomcatCometSupport.COMET_EVENT);
             if (event != null) {
-
                 try {
                     Class.forName(org.apache.catalina.CometEvent.class.getName());
 
@@ -142,10 +141,11 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
 
             try {
                 event = req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
-
-                Class.forName(org.jboss.servlet.http.HttpEvent.class.getName());
                 if (event != null) {
-                    org.jboss.servlet.http.HttpEvent.class.cast(event).close();
+                    Class.forName(org.jboss.servlet.http.HttpEvent.class.getName());
+                    if (event != null) {
+                        org.jboss.servlet.http.HttpEvent.class.cast(event).close();
+                    }
                 }
             } catch (Throwable e) {
                 logger.trace("", e);
