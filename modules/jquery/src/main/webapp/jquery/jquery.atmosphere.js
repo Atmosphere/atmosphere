@@ -1209,8 +1209,12 @@ jQuery.atmosphere = function () {
                     request.uuid = jQuery.trim(messages[pos]);
                     request.stime = jQuery.trim(messages[pos + 1]);
                     b = false;
+                    if (request.transport != 'long-polling') {
+                        _triggerOpen(request);
+                    }
+                } else {
+                    _triggerOpen(request);
                 }
-                _triggerOpen(request);
                 return b;
             }
 
@@ -1807,7 +1811,6 @@ jQuery.atmosphere = function () {
                     };
 
                     var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
-                    _triggerOpen(rq);
 
                     if (rq.executeCallbackBeforeReconnect) {
                         reconnect();
@@ -1949,7 +1952,6 @@ jQuery.atmosphere = function () {
                                 if (rq.closed) {
                                     rq.isReopen = true;
                                 }
-                                _triggerOpen(rq);
 
                                 // Handles message and close event
                                 stop = jQuery.atmosphere.iterate(function () {
