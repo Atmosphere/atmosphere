@@ -563,12 +563,18 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResource write(String s) {
         response.write(s);
+        if (resumeOnBroadcast()) {
+            resume();
+        }
         return this;
     }
 
     @Override
     public AtmosphereResource write(byte[] o) {
         response.write(o);
+        if (resumeOnBroadcast()) {
+            resume();
+        }
         return this;
     }
 

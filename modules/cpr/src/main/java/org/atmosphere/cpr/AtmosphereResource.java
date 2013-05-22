@@ -218,14 +218,14 @@ public interface AtmosphereResource {
     AtmosphereResource setSerializer(Serializer s);
 
     /**
-     * Write the String.
+     * Write the String. If {@link #resumeOnBroadcast()} is true, the underlying connection will be resumed (@link #resume());
      * @param s
      * @return this
      */
     AtmosphereResource write(String s);
 
     /**
-     * Write the bytes
+     * Write the bytes If {@link #resumeOnBroadcast()} is true, the underlying connection will be resumed (@link #resume());
      * @param s
      * @return this
      */
