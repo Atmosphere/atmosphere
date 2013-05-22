@@ -115,5 +115,4 @@ public interface FrameworkConfig {
      *  Callback hook for Framework implementing Atmosphere support.
      */
     String ASYNCHRONOUS_HOOK = FrameworkConfig.class.getName() + ".asynchronousProcessorHook";
-
 }
