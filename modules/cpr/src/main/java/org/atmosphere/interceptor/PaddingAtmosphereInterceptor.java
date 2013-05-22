@@ -82,12 +82,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.LONG_POLLING)) {
-            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                @Override
-                public void onPreSuspend(AtmosphereResourceEvent event) {
-                    writePadding(response);
-                }
-            });
+            r.addEventListener(new ForcePreSuspend(response));
 
             super.inspect(r);
 
@@ -120,5 +115,19 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public String toString() {
         return "Browser Padding Interceptor Support";
+    }
+
+    public final class ForcePreSuspend extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
+
+        private final AtmosphereResponse response;
+
+        public ForcePreSuspend(AtmosphereResponse response) {
+            this.response = response;
+        }
+
+        @Override
+        public void onPreSuspend(AtmosphereResourceEvent event) {
+            writePadding(response);
+        }
     }
 }

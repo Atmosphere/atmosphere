@@ -52,6 +52,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.interceptor.AllowInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -682,15 +683,23 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     void onSuspend(AtmosphereResourceEvent e) {
-        if (disableSuspendEvent) return;
         for (AtmosphereResourceEventListener r : listeners) {
+            if (disableSuspend) {
+                if (!AllowInterceptor.class.isAssignableFrom(r.getClass())) {
+                    continue;
+                }
+            }
             r.onSuspend(e);
         }
     }
 
     void onPreSuspend(AtmosphereResourceEvent e) {
-        if (disableSuspendEvent) return;
         for (AtmosphereResourceEventListener r : listeners) {
+            if (disableSuspend) {
+                if (!AllowInterceptor.class.isAssignableFrom(r.getClass())) {
+                    continue;
+                }
+            }
             r.onPreSuspend(e);
         }
     }
@@ -833,8 +842,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     /**
      * Disable invocation of {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
-     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)}. You normall disable those events
+     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)}. You normally disable those events
      * after the first onSupend has been called so all transport behave the same way.
+     * <br/>
+     * {@link AtmosphereResourceEventListener} marked with {@link org.atmosphere.interceptor.AllowInterceptor} will not
+     * be affected by this property.
      * @param disableSuspendEvent
      * @return this
      */
