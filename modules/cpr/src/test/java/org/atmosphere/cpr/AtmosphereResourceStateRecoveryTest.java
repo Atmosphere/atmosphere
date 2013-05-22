@@ -149,6 +149,7 @@ public class AtmosphereResourceStateRecoveryTest {
         r.close();
 
         AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) AtmosphereResourceFactory.getDefault().create(config, "1234567");
+        // Set a different one to hit caching.
         r2.setBroadcaster(config.getBroadcasterFactory().lookup("/*", true));
 
         config.getBroadcasterFactory().lookup("/1", true).broadcast(("1")).get();
