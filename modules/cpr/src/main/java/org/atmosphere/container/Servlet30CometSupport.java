@@ -204,7 +204,10 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         }
 
         public void onComplete(AsyncEvent event) throws IOException {
-            logger.trace("Resumed (completed): event: {}", event.getAsyncContext().getRequest());
+            // Jetty 9.0.3 error: https://gist.github.com/jfarcand/5628129
+            try {
+                logger.trace("Resumed (completed): event: {}", event.getAsyncContext().getRequest());
+            } catch (NullPointerException ex) {}
         }
 
         public void onTimeout(AsyncEvent event) throws IOException {
