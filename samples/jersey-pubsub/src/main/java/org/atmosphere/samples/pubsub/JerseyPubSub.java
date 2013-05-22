@@ -29,7 +29,7 @@ import javax.ws.rs.Produces;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
- * Atmosphere JQuery Plugin and Atmosphere Jersey extension.
+ * Atmosphere Javascript and Atmosphere Jersey extension.
  *
  * @author Jeanfrancois Arcand
  */
