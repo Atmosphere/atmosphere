@@ -351,6 +351,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
         }
 
+        if (transport().equals(TRANSPORT.JSONP) || transport().equals(TRANSPORT.LONG_POLLING)) {
+            resumeOnBroadcast.set(true);
+        }
+
         onPreSuspend(event);
         if (!event.isResumedOnTimeout()) {
 
