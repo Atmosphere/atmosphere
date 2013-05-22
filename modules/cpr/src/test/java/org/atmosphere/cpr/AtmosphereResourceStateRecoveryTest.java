@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.UUIDBroadcasterCache;
+import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -22,9 +24,13 @@ import org.testng.annotations.Test;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class AtmosphereResourceStateRecoveryTest {
 
@@ -44,7 +50,7 @@ public class AtmosphereResourceStateRecoveryTest {
     }
 
     @AfterMethod
-    public void destroy(){
+    public void destroy() {
         recovery.states().clear();
         framework.destroy();
     }
@@ -117,4 +123,57 @@ public class AtmosphereResourceStateRecoveryTest {
         assertEquals(recovery.states().get(r.uuid()).ids().size(), 4);
 
     }
+
+    @Test
+    public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
+        final AtomicReference<Object> ref = new AtomicReference<Object>();
+        AtmosphereResourceImpl r = (AtmosphereResourceImpl) AtmosphereResourceFactory.getDefault().create(config, "1234567");
+        r.setBroadcaster(config.getBroadcasterFactory().lookup("/1", true));
+
+        recovery.configure(config);
+        recovery.inspect(r);
+
+        config.getBroadcasterFactory().lookup("/1", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
+        config.getBroadcasterFactory().lookup("/2", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
+        config.getBroadcasterFactory().lookup("/3", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
+        config.getBroadcasterFactory().lookup("/4", true).getBroadcasterConfig().setBroadcasterCache(new UUIDBroadcasterCache());
+
+        config.getBroadcasterFactory().lookup("/1", true).addAtmosphereResource(r);
+        config.getBroadcasterFactory().lookup("/2", true).addAtmosphereResource(r);
+        config.getBroadcasterFactory().lookup("/3", true).addAtmosphereResource(r);
+        config.getBroadcasterFactory().lookup("/4", true).addAtmosphereResource(r);
+
+
+        r.suspend();
+        MetaBroadcaster.getDefault().broadcastTo("/1", "Initialize Cache").get();
+        r.close();
+
+        AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) AtmosphereResourceFactory.getDefault().create(config, "1234567");
+        r2.setBroadcaster(config.getBroadcasterFactory().lookup("/*", true));
+
+        config.getBroadcasterFactory().lookup("/1", true).broadcast(("1")).get();
+        config.getBroadcasterFactory().lookup("/2", true).broadcast(("2")).get();
+        config.getBroadcasterFactory().lookup("/3", true).broadcast(("3")).get();
+        config.getBroadcasterFactory().lookup("/4", true).broadcast(("4")).get();
+
+        recovery.inspect(r2);
+
+        r2.transport(AtmosphereResource.TRANSPORT.LONG_POLLING).atmosphereHandler(new AtmosphereHandlerAdapter() {
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                ref.set(event.getMessage());
+            }
+        }).suspend();
+
+        assertTrue(List.class.isAssignableFrom(ref.get().getClass()));
+        assertEquals(List.class.cast(ref.get()).size(), 4);
+
+        StringBuilder b = new StringBuilder();
+        for (Object o : List.class.cast(ref.get())) {
+            b.append(o.toString());
+        }
+        assertEquals(b.toString(), "1234");
+
+    }
+
 }

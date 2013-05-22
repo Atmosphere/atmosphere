@@ -107,6 +107,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final String uuid;
     protected HttpSession session;
     private boolean disableSuspendEvent;
+    private TRANSPORT transport;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -143,6 +144,33 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 // http://java.net/jira/browse/GLASSFISH-18856
                 logger.trace("http://java.net/jira/browse/GLASSFISH-18856", ex);
             }
+        }
+        transport = configureTransport();
+    }
+
+    private TRANSPORT configureTransport() {
+        if (req == null) return TRANSPORT.UNDEFINED;
+
+        String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (s == null) return TRANSPORT.UNDEFINED;
+
+        s = s.replace("-", "_").toUpperCase();
+        if (TRANSPORT.POLLING.name().equals(s)) {
+            return TRANSPORT.POLLING;
+        } else if (TRANSPORT.LONG_POLLING.name().equals(s)) {
+            return TRANSPORT.LONG_POLLING;
+        } else if (TRANSPORT.STREAMING.name().equals(s)) {
+            return TRANSPORT.STREAMING;
+        } else if (TRANSPORT.JSONP.name().equals(s)) {
+            return TRANSPORT.JSONP;
+        } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
+            return TRANSPORT.WEBSOCKET;
+        } else if (TRANSPORT.SSE.name().equals(s)) {
+            return TRANSPORT.SSE;
+        } else if (TRANSPORT.AJAX.name().equals(s)) {
+            return TRANSPORT.AJAX;
+        } else {
+            return TRANSPORT.UNDEFINED;
         }
     }
 
@@ -189,29 +217,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public TRANSPORT transport() {
-        if (req == null) return TRANSPORT.UNDEFINED;
+        return transport;
+    }
 
-        String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (s == null) return TRANSPORT.UNDEFINED;
-
-        s = s.replace("-", "_").toUpperCase();
-        if (TRANSPORT.POLLING.name().equals(s)) {
-            return TRANSPORT.POLLING;
-        } else if (TRANSPORT.LONG_POLLING.name().equals(s)) {
-            return TRANSPORT.LONG_POLLING;
-        } else if (TRANSPORT.STREAMING.name().equals(s)) {
-            return TRANSPORT.STREAMING;
-        } else if (TRANSPORT.JSONP.name().equals(s)) {
-            return TRANSPORT.JSONP;
-        } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
-            return TRANSPORT.WEBSOCKET;
-        } else if (TRANSPORT.SSE.name().equals(s)) {
-            return TRANSPORT.SSE;
-        } else if (TRANSPORT.AJAX.name().equals(s)) {
-            return TRANSPORT.AJAX;
-        } else {
-            return TRANSPORT.UNDEFINED;
-        }
+    /**
+     * Manually set the {@link TRANSPORT}
+     * @param transport set the {@link TRANSPORT}
+     * @return
+     */
+    public AtmosphereResourceImpl transport(TRANSPORT transport) {
+        this.transport = transport;
+        return this;
     }
 
     /**
@@ -356,6 +372,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
 
         onPreSuspend(event);
+
+        // Recheck based on preSuspend
+        if (event.isSuspended() || disableSuspend) return this;
+
         if (!event.isResumedOnTimeout()) {
 
             Enumeration<String> connection = req.getHeaders("Connection");
@@ -752,8 +772,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 AtmosphereRequest.class.cast(req).destroy();
             }
 
-            if (broadcaster != null) {
-                broadcaster.removeAtmosphereResource(this);
+            if (config.getBroadcasterFactory().getDefault() != null) {
+                config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
             }
             event.destroy();
         }
