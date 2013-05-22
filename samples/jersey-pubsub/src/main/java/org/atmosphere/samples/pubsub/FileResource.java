@@ -31,11 +31,11 @@ public class FileResource {
     @Context
     ServletContext sc;
 
-    @Path("/jquery/{id}")
+    @Path("/javascript/{id}")
     @GET
     @Produces("application/javascript")
     public InputStream getJQuery(@PathParam("id") PathSegment ps) {
-        return sc.getResourceAsStream("/jquery/" + ps.getPath());
+        return sc.getResourceAsStream("/javascript/" + ps.getPath());
     }
 
     @GET

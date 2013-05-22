@@ -7,15 +7,15 @@
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>atmosphere-jquery-pubsub</artifactId>
+    <artifactId>atmosphere-jersey-pubsub</artifactId>
     <packaging>war</packaging>
     <version>1.1.0-SNAPSHOT</version>
-    <name>atmosphere-jquery-pubsub</name>
+    <name>atmosphere-jersey-pubsub</name>
     <url>http://maven.apache.org</url>
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-jquery</artifactId>
+            <artifactId>atmosphere-javascript</artifactId>
             <version>${project.version}</version>
             <type>war</type>
         </dependency>

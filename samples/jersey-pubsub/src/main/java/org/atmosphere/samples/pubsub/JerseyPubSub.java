@@ -34,7 +34,7 @@ import javax.ws.rs.Produces;
  * @author Jeanfrancois Arcand
  */
 @Path("/pubsub/{topic}")
-public class JQueryPubSub {
+public class JerseyPubSub {
 
     private
     @PathParam("topic")
