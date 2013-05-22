@@ -1,13 +1,10 @@
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
 <head>
-    <script type="text/javascript" src="jquery/jquery-1.9.0.js"></script>
-    <script type="text/javascript" src="jquery/jquery.form.js"></script>
-    <script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
-
+    <script type="text/javascript" src="javascript/atmosphere.js"></script>
     <script type="text/javascript">
-        $(document).ready(function() {
+        setTimeout(function(){
             var detectedTransport = null;
-            var socket = $.atmosphere;
+            var socket = atmosphere;
             var subSocket;
 
             function getKeyCode(ev) {
@@ -39,12 +36,18 @@
                     trackMessageLength : true,
                     transport: getElementByIdValue('transport')};
 
+                var ul = document.createElement('ul');
+                document.body.appendChild(ul)
                 request.onMessage = function (response) {
                     detectedTransport = response.transport;
                     if (response.status == 200) {
                         var data = response.responseBody;
                         if (data.length > 0) {
-                            $('ul').prepend($('<li></li>').text(" Message Received: " + data + " but detected transport is " + detectedTransport));
+                            var li = document.createElement('li');
+
+                            ul.insertBefore(li, ul.firstChild);
+                            li.innerHTML = li.innerHTML + data;
+
                         }
                     }
                 };
@@ -121,7 +124,7 @@
             };
 
             getElementById('topic').focus();
-        });
+        }, 0);
     </script>
     <style type='text/css'>
         div {

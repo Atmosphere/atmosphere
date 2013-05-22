@@ -22,9 +22,10 @@
         <module>sse-rest-chat</module>
         <module>chat-multiroom</module>
         <module>pubsub</module>
+        <module>atmospherehandler-pubsub</module>
+
         <module>jquery-pubsub</module>
         <module>jquery-meteor-pubsub</module>
-        <module>jquery-atmospherehandler-pubsub</module>
         <module>jquery-websockethandler-pubsub</module>
         <module>twitter-live-feed</module>
         <module>atmosphere-ee6</module>
