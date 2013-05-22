@@ -39,8 +39,8 @@ import static org.atmosphere.cpr.ApplicationConfig.STATE_RECOVERY_TIMEOUT;
 
 /**
  * This interceptor associates a {@link AtmosphereResource} to all {@link Broadcaster} the resource was added before
- * the underlying connection got closed. This allow an application to restore the state of the client before the
- * disconnection occurred.
+ * the underlying connection got closed and resume. This allow an application to restore the state of the client before the
+ * disconnection occurred, and for the long-polling transport to return to it's previous state.
  *
  * @author Jeanfrancois Arcand
  */
@@ -137,10 +137,12 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
         @Override
         public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
-            // We only track cancelled connection
+            // We track cancelled and resumed connection only.
             BroadcasterTracker t = states.get(r.uuid());
-            if (!r.isCancelled() && t != null) {
+            if (t != null && !r.isCancelled() && !r.isResumed()) {
                 t.remove(b);
+            } else {
+                logger.trace("Keeping the state of {} with broadcaster {}", r.uuid(), b.getID());
             }
         }
     }
