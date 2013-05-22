@@ -82,14 +82,14 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         final AtmosphereResponse response = r.getResponse();
 
         if (r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.LONG_POLLING)) {
-            super.inspect(r);
-
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onPreSuspend(AtmosphereResourceEvent event) {
                     writePadding(response);
                 }
             });
+
+            super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
