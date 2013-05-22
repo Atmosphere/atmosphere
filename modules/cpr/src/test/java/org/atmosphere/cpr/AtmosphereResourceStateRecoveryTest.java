@@ -33,7 +33,6 @@ public class AtmosphereResourceStateRecoveryTest {
     private final AtmosphereResourceStateRecovery recovery = new AtmosphereResourceStateRecovery();
     private AtmosphereResource r;
 
-
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();

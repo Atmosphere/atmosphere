@@ -1663,6 +1663,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public String toString() {
         try {
             return "AtmosphereRequest{" +
+                    " method=" + getMethod() +
                     " contextPath=" + getContextPath() +
                     " servletPath=" + getServletPath() +
                     " pathInfo=" + getPathInfo() +

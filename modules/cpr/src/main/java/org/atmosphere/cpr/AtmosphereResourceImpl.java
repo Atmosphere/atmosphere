@@ -688,7 +688,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     void onSuspend(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
-            if (disableSuspend) {
+            if (disableSuspendEvent) {
                 if (!AllowInterceptor.class.isAssignableFrom(r.getClass())) {
                     continue;
                 }
@@ -699,7 +699,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     void onPreSuspend(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
-            if (disableSuspend) {
+            if (disableSuspendEvent) {
                 if (!AllowInterceptor.class.isAssignableFrom(r.getClass())) {
                     continue;
                 }

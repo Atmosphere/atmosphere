@@ -1,8 +1,5 @@
 package org.atmosphere.util.analytics;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 /**
  * Fork of https://code.google.com/p/jgoogleanalytics/
  * Main class for tracking google analytics data.
@@ -15,7 +12,6 @@ public class JGoogleAnalyticsTracker {
 
     private URLBuildingStrategy urlBuildingStrategy = null;
     private HTTPGetMethod httpRequest = new HTTPGetMethod();
-    private final Logger logger = LoggerFactory.getLogger(JGoogleAnalyticsTracker.class);
 
     /**
      * Simple constructor passing the application name & google analytics tracking code
@@ -60,36 +56,7 @@ public class JGoogleAnalyticsTracker {
 
 
     public void trackSynchronously(FocusPoint focusPoint) {
-        logMessage("JGoogleAnalytics: Tracking synchronously focusPoint=" + focusPoint.getContentTitle());
         httpRequest.request(urlBuildingStrategy.buildURL(focusPoint));
     }
 
-    /**
-     * Track the focusPoint in the application asynchronously. <br/>
-     *
-     * @param focusPoint Focus point of the application like application load, application module load, user actions, error events etc.
-     */
-
-    public void trackAsynchronously(FocusPoint focusPoint) {
-        logMessage("JGoogleAnalytics: Tracking Asynchronously focusPoint=" + focusPoint.getContentTitle());
-        new TrackingThread(focusPoint).start();
-    }
-
-    private void logMessage(String message) {
-        logger.trace("{}", message);
-    }
-
-    private class TrackingThread extends Thread {
-        private FocusPoint focusPoint;
-
-
-        public TrackingThread(FocusPoint focusPoint) {
-            this.focusPoint = focusPoint;
-            this.setPriority(Thread.MIN_PRIORITY);
-        }
-
-        public void run() {
-            httpRequest.request(urlBuildingStrategy.buildURL(focusPoint));
-        }
-    }
 }

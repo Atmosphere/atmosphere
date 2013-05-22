@@ -46,7 +46,7 @@ import static org.atmosphere.cpr.ApplicationConfig.STATE_RECOVERY_TIMEOUT;
  */
 public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
-    private final Logger logger = LoggerFactory.getLogger(AtmosphereResourceStateRecovery.class);
+    private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceStateRecovery.class);
     private final ConcurrentHashMap<String, BroadcasterTracker> states = new ConcurrentHashMap<String, BroadcasterTracker>();
     private BroadcasterFactory factory;
     private ScheduledExecutorService stateTracker;
@@ -64,6 +64,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         }
 
         clearStateTracker();
+        logger.trace("{} started.", AtmosphereResourceStateRecovery.class.getName());
     }
 
     protected void clearStateTracker(){
@@ -155,11 +156,13 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         }
 
         public BroadcasterTracker add(Broadcaster b) {
+            logger.trace("Adding {}", b.getID());
             broadcasterIds.add(b.getID());
             return this;
         }
 
         public BroadcasterTracker remove(Broadcaster b) {
+            logger.trace("Removing {}", b.getID());
             broadcasterIds.remove(b.getID());
             return this;
         }

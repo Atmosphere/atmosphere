@@ -29,25 +29,6 @@
  * Official documentation of this library: https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-API
  */
 jQuery.atmosphere = function () {
-    jQuery(window).bind("unload.atmosphere", function () {
-        jQuery.atmosphere.unsubscribe();
-    });
-
-    // Prevent ESC to kill the connection from Firefox.
-    jQuery(window).keypress(function (e) {
-        if (e.keyCode == 27) {
-            e.preventDefault();
-        }
-    });
-
-    var parseHeaders = function (headerString) {
-        var match, rheaders = /^(.*?):[ \t]*([^\r\n]*)\r?$/mg, headers = {};
-        while (match = rheaders.exec(headerString)) {
-            headers[match[1]] = match[2];
-        }
-        return headers;
-    };
-
     return {
         version: "1.1.0",
         requests: [],
