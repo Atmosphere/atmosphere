@@ -92,6 +92,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 @Override
                 public void onPreSuspend(AtmosphereResourceEvent e) {
                     // We have state
+                    r.removeEventListener(this);
                     BroadcasterTracker tracker = track(r).tick();
                     for (String broadcasterID : tracker.ids()) {
                         Broadcaster b = factory.lookup(broadcasterID, false);
@@ -102,7 +103,6 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                             logger.trace("Broadcaster {} is no longer available", broadcasterID);
                         }
                     }
-                    r.removeEventListener(this);
                 }
             });
         }
@@ -159,7 +159,9 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
         public BroadcasterTracker add(Broadcaster b) {
             logger.trace("Adding {}", b.getID());
-            broadcasterIds.add(b.getID());
+            if (!broadcasterIds.contains(b.getID())) {
+                broadcasterIds.add(b.getID());
+            }
             return this;
         }
 

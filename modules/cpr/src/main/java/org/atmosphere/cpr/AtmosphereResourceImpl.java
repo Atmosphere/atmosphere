@@ -781,12 +781,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return "AtmosphereResource{" +
                 "\n\t uuid=" + uuid +
                 ",\n\t transport=" + transport() +
+                ",\n\t isInScope=" + isInScope +
                 ",\n\t isResumed=" + isResumed() +
                 ",\n\t isCancelled=" + isCancelled() +
                 ",\n\t isSuspended=" + isSuspended() +
                 ",\n\t broadcaster=" + broadcaster.getID() + " size: " + broadcaster.getAtmosphereResources().size() +
-                ",\n\t isInScope=" + isInScope +
-                ",\n\t listeners=" + listeners +
+                ",\n\t atmosphereHandler=" + atmosphereHandler +
                 ",\n\t action=" + action +
                 '}';
         } catch (NullPointerException ex) {
