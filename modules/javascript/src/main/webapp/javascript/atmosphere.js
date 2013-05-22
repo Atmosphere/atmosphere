@@ -42,6 +42,8 @@
         },
         onOpen: function (response) {
         },
+        onReopen: function (response) {
+        },
         onMessage: function (response) {
         },
         onReconnect: function (request, response) {
@@ -1263,8 +1265,12 @@
                     request.uuid = atmosphere.util.trim(messages[pos]);
                     request.stime = atmosphere.util.trim(messages[pos + 1]);
                     b = false;
+                    if (request.transport != 'long-polling') {
+                        _triggerOpen(request);
+                    }
+                } else {
+                    _triggerOpen(request);
                 }
-                _triggerOpen(request);
                 return b;
             }
 
@@ -1994,7 +2000,6 @@
                                 if (rq.closed) {
                                     rq.isReopen = true;
                                 }
-                                _triggerOpen(rq);
 
                                 // Handles message and close event
                                 stop = atmosphere.util.iterate(function () {
