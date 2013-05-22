@@ -778,16 +778,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public String toString() {
         try {
-        return "AtmosphereResourceImpl{" +
-                "\n uuid=" + uuid +
-                ",\n transport=" + transport() +
-                ",\n action=" + action +
-                ",\n isResumed=" + isResumed() +
-                ",\n isCancelled=" + isCancelled() +
-                ",\n isSuspended=" + isSuspended() +
-                ",\n broadcaster=" + broadcaster.getID() +
-                ",\n isInScope=" + isInScope +
-                ",\n listeners=" + listeners +
+        return "AtmosphereResource{" +
+                "\n\t uuid=" + uuid +
+                ",\n\t transport=" + transport() +
+                ",\n\t isResumed=" + isResumed() +
+                ",\n\t isCancelled=" + isCancelled() +
+                ",\n\t isSuspended=" + isSuspended() +
+                ",\n\t broadcaster=" + broadcaster.getID() + " size: " + broadcaster.getAtmosphereResources().size() +
+                ",\n\t isInScope=" + isInScope +
+                ",\n\t listeners=" + listeners +
+                ",\n\t action=" + action +
                 '}';
         } catch (NullPointerException ex) {
             // Prevent logger
