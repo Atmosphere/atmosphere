@@ -48,7 +48,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     static {
         StringBuilder whitespace = new StringBuilder();
-        for (int i = 0; i < 4096; i++) {
+        for (int i = 0; i < 8192; i++) {
             whitespace.append(" ");
         }
         whitespace.append("\n");
