@@ -133,9 +133,9 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                         }
                     }
 
+                    AtmosphereResourceImpl.class.cast(r).atmosphereHandler(original);
                     if (cachedMessages.size() > 0 && r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING)) {
-
-                        AtmosphereResourceImpl.class.cast(r).atmosphereHandler(original).disableSuspend(true);
+                        AtmosphereResourceImpl.class.cast(r).disableSuspend(true);
                         try {
                             r.getAtmosphereHandler().onStateChange(
                                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
