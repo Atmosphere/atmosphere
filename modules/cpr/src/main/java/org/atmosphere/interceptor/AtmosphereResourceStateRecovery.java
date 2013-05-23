@@ -17,17 +17,14 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
-import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -93,60 +90,38 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         if (!r.transport().equals(AtmosphereResource.TRANSPORT.POLLING)
                 && !r.transport().equals(AtmosphereResource.TRANSPORT.AJAX)) {
 
-            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-
-                final List<Object> cachedMessages = new LinkedList<Object>();
-
-                @Override
-                public void onPreSuspend(AtmosphereResourceEvent e) {
-                    // We have state
-                    r.removeEventListener(this);
-
-                    AtmosphereHandler original = r.getAtmosphereHandler();
-                    if (r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING)) {
-                        /**
-                         * We need to buffer all write operations in order to execute a single write when loog-polling
-                         * is used.
-                         */
-                        AtmosphereResourceImpl.class.cast(r).atmosphereHandler(new AtmosphereHandlerAdapter() {
-                            @Override
-                            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                                if (event.getMessage() == null) return;
-
-                                logger.trace("Queuing message {} for resource {}", event.getMessage(), r.uuid());
-                                if (List.class.isAssignableFrom(event.getMessage().getClass())) {
-                                    cachedMessages.addAll(List.class.cast(event.getMessage()));
-                                } else {
-                                    cachedMessages.add(event.getMessage());
-                                }
-                            }
-                        });
+            BroadcasterTracker tracker = track(r).tick();
+            List<Object> cachedMessages = new LinkedList<Object>();
+            for (String broadcasterID : tracker.ids()) {
+                Broadcaster b = factory.lookup(broadcasterID, false);
+                BroadcasterCache cache;
+                if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
+                    // We cannot add the resource now. we need to first make sure there is no cached message.
+                    cache = b.getBroadcasterConfig().getBroadcasterCache();
+                    List<Object> t = cache.retrieveFromCache(b.getID(), r);
+                    if (t.size() == 0) {
+                        logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                        b.addAtmosphereResource(r);
+                    } else {
+                        // TODO: Filter aren't called.
+                        logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                        cachedMessages.addAll(t);
                     }
-
-                    BroadcasterTracker tracker = track(r).tick();
-                    for (String broadcasterID : tracker.ids()) {
-                        Broadcaster b = factory.lookup(broadcasterID, false);
-                        if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
-                            logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
-                            b.addAtmosphereResource(r);
-                        } else {
-                            logger.trace("Broadcaster {} is no longer available", broadcasterID);
-                        }
-                    }
-
-                    AtmosphereResourceImpl.class.cast(r).atmosphereHandler(original);
-                    if (cachedMessages.size() > 0 && r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING)) {
-                        AtmosphereResourceImpl.class.cast(r).disableSuspend(true);
-                        try {
-                            r.getAtmosphereHandler().onStateChange(
-                                    new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
-                                            .setMessage(cachedMessages));
-                        } catch (IOException e1) {
-                            logger.error("Unable to write aggregated cache for {}", r.uuid(), e1);
-                        }
-                    }
+                } else {
+                    logger.trace("Broadcaster {} is no longer available", broadcasterID);
                 }
-            });
+            }
+
+            if (cachedMessages.size() > 0) {
+                try {
+                    r.getAtmosphereHandler().onStateChange(
+                            new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
+                                    .setMessage(cachedMessages));
+                } catch (IOException e) {
+                    logger.warn("Unable to recover from state recovery", e);
+                }
+                return Action.CANCELLED;
+            }
         }
         return Action.CONTINUE;
     }

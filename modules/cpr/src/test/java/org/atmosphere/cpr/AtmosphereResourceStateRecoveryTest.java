@@ -157,14 +157,14 @@ public class AtmosphereResourceStateRecoveryTest {
         config.getBroadcasterFactory().lookup("/3", true).broadcast(("3")).get();
         config.getBroadcasterFactory().lookup("/4", true).broadcast(("4")).get();
 
-        recovery.inspect(r2);
-
         r2.transport(AtmosphereResource.TRANSPORT.LONG_POLLING).atmosphereHandler(new AtmosphereHandlerAdapter() {
             @Override
             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
                 ref.set(event.getMessage());
             }
         }).suspend();
+
+        recovery.inspect(r2);
 
         assertTrue(List.class.isAssignableFrom(ref.get().getClass()));
         assertEquals(List.class.cast(ref.get()).size(), 4);
