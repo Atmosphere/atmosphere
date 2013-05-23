@@ -138,15 +138,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     if (cachedMessages.size() > 0 && r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING)) {
                         AtmosphereResourceImpl.class.cast(r).disableSuspend(true);
                         try {
-                            List<Object> c = new LinkedList<Object>();
-                            c.addAll(cachedMessages);
                             r.getAtmosphereHandler().onStateChange(
                                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
-                                            .setMessage(c));
+                                            .setMessage(cachedMessages));
                         } catch (IOException e1) {
                             logger.error("Unable to write aggregated cache for {}", r.uuid(), e1);
-                        } finally {
-                            cachedMessages.clear();
                         }
                     }
                 }
