@@ -619,6 +619,7 @@ public class DefaultBroadcaster implements Broadcaster {
             asyncWriteFuture = new Future<?>[threads];
             for (int i = 0; i < threads; i++) {
                 notifierFuture[i] = bc.getExecutorService().submit(getBroadcastHandler());
+                asyncWriteFuture[i] = bc.getExecutorService().submit(getAsyncWriteHandler(uniqueWriteQueue));
             }
         } else {
             notifierFuture[0] = bc.getExecutorService().submit(getBroadcastHandler());
@@ -629,13 +630,15 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void killReactiveThreads() {
         if (notifierFuture != null) {
             for (Future<?> f : notifierFuture) {
-                f.cancel(false);
+                if (f != null)
+                    f.cancel(false);
             }
         }
 
         if (asyncWriteFuture != null) {
             for (Future<?> f : asyncWriteFuture) {
-                f.cancel(false);
+                if (f != null)
+                    f.cancel(false);
             }
         }
     }
