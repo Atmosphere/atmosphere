@@ -38,11 +38,13 @@ import java.io.IOException;
  * @author Jeanfrancois Arcand
  */
 @Singleton
-@AtmosphereHandlerService(path = "/{chat}", interceptors = {
-        AtmosphereResourceLifecycleInterceptor.class,
-        TrackMessageSizeInterceptor.class,
-        BroadcastOnPostAtmosphereInterceptor.class,
-        SuspendTrackerInterceptor.class}, broadcaster = SimpleBroadcaster.class)
+@AtmosphereHandlerService(path = "/{chat}",
+        interceptors = {
+            AtmosphereResourceLifecycleInterceptor.class,
+            TrackMessageSizeInterceptor.class,
+            BroadcastOnPostAtmosphereInterceptor.class,
+            SuspendTrackerInterceptor.class},
+        broadcaster = SimpleBroadcaster.class)
 public class AtmosphereHandlerPubSub extends AtmosphereHandlerAdapter {
 
     @Override
