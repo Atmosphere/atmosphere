@@ -100,7 +100,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     cache = b.getBroadcasterConfig().getBroadcasterCache();
                     List<Object> t = cache.retrieveFromCache(b.getID(), r);
 
-                    // TODO: Filter aren't called.
+                    cachedMessages = b.getBroadcasterConfig().applyFilters(r, cachedMessages);
                     logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
                     cachedMessages.addAll(t);
                 } else {
@@ -120,7 +120,6 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             }  else {
                 for (String broadcasterID : tracker.ids()) {
                     Broadcaster b = factory.lookup(broadcasterID, false);
-                    BroadcasterCache cache;
                     if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
                         logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
                         b.addAtmosphereResource(r);
@@ -155,7 +154,6 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             if (t == null) {
                 t = track(r);
             }
-
             t.add(b);
         }
 

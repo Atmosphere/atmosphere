@@ -60,6 +60,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -456,6 +458,37 @@ public class BroadcasterConfig {
             }
         }
         return transformed;
+    }
+
+    /**
+     * Apply all filters to the {@link AtmosphereResource} and the provided {@link List} of messages.
+     * @param r  {@link AtmosphereResource}
+     * @param cacheMessages list of messages
+     * @return the new list of objects.
+     */
+    public List<Object> applyFilters(AtmosphereResource r, List<Object> cacheMessages){
+        LinkedList<Object> filteredMessage = new LinkedList<Object>();
+        BroadcastFilter.BroadcastAction a;
+        for (Object o : cacheMessages) {
+            a = filter(o);
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.<Object>emptyList();
+
+            if (a.action() == BroadcastAction.ACTION.SKIP) {
+                filteredMessage.add(a.message());
+                return filteredMessage;
+            }
+
+            a = filter(r, a.message(), a.originalMessage());
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.<Object>emptyList();
+
+            if (a.action() == BroadcastAction.ACTION.SKIP) {
+                filteredMessage.add(a.message());
+                return filteredMessage;
+            }
+
+            filteredMessage.add(a.message());
+        }
+        return filteredMessage;
     }
 
     /**
