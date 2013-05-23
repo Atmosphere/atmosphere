@@ -23,6 +23,7 @@ import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.SuspendTrackerInterceptor;
+import org.atmosphere.util.SimpleBroadcaster;
 
 import java.io.IOException;
 
@@ -41,7 +42,7 @@ import java.io.IOException;
         AtmosphereResourceLifecycleInterceptor.class,
         TrackMessageSizeInterceptor.class,
         BroadcastOnPostAtmosphereInterceptor.class,
-        SuspendTrackerInterceptor.class})
+        SuspendTrackerInterceptor.class}, broadcaster = SimpleBroadcaster.class)
 public class AtmosphereHandlerPubSub extends AtmosphereHandlerAdapter {
 
     @Override
