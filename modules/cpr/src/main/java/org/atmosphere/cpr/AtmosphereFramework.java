@@ -910,7 +910,11 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (s != null) {
             config.setSupportSession(Boolean.valueOf(s));
             if (sc.getServletContext().getMajorVersion() >= 3) {
-                sc.getServletContext().addListener(SessionSupport.class.getName());
+                try {
+                    sc.getServletContext().addListener(SessionSupport.class);
+                } catch (Throwable t) {
+                    logger.warn("SessionSupport error", t);
+                }
             } else {
                 logger.debug("Make sure you define {} as a listener in web.xml", SessionSupport.class.getName());
             }
