@@ -99,14 +99,10 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     // We cannot add the resource now. we need to first make sure there is no cached message.
                     cache = b.getBroadcasterConfig().getBroadcasterCache();
                     List<Object> t = cache.retrieveFromCache(b.getID(), r);
-                    if (t.size() == 0) {
-                        logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
-                        b.addAtmosphereResource(r);
-                    } else {
-                        // TODO: Filter aren't called.
-                        logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
-                        cachedMessages.addAll(t);
-                    }
+
+                    // TODO: Filter aren't called.
+                    logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                    cachedMessages.addAll(t);
                 } else {
                     logger.trace("Broadcaster {} is no longer available", broadcasterID);
                 }
@@ -121,6 +117,17 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     logger.warn("Unable to recover from state recovery", e);
                 }
                 return Action.CANCELLED;
+            }  else {
+                for (String broadcasterID : tracker.ids()) {
+                    Broadcaster b = factory.lookup(broadcasterID, false);
+                    BroadcasterCache cache;
+                    if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
+                        logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                        b.addAtmosphereResource(r);
+                    } else {
+                        logger.trace("Broadcaster {} is no longer available", broadcasterID);
+                    }
+                }
             }
         }
         return Action.CONTINUE;
