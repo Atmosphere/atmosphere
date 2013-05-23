@@ -33,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -96,7 +95,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
 
-                final List<Object> cachedMessages = Collections.synchronizedList(new LinkedList<Object>());
+                final List<Object> cachedMessages = new LinkedList<Object>();
 
                 @Override
                 public void onPreSuspend(AtmosphereResourceEvent e) {
@@ -112,7 +111,9 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                         AtmosphereResourceImpl.class.cast(r).atmosphereHandler(new AtmosphereHandlerAdapter() {
                             @Override
                             public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                                logger.trace("Quering message {} for resource {}", event.getMessage(), r.uuid());
+                                if (event.getMessage() == null) return;
+
+                                logger.trace("Queuing message {} for resource {}", event.getMessage(), r.uuid());
                                 if (List.class.isAssignableFrom(event.getMessage().getClass())) {
                                     cachedMessages.addAll(List.class.cast(event.getMessage()));
                                 } else {
@@ -137,11 +138,15 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     if (cachedMessages.size() > 0 && r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING)) {
                         AtmosphereResourceImpl.class.cast(r).disableSuspend(true);
                         try {
+                            List<Object> c = new LinkedList<Object>();
+                            c.addAll(cachedMessages);
                             r.getAtmosphereHandler().onStateChange(
                                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
-                                            .setMessage(cachedMessages));
+                                            .setMessage(c));
                         } catch (IOException e1) {
                             logger.error("Unable to write aggregated cache for {}", r.uuid(), e1);
+                        } finally {
+                            cachedMessages.clear();
                         }
                     }
                 }
