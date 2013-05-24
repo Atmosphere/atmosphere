@@ -61,17 +61,22 @@ import org.atmosphere.util.FilterConfigImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.*;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
+import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
 
 /**
  * An implementation of {@link AtmosphereHandler} using the {@link AtmosphereServletProcessor} that delegate the {@link AtmosphereHandler#onRequest}
@@ -89,11 +94,11 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     private static final Logger logger = LoggerFactory.getLogger(ReflectorServletProcessor.class);
 
     private String servletClassName;
-    private final HashMap<String, String> filtersClassAndNames = new HashMap<String, String>();
-    private final HashSet<Filter> filters = new HashSet<Filter>();
+    private final ArrayList<String> filtersClass = new ArrayList<String>();
     private final FilterChainServletWrapper wrapper = new FilterChainServletWrapper();
     private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();
     private Servlet servlet;
+    private String filterName;
 
     public ReflectorServletProcessor() {
     }
@@ -109,19 +114,9 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         URLClassLoader urlC = new URLClassLoader(new URL[]{url},
                 Thread.currentThread().getContextClassLoader());
 
-        loadServlet(sc, urlC);
-        if (!filters.isEmpty()) {
-            loadFilterInstances(sc);
-        } else {
-            loadFilterClasses(sc, urlC);
-        }
-    }
-
-    private void loadServlet(ServletConfig sc, URLClassLoader urlC)
-            throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-        if (servletClassName != null && servlet == null) {
+        if (getServletClassName() != null && servlet == null) {
             try {
-                servlet = (Servlet) urlC.loadClass(servletClassName).newInstance();
+                servlet = (Servlet) urlC.loadClass(getServletClassName()).newInstance();
             } catch (NullPointerException ex) {
                 // We failed to load the servlet, let's try directly.
                 servlet = (Servlet) Thread.currentThread().getContextClassLoader()
@@ -132,16 +127,20 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
         logger.info("Installing Servlet {}", servletClassName);
         filterChain.setServlet(sc, servlet);
-    }
 
-    private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC)
-            throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-
-        for (Map.Entry<String, String> fClassAndName : filtersClassAndNames.entrySet()) {
-            String fClass = fClassAndName.getKey();
-            String filterName = fClassAndName.getValue();
-            Filter f = loadFilter(urlC, fClass);
+        Filter f;
+        for (String fClass : filtersClass) {
+            try {
+                f = (Filter) urlC.loadClass(fClass).newInstance();
+            } catch (NullPointerException ex) {
+                // We failed to load the Filter, let's try directly.
+                f = (Filter) Thread.currentThread().getContextClassLoader()
+                        .loadClass(fClass).newInstance();
+            }
+            FilterConfigImpl fc = new FilterConfigImpl(sc);
+            fc.setFilter(f);
             InjectorProvider.getInjector().inject(f);
+
             if (filterName == null) {
                 if (sc.getInitParameter(APPLICATION_NAME) != null) {
                     filterName = sc.getInitParameter(APPLICATION_NAME);
@@ -149,34 +148,10 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
                     filterName = f.getClass().getSimpleName();
                 }
             }
-            FilterConfigImpl fc = new FilterConfigImpl(sc);
-            fc.setFilter(f);
+
             fc.setFilterName(filterName);
             filterChain.addFilter(fc);
             logger.info("Installing Filter {}", filterName);
-        }
-    }
-
-    private Filter loadFilter(URLClassLoader urlC, String fClass)
-            throws InstantiationException, IllegalAccessException, ClassNotFoundException {
-        Filter f;
-        try {
-            f = (Filter) urlC.loadClass(fClass).newInstance();
-        } catch (NullPointerException ex) {
-            // We failed to load the Filter, let's try directly.
-            f = (Filter) Thread.currentThread().getContextClassLoader()
-                    .loadClass(fClass).newInstance();
-        }
-        return f;
-    }
-
-    private void loadFilterInstances(ServletConfig sc) {
-        for (Filter f : filters) {
-            FilterConfigImpl fc = new FilterConfigImpl(sc);
-            fc.setFilter(f);
-            fc.setFilterName(f.getClass().getSimpleName());
-            filterChain.addFilter(fc);
-            logger.info("Installing Filter {}", f.getClass().getSimpleName());
         }
     }
 
@@ -192,7 +167,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     public void onRequest(AtmosphereResource r)
             throws IOException {
         r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);
-        r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER, this);
         try {
             wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {
@@ -210,12 +184,10 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         wrapper.init(sc);
     }
 
-    public void addFilter(Filter filter) {
-        filters.add(filter);
-    }
-
     public void destroy() {
-        filterChain.destroy();
+        if (filterChain != null) {
+            filterChain.destroy();
+        }
     }
 
     /**
@@ -224,7 +196,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * @return the servletClass
      * @deprecated - use getServletClassName
      */
-    @Deprecated
     public String getServletClass() {
         return servletClassName;
     }
@@ -235,7 +206,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * @param servletClass the servletClass to set
      * @deprecated - use setServletClassName
      */
-    @Deprecated
     public void setServletClass(String servletClass) {
         this.servletClassName = servletClass;
     }
@@ -261,13 +231,14 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     /**
      * Add a FilterClass. Since we are using Reflection to call this method,
      * what we are really doing is addFilterClass.
+     * <p/>
+     * TODO: MUST ALLOW MORE THAN ONE FILTER
      *
-     * @param filterClass class name of the filter to instantiate.
-     * @param filterName mapping name of the filter to instantiate
+     * @param filterClass
      */
-    public void addFilterClassName(String filterClass, String filterName) {
-        if (filterClass == null || filterName == null) return;
-        filtersClassAndNames.put(filterClass, filterName);
+    public void setFilterClassName(String filterClass) {
+        if (filterClass == null) return;
+        filtersClass.add(filterClass);
     }
 
     public Servlet getServlet() {
@@ -276,6 +247,10 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
     public void setServlet(Servlet servlet) {
         this.servlet = servlet;
+    }
+
+    public void setFilterName(String filterName) {
+        this.filterName = filterName;
     }
 
     /**
