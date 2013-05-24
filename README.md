@@ -47,7 +47,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>1.1.0.RC2</version>
+         <version>1.1.0.RC3</version>
       </dependency>
 ```
 [Top](#Top)
