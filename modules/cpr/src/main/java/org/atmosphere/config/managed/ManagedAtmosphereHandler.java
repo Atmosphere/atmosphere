@@ -146,7 +146,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
 
         AtmosphereResource resource = event.getResource();
-        if (event.isCancelled()) {
+        if (event.isCancelled() || event.isClosedByClient()) {
             invoke(onDisconnectMethod, resource);
         } else if (event.isResumedOnTimeout() || event.isResuming()) {
             invoke(onTimeoutMethod, resource);
