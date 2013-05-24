@@ -320,4 +320,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
+    @Override
+    public String toString(){
+        return "ManagedAtmosphereHandler proxy for " + object.getClass().getName();
+    }
+
 }
