@@ -261,6 +261,17 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     /**
      * Add a FilterClass. Since we are using Reflection to call this method,
      * what we are really doing is addFilterClass.
+     * <p/>
+     * @param filterClass
+     */
+    public void setFilterClassName(String filterClass) {
+        if (filterClass == null) return;
+        filtersClassAndNames.put(filterClass, filterClass);
+    }
+
+    /**
+     * Add a FilterClass. Since we are using Reflection to call this method,
+     * what we are really doing is addFilterClass.
      *
      * @param filterClass class name of the filter to instantiate.
      * @param filterName mapping name of the filter to instantiate
