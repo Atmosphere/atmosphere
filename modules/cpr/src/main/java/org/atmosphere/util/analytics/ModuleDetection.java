@@ -23,6 +23,7 @@ public class ModuleDetection {
     private final static HashMap<String, String> modules = new HashMap<String, String>();
 
     static {
+        modules.put("gwt2", "org.atmosphere.gwt20.server.GwtRpcInterceptor");
         modules.put("jersey", "org.atmosphere.jersey.AtmosphereFilter");
         modules.put("gwt", "org.atmosphere.gwt.serve.AtmosphereGwtHandler");
         modules.put("cometd", "org.atmosphere.cometd.CometdServlet");
