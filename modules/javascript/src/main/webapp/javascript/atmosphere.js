@@ -407,7 +407,7 @@
                     _localStorageService = _local(_request);
                     if (_localStorageService != null) {
                         if (_request.logLevel == 'debug') {
-                            atmosphere.debug("Storage service available. All communication will be local");
+                            atmosphere.util.debug("Storage service available. All communication will be local");
                         }
 
                         if (_localStorageService.open(_request)) {
