@@ -1929,7 +1929,7 @@ jQuery.atmosphere = function () {
 
                                     var text = clone.innerText;
 
-                                    text = jQuery.text.substring(0, text.length - 1);
+                                    text = text.substring(0, text.length - 1);
                                     return text;
 
                                 };
