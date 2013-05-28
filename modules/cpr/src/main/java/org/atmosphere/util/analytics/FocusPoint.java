@@ -78,6 +78,7 @@ public class FocusPoint {
     }
 
     private String encode(String name) {
+        if (name == null) name = "";
         try {
             return URLEncoder.encode(name, "UTF-8");
         } catch (UnsupportedEncodingException e) {
