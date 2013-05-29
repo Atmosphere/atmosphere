@@ -1052,7 +1052,6 @@
                 };
 
                 _sse.onerror = function (message) {
-
                     clearTimeout(_request.id);
                     _invokeClose(sseOpened);
                     _clearState();
@@ -1696,19 +1695,25 @@
                             _verifyStreamingLength(ajaxRequest, rq);
                         }
                     };
-                    ajaxRequest.send(rq.data);
 
-                    if (rq.suspend) {
-                        rq.id = setTimeout(function () {
-                            if (_subscribed) {
-                                setTimeout(function () {
-                                    _clearState();
-                                    _executeRequest(rq);
-                                }, rq.reconnectInterval)
-                            }
-                        }, rq.timeout);
+                    try {
+                        ajaxRequest.send(rq.data);
+
+
+                        if (rq.suspend) {
+                            rq.id = setTimeout(function () {
+                                if (_subscribed) {
+                                    setTimeout(function () {
+                                        _clearState();
+                                        _executeRequest(rq);
+                                    }, rq.reconnectInterval)
+                                }
+                            }, rq.timeout);
+                        }
+                        _subscribed = true;
+                    } catch (e) {
+                        atmosphere.util.log(rq.logLevel, ["Unable to connect to " + rq.url]);
                     }
-                    _subscribed = true;
 
                 } else {
                     if (rq.logLevel == 'debug') {
@@ -2329,11 +2334,13 @@
             }
 
             function _invokeClose(wasOpen) {
-                _response.state = 'closed';
-                _response.responseBody = "";
-                _response.messages = [];
-                _response.status = !wasOpen ? 501 : 200;
-                _invokeCallback();
+                if (_response.state != 'closed') {
+                    _response.state = 'closed';
+                    _response.responseBody = "";
+                    _response.messages = [];
+                    _response.status = !wasOpen ? 501 : 200;
+                    _invokeCallback();
+                }
             }
 
             /**

@@ -2278,11 +2278,13 @@ jQuery.atmosphere = function () {
             }
 
             function _invokeClose(wasOpen) {
-                _response.state = 'closed';
-                _response.responseBody = "";
-                _response.messages = [];
-                _response.status = !wasOpen ? 501 : 200;
-                _invokeCallback();
+                if (_response.state != 'closed') {
+                    _response.state = 'closed';
+                    _response.responseBody = "";
+                    _response.messages = [];
+                    _response.status = !wasOpen ? 501 : 200;
+                    _invokeCallback();
+                }
             }
 
             /**
