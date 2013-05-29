@@ -64,8 +64,8 @@ import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.Jetty9AsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyCometSupport;
-import org.atmosphere.container.NettyCometSupport;
 import org.atmosphere.container.JettyServlet30AsyncSupportWithWebSocket;
+import org.atmosphere.container.NettyCometSupport;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
@@ -139,17 +139,17 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                 if (testClassExists(GLASSFISH_V2))
                     add(GlassFishv2CometSupport.class);
 
-                if (testClassExists(JETTY))
-                    add(JettyCometSupport.class);
-
-                if (testClassExists(JETTY_7))
+                if (testClassExists(JETTY_9))
                     add(Jetty7CometSupport.class);
 
                 if (testClassExists(JETTY_8))
                     add(Jetty7CometSupport.class);
 
-                if (testClassExists(JETTY_9))
+                if (testClassExists(JETTY_7))
                     add(Jetty7CometSupport.class);
+
+                if (testClassExists(JETTY))
+                    add(JettyCometSupport.class);
 
                 if (testClassExists(JBOSSWEB))
                     add(JBossWebCometSupport.class);
