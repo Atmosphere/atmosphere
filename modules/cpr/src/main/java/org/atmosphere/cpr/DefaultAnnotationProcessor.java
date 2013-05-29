@@ -53,22 +53,19 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
 
+
+    /**
+     * The attribute name under which the annotations are stored in the servlet context
+     */
+    public static final String ANNOTATION_ATTRIBUTE = "org.atmosphere.cpr.ANNOTATION_MAP";
+
     private AnnotationProcessor delegate;
 
     @Override
     public AnnotationProcessor configure(final AtmosphereFramework framework) {
         ServletContext sc = framework.getServletContext();
 
-        Map<Class<? extends Annotation>, Set<Class<?>>> annotations = null;
-        // Servlet 3.0 only.
-        if (sc.getMajorVersion() > 2) {
-            // Since we deploy in non servlet framework, we must make sure we catch any exception in order to avoid regression.
-            try {
-                annotations = (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(AnnotationScanningServletContainerInitializer.ANNOTATION_ATTRIBUTE);
-            } catch (Exception ex) {
-                logger.trace("", ex);
-            }
-        }
+        Map<Class<? extends Annotation>, Set<Class<?>>> annotations = (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
 
         if (annotations == null) {
             delegate = new BytecodeBasedAnnotationProcessor();

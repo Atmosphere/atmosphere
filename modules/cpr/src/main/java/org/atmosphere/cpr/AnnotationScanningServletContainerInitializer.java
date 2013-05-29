@@ -55,11 +55,6 @@ import org.atmosphere.config.service.WebSocketProtocolService;
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {
 
-    /**
-     * The attribute name under which the annotations are stored in the servlet context
-     */
-    public static final String ANNOTATION_ATTRIBUTE = AnnotationScanningServletContainerInitializer.class.getPackage().getName() + ".ANNOTATION_MAP";
-
     @Override
     public void onStartup(final Set<Class<?>> classes, final ServletContext servletContext) throws ServletException {
         final Map<Class<? extends Annotation>, Set<Class<?>>> classesByAnnotation = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
@@ -72,6 +67,6 @@ public class AnnotationScanningServletContainerInitializer implements ServletCon
                 classSet.add(clazz);
             }
         }
-        servletContext.setAttribute(ANNOTATION_ATTRIBUTE, Collections.unmodifiableMap(classesByAnnotation));
+        servletContext.setAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, Collections.unmodifiableMap(classesByAnnotation));
     }
 }
