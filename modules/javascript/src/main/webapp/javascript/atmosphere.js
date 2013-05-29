@@ -1000,12 +1000,6 @@
                     }, _request.connectTimeout);
                 }
 
-                _request.id = setTimeout(function () {
-                    setTimeout(function () {
-                        _clearState();
-                    }, _request.reconnectInterval)
-                }, _request.timeout);
-
                 _sse.onopen = function (event) {
                     if (_request.logLevel == 'debug') {
                         atmosphere.util.debug("SSE successfully opened");
