@@ -15,11 +15,14 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.BroadcasterCacheInspector;
-import org.atmosphere.config.managed.AnnotationServiceInterceptor;
-import org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor;
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
-import org.atmosphere.config.managed.MeteorServiceInterceptor;
+import java.io.File;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.util.Map;
+import java.util.Set;
+
+import javax.servlet.ServletContext;
+
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -36,346 +39,184 @@ import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.handler.ReflectorServletProcessor;
-import org.atmosphere.util.EndpointMapper;
-import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.annotation.AnnotationDetector;
-import org.atmosphere.websocket.WebSocketHandler;
-import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.Servlet;
-import java.io.File;
-import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.List;
-
 /**
- * An {@link AnnotationProcessor} based on <a href="https://github.com/rmuller/infomas-asl"></a>
+ * An {@link AnnotationProcessor} that selects between a ServletContextInitializer based scanner, and
+ * a bytecode based scanner based on <a href="https://github.com/rmuller/infomas-asl"></a>
  * <p/>
- * TODO: This class needs to refactored.
  *
  * @author Jeanfrancois Arcand
  */
 public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
-    private Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
-    protected AnnotationDetector detector;
+    private static final Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
 
-    public DefaultAnnotationProcessor() {
-    }
+    private AnnotationProcessor delegate;
 
     @Override
     public AnnotationProcessor configure(final AtmosphereFramework framework) {
-        final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
-
-            @SuppressWarnings("unchecked")
-            @Override
-            public Class<? extends Annotation>[] annotations() {
-                return new Class[]{
-                        AtmosphereHandlerService.class,
-                        BroadcasterCacheService.class,
-                        BroadcasterFilterService.class,
-                        BroadcasterFactoryService.class,
-                        BroadcasterService.class,
-                        MeteorService.class,
-                        WebSocketHandlerService.class,
-                        WebSocketProtocolService.class,
-                        AtmosphereInterceptorService.class,
-                        BroadcasterListenerService.class,
-                        AsyncSupportService.class,
-                        AsyncSupportListenerService.class,
-                        WebSocketProcessorService.class,
-                        BroadcasterCacheInspectorService.class,
-                        ManagedService.class,
-                        EndpoinMapperService.class,
-                };
-            }
-
-            // TODO: Add annotation -> logicHandler callback
-            // TODO: Refactor this class, please!
-            @Override
-            public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
-                logger.info("Found Annotation in {} being scanned: {}", className, annotation);
-                if (AtmosphereHandlerService.class.equals(annotation)) {
-                    try {
-                        Class<AtmosphereHandler> aClass = (Class<AtmosphereHandler>) loadClass(className);
-                        AtmosphereHandlerService a = aClass.getAnnotation(AtmosphereHandlerService.class);
-
-                        framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
-                        Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
-                        for (Class<? extends BroadcastFilter> b : bf) {
-                            addBroadcastFilter(b.getName());
-                        }
-
-                        for (String s : a.atmosphereConfig()) {
-                            String[] nv = s.split("=");
-                            framework.addInitParameter(nv[0], nv[1]);
-                        }
-
-                        Class<?>[] interceptors = a.interceptors();
-                        List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
-                        for (Class i : interceptors) {
-                            try {
-                                AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
-                                l.add(ai);
-                            } catch (Throwable e) {
-                                logger.warn("", e);
-                            }
-                        }
-
-                        if (a.path().contains("{")) {
-                            l.add(new AtmosphereHandlerServiceInterceptor());
-                        }
-
-                        Class<? extends BroadcasterCache> e = a.broadcasterCache();
-                        if (e != null)
-                            framework.setBroadcasterCacheClassName(e.getName());
-                        framework.sessionSupport(a.supportSession());
-
-                        AtmosphereHandler handler = (AtmosphereHandler) aClass.newInstance();
-                        for (String s : a.properties()) {
-                            String[] nv = s.split("=");
-                            IntrospectionUtils.setProperty(handler, nv[0], nv[1]);
-                            IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
-                        }
-
-                        framework.addAtmosphereHandler(a.path(), handler, l);
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (BroadcasterCacheService.class.equals(annotation)) {
-                    framework.setBroadcasterCacheClassName(className);
-                } else if (BroadcasterCacheInspectorService.class.equals(annotation)) {
-                    try {
-                        framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) loadClass(className).newInstance());
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (MeteorService.class.equals(annotation)) {
-                    try {
-                        ReflectorServletProcessor r = new ReflectorServletProcessor();
-                        r.setServletClassName(className);
-
-                        Class<Servlet> s = (Class<Servlet>) loadClass(className);
-                        MeteorService m = s.getAnnotation(MeteorService.class);
-
-                        String mapping = m.path();
-                        framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
-                        Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
-                        for (Class<? extends BroadcastFilter> b : bf) {
-                            addBroadcastFilter(b.getName());
-                        }
-                        for (String i : m.atmosphereConfig()) {
-                            String[] nv = i.split("=");
-                            framework.addInitParameter(nv[0], nv[1]);
-                        }
-
-                        Class<?>[] interceptors = m.interceptors();
-                        List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
-                        for (Class i : interceptors) {
-                            try {
-                                AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
-                                l.add(ai);
-                            } catch (Throwable e) {
-                                logger.warn("", e);
-                            }
-                        }
-
-                        if (m.path().contains("{")) {
-                            l.add(new MeteorServiceInterceptor());
-                        }
-                        framework.addAtmosphereHandler(mapping, r, l);
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (BroadcasterFilterService.class.equals(annotation)) {
-                    try {
-                        addBroadcastFilter(className);
-                    } catch (Exception e) {
-                        logger.warn("", e);
-                    }
-                } else if (BroadcasterService.class.equals(annotation)) {
-                    framework.setDefaultBroadcasterClassName(className);
-                } else if (WebSocketHandlerService.class.equals(annotation)) {
-                    try {
-                        Class<WebSocketHandler> s = (Class<WebSocketHandler>) loadClass(className);
-                        WebSocketHandlerService m = s.getAnnotation(WebSocketHandlerService.class);
-
-                        framework.addAtmosphereHandler(m.path(), new AbstractReflectorAtmosphereHandler() {
-                            @Override
-                            public void onRequest(AtmosphereResource resource) throws IOException {
-                            }
-
-                            @Override
-                            public void destroy() {
-                            }
-                        }).initWebSocket();
-
-                        framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
-                        Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
-                        for (Class<? extends BroadcastFilter> b : bf) {
-                            addBroadcastFilter(b.getName());
-                        }
-
-                        Class<? extends BroadcasterCache> e = m.broadcasterCache();
-                        if (e != null)
-                            framework.setBroadcasterCacheClassName(e.getName());
-
-                        WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
-                        p.registerWebSocketHandler(m.path(), s.newInstance());
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (WebSocketProtocolService.class.equals(annotation)) {
-                    framework.setWebSocketProtocolClassName(className);
-                } else if (AtmosphereInterceptorService.class.equals(annotation)) {
-                    try {
-                        AtmosphereInterceptor a = (AtmosphereInterceptor) loadClass(className).newInstance();
-                        framework.interceptor(a);
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (AsyncSupportService.class.equals(annotation)) {
-                    try {
-                        framework.setAsyncSupport(new DefaultAsyncSupportResolver(framework.config).newCometSupport(className));
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (AsyncSupportListenerService.class.equals(annotation)) {
-                    try {
-                        framework.asyncSupportListener((AsyncSupportListener) loadClass(className).newInstance());
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (BroadcasterFactoryService.class.equals(annotation)) {
-                    try {
-                        Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) loadClass(className);
-                        framework.setBroadcasterFactory(bf.newInstance());
-                        framework.configureBroadcasterFactory();
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (BroadcasterListenerService.class.equals(annotation)) {
-                    try {
-                        framework.addBroadcasterListener((BroadcasterListener) loadClass(className).newInstance());
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (WebSocketProcessorService.class.equals(annotation)) {
-                    try {
-                        framework.setWebsocketProcessorClassName(className);
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (ManagedService.class.equals(annotation)) {
-                    try {
-                        Class<?> aClass = loadClass(className);
-                        ManagedService a = aClass.getAnnotation(ManagedService.class);
-                        List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
-
-                        framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
-                        final Class<? extends AtmosphereResourceEventListener>[] listeners = a.listeners();
-                        try {
-                            AtmosphereInterceptor ai = new AtmosphereInterceptor() {
-
-                                @Override
-                                public void configure(AtmosphereConfig config) {
-                                }
-
-                                @Override
-                                public Action inspect(AtmosphereResource r) {
-                                    for (Class<? extends AtmosphereResourceEventListener> l : listeners) {
-                                        try {
-                                            r.addEventListener(l.newInstance());
-                                        } catch (Throwable e) {
-                                            logger.warn("", e);
-                                        }
-                                    }
-                                    return Action.CONTINUE;
-                                }
-
-                                @Override
-                                public void postInspect(AtmosphereResource r) {
-                                }
-
-                                @Override
-                                public String toString() {
-                                    return "Managed Event Listeners";
-                                }
-
-                            };
-                            l.add(ai);
-                        } catch (Throwable e) {
-                            logger.warn("", e);
-                        }
-
-                        Object c = aClass.newInstance();
-                        AtmosphereHandler handler = new ManagedAtmosphereHandler(c);
-                        Class<?>[] interceptors = a.interceptors();
-                        for (Class i : interceptors) {
-                            try {
-                                AtmosphereInterceptor ai;
-                                if (AnnotationServiceInterceptor.class.isAssignableFrom(i)) {
-                                    ai = new AnnotationServiceInterceptor(ManagedAtmosphereHandler.class.cast(handler));
-                                } else {
-                                    ai = (AtmosphereInterceptor) i.newInstance();
-                                }
-                                l.add(ai);
-                            } catch (Throwable e) {
-                                logger.warn("", e);
-                            }
-                        }
-
-                        framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
-                        framework.addAtmosphereHandler(a.path(), handler, l);
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                } else if (EndpoinMapperService.class.equals(annotation)) {
-                    try {
-                        framework.endPointMapper((EndpointMapper<?>) loadClass(className).newInstance());
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                }
-            }
-
-            void addBroadcastFilter(String f) throws Exception {
-                framework.broadcasterFilters((BroadcastFilter) loadClass(f).newInstance());
-            }
-
-        };
-        detector = new AnnotationDetector(reporter);
+        ServletContext sc = framework.getServletContext();
+        Map<Class<? extends Annotation>, Set<Class<?>>> annotations = (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(AnnotationScanningServletContainerInitializer.ANNOTATION_ATTRIBUTE);
+        if (annotations == null) {
+            delegate = new BytecodeBasedAnnotationProcessor();
+        } else {
+            delegate = new ServletContainerInitializerAnnotationProcessor(annotations, framework);
+        }
+        delegate.configure(framework);
         return this;
     }
 
     @Override
-    public AnnotationProcessor scan(File rootDir) throws IOException {
-        detector.detect(rootDir);
+    public AnnotationProcessor scan(final File rootDir) throws IOException {
+        delegate.scan(rootDir);
         return this;
     }
 
     @Override
-    public AnnotationProcessor scan(String packageName) throws IOException {
-        logger.trace("Scanning @Service annotations in {}", packageName);
-        detector.detect(packageName);
+    public AnnotationProcessor scan(final String packageName) throws IOException {
+        delegate.scan(packageName);
         return this;
     }
 
     @Override
     public void destroy() {
-        detector.destroy();
+        if(delegate != null) {
+            delegate.destroy();
+        }
     }
 
-    protected Class<?> loadClass(String className) throws Exception {
-        try {
-            return Thread.currentThread().getContextClassLoader().loadClass(className);
-        } catch (Throwable t) {
-            return getClass().getClassLoader().loadClass(className);
+    private static final class ServletContainerInitializerAnnotationProcessor implements AnnotationProcessor {
+
+        private final Map<Class<? extends Annotation>, Set<Class<?>>> annotations;
+        private final AtmosphereFramework framework;
+
+        /**
+         * This is not great, but we can't differentiate based on the file, so we just do one scan
+         * of everything in the war. It would be nice to change to the API to make this a bit cleaner
+         * but it looks like it is a public API.
+         */
+        private boolean alreadyScanned = false;
+
+        private ServletContainerInitializerAnnotationProcessor(final Map<Class<? extends Annotation>, Set<Class<?>>> annotations, final AtmosphereFramework framework) {
+            this.annotations = annotations;
+            this.framework = framework;
+        }
+
+        @Override
+        public AnnotationProcessor configure(final AtmosphereFramework framework) {
+            return this;
+        }
+
+        @Override
+        public AnnotationProcessor scan(final File rootDir) throws IOException {
+            if (alreadyScanned) {
+                return this;
+            }
+            alreadyScanned = true;
+            for (Map.Entry<Class<? extends Annotation>, Set<Class<?>>> entry : annotations.entrySet()) {
+                for (Class<?> clazz : entry.getValue()) {
+                    AnnotationHandler.handleAnnotation(framework, entry.getKey(), clazz);
+                }
+            }
+            return this;
+        }
+
+        @Override
+        public AnnotationProcessor scan(final String packageName) throws IOException {
+            for (Map.Entry<Class<? extends Annotation>, Set<Class<?>>> entry : annotations.entrySet()) {
+                for (Class<?> clazz : entry.getValue()) {
+                    if (clazz.getPackage().getName().startsWith(packageName)) {
+                        AnnotationHandler.handleAnnotation(framework, entry.getKey(), clazz);
+                    }
+                }
+            }
+            return this;
+        }
+
+        @Override
+        public void destroy() {
+
+        }
+    }
+
+    private static final class BytecodeBasedAnnotationProcessor implements AnnotationProcessor {
+
+        protected AnnotationDetector detector;
+
+        public BytecodeBasedAnnotationProcessor() {
+        }
+
+        @Override
+        public AnnotationProcessor configure(final AtmosphereFramework framework) {
+
+            final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
+                @SuppressWarnings("unchecked")
+                @Override
+                public Class<? extends Annotation>[] annotations() {
+                    return new Class[]{
+                            AtmosphereHandlerService.class,
+                            BroadcasterCacheService.class,
+                            BroadcasterFilterService.class,
+                            BroadcasterFactoryService.class,
+                            BroadcasterService.class,
+                            MeteorService.class,
+                            WebSocketHandlerService.class,
+                            WebSocketProtocolService.class,
+                            AtmosphereInterceptorService.class,
+                            BroadcasterListenerService.class,
+                            AsyncSupportService.class,
+                            AsyncSupportListenerService.class,
+                            WebSocketProcessorService.class,
+                            BroadcasterCacheInspectorService.class,
+                            ManagedService.class,
+                            EndpoinMapperService.class,
+                    };
+                }
+
+                @Override
+                public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
+                    logger.info("Found Annotation in {} being scanned: {}", className, annotation);
+                    try {
+                        final Class<?> discoveredClass = loadClass(className);
+                        AnnotationHandler.handleAnnotation(framework, annotation, discoveredClass);
+                    } catch (Exception e) {
+                        logger.warn("Could not load discovered class", e);
+                    }
+                }
+
+            };
+            detector = new AnnotationDetector(reporter);
+            return this;
+        }
+
+        @Override
+        public AnnotationProcessor scan(File rootDir) throws IOException {
+            detector.detect(rootDir);
+            return this;
+        }
+
+        @Override
+        public AnnotationProcessor scan(String packageName) throws IOException {
+            logger.trace("Scanning @Service annotations in {}", packageName);
+            detector.detect(packageName);
+            return this;
+        }
+
+        @Override
+        public void destroy() {
+            detector.destroy();
+        }
+
+
+        protected Class<?> loadClass(String className) throws Exception {
+            try {
+                return Thread.currentThread().getContextClassLoader().loadClass(className);
+            } catch (Throwable t) {
+                return getClass().getClassLoader().loadClass(className);
+            }
         }
     }
 }
