@@ -15,14 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import java.io.File;
-import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.util.Map;
-import java.util.Set;
-
-import javax.servlet.ServletContext;
-
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -43,6 +35,13 @@ import org.atmosphere.util.annotation.AnnotationDetector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletContext;
+import java.io.File;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.util.Map;
+import java.util.Set;
+
 /**
  * An {@link AnnotationProcessor} that selects between a ServletContextInitializer based scanner, and
  * a bytecode based scanner based on <a href="https://github.com/rmuller/infomas-asl"></a>
@@ -59,7 +58,18 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     @Override
     public AnnotationProcessor configure(final AtmosphereFramework framework) {
         ServletContext sc = framework.getServletContext();
-        Map<Class<? extends Annotation>, Set<Class<?>>> annotations = (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(AnnotationScanningServletContainerInitializer.ANNOTATION_ATTRIBUTE);
+
+        Map<Class<? extends Annotation>, Set<Class<?>>> annotations = null;
+        // Servlet 3.0 only.
+        if (sc.getMajorVersion() > 2) {
+            // Since we deploy in non servlet framework, we must make sure we catch any exception in order to avoid regression.
+            try {
+                annotations = (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(AnnotationScanningServletContainerInitializer.ANNOTATION_ATTRIBUTE);
+            } catch (Exception ex) {
+                logger.trace("", ex);
+            }
+        }
+
         if (annotations == null) {
             delegate = new BytecodeBasedAnnotationProcessor();
         } else {
