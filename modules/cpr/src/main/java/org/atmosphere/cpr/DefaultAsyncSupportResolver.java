@@ -145,17 +145,17 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                 if (testClassExists(GLASSFISH_V2))
                     add(GlassFishv2CometSupport.class);
 
-                if (testClassExists(JETTY))
-                    add(JettyCometSupport.class);
-
-                if (testClassExists(JETTY_7))
+                if (testClassExists(JETTY_9))
                     add(Jetty7CometSupport.class);
 
                 if (testClassExists(JETTY_8))
                     add(Jetty7CometSupport.class);
 
-                if (testClassExists(JETTY_9))
+                if (testClassExists(JETTY_7))
                     add(Jetty7CometSupport.class);
+
+                if (testClassExists(JETTY))
+                    add(JettyCometSupport.class);
 
                 if (testClassExists(JBOSSWEB))
                     add(JBossWebCometSupport.class);
