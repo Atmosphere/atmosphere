@@ -86,14 +86,7 @@ import java.io.IOException;
             res.setContentType("text/html;charset=ISO-8859-1");
 
             Broadcaster b = lookupBroadcaster(req.getPathInfo());
-            r.setBroadcaster(b);
-
-            if (req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT).equalsIgnoreCase(HeaderConfig.LONG_POLLING_TRANSPORT)) {
-                req.setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, Boolean.TRUE);
-                r.suspend(-1, false);
-            } else {
-                r.suspend(-1);
-            }
+            r.setBroadcaster(b).suspend(-1);
         } else if ("POST".equalsIgnoreCase(method)) {
             Broadcaster b = lookupBroadcaster(req.getPathInfo());
 
@@ -115,6 +108,12 @@ import java.io.IOException;
     }
 
 }</pre></blockquote>
+ *
+ * It is recommended to use the {@link org.atmosphere.config.service.AtmosphereHandlerService}
+ * or {@link org.atmosphere.config.service.ManagedService} annotation to reduce the number
+ * of line of code and take advantage of {@link AtmosphereInterceptor} such as
+ * {@link org.atmosphere.interceptor.AtmosphereResourceStateRecovery} and
+ * {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
  *
  * @author Jeanfrancois Arcand
  */
