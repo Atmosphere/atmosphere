@@ -86,7 +86,7 @@ import java.io.IOException;
             res.setContentType("text/html;charset=ISO-8859-1");
 
             Broadcaster b = lookupBroadcaster(req.getPathInfo());
-            r.setBroadcaster(b).suspend(-1);
+            r.setBroadcaster(b).suspend();
         } else if ("POST".equalsIgnoreCase(method)) {
             Broadcaster b = lookupBroadcaster(req.getPathInfo());
 
