@@ -92,9 +92,7 @@ public class TomcatWebSocketUtil {
             }
 
             if (!headerContainsToken(req, "sec-websocket-version", "13")) {
-                logger.debug("WebSocket version not supported. Downgrading to Comet");
-
-                res.sendError(501, "Websocket protocol not supported");
+                WebSocket.notSupported(req, res);
                 return new Action(Action.TYPE.CANCELLED);
             }
 

@@ -71,8 +71,7 @@ public class GlassFishServlet30WebSocketSupport extends Servlet30CometSupport {
             boolean webSocketNotSupported = request.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null;
 
             if (webSocketNotSupported)  {
-                response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-                response.sendError(501, "Websocket protocol not supported");
+                WebSocket.notSupported(request, response);
                 return Action.CANCELLED;
             }
 

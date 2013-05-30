@@ -50,10 +50,7 @@ public class JettyWebSocketUtil {
 
         if (!Utils.webSocketEnabled(req) && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
             if (req.resource() != null && req.resource().transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
-                logger.trace("Invalid WebSocket Specification {}", req);
-
-                res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-                res.sendError(501, "Websocket protocol not supported");
+                WebSocket.notSupported(req, res);
                 return Action.CANCELLED;
             } else {
                 return null;
@@ -64,11 +61,8 @@ public class JettyWebSocketUtil {
                 try {
                     webSocketFactory.acceptWebSocket(req, res);
                 } catch (IllegalStateException ex) {
-                    logger.trace("Invalid WebSocket Specification {}", req);
                     logger.trace("", ex);
-
-                    res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-                    res.sendError(501, "Websocket protocol not supported");
+                    WebSocket.notSupported(req, res);
                     return Action.CANCELLED;
                 }
                 req.setAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE, true);

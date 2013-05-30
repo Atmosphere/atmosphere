@@ -29,8 +29,6 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.IOException;
 
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
-
 /**
  * Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
  *
@@ -71,8 +69,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
             boolean webSocketNotSupported = request.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null;
 
             if (webSocketNotSupported)  {
-                response.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
-                response.sendError(501, "Websocket protocol not supported");
+                WebSocket.notSupported(request, response);
                 return Action.CANCELLED;
             }
 

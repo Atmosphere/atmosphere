@@ -19,6 +19,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -28,6 +29,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * Represent a portable WebSocket implementation which can be used to write message.
@@ -41,6 +44,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     public final static String WEBSOCKET_SUSPEND = WebSocket.class.getName() + ".suspend";
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
     public final static String WEBSOCKET_ACCEPT_DONE = WebSocket.class.getName() + ".acceptDone";
+    public final static String NOT_SUPPORTED = "Websocket protocol not supported";
 
     private AtmosphereResource r;
     protected long lastWrite = 0;
@@ -257,5 +261,11 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
     protected String retrieveUUID() {
         return r == null ? "null" : r.uuid();
+    }
+
+    public static void notSupported(AtmosphereRequest request, AtmosphereResponse response) throws IOException {
+        response.addHeader(X_ATMOSPHERE_ERROR, WebSocket.NOT_SUPPORTED);
+        response.sendError(501, WebSocket.NOT_SUPPORTED);
+        logger.trace("{} for request {}", WebSocket.NOT_SUPPORTED, request);
     }
 }
