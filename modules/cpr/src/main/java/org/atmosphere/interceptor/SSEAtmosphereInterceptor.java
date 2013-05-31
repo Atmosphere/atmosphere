@@ -147,7 +147,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             try {
                                 response.flushBuffer();
                             } catch (IOException e) {
-                                e.printStackTrace();
+                                logger.trace("", e);
                             }
                             r.resume();
                         }
