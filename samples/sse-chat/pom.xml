@@ -15,7 +15,7 @@
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-jquery</artifactId>
+            <artifactId>atmosphere-javascript</artifactId>
             <version>${project.version}</version>
             <type>war</type>
         </dependency>

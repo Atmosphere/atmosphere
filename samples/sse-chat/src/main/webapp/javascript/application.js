@@ -7,7 +7,7 @@ $(function () {
     var myName = false;
     var author = null;
     var logged = false;
-    var socket = $.atmosphere;
+    var socket = atmosphere;
     var request = { url: document.location.toString() + 'chat',
                     contentType : "application/json",
                     logLevel : 'debug',
@@ -28,7 +28,7 @@ $(function () {
     request.onMessage = function (response) {
         var message = response.responseBody;
         try {
-            var json = jQuery.parseJSON(message);
+            var json = atmosphere.util.parseJSON(message);
         } catch (e) {
             console.log('This doesn\'t look like a valid JSON: ', message);
             return;
@@ -65,7 +65,7 @@ $(function () {
                 author = msg;
             }
 
-            subSocket.push(jQuery.stringifyJSON({ author: author, message: msg }));
+            subSocket.push(atmosphere.util.stringifyJSON({ author: author, message: msg }));
             $(this).val('');
 
             input.attr('disabled', 'disabled');
