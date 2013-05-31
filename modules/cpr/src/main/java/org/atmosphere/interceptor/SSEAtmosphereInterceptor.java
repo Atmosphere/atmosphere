@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
-import java.util.Arrays;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 
@@ -45,6 +44,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final byte[] padding;
     private static final String paddingText;
+    private static final byte[] END = "\n\n".getBytes();
 
     static {
         StringBuffer whitespace = new StringBuffer();
@@ -56,8 +56,8 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         padding = paddingText.getBytes();
     }
 
-    private void writePadding(AtmosphereResponse response) {
-        if (response.request() != null && response.request().getAttribute("paddingWritten") != null) return;
+    private boolean writePadding(AtmosphereResponse response) {
+        if (response.request() != null && response.request().getAttribute("paddingWritten") != null) return false;
 
         response.setContentType("text/event-stream");
         response.setCharacterEncoding("utf-8");
@@ -87,6 +87,22 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             w.println(paddingText);
             w.flush();
         }
+        response.resource().getRequest().setAttribute("paddingWritten", "true");
+        return true;
+    }
+
+    private final class P extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
+
+        private final AtmosphereResponse response;
+
+        private P(AtmosphereResponse response) {
+            this.response = response;
+        }
+
+        @Override
+        public void onPreSuspend(AtmosphereResourceEvent event) {
+                writePadding(response);
+        }
     }
 
     @Override
@@ -96,35 +112,45 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
             super.inspect(r);
 
-            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                @Override
-                public void onPreSuspend(AtmosphereResourceEvent event) {
-                    writePadding(response);
-                }
-            });
+            r.addEventListener(new P(response));
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
-                    private void padding() {
+                    private boolean padding() {
                         if (!r.isSuspended()) {
-                            writePadding(response);
-                            r.getRequest().setAttribute("paddingWritten", "true");
+                            return writePadding(response);
                         }
+                        return false;
                     }
 
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        padding();
-                        // TODO: This is expensive
-                        if (!Arrays.equals(data, padding)) {
+                        boolean noPadding = padding();
+                        if (!noPadding) {
                             response.write("data:", true);
                         }
                     }
 
                     @Override
                     public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write("\n\n".getBytes(), true);
+                        if (r.isSuspended()) {
+                            response.write(END, true);
+                        }
+
+                        /**
+                         * When used with https://github.com/remy/polyfills/blob/master/EventSource.js , we
+                         * resume after every message.
+                         */
+                        String ua = r.getRequest().getHeader("User-Agent");
+                        if (ua != null && ua.contains("MSIE")) {
+                            try {
+                                response.flushBuffer();
+                            } catch (IOException e) {
+                                e.printStackTrace();
+                            }
+                            r.resume();
+                        }
                     }
                 });
             } else {

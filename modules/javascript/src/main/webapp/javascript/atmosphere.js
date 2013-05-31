@@ -1028,7 +1028,7 @@
                         _clearState();
                     }, _request.timeout);
 
-                    if (message.origin != window.location.protocol + "//" + window.location.host) {
+                    if (message.origin && message.origin != window.location.protocol + "//" + window.location.host) {
                         atmosphere.util.log(_request.logLevel, ["Origin was not " + window.location.protocol + "//" + window.location.host]);
                         return;
                     }
@@ -1038,6 +1038,14 @@
 
                     message = message.data;
                     var skipCallbackInvocation = _trackMessageSize(message, _request, _response);
+
+                    // https://github.com/remy/polyfills/blob/master/EventSource.js
+                    // Since we polling.
+                    if (_sse.URL) {
+                        _sse.interval = 100;
+                        _sse.URL = _buildSSEUrl(_request.url);
+                    }
+
                     if (!skipCallbackInvocation) {
                         _invokeCallback();
                         _response.responseBody = '';
