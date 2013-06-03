@@ -431,10 +431,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 response.setHeader(PRAGMA, "no-cache");
             }
 
-            if (writeHeaders && enableAccessControl) {
-                response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, req.getHeader("Origin") == null ? "*" : req.getHeader("Origin"));
-                response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
-            }
+            cors();
 
             if (flushComment) {
                 write(true);
@@ -946,4 +943,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         atmosphereHandler(r.getAtmosphereHandler());
         return this;
     }
+
+    public void cors() {
+        if (enableAccessControl && writeHeaders) {
+            response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN, req.getHeader("Origin") == null ? "*" : req.getHeader("Origin"));
+            response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
+        }
+    }
+
 }

@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
@@ -71,6 +72,9 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                     }
                 }
             }
+
+            // https://github.com/Atmosphere/atmosphere/issues/1119
+            AtmosphereResourceImpl.class.cast(r).cors();
 
             final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
             if (track) {
