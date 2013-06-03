@@ -1832,13 +1832,12 @@
                 var transport = rq.transport;
                 var lastIndex = 0;
                 var xdr = new window.XDomainRequest();
-                xdr.hasData = true;
 
                 var reconnect = function () {
-                    if (xdr.hasData && rq.transport == "long-polling"
+                    if (rq.transport == "long-polling"
                             && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
                         xdr.status = 200;
-                        _reconnect(xdr, rq, false);
+                        _ieXDR(rq);
                     }
                 };
 
@@ -1884,31 +1883,34 @@
                     clearTimeout(rq.id);
                     var message = xdr.responseText;
 
-                    if (transport == "streaming") {
-                        message = message.substring(lastIndex);
-                        lastIndex += message.length;
-                    }
+                    message = message.substring(lastIndex);
+                    lastIndex += message.length;
 
-                    xdr.hasData = atmosphere.util.trim(message).length != 0;
-                    rq.id = setTimeout(function () {
-                        _requestCount = rq.maxReconnectOnClose;
-                        _invokeClose(true);
-                        _disconnect();
-                        _clearState();
-                    }, rq.timeout);
+                    console.log("=> " + message);
 
-                    var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                    if (transport != 'polling') {
+                        rq.id = setTimeout(function () {
+                            _requestCount = rq.maxReconnectOnClose;
+                            _invokeClose(true);
+                            _disconnect();
+                            _clearState();
+                        }, rq.timeout);
 
-                    if (rq.executeCallbackBeforeReconnect) {
-                        reconnect();
-                    }
+                        var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
 
-                    if (!skipCallbackInvocation) {
-                        _prepareCallback(_response.responseBody, "messageReceived", 200, transport);
-                    }
+                        if (transport == 'long-polling' && atmosphere.util.trim(message) == 0) return;
 
-                    if (!rq.executeCallbackBeforeReconnect) {
-                        reconnect();
+                        if (rq.executeCallbackBeforeReconnect) {
+                            reconnect();
+                        }
+
+                        if (!skipCallbackInvocation) {
+                            _prepareCallback(_response.responseBody, "messageReceived", 200, transport);
+                        }
+
+                        if (!rq.executeCallbackBeforeReconnect) {
+                            reconnect();
+                        }
                     }
                 };
 
