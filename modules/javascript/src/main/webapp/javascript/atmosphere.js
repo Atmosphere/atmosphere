@@ -1613,7 +1613,7 @@
                                 _clearState();
                             }, rq.timeout);
 
-                            if (atmosphere.util.trim(responseText.length) == 0 && rq.transport == 'long-polling') {
+                            if (atmosphere.util.trim(responseText).length == 0 && rq.transport == 'long-polling') {
                                 // For browser that aren't support onabort
                                 if (!ajaxRequest.hasData) {
                                     reconnectF();
@@ -1832,6 +1832,16 @@
                 var transport = rq.transport;
                 var lastIndex = 0;
                 var xdr = new window.XDomainRequest();
+                xdr.hasData = true;
+
+                var reconnect = function () {
+                    if (xdr.hasData && rq.transport == "long-polling"
+                            && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
+                        xdr.status = 200;
+                        _reconnect(xdr, rq, false);
+                    }
+                };
+
                 var rewriteURL = rq.rewriteURL || function (url) {
                     // Maintaining session by rewriting URL
                     // http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
@@ -1854,33 +1864,38 @@
                 xdr.onerror = function () {
                     // If the server doesn't send anything back to XDR will fail with polling
                     if (rq.transport != 'polling') {
-                        _onError("XDR error");
+                        _clearState();
+                        if (_requestCount++ < rq.maxReconnectOnClose) {
+                           rq.id = setTimeout(function () {
+                               _open('re-connecting', request.transport, request);
+                               _ieXDR(rq);
+                            }, rq.reconnectInterval);
+                        } else {
+                            _onError(0, "maxReconnectOnClose reached");
+                        }
                     }
                 };
+
                 // Handles close event
                 xdr.onload = function () {
-                    handle(xdr);
                 };
 
                 var handle = function (xdr) {
-                    // XDomain loop forever on itself without this.
-                    // TODO: Clearly I need to come with something better than that solution
+                    clearTimeout(rq.id);
                     var message = xdr.responseText;
-                    if (rq.lastMessage == message) return;
 
                     if (transport == "streaming") {
                         message = message.substring(lastIndex);
                         lastIndex += message.length;
                     }
 
-                    var reconnect = function () {
-                        if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
-                            xdr.status = 200;
-                            if (message.length != 0) {
-                                _reconnect(xdr, rq, false);
-                            }
-                        }
-                    };
+                    xdr.hasData = atmosphere.util.trim(message).length != 0;
+                    rq.id = setTimeout(function () {
+                        _requestCount = rq.maxReconnectOnClose;
+                        _invokeClose(true);
+                        _disconnect();
+                        _clearState();
+                    }, rq.timeout);
 
                     var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
 
@@ -1895,7 +1910,6 @@
                     if (!rq.executeCallbackBeforeReconnect) {
                         reconnect();
                     }
-                    rq.lastMessage = message;
                 };
 
                 return {
@@ -1923,7 +1937,6 @@
                     },
                     close: function () {
                         xdr.abort();
-                        _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
                 };
             }
