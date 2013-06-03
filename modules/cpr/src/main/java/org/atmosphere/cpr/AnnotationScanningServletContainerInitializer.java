@@ -58,13 +58,15 @@ public class AnnotationScanningServletContainerInitializer implements ServletCon
     @Override
     public void onStartup(final Set<Class<?>> classes, final ServletContext servletContext) throws ServletException {
         final Map<Class<? extends Annotation>, Set<Class<?>>> classesByAnnotation = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
-        for(final Class<?> clazz : classes) {
-            for(Annotation annotation : clazz.getAnnotations()) {
-                Set<Class<?>> classSet = classesByAnnotation.get(annotation.annotationType());
-                if(classSet == null) {
-                    classesByAnnotation.put(annotation.annotationType(), classSet = new HashSet<Class<?>>());
+        if (classes != null) {
+            for(final Class<?> clazz : classes) {
+                for(Annotation annotation : clazz.getAnnotations()) {
+                    Set<Class<?>> classSet = classesByAnnotation.get(annotation.annotationType());
+                    if(classSet == null) {
+                        classesByAnnotation.put(annotation.annotationType(), classSet = new HashSet<Class<?>>());
+                    }
+                    classSet.add(clazz);
                 }
-                classSet.add(clazz);
             }
         }
         servletContext.setAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, Collections.unmodifiableMap(classesByAnnotation));
