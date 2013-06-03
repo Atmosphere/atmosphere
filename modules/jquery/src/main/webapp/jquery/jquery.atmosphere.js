@@ -1705,6 +1705,11 @@ jQuery.atmosphere = function() {
                 var xdrCallback = function (xdr) {
                     var responseBody = xdr.responseText;
 
+                    if (transport == "streaming") {
+                        responseBody = responseBody.substring(lastIndex);
+                        lastIndex += responseBody.length;
+                    }
+
                     if (!_handleProtocol(request, responseBody)) return;
 
                     _prepareCallback(responseBody, "messageReceived", 200, transport);
