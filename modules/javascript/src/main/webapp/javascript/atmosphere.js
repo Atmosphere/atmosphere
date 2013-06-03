@@ -1886,8 +1886,6 @@
                     message = message.substring(lastIndex);
                     lastIndex += message.length;
 
-                    console.log("=> " + message);
-
                     if (transport != 'polling') {
                         rq.id = setTimeout(function () {
                             _requestCount = rq.maxReconnectOnClose;
