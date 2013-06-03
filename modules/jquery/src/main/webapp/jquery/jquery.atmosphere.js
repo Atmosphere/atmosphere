@@ -1781,6 +1781,7 @@ jQuery.atmosphere = function () {
                 }
 
                 var transport = rq.transport;
+                var lastIndex = 0;
                 var xdr = new window.XDomainRequest();
                 var rewriteURL = rq.rewriteURL || function (url) {
                     // Maintaining session by rewriting URL
@@ -1815,8 +1816,13 @@ jQuery.atmosphere = function () {
                 var handle = function (xdr) {
                     // XDomain loop forever on itself without this.
                     // TODO: Clearly I need to come with something better than that solution
-                    var message = jQuery.xdr.responseText;
+                    var message = xdr.responseText;
                     if (rq.lastMessage == message) return;
+
+                    if (transport == "streaming") {
+                        message = message.substring(lastIndex);
+                        lastIndex += message.length;
+                    }
 
                     var reconnect = function () {
                         if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
