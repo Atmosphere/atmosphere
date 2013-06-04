@@ -115,6 +115,7 @@ import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
@@ -261,6 +262,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         broadcasterTypes.add(REDIS_BROADCASTER);
         broadcasterTypes.add(JGROUPS_BROADCASTER);
         broadcasterTypes.add(JMS_BROADCASTER);
+        broadcasterTypes.add(RMI_BROADCASTER);
     }
 
     /**
@@ -1067,6 +1069,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             } catch (ClassNotFoundException e) {
             }
         }
+
         return defaultB;
     }
 
