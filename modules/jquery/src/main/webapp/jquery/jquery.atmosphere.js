@@ -1773,7 +1773,6 @@ jQuery.atmosphere = function () {
                 }
             }
 
-            // From jquery-stream
             function _configureXDR(request) {
                 var rq = _request;
                 if ((request != null) && (typeof(request) != 'undefined')) {
@@ -1783,6 +1782,15 @@ jQuery.atmosphere = function () {
                 var transport = rq.transport;
                 var lastIndex = 0;
                 var xdr = new window.XDomainRequest();
+
+                var reconnect = function () {
+                    if (rq.transport == "long-polling"
+                            && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
+                        xdr.status = 200;
+                        _ieXDR(rq);
+                    }
+                };
+
                 var rewriteURL = rq.rewriteURL || function (url) {
                     // Maintaining session by rewriting URL
                     // http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
@@ -1805,48 +1813,53 @@ jQuery.atmosphere = function () {
                 xdr.onerror = function () {
                     // If the server doesn't send anything back to XDR will fail with polling
                     if (rq.transport != 'polling') {
-                        _onError("XDR error");
+                        _clearState();
+                        if (_requestCount++ < rq.maxReconnectOnClose) {
+                           rq.id = setTimeout(function () {
+                               _open('re-connecting', request.transport, request);
+                               _ieXDR(rq);
+                            }, rq.reconnectInterval);
+                        } else {
+                            _onError(0, "maxReconnectOnClose reached");
+                        }
                     }
                 };
+
                 // Handles close event
                 xdr.onload = function () {
-                    handle(xdr);
                 };
 
                 var handle = function (xdr) {
-                    // XDomain loop forever on itself without this.
-                    // TODO: Clearly I need to come with something better than that solution
+                    clearTimeout(rq.id);
                     var message = xdr.responseText;
-                    if (rq.lastMessage == message) return;
 
-                    if (transport == "streaming") {
-                        message = message.substring(lastIndex);
-                        lastIndex += message.length;
-                    }
+                    message = message.substring(lastIndex);
+                    lastIndex += message.length;
 
-                    var reconnect = function () {
-                        if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
-                            xdr.status = 200;
-                            if (message.length != 0) {
-                                _reconnect(xdr, rq, false);
-                            }
+                    if (transport != 'polling') {
+                        rq.id = setTimeout(function () {
+                            _requestCount = rq.maxReconnectOnClose;
+                            _invokeClose(true);
+                            _disconnect();
+                            _clearState();
+                        }, rq.timeout);
+
+                        var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+
+                        if (transport == 'long-polling' && jQuery.trim(message) == 0) return;
+
+                        if (rq.executeCallbackBeforeReconnect) {
+                            reconnect();
                         }
-                    };
 
-                    var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                        if (!skipCallbackInvocation) {
+                            _prepareCallback(_response.responseBody, "messageReceived", 200, transport);
+                        }
 
-                    if (rq.executeCallbackBeforeReconnect) {
-                        reconnect();
+                        if (!rq.executeCallbackBeforeReconnect) {
+                            reconnect();
+                        }
                     }
-
-                    if (!skipCallbackInvocation) {
-                        _prepareCallback(_response.responseBody, "messageReceived", 200, transport);
-                    }
-
-                    if (!rq.executeCallbackBeforeReconnect) {
-                        reconnect();
-                    }
-                    rq.lastMessage = message;
                 };
 
                 return {
@@ -1874,12 +1887,10 @@ jQuery.atmosphere = function () {
                     },
                     close: function () {
                         xdr.abort();
-                        _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
                 };
             }
 
-            // From jquery-stream, which is APL2 licensed as well.
             function _ieStreaming(request) {
                 _ieStream = _configureIE(request);
                 _ieStream.open();
