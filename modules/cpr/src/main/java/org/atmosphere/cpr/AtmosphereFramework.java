@@ -117,7 +117,6 @@ import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.WRITE_HEADERS;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
@@ -1019,8 +1018,9 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         logger.warn("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
 
+        // Atmosphere 1.1 : could add regressions
         // Jersey will handle itself the headers.
-        initParams.put(WRITE_HEADERS, "false");
+        //initParams.put(WRITE_HEADERS, "false");
 
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
         if (broadcasterClassNameTmp != null) broadcasterClassName = broadcasterClassNameTmp;
