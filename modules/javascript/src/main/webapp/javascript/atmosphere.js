@@ -1613,7 +1613,7 @@
                                 _clearState();
                             }, rq.timeout);
 
-                            if (atmosphere.util.trim(responseText.length) == 0 && rq.transport == 'long-polling') {
+                            if (atmosphere.util.trim(responseText).length == 0 && rq.transport == 'long-polling') {
                                 // For browser that aren't support onabort
                                 if (!ajaxRequest.hasData) {
                                     reconnectF();
@@ -1832,6 +1832,15 @@
                 var transport = rq.transport;
                 var lastIndex = 0;
                 var xdr = new window.XDomainRequest();
+
+                var reconnect = function () {
+                    if (rq.transport == "long-polling"
+                            && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
+                        xdr.status = 200;
+                        _ieXDR(rq);
+                    }
+                };
+
                 var rewriteURL = rq.rewriteURL || function (url) {
                     // Maintaining session by rewriting URL
                     // http://stackoverflow.com/questions/6453779/maintaining-session-by-rewriting-url
@@ -1854,49 +1863,53 @@
                 xdr.onerror = function () {
                     // If the server doesn't send anything back to XDR will fail with polling
                     if (rq.transport != 'polling') {
-                        _onError("XDR error");
+                        _clearState();
+                        if (_requestCount++ < rq.maxReconnectOnClose) {
+                           rq.id = setTimeout(function () {
+                               _open('re-connecting', request.transport, request);
+                               _ieXDR(rq);
+                            }, rq.reconnectInterval);
+                        } else {
+                            _onError(0, "maxReconnectOnClose reached");
+                        }
                     }
                 };
+
                 // Handles close event
                 xdr.onload = function () {
-                    handle(xdr);
                 };
 
                 var handle = function (xdr) {
-                    // XDomain loop forever on itself without this.
-                    // TODO: Clearly I need to come with something better than that solution
-                    var message = atmosphere.util.xdr.responseText;
+                    clearTimeout(rq.id);
+                    var message = xdr.responseText;
 
-                    if (rq.lastMessage == message) return;
+                    message = message.substring(lastIndex);
+                    lastIndex += message.length;
 
-                    if (transport == "streaming") {
-                        message = message.substring(lastIndex);
-                        lastIndex += message.length;
-                    }
+                    if (transport != 'polling') {
+                        rq.id = setTimeout(function () {
+                            _requestCount = rq.maxReconnectOnClose;
+                            _invokeClose(true);
+                            _disconnect();
+                            _clearState();
+                        }, rq.timeout);
 
-                    var reconnect = function () {
-                        if (rq.transport == "long-polling" && (rq.reconnect && (rq.maxRequest == -1 || rq.requestCount++ < rq.maxRequest))) {
-                            xdr.status = 200;
-                            if (message.length != 0) {
-                                _reconnect(xdr, rq, false);
-                            }
+                        var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+
+                        if (transport == 'long-polling' && atmosphere.util.trim(message) == 0) return;
+
+                        if (rq.executeCallbackBeforeReconnect) {
+                            reconnect();
                         }
-                    };
 
-                    var skipCallbackInvocation = _trackMessageSize(message, rq, _response);
+                        if (!skipCallbackInvocation) {
+                            _prepareCallback(_response.responseBody, "messageReceived", 200, transport);
+                        }
 
-                    if (rq.executeCallbackBeforeReconnect) {
-                        reconnect();
+                        if (!rq.executeCallbackBeforeReconnect) {
+                            reconnect();
+                        }
                     }
-
-                    if (!skipCallbackInvocation) {
-                        _prepareCallback(_response.responseBody, "messageReceived", 200, transport);
-                    }
-
-                    if (!rq.executeCallbackBeforeReconnect) {
-                        reconnect();
-                    }
-                    rq.lastMessage = message;
                 };
 
                 return {
@@ -1924,7 +1937,6 @@
                     },
                     close: function () {
                         xdr.abort();
-                        _prepareCallback(xdr.responseText, "closed", 200, transport);
                     }
                 };
             }
@@ -2656,12 +2668,53 @@
             };
         },
 
-        each: function (array, callback) {
-            var i;
+        each: function (obj, callback, args) {
+            var value,
+                i = 0,
+                length = obj.length,
+                isArray = atmosphere.util.isArray(obj);
 
-            for (i = 0; i < array.length; i++) {
-                callback(i, array[i]);
+            if (args) {
+                if (isArray) {
+                    for (; i < length; i++) {
+                        value = callback.apply(obj[ i ], args);
+
+                        if (value === false) {
+                            break;
+                        }
+                    }
+                } else {
+                    for (i in obj) {
+                        value = callback.apply(obj[ i ], args);
+
+                        if (value === false) {
+                            break;
+                        }
+                    }
+                }
+
+                // A special, fast, case for the most common use of each
+            } else {
+                if (isArray) {
+                    for (; i < length; i++) {
+                        value = callback.call(obj[ i ], i, obj[ i ]);
+
+                        if (value === false) {
+                            break;
+                        }
+                    }
+                } else {
+                    for (i in obj) {
+                        value = callback.call(obj[ i ], i, obj[ i ]);
+
+                        if (value === false) {
+                            break;
+                        }
+                    }
+                }
             }
+
+            return obj;
         },
 
         extend: function (target) {
@@ -2866,3 +2919,5 @@
 
 })
     ();
+
+
