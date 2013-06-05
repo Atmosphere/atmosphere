@@ -44,6 +44,10 @@ public interface FrameworkConfig {
      */
     String JGROUPS_BROADCASTER = "org.atmosphere.plugin.jgroups.JGroupsBroadcaster";
     /**
+     * The default RMI Broadcaster class
+     */
+    String RMI_BROADCASTER = "org.atmosphere.plugin.rmi.RMIBroadcaster";
+    /**
      * The default XMPP Broadcaster class
      */
     String XMPP_BROADCASTER = "org.atmosphere.plugin.xmpp.XMPPBroadcaster";
