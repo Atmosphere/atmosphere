@@ -290,7 +290,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             resource = (AtmosphereResourceImpl)
                     AtmosphereResourceFactory.getDefault().create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
         } else {
-            // TODO: This piece of code can be removed, but for backward compat with existing extension we needs it for now.
+            // TODO: REDESIGN, UGLY.
             try {
                 // Make sure it wasn't set before
                 resource.getBroadcaster();
