@@ -15,13 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import java.io.IOException;
-import java.lang.annotation.Annotation;
-import java.util.ArrayList;
-import java.util.List;
-
-import javax.servlet.Servlet;
-
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.config.managed.AnnotationServiceInterceptor;
 import org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor;
@@ -51,6 +44,12 @@ import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.Servlet;
+import java.io.IOException;
+import java.lang.annotation.Annotation;
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * A class that handles the results of an annotation scan. This class contains the logic that maps
@@ -193,6 +192,17 @@ public class AnnotationHandler {
                 Class<? extends BroadcasterCache> e = m.broadcasterCache();
                 if (e != null)
                     framework.setBroadcasterCacheClassName(e.getName());
+
+                Class<?>[] interceptors = m.interceptors();
+                List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+                for (Class i : interceptors) {
+                    try {
+                        AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
+                        l.add(ai);
+                    } catch (Throwable e2) {
+                        logger.warn("", e2);
+                    }
+                }
 
                 WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
                 p.registerWebSocketHandler(m.path(), s.newInstance());

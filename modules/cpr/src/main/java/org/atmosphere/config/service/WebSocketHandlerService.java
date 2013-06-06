@@ -16,6 +16,7 @@
 package org.atmosphere.config.service;
 
 import org.atmosphere.cache.DefaultBroadcasterCache;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
@@ -62,4 +63,10 @@ public @interface WebSocketHandlerService {
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
      */
     Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
+
+    /**
+     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install
+     */
+    Class<? extends AtmosphereInterceptor>[] interceptors() default {};
+
 }
