@@ -48,6 +48,10 @@ public interface FrameworkConfig {
      */
     String RMI_BROADCASTER = "org.atmosphere.plugin.rmi.RMIBroadcaster";
     /**
+     * The default RabbitMQ Broadcaster class
+     */
+    String RABBITMQ_BROADCASTER = "org.atmosphere.plugin.rabbitmq.RabbitMQBroadcaster";
+    /**
      * The default XMPP Broadcaster class
      */
     String XMPP_BROADCASTER = "org.atmosphere.plugin.xmpp.XMPPBroadcaster";
