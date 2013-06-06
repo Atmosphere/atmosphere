@@ -177,7 +177,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
                 throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
             }
-            handler = postProcessMapping(request, handler);
+            handler = postProcessMapping(webSocket, request, handler);
 
             // Force suspend.
             webSocket.webSocketHandler(handler).resource().suspend(-1);
@@ -210,7 +210,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
     }
 
-    protected WebSocketHandler postProcessMapping(AtmosphereRequest request, WebSocketHandler w) {
+    protected WebSocketHandler postProcessMapping(WebSocket webSocket, AtmosphereRequest request, WebSocketHandler w) {
 
         if (!wildcardMapping()) return w;
 
@@ -245,6 +245,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             } else {
                                 registerWebSocketHandler(path, w);
                             }
+                            webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(path, true));
                             return handlers.get(path);
                         } catch (Throwable e) {
                             logger.warn("Unable to create WebSocketHandler", e);
