@@ -487,7 +487,9 @@ public class DefaultBroadcaster implements Broadcaster {
      */
     @Override
     public Broadcaster addBroadcasterListener(BroadcasterListener b) {
-        broadcasterListeners.add(b);
+        if (!broadcasterListeners.contains(b)) {
+            broadcasterListeners.add(b);
+        }
         return this;
     }
 
