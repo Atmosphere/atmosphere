@@ -245,8 +245,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             } else {
                                 registerWebSocketHandler(path, w);
                             }
-                            webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(path, true));
-                            return handlers.get(path);
+                            w = handlers.get(path);
                         } catch (Throwable e) {
                             logger.warn("Unable to create WebSocketHandler", e);
                         }
@@ -254,6 +253,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
+        webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(path, true));
         return w;
     }
 
