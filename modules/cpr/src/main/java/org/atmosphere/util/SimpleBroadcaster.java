@@ -186,7 +186,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         invokeOnStateChange(r, e);
     }
 
-
     /**
      * {@inheritDoc}
      */

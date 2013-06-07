@@ -16,6 +16,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereHandlerConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -25,19 +27,22 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_NAMED_DISPATCHER;
-
 /**
+ * This class contains information about the current state of the {@link AtmosphereFramework}. You can also
+ * register {@link ShutdownHook}.
+ *
  * @author Sebastien Dionne : sebastien.dionne@gmail.com
+ * @author Jeanfrancois Arcand
  */
 public class AtmosphereConfig {
+    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereConfig.class);
 
     private final List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession;
-    private String dispatcherName = DEFAULT_NAMED_DISPATCHER;
     private final AtmosphereFramework framework;
     private final Map<String, Object> properties = new HashMap<String, Object>();
+    protected final List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
 
     public AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
@@ -47,26 +52,51 @@ public class AtmosphereConfig {
         return atmosphereHandlerConfig;
     }
 
+    /**
+     * Return the {@link AtmosphereFramework}
+     * @return the {@link AtmosphereFramework}
+     */
     public AtmosphereFramework framework() {
         return framework;
     }
 
+    /**
+     * Return the {@link ServletConfig}
+     * @return {@link ServletConfig}
+     */
     public ServletConfig getServletConfig() {
         return framework.getServletConfig();
     }
 
+    /**
+     * Return the {@link ServletContext}
+     * @return {@link ServletContext}
+     */
     public ServletContext getServletContext() {
         return framework.getServletContext();
     }
 
+    /**
+     * Return the current WebServer used.
+     * @return  the current WebServer used.
+     */
     public String getWebServerName() {
         return framework.getAsyncSupport().getContainerName();
     }
 
+    /**
+     * Return the list of {@link org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper}
+     * @return the list of {@link org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper}
+     */
     public Map<String, AtmosphereFramework.AtmosphereHandlerWrapper> handlers() {
         return framework.getAtmosphereHandlers();
     }
 
+    /**
+     * Return the value of the init paramsdefined in web.xml or application.xml
+     * @param name the name
+     * @return the list of init params defined in web.xml or application.xml
+     */
     public String getInitParameter(String name) {
         try {
             return framework.getServletConfig().getInitParameter(name);
@@ -76,14 +106,26 @@ public class AtmosphereConfig {
         }
     }
 
+    /**
+     * Return all init param.
+     * @return
+     */
     public Enumeration<String> getInitParameterNames() {
         return framework().getServletConfig().getInitParameterNames();
     }
 
+    /**
+     * Is {@link javax.servlet.http.HttpSession} supported.
+     * @return {@link javax.servlet.http.HttpSession} supported.
+     */
     public boolean isSupportSession() {
         return supportSession;
     }
 
+    /**
+     * Enable/Disable {@link javax.servlet.http.HttpSession}
+     * @param supportSession
+     */
     public void setSupportSession(boolean supportSession) {
         this.supportSession = supportSession;
     }
@@ -97,16 +139,43 @@ public class AtmosphereConfig {
         return framework.getBroadcasterFactory();
     }
 
-    public String getDispatcherName() {
-        return dispatcherName;
-    }
-
-    public void setDispatcherName(String dispatcherName) {
-        this.dispatcherName = dispatcherName;
-    }
-
+    /**
+     * Return the {@link Map} of Applications's Properties.
+     * @return the {@link Map} of Applications's Properties.
+     */
     public Map<String, Object> properties() {
         return properties;
     }
 
+    /**
+     * Invoke {@link ShutdownHook}
+     */
+    protected void destroy() {
+        for (ShutdownHook h : shutdownHooks) {
+            try {
+                h.shutdown();
+            }catch (Exception ex) {
+                logger.warn("", ex);
+            }
+        }
+    }
+
+    /**
+     * Add a {@link ShutdownHook}
+     * @param s a {@link ShutdownHook}
+     * @return this
+     */
+    public AtmosphereConfig shutdownHook(ShutdownHook s) {
+        shutdownHooks.add(s);
+        return this;
+    }
+
+    /**
+     * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An
+     * Application can register one of more hook.
+     */
+    public static interface ShutdownHook {
+
+        void shutdown();
+    }
 }

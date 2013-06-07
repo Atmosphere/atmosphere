@@ -1165,6 +1165,9 @@ public class AtmosphereFramework implements ServletContextProvider {
             handlerWrapper.atmosphereHandler.destroy();
         }
 
+        // Invoke ShutdownHook.
+        config.destroy();
+
         BroadcasterFactory factory = broadcasterFactory;
         if (factory != null) {
             factory.destroy();
@@ -2081,4 +2084,5 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
         }
     }
+
 }
