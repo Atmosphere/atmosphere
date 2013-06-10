@@ -978,6 +978,8 @@ public class DefaultBroadcaster implements Broadcaster {
             // The resource is no longer valid.
             removeAtmosphereResource(r);
             config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+            // Re-cache
+            cache = true;
         }
 
         // https://github.com/Atmosphere/atmosphere/issues/864
@@ -1062,15 +1064,16 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected boolean checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
-        retrieveTrackedBroadcast(r, e);
-        if (e.getMessage() instanceof List && !((List) e.getMessage()).isEmpty()) {
+        boolean cached = retrieveTrackedBroadcast(r, e);
+        if (!cached) return cached;
+
+        if (!((List) e.getMessage()).isEmpty()) {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
 
             List<Object> cacheMessages = (List) e.getMessage();
             BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
             if (cacheStrategy.equals(BroadcasterCache.STRATEGY.BEFORE_FILTER)) {
                 LinkedList<Object> filteredMessage = new LinkedList<Object>();
-                Entry entry;
                 Object newMessage;
                 for (Object o : cacheMessages) {
                     newMessage = filter(o);
@@ -1509,6 +1512,12 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param r AtmosphereResource
      */
     protected void cacheAndSuspend(AtmosphereResource r) {
+        // In case the connection is
+        if (!isAtmosphereResourceValid(r)) {
+            logger.debug("Unable to add AtmosphereResource {}", r.uuid());
+            return;
+        }
+
         if (resources.isEmpty()) {
             config.getBroadcasterFactory().add(this, name);
         }
