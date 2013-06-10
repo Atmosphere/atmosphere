@@ -1512,7 +1512,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param r AtmosphereResource
      */
     protected void cacheAndSuspend(AtmosphereResource r) {
-        // In case the connection is
+        // In case the connection is closed, for whatever reason
         if (!isAtmosphereResourceValid(r)) {
             logger.debug("Unable to add AtmosphereResource {}", r.uuid());
             return;
@@ -1542,7 +1542,6 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.debug("Unable to add AtmosphereResource {}", r.uuid());
         }
     }
-
 
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
         return !AtmosphereResourceImpl.class.cast(r).isResumed()
