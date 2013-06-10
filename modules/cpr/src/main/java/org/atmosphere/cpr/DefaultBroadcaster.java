@@ -979,7 +979,7 @@ public class DefaultBroadcaster implements Broadcaster {
             removeAtmosphereResource(r);
             config.getBroadcasterFactory().removeAllAtmosphereResource(r);
             // Re-cache
-            cache = true;
+            force = true;
         }
 
         // https://github.com/Atmosphere/atmosphere/issues/864
