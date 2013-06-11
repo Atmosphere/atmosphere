@@ -1222,7 +1222,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                         configureBroadcaster();
                     }
 
-                    if (handler == null) {
+                    if (handler != null) {
                         IntrospectionUtils.setProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
                         IntrospectionUtils.addProperty(handler, handlerProperty.getName(), handlerProperty.getValue());
                     }
