@@ -51,6 +51,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -85,7 +86,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final boolean executeAsync;
     private ExecutorService asyncExecutor;
     private ScheduledExecutorService scheduler;
-    private final Map<String, WebSocketHandler> handlers = new HashMap<String, WebSocketHandler>();
+    private final Map<String, WebSocketHandler> handlers = new ConcurrentHashMap<String, WebSocketHandler>();
     private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
     private final AtmosphereHandler voidHandler = new AtmosphereHandler() {
         @Override
