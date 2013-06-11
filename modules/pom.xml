@@ -21,7 +21,5 @@
         <module>cpr</module>
         <module>annotations</module>
         <module>jersey</module>
-        <module>jquery</module>
-        <module>javascript</module>
     </modules>
 </project>

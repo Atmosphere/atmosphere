@@ -34,11 +34,10 @@
             <artifactId>logback-core</artifactId>
             <version>${logback-version}</version>
         </dependency>
-
         <dependency>
-            <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-jquery</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.atmosphere.client</groupId>
+            <artifactId>jquery</artifactId>
+            <version>${client-version}</version>
             <type>war</type>
         </dependency>
     </dependencies>

@@ -14,9 +14,9 @@
     <url>http://maven.apache.org</url>
     <dependencies>
         <dependency>
-            <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-javascript</artifactId>
-            <version>${project.version}</version>
+            <groupId>org.atmosphere.client</groupId>
+            <artifactId>javascript</artifactId>
+            <version>${client-version}</version>
             <type>war</type>
         </dependency>
         <dependency>

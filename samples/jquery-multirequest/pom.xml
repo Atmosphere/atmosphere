@@ -30,12 +30,12 @@
 	</properties>
 
 	<dependencies>
-		<dependency>
-			<groupId>org.atmosphere</groupId>
-			<artifactId>atmosphere-jquery</artifactId>
-			<version>${project.version}</version>
-			<type>war</type>
-		</dependency>
+        <dependency>
+            <groupId>org.atmosphere.client</groupId>
+            <artifactId>jquery</artifactId>
+            <version>${client-version}</version>
+            <type>war</type>
+        </dependency>
 		<dependency>
 			<groupId>org.atmosphere</groupId>
 			<artifactId>atmosphere-jersey</artifactId>
