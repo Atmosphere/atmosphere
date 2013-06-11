@@ -298,12 +298,14 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             }
         } else {
             if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
+                AtmosphereResource r = webSocket.resource();
                 try {
                     webSocketHandler.onTextMessage(webSocket, webSocketMessage);
                 } catch (Exception ex) {
+                    logger.error("", ex);
                     webSocketHandler.onError(webSocket, new WebSocketException(ex,
                             new AtmosphereResponse.Builder()
-                                    .request(webSocket.resource().getRequest())
+                                    .request(r != null ? r.getRequest() : null)
                                     .status(500)
                                     .statusMessage("Server Error").build()));
                 }
