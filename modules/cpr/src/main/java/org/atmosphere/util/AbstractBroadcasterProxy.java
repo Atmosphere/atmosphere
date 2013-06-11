@@ -131,12 +131,9 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         start();
 
-        Object newMsg = filter(msg);
-        if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg, this);
         try {
             outgoingBroadcast(msg);
-            push(new Entry(newMsg, f, false));
         } finally {
             futureDone(f);
         }
@@ -155,12 +152,9 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         start();
 
-        Object newMsg = filter(msg);
-        if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg, this);
         try {
             outgoingBroadcast(msg);
-            push(new Entry(newMsg, r, f, false));
         } finally {
             futureDone(f);
         }
@@ -179,13 +173,9 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         start();
 
-        Object newMsg = filter(msg);
-        if (newMsg == null) return null;
-
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg, this);
         try {
             outgoingBroadcast(msg);
-            push(new Entry(newMsg, subset, f, false));
         } finally {
             futureDone(f);
         }
