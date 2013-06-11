@@ -298,16 +298,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             }
         } else {
             if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
-                AtmosphereResource r = webSocket.resource();
                 try {
                     webSocketHandler.onTextMessage(webSocket, webSocketMessage);
                 } catch (Exception ex) {
-                    logger.error("", ex);
-                    webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                            new AtmosphereResponse.Builder()
-                                    .request(r != null ? r.getRequest() : null)
-                                    .status(500)
-                                    .statusMessage("Server Error").build()));
+                    handleException(ex, webSocket, webSocketHandler);
                 }
             } else {
                 logger.debug("The WebServer doesn't support streaming. Wrapping the message as stream.");
@@ -336,16 +330,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             }
         } else {
             if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
-                AtmosphereResource r = webSocket.resource();
                 try {
                     webSocketHandler.onByteMessage(webSocket, data, offset, length);
                 } catch (Exception ex) {
-                    logger.error("", ex);
-                    webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                            new AtmosphereResponse.Builder()
-                                    .request(r != null ? r.getRequest() : null)
-                                    .status(500)
-                                    .statusMessage("Server Error").build()));
+                    handleException(ex, webSocket, webSocketHandler);
                 }
             } else {
                 logger.debug("The WebServer doesn't support streaming. Wrapping the message as stream.");
@@ -354,6 +342,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             }
         }
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<byte[]>(data, MESSAGE, webSocket));
+    }
+
+    private void handleException(Exception ex, WebSocket webSocket, WebSocketHandler webSocketHandler) {
+        AtmosphereResource r = webSocket.resource();
+        webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                new AtmosphereResponse.Builder()
+                        .request(r != null ? r.getRequest() : null)
+                        .status(500)
+                        .statusMessage("Server Error").build()));
     }
 
     /**
@@ -381,11 +378,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
             }
         } catch (Exception ex) {
-            webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                    new AtmosphereResponse.Builder()
-                            .request(webSocket.resource().getRequest())
-                            .status(500)
-                            .statusMessage("Server Error").build()));
+            handleException(ex, webSocket, webSocketHandler);
         }
 
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<InputStream>(stream, MESSAGE, webSocket));
@@ -416,11 +409,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         } catch (Exception ex) {
-            webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                    new AtmosphereResponse.Builder()
-                            .request(webSocket.resource().getRequest())
-                            .status(500)
-                            .statusMessage("Server Error").build()));
+            handleException(ex, webSocket, webSocketHandler);
         }
 
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<Reader>(reader, MESSAGE, webSocket));
