@@ -345,6 +345,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     private void handleException(Exception ex, WebSocket webSocket, WebSocketHandler webSocketHandler) {
+        logger.error("", ex);
         AtmosphereResource r = webSocket.resource();
         webSocketHandler.onError(webSocket, new WebSocketException(ex,
                 new AtmosphereResponse.Builder()
