@@ -651,8 +651,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (resource() != null) {
             // UGLY, but we need to prevent looping here.
             HttpSession session = AtmosphereResourceImpl.class.cast(resource()).session;
-            if (session != null) {
-                return session;
+            try {
+            	if (session != null && (session.isNew() || true)) {
+            		return session;
+            	}
+            }
+            catch (IllegalStateException e) {
+            	// session has been invalidated
             }
         }
 
@@ -1218,7 +1223,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
-    private final static class NoOpsRequest implements HttpServletRequest {
+    final static class NoOpsRequest implements HttpServletRequest {
 
         public HttpSession fake;
 
@@ -1330,7 +1335,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         @Override
         public HttpSession getSession(boolean create) {
             if (create && fake == null) {
-                fake = new FakeHttpSession("", null, System.currentTimeMillis(), -1);
+                fake = new FakeHttpSession("", null, System.currentTimeMillis(), -1) {
+                	@Override
+                	public void invalidate() {
+                		fake = null;
+                		super.invalidate();
+                	}
+                };
             }
             return fake;
         }

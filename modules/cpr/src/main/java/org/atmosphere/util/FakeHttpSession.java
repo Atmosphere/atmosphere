@@ -28,6 +28,7 @@ public class FakeHttpSession implements HttpSession {
     private final String sessionId;
     private final ServletContext servletContext;
     private int maxInactiveInterval;
+    private boolean valid = true;
 
     public FakeHttpSession(String sessionId, ServletContext servletContext, long creationTime, int maxInactiveInterval) {
         this.sessionId = sessionId;
@@ -136,13 +137,14 @@ public class FakeHttpSession implements HttpSession {
         return this;
     }
 
-    // TODO: Not supported for now.
     @Override
     public void invalidate() {
+    	valid = false;
     }
 
     @Override
     public boolean isNew() {
+    	if (!valid) throw new IllegalStateException();
         return false;
     }
 
