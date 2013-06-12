@@ -652,8 +652,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             // UGLY, but we need to prevent looping here.
             HttpSession session = AtmosphereResourceImpl.class.cast(resource()).session;
             try {
-            	if (session != null && (session.isNew() || true)) {
-            		return session;
+            	if (session != null) {
+                    // check if session is valid (isNew() will throw if not)
+                    session.isNew();
+                    return session;
             	}
             }
             catch (IllegalStateException e) {
