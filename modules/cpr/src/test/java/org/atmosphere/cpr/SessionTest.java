@@ -16,11 +16,13 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.AtmosphereRequest.NoOpsRequest;
 import org.atmosphere.util.FakeHttpSession;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
@@ -67,6 +69,24 @@ public class SessionTest {
                 mock(AsyncSupport.class));
 
         assertNotNull(r.session());
+        assertNotNull(r.session(true));
+    }
+    
+    @Test
+    public void sessionReplacementTest() {
+    	AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+    	config.setSupportSession(true);
+    	
+    	HttpServletRequest httpRequest = new NoOpsRequest();
+        AtmosphereRequest request = new AtmosphereRequest.Builder().request(httpRequest).session(httpRequest.getSession(true)).build();
+        AtmosphereResponse response = new AtmosphereResponse.Builder().build();
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(config, request, response, mock(AsyncSupport.class));
+        
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);
+
+        assertNotNull(request.getSession());
+        request.getSession().invalidate();
+        assertNull(request.getSession(false));
         assertNotNull(r.session(true));
     }
 }
