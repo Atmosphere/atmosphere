@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.handler.ReflectorServletProcessor;
@@ -92,6 +93,7 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
      * @return
      */
     protected void mapAnnotatedService(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
+        Broadcaster b = w.broadcaster;
 
         String path;
         String pathInfo = null;
@@ -112,7 +114,9 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
         }
 
         // Remove the Broadcaster with curly braces
-        config.getBroadcasterFactory().remove(w.broadcaster.getID());
+        if (b.getID().contains("{")) {
+            config.getBroadcasterFactory().remove(b.getID());
+        }
 
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {

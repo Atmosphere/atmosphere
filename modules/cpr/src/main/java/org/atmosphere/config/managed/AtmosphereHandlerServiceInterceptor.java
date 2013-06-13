@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +49,7 @@ public class AtmosphereHandlerServiceInterceptor extends AtmosphereInterceptorAd
         AtmosphereRequest request = r.getRequest();
         AtmosphereHandlerWrapper w =  (AtmosphereHandlerWrapper)
                         r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
+        Broadcaster b = w.broadcaster;
 
         String path;
         String pathInfo = null;
@@ -68,7 +70,9 @@ public class AtmosphereHandlerServiceInterceptor extends AtmosphereInterceptorAd
         }
 
         // Remove the Broadcaster with curly braces
-        config.getBroadcasterFactory().remove(w.broadcaster.getID());
+        if (b.getID().contains("{")) {
+            config.getBroadcasterFactory().remove(b.getID());
+        }
 
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {

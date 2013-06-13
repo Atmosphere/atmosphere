@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
@@ -63,6 +64,7 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
      * @return
      */
     protected void mapAnnotatedService(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
+        Broadcaster b = w.broadcaster;
 
         String path;
         String pathInfo = null;
@@ -83,7 +85,9 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         // Remove the Broadcaster with curly braces
-        config.getBroadcasterFactory().remove(w.broadcaster.getID());
+        if (b.getID().contains("{")) {
+            config.getBroadcasterFactory().remove(b.getID());
+        }
 
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
