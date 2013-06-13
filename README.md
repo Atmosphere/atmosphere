@@ -9,13 +9,13 @@ The Atmosphere Framework Stack consists of:
                                
 ![alt text](http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack")
 
-Don't want to use a JavaEE server? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
-
-Looking for a Java Client for working with Atmosphere, Andoid or Node.js? Look at [wAsync](https://github.com/Atmosphere/wasync)
+Using the Netty Framework? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
 
 Using the Play Framework? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-play)
 
 Using Vert.x? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-vertx)
+
+The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, WebSphere, WebLogic etc.
 
 Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions)
 
@@ -58,12 +58,12 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
          <version>1.0.13</version>
       </dependency>
 ```
-```
+
 [Top](#Top)
 
 #### RoadMap
 
-Atmosphere 1.0.13 is our official release, and our work in progress version is 1.1, targeted for end of End of May 2013
+Atmosphere 1.0.13 is our official release, and our work in progress version is 1.1, targeted for end of End of June 2013
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
