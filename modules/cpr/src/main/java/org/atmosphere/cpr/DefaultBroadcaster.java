@@ -884,21 +884,19 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             event.setMessage(token.msg);
 
-            bc.getBroadcasterCache().clearCache(getID(), r, token.cache);
-
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
-                logger.trace("AtmosphereResource {} state is invalid for Broadcaster {}. ", r.uuid(), name);
+                logger.debug("AtmosphereResource {} state is invalid for Broadcaster {}. ", r.uuid(), name);
                 removeAtmosphereResource(r);
-                lostCandidate = true;
                 return;
             }
 
+            bc.getBroadcasterCache().clearCache(getID(), r, token.cache);
             try {
                 r.getRequest().setAttribute(getID(), token.future);
                 r.getRequest().setAttribute(MAX_INACTIVE, System.currentTimeMillis());
             } catch (Throwable t) {
-                logger.warn("Invalid AtmosphereResource state {}. The connection has been remotely" +
+                logger.debug("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
                 logger.trace("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
                 logger.trace("", t);
