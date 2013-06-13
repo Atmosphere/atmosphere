@@ -1191,6 +1191,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             return;
         }
 
+        logger.info("Found Atmosphere Configuration under {}", atmosphereDotXmlPath);
         AtmosphereConfigReader.getInstance().parse(config, stream);
         AtmosphereHandler handler = null;
         for (AtmosphereHandlerConfig atmoHandler : config.getAtmosphereHandlerConfig()) {
