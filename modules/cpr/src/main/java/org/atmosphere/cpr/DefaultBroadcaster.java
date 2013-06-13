@@ -1192,7 +1192,10 @@ public class DefaultBroadcaster implements Broadcaster {
 
         start();
         Object newMsg = filter(msg);
-        if (newMsg == null) return futureDone(msg);
+        if (newMsg == null) {
+            logger.debug("Broadcast Interrupted {}", msg);
+            return futureDone(msg);
+        }
 
         int callee = resources.size() == 0 ? 1 : resources.size();
 
