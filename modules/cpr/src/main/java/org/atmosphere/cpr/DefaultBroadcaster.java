@@ -793,8 +793,18 @@ public class DefaultBroadcaster implements Broadcaster {
 
         entry.message = finalMsg;
 
+
+        // https://github.com/Atmosphere/atmosphere/issues/864
+        // Cache the message before executing any operation.
+        // TODO: This won't work with AFTER_FILTER, but anyway the message will be processed when retrieved from the cache
+        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+        if (uuidCache) {
+            entry.cache = UUIDBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, entry.originalMessage);
+        }
+
+        // We cache first, and if the broadcast succeed, we will remove it.
         if (resources.isEmpty()) {
-            boolean continueProcessing = true;
+            boolean continueProcessing;
             if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
                 synchronized (resources) {
                     continueProcessing = invokeFiltersAndCache(entry);
@@ -804,15 +814,6 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             if (!continueProcessing) return;
         }
-
-        // https://github.com/Atmosphere/atmosphere/issues/864
-        // Cache the message before executing any operation.
-        // TODO: This won't work with AFTER_FILTER, but anyway the message will be processed when retrieved from the cache
-        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        if (uuidCache) {
-            entry.cache = UUIDBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, entry.originalMessage);
-        }
-        // We cache first, and if the broadcast succeed, we will remove it.
 
         try {
 
@@ -827,7 +828,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     finalMsg = perRequestFilter(r, entry, true);
 
                     if (finalMsg == null) {
-                        logger.debug("Skipping broadcast delivery resource {} ", r);
+                        logger.debug("Skipping broadcast delivery for resource {} ", r.uuid());
                         continue;
                     }
 
@@ -854,7 +855,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         finalMsg = perRequestFilter(r, entry, true);
 
                         if (finalMsg == null) {
-                            logger.debug("Skipping broadcast delivery resource {} ", r);
+                            logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
                             continue;
                         }
 
@@ -894,7 +895,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (bc.hasPerRequestFilters()) {
                     logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
                 }
-                perRequestFilter(r, entry, true, true);
+                perRequestFilter(r, entry, true);
             } else {
                 trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry.originalMessage);
             }
@@ -951,10 +952,6 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
-        return perRequestFilter(r, msg, cache, false);
-    }
-
-    protected Object perRequestFilter(AtmosphereResource r, Entry msg, boolean cache, boolean force) {
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
             logger.trace("Null AtmosphereResource passed inside a Set");
@@ -962,7 +959,6 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         Object finalMsg = msg.message;
-
         if (isAtmosphereResourceValid(r)) {
             if (bc.hasPerRequestFilters()) {
                 BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
@@ -973,22 +969,16 @@ public class DefaultBroadcaster implements Broadcaster {
                     finalMsg = a.message();
                 }
             }
-        } else {
-            logger.warn("Request is not longer valid {}", r.uuid());
-            // The resource is no longer valid.
-            removeAtmosphereResource(r);
-            config.getBroadcasterFactory().removeAllAtmosphereResource(r);
-            // Re-cache
-            force = true;
         }
 
         // https://github.com/Atmosphere/atmosphere/issues/864
         // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
-        cache = force || (!uuidCache && cache);
+        cache = !uuidCache && cache;
 
         boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
         if (cache && after) {
             trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, after ? finalMsg : msg.originalMessage);
+            return finalMsg;
         }
         return finalMsg;
     }
@@ -1014,19 +1004,18 @@ public class DefaultBroadcaster implements Broadcaster {
         try {
             event.setMessage(token.msg);
 
+            // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
+            if (!isAtmosphereResourceValid(r)) {
+                logger.trace("AtmosphereResource {} state is invalid for Broadcaster {}", r.uuid(), name);
+                removeAtmosphereResource(r);
+                return;
+            }
+
             // https://github.com/Atmosphere/atmosphere/issues/864
             // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
             BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
             if (uuidCache) {
                 UUIDBroadcasterCache.class.cast(broadcasterCache).clearCache(getID(), r, token.cache);
-            }
-
-            // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
-            if (!isAtmosphereResourceValid(r)) {
-                logger.trace("AtmosphereResource {} state is invalid for Broadcaster {}", r.uuid(), name);
-                removeAtmosphereResource(r);
-                lostCandidate = true;
-                return;
             }
 
             try {
@@ -1100,10 +1089,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     prepareInvokeOnStateChange(r, e);
                 } catch (Throwable t) {
-                    // An exception occured
+                    // An exception occurred
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
-                    for (Object o : cacheMessages) {
+                    for (Object o : (List)e.getMessage()) {
                         bc.getBroadcasterCache().addToCache(getID(), r, o);
                     }
                     return true;
