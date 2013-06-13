@@ -859,7 +859,7 @@ public class DefaultBroadcaster implements Broadcaster {
             removeAtmosphereResource(r);
             config.getBroadcasterFactory().removeAllAtmosphereResource(r);
 
-            bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(msg));
+            bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(msg.originalMessage));
             return false;
         }
         return true;
