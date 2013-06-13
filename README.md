@@ -1,6 +1,3 @@
-# Commercial support now available!
-Thanks to the growing popularity of the framework, Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
-
 ## Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Application. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all majors [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers)
 
@@ -8,11 +5,17 @@ The Atmosphere Framework contains client and server side components for building
 
 Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
+![alt text](http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack")
+
 Don't want to use a JavaEE server? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
 
 Looking for a Java Client for working with Atmosphere, Andoid or Node.js? Look at [wAsync](https://github.com/Atmosphere/wasync)
-
 Using the Play Framework? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-play)
+Using Vert.x? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-vertx)
+Using another framework? Look at [our plugin](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions)
+
+## Commercial support now available!
+Thanks to the growing popularity of the framework, Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
 
 ### Tutorial
 
