@@ -751,10 +751,10 @@ public class DefaultBroadcaster implements Broadcaster {
             switch (entry.type) {
                 case ALL:
                     for (AtmosphereResource r : resources) {
-                        boolean deliverMessage = perRequestFilter(r, entry);
+                        boolean deliverMessage = perRequestFilter(r, entry, false);
 
                         if (!deliverMessage || entry.message == null) {
-                            logger.debug("Skipping broadcast delivery resource {} ", r);
+                            logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
                             continue;
                         }
 
@@ -764,10 +764,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                     break;
                 case RESOURCE:
-                    boolean deliverMessage = perRequestFilter(entry.resource, entry);
+                    boolean deliverMessage = perRequestFilter(entry.resource, entry, false);
 
                     if (!deliverMessage || entry.message == null) {
-                        logger.debug("Skipping broadcast delivery resource {} ", entry.resource);
+                        logger.debug("Skipping broadcast delivery resource {} ", entry.resource.uuid());
                         return;
                     }
 
@@ -777,10 +777,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     break;
                 case SET:
                     for (AtmosphereResource r : entry.resources) {
-                        deliverMessage = perRequestFilter(r, entry);
+                        deliverMessage = perRequestFilter(r, entry, false);
 
                         if (!deliverMessage || entry.message == null) {
-                            logger.debug("Skipping broadcast delivery resource {} ", r);
+                            logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
                             continue;
                         }
 
@@ -838,7 +838,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected boolean perRequestFilter(AtmosphereResource r, Entry msg) {
+    protected boolean perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
             logger.trace("Null AtmosphereResource passed inside a Set");
@@ -854,12 +854,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 msg.message = a.message();
             }
         } else {
-            logger.warn("Request is not longer valid {}", r.uuid());
-            // The resource is no longer valid.
-            removeAtmosphereResource(r);
-            config.getBroadcasterFactory().removeAllAtmosphereResource(r);
-
-            bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(msg.originalMessage));
+            logger.warn("Request is no longer valid {}, Message {} will be cached", r.uuid(), msg.originalMessage);
+            if (cache) {
+                bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(msg.originalMessage));
+            }
             return false;
         }
         return true;
@@ -951,8 +949,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 entry = new Entry(newMessage, r, f, o);
                 // Can be aborted by a Filter
-                if (!perRequestFilter(r, entry)) {
-                    return false;
+                if (!perRequestFilter(r, entry, true)) {
+                    continue;
                 }
 
                 if (entry.message != null) {
