@@ -10,12 +10,15 @@ Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Pol
 Don't want to use a JavaEE server? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
 
 Looking for a Java Client for working with Atmosphere, Andoid or Node.js? Look at [wAsync](https://github.com/Atmosphere/wasync)
+
 Using the Play Framework? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-play)
+
 Using Vert.x? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-vertx)
+
 Using another framework? Look at [our plugin](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions)
 
 ## Commercial support now available!
-Thanks to the growing popularity of the framework, Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
+Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
 
 ### Tutorial
 
