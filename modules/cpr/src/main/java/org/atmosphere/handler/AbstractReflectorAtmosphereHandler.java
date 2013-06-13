@@ -62,6 +62,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
@@ -94,7 +96,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
         Object message = event.getMessage();
         AtmosphereResponse r = event.getResource().getResponse();
-        if (message == null || event.isCancelled() || event.getResource().getRequest().destroyed()) return;
+        if (message == null || event.isCancelled() || event.isResuming() || event.getResource().getRequest().destroyed()) return;
 
         if (event.getResource().getSerializer() != null) {
             try {
@@ -112,9 +114,9 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             }
         } else {
             boolean isUsingStream = true;
-
-            if (event.getResource().getRequest().getAttribute(PROPERTY_USE_STREAM) != null) {
-                isUsingStream = (Boolean) event.getResource().getRequest().getAttribute(PROPERTY_USE_STREAM);
+            Object o = event.getResource().getRequest().getAttribute(PROPERTY_USE_STREAM);
+            if (o != null) {
+                isUsingStream = (Boolean)o;
             }
 
             if (!isUsingStream) {
@@ -126,14 +128,27 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             }
 
             if (message instanceof List) {
-                for (String s : (List<String>) message) {
-                    if (isUsingStream) {
-                       r.getOutputStream().write(s.getBytes(r.getCharacterEncoding()));
-                       r.getOutputStream().flush();
-                    } else {
-                       r.getWriter().write(s);
-                       r.getWriter().flush();
+                Iterator<String> i = ((List)message).iterator();
+                try {
+                    String s;
+                    while(i.hasNext()) {
+                        s = i.next();
+                        if (isUsingStream) {
+                            r.getOutputStream().write(s.getBytes(r.getCharacterEncoding()));
+                        } else {
+                            r.getWriter().write(s);
+                        }
+                        i.remove();
                     }
+                } catch (IOException ex) {
+                    event.setMessage(new ArrayList<String>().addAll((List)message));
+                    throw ex;
+                }
+
+                if (isUsingStream) {
+                   r.getOutputStream().flush();
+                } else {
+                   r.getWriter().flush();
                 }
             } else {
                 if (isUsingStream) {
@@ -153,9 +168,14 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
-        if (event.isResuming()) return;
+        if (event.isResuming() || event.isCancelled()) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+        // Between event.isCancelled and event.getResource(), the connection has been remotly closed.
+        if (r == null) {
+            logger.trace("Event {} returned a null AtmosphereResource", event);
+            return;
+        }
         Boolean resumeOnBroadcast = r.resumeOnBroadcast();
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
@@ -169,4 +189,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             r.resume();
         }
     }
+
+    @Override
+    public void destroy() {}
 }
