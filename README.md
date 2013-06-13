@@ -17,7 +17,7 @@ Using the Play Framework? Try our [Atmosphere's module](https://github.com/Atmos
 
 Using Vert.x? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-vertx)
 
-Using another framework? Look at [our plugin](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions)
+Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions)
 
 ### Commercial support now available!
 Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
