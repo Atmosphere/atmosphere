@@ -974,7 +974,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     // An exception occured
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
-                    for (Object o : cacheMessages) {
+                    for (Object o : (List)e.getMessage()) {
                         bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(o));
                     }
                     return true;

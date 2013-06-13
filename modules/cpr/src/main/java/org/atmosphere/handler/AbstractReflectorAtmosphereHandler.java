@@ -62,6 +62,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Iterator;
 import java.util.List;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
@@ -126,14 +128,27 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             }
 
             if (message instanceof List) {
-                for (String s : (List<String>) message) {
-                    if (isUsingStream) {
-                       r.getOutputStream().write(s.getBytes(r.getCharacterEncoding()));
-                       r.getOutputStream().flush();
-                    } else {
-                       r.getWriter().write(s);
-                       r.getWriter().flush();
+                Iterator<String> i = ((List)message).iterator();
+                try {
+                    String s;
+                    while(i.hasNext()) {
+                        s = i.next();
+                        if (isUsingStream) {
+                            r.getOutputStream().write(s.getBytes(r.getCharacterEncoding()));
+                        } else {
+                            r.getWriter().write(s);
+                        }
+                        i.remove();
                     }
+                } catch (IOException ex) {
+                    event.setMessage(new ArrayList<String>().addAll((List)message));
+                    throw ex;
+                }
+
+                if (isUsingStream) {
+                   r.getOutputStream().flush();
+                } else {
+                   r.getWriter().flush();
                 }
             } else {
                 if (isUsingStream) {
