@@ -1,10 +1,12 @@
-## Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
+### Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Application. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all majors [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers)
 
 <center>Follow us on [Twitter](http://www.twitter.com/atmo_framework) or get the latest news [here](http://jfarcand.wordpress.com)</center>
 
 Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
+The Atmosphere Framework Stack consists of: 
+                               
 ![alt text](http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack")
 
 Don't want to use a JavaEE server? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
@@ -17,7 +19,7 @@ Using Vert.x? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosp
 
 Using another framework? Look at [our plugin](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions)
 
-## Commercial support now available!
+### Commercial support now available!
 Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
 
 ### Tutorial
@@ -36,7 +38,7 @@ The Atmosphere's Framework ships with many examples describing how to implements
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>1.0.13</version>
+         <version>1.1.0.RC3</version>
       </dependency>
 ```
       
@@ -48,13 +50,14 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 [Top](#Top)
 
-### Help this community by testing our next release
+### Latest version
 ```xml
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>1.1.0.RC3</version>
+         <version>1.0.13</version>
       </dependency>
+```
 ```
 [Top](#Top)
 
