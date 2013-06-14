@@ -59,7 +59,7 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
 
                 // Block websocket closing detection
                 ss.getRequest().setAttribute(ASYNCHRONOUS_HOOK, null);
-                p.completeLifecycle(r, false);
+                p.completeLifecycle(ss, false);
             }
             return Action.CANCELLED;
         }
