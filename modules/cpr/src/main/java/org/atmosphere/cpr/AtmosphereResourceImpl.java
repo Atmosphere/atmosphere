@@ -222,6 +222,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     /**
      * Manually set the {@link TRANSPORT}
+     *
      * @param transport set the {@link TRANSPORT}
      * @return
      */
@@ -257,7 +258,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         boolean rob = resumeOnBroadcast.get();
         if (!rob) {
             Boolean b = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            return b ==  null ? false : b;
+            return b == null ? false : b;
         }
         return rob;
     }
@@ -291,7 +292,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     if (!b.isDestroyed()) {
                         broadcaster.removeAtmosphereResource(this);
                     }
-                 } catch (IllegalStateException ex) {
+                } catch (IllegalStateException ex) {
                     logger.warn("Unable to resume", this);
                     logger.debug(ex.getMessage(), ex);
                 }
@@ -782,13 +783,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public void _destroy() {
         try {
             removeEventListeners();
-            try {
-                getBroadcaster(false).removeAtmosphereResource(this);
-            } catch (IllegalStateException ex) {
-                logger.trace(ex.getMessage(), ex);
-            }
-            if (config.getBroadcasterFactory().getDefault() != null) {
-                config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+            if (!isCancelled.get()) {
+                try {
+                    getBroadcaster(false).removeAtmosphereResource(this);
+                } catch (IllegalStateException ex) {
+                    logger.trace(ex.getMessage(), ex);
+                }
+                if (config.getBroadcasterFactory().getDefault() != null){
+                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+                }
             }
         } catch (Throwable t) {
             logger.trace("destroyResource", t);
@@ -798,17 +801,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public String toString() {
         try {
-        return "AtmosphereResource{" +
-                "\n\t uuid=" + uuid +
-                ",\n\t transport=" + transport() +
-                ",\n\t isInScope=" + isInScope +
-                ",\n\t isResumed=" + isResumed() +
-                ",\n\t isCancelled=" + isCancelled() +
-                ",\n\t isSuspended=" + isSuspended() +
-                ",\n\t broadcaster=" + broadcaster.getID() + " size: " + broadcaster.getAtmosphereResources().size() +
-                ",\n\t atmosphereHandler=" + atmosphereHandler +
-                ",\n\t action=" + action +
-                '}';
+            return "AtmosphereResource{" +
+                    "\n\t uuid=" + uuid +
+                    ",\n\t transport=" + transport() +
+                    ",\n\t isInScope=" + isInScope +
+                    ",\n\t isResumed=" + isResumed() +
+                    ",\n\t isCancelled=" + isCancelled() +
+                    ",\n\t isSuspended=" + isSuspended() +
+                    ",\n\t broadcaster=" + broadcaster.getID() + " size: " + broadcaster.getAtmosphereResources().size() +
+                    ",\n\t atmosphereHandler=" + atmosphereHandler +
+                    ",\n\t action=" + action +
+                    '}';
         } catch (NullPointerException ex) {
             // Prevent logger
             return "AtmosphereResourceImpl{" + uuid + "}";
@@ -871,6 +874,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * <br/>
      * {@link AtmosphereResourceEventListener} marked with {@link org.atmosphere.interceptor.AllowInterceptor} will not
      * be affected by this property.
+     *
      * @param disableSuspendEvent
      * @return this
      */
@@ -882,6 +886,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * Return true is {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
      * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)} events are disabled.
+     *
      * @return true if disabled.
      */
     public boolean disableSuspendEvent() {
