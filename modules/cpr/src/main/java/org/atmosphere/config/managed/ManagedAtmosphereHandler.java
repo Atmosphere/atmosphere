@@ -145,11 +145,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             r.getRequest(false).setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, false);
         }
 
-        AtmosphereResource resource = event.getResource();
         if (event.isCancelled() || event.isClosedByClient()) {
-            invoke(onDisconnectMethod, resource);
+            invoke(onDisconnectMethod, event);
         } else if (event.isResumedOnTimeout() || event.isResuming()) {
-            invoke(onTimeoutMethod, resource);
+            invoke(onTimeoutMethod, event);
         } else {
             Object msg = event.getMessage();
             Object o;
