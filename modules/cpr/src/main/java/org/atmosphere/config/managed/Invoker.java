@@ -44,7 +44,7 @@ public class Invoker {
 
     public static Object invokeMethod(Method method, Object objectToInvoke, Object decodedObject) {
         Object objectToEncode = null;
-        boolean hasMatch = true;
+        boolean hasMatch = false;
         try {
             objectToEncode = method.invoke(objectToInvoke, new Object[]{decodedObject});
             hasMatch = true;
