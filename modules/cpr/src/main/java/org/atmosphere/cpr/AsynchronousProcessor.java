@@ -464,8 +464,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @param cancelled true if cancelled, false if timedout
      * @return true if the operation was executed.
      */
-    protected boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
-        if (r != null) {
+    public boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
+        if (r != null && !r.isCancelled()) {
             logger.trace("Finishing lifecycle for AtmosphereResource {}", r.uuid());
             final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
             synchronized (impl) {
@@ -475,21 +475,23 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         return false;
                     }
 
-                    if (cancelled) {
-                        impl.getAtmosphereResourceEvent().setCancelled(true);
-                    } else {
-                        impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(true);
+                    AtmosphereResourceEventImpl e = impl.getAtmosphereResourceEvent();
+                    if (!e.isClosedByClient()) {
+                        if (cancelled) {
+                            e.setCancelled(true);
+                        } else {
+                            e.setIsResumedOnTimeout(true);
 
-                        Broadcaster b = r.getBroadcaster();
-                        if (b instanceof DefaultBroadcaster) {
-                            ((DefaultBroadcaster) b).broadcastOnResume(r);
+                            Broadcaster b = r.getBroadcaster();
+                            if (b instanceof DefaultBroadcaster) {
+                                ((DefaultBroadcaster) b).broadcastOnResume(r);
+                            }
+
+                            // TODO: Was it there for legacy reason?
+                            // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
                         }
-
-                        // TODO: Was it there for legacy reason?
-                        // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
                     }
                     invokeAtmosphereHandler(impl);
-
                     try {
                         impl.getResponse().getOutputStream().close();
                     } catch (Throwable t) {

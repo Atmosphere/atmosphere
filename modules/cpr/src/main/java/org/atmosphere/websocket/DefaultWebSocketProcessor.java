@@ -488,7 +488,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                 h.timedOut();
                             }
                         } else if (webSocketHandler == null) {
-                            logger.warn("AsynchronousProcessor.AsynchronousProcessorHook was null");
+                            // Can happens when OnDisconnectInterceptor installed
+                            logger.trace("AsynchronousProcessor.AsynchronousProcessorHook was null");
                         }
 
                         resource.setIsInScope(false);

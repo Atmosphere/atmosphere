@@ -16,6 +16,7 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -27,7 +28,7 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
+import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 
 /**
  * When the browser close the connection, the atmosphere.js will send an unsubscribe message to tell
@@ -38,9 +39,11 @@ import java.io.IOException;
 public class OnDisconnectInterceptor implements AtmosphereInterceptor {
 
     private final Logger logger = LoggerFactory.getLogger(OnDisconnectInterceptor.class);
+    private AsynchronousProcessor p;
 
     @Override
     public void configure(AtmosphereConfig config) {
+        p = AsynchronousProcessor.class.cast(config.framework().getAsyncSupport());
     }
 
     @Override
@@ -52,17 +55,11 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
             logger.debug("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
             if (ss != null) {
-                ss.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(ss), false, false, true, null));
-                try {
-                    try {
-                        // https://github.com/Atmosphere/atmosphere/issues/983
-                        ss.getRequest().setAttribute(AtmosphereResourceImpl.PRE_SUSPEND, "");
-                    } finally {
-                        AtmosphereResourceImpl.class.cast(ss).cancel();
-                    }
-                } catch (Throwable e) {
-                    logger.trace("", e);
-                }
+                AtmosphereResourceEventImpl.class.cast(r.getAtmosphereResourceEvent()).isClosedByClient(true);
+
+                // Block websocket closing detection
+                ss.getRequest().setAttribute(ASYNCHRONOUS_HOOK, null);
+                p.completeLifecycle(r, false);
             }
             return Action.CANCELLED;
         }

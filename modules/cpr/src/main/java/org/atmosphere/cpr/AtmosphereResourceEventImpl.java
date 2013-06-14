@@ -140,8 +140,13 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      *
      * @param message The message broadcasted using {@link Broadcaster#broadcast(java.lang.Object)}
      */
-    public AtmosphereResourceEvent setMessage(Object message) {
+    public AtmosphereResourceEventImpl setMessage(Object message) {
         this.message = message;
+        return this;
+    }
+
+    public AtmosphereResourceEventImpl isClosedByClient(boolean isClosedByClient) {
+        this.isClosedByClient.set(isClosedByClient);
         return this;
     }
 
@@ -159,14 +164,14 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return isCancelled.get();
     }
 
-    protected AtmosphereResourceEvent setCancelled(boolean isCancelled) {
+    protected AtmosphereResourceEventImpl setCancelled(boolean isCancelled) {
         check();
         resource.action().type(Action.TYPE.CANCELLED);
         this.isCancelled.set(isCancelled);
         return this;
     }
 
-    protected AtmosphereResourceEvent setIsResumedOnTimeout(boolean isResumedOnTimeout) {
+    protected AtmosphereResourceEventImpl setIsResumedOnTimeout(boolean isResumedOnTimeout) {
         check();
         resource.action().type(Action.TYPE.TIMEOUT);
         this.isResumedOnTimeout.set(isResumedOnTimeout);
