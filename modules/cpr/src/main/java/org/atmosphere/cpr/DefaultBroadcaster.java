@@ -1466,7 +1466,7 @@ public class DefaultBroadcaster implements Broadcaster {
             removed = resources.remove(r);
             if (removed) {
                 if (r.isSuspended()) {
-                    logger.debug("Excluded from {} : {}", getID(), r.uuid());
+                    logger.trace("Excluded from {} : {}", getID(), r.uuid());
                     bc.getBroadcasterCache().excludeFromCache(getID(), r);
                 } else {
                     // Prevent OOM
