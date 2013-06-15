@@ -43,7 +43,9 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
 
     @Override
     public void configure(AtmosphereConfig config) {
-        p = AsynchronousProcessor.class.cast(config.framework().getAsyncSupport());
+        if (AsynchronousProcessor.class.isAssignableFrom(config.framework().getAsyncSupport().getClass())) {
+            p = AsynchronousProcessor.class.cast(config.framework().getAsyncSupport());
+        }
     }
 
     @Override
@@ -51,11 +53,11 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        if (s != null && uuid != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
+        if (p !=  null && s != null && uuid != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
             logger.debug("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
             if (ss != null) {
-                AtmosphereResourceEventImpl.class.cast(r.getAtmosphereResourceEvent()).isClosedByClient(true);
+                AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
                 // Block websocket closing detection
                 ss.getRequest().setAttribute(ASYNCHRONOUS_HOOK, null);
@@ -74,3 +76,4 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
         return "Browser disconnection detection";
     }
 }
+
