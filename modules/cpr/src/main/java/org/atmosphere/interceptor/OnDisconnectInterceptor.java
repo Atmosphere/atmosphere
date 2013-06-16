@@ -54,13 +54,13 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
         String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         if (p !=  null && s != null && uuid != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
-            logger.debug("AtmosphereResource {} disconnected", uuid);
+            logger.trace("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
             if (ss != null) {
-                AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
-
                 // Block websocket closing detection
                 ss.getRequest().setAttribute(ASYNCHRONOUS_HOOK, null);
+                AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
+
                 p.completeLifecycle(ss, false);
             }
             return Action.CANCELLED;

@@ -475,21 +475,16 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
-                    if (!resource.isCancelled()) {
-                        if (h != null) {
-                            // Tomcat and Jetty differ, same with browser
-                            if (closeCode == 1000 && framework.getAsyncSupport().getContainerName().contains("Tomcat")) {
-                                closeCode = 1005;
-                            }
+                    if (!resource.isCancelled() && h != null) {
+                        // Tomcat and Jetty differ, same with browser
+                        if (closeCode == 1000 && framework.getAsyncSupport().getContainerName().contains("Tomcat")) {
+                            closeCode = 1005;
+                        }
 
-                            if (closeCode == 1005) {
-                                h.closed();
-                            } else {
-                                h.timedOut();
-                            }
-                        } else if (webSocketHandler == null) {
-                            // Can happens when OnDisconnectInterceptor installed
-                            logger.trace("AsynchronousProcessor.AsynchronousProcessorHook was null");
+                        if (closeCode == 1005) {
+                            h.closed();
+                        } else {
+                            h.timedOut();
                         }
 
                         resource.setIsInScope(false);
