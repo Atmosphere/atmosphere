@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.concurrent.Callable;
-import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -105,6 +104,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                         response.write(paddingText, false);
                                     } catch (Throwable t) {
                                         logger.trace("{}", r.uuid(), t);
+                                        try {
+                                            r.close();
+                                        } catch (IOException e) {};
                                         writeFuture.cancel(false);
                                     }
                                 } else {
