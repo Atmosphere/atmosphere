@@ -31,12 +31,12 @@ public class SessionSupport implements HttpSessionListener {
 
     @Override
     public void sessionCreated(HttpSessionEvent se) {
-        logger.info("Session created");
+        logger.trace("Session created");
     }
 
     @Override
     public void sessionDestroyed(HttpSessionEvent se) {
-        logger.info("Session destroyed");
+        logger.trace("Session destroyed");
         try {
             HttpSession s = se.getSession();
             for (Broadcaster b : BroadcasterFactory.getDefault().lookupAll()) {
