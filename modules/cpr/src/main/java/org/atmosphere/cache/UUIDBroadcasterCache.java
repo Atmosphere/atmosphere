@@ -180,7 +180,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
      */
     public CacheMessage addCacheCandidate(String broadcasterId, AtmosphereResource r, Object e) {
         if (logger.isTraceEnabled()) {
-            logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
+            logger.trace("Adding for AtmosphereResource {} cached messages {} for Broadcaster " + broadcasterId, r != null ? r.uuid() : "null", e);
             logger.trace("Active clients {}", activeClients());
         }
 
@@ -261,7 +261,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     private void addMessage(String clientId, CacheMessage message) {
-        logger.debug("Adding message {} for client {}", clientId, message);
         ClientQueue clientQueue = messages.get(clientId);
         if (clientQueue == null) {
             clientQueue = new ClientQueue();
@@ -301,7 +300,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
         if (logger.isTraceEnabled()) {
             synchronized (messages) {
-                logger.trace("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
+                logger.trace("Retrieved for AtmosphereResource {} cached messages {} for broadcaster " + broadcasterId, r.uuid(), result);
                 logger.trace("Available cached message {}", messages);
             }
         }
@@ -315,7 +314,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         synchronized (messages) {
             clientQueue = messages.get(clientId);
             if (clientQueue != null) {
-                logger.debug("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
+                logger.trace("Removing for AtmosphereResource {} cached message {} for broadcaster " + broadcasterId, r.uuid(), message.getMessage());
                 clientQueue.getQueue().remove(message);
             }
         }
