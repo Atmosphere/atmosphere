@@ -15,8 +15,10 @@
  */
 package org.atmosphere.cpr;
 
+import java.util.Map;
+import java.util.WeakHashMap;
+
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
-import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 
 /**
@@ -27,8 +29,8 @@ import org.atmosphere.websocket.WebSocketProcessor;
 public class WebSocketProcessorFactory {
 
     private static WebSocketProcessorFactory factory;
-    private WebSocketProcessor webSocketprocessor;
-    private AtmosphereFramework framework;
+
+    private Map<AtmosphereFramework, WebSocketProcessor> processors = new WeakHashMap<AtmosphereFramework, WebSocketProcessor>();
 
     public final static synchronized WebSocketProcessorFactory getDefault() {
         if (factory == null) {
@@ -42,41 +44,48 @@ public class WebSocketProcessorFactory {
      * @param framework {@link AtmosphereFramework}
      * @return an instance of {@link WebSocketProcessor}
      */
-    public synchronized WebSocketProcessor getWebSocketProcessor(AtmosphereFramework framework) {
-        if (webSocketprocessor == null) {
-            this.framework = framework;
-            String webSocketProcessorName = framework.getWebSocketProcessorClassName();
-            if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
-                try {
-                    webSocketprocessor = (WebSocketProcessor) Thread.currentThread().getContextClassLoader()
-                            .loadClass(webSocketProcessorName).newInstance();
-                } catch (Exception ex) {
-                    try {
-                        webSocketprocessor = (WebSocketProcessor) getClass().getClassLoader()
-                                .loadClass(webSocketProcessorName).newInstance();
-                    } catch (Exception ex2) {
-                    }
-                }
-            }
-
-            if (webSocketprocessor == null) {
-                webSocketprocessor = new DefaultWebSocketProcessor(framework);
-            }
+    public synchronized WebSocketProcessor getWebSocketProcessor(
+            AtmosphereFramework framework) {
+        WebSocketProcessor processor = processors.get(framework);
+        if (processor == null) {
+            processor = createProcessor(framework);
+            processors.put(framework, processor);
         }
-
-        // More than one Atmosphere Application on the same JVM
-        if (!this.framework.equals(framework)) {
-            webSocketprocessor = new DefaultWebSocketProcessor(framework);
-        }
-
-        return webSocketprocessor;
+        return processor;
     }
 
     public synchronized void destroy() {
-        if (webSocketprocessor != null) {
-            webSocketprocessor.destroy();
-            webSocketprocessor = null;
+        for (WebSocketProcessor processor : processors.values()) {
+            processor.destroy();
         }
+        processors.clear();
     }
 
+    private WebSocketProcessor createProcessor(AtmosphereFramework framework) {
+        WebSocketProcessor processor = null;
+
+        String webSocketProcessorName = framework
+                .getWebSocketProcessorClassName();
+        if (!webSocketProcessorName
+                .equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
+            try {
+                processor = (WebSocketProcessor) Thread.currentThread()
+                        .getContextClassLoader()
+                        .loadClass(webSocketProcessorName).newInstance();
+            } catch (Exception ex) {
+                try {
+                    processor = (WebSocketProcessor) getClass()
+                            .getClassLoader().loadClass(webSocketProcessorName)
+                            .newInstance();
+                } catch (Exception ex2) {
+                }
+            }
+        }
+
+        if (processor == null) {
+            processor = new DefaultWebSocketProcessor(framework);
+        }
+
+        return processor;
+    }
 }
