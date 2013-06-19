@@ -18,12 +18,15 @@ package org.atmosphere.container.version;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
 
 public final class GrizzlyWebSocket extends WebSocket {
 
+    private static final Logger logger = LoggerFactory.getLogger(GrizzlyWebSocket.class);
     private final com.sun.grizzly.websockets.WebSocket webSocket;
 
     public GrizzlyWebSocket(com.sun.grizzly.websockets.WebSocket webSocket, AtmosphereConfig config) {
