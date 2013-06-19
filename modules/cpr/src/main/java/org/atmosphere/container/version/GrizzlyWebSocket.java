@@ -28,7 +28,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 public final class GrizzlyWebSocket extends WebSocket {
 
-    private static final Logger logger = LoggerFactory.getLogger(Jetty8WebSocket.class);
+    private static final Logger logger = LoggerFactory.getLogger(GrizzlyWebSocket.class);
     private final com.sun.grizzly.websockets.WebSocket webSocket;
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
 
