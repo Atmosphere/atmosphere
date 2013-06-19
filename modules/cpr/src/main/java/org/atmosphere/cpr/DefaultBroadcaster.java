@@ -929,7 +929,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected boolean checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         boolean cache = retrieveTrackedBroadcast(r, e);
 
-        if (!cache) return cache;
+        if (!cache) return false;
 
         if (!((List) e.getMessage()).isEmpty()) {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
