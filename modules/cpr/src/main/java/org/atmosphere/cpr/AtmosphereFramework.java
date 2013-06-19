@@ -1890,7 +1890,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                         l.onSuspend(request, response);
                         break;
                     case RESUME:
-                        l.onSuspend(request, response);
+                        l.onResume(request, response);
                         break;
                     case DESTROYED:
                         l.onDestroyed(request, response);
