@@ -75,6 +75,7 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
 /**
  * Base class which implement the semantics of suspending and resuming of a
@@ -276,7 +277,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // Do not allow times out.
             SessionTimeoutSupport.setupTimeout(req.getSession());
         }
-        logger.trace("Action for {} was {}", req.resource() != null ? req.resource().uuid() : "null", action);
+        logger.trace("Action for {} was {} with transport " + req.getHeader(X_ATMOSPHERE_TRANSPORT), req.resource() != null ? req.resource().uuid() : "null", action);
         return action;
     }
 
