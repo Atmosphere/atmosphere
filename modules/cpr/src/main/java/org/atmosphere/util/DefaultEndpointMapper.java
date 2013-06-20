@@ -88,7 +88,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
 
                 // (4) try without a path
                 if (handler == null) {
-                    String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
+                    String p = path.lastIndexOf("/") <= 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
                     while (p.length() > 0) {
                         handler = map(p, handlers);
 
@@ -131,7 +131,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
 
                 // (4) try without a path
                 if (handler == null) {
-                    String p = path.lastIndexOf("/") == 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
+                    String p = path.lastIndexOf("/")  <= 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
                     while (p.length() > 0 && p.indexOf("/") != -1) {
                         handler = match(p, handlers);
 
