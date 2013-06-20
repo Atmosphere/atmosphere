@@ -84,7 +84,8 @@ public class UUIDBroadcasterCacheTest {
         broadcaster.addAtmosphereResource(ar);
         broadcaster.broadcast("e3").get();
 
-        assertEquals(0, eventCacheBroadcasterCache.messages().size());
+        assertEquals(eventCacheBroadcasterCache.messages().size(), 1);
+        assertEquals(eventCacheBroadcasterCache.messages().get(ar.uuid()).getQueue().size(), 1);
     }
 
     @Test

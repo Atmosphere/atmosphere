@@ -103,7 +103,6 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  */
 public class DefaultBroadcaster implements Broadcaster {
 
-    public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
     public static final String ASYNC_TOKEN = DefaultBroadcaster.class.getName() + ".token";
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
@@ -580,7 +579,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     try {
-                        logger.trace("{} is about to broadcast {}", getID(), msg);
+                        logger.trace("{} is about to broadcast {} to " + resources, getID(), msg);
                         push(msg);
                     } catch (Throwable ex) {
                         if (!started.get() || destroyed.get()) {
@@ -819,7 +818,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             if (logger.isTraceEnabled()) {
                 for (AtmosphereResource r : resources) {
-                    logger.trace("AtmosphereResources available for {}", r.uuid());
+                    logger.trace("AtmosphereResources {} available for message {}", r.uuid(), entry);
                 }
             }
 
@@ -1025,7 +1024,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.warn("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
                 logger.trace("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
-                logger.trace("", t);
+                logger.trace("{}", r.uuid(), t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(r, false);
                 config.getBroadcasterFactory().removeAllAtmosphereResource(r);
@@ -1052,9 +1051,15 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
+    /**
+     * Return false if no cached messages has been found, true if cached.
+     * @param r
+     * @param e
+     * @return false if no cached messages has been found, true if cached.
+     */
     protected boolean checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         boolean cached = retrieveTrackedBroadcast(r, e);
-        if (!cached) return cached;
+        if (!cached) return false;
 
         if (!((List) e.getMessage()).isEmpty()) {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
@@ -1083,7 +1088,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 e.setMessage(cacheMessages);
             }
 
-            r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
@@ -1104,6 +1108,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 switch (r.transport()) {
+                    case UNDEFINED:
                     case JSONP:
                     case AJAX:
                     case LONG_POLLING:
@@ -1476,6 +1481,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 return this;
             }
 
+            if (!r.isSuspended()) {
+                logger.warn("AtmosphereResource {} is not suspended. If cached messages exists, this may cause unexpected situation. Suspend first", r.uuid());
+            }
+
             // Only synchronize if we have a valid BroadcasterCache
             if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
                 // In case we are adding messages to the cache, we need to make sure the operation is done before.
@@ -1486,7 +1495,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 cacheAndSuspend(r);
             }
         } finally {
-            // OK reset
+            // OK reset                                                                AsyncSupportListenerAdapter
             if (resources.size() > 0) {
                 synchronized (awaitBarrier) {
                     awaitBarrier.notifyAll();
