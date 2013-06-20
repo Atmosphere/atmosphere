@@ -297,7 +297,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     private void addMessage(String clientId, CacheMessage message) {
-        logger.trace("Adding message {} for client {}", clientId, message);
         ClientQueue clientQueue = messages.get(clientId);
         if (clientQueue == null) {
             clientQueue = new ClientQueue();

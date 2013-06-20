@@ -104,7 +104,6 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  */
 public class DefaultBroadcaster implements Broadcaster {
 
-    public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
     public static final String ASYNC_TOKEN = DefaultBroadcaster.class.getName() + ".token";
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
@@ -961,7 +960,6 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             e.setMessage(filteredMessage);
 
-            r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
@@ -982,6 +980,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 switch (r.transport()) {
+                    case UNDEFINED:
                     case JSONP:
                     case AJAX:
                     case LONG_POLLING:
@@ -1334,6 +1333,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 } else if (policy == POLICY.REJECT) {
                     throw new RejectedExecutionException(String.format("Maximum suspended AtmosphereResources %s", maxSuspendResource));
                 }
+            }
+
+            if (!r.isSuspended()) {
+                logger.warn("AtmosphereResource {} is not suspended. If cached messages exists, this may cause unexpected situation. Suspend first", r.uuid());
             }
 
             if (resources.contains(r)) {

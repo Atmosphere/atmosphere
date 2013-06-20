@@ -431,6 +431,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
                     Broadcaster broadcaster = (Broadcaster) servletReq.getAttribute(INJECTED_BROADCASTER);
                     // @Subscribe
+                    // TODO: Optimize me
                     if (action == Action.SUBSCRIBE) {
                         Class<Broadcaster> c = null;
                         try {

@@ -17,7 +17,6 @@ package org.atmosphere.jersey.util;
 
 import com.sun.jersey.spi.container.ContainerResponse;
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -53,9 +52,14 @@ public final class JerseyBroadcasterUtil {
         // or if ContainerResponse is associated with more than Broadcaster.
         cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
 
-        if (cr == null || r.isCancelled()) {
-            logger.debug("Unexpected state. ContainerResponse has been resumed or cancelled Caching message {} for {}",
-                    e.getMessage(), r.uuid());
+        if (cr == null || !r.isSuspended()) {
+            if (cr == null) {
+                logger.warn("Unexpected state. ContainerResponse has been resumed. Caching message {} for {}",
+                        e.getMessage(), r.uuid());
+            } else {
+                logger.warn("The AtmosphereResource {} hasn't been suspended yet.",
+                        r.uuid(), e);
+            }
 
             if (DefaultBroadcaster.class.isAssignableFrom(broadcaster.getClass())) {
                 DefaultBroadcaster.class.cast(broadcaster).cacheLostMessage(r, true);
