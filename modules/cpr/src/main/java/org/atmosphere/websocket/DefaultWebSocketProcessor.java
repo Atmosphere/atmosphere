@@ -363,7 +363,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
         try {
             if (webSocketHandler == null) {
-                if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+                if (WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
                     List<AtmosphereRequest> list = WebSocketProtocolStream.class.cast(webSocketProtocol).onBinaryStream(webSocket, stream);
                     dispatch(webSocket, list);
                 } else {
