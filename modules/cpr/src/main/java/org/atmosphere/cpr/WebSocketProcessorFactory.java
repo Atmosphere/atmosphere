@@ -30,7 +30,7 @@ public class WebSocketProcessorFactory {
 
     private static WebSocketProcessorFactory factory;
 
-    private Map<AtmosphereFramework, WebSocketProcessor> processors = new WeakHashMap<AtmosphereFramework, WebSocketProcessor>();
+    private final Map<AtmosphereFramework, WebSocketProcessor> processors = new WeakHashMap<AtmosphereFramework, WebSocketProcessor>();
 
     public final static synchronized WebSocketProcessorFactory getDefault() {
         if (factory == null) {
@@ -41,15 +41,18 @@ public class WebSocketProcessorFactory {
 
     /**
      * Return the {@link WebSocketProcessor}
+     *
      * @param framework {@link AtmosphereFramework}
      * @return an instance of {@link WebSocketProcessor}
      */
-    public synchronized WebSocketProcessor getWebSocketProcessor(
+    public WebSocketProcessor getWebSocketProcessor(
             AtmosphereFramework framework) {
         WebSocketProcessor processor = processors.get(framework);
         if (processor == null) {
-            processor = createProcessor(framework);
-            processors.put(framework, processor);
+            synchronized (framework) {
+                processor = createProcessor(framework);
+                processors.put(framework, processor);
+            }
         }
         return processor;
     }
