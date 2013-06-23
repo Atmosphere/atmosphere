@@ -81,7 +81,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     }
                 }
             }
-        }, timeout, timeout, TimeUnit.NANOSECONDS);
+        }, timeout, timeout, TimeUnit.MILLISECONDS);
     }
 
     @Override
