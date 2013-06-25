@@ -103,6 +103,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  */
 public class DefaultBroadcaster implements Broadcaster {
 
+    public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
     public static final String ASYNC_TOKEN = DefaultBroadcaster.class.getName() + ".token";
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
@@ -1088,6 +1089,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 e.setMessage(cacheMessages);
             }
 
+            r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
