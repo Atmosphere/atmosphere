@@ -82,7 +82,7 @@ public class ExcludeSessionBroadcaster
         }
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size(),  this);
-        messages.offer(new Entry(newMsg, sub, f, msg));
+        dispatchMessages(new Entry(newMsg, sub, f, msg));
         return f;
     }
 
