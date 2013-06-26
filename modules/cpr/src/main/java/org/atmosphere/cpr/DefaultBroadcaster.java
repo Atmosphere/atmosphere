@@ -896,7 +896,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
                 }
                 perRequestFilter(r, entry, true);
-            } else {
+            } else if (!uuidCache) {
                 trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry.originalMessage);
             }
             entryDone(entry.future);
