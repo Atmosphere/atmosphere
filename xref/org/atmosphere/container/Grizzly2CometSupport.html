@@ -235,36 +235,35 @@
 <a class="jxr_linenumber" name="225" href="#225">225</a>                 <strong class="jxr_keyword">if</strong> (ce.getCometContext().getExpirationDelay() &gt; 0
 <a class="jxr_linenumber" name="226" href="#226">226</a>                         &amp;&amp; (System.currentTimeMillis() - timeStamp) &gt;= ce.getCometContext().getExpirationDelay()) {
 <a class="jxr_linenumber" name="227" href="#227">227</a>                     timedout(req, res);
-<a class="jxr_linenumber" name="228" href="#228">228</a>                     grizzlyResponse.finish();
-<a class="jxr_linenumber" name="229" href="#229">229</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="230" href="#230">230</a>                     cancelled(req, res);
-<a class="jxr_linenumber" name="231" href="#231">231</a>                 }
-<a class="jxr_linenumber" name="232" href="#232">232</a>             } <strong class="jxr_keyword">catch</strong> (ServletException ex) {
-<a class="jxr_linenumber" name="233" href="#233">233</a>                 logger.warn(<span class="jxr_string">"onInterrupt() encountered exception"</span>, ex);
-<a class="jxr_linenumber" name="234" href="#234">234</a>             }
-<a class="jxr_linenumber" name="235" href="#235">235</a>         }
-<a class="jxr_linenumber" name="236" href="#236">236</a> 
-<a class="jxr_linenumber" name="237" href="#237">237</a>         @Override
-<a class="jxr_linenumber" name="238" href="#238">238</a>         <strong class="jxr_keyword">public</strong> Response getResponse() {
-<a class="jxr_linenumber" name="239" href="#239">239</a>             <strong class="jxr_keyword">return</strong> grizzlyResponse;
-<a class="jxr_linenumber" name="240" href="#240">240</a>         }
-<a class="jxr_linenumber" name="241" href="#241">241</a> 
-<a class="jxr_linenumber" name="242" href="#242">242</a>         @Override
-<a class="jxr_linenumber" name="243" href="#243">243</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setResponse(Response response) {
-<a class="jxr_linenumber" name="244" href="#244">244</a>             grizzlyResponse = response;
-<a class="jxr_linenumber" name="245" href="#245">245</a>         }
-<a class="jxr_linenumber" name="246" href="#246">246</a> 
-<a class="jxr_linenumber" name="247" href="#247">247</a>         @Override
-<a class="jxr_linenumber" name="248" href="#248">248</a>         <strong class="jxr_keyword">public</strong> CometContext getCometContext() {
-<a class="jxr_linenumber" name="249" href="#249">249</a>             <strong class="jxr_keyword">return</strong> cometContext;
-<a class="jxr_linenumber" name="250" href="#250">250</a>         }
-<a class="jxr_linenumber" name="251" href="#251">251</a> 
-<a class="jxr_linenumber" name="252" href="#252">252</a>         @Override
-<a class="jxr_linenumber" name="253" href="#253">253</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setCometContext(CometContext cometContext) {
-<a class="jxr_linenumber" name="254" href="#254">254</a>             <strong class="jxr_keyword">this</strong>.cometContext = cometContext;
-<a class="jxr_linenumber" name="255" href="#255">255</a>         }
-<a class="jxr_linenumber" name="256" href="#256">256</a>     }
-<a class="jxr_linenumber" name="257" href="#257">257</a> }
+<a class="jxr_linenumber" name="228" href="#228">228</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="229" href="#229">229</a>                     cancelled(req, res);
+<a class="jxr_linenumber" name="230" href="#230">230</a>                 }
+<a class="jxr_linenumber" name="231" href="#231">231</a>             } <strong class="jxr_keyword">catch</strong> (ServletException ex) {
+<a class="jxr_linenumber" name="232" href="#232">232</a>                 logger.warn(<span class="jxr_string">"onInterrupt() encountered exception"</span>, ex);
+<a class="jxr_linenumber" name="233" href="#233">233</a>             }
+<a class="jxr_linenumber" name="234" href="#234">234</a>         }
+<a class="jxr_linenumber" name="235" href="#235">235</a> 
+<a class="jxr_linenumber" name="236" href="#236">236</a>         @Override
+<a class="jxr_linenumber" name="237" href="#237">237</a>         <strong class="jxr_keyword">public</strong> Response getResponse() {
+<a class="jxr_linenumber" name="238" href="#238">238</a>             <strong class="jxr_keyword">return</strong> grizzlyResponse;
+<a class="jxr_linenumber" name="239" href="#239">239</a>         }
+<a class="jxr_linenumber" name="240" href="#240">240</a> 
+<a class="jxr_linenumber" name="241" href="#241">241</a>         @Override
+<a class="jxr_linenumber" name="242" href="#242">242</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setResponse(Response response) {
+<a class="jxr_linenumber" name="243" href="#243">243</a>             grizzlyResponse = response;
+<a class="jxr_linenumber" name="244" href="#244">244</a>         }
+<a class="jxr_linenumber" name="245" href="#245">245</a> 
+<a class="jxr_linenumber" name="246" href="#246">246</a>         @Override
+<a class="jxr_linenumber" name="247" href="#247">247</a>         <strong class="jxr_keyword">public</strong> CometContext getCometContext() {
+<a class="jxr_linenumber" name="248" href="#248">248</a>             <strong class="jxr_keyword">return</strong> cometContext;
+<a class="jxr_linenumber" name="249" href="#249">249</a>         }
+<a class="jxr_linenumber" name="250" href="#250">250</a> 
+<a class="jxr_linenumber" name="251" href="#251">251</a>         @Override
+<a class="jxr_linenumber" name="252" href="#252">252</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setCometContext(CometContext cometContext) {
+<a class="jxr_linenumber" name="253" href="#253">253</a>             <strong class="jxr_keyword">this</strong>.cometContext = cometContext;
+<a class="jxr_linenumber" name="254" href="#254">254</a>         }
+<a class="jxr_linenumber" name="255" href="#255">255</a>     }
+<a class="jxr_linenumber" name="256" href="#256">256</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

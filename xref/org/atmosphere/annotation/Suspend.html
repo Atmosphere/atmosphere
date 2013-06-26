@@ -121,33 +121,31 @@
 <a class="jxr_linenumber" name="111" href="#111">111</a> 
 <a class="jxr_linenumber" name="112" href="#112">112</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="113" href="#113">113</a> <em class="jxr_javadoccomment">     * By default, output some comments when suspending the connection.</em>
-<a class="jxr_linenumber" name="114" href="#114">114</a> <em class="jxr_javadoccomment">     * Deprecated. No longer required</em>
-<a class="jxr_linenumber" name="115" href="#115">115</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="116" href="#116">116</a>     @Deprecated
-<a class="jxr_linenumber" name="117" href="#117">117</a>     <strong class="jxr_keyword">boolean</strong> outputComments() <strong class="jxr_keyword">default</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="118" href="#118">118</a> 
-<a class="jxr_linenumber" name="119" href="#119">119</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="120" href="#120">120</a> <em class="jxr_javadoccomment">     * Resume all suspended response on the first broadcast operation.</em>
-<a class="jxr_linenumber" name="121" href="#121">121</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="122" href="#122">122</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> resumeOnBroadcast() <strong class="jxr_keyword">default</strong> false;
-<a class="jxr_linenumber" name="123" href="#123">123</a> 
-<a class="jxr_linenumber" name="124" href="#124">124</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="125" href="#125">125</a> <em class="jxr_javadoccomment">     * Add {@link AtmosphereResourceEventListener} to track internal events.</em>
-<a class="jxr_linenumber" name="126" href="#126">126</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="127" href="#127">127</a>     <strong class="jxr_keyword">public</strong> Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereResourceEventListener&gt;[] listeners() <strong class="jxr_keyword">default</strong> {};
-<a class="jxr_linenumber" name="128" href="#128">128</a> 
-<a class="jxr_linenumber" name="129" href="#129">129</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="130" href="#130">130</a> <em class="jxr_javadoccomment">     * Write the returned entity back to the calling connection. Default is false.</em>
-<a class="jxr_linenumber" name="131" href="#131">131</a> <em class="jxr_javadoccomment">     * @return true if the entity needs to be written back to the calling connection.</em>
-<a class="jxr_linenumber" name="132" href="#132">132</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="133" href="#133">133</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> writeEntity() <strong class="jxr_keyword">default</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="134" href="#134">134</a> 
-<a class="jxr_linenumber" name="135" href="#135">135</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="136" href="#136">136</a> <em class="jxr_javadoccomment">     * If the @Produces annotation is missing, this value will be used instead.</em>
-<a class="jxr_linenumber" name="137" href="#137">137</a> <em class="jxr_javadoccomment">     * @return the default content-type used if the @Produces annotation is missing.</em>
-<a class="jxr_linenumber" name="138" href="#138">138</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="139" href="#139">139</a>     <strong class="jxr_keyword">public</strong> String contentType() <strong class="jxr_keyword">default</strong> <span class="jxr_string">""</span>;
-<a class="jxr_linenumber" name="140" href="#140">140</a> }
+<a class="jxr_linenumber" name="114" href="#114">114</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="115" href="#115">115</a>     <strong class="jxr_keyword">boolean</strong> outputComments() <strong class="jxr_keyword">default</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="116" href="#116">116</a> 
+<a class="jxr_linenumber" name="117" href="#117">117</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="118" href="#118">118</a> <em class="jxr_javadoccomment">     * Resume all suspended response on the first broadcast operation.</em>
+<a class="jxr_linenumber" name="119" href="#119">119</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="120" href="#120">120</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> resumeOnBroadcast() <strong class="jxr_keyword">default</strong> false;
+<a class="jxr_linenumber" name="121" href="#121">121</a> 
+<a class="jxr_linenumber" name="122" href="#122">122</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="123" href="#123">123</a> <em class="jxr_javadoccomment">     * Add {@link AtmosphereResourceEventListener} to the broadcast operation.</em>
+<a class="jxr_linenumber" name="124" href="#124">124</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="125" href="#125">125</a>     <strong class="jxr_keyword">public</strong> Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereResourceEventListener&gt;[] listeners() <strong class="jxr_keyword">default</strong> {};
+<a class="jxr_linenumber" name="126" href="#126">126</a> 
+<a class="jxr_linenumber" name="127" href="#127">127</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="128" href="#128">128</a> <em class="jxr_javadoccomment">     * Write the returned entity back to the calling connection. Default is false.</em>
+<a class="jxr_linenumber" name="129" href="#129">129</a> <em class="jxr_javadoccomment">     * @return true if the entity needs to be written back to the calling connection.</em>
+<a class="jxr_linenumber" name="130" href="#130">130</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="131" href="#131">131</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> writeEntity() <strong class="jxr_keyword">default</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="132" href="#132">132</a> 
+<a class="jxr_linenumber" name="133" href="#133">133</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="134" href="#134">134</a> <em class="jxr_javadoccomment">     * If the @Produces annotation is missing, this value will be used instead.</em>
+<a class="jxr_linenumber" name="135" href="#135">135</a> <em class="jxr_javadoccomment">     * @return the default content-type used if the @Produces annotation is missing.</em>
+<a class="jxr_linenumber" name="136" href="#136">136</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="137" href="#137">137</a>     <strong class="jxr_keyword">public</strong> String contentType() <strong class="jxr_keyword">default</strong> <span class="jxr_string">""</span>;
+<a class="jxr_linenumber" name="138" href="#138">138</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
