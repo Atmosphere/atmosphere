@@ -128,4 +128,8 @@ public interface FrameworkConfig {
      * The Callback for handshaking the {@link org.atmosphere.interceptor.JavaScriptProtocol}
      */
     String CALLBACK_JAVASCRIPT_PROTOCOL = JavaScriptProtocol.class.getName() + ".callback";
+    /**
+     * The Jersey package used for scanning annotation.
+     */
+    String JERSEY_SCANNING_PACKAGE = "com.sun.jersey.config.property.packages";
 }

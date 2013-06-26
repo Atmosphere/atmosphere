@@ -1,21 +1,10 @@
 package org.atmosphere.cpr;
 
-import java.lang.annotation.Annotation;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
-
-import javax.servlet.ServletContainerInitializer;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.annotation.HandlesTypes;
-
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
+import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.config.service.BroadcasterFactoryService;
@@ -28,6 +17,17 @@ import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
+
+import javax.servlet.ServletContainerInitializer;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.annotation.HandlesTypes;
+import java.lang.annotation.Annotation;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
 
 /**
  * A ServletContainerInitializer that scans for annotations, and places them in a map keyed by annotation type in the
@@ -51,6 +51,7 @@ import org.atmosphere.config.service.WebSocketProtocolService;
         WebSocketProcessorService.class,
         BroadcasterCacheInspectorService.class,
         ManagedService.class,
+        AtmosphereService.class,
         EndpoinMapperService.class,
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {

@@ -12,6 +12,7 @@ $(function () {
                     contentType : "application/json",
                     logLevel : 'debug',
                     transport : 'websocket' ,
+                    trackMessageLength : true,
                     fallbackTransport: 'long-polling'};
 
 

@@ -958,6 +958,11 @@ public class AtmosphereFramework implements ServletContextProvider {
         if (s != null) {
             mappingRegex = s;
         }
+
+        s = sc.getInitParameter(FrameworkConfig.JERSEY_SCANNING_PACKAGE);
+        if (s != null) {
+            packages.add(s);
+        }
     }
 
     public void loadConfiguration(ServletConfig sc) throws ServletException {
@@ -1008,13 +1013,12 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
             useStreamForFlushingComments = true;
 
-            StringBuffer packagesInit = new StringBuffer();
+            StringBuilder packagesInit = new StringBuilder();
             for (String s : packages) {
                 packagesInit.append(s).append(",");
             }
-            if (packages.size() > 0) {
-                initParams.put("com.sun.jersey.config.property.packages", packagesInit.toString());
-            }
+
+            initParams.put(FrameworkConfig.JERSEY_SCANNING_PACKAGE, packagesInit.toString());
         } catch (Throwable t) {
             logger.trace("", t);
             return false;

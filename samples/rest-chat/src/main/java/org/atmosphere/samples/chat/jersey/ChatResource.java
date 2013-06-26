@@ -17,6 +17,7 @@ package org.atmosphere.samples.chat.jersey;
 
 import org.atmosphere.annotation.Broadcast;
 import org.atmosphere.annotation.Suspend;
+import org.atmosphere.config.service.AtmosphereService;
 
 import javax.ws.rs.GET;
 import javax.ws.rs.POST;
@@ -29,6 +30,7 @@ import javax.ws.rs.Produces;
  * @author Jeanfrancois Arcand
  */
 @Path("/")
+@AtmosphereService
 public class ChatResource {
 
     /**

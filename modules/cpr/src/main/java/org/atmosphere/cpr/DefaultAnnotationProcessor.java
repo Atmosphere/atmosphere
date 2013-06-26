@@ -19,6 +19,7 @@ import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
+import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.config.service.BroadcasterFactoryService;
@@ -179,6 +180,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                             WebSocketProcessorService.class,
                             BroadcasterCacheInspectorService.class,
                             ManagedService.class,
+                            AtmosphereService.class,
                             EndpoinMapperService.class,
                     };
                 }
