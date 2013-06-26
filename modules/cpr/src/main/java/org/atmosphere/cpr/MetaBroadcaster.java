@@ -45,6 +45,8 @@ import java.util.concurrent.TimeoutException;
  * <p/>
  * NOTE: Broadcaster's name must start with / in order to get retrieved by this class.
  *
+ * This class is not THREAD SAFE.
+ *
  * @author Jeanfrancois Arcand
  */
 public class MetaBroadcaster {
