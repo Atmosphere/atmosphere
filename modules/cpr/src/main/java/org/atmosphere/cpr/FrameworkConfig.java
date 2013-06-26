@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.interceptor.JavaScriptProtocol;
+
 /**
  * Request Attribute a framework integrator can use to lookup Atmosphere internal object.
  *
@@ -117,6 +119,9 @@ public interface FrameworkConfig {
      * Tha Atmosphere padding key
      */
     String ATMOSPHERE_PADDING  = "atmosphere";
-
+    /**
+     * The Callback for handshaking the {@link org.atmosphere.interceptor.JavaScriptProtocol}
+     */
+    String CALLBACK_JAVASCRIPT_PROTOCOL = JavaScriptProtocol.class.getName() + ".callback";
 
 }

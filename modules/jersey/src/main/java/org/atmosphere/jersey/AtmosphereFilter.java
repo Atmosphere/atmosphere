@@ -118,6 +118,7 @@ import static org.atmosphere.cpr.ApplicationConfig.STREAMING_PADDING_MODE;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_LOCATION_HEADER;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
+import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
 import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
@@ -924,6 +925,17 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     }
 
                     synchronized (response) {
+                        AtmosphereResourceEventListenerAdapter a =
+                                (AtmosphereResourceEventListenerAdapter) servletReq.getAttribute(CALLBACK_JAVASCRIPT_PROTOCOL);
+                        if (a != null) {
+                            try {
+                                a.onSuspend(r.getAtmosphereResourceEvent());
+                            } catch (Exception ex) {
+                                logger.debug("AtmosphereFilter error", ex);
+                            } finally {
+                                servletReq.removeAttribute(CALLBACK_JAVASCRIPT_PROTOCOL);
+                            }
+                        }
                         response.setResponse(b.entity(entity).build());
                         response.write();
                     }
