@@ -31,6 +31,8 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
+
 /**
  * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
  * and {@link HeaderConfig#X_CACHE_DATE}
@@ -78,7 +80,7 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
             }
 
             if (r.transport() != AtmosphereResource.TRANSPORT.LONG_POLLING && r.transport() != AtmosphereResource.TRANSPORT.JSONP) {
-                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                AtmosphereResourceEventListenerAdapter a = new AtmosphereResourceEventListenerAdapter() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
                         r.getResponse().write(protocolMessage.get());
@@ -88,7 +90,10 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
                             logger.trace("", e);
                         }
                     }
-                });
+                };
+                // Pass the information to Servlet Based Framework
+                r.getRequest().setAttribute(CALLBACK_JAVASCRIPT_PROTOCOL, a);
+                r.addEventListener(a);
             } else {
                 r.getResponse().write(protocolMessage.get());
             }

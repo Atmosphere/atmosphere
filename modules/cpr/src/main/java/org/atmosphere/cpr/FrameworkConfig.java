@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import org.atmosphere.interceptor.JavaScriptProtocol;
 
 /**
  * Request Attribute a framework integrator can use to lookup Atmosphere internal object.
@@ -123,4 +124,8 @@ public interface FrameworkConfig {
      *  Callback hook for Framework implementing Atmosphere support.
      */
     String ASYNCHRONOUS_HOOK = FrameworkConfig.class.getName() + ".asynchronousProcessorHook";
+    /**
+     * The Callback for handshaking the {@link org.atmosphere.interceptor.JavaScriptProtocol}
+     */
+    String CALLBACK_JAVASCRIPT_PROTOCOL = JavaScriptProtocol.class.getName() + ".callback";
 }
