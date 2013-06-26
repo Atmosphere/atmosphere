@@ -1,5 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_GB" lang="en_GB">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 <title>GlassFishv2CometSupport xref</title>
@@ -144,7 +144,7 @@
 <a class="jxr_linenumber" name="134" href="#134">134</a> <em class="jxr_javadoccomment">     * @param res</em>
 <a class="jxr_linenumber" name="135" href="#135">135</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="136" href="#136">136</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> suspend(CometContext ctx, <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action, <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) {
-<a class="jxr_linenumber" name="137" href="#137">137</a>         <a href="../../../org/atmosphere/container/GrizzlyCometSupport.html">VoidCometHandler</a> c = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/GrizzlyCometSupport.html">VoidCometHandler</a>(req, res);
+<a class="jxr_linenumber" name="137" href="#137">137</a>         <a href="../../../org/atmosphere/container/Grizzly2CometSupport.html">VoidCometHandler</a> c = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/Grizzly2CometSupport.html">VoidCometHandler</a>(req, res);
 <a class="jxr_linenumber" name="138" href="#138">138</a>         ctx.setExpirationDelay(action.timeout());
 <a class="jxr_linenumber" name="139" href="#139">139</a>         ctx.addCometHandler(c);
 <a class="jxr_linenumber" name="140" href="#140">140</a>         ctx.addAttribute(<span class="jxr_string">"Time"</span>, System.currentTimeMillis());
@@ -210,12 +210,12 @@
 <a class="jxr_linenumber" name="200" href="#200">200</a> <em class="jxr_javadoccomment">     * Void {@link CometHandler}, which delegate the processing of the</em>
 <a class="jxr_linenumber" name="201" href="#201">201</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResponse} to an {@link AtmosphereResource}.</em>
 <a class="jxr_linenumber" name="202" href="#202">202</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="203" href="#203">203</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/GrizzlyCometSupport.html">VoidCometHandler</a> <strong class="jxr_keyword">implements</strong> CometHandler {
+<a class="jxr_linenumber" name="203" href="#203">203</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/Grizzly2CometSupport.html">VoidCometHandler</a> <strong class="jxr_keyword">implements</strong> CometHandler {
 <a class="jxr_linenumber" name="204" href="#204">204</a> 
 <a class="jxr_linenumber" name="205" href="#205">205</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req;
 <a class="jxr_linenumber" name="206" href="#206">206</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res;
 <a class="jxr_linenumber" name="207" href="#207">207</a> 
-<a class="jxr_linenumber" name="208" href="#208">208</a>         <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/container/GrizzlyCometSupport.html">VoidCometHandler</a>(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) {
+<a class="jxr_linenumber" name="208" href="#208">208</a>         <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/container/Grizzly2CometSupport.html">VoidCometHandler</a>(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) {
 <a class="jxr_linenumber" name="209" href="#209">209</a>             <strong class="jxr_keyword">this</strong>.req = req;
 <a class="jxr_linenumber" name="210" href="#210">210</a>             <strong class="jxr_keyword">this</strong>.res = res;
 <a class="jxr_linenumber" name="211" href="#211">211</a>         }

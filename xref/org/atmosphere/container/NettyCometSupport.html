@@ -1,5 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_GB" lang="en_GB">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 <title>NettyCometSupport xref</title>
@@ -43,7 +43,7 @@
 <a class="jxr_linenumber" name="33" href="#33">33</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 <a class="jxr_linenumber" name="34" href="#34">34</a>  
 <a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> * Netty's Framework {@link org.atmosphere.cpr.AsyncSupport}</em>
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> * Netty's Framework {@link org.atmosphere.cpr.AsyncSupport} and framework running on top of it, like vert.x and Play!</em>
 <a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment"> */</em>
 <a class="jxr_linenumber" name="38" href="#38">38</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/NettyCometSupport.html">NettyCometSupport</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a> {
 <a class="jxr_linenumber" name="39" href="#39">39</a>  
@@ -93,10 +93,10 @@
 <a class="jxr_linenumber" name="83" href="#83">83</a>      @Override
 <a class="jxr_linenumber" name="84" href="#84">84</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> action(<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> r) {
 <a class="jxr_linenumber" name="85" href="#85">85</a>          <strong class="jxr_keyword">super</strong>.action(r);
-<a class="jxr_linenumber" name="86" href="#86">86</a>          <strong class="jxr_keyword">if</strong> (r.isResumed() &amp;&amp; r.getRequest().getAttribute(ASYNCHRONOUS_HOOK) != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="87" href="#87">87</a>              <strong class="jxr_keyword">if</strong> (r.getRequest().getAttribute(CHANNEL) == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="86" href="#86">86</a>          <strong class="jxr_keyword">if</strong> (r.isResumed() &amp;&amp; r.getRequest(false).getAttribute(ASYNCHRONOUS_HOOK) != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="87" href="#87">87</a>              <strong class="jxr_keyword">if</strong> (r.getRequest(false).getAttribute(CHANNEL) == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="88" href="#88">88</a>              <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="89" href="#89">89</a>                  ((<a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a>)r.getRequest().getAttribute(CHANNEL)).close(r.getResponse(false));
+<a class="jxr_linenumber" name="89" href="#89">89</a>                  ((<a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a>)r.getRequest(false).getAttribute(CHANNEL)).close(r.getResponse(false));
 <a class="jxr_linenumber" name="90" href="#90">90</a>              } <strong class="jxr_keyword">catch</strong> (IOException e) {
 <a class="jxr_linenumber" name="91" href="#91">91</a>                  logger.trace(<span class="jxr_string">""</span>, e);
 <a class="jxr_linenumber" name="92" href="#92">92</a>              }
