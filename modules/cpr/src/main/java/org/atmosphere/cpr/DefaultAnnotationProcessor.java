@@ -67,7 +67,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
         Map<Class<? extends Annotation>, Set<Class<?>>> annotations = (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
 
-        if (annotations == null) {
+        if (annotations == null || annotations.isEmpty()) {
             delegate = new BytecodeBasedAnnotationProcessor();
         } else {
             delegate = new ServletContainerInitializerAnnotationProcessor(annotations, framework);
