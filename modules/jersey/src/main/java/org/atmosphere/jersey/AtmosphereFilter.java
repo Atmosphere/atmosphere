@@ -849,6 +849,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                                 servletReq.removeAttribute(CALLBACK_JAVASCRIPT_PROTOCOL);
                             }
                         }
+                        r.removeEventListener(a);
                         response.setResponse(b.entity(entity).build());
                         response.write();
                     }
