@@ -63,7 +63,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 #### RoadMap
 
-Atmosphere 1.0.13 is our official release, and our work in progress version is 1.1, targeted for end of End of June 2013
+Atmosphere 1.0.13 is our official release, and our work in progress version is 2.0, targeted for end of End of July 2013
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
