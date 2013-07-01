@@ -682,7 +682,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Principal getUserPrincipal() {
-        return b.request.getUserPrincipal();
+        return b.principal != null?b.principal:b.request.getUserPrincipal();
     }
 
     /**
@@ -1002,7 +1002,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private boolean destroyable = true;
         private Set<Cookie> cookies = new HashSet<Cookie>();
         private Set<Locale> locales = new HashSet<Locale>();
-
+        private Principal principal = null;
 
         private String contextPath = "";
         private String serverName = "";
@@ -1170,6 +1170,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 webSocketFakeSession = session;
             }
             return this;
+        }
+        
+        public Builder principal(Principal principal)
+        {
+        	this.principal = principal;
+        	
+        	return this;
         }
 
         public Builder locale(Locale locale) {
@@ -1630,7 +1637,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .remotePort(request.getRemotePort())
                 .destroyable(isDestroyable)
                 .cookies(hs)
-                .session(copySession ? new FakeHttpSession(request.getSession(true)) : null);
+                .session(copySession ? new FakeHttpSession(request.getSession(true)) : null)
+                .principal(request.getUserPrincipal());
 
         if (loadInMemory) {
             r = new NoOpsRequest();
