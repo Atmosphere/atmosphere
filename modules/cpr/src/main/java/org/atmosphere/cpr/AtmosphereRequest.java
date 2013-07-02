@@ -300,7 +300,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getAuthType() {
-        return b.request.getAuthType();
+        return b.authType != null ? b.authType : b.request.getAuthType();
     }
 
     /**
@@ -1003,7 +1003,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private Set<Cookie> cookies = new HashSet<Cookie>();
         private Set<Locale> locales = new HashSet<Locale>();
         private Principal principal = null;
-
+        private String authType = null;
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
@@ -1174,11 +1174,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         
         public Builder principal(Principal principal)
         {
-        	this.principal = principal;
-        	
+        	this.principal = principal;        	
         	return this;
         }
 
+        public Builder authType(String authType)
+        {
+        	this.authType = authType;
+        	return this;
+        }
+        
         public Builder locale(Locale locale) {
             locales.add(locale);
             return this;
@@ -1638,7 +1643,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .destroyable(isDestroyable)
                 .cookies(hs)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null)
-                .principal(request.getUserPrincipal());
+                .principal(request.getUserPrincipal())
+                .authType(request.getAuthType());
 
         if (loadInMemory) {
             r = new NoOpsRequest();
