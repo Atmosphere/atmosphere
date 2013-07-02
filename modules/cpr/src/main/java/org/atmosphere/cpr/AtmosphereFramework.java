@@ -583,7 +583,10 @@ public class AtmosphereFramework implements ServletContextProvider {
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
             configureAtmosphereInterceptor(sc);
-            analytics();
+            String checkVersion = config.getInitParameter(ApplicationConfig.CHECK_VERSION);
+            if (checkVersion == null || Boolean.parseBoolean(checkVersion)) {
+            	analytics();
+            }
 
             if (broadcasterCacheClassName == null) {
                 logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
