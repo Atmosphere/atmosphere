@@ -365,6 +365,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         if (list == null) {
             list = new ArrayList<String>();
         }
+        logger.debug("Resource {} is excluded from Broadcasters ", r.uuid(), list);
         list.add(r.uuid());
         bannedResources.put(broadcasterId, list);
     }
@@ -374,6 +375,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         boolean b = false;
         List<String> list = bannedResources.get(broadcasterId);
         if (list != null) {
+            logger.debug("Resource {} is no longer excluded from Broadcasters ", r.uuid(), list);
             b = list.remove(r.uuid());
             if (list.isEmpty()) {
                 bannedResources.remove(broadcasterId);
