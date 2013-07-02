@@ -148,7 +148,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRemoteUser() {
-        return b.request.getRemoteUser();
+        return b.principal != null ? b.principal.getName() : b.request.getRemoteUser();
     }
 
     /**
