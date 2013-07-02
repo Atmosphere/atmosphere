@@ -19,6 +19,7 @@ import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -44,6 +45,11 @@ public @interface AtmosphereService {
      * Add {@link org.atmosphere.cpr.AtmosphereResourceEventListener} to track internal events.
      */
     public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
+
+    /**
+     * A list of {@link BroadcastFilter}
+     */
+    Class<? extends BroadcastFilter>[] broadcastFilters() default {};
 
     /**
      * The {@link org.atmosphere.cpr.Broadcaster} class name

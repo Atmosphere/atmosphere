@@ -77,7 +77,7 @@ public class AnnotationHandler {
                 framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
                 Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
                 for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters((BroadcastFilter) b.newInstance());
+                    framework.broadcasterFilters(b.newInstance());
                 }
 
                 for (String s : a.atmosphereConfig()) {
@@ -136,7 +136,7 @@ public class AnnotationHandler {
                 framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
                 Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
                 for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters((BroadcastFilter) b.newInstance());
+                    framework.broadcasterFilters(b.newInstance());
                 }
                 for (String i : m.atmosphereConfig()) {
                     String[] nv = i.split("=");
@@ -187,7 +187,7 @@ public class AnnotationHandler {
                 framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
                 Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
                 for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters((BroadcastFilter) b.newInstance());
+                    framework.broadcasterFilters(b.newInstance());
                 }
 
                 Class<? extends BroadcasterCache> e = m.broadcasterCache();
@@ -312,6 +312,11 @@ public class AnnotationHandler {
                     }
                 }
 
+                Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
+                for (Class<? extends BroadcastFilter> b : bf) {
+                    framework.broadcasterFilters(b.newInstance());
+                }
+
                 framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
                 framework.addAtmosphereHandler(a.path(), handler, l);
             } catch (Throwable e) {
@@ -358,6 +363,11 @@ public class AnnotationHandler {
                     } catch (Throwable e) {
                         logger.warn("", e);
                     }
+                }
+
+                Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
+                for (Class<? extends BroadcastFilter> b : bf) {
+                    framework.broadcasterFilters(b.newInstance());
                 }
 
                 Object c = aClass.newInstance();

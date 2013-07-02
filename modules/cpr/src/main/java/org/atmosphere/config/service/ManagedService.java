@@ -20,6 +20,7 @@ import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.config.managed.AnnotationServiceInterceptor;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
+import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -100,4 +101,9 @@ public @interface ManagedService {
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name. Default is {@link UUIDBroadcasterCache}
      */
     Class<? extends BroadcasterCache> broadcasterCache() default UUIDBroadcasterCache.class;
+
+    /**
+     * A list of {@link org.atmosphere.cpr.BroadcastFilter}
+     */
+    Class<? extends BroadcastFilter>[] broadcastFilters() default {};
 }
