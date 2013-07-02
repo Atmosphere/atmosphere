@@ -826,7 +826,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public boolean isSecure() {
-        return b.request.isSecure();
+    	return isNotNoOps() ? b.request.isSecure() : b.isSecure;
     }
 
     /**
@@ -1009,6 +1009,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int serverPort = 0;
         private HttpSession webSocketFakeSession;
         private String queryString = "";
+        private boolean isSecure = false;
 
         public Builder() {
         }
@@ -1181,6 +1182,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public Builder authType(String authType)
         {
         	this.authType = authType;
+        	return this;
+        }
+        
+        public Builder isSSecure(boolean isSecure)
+        {
+        	this.isSecure = isSecure;
         	return this;
         }
         
@@ -1644,7 +1651,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .cookies(hs)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null)
                 .principal(request.getUserPrincipal())
-                .authType(request.getAuthType());
+                .authType(request.getAuthType())
+                .isSSecure(request.isSecure());
 
         if (loadInMemory) {
             r = new NoOpsRequest();
