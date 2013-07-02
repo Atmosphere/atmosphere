@@ -148,7 +148,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRemoteUser() {
-        return b.request.getRemoteUser();
+        return b.principal != null ? b.principal.getName() : b.request.getRemoteUser();
     }
 
     /**
@@ -300,7 +300,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getAuthType() {
-        return b.request.getAuthType();
+        return b.authType != null ? b.authType : b.request.getAuthType();
     }
 
     /**
@@ -826,7 +826,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public boolean isSecure() {
-        return b.request.isSecure();
+    	return isNotNoOps() ? b.request.isSecure() : b.isSecure;
     }
 
     /**
@@ -1003,12 +1003,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private Set<Cookie> cookies = new HashSet<Cookie>();
         private Set<Locale> locales = new HashSet<Locale>();
         private Principal principal = null;
-
+        private String authType = null;
         private String contextPath = "";
         private String serverName = "";
         private int serverPort = 0;
         private HttpSession webSocketFakeSession;
         private String queryString = "";
+        private boolean isSecure = false;
 
         public Builder() {
         }
@@ -1174,11 +1175,22 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         
         public Builder principal(Principal principal)
         {
-        	this.principal = principal;
-        	
+        	this.principal = principal;        	
         	return this;
         }
 
+        public Builder authType(String authType)
+        {
+        	this.authType = authType;
+        	return this;
+        }
+        
+        public Builder isSSecure(boolean isSecure)
+        {
+        	this.isSecure = isSecure;
+        	return this;
+        }
+        
         public Builder locale(Locale locale) {
             locales.add(locale);
             return this;
@@ -1382,17 +1394,17 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public boolean isUserInRole(String role) {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void login(String username, String password) throws ServletException {
-
+        	throw new ServletException();
         }
 
         @Override
         public void logout() throws ServletException {
-
+        	throw new ServletException();
         }
 
         @Override
@@ -1638,7 +1650,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .destroyable(isDestroyable)
                 .cookies(hs)
                 .session(copySession ? new FakeHttpSession(request.getSession(true)) : null)
-                .principal(request.getUserPrincipal());
+                .principal(request.getUserPrincipal())
+                .authType(request.getAuthType())
+                .isSSecure(request.isSecure());
 
         if (loadInMemory) {
             r = new NoOpsRequest();
