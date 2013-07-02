@@ -1387,17 +1387,17 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public boolean isUserInRole(String role) {
-            return false;
+            throw new UnsupportedOperationException();
         }
 
         @Override
         public void login(String username, String password) throws ServletException {
-
+        	throw new ServletException();
         }
 
         @Override
         public void logout() throws ServletException {
-
+        	throw new ServletException();
         }
 
         @Override
