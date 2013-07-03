@@ -16,12 +16,9 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +72,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
 
         @Override
-        public String toString(){
+        public String toString() {
             return queue.toString();
         }
     }
@@ -99,7 +96,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             return id;
         }
 
-        public String toString(){
+        public String toString() {
             return message.toString();
         }
     }
@@ -173,6 +170,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     /**
      * For backward compatibility with 1.0.9 and lower, use the method above.
+     *
      * @param broadcasterId
      * @param r
      * @param e
@@ -197,31 +195,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                 String clientId = uuid(r);
 
                 activeClients.put(clientId, now);
-                if (isAtmosphereResourceValid(r)) {//todo better to have cacheLost flag
-                    /**
-                     * This line is called for each AtmosphereResource (note that
-                     * broadcaster.getAtmosphereResources() may not return the current AtmosphereResource because
-                     * the resource may be destroyed by DefaultBroadcaster.executeAsyncWrite or JerseyBroadcasterUtil
-                     * concurrently, that is why we need to check duplicates),
-                     *
-                     * Cache the message only once for the clients
-                     * which are not currently connected to the server
-                     */
-                    Broadcaster broadcaster = getBroadCaster(r.getAtmosphereConfig(), broadcasterId);
-                    List<AtmosphereResource> resources = new ArrayList<AtmosphereResource>(broadcaster.getAtmosphereResources());
-                    Set<String> disconnectedClients = getDisconnectedClients(resources);
-                    for (String disconnectedId : disconnectedClients) {
-                        addMessageIfNotExists(disconnectedId, cacheMessage);
-                    }
-                } else {
-                    /**
-                     * Cache lost message, caching only for specific client.
-                     * Preventing duplicate inserts because this method can be called
-                     * concurrently from DefaultBroadcaster.executeAsyncWrite or JerseyBroadcasterUtil
-                     * when calling cacheLostMessage
-                     */
-                    addMessageIfNotExists(clientId, cacheMessage);
-                }
+                addMessageIfNotExists(clientId, cacheMessage);
             }
         }
         return cacheMessage;
@@ -229,27 +203,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     private String uuid(AtmosphereResource r) {
         return r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                                ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
-    }
-
-    private boolean isAtmosphereResourceValid(AtmosphereResource r) {
-        return !r.isResumed()
-                && !r.isCancelled()
-                && AtmosphereResourceImpl.class.cast(r).isInScope();
-    }
-
-    private Set<String> getDisconnectedClients(List<AtmosphereResource> resources) {
-        Set<String> ids = new HashSet<String>(activeClients.keySet());
-        for (AtmosphereResource resource : resources) {
-            ids.remove(resource.uuid());
-        }
-        return ids;
-    }
-
-    private Broadcaster getBroadCaster(AtmosphereConfig config, String broadcasterId) {
-        BroadcasterFactory factory = config.getBroadcasterFactory();
-        Broadcaster broadcaster = factory.lookup(broadcasterId, false);
-        return broadcaster;
+                ? (String) r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
     }
 
     private void addMessageIfNotExists(String clientId, CacheMessage message) {
@@ -309,7 +263,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     public void clearCache(String broadcasterId, AtmosphereResourceImpl r, CacheMessage message) {
-        String clientId =  uuid(r);
+        String clientId = uuid(r);
         ClientQueue clientQueue;
         synchronized (messages) {
             clientQueue = messages.get(clientId);
