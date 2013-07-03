@@ -573,6 +573,13 @@ public interface ApplicationConfig {
      */
     String SHOW_SUPPORT_MESSAGE = ApplicationConfig.class.getPackage().getName() + ".showSupportMessage";
     /**
+     * Allows disabling calling home to determine if there is a newer version of Atmosphere available.
+     * <p>
+     * Default: true<br>
+     * Value: org.atmosphere.cpr.checkVersion
+     */
+    String CHECK_VERSION = ApplicationConfig.class.getPackage().getName() + ".checkVersion";
+    /**
      * The timeout, in milliseconds, before an {@link AtmosphereResource}'s state get discarded.
      * <p>
      * Default: 300000 (5 minutes)<br>
