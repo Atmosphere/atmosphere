@@ -558,6 +558,7 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.Broadcaster.POLICY.maximumSuspended
      */
     String BROADCASTER_POLICY_TIMEOUT = Broadcaster.POLICY.class.getName() + ".maximumSuspended";
+<<<<<<< HEAD
     /**
      * Change the default regex used when mapping AtmosphereHandler. Default: {@link AtmosphereFramework#MAPPING_REGEX}
      * <p>
