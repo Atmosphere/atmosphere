@@ -40,6 +40,7 @@ public class AtmosphereConfig {
     private final List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession;
+    private boolean throwExceptionOnCloned;
     private final AtmosphereFramework framework;
     private final Map<String, Object> properties = new HashMap<String, Object>();
     protected final List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
@@ -130,6 +131,24 @@ public class AtmosphereConfig {
         this.supportSession = supportSession;
     }
 
+    /**
+     * Is cloned request throws exception
+     * @return Cloned Request's exception  supported.
+     */
+    public boolean isThrowExceptionOnCloned()
+    {
+    	return this.throwExceptionOnCloned;
+    }
+    
+    /**
+     * Enable/Disable Exception in cloned request
+     * @param throwExceptionOnCloned
+     */
+    public void setThrowExceptionOnCloned(boolean throwExceptionOnCloned)
+    {
+    	this.throwExceptionOnCloned = throwExceptionOnCloned;
+    }
+    
     /**
      * Return an instance of a {@link DefaultBroadcasterFactory}
      *
