@@ -286,7 +286,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
         if (l.size() > 0) {
             for (AtmosphereInterceptor s : l) {
-                logger.info("\t{} : {}", s.getClass().getSimpleName() , s);
+                logger.info("\t{} : {}", s.getClass().getSimpleName(), s);
             }
         }
         return this;
@@ -924,8 +924,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         s = sc.getInitParameter(PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST);
         if (s != null) {
-        	config.setThrowExceptionOnCloned(Boolean.valueOf(s));
-        	isThrowExceptionOnClonedRequestSpecified = true;
+            config.setThrowExceptionOnCloned(Boolean.valueOf(s));
+            isThrowExceptionOnClonedRequestSpecified = true;
         }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
         if (s != null) {
@@ -1204,7 +1204,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         AtmosphereHandler handler = null;
         for (AtmosphereHandlerConfig atmoHandler : config.getAtmosphereHandlerConfig()) {
             try {
-                if (!atmoHandler.getClassName().startsWith("@")){
+                if (!atmoHandler.getClassName().startsWith("@")) {
                     if (!ReflectorServletProcessor.class.getName().equals(atmoHandler.getClassName())) {
                         handler = (AtmosphereHandler) c.loadClass(atmoHandler.getClassName()).newInstance();
                     } else {
@@ -1972,12 +1972,13 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Add a {@link BroadcastFilter}
+     *
      * @return
      */
     public AtmosphereFramework broadcasterFilters(BroadcastFilter f) {
         broadcasterFilters.add(f.getClass().getName());
 
-        for (Broadcaster b: config.getBroadcasterFactory().lookupAll()) {
+        for (Broadcaster b : config.getBroadcasterFactory().lookupAll()) {
             b.getBroadcasterConfig().addFilter(f);
         }
         return this;

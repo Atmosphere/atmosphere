@@ -55,6 +55,7 @@ public class AtmosphereConfig {
 
     /**
      * Return the {@link AtmosphereFramework}
+     *
      * @return the {@link AtmosphereFramework}
      */
     public AtmosphereFramework framework() {
@@ -63,6 +64,7 @@ public class AtmosphereConfig {
 
     /**
      * Return the {@link ServletConfig}
+     *
      * @return {@link ServletConfig}
      */
     public ServletConfig getServletConfig() {
@@ -71,6 +73,7 @@ public class AtmosphereConfig {
 
     /**
      * Return the {@link ServletContext}
+     *
      * @return {@link ServletContext}
      */
     public ServletContext getServletContext() {
@@ -79,7 +82,8 @@ public class AtmosphereConfig {
 
     /**
      * Return the current WebServer used.
-     * @return  the current WebServer used.
+     *
+     * @return the current WebServer used.
      */
     public String getWebServerName() {
         return framework.getAsyncSupport().getContainerName();
@@ -87,6 +91,7 @@ public class AtmosphereConfig {
 
     /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper}
+     *
      * @return the list of {@link org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper}
      */
     public Map<String, AtmosphereFramework.AtmosphereHandlerWrapper> handlers() {
@@ -95,6 +100,7 @@ public class AtmosphereConfig {
 
     /**
      * Return the value of the init paramsdefined in web.xml or application.xml
+     *
      * @param name the name
      * @return the list of init params defined in web.xml or application.xml
      */
@@ -109,6 +115,7 @@ public class AtmosphereConfig {
 
     /**
      * Return all init param.
+     *
      * @return
      */
     public Enumeration<String> getInitParameterNames() {
@@ -117,6 +124,7 @@ public class AtmosphereConfig {
 
     /**
      * Is {@link javax.servlet.http.HttpSession} supported.
+     *
      * @return {@link javax.servlet.http.HttpSession} supported.
      */
     public boolean isSupportSession() {
@@ -125,6 +133,7 @@ public class AtmosphereConfig {
 
     /**
      * Enable/Disable {@link javax.servlet.http.HttpSession}
+     *
      * @param supportSession
      */
     public void setSupportSession(boolean supportSession) {
@@ -133,22 +142,22 @@ public class AtmosphereConfig {
 
     /**
      * Is cloned request throws exception
+     *
      * @return Cloned Request's exception  supported.
      */
-    public boolean isThrowExceptionOnCloned()
-    {
-    	return this.throwExceptionOnCloned;
+    public boolean isThrowExceptionOnCloned() {
+        return this.throwExceptionOnCloned;
     }
-    
+
     /**
      * Enable/Disable Exception on cloned request
+     *
      * @param throwExceptionOnCloned
      */
-    public void setThrowExceptionOnCloned(boolean throwExceptionOnCloned)
-    {
-    	this.throwExceptionOnCloned = throwExceptionOnCloned;
+    public void setThrowExceptionOnCloned(boolean throwExceptionOnCloned) {
+        this.throwExceptionOnCloned = throwExceptionOnCloned;
     }
-    
+
     /**
      * Return an instance of a {@link DefaultBroadcasterFactory}
      *
@@ -160,6 +169,7 @@ public class AtmosphereConfig {
 
     /**
      * Return the {@link Map} of Applications's Properties.
+     *
      * @return the {@link Map} of Applications's Properties.
      */
     public Map<String, Object> properties() {
@@ -173,7 +183,7 @@ public class AtmosphereConfig {
         for (ShutdownHook h : shutdownHooks) {
             try {
                 h.shutdown();
-            }catch (Exception ex) {
+            } catch (Exception ex) {
                 logger.warn("", ex);
             }
         }
@@ -181,6 +191,7 @@ public class AtmosphereConfig {
 
     /**
      * Add a {@link ShutdownHook}
+     *
      * @param s a {@link ShutdownHook}
      * @return this
      */
