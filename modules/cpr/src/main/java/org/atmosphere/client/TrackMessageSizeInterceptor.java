@@ -93,6 +93,12 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                 throw new IllegalStateException("AsyncIOWriter must be an instance of " + AsyncIOWriter.class.getName());
             }
         } else {
+
+            if (response.getAsyncIOWriter() == null) {
+                logger.error("IllegalStateException. AsyncWriter is null. WebSocket and {} won't work.", TrackMessageSizeInterceptor.class.getName());
+                return Action.CONTINUE;
+            }
+
             ((WebSocket) response.getAsyncIOWriter()).webSocketResponseFilter(new WebSocketResponseFilter() {
 
                 @Override
