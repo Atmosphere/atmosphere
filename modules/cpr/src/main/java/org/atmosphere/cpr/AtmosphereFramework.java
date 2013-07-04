@@ -104,6 +104,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_COMET_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
@@ -167,6 +168,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean isCometSupportSpecified = false;
     protected boolean isBroadcasterSpecified = false;
     protected boolean isSessionSupportSpecified = false;
+    protected boolean isThrowExceptionOnClonedRequestSpecified = false;
     protected BroadcasterFactory broadcasterFactory;
     protected String broadcasterFactoryClassName;
     protected String broadcasterCacheClassName;
@@ -920,6 +922,11 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
             isSessionSupportSpecified = true;
         }
+        s = sc.getInitParameter(PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST);
+        if (s != null) {
+        	config.setThrowExceptionOnCloned(Boolean.valueOf(s));
+        	isThrowExceptionOnClonedRequestSpecified = true;
+        }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
         if (s != null) {
             initParams.put(DISABLE_ONSTATE_EVENT, s);
@@ -1497,7 +1504,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
-
+        req.setAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST, config.isThrowExceptionOnCloned());
         boolean skip = true;
         String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
         if (s != null) {

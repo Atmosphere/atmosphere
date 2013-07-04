@@ -199,7 +199,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
-
+        
         AtmosphereHandlerWrapper handlerWrapper = map(req);
         if (config.getBroadcasterFactory() == null) {
             logger.error("Atmosphere is misconfigured and will not work. BroadcasterFactory is null");

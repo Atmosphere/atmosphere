@@ -1246,8 +1246,18 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     final static class NoOpsRequest implements HttpServletRequest {
 
+        private boolean throwExceptionOnCloned;
         public HttpSession fake;
 
+        public NoOpsRequest()
+        {
+        	this.throwExceptionOnCloned = false;
+        }
+        
+        public NoOpsRequest(boolean throwexceptiononcloned) {
+        	this.throwExceptionOnCloned = throwexceptiononcloned;
+        }
+        
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
             return false;
@@ -1394,17 +1404,27 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public boolean isUserInRole(String role) {
-            throw new UnsupportedOperationException();
+        	if (this.throwExceptionOnCloned == true)
+        	{
+        		throw new UnsupportedOperationException();
+        	}
+        	return false;
         }
 
         @Override
         public void login(String username, String password) throws ServletException {
-        	throw new ServletException();
+        	if (this.throwExceptionOnCloned  == true)
+        	{
+        		throw new ServletException();
+        	}
         }
 
         @Override
         public void logout() throws ServletException {
-        	throw new ServletException();
+        	if (this.throwExceptionOnCloned == true)
+        	{
+        		throw new ServletException();
+        	}
         }
 
         @Override
@@ -1655,7 +1675,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .isSSecure(request.isSecure());
 
         if (loadInMemory) {
-            r = new NoOpsRequest();
+            r = new NoOpsRequest(Boolean.parseBoolean(request.getAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST).toString()));
             if (isWrapped) {
                 load(b.request, b);
             } else {
