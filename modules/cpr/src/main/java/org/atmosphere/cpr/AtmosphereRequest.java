@@ -1421,7 +1421,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public void logout() throws ServletException {
-        	if (Boolean.parseBoolean(getAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST).toString()) == true)
+        	if (this.throwExceptionOnCloned == true)
         	{
         		throw new ServletException();
         	}
