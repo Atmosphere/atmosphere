@@ -573,13 +573,6 @@ public interface ApplicationConfig {
      */
     String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
     /**
-     * Allows suppressing the message about commercial support during startup.
-     * <p>
-     * Default: true<br>
-     * Value: org.atmosphere.cpr.showSupportMessage
-     */
-    String SHOW_SUPPORT_MESSAGE = ApplicationConfig.class.getPackage().getName() + ".showSupportMessage";
-    /**
      * The timeout, in milliseconds, before an {@link AtmosphereResource}'s state get discarded.
      * <p>
      * Default: 300000 (5 minutes)<br>

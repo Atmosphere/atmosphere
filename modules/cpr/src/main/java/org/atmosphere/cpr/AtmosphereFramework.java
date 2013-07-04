@@ -615,11 +615,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.info("Using Broadcaster: {}", broadcasterClassName);
             logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
 
-            String showSupportMessage = config.getInitParameter(ApplicationConfig.SHOW_SUPPORT_MESSAGE);
-            if (showSupportMessage == null || Boolean.parseBoolean(showSupportMessage)) {
-                logger.info("\n\n\tFor Commercial Support, visit \n\t{} " +
-                        "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
-            }
+            logger.info("\n\n\tFor Atmosphere Framework Commercial Support, visit \n\t{} " +
+                    "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 

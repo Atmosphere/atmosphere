@@ -887,7 +887,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
                 logger.debug("AtmosphereResource {} state is invalid for Broadcaster {}. ", r.uuid(), name);
-                removeAtmosphereResource(r);
+                removeAtmosphereResource(r, false);
                 return;
             }
 
