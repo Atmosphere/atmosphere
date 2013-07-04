@@ -50,7 +50,7 @@ public interface ApplicationConfig {
      */
     String PROPERTY_BLOCKING_COMETSUPPORT = "org.atmosphere.useBlocking";
     /**
-     * Set Atmosphere to throw eception on critical method of the cloned request
+     * Set Atmosphere to throw exception on cloned request  
      * <p>
      * Default: false<br>
      * Value: org.atmosphere.throwExceptionOnClonedRequest 
