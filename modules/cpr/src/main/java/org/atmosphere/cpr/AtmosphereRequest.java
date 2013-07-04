@@ -1246,7 +1246,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     final static class NoOpsRequest implements HttpServletRequest {
 
-    	private boolean throwExceptionOnCloned;
+        private boolean throwExceptionOnCloned;
         public HttpSession fake;
 
         public NoOpsRequest()
