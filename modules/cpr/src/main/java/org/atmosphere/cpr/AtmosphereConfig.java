@@ -141,7 +141,7 @@ public class AtmosphereConfig {
     }
     
     /**
-     * Enable/Disable Exception in cloned request
+     * Enable/Disable Exception on cloned request
      * @param throwExceptionOnCloned
      */
     public void setThrowExceptionOnCloned(boolean throwExceptionOnCloned)
