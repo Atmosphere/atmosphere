@@ -32,6 +32,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 
 /**
  * HTML 5 Server Side Events implementation.
@@ -101,7 +102,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
         @Override
         public void onPreSuspend(AtmosphereResourceEvent event) {
-                writePadding(response);
+            writePadding(response);
         }
     }
 
@@ -127,14 +128,18 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         boolean noPadding = padding();
-                        if (!noPadding) {
+                        // The CALLBACK_JAVASCRIPT_PROTOCOL may be called by a framework running on top of Atmosphere
+                        // In that case, we must pad/protocol indenendently of the state of the AtmosphereResource
+                        if (!noPadding || r.getRequest().getAttribute(CALLBACK_JAVASCRIPT_PROTOCOL) != null) {
                             response.write("data:", true);
                         }
                     }
 
                     @Override
                     public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        if (r.isSuspended()) {
+                        // The CALLBACK_JAVASCRIPT_PROTOCOL may be called by a framework running on top of Atmosphere
+                        // In that case, we must pad/protocol indenendently of the state of the AtmosphereResource
+                        if (r.isSuspended() || r.getRequest().getAttribute(CALLBACK_JAVASCRIPT_PROTOCOL) != null) {
                             response.write(END, true);
                         }
 
