@@ -42,7 +42,7 @@ The Atmosphere's Framework ships with many examples describing how to implements
       </dependency>
 ```
       
-Where atmosphere-module can be: jersey, runtime (main module), guice, jquery, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
+Where atmosphere-module can be: jersey, runtime (main module), guice, redis, hazelcast, jms, jgroups or gwt. Our official release are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
 #### Jump directly inside the code: WebSockets, Server Side Events (SSE), Long-Polling, JSONP and Http Streaming!
 
