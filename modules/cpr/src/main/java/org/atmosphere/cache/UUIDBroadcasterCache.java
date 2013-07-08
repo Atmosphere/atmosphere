@@ -134,7 +134,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         if (r != null && !bannedResources.isEmpty()) {
             List<String> list = bannedResources.get(broadcasterId);
             if (list != null && list.contains(r.uuid())) {
-                logger.debug("Resource {} is not allowed to cache message {} with broadcaster " + broadcasterId, r.uuid(), message);
+                logger.trace("Resource {} is not allowed to cache message {} with broadcaster " + broadcasterId, r.uuid(), message);
                 return null;
             }
         }
@@ -174,7 +174,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         if (!bannedResources.isEmpty()) {
             List<String> list = bannedResources.get(broadcasterId);
             if (list != null && list.contains(r.uuid())) {
-                logger.debug("Resource {} is not allowed to retrieve message with broadcaster ", r.uuid(), broadcasterId);
+                logger.trace("Resource {} is not allowed to retrieve message with broadcaster ", r.uuid(), broadcasterId);
                 return emptyList;
             }
         }
