@@ -11,6 +11,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +30,7 @@ public class ShiroInterceptor implements AtmosphereInterceptor {
 
     @Override
     public Action inspect(AtmosphereResource r) {
-        if (r.getRequest().attributes().containsKey("subject") == false) {
+        if (r.getRequest().attributes().containsKey(FrameworkConfig.SECURITY_SUBJECT) == false) {
             try {
                 Subject currentUser = null;
                 if (r.transport().equals(TRANSPORT.WEBSOCKET)) {
@@ -39,7 +40,7 @@ public class ShiroInterceptor implements AtmosphereInterceptor {
                     currentUser = SecurityUtils.getSubject();
                 }
                 if (currentUser != null) {
-                    r.getRequest().setAttribute("subject", currentUser);
+                    r.getRequest().setAttribute(FrameworkConfig.SECURITY_SUBJECT, currentUser);
                 }
             } catch(UnavailableSecurityManagerException ex) {
                 logger.info("Shiro Web Security : {}", ex.getMessage());
