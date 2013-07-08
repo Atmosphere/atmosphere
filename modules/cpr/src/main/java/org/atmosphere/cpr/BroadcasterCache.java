@@ -60,8 +60,8 @@ import java.util.List;
 
 /**
  * A BroadcasterCache is used to persist broadcasted Object {@link Broadcaster#broadcast(Object)}. Disconnected clients
- * can always retrieve message that were broadcasted during their "downtime". {@link BroadcasterCache} are useful when
- * a the long polling technique is used and prevent application from loosing event between re-connection.
+ * can always retrieve messages that were broadcasted during their "downtime". {@link BroadcasterCache} is useful when
+ * the long polling technique is used to prevent applications from loosing event between re-connection.
  * <p/>
  * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)} by
  * defining it in your web/application.xml or by using the {@link org.atmosphere.config.service.BroadcasterCacheService}
