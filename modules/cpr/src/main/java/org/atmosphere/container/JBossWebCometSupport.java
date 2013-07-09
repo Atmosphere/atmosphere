@@ -111,6 +111,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
             throw unableToDetectComet;
         }
 
+        logger.trace("Event Type {} for {}", event.getType(), req.getQueryString());
         Action action = null;
         // For now, we are just interested in HttpEvent.REA
         if (event.getType() == HttpEvent.EventType.BEGIN) {
@@ -134,17 +135,11 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 event.close();
             }
         } else if (event.getType() == HttpEvent.EventType.READ) {
-            // Not implemente
-        } else if (event.getType() == HttpEvent.EventType.EOF) {
-            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
-                req.setAttribute(SUSPENDED, null);
-                action = cancelled(req, res);
-            } else {
-                event.close();
-            }
-        } else if (event.getType() == HttpEvent.EventType.ERROR) {
-            event.close();
-        } else if (event.getType() == HttpEvent.EventType.END) {
+            // Not implemented
+            logger.debug("Receiving bytes, unable to process them.");
+        } else if (event.getType() == HttpEvent.EventType.EOF
+                || event.getType() == HttpEvent.EventType.ERROR
+                || event.getType() == HttpEvent.EventType.END) {
             if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
