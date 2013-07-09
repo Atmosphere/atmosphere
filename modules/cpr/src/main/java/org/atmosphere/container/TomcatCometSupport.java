@@ -156,13 +156,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
             } catch (IllegalStateException ex) {
                 logger.trace("event.close", ex);
             }
-        } else if (event.getEventType() == EventType.ERROR) {
-            try {
-                event.close();
-            } catch (IllegalStateException ex) {
-                logger.trace("event.close", ex);
-            }
-        } else if (event.getEventType() == EventType.END) {
+        } else if (event.getEventType() == EventType.END || event.getEventType() == EventType.ERROR) {
             if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);

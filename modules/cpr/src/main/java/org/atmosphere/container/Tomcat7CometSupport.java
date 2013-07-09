@@ -118,9 +118,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
             action = timedout(req, res);
             bz51881(event);
-        } else if (event.getEventType() == EventType.ERROR) {
-            bz51881(event);
-        } else if (event.getEventType() == EventType.END) {
+        } else if (event.getEventType() == EventType.END || event.getEventType() == EventType.ERROR) {
             if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
