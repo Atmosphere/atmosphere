@@ -91,6 +91,7 @@ public class BroadcasterConfig {
     private final boolean shared;
     private String name;
     private boolean handleExecutors;
+    private boolean uuid = false;
 
     public BroadcasterConfig(List<String> list, AtmosphereConfig config, String name) {
         this(list, config, true, name);
@@ -141,6 +142,7 @@ public class BroadcasterConfig {
         } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
+        uuid = UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass());
     }
 
     private void configureSharedCacheExecutor() {
@@ -499,7 +501,12 @@ public class BroadcasterConfig {
      */
     public BroadcasterConfig setBroadcasterCache(BroadcasterCache broadcasterCache) {
         this.broadcasterCache = broadcasterCache;
+        uuid = UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass());
         return this;
+    }
+
+    protected boolean uuidCache() {
+        return uuid;
     }
 
     /**
