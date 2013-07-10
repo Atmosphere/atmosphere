@@ -1109,7 +1109,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
+                        broadcasterFactory.destroy();
                         broadcasterFactory = null;
+                        configureBroadcasterFactory();
                         configureBroadcaster();
                     }
 
