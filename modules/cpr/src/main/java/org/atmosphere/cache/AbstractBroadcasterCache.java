@@ -28,7 +28,6 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -55,7 +54,6 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     protected boolean isShared = false;
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
-    protected final ConcurrentHashMap<String, List<String>> bannedResources = new ConcurrentHashMap<String, List<String>>();
     protected final List<Object> emptyList = Collections.<Object>emptyList();
 
     @Override
@@ -194,25 +192,6 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void excludeFromCache(String broadcasterId, AtmosphereResource r) {
-        synchronized (r) {
-            List<String> list = bannedResources.get(broadcasterId);
-            if (list == null) {
-                list = new ArrayList<String>();
-            }
-            list.add(r.uuid());
-            bannedResources.put(broadcasterId, list);
-        }
+        logger.trace("Not supported");
     }
-
-    @Override
-    public boolean includeInCache(String broadcasterId, AtmosphereResource r) {
-        synchronized (r) {
-            List<String> list = bannedResources.get(broadcasterId);
-            if (list != null) {
-                return list.remove(r.uuid());
-            }
-            return false;
-        }
-    }
-
 }

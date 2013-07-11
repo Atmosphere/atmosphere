@@ -57,11 +57,6 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public boolean includeInCache(String broadcasterId, AtmosphereResource r) {
-        return false;
-    }
-
-    @Override
     public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
         return this;
     }

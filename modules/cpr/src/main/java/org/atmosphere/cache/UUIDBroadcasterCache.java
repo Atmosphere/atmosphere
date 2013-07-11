@@ -32,7 +32,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -57,7 +56,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private long clientIdleTime = TimeUnit.MINUTES.toMillis(2);//2 minutes
     private long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
     private boolean shared = true;
-    protected final ConcurrentHashMap<String, List<String>> bannedResources = new ConcurrentHashMap<String, List<String>>();
     protected final List<Object> emptyList = Collections.<Object>emptyList();
 
     public final static class ClientQueue {
@@ -131,14 +129,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
 
-        if (r != null && !bannedResources.isEmpty()) {
-            List<String> list = bannedResources.get(broadcasterId);
-            if (list != null && list.contains(r.uuid())) {
-                logger.trace("Resource {} is not allowed to cache message {} with broadcaster " + broadcasterId, r.uuid(), message);
-                return null;
-            }
-        }
-
         Object e = message.message;
         if (logger.isTraceEnabled()) {
             logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
@@ -170,15 +160,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
         String clientId = uuid(r);
-
-        if (!bannedResources.isEmpty()) {
-            List<String> list = bannedResources.get(broadcasterId);
-            if (list != null && list.contains(r.uuid())) {
-                logger.trace("Resource {} is not allowed to retrieve message with broadcaster ", r.uuid(), broadcasterId);
-                return emptyList;
-            }
-        }
-
         long now = System.currentTimeMillis();
 
         List<Object> result = new ArrayList<Object>();
@@ -314,27 +295,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void excludeFromCache(String broadcasterId, AtmosphereResource r) {
-        List<String> list = bannedResources.get(broadcasterId);
-        if (list == null) {
-            list = new ArrayList<String>();
-        }
-        logger.debug("Resource {} is excluded from Broadcasters ", r.uuid(), list);
-        list.add(r.uuid());
-        bannedResources.put(broadcasterId, list);
-    }
-
-    @Override
-    public boolean includeInCache(String broadcasterId, AtmosphereResource r) {
-        boolean b = false;
-        List<String> list = bannedResources.get(broadcasterId);
-        if (list != null) {
-            logger.debug("Resource {} is no longer excluded from Broadcasters ", r.uuid(), list);
-            b = list.remove(r.uuid());
-            if (list.isEmpty()) {
-                bannedResources.remove(broadcasterId);
-            }
-        }
-        return b;
+        activeClients.remove(r.uuid());
     }
 
     @Override

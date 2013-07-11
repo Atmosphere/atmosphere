@@ -114,18 +114,11 @@ public interface BroadcasterCache {
     void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache);
 
     /**
-     * Allow an application to exclude, or block, an {@link AtmosphereResource} to received cached message.
+     * Allow an application to exclude, or block, an {@link AtmosphereResource} to received cached message. No new message will get sent to this client except the ones already cached.
      * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param r an {@link AtmosphereResource}
      */
     void excludeFromCache(String broadcasterId, AtmosphereResource r);
-
-    /**
-     * Re-allow an {@link AtmosphereResource} to receive cached message.
-     * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * @param r an {@link AtmosphereResource}
-     */
-    boolean includeInCache(String broadcasterId, AtmosphereResource r);
 
     /**
      * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.

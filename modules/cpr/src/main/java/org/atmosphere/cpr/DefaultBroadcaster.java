@@ -1404,9 +1404,6 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyAndAdd(AtmosphereResource r) {
-        boolean b = bc.getBroadcasterCache().includeInCache(getID(), r);
-        if (b) logger.debug("Excluded from {} : {}", getID(), r.uuid());
-
         resources.add(r);
         notifyOnAddAtmosphereResourceListener(r);
     }
@@ -1473,9 +1470,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (r.isSuspended()) {
                     logger.trace("Excluded from {} : {}", getID(), r.uuid());
                     bc.getBroadcasterCache().excludeFromCache(getID(), r);
-                } else {
-                    // Prevent OOM
-                    bc.getBroadcasterCache().includeInCache(getID(), r);
                 }
                 notifyOnRemoveAtmosphereResourceListener(r);
             }
