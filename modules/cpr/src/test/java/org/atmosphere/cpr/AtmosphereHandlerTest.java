@@ -1,5 +1,9 @@
 /*
+<<<<<<< HEAD
  * Copyright 2013 Jean-Francois Arcand
+=======
+ * Copyright 2013 Jason Burgess
+>>>>>>> c0aa93b... Fixes #1189
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,6 +19,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -22,15 +28,22 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Enumeration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 public class AtmosphereHandlerTest {
     private AtmosphereFramework framework;
+
+    private AtmosphereResource ar;
+    private Broadcaster broadcaster;
+    private AR atmosphereHandler;
 
     @BeforeMethod
     public void create() throws Throwable {
@@ -103,6 +116,49 @@ public class AtmosphereHandlerTest {
 
         assertTrue(e.get().isResuming());
         framework.destroy();
+    }
 
+    @Test
+    public void testByteCachedList() throws Exception {
+        AtmosphereFramework f = new AtmosphereFramework();
+        f.setBroadcasterFactory(new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", f.getAtmosphereConfig()));
+        assertNotNull(f.getBroadcasterFactory());
+        broadcaster = f.getBroadcasterFactory().get(DefaultBroadcaster.class, "test");
+        atmosphereHandler = new AR();
+
+        final AtomicReference<byte[]> ref = new AtomicReference<byte[]>();
+        AtmosphereResponse r = AtmosphereResponse.newInstance();
+        r.asyncIOWriter(new AsyncIOWriterAdapter() {
+            @Override
+            public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
+                ref.set(data);
+                return this;
+            }
+        });
+        ar = new AtmosphereResourceImpl(f.getAtmosphereConfig(),
+                broadcaster,
+                mock(AtmosphereRequest.class),
+                r,
+                mock(BlockingIOCometSupport.class),
+                atmosphereHandler);
+
+
+        broadcaster.addAtmosphereResource(ar);
+
+        List<byte[]> l = new ArrayList<byte[]>();
+        l.add("yo".getBytes());
+        broadcaster.broadcast(l).get();
+        assertEquals("yo", new String(ref.get()));
+    }
+
+    public final static class AR extends AbstractReflectorAtmosphereHandler {
+
+        @Override
+        public void onRequest(AtmosphereResource resource) throws IOException {
+        }
+
+        @Override
+        public void destroy() {
+        }
     }
 }

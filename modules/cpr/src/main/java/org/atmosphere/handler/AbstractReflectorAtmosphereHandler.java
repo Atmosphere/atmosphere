@@ -128,15 +128,29 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             }
 
             if (message instanceof List) {
-                Iterator<String> i = ((List)message).iterator();
+                Iterator<Object> i = ((List)message).iterator();
                 try {
-                    String s;
-                    while(i.hasNext()) {
+                    Object s;
+                    while (i.hasNext()) {
                         s = i.next();
-                        if (isUsingStream) {
-                            r.getOutputStream().write(s.getBytes(r.getCharacterEncoding()));
+                        if (String.class.isAssignableFrom(s.getClass())) {
+                            if (isUsingStream) {
+                                r.getOutputStream().write(s.toString().getBytes(r.getCharacterEncoding()));
+                            } else {
+                                r.getWriter().write(s.toString());
+                            }
+                        } else if (byte[].class.isAssignableFrom(s.getClass())){
+                            if (isUsingStream) {
+                                r.getOutputStream().write((byte[])s);
+                            } else {
+                                r.getWriter().write(s.toString());
+                            }
                         } else {
-                            r.getWriter().write(s);
+                            if (isUsingStream) {
+                                r.getOutputStream().write(s.toString().getBytes(r.getCharacterEncoding()));
+                            } else {
+                                r.getWriter().write(s.toString());
+                            }
                         }
                         i.remove();
                     }
