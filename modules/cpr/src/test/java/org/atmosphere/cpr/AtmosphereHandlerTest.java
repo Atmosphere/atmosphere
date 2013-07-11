@@ -1,9 +1,5 @@
 /*
-<<<<<<< HEAD
  * Copyright 2013 Jean-Francois Arcand
-=======
- * Copyright 2013 Jason Burgess
->>>>>>> c0aa93b... Fixes #1189
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
