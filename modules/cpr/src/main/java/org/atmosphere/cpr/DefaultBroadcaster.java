@@ -604,7 +604,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     try {
                         token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
                         if (token == null && !outOfOrderBroadcastSupported.get()) {
-                            synchronized (writeQueue ) {
+                            synchronized (writeQueue) {
                                 if (writeQueue.queue.size() == 0) {
                                     writeQueue.monitored.set(false);
                                     writeQueues.remove(writeQueue.uuid);
@@ -624,25 +624,28 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     }
 
-                    synchronized (token.resource) {
-                        try {
-                            logger.trace("About to write to {}", token.resource);
-                            executeAsyncWrite(token);
-                        } catch (Throwable ex) {
-                            if (!started.get() || destroyed.get()) {
-                                logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
-                                return;
-                            } else {
-                                if (token != null) {
-                                    logger.warn("This message {} will be lost for AtmosphereResource {}, adding it to the BroadcasterCache",
-                                            token.originalMessage, token.resource != null ? token.resource.uuid() : "null");
-                                    cacheLostMessage(token.resource, token, true);
+                    // Shield us from https://github.com/Atmosphere/atmosphere/issues/1187
+                    if (token != null) {
+                        synchronized (token.resource) {
+                            try {
+                                logger.trace("About to write to {}", token.resource);
+                                executeAsyncWrite(token);
+                            } catch (Throwable ex) {
+                                if (!started.get() || destroyed.get()) {
+                                    logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
+                                    return;
+                                } else {
+                                    if (token != null) {
+                                        logger.warn("This message {} will be lost for AtmosphereResource {}, adding it to the BroadcasterCache",
+                                                token.originalMessage, token.resource != null ? token.resource.uuid() : "null");
+                                        cacheLostMessage(token.resource, token, true);
+                                    }
+                                    logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                                 }
-                                logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
-                            }
-                        } finally {
-                            if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
-                                return;
+                            } finally {
+                                if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
+                                    return;
+                                }
                             }
                         }
                     }
