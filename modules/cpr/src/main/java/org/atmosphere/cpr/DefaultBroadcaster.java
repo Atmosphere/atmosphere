@@ -906,7 +906,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void queueWriteIO(AtmosphereResource r, Object finalMsg, Entry entry) throws InterruptedException {
         // The onStateChange/onRequest may change the isResumed value, hence we need to make sure only one thread flip
-        // the switch to garantee the Entry will be cached in the order it was broadcasted.
+        // the switch to guarantee the Entry will be cached in the order it was broadcasted.
         // Without synchronizing we may end up with a out of order BroadcasterCache queue.
         if (!bc.getBroadcasterCache().getClass().equals(BroadcasterConfig.DefaultBroadcasterCache.class.getName())) {
             if (r.isResumed() || r.isCancelled()) {
@@ -1005,7 +1005,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
-                logger.trace("AtmosphereResource {} state is invalid for Broadcaster {}", r.uuid(), name);
+                logger.trace("Unable to sent {}. AtmosphereResource {} state is invalid for Broadcaster " + name, token.msg, r.uuid());
                 removeAtmosphereResource(r);
                 return;
             }
