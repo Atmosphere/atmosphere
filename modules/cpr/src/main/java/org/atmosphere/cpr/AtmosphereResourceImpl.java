@@ -775,6 +775,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             if (config.getBroadcasterFactory().getDefault() != null) {
                 config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
             }
+            req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
             event.destroy();
         }
     }

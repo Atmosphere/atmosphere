@@ -502,7 +502,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         }
                     }
                 } catch (Throwable ex) {
-                    // Something wrong happenned, ignore the exception
+                    // Something wrong happened, ignore the exception
                     logger.trace("Failed to cancel resource: {}", impl.uuid(), ex);
                 } finally {
                     try {
@@ -550,7 +550,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         if (m != null) {
                             m.destroy();
                         }
-                        req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                     }
                 }
             }
