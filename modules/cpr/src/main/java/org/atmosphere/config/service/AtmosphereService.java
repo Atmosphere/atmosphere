@@ -68,6 +68,14 @@ public @interface AtmosphereService {
     };
 
     /**
+      * Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
+      * delimited using "=" and separated using coma.
+      * @return Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
+      * delimited using "=" and separated using coma.
+      */
+     String[] atmosphereConfig() default {};
+
+    /**
      * The {@link org.atmosphere.cpr.BroadcasterCache} class name
      *
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name. Default is {@link org.atmosphere.cache.UUIDBroadcasterCache}

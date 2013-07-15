@@ -74,16 +74,9 @@ public class AnnotationHandler {
             try {
                 AtmosphereHandlerService a = discoveredClass.getAnnotation(AtmosphereHandlerService.class);
 
+                atmosphereConfig(a.atmosphereConfig(), framework);
                 framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
-                Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
-                for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters(b.newInstance());
-                }
-
-                for (String s : a.atmosphereConfig()) {
-                    String[] nv = s.split("=");
-                    framework.addInitParameter(nv[0], nv[1]);
-                }
+                filters(a.broadcastFilters(), framework);
 
                 Class<?>[] interceptors = a.interceptors();
                 List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
@@ -100,9 +93,6 @@ public class AnnotationHandler {
                     l.add(new AtmosphereHandlerServiceInterceptor());
                 }
 
-                Class<? extends BroadcasterCache> e = a.broadcasterCache();
-                if (e != null)
-                    framework.setBroadcasterCacheClassName(e.getName());
                 framework.sessionSupport(a.supportSession());
 
                 AtmosphereHandler handler = (AtmosphereHandler) discoveredClass.newInstance();
@@ -133,15 +123,10 @@ public class AnnotationHandler {
                 MeteorService m = s.getAnnotation(MeteorService.class);
 
                 String mapping = m.path();
+
+                atmosphereConfig(m.atmosphereConfig(), framework);
                 framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
-                Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
-                for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters(b.newInstance());
-                }
-                for (String i : m.atmosphereConfig()) {
-                    String[] nv = i.split("=");
-                    framework.addInitParameter(nv[0], nv[1]);
-                }
+                filters(m.broadcastFilters(), framework);
 
                 Class<?>[] interceptors = m.interceptors();
                 List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
@@ -184,26 +169,11 @@ public class AnnotationHandler {
                     }
                 }).initWebSocket();
 
+                atmosphereConfig(m.atmosphereConfig(), framework);
                 framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
-                Class<? extends BroadcastFilter>[] bf = m.broadcastFilters();
-                for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters(b.newInstance());
-                }
+                filters(m.broadcastFilters(), framework);
 
-                Class<? extends BroadcasterCache> e = m.broadcasterCache();
-                if (e != null)
-                    framework.setBroadcasterCacheClassName(e.getName());
-
-                Class<?>[] interceptors = m.interceptors();
-                List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
-                for (Class i : interceptors) {
-                    try {
-                        AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
-                        l.add(ai);
-                    } catch (Throwable e2) {
-                        logger.warn("", e2);
-                    }
-                }
+                interceptors(m.interceptors(), framework);
 
                 WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
                 p.registerWebSocketHandler(m.path(), s.newInstance());
@@ -257,7 +227,10 @@ public class AnnotationHandler {
                 ManagedService a = aClass.getAnnotation(ManagedService.class);
                 List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
+                atmosphereConfig(a.atmosphereConfig(), framework);
                 framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
+                filters(a.broadcastFilters(), framework);
+
                 final Class<? extends AtmosphereResourceEventListener>[] listeners = a.listeners();
                 if (listeners.length > 0) {
                     try {
@@ -311,13 +284,6 @@ public class AnnotationHandler {
                         logger.warn("", e);
                     }
                 }
-
-                Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
-                for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters(b.newInstance());
-                }
-
-                framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
                 framework.addAtmosphereHandler(a.path(), handler, l);
             } catch (Throwable e) {
                 logger.warn("", e);
@@ -327,7 +293,10 @@ public class AnnotationHandler {
                 Class<?> aClass = discoveredClass;
                 AtmosphereService a = aClass.getAnnotation(AtmosphereService.class);
 
+                atmosphereConfig(a.atmosphereConfig(), framework);
                 framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
+                filters(a.broadcastFilters(), framework);
+
                 final Class<? extends AtmosphereResourceEventListener>[] listeners = a.listeners();
                 if (listeners.length > 0) {
                     try {
@@ -365,20 +334,7 @@ public class AnnotationHandler {
                     }
                 }
 
-                Class<? extends BroadcastFilter>[] bf = a.broadcastFilters();
-                for (Class<? extends BroadcastFilter> b : bf) {
-                    framework.broadcasterFilters(b.newInstance());
-                }
-
-                Object c = aClass.newInstance();
-                Class<?>[] interceptors = a.interceptors();
-                for (Class i : interceptors) {
-                    try {
-                        framework.interceptor((AtmosphereInterceptor) i.newInstance());
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                }
+                interceptors(a.interceptors(), framework);
 
                 framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
             } catch (Throwable e) {
@@ -390,6 +346,29 @@ public class AnnotationHandler {
             } catch (Throwable e) {
                 logger.warn("", e);
             }
+        }
+    }
+
+    private static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
+        for (Class i : interceptors) {
+            try {
+                framework.interceptor((AtmosphereInterceptor) i.newInstance());
+            } catch (Throwable e) {
+                logger.warn("", e);
+            }
+        }
+    }
+
+    private static void filters(Class<? extends BroadcastFilter>[] bf, AtmosphereFramework framework) throws IllegalAccessException, InstantiationException {
+        for (Class<? extends BroadcastFilter> b : bf) {
+            framework.broadcasterFilters(b.newInstance());
+        }
+    }
+
+    private static void atmosphereConfig(String[] m, AtmosphereFramework framework) {
+        for (String s : m) {
+            String[] nv = s.split("=");
+            framework.addInitParameter(nv[0], nv[1]);
         }
     }
 }

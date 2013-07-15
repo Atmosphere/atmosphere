@@ -69,4 +69,12 @@ public @interface WebSocketHandlerService {
      */
     Class<? extends AtmosphereInterceptor>[] interceptors() default {};
 
+    /**
+      * Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
+      * delimited using "=" and separated using coma.
+      * @return Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
+      * delimited using "=" and separated using coma.
+      */
+     String[] atmosphereConfig() default {};
+
 }
