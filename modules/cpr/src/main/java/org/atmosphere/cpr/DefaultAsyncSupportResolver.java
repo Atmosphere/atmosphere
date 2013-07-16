@@ -174,9 +174,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                 if (testClassExists(NETTY))
                     add(NettyCometSupport.class);
-
-                if (testClassExists(JBOSS_AS7_WEBSOCKET))
-                    add(JBossWebSocketSupport.class);
             }
         };
     }
@@ -186,8 +183,12 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
                 if (useServlet30Async && !useNativeIfPossible) {
+                    // Must always be called first.
                     if (testClassExists(JSR356_WEBSOCKET))
                         add(JSR356AsyncSupport.class);
+
+                    if (testClassExists(JBOSS_AS7_WEBSOCKET))
+                        add(JBossWebSocketSupport.class);
 
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7Servlet30SupportWithWebSocket.class);
