@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -24,6 +25,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -43,9 +47,12 @@ public class BroadcastFilterTest {
         config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
+        HashMap<String, String> m = new HashMap<String, String>();
+        m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
+        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                req,
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -208,7 +215,7 @@ public class BroadcastFilterTest {
 
         broadcaster.broadcast("0").get();
         assertEquals(atmosphereHandler.value.get().toString(), "0-filter-perFilter");
-      }
+    }
 
     @Test
     public void testVoidAtmosphereResouce() throws ExecutionException, InterruptedException {
@@ -216,6 +223,54 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new VoidAtmosphereResource("1"));
         String s = (String) broadcaster.broadcast("0").get();
         assertEquals(s, "01");
+    }
+
+    @Test
+    public void testMessageLengthFilter() throws ExecutionException, InterruptedException {
+        broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
+    }
+
+    @Test
+    public void testMultipleMessageLengthFilter() throws ExecutionException, InterruptedException {
+        HashMap<String, String> m = new HashMap<String, String>();
+        m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
+        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        for (int i = 0; i < 10; i++) {
+            broadcaster.addAtmosphereResource(new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
+                            broadcaster,
+                            req,
+                            AtmosphereResponse.newInstance(),
+                            mock(BlockingIOCometSupport.class),
+                            new AR()));
+        }
+
+        broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
+    }
+
+    @Test
+    public void testSetMultipleMessageLengthFilter() throws ExecutionException, InterruptedException {
+        HashMap<String, String> m = new HashMap<String, String>();
+        m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
+        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        Set<AtmosphereResource> s = new HashSet<AtmosphereResource>();
+        s.add(ar);
+        for (int i = 0; i < 10; i++) {
+            ar = new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
+                            broadcaster,
+                            req,
+                            AtmosphereResponse.newInstance(),
+                            mock(BlockingIOCometSupport.class),
+                            new AR());
+            broadcaster.addAtmosphereResource(ar);
+        }
+
+        broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
+        broadcaster.broadcast("0", s).get();
+        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
     }
 
     private final static class PerRequestFilter implements PerRequestBroadcastFilter {
@@ -252,7 +307,7 @@ public class BroadcastFilterTest {
 
         @Override
         public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
-            if (r.uuid().equals(VOID_ATMOSPHERE_RESOURCE_UUID)){
+            if (r.uuid().equals(VOID_ATMOSPHERE_RESOURCE_UUID)) {
                 return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, originalMessage);
             } else {
                 return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, "error");

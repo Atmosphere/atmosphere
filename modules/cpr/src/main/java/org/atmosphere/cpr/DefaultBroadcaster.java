@@ -751,9 +751,12 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
 
+            boolean hasFilters = bc.hasPerRequestFilters();
+            Object beforeProcessingMessage = entry.message;
             switch (entry.type) {
                 case ALL:
                     for (AtmosphereResource r : resources) {
+                        entry.message = beforeProcessingMessage;
                         boolean deliverMessage = perRequestFilter(r, entry, false);
 
                         if (!deliverMessage || entry.message == null) {
@@ -762,7 +765,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
 
                         if (entry.writeLocally) {
-                            queueWriteIO(r, entry);
+                            queueWriteIO(r, hasFilters ? new Entry(r, entry) : entry);
                         }
                     }
                     break;
@@ -780,6 +783,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     break;
                 case SET:
                     for (AtmosphereResource r : entry.resources) {
+                        entry.message = beforeProcessingMessage;
                         deliverMessage = perRequestFilter(r, entry, false);
 
                         if (!deliverMessage || entry.message == null) {
@@ -788,7 +792,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
 
                         if (entry.writeLocally) {
-                            queueWriteIO(r, entry);
+                            queueWriteIO(r, hasFilters ? new Entry(r, entry) : entry);
                         }
                     }
                     break;
