@@ -204,6 +204,22 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     }
 
     /**
+     * Broadcast, using the {@link org.atmosphere.cpr.AtmosphereResource#getBroadcaster()} the object to all
+     * {@link WebSocket} associated with the {@link org.atmosphere.cpr.Broadcaster}. This method does the same as
+     * websocket.resource().getBroadcaster().broadcast(o).
+     *
+     * @param o An object to broadcast to all WebSockets.
+     */
+    public WebSocket broadcast(Object o) {
+        if (r != null) {
+            r.getBroadcaster().broadcast(o);
+        } else {
+            logger.debug("No AtmosphereResource Associated with this WebSocket.");
+        }
+        return this;
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override

@@ -20,8 +20,6 @@ import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Simple PubSub resource that demonstrate many functionality supported by
@@ -35,11 +33,9 @@ import org.slf4j.LoggerFactory;
 @WebSocketHandlerService (path ="/pubsub", broadcaster = SimpleBroadcaster.class)
 public class WebSocketPubSub extends WebSocketHandlerAdapter {
 
-    private static final Logger logger = LoggerFactory.getLogger(WebSocketPubSub.class);
-
     @Override
     public void onTextMessage(WebSocket webSocket, String message) {
-        webSocket.resource().getBroadcaster().broadcast(message.substring("message=".length()));
+        webSocket.broadcast(message.substring("message=".length()));
     }
 
 }
