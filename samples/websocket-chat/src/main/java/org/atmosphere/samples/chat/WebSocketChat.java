@@ -17,9 +17,9 @@ package org.atmosphere.samples.chat;
 
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.codehaus.jackson.map.ObjectMapper;
@@ -42,7 +42,7 @@ public class WebSocketChat extends WebSocketHandlerAdapter {
 
     @Override
     public void onOpen(WebSocket webSocket) throws IOException {
-        webSocket.resource().addEventListener(new AtmosphereResourceEventListenerAdapter() {
+        webSocket.resource().addEventListener(new WebSocketEventListenerAdapter() {
             @Override
             public void onDisconnect(AtmosphereResourceEvent event) {
                 if (event.isCancelled()) {

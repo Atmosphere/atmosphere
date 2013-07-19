@@ -456,7 +456,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         // We could potentially synchronize on webSocket but since it is a rare case, it is better to not synchronize.
         // synchronized (webSocket) {
 
-        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CLOSE, webSocket));
+        closeCode = closeCode(closeCode);
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(closeCode, CLOSE, webSocket));
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
 
         if (resource == null) {
@@ -476,11 +477,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
                             r.getAttribute(ASYNCHRONOUS_HOOK);
                     if (!resource.isCancelled() && h != null) {
-                        // Tomcat and Jetty differ, same with browser
-                        if (closeCode == 1000 && framework.getAsyncSupport().getContainerName().contains("Tomcat")) {
-                            closeCode = 1005;
-                        }
-
                         if (closeCode == 1005) {
                             h.closed();
                         } else {
@@ -528,6 +524,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
+    private int closeCode(int closeCode) {
+        // Tomcat and Jetty differ, same with browser
+        if (closeCode == 1000 && framework.getAsyncSupport().getContainerName().contains("Tomcat")) {
+            closeCode = 1005;
+        }
+        return  closeCode;
+    }
+
+
     /**
      * {@inheritDoc}
      */
@@ -557,6 +562,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             WebSocketEventListener.class.cast(l).onHandshake(event);
                             break;
                         case CLOSE:
+                            boolean isClosedByClient = Integer.class.cast(event.message()) == 1000 ? true : false;
+                            l.onDisconnect(new AtmosphereResourceEventImpl(r, !isClosedByClient, false, isClosedByClient, null));
                             WebSocketEventListener.class.cast(l).onDisconnect(event);
                             WebSocketEventListener.class.cast(l).onClose(event);
                             break;
