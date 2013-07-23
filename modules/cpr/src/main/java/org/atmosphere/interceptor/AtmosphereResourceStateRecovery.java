@@ -19,12 +19,16 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
+import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +40,7 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.STATE_RECOVERY_TIMEOUT;
 
@@ -90,7 +95,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         if (!r.transport().equals(AtmosphereResource.TRANSPORT.POLLING)
                 && !r.transport().equals(AtmosphereResource.TRANSPORT.AJAX)) {
 
-            BroadcasterTracker tracker = track(r).tick();
+            final BroadcasterTracker tracker = track(r).tick();
             List<Object> cachedMessages = new LinkedList<Object>();
             for (String broadcasterID : tracker.ids()) {
                 Broadcaster b = factory.lookup(broadcasterID, false);
@@ -101,8 +106,10 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     List<Object> t = cache.retrieveFromCache(b.getID(), r);
 
                     cachedMessages = b.getBroadcasterConfig().applyFilters(r, cachedMessages);
-                    logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
-                    cachedMessages.addAll(t);
+                    if (t.size() > 0) {
+                        logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                        cachedMessages.addAll(t);
+                    }
                 } else {
                     logger.trace("Broadcaster {} is no longer available", broadcasterID);
                 }
@@ -110,23 +117,43 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
             if (cachedMessages.size() > 0) {
                 try {
+                    logger.trace("Writing cached messages {} for {}", cachedMessages, r.uuid());
                     r.getAtmosphereHandler().onStateChange(
                             new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
                                     .setMessage(cachedMessages));
+                    return Action.CANCELLED;
                 } catch (IOException e) {
                     logger.warn("Unable to recover from state recovery", e);
                 }
-                return Action.CANCELLED;
-            }  else {
-                for (String broadcasterID : tracker.ids()) {
-                    Broadcaster b = factory.lookup(broadcasterID, false);
-                    if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
-                        logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
-                        b.addAtmosphereResource(r);
-                    } else {
-                        logger.trace("Broadcaster {} is no longer available", broadcasterID);
+            } else {
+                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    public void onSuspend(AtmosphereResourceEvent event) {
+                        final AtomicBoolean doNotSuspend = new AtomicBoolean(false);
+
+                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                            @Override
+                            public void onBroadcast(AtmosphereResourceEvent event) {
+                                r.removeEventListener(this);
+                                doNotSuspend.set(true);
+                            }
+                        });
+
+                        for (String broadcasterID : tracker.ids()) {
+                            Broadcaster b = factory.lookup(broadcasterID, false);
+                            if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
+                                logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                                b.addAtmosphereResource(r);
+                            } else if (b == null) {
+                                logger.trace("Broadcaster {} is no longer available", broadcasterID);
+                            }
+                        }
+
+                        // Force doNotSuspend.
+                        if (doNotSuspend.get()) {
+                            AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
+                        }
                     }
-                }
+                });
             }
         }
         return Action.CONTINUE;
@@ -161,7 +188,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
             // We track cancelled and resumed connection only.
             BroadcasterTracker t = states.get(r.uuid());
-            if (t != null && !r.isCancelled() && !r.isResumed()) {
+            if (t != null && !r.getAtmosphereResourceEvent().isClosedByClient() && !r.isResumed()) {
                 t.remove(b);
             } else {
                 logger.trace("Keeping the state of {} with broadcaster {}", r.uuid(), b.getID());

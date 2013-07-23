@@ -145,4 +145,9 @@ public interface FrameworkConfig {
      * The {@link javax.servlet.AsyncContext}
      */
     String ASYNC_CONTEXT = "org.atmosphere.container.asyncContext";
+    /**
+     * A flag indicating a message has been written on the resource. This is useful to know if a resource must be resumed for transport like
+     * long-polling.
+     */
+    String MESSAGE_WRITTEN = Broadcaster.class.getName() + ".messageWritten";
 }

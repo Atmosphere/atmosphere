@@ -919,6 +919,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             r.getRequest().setAttribute(ASYNC_TOKEN, token);
             prepareInvokeOnStateChange(r, event);
+            r.getRequest().setAttribute(FrameworkConfig.MESSAGE_WRITTEN, "true");
         } finally {
             if (notifyListeners) {
                 r.notifyListeners();
