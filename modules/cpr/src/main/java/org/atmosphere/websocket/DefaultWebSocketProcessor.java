@@ -529,7 +529,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (closeCode == 1000 && framework.getAsyncSupport().getContainerName().contains("Tomcat")) {
             closeCode = 1005;
         }
-        return  closeCode;
+        return closeCode;
     }
 
 
@@ -562,8 +562,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             WebSocketEventListener.class.cast(l).onHandshake(event);
                             break;
                         case CLOSE:
-                            boolean isClosedByClient = Integer.class.cast(event.message()) == 1000 ? true : false;
-                            l.onDisconnect(new AtmosphereResourceEventImpl(r, !isClosedByClient, false, isClosedByClient, null));
+                            if (Integer.class.getClass().isAssignableFrom(event.message().getClass())) {
+                                boolean isClosedByClient = Integer.class.cast(event.message()) == 1000 ? true : false;
+                                l.onDisconnect(new AtmosphereResourceEventImpl(r, !isClosedByClient, false, isClosedByClient, null));
+                            }
                             WebSocketEventListener.class.cast(l).onDisconnect(event);
                             WebSocketEventListener.class.cast(l).onClose(event);
                             break;
@@ -703,7 +705,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    public boolean wildcardMapping(){
+    public boolean wildcardMapping() {
         return wildcardMapping;
     }
 }
