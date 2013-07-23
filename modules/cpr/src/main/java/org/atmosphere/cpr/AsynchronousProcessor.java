@@ -334,17 +334,18 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         for (AtmosphereInterceptor arc : c) {
             a = arc.inspect(r);
             if (a == null) {
+                logger.debug("Action was null for {}", arc);
                 a = Action.CANCELLED;
             }
 
             boolean skip = a.type() == SKIP_ATMOSPHEREHANDLER;
             if (skip) {
-                logger.debug("AtmosphereInterceptor {} asked to skip the AtmosphereHandler", arc);
+                logger.debug("AtmosphereInterceptor {} asked to skip the AtmosphereHandler for {}", arc, r.uuid());
                 r.getRequest().setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
             }
 
             if (a.type() != Action.TYPE.CONTINUE) {
-                logger.trace("Interceptor {} interrupted the dispatch with {}", arc, a);
+                logger.trace("Interceptor {} interrupted the dispatch for {} with " + a, arc, r.uuid());
                 return a;
             }
         }
