@@ -141,4 +141,8 @@ public interface FrameworkConfig {
      * The subject for the current request
      */
     String SECURITY_SUBJECT = AtmosphereRequest.class.getName() + ".subject";
+    /**
+     * The {@link javax.servlet.AsyncContext}
+     */
+    String ASYNC_CONTEXT = "org.atmosphere.container.asyncContext";
 }

@@ -59,6 +59,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,15 +105,6 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             suspend(action, request, response);
         } else if (action.type() == Action.TYPE.RESUME) {
 
-            if (supportSession()) {
-                AsyncContext asyncContext =
-                        (AsyncContext) request.getSession().getAttribute("org.atmosphere.container.asyncContext");
-
-                if (asyncContext != null) {
-                    asyncContext.complete();
-                }
-            }
-
             Action nextAction = resumed(request, response);
             if (nextAction.type() == Action.TYPE.SUSPEND) {
                 suspend(action, request, response);
@@ -145,13 +137,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 // Long.MAX_VALUE, which is to resume automatically.
                 asyncContext.setTimeout(Integer.MAX_VALUE);
             }
-            req.setAttribute("org.atmosphere.container.asyncContext", asyncContext);
-
-            if (supportSession()) {
-                // Store as well in the session in case the resume operation
-                // happens outside the AtmosphereHandler.onStateChange scope.
-                req.getSession().setAttribute("org.atmosphere.container.asyncContext", asyncContext);
-            }
+            req.setAttribute(FrameworkConfig.ASYNC_CONTEXT, asyncContext);
         }
     }
 
@@ -163,13 +149,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         super.action(actionEvent);
         if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
             AsyncContext asyncContext =
-                    (AsyncContext) actionEvent.getRequest().getAttribute("org.atmosphere.container.asyncContext");
-
-            // Try to find using the Session
-            if (asyncContext == null && supportSession()) {
-                asyncContext = (AsyncContext) actionEvent.getRequest().getSession()
-                        .getAttribute("org.atmosphere.container.asyncContext");
-            }
+                    (AsyncContext) actionEvent.getRequest().getAttribute(FrameworkConfig.ASYNC_CONTEXT);
 
             if (asyncContext != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
                     || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
@@ -180,10 +160,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                     logger.trace("Already resumed!", ex);
                 }
             }
-        } else {
-            if (!actionEvent.isInScope()) {
-                logger.trace("Already resumed or cancelled: event: {}", actionEvent);
-            }
+        } else if (!actionEvent.isInScope()) {
+            logger.trace("Already resumed or cancelled: event: {}", actionEvent);
         }
     }
 
@@ -207,11 +185,12 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             // Jetty 9.0.3 error: https://gist.github.com/jfarcand/5628129
             try {
                 logger.trace("Resumed (completed): event: {}", event.getAsyncContext().getRequest());
-            } catch (NullPointerException ex) {}
+            } catch (NullPointerException ex) {
+            }
         }
 
         public void onTimeout(AsyncEvent event) throws IOException {
-            logger.debug("onTimeout(): event: {}", event.getAsyncContext().getRequest());
+            logger.trace("onTimeout(): event: {}", event.getAsyncContext().getRequest());
 
             if (p == null) {
                 logger.error("Invalid state - CometListener");
@@ -222,12 +201,12 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 p.timedout((AtmosphereRequest) event.getAsyncContext().getRequest(),
                         (AtmosphereResponse) event.getAsyncContext().getResponse());
             } catch (ServletException ex) {
-                logger.debug("onTimeout(): failed timing out comet response: " + event.getAsyncContext().getResponse(), ex);
+                logger.warn("onTimeout(): failed timing out comet response: " + event.getAsyncContext().getResponse(), ex);
             }
         }
 
         public void onError(AsyncEvent event) {
-            logger.debug("onError(): event: {}", event.getAsyncContext().getResponse());
+            logger.trace("onError(): event: {}", event.getAsyncContext().getResponse());
 
             if (p == null) {
                 logger.error("Invalid state - CometListener");
@@ -238,12 +217,12 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 p.cancelled((AtmosphereRequest) event.getAsyncContext().getRequest(),
                         (AtmosphereResponse) event.getAsyncContext().getResponse());
             } catch (Throwable ex) {
-                logger.debug("failed cancelling comet response: " + event.getAsyncContext().getResponse(), ex);
+                logger.warn("failed cancelling comet response: " + event.getAsyncContext().getResponse(), ex);
             }
         }
 
         public void onStartAsync(AsyncEvent event) {
-            logger.debug("onStartAsync(): event: {}", event.getAsyncContext().getResponse());
+            logger.trace("onStartAsync(): event: {}", event.getAsyncContext().getResponse());
         }
     }
 
