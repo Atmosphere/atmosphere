@@ -63,16 +63,17 @@ public final class Action {
         SKIP_ATMOSPHEREHANDLER
     }
 
-    public final static Action CANCELLED = new Action(TYPE.CANCELLED);
-    public final static Action CONTINUE = new Action(TYPE.CONTINUE);
-    public final static Action CREATED = new Action(TYPE.CREATED);
-    public final static Action RESUME = new Action(TYPE.RESUME);
-    public final static Action SUSPEND = new Action(TYPE.SUSPEND);
-    public final static Action DESTROYED = new Action(TYPE.DESTROYED);
+    public final static Action CANCELLED = new Action(TYPE.CANCELLED, true);
+    public final static Action CONTINUE = new Action(TYPE.CONTINUE, true);
+    public final static Action CREATED = new Action(TYPE.CREATED, true);
+    public final static Action RESUME = new Action(TYPE.RESUME, true);
+    public final static Action SUSPEND = new Action(TYPE.SUSPEND, true);
+    public final static Action DESTROYED = new Action(TYPE.DESTROYED, true);
     public final static Action SKIP_ATMOSPHEREHANDLER = new Action(TYPE.SKIP_ATMOSPHEREHANDLER);
 
     private long timeout;
     private TYPE type;
+    private boolean immutable;
 
     public Action() {
         this(TYPE.CREATED);
@@ -80,6 +81,11 @@ public final class Action {
 
     public Action(TYPE type) {
         this(type, -1L);
+    }
+
+    public Action(TYPE type, boolean immutable) {
+        this(type, -1L);
+        this.immutable = immutable;
     }
 
     public Action(TYPE type, long timeout) {
@@ -92,6 +98,9 @@ public final class Action {
     }
 
     public Action type(Action.TYPE type){
+        if (immutable) {
+            throw new IllegalStateException("immutable");
+        }
         this.type = type;
         return this;
     }
@@ -101,6 +110,10 @@ public final class Action {
     }
 
     public Action timeout(long timeout){
+        if (immutable) {
+            throw new IllegalStateException("immutable");
+        }
+
         this.timeout = timeout;
         return this;
     }
