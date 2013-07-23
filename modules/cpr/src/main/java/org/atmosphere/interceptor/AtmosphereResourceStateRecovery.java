@@ -96,35 +96,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 && !r.transport().equals(AtmosphereResource.TRANSPORT.AJAX)) {
 
             final BroadcasterTracker tracker = track(r).tick();
-            List<Object> cachedMessages = new LinkedList<Object>();
-            for (String broadcasterID : tracker.ids()) {
-                Broadcaster b = factory.lookup(broadcasterID, false);
-                BroadcasterCache cache;
-                if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
-                    // We cannot add the resource now. we need to first make sure there is no cached message.
-                    cache = b.getBroadcasterConfig().getBroadcasterCache();
-                    List<Object> t = cache.retrieveFromCache(b.getID(), r);
 
-                    cachedMessages = b.getBroadcasterConfig().applyFilters(r, cachedMessages);
-                    if (t.size() > 0) {
-                        logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
-                        cachedMessages.addAll(t);
-                    }
-                } else {
-                    logger.trace("Broadcaster {} is no longer available", broadcasterID);
-                }
-            }
-
+            List<Object> cachedMessages = retrieveCache(r, tracker, false);
             if (cachedMessages.size() > 0) {
-                try {
-                    logger.trace("Writing cached messages {} for {}", cachedMessages, r.uuid());
-                    r.getAtmosphereHandler().onStateChange(
-                            new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
-                                    .setMessage(cachedMessages));
-                    return Action.CANCELLED;
-                } catch (IOException e) {
-                    logger.warn("Unable to recover from state recovery", e);
-                }
+                writeCache(r, cachedMessages);
+                return Action.CANCELLED;
             } else {
                 r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                     public void onSuspend(AtmosphereResourceEvent event) {
@@ -243,4 +219,36 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         return "AtmosphereResource state recovery";
     }
 
+    public List<Object> retrieveCache(AtmosphereResource r, BroadcasterTracker tracker, boolean force) {
+        List<Object> cachedMessages = new LinkedList<Object>();
+        for (String broadcasterID : tracker.ids()) {
+            Broadcaster b = factory.lookup(broadcasterID, false);
+            BroadcasterCache cache;
+            if (force || (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID()))) {
+                // We cannot add the resource now. we need to first make sure there is no cached message.
+                cache = b.getBroadcasterConfig().getBroadcasterCache();
+                List<Object> t = cache.retrieveFromCache(b.getID(), r);
+
+                cachedMessages = b.getBroadcasterConfig().applyFilters(r, cachedMessages);
+                if (t.size() > 0) {
+                    logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                    cachedMessages.addAll(t);
+                }
+            } else {
+                logger.trace("Broadcaster {} is no longer available", broadcasterID);
+            }
+        }
+        return cachedMessages;
+    }
+
+    private void writeCache(AtmosphereResource r, List<Object> cachedMessages) {
+        try {
+            logger.trace("Writing cached messages {} for {}", cachedMessages, r.uuid());
+            r.getAtmosphereHandler().onStateChange(
+                    new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
+                            .setMessage(cachedMessages));
+        } catch (IOException e) {
+            logger.warn("Unable to recover from state recovery", e);
+        }
+    }
 }
