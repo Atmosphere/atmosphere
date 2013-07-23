@@ -224,6 +224,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             req.removeAttribute(FrameworkConfig.NEW_MAPPING);
             handlerWrapper = config.handlers().get(path(req));
             if (handlerWrapper == null) {
+                logger.debug("Remap {}", resource.uuid());
                 throw new AtmosphereMappingException("Invalid state. No AtmosphereHandler maps request for " + req.getRequestURI());
             }
             resource = configureWorkflow(resource, handlerWrapper, req, res);
