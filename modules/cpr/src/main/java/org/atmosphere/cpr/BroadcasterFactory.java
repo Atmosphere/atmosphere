@@ -66,7 +66,9 @@ public abstract class BroadcasterFactory {
     protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     /**
-     * Return an instance of the default {@link Broadcaster} The name of the Broadcaster will be randmly generated.
+     * Return an instance of the default {@link Broadcaster}.
+     *
+     * The name of the Broadcaster will be randomly generated.
      *
      * @return an instance of the default {@link Broadcaster}
      * @throws IllegalAccessException
@@ -105,17 +107,17 @@ public abstract class BroadcasterFactory {
     abstract public boolean add(Broadcaster b, Object id);
 
     /**
-     * Remove a {@link Broadcaster} to the list.
+     * Remove a {@link Broadcaster} from the list.
      *
      * @param b a {@link Broadcaster}
-     * @return false if wasn't present, or {@link Broadcaster}
      * @param id the {@link Broadcaster's ID}
+     * @return false if wasn't present, or {@link Broadcaster}
      */
     abstract public boolean remove(Broadcaster b, Object id);
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}
+     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param c
      * @param id The Broadcaster's unique ID, or name.
@@ -125,7 +127,7 @@ public abstract class BroadcasterFactory {
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}
+     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param c
      * @param id           The Broadcaster's unique ID, or name.
@@ -136,7 +138,7 @@ public abstract class BroadcasterFactory {
 
      /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}
+     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param id The Broadcaster's unique ID, or name.
      * @return a Broadcaster, or null if not found.
@@ -145,7 +147,7 @@ public abstract class BroadcasterFactory {
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}
+     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param id           The Broadcaster's unique ID, or name.
      * @param createIfNull If the broadcaster is not found, create it.
@@ -154,14 +156,14 @@ public abstract class BroadcasterFactory {
     abstract public <T extends Broadcaster> T  lookup(Object id, boolean createIfNull);
 
     /**
-     * Remove all instance of {@link AtmosphereResource} from all registered {@link Broadcaster}
+     * Remove all instances of {@link AtmosphereResource} from all registered {@link Broadcaster}.
      *
      * @param r an void {@link AtmosphereResource}
      */
     abstract public void removeAllAtmosphereResource(AtmosphereResource r);
 
     /**
-     * Remove the associated {@link Broadcaster}
+     * Remove the associated {@link Broadcaster}.
      */
     abstract public boolean remove(Object id);
 
