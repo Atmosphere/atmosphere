@@ -539,12 +539,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(int i) throws java.io.IOException {
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
                     try {
                         validAsyncIOWriter();
                         writeStatusAndHeaders();
 
-                        // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
 
                         asyncIOWriter.write(AtmosphereResponse.this, new byte[]{(byte) i});
@@ -558,12 +558,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(byte[] bytes) throws java.io.IOException {
+                    boolean b = forceAsyncIOWriter;
                     try {
                         validAsyncIOWriter();
                         writeStatusAndHeaders();
 
                         // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, bytes);
                     } catch (IOException e) {
@@ -576,12 +576,12 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(byte[] bytes, int start, int offset) throws java.io.IOException {
+                    // Prevent StackOverflow
+                    boolean b = forceAsyncIOWriter;
                     try {
                         validAsyncIOWriter();
                         writeStatusAndHeaders();
 
-                        // Prevent StackOverflow
-                        boolean b = forceAsyncIOWriter;
                         forceAsyncIOWriter = false;
                         asyncIOWriter.write(AtmosphereResponse.this, bytes, start, offset);
                     } catch (IOException e) {
