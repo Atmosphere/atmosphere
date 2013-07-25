@@ -129,6 +129,30 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     }
                 });
             }
+
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(final AtmosphereResourceEvent event) {
+
+                    ExecutorsFactory.getScheduler(r.getAtmosphereConfig()).schedule(new Runnable() {
+                        @Override
+                        public void run() {
+                            try {
+                                List<Object> cachedMessages = retrieveCache(r, tracker, true);
+                                if (cachedMessages.size() > 0) {
+                                    logger.trace("About to force writing the cache {}", r.uuid());
+                                    writeCache(r, cachedMessages);
+                                    logger.trace("Forcing close of {}", r.uuid());
+                                    r.close();
+                                }
+                            } catch (Throwable t) {
+                                logger.error("", t);
+                            }
+                        }
+                    }, 2, TimeUnit.SECONDS);
+                }
+            });
+
         }
         return Action.CONTINUE;
     }
@@ -162,7 +186,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
             // We track cancelled and resumed connection only.
             BroadcasterTracker t = states.get(r.uuid());
-            if (t != null && r.getAtmosphereResourceEvent().isClosedByClient() || !r.isResumed()) {
+            if (t != null && (r.getAtmosphereResourceEvent().isClosedByClient() || !r.isResumed())) {
                 t.remove(b);
             } else {
                 logger.trace("Keeping the state of {} with broadcaster {}", r.uuid(), b.getID());
