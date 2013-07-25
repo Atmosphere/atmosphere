@@ -80,14 +80,14 @@ public class AtmosphereFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereFilter.class);
 
-    private final AtmosphereNativeCometServlet as;
+    private final AtmosphereServlet as;
 
     private final static String EXCLUDE_FILES = "^.*\\.(ico|ICO|jpg|JPG|gif|GIF|doc|DOC|pdf|PDF)$";
 
     private String excluded = EXCLUDE_FILES;
 
     public AtmosphereFilter() {
-        as = new AtmosphereNativeCometServlet(true);
+        as = new AtmosphereServlet(true);
     }
 
     /**

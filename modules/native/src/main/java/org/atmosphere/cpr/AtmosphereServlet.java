@@ -28,6 +28,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -41,15 +42,17 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereNativeCometServlet extends AtmosphereServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
+public class AtmosphereServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
 
-    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereNativeCometServlet.class);
+    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
+    protected AtmosphereFramework framework;
 
     /**
      * Create an Atmosphere Servlet.
      */
-    public AtmosphereNativeCometServlet() {
-        super(false);
+    public AtmosphereServlet() {
+        this(false);
     }
 
     /**
@@ -57,8 +60,8 @@ public class AtmosphereNativeCometServlet extends AtmosphereServlet implements C
      *
      * @param isFilter true if this instance is used as an {@link org.atmosphere.cpr.AtmosphereFilter}
      */
-    public AtmosphereNativeCometServlet(boolean isFilter) {
-        super(isFilter, true);
+    public AtmosphereServlet(boolean isFilter) {
+        this(isFilter, true);
     }
 
     /**
@@ -66,8 +69,120 @@ public class AtmosphereNativeCometServlet extends AtmosphereServlet implements C
      *
      * @param isFilter true if this instance is used as an {@link org.atmosphere.cpr.AtmosphereFilter}
      */
-    public AtmosphereNativeCometServlet(boolean isFilter, boolean autoDetectHandlers) {
-        super(isFilter, autoDetectHandlers);
+    public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
+        framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
+    }
+
+    @Override
+    public void destroy() {
+        framework.destroy();
+    }
+
+    public void init(final ServletConfig sc) throws ServletException {
+        super.init(sc);
+        framework.init(sc);
+    }
+
+    public AtmosphereFramework framework() {
+        return framework;
+    }
+
+    /**
+     * Delegate the request processing to an instance of {@link org.atmosphere.cpr.AsyncSupport}
+     *
+     * @param req the {@link javax.servlet.http.HttpServletRequest}
+     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    @Override
+    public void doHead(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+        doPost(req, res);
+    }
+
+    /**
+     * Delegate the request processing to an instance of {@link org.atmosphere.cpr.AsyncSupport}
+     *
+     * @param req the {@link javax.servlet.http.HttpServletRequest}
+     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    @Override
+    public void doOptions(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+        doPost(req, res);
+    }
+
+    /**
+     * Delegate the request processing to an instance of {@link org.atmosphere.cpr.AsyncSupport}
+     *
+     * @param req the {@link javax.servlet.http.HttpServletRequest}
+     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    @Override
+    public void doTrace(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+        doPost(req, res);
+    }
+
+    /**
+     * Delegate the request processing to an instance of {@link org.atmosphere.cpr.AsyncSupport}
+     *
+     * @param req the {@link javax.servlet.http.HttpServletRequest}
+     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    @Override
+    public void doDelete(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+        doPost(req, res);
+    }
+
+    /**
+     * Delegate the request processing to an instance of {@link org.atmosphere.cpr.AsyncSupport}
+     *
+     * @param req the {@link javax.servlet.http.HttpServletRequest}
+     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    @Override
+    public void doPut(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+        doPost(req, res);
+    }
+
+    /**
+     * Delegate the request processing to an instance of {@link org.atmosphere.cpr.AsyncSupport}
+     *
+     * @param req the {@link javax.servlet.http.HttpServletRequest}
+     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    @Override
+    public void doGet(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+        doPost(req, res);
+    }
+
+    /**
+     * Delegate the request processing to an instance of {@link org.atmosphere.cpr.AsyncSupport}
+     *
+     * @param req the {@link javax.servlet.http.HttpServletRequest}
+     * @param res the {@link javax.servlet.http.HttpServletResponse}
+     * @throws java.io.IOException
+     * @throws javax.servlet.ServletException
+     */
+    @Override
+    public void doPost(HttpServletRequest req, HttpServletResponse res)
+            throws IOException, ServletException {
+        framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
     }
 
     /**
