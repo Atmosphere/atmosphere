@@ -83,8 +83,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
     /**
      * Write the {@link AtmosphereResourceEvent#getMessage()} back to the client using
      * the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()} or {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
-     * If a {@link org.atmosphere.cpr.Serializer} is defined, it will be invoked and the writ operation
-     * will be delegated to to it.
+     * If a {@link org.atmosphere.cpr.Serializer} is defined, it will be invoked and the write operation
+     * will be delegated to it.
      * <p/>
      * By default, this method will try to use {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
      *
