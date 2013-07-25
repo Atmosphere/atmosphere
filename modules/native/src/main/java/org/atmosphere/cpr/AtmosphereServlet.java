@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
@@ -42,9 +43,8 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
+public class AtmosphereServlet extends HttpServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
 
-    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected AtmosphereFramework framework;
 
@@ -80,7 +80,10 @@ public class AtmosphereServlet implements CometProcessor, HttpEventServlet, Serv
 
     public void init(final ServletConfig sc) throws ServletException {
         super.init(sc);
+        framework.setUseNativeImplementation(true);
         framework.init(sc);
+        logger.info("AtmosphereServlet with native support for Tomcat 6/7 and JBossWeb Installed.");
+
     }
 
     public AtmosphereFramework framework() {

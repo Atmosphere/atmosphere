@@ -34,7 +34,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereServlet extends HttpServlet{
+public class AtmosphereServlet extends HttpServlet {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected AtmosphereFramework framework;
