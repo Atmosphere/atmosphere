@@ -38,6 +38,14 @@
               <goal>shade</goal>
             </goals>
             <configuration>
+              <artifactSet>
+                <excludes>
+                  <exclude>org.atmosphere:atmosphere-compat-tomcat</exclude>
+                  <exclude>org.atmosphere:atmosphere-compat-tomcat7</exclude>
+                  <exclude>org.atmosphere:atmosphere-compat-jbossweb</exclude>
+                  <exclude>org.slf4j:slf4j-api</exclude>
+                </excludes>
+              </artifactSet>
               <filters>
                 <filter>
                   <artifact>org.atmosphere:atmosphere-runtime</artifact>
@@ -92,6 +100,24 @@
       <version>1.0</version>
       <scope>provided</scope>
       <optional>true</optional>
+    </dependency>
+    <dependency>
+      <groupId>org.atmosphere</groupId>
+      <artifactId>atmosphere-compat-jbossweb</artifactId>
+      <version>1.0.13</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.atmosphere</groupId>
+      <artifactId>atmosphere-compat-tomcat</artifactId>
+      <version>1.0.13</version>
+      <scope>compile</scope>
+    </dependency>
+    <dependency>
+      <groupId>org.atmosphere</groupId>
+      <artifactId>atmosphere-compat-tomcat7</artifactId>
+      <version>1.0.13</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.eclipse.jetty</groupId>
@@ -177,6 +203,12 @@
           <groupId>io.netty</groupId>
         </exclusion>
       </exclusions>
+    </dependency>
+    <dependency>
+      <groupId>org.slf4j</groupId>
+      <artifactId>slf4j-api</artifactId>
+      <version>1.6.1</version>
+      <scope>compile</scope>
     </dependency>
     <dependency>
       <groupId>org.slf4j</groupId>

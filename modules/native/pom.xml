@@ -41,6 +41,14 @@
                             <goal>shade</goal>
                         </goals>
                         <configuration>
+                            <artifactSet>
+                                <excludes>
+                                    <exclude>org.atmosphere:atmosphere-compat-tomcat</exclude>
+                                    <exclude>org.atmosphere:atmosphere-compat-tomcat7</exclude>
+                                    <exclude>org.atmosphere:atmosphere-compat-jbossweb</exclude>
+                                    <exclude>org.slf4j:slf4j-api</exclude>
+                                </excludes>
+                            </artifactSet>
                             <filters>
                                 <filter>
                                     <artifact>org.atmosphere:atmosphere-runtime</artifact>
