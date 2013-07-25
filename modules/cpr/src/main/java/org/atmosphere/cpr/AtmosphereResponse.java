@@ -518,7 +518,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     private void validAsyncIOWriter() throws IOException {
-        if (asyncIOWriter == null) throw new IOException("AtmosphereResource Cancelled: " + uuid);
+        if (asyncIOWriter == null) throw new IOException("AtmosphereResource closed: " + uuid);
     }
 
     private boolean validFlushOrClose(){
