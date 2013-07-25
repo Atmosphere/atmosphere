@@ -27,8 +27,6 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
-import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -164,7 +162,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
             // We track cancelled and resumed connection only.
             BroadcasterTracker t = states.get(r.uuid());
-            if (t != null && !r.getAtmosphereResourceEvent().isClosedByClient() && !r.isResumed()) {
+            if (t != null && r.getAtmosphereResourceEvent().isClosedByClient() || !r.isResumed()) {
                 t.remove(b);
             } else {
                 logger.trace("Keeping the state of {} with broadcaster {}", r.uuid(), b.getID());
