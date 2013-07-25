@@ -1646,6 +1646,11 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @param bccn the broadcasterClassName to set
      */
     public AtmosphereFramework setDefaultBroadcasterClassName(String bccn) {
+        if (isBroadcasterSpecified) {
+            logger.trace("Broadcaster {} already set in web.xml", broadcasterClassName);
+            return this;
+        }
+
         broadcasterClassName = bccn;
 
         // Must reconfigure.
