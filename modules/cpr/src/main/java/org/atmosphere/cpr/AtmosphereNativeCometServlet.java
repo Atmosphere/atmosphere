@@ -62,6 +62,15 @@ public class AtmosphereNativeCometServlet extends AtmosphereServlet implements C
     }
 
     /**
+     * Create an Atmosphere Servlet.
+     *
+     * @param isFilter true if this instance is used as an {@link org.atmosphere.cpr.AtmosphereFilter}
+     */
+    public AtmosphereNativeCometServlet(boolean isFilter, boolean autoDetectHandlers) {
+        super(isFilter, autoDetectHandlers);
+    }
+
+    /**
      * Hack to support Tomcat AIO like other WebServer. This method is invoked
      * by Tomcat when it detect a {@link Servlet} implements the interface
      * {@link CometProcessor} without invoking {@link Servlet#service}

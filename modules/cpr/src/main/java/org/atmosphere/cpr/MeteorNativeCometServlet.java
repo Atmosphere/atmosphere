@@ -52,35 +52,112 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Filter;
 import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
+
+import static org.atmosphere.cpr.ApplicationConfig.FILTER_CLASS;
+import static org.atmosphere.cpr.ApplicationConfig.FILTER_NAME;
+import static org.atmosphere.cpr.ApplicationConfig.MAPPING;
+import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
 
 /**
  * This Servlet support's Tomcat 6/7 and JBossWeb native Comet support.
  *
  * @author Jean-Francois Arcand
  */
-public class MeteorNativeCometServlet extends MeteorServlet {
-    protected static final Logger logger = LoggerFactory.getLogger(MeteorNativeCometServlet.class);
+public class MeteorNativeCometServlet extends AtmosphereNativeCometServlet {
+    protected static final Logger logger = LoggerFactory.getLogger(MeteorServlet.class);
+
+    private Servlet delegate;
+
+    private String delegateMapping;
+
+    private Collection<Filter> filters;
 
     public MeteorNativeCometServlet() {
-        super(false);
+        this(false);
     }
 
     public MeteorNativeCometServlet(boolean isFilter) {
-        super(isFilter, false);
+        this(isFilter, false);
+    }
+
+    public MeteorNativeCometServlet(boolean isFilter, boolean autoDetectHandlers) {
+        super(isFilter, autoDetectHandlers);
     }
 
     public MeteorNativeCometServlet(Servlet delegate, String delegateMapping, Filter... filters) {
-        super(delegate, delegateMapping, Arrays.asList(filters));
+        this(delegate, delegateMapping, Arrays.asList(filters));
     }
 
     public MeteorNativeCometServlet(Servlet delegate, String delegateMapping, Collection<Filter> filters) {
-        super(delegate, delegateMapping, filters);
+        this(false);
+        if (delegate == null || delegateMapping == null) {
+            throw new IllegalArgumentException("Delegate Servlet is undefined");
+        }
+        this.delegate = delegate;
+        this.delegateMapping = delegateMapping;
+        if (filters == null) {
+            this.filters = Collections.emptyList();
+        } else {
+            this.filters = filters;
+        }
+    }
+
+    @Override
+    public void init(final ServletConfig sc) throws ServletException {
+        super.init(sc);
+
+        if (delegate == null) {
+            loadDelegateViaConfig(sc);
+        } else {
+            ReflectorServletProcessor r = new ReflectorServletProcessor(delegate);
+            for (Filter f : filters) {
+                r.addFilter(f);
+            }
+            BroadcasterFactory.getDefault().remove(delegateMapping);
+            framework.addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
+        }
+    }
+
+    private void loadDelegateViaConfig(ServletConfig sc) throws ServletException {
+        String servletClass = framework().getAtmosphereConfig().getInitParameter(SERVLET_CLASS);
+        String mapping = framework().getAtmosphereConfig().getInitParameter(MAPPING);
+        String filterClass = framework().getAtmosphereConfig().getInitParameter(FILTER_CLASS);
+        String filterName = framework().getAtmosphereConfig().getInitParameter(FILTER_NAME);
+
+        if (servletClass != null) {
+            logger.info("Installed Servlet/Meteor {} mapped to {}", servletClass, mapping == null ? "/*" : mapping);
+        }
+        if (filterClass != null) {
+            logger.info("Installed Filter/Meteor {} mapped to /*", filterClass, mapping);
+        }
+
+        // The annotation was used.
+        if (servletClass != null || filterClass != null) {
+            ReflectorServletProcessor r = new ReflectorServletProcessor();
+            r.setServletClassName(servletClass);
+            r.addFilterClassName(filterClass, filterName);
+            if (mapping == null) {
+                mapping = "/*";
+                framework.getBroadcasterFactory().remove("/*");
+            }
+            framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
+        }
+    }
+
+    @Override
+    public void destroy() {
+        super.destroy();
+        Meteor.cache.clear();
     }
 }
