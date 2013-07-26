@@ -505,7 +505,7 @@
         <slf4j-version>1.6.1</slf4j-version>
         <logback-version>0.9.30</logback-version>
         <jbossaswebsockets-version>0.5</jbossaswebsockets-version>
-        <client-version>2.0.0-SNAPSHOT</client-version>
+        <client-version>2.0.0.RC3</client-version>
         <compat-version>1.0.13</compat-version>
         <shiro-version>1.2.2</shiro-version>
     </properties>
