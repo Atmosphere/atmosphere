@@ -55,7 +55,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>1.0.14</version>
+         <version>1.0.15</version>
       </dependency>
 ```
 
