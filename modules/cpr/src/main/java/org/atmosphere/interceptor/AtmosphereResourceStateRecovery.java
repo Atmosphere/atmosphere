@@ -97,18 +97,25 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
             List<Object> cachedMessages = retrieveCache(r, tracker, false);
             if (cachedMessages.size() > 0) {
+                logger.trace("cached messages");
                 writeCache(r, cachedMessages);
                 return Action.CANCELLED;
             } else {
                 r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                     public void onSuspend(AtmosphereResourceEvent event) {
+                        logger.trace("onSuspend first");
                         final AtomicBoolean doNotSuspend = new AtomicBoolean(false);
-
+                        /**
+                         * If a message gets broadcasted during the execution of the code below, we don't need to
+                         * suspend the connection. This code is needed to prevent the connection being suspended
+                         * with messages already written.
+                         */
                         r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                             @Override
                             public void onBroadcast(AtmosphereResourceEvent event) {
                                 r.removeEventListener(this);
                                 doNotSuspend.set(true);
+                                logger.trace("onBroadcast");
                             }
                         });
 
@@ -122,37 +129,28 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                             }
                         }
 
+                        /**
+                         * Check the cache to see if messages has been added directly by using
+                         * {@link BroadcasterCache#addToCache(String, org.atmosphere.cpr.AtmosphereResource, org.atmosphere.cache.BroadcastMessage)}
+                         * after {@link Broadcaster#addAtmosphereResource(org.atmosphere.cpr.AtmosphereResource)} has been
+                         * invoked.
+                         */
+                        final List<Object> cachedMessages = retrieveCache(r, tracker, true);
+                        logger.trace("message size " + cachedMessages.size());
+                        if (cachedMessages.size() > 0) {
+                            logger.trace("About to write to the cache {}", r.uuid());
+                            writeCache(r, cachedMessages);
+                            doNotSuspend.set(true);
+                        }
+
                         // Force doNotSuspend.
                         if (doNotSuspend.get()) {
                             AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
                         }
+                        logger.trace("doNotSuspend " + doNotSuspend.get());
                     }
                 });
             }
-
-            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                @Override
-                public void onSuspend(final AtmosphereResourceEvent event) {
-
-                    ExecutorsFactory.getScheduler(r.getAtmosphereConfig()).schedule(new Runnable() {
-                        @Override
-                        public void run() {
-                            try {
-                                List<Object> cachedMessages = retrieveCache(r, tracker, true);
-                                if (cachedMessages.size() > 0) {
-                                    logger.trace("About to force writing the cache {}", r.uuid());
-                                    writeCache(r, cachedMessages);
-                                    logger.trace("Forcing close of {}", r.uuid());
-                                    r.close();
-                                }
-                            } catch (Throwable t) {
-                                logger.error("", t);
-                            }
-                        }
-                    }, 2, TimeUnit.SECONDS);
-                }
-            });
-
         }
         return Action.CONTINUE;
     }
