@@ -1,12 +1,10 @@
-<%@ page language="java" contentType="text/html; charset=UTF-8"
-	pageEncoding="UTF-8"%>
-<!DOCTYPE>
+<%@ page language="java" contentType="text/html; charset=UTF-8" pageEncoding="UTF-8"%>
+<!DOCTYPE html>
 <html>
 <head>
 	<meta charset="utf-8">
 	<title>Sample Atmosphere</title>
-
-	<script type="text/javascript" src="<%=request.getContextPath()%>/libs/jquery/jquery-1.7.min.js"></script>
+    <script type="text/javascript" src="jquery/jquery-1.9.0.js"></script>
 	<script type="text/javascript" src="jquery/jquery.atmosphere.js"></script>
 	<script type="text/javascript" src="<%=request.getContextPath()%>/js/main.js"></script>
 </head>

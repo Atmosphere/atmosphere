@@ -1,114 +1,95 @@
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en">
+<!doctype html>
+<html>
 <head>
     <script type="text/javascript" src="javascript/atmosphere.js"></script>
     <script type="text/javascript">
-        setTimeout(function(){
-            var detectedTransport = null;
-            var socket = atmosphere;
-            var subSocket;
+    window.onload = function() {
+        var detectedTransport = null;
+        var socket = atmosphere;
+        var subSocket;
 
-            function getKeyCode(ev) {
-                if (window.event) return window.event.keyCode;
-                return ev.keyCode;
+        function getKeyCode(ev) {
+            if (window.event) return window.event.keyCode;
+            return ev.keyCode;
+        }
+
+        function getElementById(id) {
+            return document.getElementById(id);
+        }
+
+        function getTransport(t) {
+            transport = t.options[t.selectedIndex].value;
+            if (transport == 'autodetect') {
+                transport = 'websocket';
             }
 
-            function getElementById() {
-                return document.getElementById(arguments[0]);
-            }
+            return false;
+        }
 
-            function getTransport(t) {
-                transport = t.options[t.selectedIndex].value;
-                if (transport == 'autodetect') {
-                    transport = 'websocket';
-                }
+        function getElementByIdValue(id) {
+            detectedTransport = null;
+            return document.getElementById(id).value;
+        }
 
-                return false;
-            }
+        function subscribe() {
+            var request = {
+                url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
+                transport: getElementByIdValue('transport')};
 
-            function getElementByIdValue() {
-                detectedTransport = null;
-                return document.getElementById(arguments[0]).value;
-            }
+            var ul = document.createElement('ul');
+            document.body.appendChild(ul)
+            request.onMessage = function (response) {
+                detectedTransport = response.transport;
+                if (response.status == 200) {
+                    var data = response.responseBody;
+                    if (data.length > 0) {
+                        var li = document.createElement('li');
 
-            function subscribe() {
-                var request = {
-                    url : document.location.toString() + 'pubsub/' + getElementByIdValue('topic'),
-                    transport: getElementByIdValue('transport')};
+                        ul.insertBefore(li, ul.firstChild);
+                        li.innerHTML = li.innerHTML + data;
 
-                var ul = document.createElement('ul');
-                document.body.appendChild(ul)
-                request.onMessage = function (response) {
-                    detectedTransport = response.transport;
-                    if (response.status == 200) {
-                        var data = response.responseBody;
-                        if (data.length > 0) {
-                            var li = document.createElement('li');
-
-                            ul.insertBefore(li, ul.firstChild);
-                            li.innerHTML = li.innerHTML + data;
-
-                        }
                     }
-                };
-
-                subSocket = socket.subscribe(request);
-            }
-
-            function unsubscribe(){
-                callbackAdded = false;
-                socket.unsubscribe();
-            }
-
-            function connect() {
-                unsubscribe();
-                getElementById('phrase').value = '';
-                getElementById('sendMessage').className = '';
-                getElementById('phrase').focus();
-                subscribe();
-                getElementById('connect').value = "Switch transport";
-            }
-
-            getElementById('connect').onclick = function(event) {
-                if (getElementById('topic').value == '') {
-                    alert("Please enter a PubSub topic to subscribe");
-                    return;
                 }
-                connect();
-            }
-
-            getElementById('topic').onkeyup = function(event) {
-                getElementById('sendMessage').className = 'hidden';
-                var keyc = getKeyCode(event);
-                if (keyc == 13 || keyc == 10) {
-                    connect();
-                    return false;
-                }
-            }
-
-            getElementById('phrase').setAttribute('autocomplete', 'OFF');
-            getElementById('phrase').onkeyup = function(event) {
-                var keyc = getKeyCode(event);
-                if (keyc == 13 || keyc == 10) {
-
-                    var m = " sent using " + detectedTransport;
-                    if (detectedTransport == null) {
-                        detectedTransport = getElementByIdValue('transport');
-                        m = " sent trying to use " + detectedTransport;
-                    }
-
-                    subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
-
-                    getElementById('phrase').value = '';
-                    return false;
-                }
-                return true;
             };
 
-            getElementById('send_message').onclick = function(event) {
-                if (getElementById('topic').value == '') {
-                    alert("Please enter a message to publish");
-                    return;
-                }
+            subSocket = socket.subscribe(request);
+        }
+
+        function unsubscribe(){
+            callbackAdded = false;
+            socket.unsubscribe();
+        }
+
+        function connect() {
+            unsubscribe();
+            getElementById('phrase').value = '';
+            getElementById('sendMessage').className = '';
+            getElementById('phrase').focus();
+            subscribe();
+            getElementById('connect').value = "Switch transport";
+        }
+
+        getElementById('connect').onclick = function(event) {
+            if (getElementById('topic').value == '') {
+                alert("Please enter a PubSub topic to subscribe");
+                return;
+            }
+            connect();
+        }
+
+        getElementById('topic').onkeyup = function(event) {
+            getElementById('sendMessage').className = 'hidden';
+            var keyc = getKeyCode(event);
+            if (keyc == 13 || keyc == 10) {
+                connect();
+                return false;
+            }
+        }
+
+        getElementById('phrase').setAttribute('autocomplete', 'OFF');
+        getElementById('phrase').onkeyup = function(event) {
+            var keyc = getKeyCode(event);
+            if (keyc == 13 || keyc == 10) {
 
                 var m = " sent using " + detectedTransport;
                 if (detectedTransport == null) {
@@ -120,72 +101,67 @@
 
                 getElementById('phrase').value = '';
                 return false;
-            };
+            }
+            return true;
+        };
 
-            getElementById('topic').focus();
-        }, 0);
+        getElementById('send_message').onclick = function(event) {
+            if (getElementById('topic').value == '') {
+                alert("Please enter a message to publish");
+                return;
+            }
+
+            var m = " sent using " + detectedTransport;
+            if (detectedTransport == null) {
+                detectedTransport = getElementByIdValue('transport');
+                m = " sent trying to use " + detectedTransport;
+            }
+
+            subSocket.push({data: 'message=' + getElementByIdValue('phrase') + m});
+
+            getElementById('phrase').value = '';
+            return false;
+        };
+
+        getElementById('topic').focus();
+    };
     </script>
     <style type='text/css'>
-        div {
-            border: 0px solid black;
-        }
-
-        input#phrase {
-            width: 30em;
-            background-color: #e0f0f0;
-        }
-
-        input#topic {
-            width: 14em;
-            background-color: #e0f0f0;
-        }
-
-        div.hidden {
-            display: none;
-        }
-
-        span.from {
-            font-weight: bold;
-        }
-
-        span.alert {
-            font-style: italic;
-        }
+    div {border: 0px solid black;}
+    input#phrase {width: 30em; background-color: #e0f0f0;}
+    input#topic {width: 14em; background-color: #e0f0f0;}
+    div.hidden {display: none;}
+    span.from {font-weight: bold;}
+    span.alert {font-style: italic;}
     </style>
 </head>
 <body>
-<h1>PubSub Sample using Atmosphere's Javascript Library and a <a href="https://github.com/Atmosphere/atmosphere/blob/master/samples/jersey-pubsub/src/main/java/org/atmosphere/samples/pubsub/JerseyPubSub.java">Jersey's Resource</a></h1>
-<h2>Select PubSub topic to subscribe</h2>
-
-<div id='pubsub'>
-    <input id='topic' type='text'/>
-</div>
-<h2>Select transport to use for subscribing</h2>
-
-<h3>You can change the transport any time.</h3>
-
-<div id='select_transport'>
-    <select id="transport">
-        <option id="autodetect" value="websocket">autodetect</option>
-        <option id="long-polling" value="long-polling">long-polling</option>
-        <option id="streaming" value="streaming">http streaming</option>
-        <option id="websocket" value="websocket">websocket</option>
-        <option id="Server Side Events" value="sse">sse</option>
-    </select>
-    <input id='connect' class='button' type='submit' name='connect' value='Connect'/>
-</div>
-<br/>
-<br/>
-
-<h2 id="s_h" class='hidden'>Publish Topic</h2>
-
-<div id='sendMessage' class='hidden'>
-    <input id='phrase' type='text'/>
-    <input id='send_message' class='button' type='submit' name='Publish' value='Publish Message'/>
-</div>
-<br/>
-
-<h2>Real Time PubSub Update</h2>
-<ul></ul>
+    <h1>PubSub Sample using Atmosphere's Javascript Library and a <a href="https://github.com/Atmosphere/atmosphere/blob/master/samples/jersey-pubsub/src/main/java/org/atmosphere/samples/pubsub/JerseyPubSub.java">Jersey's Resource</a></h1>
+    <h2>Select PubSub topic to subscribe</h2>
+    <div id='pubsub'>
+        <input id='topic' type='text'/>
+    </div>
+    <h2>Select transport to use for subscribing</h2>
+    <h3>You can change the transport any time.</h3>
+    <div id='select_transport'>
+        <select id="transport">
+            <option id="autodetect" value="websocket">autodetect</option>
+            <option id="long-polling" value="long-polling">long-polling</option>
+            <option id="streaming" value="streaming">http streaming</option>
+            <option id="websocket" value="websocket">websocket</option>
+            <option id="Server Side Events" value="sse">sse</option>
+        </select>
+        <input id='connect' class='button' type='submit' name='connect' value='Connect'/>
+    </div>
+    <br/>
+    <br/>
+    <h2 id="s_h" class='hidden'>Publish Topic</h2>
+    <div id='sendMessage' class='hidden'>
+        <input id='phrase' type='text'/>
+        <input id='send_message' class='button' type='submit' name='Publish' value='Publish Message'/>
+    </div>
+    <br/>
+    <h2>Real Time PubSub Update</h2>
+    <ul></ul>
 </body>
 </html>
