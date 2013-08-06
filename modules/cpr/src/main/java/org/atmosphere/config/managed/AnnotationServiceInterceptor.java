@@ -211,7 +211,7 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
             if (b.length() > 0) {
                 Object o = null;
                 try {
-                    o = proxy.invoke(b.toString());
+                    o = proxy.invoke(r, b.toString());
                 } catch (IOException e) {
                     logger.error("", e);
                 }

@@ -172,8 +172,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
-    public Object invoke(Object msg) throws IOException {
-        Object o = message(msg);
+    public Object invoke(AtmosphereResource resource, Object msg) throws IOException {
+        Object o = message(resource, msg);
 
         if (o != null) {
             return o;
@@ -263,15 +263,19 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
-    private Object message(Object o) {
+    private Object message(AtmosphereResource resource, Object o) {
         try {
             for (Method m : onRuntimeMethod) {
                 Object decoded = Invoker.decode(decoders.get(m), o);
                 if (decoded == null) {
                     decoded = o;
                 }
-
-                Object objectToEncode = Invoker.invokeMethod(m, object, decoded);
+                Object objectToEncode = null;
+                if (m.getParameterTypes().length == 2) {
+                  objectToEncode = Invoker.invokeMethod(m, object, resource, decoded);
+                } else {
+                  objectToEncode = Invoker.invokeMethod(m, object, decoded);
+                }
                 if (objectToEncode != null) {
                     return Invoker.encode(encoders.get(m), objectToEncode);
                 }
