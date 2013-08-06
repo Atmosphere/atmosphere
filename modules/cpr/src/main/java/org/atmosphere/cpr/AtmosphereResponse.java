@@ -935,8 +935,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     public void closeStreamOrWriter() {
         if (resource() != null && resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
             try {
-                boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
-                if (isUsingStream) {
+                if (isUsingStream()) {
                     try {
                         getOutputStream().close();
                     } catch (java.lang.IllegalStateException ex) {
@@ -984,9 +983,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             writeUsingOriginalResponse = false;
         }
 
-        boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
-            if (isUsingStream) {
+            if (isUsingStream()) {
                 try {
                     OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data.getBytes(getCharacterEncoding()));
@@ -1001,6 +999,15 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             handleException(ex);
         }
         return this;
+    }
+
+    private boolean isUsingStream() {
+        Object s = request().getAttribute(PROPERTY_USE_STREAM);
+        if (s == null) {
+            return true;
+        } else {
+            return (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+        }
     }
 
     /**
@@ -1027,9 +1034,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             writeUsingOriginalResponse = false;
         }
 
-        boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
-            if (isUsingStream) {
+            if (isUsingStream()) {
                 try {
                     OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data);
@@ -1073,9 +1079,8 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             writeUsingOriginalResponse = false;
         }
 
-        boolean isUsingStream = (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
         try {
-            if (isUsingStream) {
+            if (isUsingStream()) {
                 try {
                     OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data, offset, length);
