@@ -680,7 +680,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 action().type(Action.TYPE.CREATED);
             }
         } catch (Throwable t) {
-            logger.trace("Listener error {}", t);
+            logger.debug("Listener error {}", t);
             AtmosphereResourceEventImpl.class.cast(event).setThrowable(t);
             try {
                 onThrowable(event);

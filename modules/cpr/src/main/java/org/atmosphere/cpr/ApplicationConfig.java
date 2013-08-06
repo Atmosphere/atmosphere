@@ -50,12 +50,12 @@ public interface ApplicationConfig {
      */
     String PROPERTY_BLOCKING_COMETSUPPORT = "org.atmosphere.useBlocking";
     /**
-     * Set Atmosphere to throw exception on cloned request  
+     * Set Atmosphere to throw exception on cloned request
      * <p>
      * Default: false<br>
-     * Value: org.atmosphere.throwExceptionOnClonedRequest 
+     * Value: org.atmosphere.throwExceptionOnClonedRequest
      */
-    String PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST = "org.atmosphere.throwExceptionOnClonedRequest";  
+    String PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST = "org.atmosphere.throwExceptionOnClonedRequest";
     /**
      * Set Atmosphere to use the container native Comet support.
      * <p>
@@ -579,5 +579,11 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.interceptor.AtmosphereResourceStateRecovery.timeout
      */
     String STATE_RECOVERY_TIMEOUT = AtmosphereResourceStateRecovery.class.getName() + ".timeout";
+    /**
+     * jsr356 Path mapping length for add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path/...}").
+     * Default: 5
+     * Value: MUST be set using System's properties: org.atmosphere.cpr.jsr356.pathMappingLength"
+     */
+    String JSR356_PATH_MAPPING_LENGTH = ApplicationConfig.class.getName() + ".jsr356.pathMappingLength";
 }
 

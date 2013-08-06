@@ -15,6 +15,7 @@
  */
 package org.atmosphere.container;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.BroadcasterFactory;
@@ -29,21 +30,32 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+/**
+ * JSR356 implementation.
+ */
 public class JSR356ServerApplicationConfig implements ServerApplicationConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356ServerApplicationConfig.class);
-
+    private static final String PATH = "/{path}";
     private final AtmosphereConfigurator configurator = new AtmosphereConfigurator();
 
     @Override
     public Set<ServerEndpointConfig> getEndpointConfigs(Set<Class<? extends Endpoint>> endpointClasses) {
         logger.debug("{} detected by the WebServer", JSR356ServerApplicationConfig.class.getName());
         return new HashSet<ServerEndpointConfig>() {{
-            // TODO: Need a way to support wildcard
-            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}").configurator(configurator).build());
-            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path2}").configurator(configurator).build());
-            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path2}/{path3}").configurator(configurator).build());
-            add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path2}/{path3}/{path4}").configurator(configurator).build());
+            int pathLength = 5;
+
+            // Crazy there is no other way to set this value.
+            String s = System.getProperty(ApplicationConfig.JSR356_PATH_MAPPING_LENGTH, "5");
+            if (s != null) {
+                pathLength = Integer.valueOf(s);
+            }
+            logger.trace("JSR356 Path mapping Size {}", pathLength);
+            StringBuilder b = new StringBuilder(PATH);
+            for (int i=0; i < pathLength; i++) {
+                add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString()).configurator(configurator).build());
+                b.append(PATH);
+            }
         }};
     }
 
@@ -53,6 +65,7 @@ public class JSR356ServerApplicationConfig implements ServerApplicationConfig {
     }
 
     public final static class AtmosphereConfigurator extends ServerEndpointConfig.Configurator {
+
         public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
             if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
                 AtmosphereConfig config = BroadcasterFactory.getDefault().lookup("/*", true).getBroadcasterConfig().getAtmosphereConfig();
