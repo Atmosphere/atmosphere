@@ -20,6 +20,10 @@
             <param-name>com.sun.jersey.config.property.packages</param-name>
             <param-value>org.atmosphere.samples.pubsub</param-value>
         </init-param>
+            <init-param>
+                <param-name>org.atmosphere.cpr.broadcasterCacheClass</param-name>
+                <param-value>org.atmosphere.cache.UUIDBroadcasterCache</param-value>
+            </init-param>
         <init-param>
             <param-name>org.atmosphere.cpr.broadcastFilterClasses</param-name>
             <param-value>org.atmosphere.client.TrackMessageSizeFilter</param-value>
