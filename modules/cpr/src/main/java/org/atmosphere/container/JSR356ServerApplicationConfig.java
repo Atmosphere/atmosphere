@@ -36,7 +36,7 @@ import java.util.Set;
 public class JSR356ServerApplicationConfig implements ServerApplicationConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356ServerApplicationConfig.class);
-    private static final String PATH = "/{path}";
+    private static final String PATH = "/{path";
     private final AtmosphereConfigurator configurator = new AtmosphereConfigurator();
 
     @Override
@@ -51,10 +51,10 @@ public class JSR356ServerApplicationConfig implements ServerApplicationConfig {
                 pathLength = Integer.valueOf(s);
             }
             logger.trace("JSR356 Path mapping Size {}", pathLength);
-            StringBuilder b = new StringBuilder(PATH);
+            StringBuilder b = new StringBuilder(PATH).append("}");
             for (int i=0; i < pathLength; i++) {
                 add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString()).configurator(configurator).build());
-                b.append(PATH);
+                b.append(PATH).append(i).append("}");
             }
         }};
     }
