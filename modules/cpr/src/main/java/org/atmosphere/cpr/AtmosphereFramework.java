@@ -581,10 +581,10 @@ public class AtmosphereFramework implements ServletContextProvider {
             initEndpointMapper();
 
             autoDetectContainer();
-            configureWebDotXmlAtmosphereHandler(sc);
+            configureWebDotXmlAtmosphereHandler(scFacade);
             asyncSupport.init(scFacade);
             initAtmosphereHandler(scFacade);
-            configureAtmosphereInterceptor(sc);
+            configureAtmosphereInterceptor(scFacade);
             analytics();
 
             if (broadcasterCacheClassName == null) {
