@@ -42,11 +42,11 @@ public class Invoker {
         return decodedObject;
     }
 
-    public static Object invokeMethod(Method method, Object objectToInvoke, Object decodedObject) {
+    public static Object invokeMethod(Method method, Object objectToInvoke, Object ... parameters) {
         Object objectToEncode = null;
         boolean hasMatch = false;
         try {
-            objectToEncode = method.invoke(objectToInvoke, new Object[]{decodedObject});
+            objectToEncode = method.invoke(objectToInvoke, parameters);
             hasMatch = true;
         } catch (IllegalAccessException e) {
             logger.trace("", e);
