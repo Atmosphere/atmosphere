@@ -41,7 +41,7 @@ public class Invoker {
         }
         return decodedObject;
     }
-    
+
     public static Object invokeMethod(Method method, Object objectToInvoke, Object ... parameters) {
         Object objectToEncode = null;
         boolean hasMatch = false;
