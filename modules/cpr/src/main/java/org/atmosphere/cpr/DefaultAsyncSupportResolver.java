@@ -297,7 +297,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
         if (cs == null) {
             AsyncSupport nativeSupport = resolveNativeCometSupport(detectContainersPresent());
-            return nativeSupport == null ? new BlockingIOCometSupport(config) : nativeSupport;
+            return nativeSupport == null ? defaultCometSupport(useServlet30Async) : nativeSupport;
         } else {
             return cs;
         }
