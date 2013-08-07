@@ -46,6 +46,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertSame;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
@@ -215,6 +216,46 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(message.get());
         assertEquals(message.get(), "message");
 
+    }
+    
+    @ManagedService(path = "/k")
+    public final static class ManagedMessageWithResource {
+
+      @Get
+      public void get(AtmosphereResource resource) {
+          r.set(resource);
+          resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+              @Override
+              public void onSuspend(AtmosphereResourceEvent event) {
+                  AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("POST").body("message").build();
+
+                  try {
+                      event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                  } catch (IOException e) {
+                      e.printStackTrace();
+                  } catch (ServletException e) {
+                      e.printStackTrace();
+                  }
+              }
+          }).suspend();
+
+        }
+  
+        @Message
+        public void message(AtmosphereResource resource, String m) {
+            message.set(m);
+            assertSame(resource, r.get());
+        }
+    }
+    
+    @Test
+    public void testMessageWithResource() throws IOException, ServletException {
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+        assertNotNull(message.get());
+        assertEquals(message.get(), "message");
     }
 
     @ManagedService(path = "/j")
