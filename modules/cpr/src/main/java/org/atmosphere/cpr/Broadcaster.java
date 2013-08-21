@@ -198,6 +198,9 @@ public interface Broadcaster {
      * Add a {@link AtmosphereResource} to the list of item to be notified when
      * the {@link Broadcaster#broadcast} is invoked.
      *
+     * It is strongly recommended to suspend the {@link AtmosphereResource} before
+     * adding it to a {@link Broadcaster}.
+     *
      * @param resource an {@link AtmosphereResource}
      * @return this
      */
