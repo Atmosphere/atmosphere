@@ -775,7 +775,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     boolean deliverMessage = perRequestFilter(entry.resource, entry, false);
 
                     if (!deliverMessage || entry.message == null) {
-                        logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
+                        logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, entry.resource.uuid());
                         return;
                     }
 
