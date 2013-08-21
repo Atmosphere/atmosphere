@@ -759,7 +759,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 case ALL:
                     for (AtmosphereResource r : resources) {
                         entry.message = beforeProcessingMessage;
-                        boolean deliverMessage = perRequestFilter(r, entry, false);
+                        boolean deliverMessage = perRequestFilter(r, entry);
 
                         if (!deliverMessage || entry.message == null) {
                             logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
@@ -772,7 +772,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                     break;
                 case RESOURCE:
-                    boolean deliverMessage = perRequestFilter(entry.resource, entry, false);
+                    boolean deliverMessage = perRequestFilter(entry.resource, entry);
 
                     if (!deliverMessage || entry.message == null) {
                         logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, entry.resource.uuid());
@@ -786,7 +786,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 case SET:
                     for (AtmosphereResource r : entry.resources) {
                         entry.message = beforeProcessingMessage;
-                        deliverMessage = perRequestFilter(r, entry, false);
+                        deliverMessage = perRequestFilter(r, entry);
 
                         if (!deliverMessage || entry.message == null) {
                             logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
@@ -847,27 +847,19 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected boolean perRequestFilter(AtmosphereResource r, Entry msg, boolean cache) {
+    protected boolean perRequestFilter(AtmosphereResource r, Entry msg) {
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
             logger.trace("Null AtmosphereResource passed inside a Set");
             return false;
         }
 
-        if (isAtmosphereResourceValid(r)) {
-            if (bc.hasPerRequestFilters()) {
-                BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
-                if (a.action() == BroadcastAction.ACTION.ABORT) {
-                    return false;
-                }
-                msg.message = a.message();
+        if (bc.hasPerRequestFilters()) {
+            BroadcastAction a = bc.filter(r, msg.message, msg.originalMessage);
+            if (a.action() == BroadcastAction.ACTION.ABORT) {
+                return false;
             }
-        } else {
-            if (cache) {
-                logger.warn("Request is no longer valid {}, Message {} will be cached", r.uuid(), msg.originalMessage);
-                bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(msg.originalMessage));
-            }
-            return false;
+            msg.message = a.message();
         }
         return true;
     }
@@ -971,7 +963,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 entry = new Entry(newMessage, r, f, o);
                 // Can be aborted by a Filter
-                if (!perRequestFilter(r, entry, true)) {
+                if (!perRequestFilter(r, entry)) {
                     continue;
                 }
 
