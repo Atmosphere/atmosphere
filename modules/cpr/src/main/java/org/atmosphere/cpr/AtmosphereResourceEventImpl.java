@@ -70,9 +70,11 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     protected Object message;
     protected AtmosphereResourceImpl resource;
     private final AtomicBoolean isClosedByClient = new AtomicBoolean(false);
+    private final String uuid;
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource) {
         this.resource = resource;
+        uuid = resource.uuid();
         this.throwable = null;
     }
 
@@ -82,6 +84,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.isResumedOnTimeout.set(isResumedOnTimeout);
         this.resource = resource;
         this.throwable = null;
+        uuid = resource.uuid();
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource, boolean isCancelled,
@@ -91,6 +94,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.isResumedOnTimeout.set(isResumedOnTimeout);
         this.resource = resource;
         this.throwable = throwable;
+        uuid = resource.uuid();
     }
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource,
@@ -103,6 +107,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         this.resource = resource;
         this.throwable = throwable;
         this.isClosedByClient.set(isClosedByClient);
+        uuid = resource.uuid();
     }
 
     /**
@@ -250,7 +255,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
                 "\n\t isCancelled=" + isCancelled +
                 "\n\t isResumedOnTimeout=" + isResumedOnTimeout +
                 "\n\t throwable=" + throwable +
-                "\n\t resource=" + resource != null ? resource.uuid() : "null" +
+                "\n\t resource=" + uuid +
                 '}';
     }
 }
