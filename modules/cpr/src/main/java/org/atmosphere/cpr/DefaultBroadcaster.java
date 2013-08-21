@@ -883,6 +883,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(token.resource);
         final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
+        final AtmosphereRequest request = r.getRequest();
 
         List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
         try {
@@ -897,8 +898,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
             bc.getBroadcasterCache().clearCache(getID(), r, token.cache);
             try {
-                r.getRequest().setAttribute(getID(), token.future);
-                r.getRequest().setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+                request.setAttribute(getID(), token.future);
+                request.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+                request.setAttribute(ASYNC_TOKEN, token);
             } catch (Throwable t) {
                 logger.debug("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
@@ -918,9 +920,15 @@ public class DefaultBroadcaster implements Broadcaster {
                 listeners.addAll(r.atmosphereResourceEventListener());
             }
 
-            r.getRequest().setAttribute(ASYNC_TOKEN, token);
             prepareInvokeOnStateChange(r, event);
-            r.getRequest().setAttribute(FrameworkConfig.MESSAGE_WRITTEN, "true");
+            try {
+                request.setAttribute(FrameworkConfig.MESSAGE_WRITTEN, "true");
+            } catch (NullPointerException ex) {
+                // GlassFish and Tomcat may have recycled the request at that moment so the operation will fail.
+                // In that case we don't cache the message as it has been successfully written or cached later
+                // in the code.
+                logger.trace("NPE after the message has been written for {}", r.uuid());
+            }
         } finally {
             if (notifyListeners) {
                 // Long Polling listener will be cleared when the resume() is called.
