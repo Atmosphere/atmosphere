@@ -762,7 +762,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         boolean deliverMessage = perRequestFilter(r, entry, false);
 
                         if (!deliverMessage || entry.message == null) {
-                            logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
+                            logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
                             continue;
                         }
 
@@ -775,7 +775,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     boolean deliverMessage = perRequestFilter(entry.resource, entry, false);
 
                     if (!deliverMessage || entry.message == null) {
-                        logger.debug("Skipping broadcast delivery resource {} ", entry.resource.uuid());
+                        logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
                         return;
                     }
 
@@ -789,7 +789,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliverMessage = perRequestFilter(r, entry, false);
 
                         if (!deliverMessage || entry.message == null) {
-                            logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
+                            logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
                             continue;
                         }
 
