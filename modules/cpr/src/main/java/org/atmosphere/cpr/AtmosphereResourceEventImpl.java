@@ -250,7 +250,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
                 "\n\t isCancelled=" + isCancelled +
                 "\n\t isResumedOnTimeout=" + isResumedOnTimeout +
                 "\n\t throwable=" + throwable +
-                "\n\t resource=" + resource.uuid() +
+                "\n\t resource=" + resource != null ? resource.uuid() : "null" +
                 '}';
     }
 }
