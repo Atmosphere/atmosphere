@@ -1020,6 +1020,7 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 r.getRequest().setAttribute(getID(), token.future);
                 r.getRequest().setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+                r.getRequest().setAttribute(ASYNC_TOKEN, token);
             } catch (Throwable t) {
                 logger.warn("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
@@ -1035,7 +1036,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 return;
             }
 
-            r.getRequest().setAttribute(ASYNC_TOKEN, token);
             prepareInvokeOnStateChange(r, event);
         } finally {
             if (notifyListeners) {
