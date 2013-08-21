@@ -61,6 +61,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Iterator;
@@ -109,6 +110,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
     private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {} by invoking {}";
+    private static final List<AtmosphereResourceEventListener> EMPTY_LISTENERS = new ArrayList<AtmosphereResourceEventListener>();
 
     protected final ConcurrentLinkedQueue<AtmosphereResource> resources =
             new ConcurrentLinkedQueue<AtmosphereResource>();
@@ -888,6 +890,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(token.resource);
+        final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
+
+        List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
         try {
             event.setMessage(token.msg);
 
@@ -917,12 +922,23 @@ public class DefaultBroadcaster implements Broadcaster {
                 return;
             }
 
+            if (willBeResumed && !r.atmosphereResourceEventListener().isEmpty()) {
+                listeners.addAll(r.atmosphereResourceEventListener());
+            }
+
             r.getRequest().setAttribute(ASYNC_TOKEN, token);
             prepareInvokeOnStateChange(r, event);
             r.getRequest().setAttribute(FrameworkConfig.MESSAGE_WRITTEN, "true");
         } finally {
             if (notifyListeners) {
-                r.notifyListeners();
+                // Long Polling listener will be cleared when the resume() is called.
+                if (willBeResumed) {
+                    for (AtmosphereResourceEventListener e: listeners) {
+                        e.onBroadcast(event);
+                    }
+                } else {
+                    r.notifyListeners();
+                }
             }
 
             entryDone(token.future);
