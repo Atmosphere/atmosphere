@@ -52,9 +52,10 @@ public class JSR356Endpoint extends Endpoint {
         this.framework = framework;
         this.webSocketProcessor = webSocketProcessor;
 
+        // TODO: Find a way to set those values.
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.valueOf(1);
+            webSocketWriteTimeout = Integer.valueOf(s);
         } else {
             webSocketWriteTimeout = -1;
         }
