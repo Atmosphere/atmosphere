@@ -863,8 +863,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 msg.message = a.message();
             }
         } else {
-            logger.warn("Request is no longer valid {}, Message {} will be cached", r.uuid(), msg.originalMessage);
             if (cache) {
+                logger.warn("Request is no longer valid {}, Message {} will be cached", r.uuid(), msg.originalMessage);
                 bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(msg.originalMessage));
             }
             return false;
