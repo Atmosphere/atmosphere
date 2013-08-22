@@ -112,11 +112,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     public void setExecutorService(ScheduledExecutorService reaper) {
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
-            scheduledFuture = null;
-        }
-
         if (taskScheduler != null) {
             stop();
         }
