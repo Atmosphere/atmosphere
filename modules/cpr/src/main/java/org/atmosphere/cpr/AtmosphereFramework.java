@@ -30,6 +30,7 @@ import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
+import org.atmosphere.interceptor.LongPollingOnOpenInterceptor;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
@@ -670,6 +671,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             interceptors.addFirst(newAInterceptor(OnDisconnectInterceptor.class));
             // ADD Tracking ID Handshake
             interceptors.addFirst(newAInterceptor(JavaScriptProtocol.class));
+            // Long-Polling
+            interceptors.addFirst(newAInterceptor(LongPollingOnOpenInterceptor.class));
             // ADD JSONP support
             interceptors.addFirst(newAInterceptor(JSONPAtmosphereInterceptor.class));
             // Add SSE support
