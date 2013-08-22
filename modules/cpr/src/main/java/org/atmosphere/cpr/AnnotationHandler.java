@@ -103,6 +103,7 @@ public class AnnotationHandler {
                 }
 
                 framework.addAtmosphereHandler(a.path(), handler, l);
+                framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
             } catch (Throwable e) {
                 logger.warn("", e);
             }
