@@ -54,6 +54,7 @@ package org.atmosphere.handler;
 
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -95,18 +96,23 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             throws IOException {
 
         Object message = event.getMessage();
-        AtmosphereResponse r = event.getResource().getResponse();
-        if (message == null || event.isCancelled() || event.isResuming() || event.getResource().getRequest().destroyed()) return;
+        AtmosphereResource resource = event.getResource();
+        AtmosphereResponse r = resource.getResponse();
+        
+        if (message == null) {
+            logger.trace("Message was null for AtmosphereEvent {}", event);
+            return;
+        }
 
-        if (event.getResource().getSerializer() != null) {
+        if (resource.getSerializer() != null) {
             try {
 
                 if (message instanceof List) {
                     for (Object s : (List<Object>) message) {
-                         event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), s);
+                         resource.getSerializer().write(resource.getResponse().getOutputStream(), s);
                     }
                 }  else {
-                    event.getResource().getSerializer().write(event.getResource().getResponse().getOutputStream(), message);
+                    resource.getSerializer().write(resource.getResponse().getOutputStream(), message);
                 }
             } catch (Throwable ex) {
                 logger.warn("Serializer exception: message: " + message, ex);
@@ -114,7 +120,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             }
         } else {
             boolean isUsingStream = true;
-            Object o = event.getResource().getRequest().getAttribute(PROPERTY_USE_STREAM);
+            Object o = resource.getRequest().getAttribute(PROPERTY_USE_STREAM);
             if (o != null) {
                 isUsingStream = (Boolean)o;
             }
@@ -185,7 +191,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
         if (event.isResuming() || event.isCancelled()) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
-        // Between event.isCancelled and event.getResource(), the connection has been remotly closed.
+        // Between event.isCancelled and resource, the connection has been remotly closed.
         if (r == null) {
             logger.trace("Event {} returned a null AtmosphereResource", event);
             return;
