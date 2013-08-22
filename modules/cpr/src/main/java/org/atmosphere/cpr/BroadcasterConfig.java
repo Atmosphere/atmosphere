@@ -52,7 +52,7 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.cache.AbstractBroadcasterCache;
+import org.atmosphere.cache.CleanUpMemory;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.di.InjectorProvider;
@@ -149,10 +149,8 @@ public class BroadcasterConfig {
         if (!shared) return;
 
         // Ugly, will be fixed in 1.1 new BroadcasterCache API
-        if (AbstractBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())){
-            AbstractBroadcasterCache.class.cast(broadcasterCache).setExecutorService(scheduler);
-        } else if (UUIDBroadcasterCache.class.isAssignableFrom(broadcasterCache.getClass())){
-            UUIDBroadcasterCache.class.cast(broadcasterCache).setExecutorService(scheduler);
+        if (CleanUpMemory.class.isAssignableFrom(broadcasterCache.getClass())){
+            CleanUpMemory.class.cast(broadcasterCache).setExecutorService(scheduler);
         }
     }
 
@@ -331,6 +329,10 @@ public class BroadcasterConfig {
 
     protected void destroy(boolean force) {
         if (!force && !handleExecutors) return;
+
+        if (CleanUpMemory.class.isAssignableFrom(broadcasterCache.getClass())){
+            CleanUpMemory.class.cast(broadcasterCache).cleanup();
+        }
 
         if ((force || !shared) && broadcasterCache != null) {
             broadcasterCache.stop();

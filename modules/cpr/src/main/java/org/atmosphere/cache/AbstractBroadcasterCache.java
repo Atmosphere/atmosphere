@@ -74,7 +74,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AbstractBroadcasterCache implements BroadcasterCache {
+public abstract class AbstractBroadcasterCache implements BroadcasterCache, CleanUpMemory {
 
     protected static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
 
@@ -112,6 +112,10 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         }, 0, 60, TimeUnit.SECONDS);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void setExecutorService(ScheduledExecutorService reaper){
         if (reaper != null) {
             stop();
@@ -122,18 +126,24 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     /**
      * {@inheritDoc}
      */
+    @Override
     public final void stop() {
+        cleanup();
+        reaper.shutdown();
+    }
+
+    @Override
+    public void cleanup() {
         if (scheduledFuture != null) {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
         }
-
-        reaper.shutdown();
     }
 
     /**
      * {@inheritDoc}
      */
+    @Override
     public final synchronized void addToCache(String id, final AtmosphereResource resource, final Object object) {
         logger.trace("Adding message for resource: {}, object: {}", resource, object);
 
@@ -178,6 +188,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     /**
      * {@inheritDoc}
      */
+    @Override
     public final synchronized List<Object> retrieveFromCache(String id, AtmosphereResource r) {
 
         CachedMessage cm = retrieveLastMessage(id, r);

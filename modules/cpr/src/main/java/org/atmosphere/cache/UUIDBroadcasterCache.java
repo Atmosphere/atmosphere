@@ -42,7 +42,7 @@ import java.util.concurrent.TimeUnit;
  * @author Paul Khodchenkov
  * @author Jeanfrancois Arcand
  */
-public class UUIDBroadcasterCache implements BroadcasterCache {
+public class UUIDBroadcasterCache implements BroadcasterCache, CleanUpMemory {
 
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
@@ -111,6 +111,10 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         this.clientIdleTime = clientIdleTime;
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public void setExecutorService(ScheduledExecutorService reaper) {
         if (taskScheduler != null) {
             stop();
@@ -151,11 +155,16 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void stop() {
+        cleanup();
+        taskScheduler.shutdown();
+    }
+
+    @Override
+    public void cleanup() {
         if (scheduledFuture != null) {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
         }
-        taskScheduler.shutdown();
     }
 
     @Override
