@@ -65,7 +65,6 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.
@@ -120,7 +119,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         push(new Entry(newMsg, null, f, msg));
         return f;
     }
@@ -140,7 +139,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         push(new Entry(newMsg, r, f, msg));
         return f;
     }
@@ -161,7 +160,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg,  this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         push(new Entry(newMsg, subset, f, msg));
         return f;
     }

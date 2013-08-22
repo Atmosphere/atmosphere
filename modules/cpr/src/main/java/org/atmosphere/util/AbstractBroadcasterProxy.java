@@ -111,7 +111,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
             Object newMsg = filter(message);
             // if newSgw == null, that means the message has been filtered.
             if (newMsg != null) {
-                push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg, this), message));
+                push(new Entry(newMsg, null, new BroadcasterFuture<Object>(newMsg), message));
             }
         } catch (Throwable t) {
             logger.error("failed to push message: " + message, t);
@@ -132,7 +132,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         try {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, null, f, false));
@@ -156,7 +156,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         try {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, r, f, false));
@@ -181,7 +181,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
         try {
             outgoingBroadcast(msg);
             push(new Entry(newMsg, subset, f, false));

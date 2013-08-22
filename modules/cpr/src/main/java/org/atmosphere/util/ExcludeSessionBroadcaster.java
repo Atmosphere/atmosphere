@@ -81,7 +81,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size(), this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size());
         messages.offer(new Entry(newMsg, sub, f, msg));
         return f;
     }
@@ -109,7 +109,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size());
         dispatchMessages(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -141,7 +141,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size());
         dispatchMessages(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -176,7 +176,7 @@ public class ExcludeSessionBroadcaster
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size(), this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size());
         dispatchMessages(new Entry(newMsg, subset, f, msg));
         return f;
     }
