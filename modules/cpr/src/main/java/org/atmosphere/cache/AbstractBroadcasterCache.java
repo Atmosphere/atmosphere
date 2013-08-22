@@ -61,10 +61,8 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Iterator;
-import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -115,11 +113,6 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     public void setExecutorService(ScheduledExecutorService reaper){
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
-            scheduledFuture = null;
-        }
-
         if (reaper != null) {
             stop();
         }
@@ -130,6 +123,11 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
      * {@inheritDoc}
      */
     public final void stop() {
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(false);
+            scheduledFuture = null;
+        }
+
         reaper.shutdown();
     }
 
