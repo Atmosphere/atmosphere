@@ -55,14 +55,11 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Simple {@link Future} that can be used when awaiting for a {@link Broadcaster} to finish
@@ -78,28 +75,22 @@ public class BroadcasterFuture<E> implements Future {
     private boolean isDone = false;
     private final E msg;
     private final Future<?> innerFuture;
-    private final Broadcaster broadcaster;
-    private final AtomicBoolean notified = new AtomicBoolean();
 
-    public BroadcasterFuture(E msg, Broadcaster b) {
-        this(null, msg, b);
+    public BroadcasterFuture(E msg) {
+        this(null, msg);
     }
 
-    public BroadcasterFuture(Future<?> innerFuture, E msg,
-                             Broadcaster b) {
-        this(innerFuture, msg, 1, b);
+    public BroadcasterFuture(Future<?> innerFuture, E msg) {
+        this(innerFuture, msg, 1);
     }
 
-    public BroadcasterFuture(E msg, int latchCount,
-                             Broadcaster b) {
-        this(null, msg, latchCount, b);
+    public BroadcasterFuture(E msg, int latchCount) {
+        this(null, msg, latchCount);
     }
 
-    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount,
-                             Broadcaster b) {
+    public BroadcasterFuture(Future<?> innerFuture, E msg, int latchCount) {
         this.msg = msg;
         this.innerFuture = innerFuture;
-        this.broadcaster = b;
         if (innerFuture == null) {
             latch = new CountDownLatch(latchCount);
         } else {

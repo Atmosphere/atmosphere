@@ -959,7 +959,7 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
 
             List<Object> cacheMessages = (List) e.getMessage();
-            BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1, this);
+            BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1);
             LinkedList<Object> filteredMessage = new LinkedList<Object>();
             Entry entry;
             Object newMessage;
@@ -1222,14 +1222,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
         int callee = resources.size() == 0 ? 1 : resources.size();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, callee, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, callee);
         dispatchMessages(new Entry(newMsg, f, msg));
         return f;
     }
 
     protected BroadcasterFuture<Object> futureDone(Object msg) {
         notifyBroadcastListener();
-        return (new BroadcasterFuture<Object>(msg, this)).done();
+        return (new BroadcasterFuture<Object>(msg)).done();
     }
 
     protected void dispatchMessages(Entry e) {
@@ -1270,7 +1270,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return futureDone(msg);
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, 1, this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, 1);
         dispatchMessages(new Entry(newMsg, r, f, msg));
         return f;
     }
@@ -1290,7 +1290,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return futureDone(msg);
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size(), this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size());
         broadcastOnResume.offer(new Entry(newMsg, f, msg));
         return f;
     }
@@ -1322,7 +1322,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return futureDone(msg);
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(null, newMsg, subset.size(), this);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(null, newMsg, subset.size());
         dispatchMessages(new Entry(newMsg, subset, f, msg));
         return f;
     }
@@ -1584,7 +1584,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg, this);
+        final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg);
         final Entry e = new Entry(msg, future, o);
         Future<Object> f;
         if (delay > 0) {
@@ -1613,7 +1613,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }, delay, t);
 
-            e.future = new BroadcasterFuture<Object>(f, msg, this);
+            e.future = new BroadcasterFuture<Object>(f, msg);
         }
         delayedBroadcast.offer(e);
         return future;
@@ -1644,7 +1644,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        final BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg, DefaultBroadcaster.this);
+        final BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
 
         return (Future<Object>) bc.getScheduledExecutorService().scheduleWithFixedDelay(new Runnable() {
             public void run() {
