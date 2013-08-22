@@ -1672,7 +1672,6 @@ public class DefaultBroadcaster implements Broadcaster {
         return new StringBuilder().append("\n\tName: ").append(name)
                 .append("\n\tAtmosphereResource: ").append(resources.size())
                 .append("\n\tBroadcasterCache ").append(bc.getBroadcasterCache())
-                .append(this.getClass().getName()).append("@").append(this.hashCode())
                 .toString();
     }
 
