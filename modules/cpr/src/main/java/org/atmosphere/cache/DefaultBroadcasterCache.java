@@ -18,11 +18,15 @@ package org.atmosphere.cache;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Collections;
 import java.util.List;
 
 public class DefaultBroadcasterCache implements BroadcasterCache {
+    private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterCache.class);
+
     @Override
     public void start() {
 
@@ -39,6 +43,7 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e) {
+        logger.trace("Message {} will be lost! Please install a proper BroadcasterCache", e.message);
         return null;
     }
 
