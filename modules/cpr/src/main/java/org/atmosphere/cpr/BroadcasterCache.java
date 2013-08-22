@@ -80,6 +80,11 @@ public interface BroadcasterCache {
      */
     void stop();
 
+    /**
+     * Clean resource associated with this instance. This method is useful when used when ExecutorServices are shared
+     * and some future must be cancelled. This method will always be invoked when a {@link Broadcaster} gets destroyed.
+     */
+    void cleanup();
 
     /**
      * Configure the cache.

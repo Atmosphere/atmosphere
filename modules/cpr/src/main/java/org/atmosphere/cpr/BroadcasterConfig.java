@@ -331,6 +331,7 @@ public class BroadcasterConfig {
     protected void destroy(boolean force) {
         if (!force && !handleExecutors) return;
 
+        broadcasterCache.cleanup();
         if ((force || !shared) && broadcasterCache != null) {
             broadcasterCache.stop();
         }

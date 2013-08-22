@@ -113,13 +113,18 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
      */
     @Override
     public void stop() {
-        if (scheduledFuture != null) {
-            scheduledFuture.cancel(false);
-            scheduledFuture = null;
-        }
+        cleanup();
 
         if (taskScheduler != null) {
             taskScheduler.shutdown();
+        }
+    }
+
+    @Override
+    public void cleanup() {
+        if (scheduledFuture != null) {
+            scheduledFuture.cancel(false);
+            scheduledFuture = null;
         }
     }
 

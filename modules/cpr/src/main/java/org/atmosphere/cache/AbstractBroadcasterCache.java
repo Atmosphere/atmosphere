@@ -84,12 +84,16 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void stop() {
+    public void cleanup() {
         if (scheduledFuture != null) {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
         }
+    }
 
+    @Override
+    public void stop() {
+        cleanup();
         if (!isShared) {
             reaper.shutdown();
         }

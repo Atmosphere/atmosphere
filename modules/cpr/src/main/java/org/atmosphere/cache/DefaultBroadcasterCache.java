@@ -29,12 +29,14 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void start() {
-
     }
 
     @Override
     public void stop() {
+    }
 
+    @Override
+    public void cleanup() {
     }
 
     @Override
