@@ -592,53 +592,64 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     protected void analytics() {
         final String container = getServletContext().getServerInfo();
-        Thread t = new Thread() {
-            public void run() {
-                try {
-                    HttpURLConnection urlConnection = (HttpURLConnection)
-                            URI.create("http://async-io.org/version.html").toURL().openConnection();
-                    urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
-                    urlConnection.setRequestProperty("Connection", "keep-alive");
-                    urlConnection.setRequestProperty("Cache-Control", "max-age=0");
-                    urlConnection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                    urlConnection.setRequestProperty("Accept-Language", "en-US,en;q=0.8");
-                    urlConnection.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                    urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                    urlConnection.setInstanceFollowRedirects(true);
 
-                    BufferedReader in = new BufferedReader(new InputStreamReader(
-                            urlConnection.getInputStream()));
+        boolean ok = false;
+        try {
+            Class.forName("org.testng.Assert");
+        } catch (ClassNotFoundException e) {
+            ok = true;
+        }
 
-                    String inputLine;
-                    String newVersion = Version.getRawVersion();
+        if (ok) {
+            Thread t = new Thread() {
+                public void run() {
                     try {
-                        while ((inputLine = in.readLine().trim()) != null) {
-                            if (inputLine.startsWith("ATMO_VERSION=")) {
-                                newVersion = inputLine.substring("ATMO_VERSION=".length());
-                                break;
-                            }
-                        }
-                    } finally {
-                        if (newVersion.compareTo(Version.getRawVersion()) != 0) {
-                            logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
-                        }
+                        HttpURLConnection urlConnection = (HttpURLConnection)
+                                URI.create("http://async-io.org/version.html").toURL().openConnection();
+                        urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
+                        urlConnection.setRequestProperty("Connection", "keep-alive");
+                        urlConnection.setRequestProperty("Cache-Control", "max-age=0");
+                        urlConnection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                        urlConnection.setRequestProperty("Accept-Language", "en-US,en;q=0.8");
+                        urlConnection.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
+                        urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
+                        urlConnection.setInstanceFollowRedirects(true);
+
+                        BufferedReader in = new BufferedReader(new InputStreamReader(
+                                urlConnection.getInputStream()));
+
+                        String inputLine;
+                        String newVersion = Version.getRawVersion();
                         try {
-                            in.close();
-                        } catch (IOException ex) {
+                            while ((inputLine = in.readLine().trim()) != null) {
+                                if (inputLine.startsWith("ATMO_VERSION=")) {
+                                    newVersion = inputLine.substring("ATMO_VERSION=".length());
+                                    break;
+                                }
+                            }
+                        } finally {
+                            if (newVersion.compareTo(Version.getRawVersion()) != 0) {
+                                logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
+                            }
+                            try {
+                                in.close();
+                            } catch (IOException ex) {
+                            }
+                            urlConnection.disconnect();
                         }
-                        urlConnection.disconnect();
+
+                        JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
+                        tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
+
+                    } catch (Throwable e) {
                     }
-
-                    JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
-                    tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("AtmosphereFramework")));
-
-                } catch (Throwable e) {
                 }
-            }
-        };
-        t.setDaemon(true);
-        t.start();
+            };
+            t.setDaemon(true);
+            t.start();
+        }
     }
+
 
     /**
      * Configure the list of {@link AtmosphereInterceptor}.
