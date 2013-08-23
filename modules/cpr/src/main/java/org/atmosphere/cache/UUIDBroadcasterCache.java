@@ -91,8 +91,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
         if (shared) {
             taskScheduler = ExecutorsFactory.getScheduler(config.getAtmosphereConfig());
-        }
-        else {
+        } else {
             taskScheduler = Executors.newSingleThreadScheduledExecutor();
         }
     }
