@@ -15,9 +15,9 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -40,7 +40,7 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
+    public void configure(BroadcasterConfig config) {
     }
 
     @Override

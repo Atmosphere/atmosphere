@@ -15,9 +15,9 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -173,14 +173,14 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void configure(AtmosphereConfig config) {
-        Object o = config.properties().get("shared");
+    public void configure(BroadcasterConfig config) {
+        Object o = config.getAtmosphereConfig().properties().get("shared");
         if (o != null) {
             isShared = Boolean.parseBoolean(o.toString());
         }
 
         if (isShared) {
-            reaper = ExecutorsFactory.getScheduler(config);
+            reaper = ExecutorsFactory.getScheduler(config.getAtmosphereConfig());
         } else {
             reaper = Executors.newSingleThreadScheduledExecutor();
         }

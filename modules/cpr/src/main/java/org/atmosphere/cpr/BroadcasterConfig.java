@@ -133,6 +133,7 @@ public class BroadcasterConfig {
                             .loadClass(className).newInstance();
                 }
                 InjectorProvider.getInjector().inject(broadcasterCache);
+                broadcasterCache.configure(this);
             }
 
             for (BroadcasterCacheInspector b : config.framework().inspectors()) {
@@ -152,7 +153,7 @@ public class BroadcasterConfig {
         if (!shared) return;
 
         config.properties().put("shared", "true");
-        broadcasterCache.configure(config);
+        broadcasterCache.configure(this);
     }
 
     protected BroadcasterConfig broadcasterID(String name) {

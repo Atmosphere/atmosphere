@@ -87,9 +87,11 @@ public interface BroadcasterCache {
     void cleanup();
 
     /**
-     * Configure the cache.
+     * Configure the cache
+     *
+     * @param config
      */
-    void configure(AtmosphereConfig config);
+    void configure(BroadcasterConfig config);
 
     /**
      * Start tracking messages associated with {@link AtmosphereResource} from the cache
