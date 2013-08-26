@@ -609,6 +609,7 @@ public class DefaultBroadcaster implements Broadcaster {
             bc.getBroadcasterCache().start();
 
             setID(name);
+            logger.debug("{} lifecycle policy: {}", name, lifeCyclePolicy.getLifeCyclePolicy().name());
             // Only start if we know a child haven't started them.
             if (notifierFuture == null && asyncWriteFuture == null) {
                 spawnReactor();
