@@ -74,7 +74,7 @@ public class MetaBroadcaster {
             }
 
             if (l.isEmpty()) {
-                logger.warn("No Broadcaster match {}", path);
+                logger.warn("No Broadcaster match {}. Message {} WILL BE LOST. Make sure you cache it or make sure the Broadcaster exists before.", path, message);
                 return E;
             }
 
