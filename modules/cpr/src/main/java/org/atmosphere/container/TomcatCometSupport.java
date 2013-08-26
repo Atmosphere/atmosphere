@@ -233,7 +233,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         StringBuilder sb = new StringBuilder();
         sb.append("Tomcat failed to detect this is a Comet application because context.xml ");
         sb.append("is missing or the Http11NioProtocol Connector is not enabled.");
-        sb.append("You must use the AtmosphereCometNativeServlet in order to use native Comet Support");
+        sb.append("You must use the atmosphere-native-runtime dependency in order to use native Comet Support");
         sb.append("\nIf that's not the case, you can also remove META-INF/context.xml and WEB-INF/lib/atmosphere-compat-tomcat.jar");
         return sb.toString();
     }
