@@ -763,6 +763,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         if (!deliverMessage || entry.message == null) {
                             logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
+                            bc.getBroadcasterCache().clearCache(getID(), r, entry.cache);
                             continue;
                         }
 
@@ -776,6 +777,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                     if (!deliverMessage || entry.message == null) {
                         logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, entry.resource.uuid());
+                        bc.getBroadcasterCache().clearCache(getID(), entry.resource, entry.cache);
                         return;
                     }
 
@@ -790,6 +792,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         if (!deliverMessage || entry.message == null) {
                             logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
+                            bc.getBroadcasterCache().clearCache(getID(), r, entry.cache);
                             continue;
                         }
 
