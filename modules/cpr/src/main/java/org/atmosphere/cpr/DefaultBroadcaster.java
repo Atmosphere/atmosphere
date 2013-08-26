@@ -798,7 +798,8 @@ public class DefaultBroadcaster implements Broadcaster {
         // TODO: This won't work with AFTER_FILTER, but anyway the message will be processed when retrieved from the cache
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
         if (bc.uuidCache()) {
-            entry.cache = UUIDBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, entry.originalMessage);
+            Object m = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg : entry.originalMessage;
+            entry.cache = UUIDBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, m);
         }
 
         // We cache first, and if the broadcast succeed, we will remove it.
@@ -828,23 +829,28 @@ public class DefaultBroadcaster implements Broadcaster {
 
                     if (finalMsg == null) {
                         logger.debug("Skipping broadcast delivery for resource {} ", r.uuid());
+                        clearUUIDCache(r,entry.cache);
                         continue;
                     }
 
+                    replaceCacheEntry(r, entry);
                     if (entry.writeLocally) {
                         queueWriteIO(r, finalMsg, entry);
                     }
                 }
             } else if (entry.multipleAtmoResources instanceof AtmosphereResource) {
-                finalMsg = perRequestFilter((AtmosphereResource) entry.multipleAtmoResources, entry, true);
+                AtmosphereResource r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
+                finalMsg = perRequestFilter(r, entry, true);
 
                 if (finalMsg == null) {
                     logger.debug("Skipping broadcast delivery resource {} ", entry.multipleAtmoResources);
+                    clearUUIDCache(r,entry.cache);
                     return;
                 }
 
+                replaceCacheEntry(r, entry);
                 if (entry.writeLocally) {
-                    queueWriteIO((AtmosphereResource) entry.multipleAtmoResources, finalMsg, entry);
+                    queueWriteIO(r, finalMsg, entry);
                 }
             } else if (entry.multipleAtmoResources instanceof Set) {
                 Set<AtmosphereResource> sub = (Set<AtmosphereResource>) entry.multipleAtmoResources;
@@ -855,23 +861,33 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         if (finalMsg == null) {
                             logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
+                            clearUUIDCache(r,entry.cache);
                             continue;
                         }
 
+                        replaceCacheEntry(r, entry);
                         if (entry.writeLocally) {
                             queueWriteIO(r, finalMsg, entry);
                         }
-                    }
-                } else {
-                    // See https://github.com/Atmosphere/atmosphere/issues/572
-                    if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
-                        trackBroadcastMessage(null, finalMsg);
                     }
                 }
             }
             entry.message = prevMessage;
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
+        }
+    }
+
+    /**
+     * Swap the message
+     * @param r
+     * @param entry
+     */
+    protected void replaceCacheEntry(AtmosphereResource r, Entry entry) {
+        if (bc.uuidCache() && !entry.message.equals(entry.originalMessage)) {
+            clearUUIDCache(r, entry.cache);
+            Object m = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
+            entry.cache = UUIDBroadcasterCache.class.cast(bc.getBroadcasterCache()).addCacheCandidate(getID(), r, m);
         }
     }
 
@@ -1010,12 +1026,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 return;
             }
 
-            // https://github.com/Atmosphere/atmosphere/issues/864
-            // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
-            BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-            if (bc.uuidCache()) {
-                UUIDBroadcasterCache.class.cast(broadcasterCache).clearCache(getID(), r, token.cache);
-            }
+            clearUUIDCache(r, token.cache);
 
             try {
                 r.getRequest().setAttribute(getID(), token.future);
@@ -1048,6 +1059,15 @@ public class DefaultBroadcaster implements Broadcaster {
                 cacheLostMessage(r, token, true);
             }
             token.destroy();
+        }
+    }
+
+    private void clearUUIDCache(AtmosphereResource r, CacheMessage cacheMessage) {
+        // https://github.com/Atmosphere/atmosphere/issues/864
+        // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
+        BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
+        if (bc.uuidCache()) {
+            UUIDBroadcasterCache.class.cast(broadcasterCache).clearCache(getID(), AtmosphereResourceImpl.class.cast(r), cacheMessage);
         }
     }
 
