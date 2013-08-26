@@ -175,7 +175,7 @@ public class DefaultBroadcaster implements Broadcaster {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
         noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
-        logger.info("{} support Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
+        logger.trace("{} support Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
     }
 
     public DefaultBroadcaster(String name, AtmosphereConfig config) {
