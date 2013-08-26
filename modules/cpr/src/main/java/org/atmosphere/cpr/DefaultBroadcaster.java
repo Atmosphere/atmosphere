@@ -360,6 +360,8 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public void setBroadcasterLifeCyclePolicy(final BroadcasterLifeCyclePolicy lifeCyclePolicy) {
         this.lifeCyclePolicy = lifeCyclePolicy;
+        logger.debug("{} new lifecycle policy: {}", name, lifeCyclePolicy.getLifeCyclePolicy().name());
+
         if (currentLifecycleTask != null) {
             currentLifecycleTask.cancel(false);
         }
