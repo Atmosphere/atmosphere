@@ -62,7 +62,7 @@ public class UUIDBroadcasterCacheTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = 8080;
+        int port = findFreePort();
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
         server = new org.eclipse.jetty.server.Server(port);
