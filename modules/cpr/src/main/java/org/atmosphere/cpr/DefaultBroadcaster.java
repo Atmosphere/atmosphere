@@ -792,12 +792,11 @@ public class DefaultBroadcaster implements Broadcaster {
 
         entry.message = finalMsg;
 
-
         // https://github.com/Atmosphere/atmosphere/issues/864
         // Cache the message before executing any operation.
         // TODO: This won't work with AFTER_FILTER, but anyway the message will be processed when retrieved from the cache
         BroadcasterCache broadcasterCache = bc.getBroadcasterCache();
-        if (bc.uuidCache()) {
+        if (bc.uuidCache() && cacheStrategy != BroadcasterCache.STRATEGY.AFTER_FILTER) {
             Object m = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg : entry.originalMessage;
             entry.cache = UUIDBroadcasterCache.class.cast(broadcasterCache).addCacheCandidate(getID(), null, m);
         }
@@ -825,9 +824,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
             if (entry.multipleAtmoResources == null) {
                 for (AtmosphereResource r : resources) {
-                    finalMsg = perRequestFilter(r, entry, true);
+                    entry.message = perRequestFilter(r, entry, true);
 
-                    if (finalMsg == null) {
+                    if (entry.message == null) {
                         logger.debug("Skipping broadcast delivery for resource {} ", r.uuid());
                         clearUUIDCache(r,entry.cache);
                         continue;
@@ -835,14 +834,14 @@ public class DefaultBroadcaster implements Broadcaster {
 
                     replaceCacheEntry(r, entry);
                     if (entry.writeLocally) {
-                        queueWriteIO(r, finalMsg, entry);
+                        queueWriteIO(r, entry.message, entry);
                     }
                 }
             } else if (entry.multipleAtmoResources instanceof AtmosphereResource) {
                 AtmosphereResource r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
-                finalMsg = perRequestFilter(r, entry, true);
+                entry.message = perRequestFilter(r, entry, true);
 
-                if (finalMsg == null) {
+                if (entry.message == null) {
                     logger.debug("Skipping broadcast delivery resource {} ", entry.multipleAtmoResources);
                     clearUUIDCache(r,entry.cache);
                     return;
@@ -850,16 +849,16 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 replaceCacheEntry(r, entry);
                 if (entry.writeLocally) {
-                    queueWriteIO(r, finalMsg, entry);
+                    queueWriteIO(r, entry.message, entry);
                 }
             } else if (entry.multipleAtmoResources instanceof Set) {
                 Set<AtmosphereResource> sub = (Set<AtmosphereResource>) entry.multipleAtmoResources;
 
                 if (sub.size() != 0) {
                     for (AtmosphereResource r : sub) {
-                        finalMsg = perRequestFilter(r, entry, true);
+                        entry.message = perRequestFilter(r, entry, true);
 
-                        if (finalMsg == null) {
+                        if (entry.message == null) {
                             logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
                             clearUUIDCache(r,entry.cache);
                             continue;
@@ -867,7 +866,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         replaceCacheEntry(r, entry);
                         if (entry.writeLocally) {
-                            queueWriteIO(r, finalMsg, entry);
+                            queueWriteIO(r, entry.message, entry);
                         }
                     }
                 }
@@ -884,8 +883,7 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param entry
      */
     protected void replaceCacheEntry(AtmosphereResource r, Entry entry) {
-        if (bc.uuidCache() && !entry.message.equals(entry.originalMessage)) {
-            clearUUIDCache(r, entry.cache);
+        if (bc.uuidCache()) {
             Object m = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? entry.message : entry.originalMessage;
             entry.cache = UUIDBroadcasterCache.class.cast(bc.getBroadcasterCache()).addCacheCandidate(getID(), r, m);
         }
@@ -910,7 +908,11 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (bc.hasPerRequestFilters()) {
                     logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
                 }
-                perRequestFilter(r, entry, true);
+                entry.message = perRequestFilter(r, entry, true);
+
+                if (bc.uuidCache()) {
+                    entry.cache = UUIDBroadcasterCache.class.cast(bc.getBroadcasterCache()).addCacheCandidate(getID(), null, entry.message);
+                }
             } else if (!bc.uuidCache()) {
                 trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, entry.originalMessage);
             }
@@ -986,12 +988,8 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
-        // https://github.com/Atmosphere/atmosphere/issues/864
-        // No exception so far, so remove the message from the cache. It will be re-added if something bad happened
-        cache = !bc.uuidCache() && cache;
-
         boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
-        if (cache && after) {
+        if (cache && after && !bc.uuidCache()) {
             trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, after ? finalMsg : msg.originalMessage);
             return finalMsg;
         }
@@ -1516,7 +1514,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 cacheAndSuspend(r);
             }
         } finally {
-            // OK reset                                                                AsyncSupportListenerAdapter
+            // OK reset
             if (resources.size() > 0) {
                 synchronized (awaitBarrier) {
                     awaitBarrier.notifyAll();
