@@ -48,7 +48,6 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
 import static org.testng.Assert.fail;
 
 public class UUIDBroadcasterCacheTest {
@@ -63,7 +62,7 @@ public class UUIDBroadcasterCacheTest {
     @BeforeMethod(alwaysRun = true)
     public void startServer() throws Exception {
 
-        int port = findFreePort();
+        int port = 8080;
         urlTarget = "http://127.0.0.1:" + port + "/invoke";
 
         server = new org.eclipse.jetty.server.Server(port);
@@ -142,7 +141,7 @@ public class UUIDBroadcasterCacheTest {
 
                 if (List.class.isAssignableFrom(event.getMessage().getClass())) {
                     for (String m : (List<String>) event.getMessage()) {
-                        event.getResource().getResponse().getOutputStream().write(m.getBytes());
+                        event.getResource().getResponse().getWriter().write(m);
                     }
                 }
                 event.getResource().resume();
@@ -199,7 +198,7 @@ public class UUIDBroadcasterCacheTest {
 
             assertNotNull(response.get());
             assertEquals(response.get().getStatusCode(), 200);
-            assertEquals(response.get().getResponseBody(), "message-1message-2");
+            assertEquals(response.get().getResponseBody().trim(), "message-1message-2");
         } catch (Exception e) {
             logger.error("test failed", e);
             fail(e.getMessage());
@@ -347,8 +346,8 @@ public class UUIDBroadcasterCacheTest {
             }
 
             //System.out.println("=====>" + messages.get().toString());
-            //assertEquals(messages.toString(),b.toString());
-            assertEquals(messages.toString().length(),b.toString().length());
+            //assertEquals(messages.toString().trim(),b.toString());
+            assertEquals(messages.toString().trim().length(),b.toString().length());
             //assertEquals(messages.toString().length(),  992);
 
         } catch (Exception e) {
