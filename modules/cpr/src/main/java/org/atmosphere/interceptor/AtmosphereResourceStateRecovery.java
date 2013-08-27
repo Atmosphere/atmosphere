@@ -127,6 +127,8 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                                 b.addAtmosphereResource(r);
                             } else if (b == null) {
                                 logger.trace("Broadcaster {} is no longer available for {}", broadcasterID, r);
+                            } else {
+                                logger.trace("AtmosphereResource {} already associated with {}", r.uuid(), broadcasterID);
                             }
                         }
 
