@@ -255,7 +255,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     cachedMessages.addAll(t);
                 }
             } else {
-                logger.trace("Broadcaster {} is no longer available", broadcasterID);
+                logger.trace("Broadcaster {} is no longer available for {}", broadcasterID, r);
             }
         }
         return cachedMessages;
