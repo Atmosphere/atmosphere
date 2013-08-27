@@ -121,7 +121,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
                         for (String broadcasterID : tracker.ids()) {
                             Broadcaster b = factory.lookup(broadcasterID, false);
-                            logger.trace("About to retrieve cached messages for resource {} with Broadcaster {}, tracked by " + b, r.uuid(), r.getBroadcaster());
+                            logger.trace("About to associate resource {} with Broadcaster {}", r.uuid(), broadcasterID);
                             if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
                                 logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
                                 b.addAtmosphereResource(r);
