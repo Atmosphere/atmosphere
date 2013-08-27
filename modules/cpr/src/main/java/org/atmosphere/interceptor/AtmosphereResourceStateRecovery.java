@@ -121,11 +121,12 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
                         for (String broadcasterID : tracker.ids()) {
                             Broadcaster b = factory.lookup(broadcasterID, false);
+                            logger.trace("About to retrieve cached messages for resource {} with Broadcaster {}, tracked by " + b, r.uuid(), r.getBroadcaster());
                             if (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID())) {
                                 logger.trace("Associate AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
                                 b.addAtmosphereResource(r);
                             } else if (b == null) {
-                                logger.trace("Broadcaster {} is no longer available", broadcasterID);
+                                logger.trace("Broadcaster {} is no longer available for {}", broadcasterID, r);
                             }
                         }
 
@@ -269,7 +270,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
                             .setMessage(cachedMessages));
         } catch (IOException e) {
-            logger.warn("Unable to recover from state recovery", e);
+            logger.warn("Unable to recover from state recovery {}", r.uuid(), e);
         }
     }
 }
