@@ -900,6 +900,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (r == null) {
                 r = noOpsResource;
             }
+
             if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER) {
                 if (bc.hasPerRequestFilters()) {
                     logger.debug("Invoking BroadcastFilter with dummy AtmosphereResource {}", r.uuid());
