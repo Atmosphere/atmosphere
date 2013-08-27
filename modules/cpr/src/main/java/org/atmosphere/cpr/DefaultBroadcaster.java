@@ -586,7 +586,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             logger.warn("This message {} will be lost", msg);
                             logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
                         }
-                    }  finally {
+                    } finally {
                         if (outOfOrderBroadcastSupported.get()) {
                             return;
                         }
@@ -824,49 +824,49 @@ public class DefaultBroadcaster implements Broadcaster {
 
             if (entry.multipleAtmoResources == null) {
                 for (AtmosphereResource r : resources) {
-                    entry.message = perRequestFilter(r, entry, true);
+                    finalMsg = perRequestFilter(r, entry, true);
 
-                    if (entry.message == null) {
+                    if (finalMsg == null) {
                         logger.debug("Skipping broadcast delivery for resource {} ", r.uuid());
-                        clearUUIDCache(r,entry.cache);
+                        clearUUIDCache(r, entry.cache);
                         continue;
                     }
 
                     replaceCacheEntry(r, entry);
                     if (entry.writeLocally) {
-                        queueWriteIO(r, entry.message, entry);
+                        queueWriteIO(r, finalMsg, entry);
                     }
                 }
             } else if (entry.multipleAtmoResources instanceof AtmosphereResource) {
                 AtmosphereResource r = AtmosphereResource.class.cast(entry.multipleAtmoResources);
-                entry.message = perRequestFilter(r, entry, true);
+                finalMsg = perRequestFilter(r, entry, true);
 
-                if (entry.message == null) {
+                if (finalMsg == null) {
                     logger.debug("Skipping broadcast delivery resource {} ", entry.multipleAtmoResources);
-                    clearUUIDCache(r,entry.cache);
+                    clearUUIDCache(r, entry.cache);
                     return;
                 }
 
                 replaceCacheEntry(r, entry);
                 if (entry.writeLocally) {
-                    queueWriteIO(r, entry.message, entry);
+                    queueWriteIO(r, finalMsg, entry);
                 }
             } else if (entry.multipleAtmoResources instanceof Set) {
                 Set<AtmosphereResource> sub = (Set<AtmosphereResource>) entry.multipleAtmoResources;
 
                 if (sub.size() != 0) {
                     for (AtmosphereResource r : sub) {
-                        entry.message = perRequestFilter(r, entry, true);
+                        finalMsg = perRequestFilter(r, entry, true);
 
-                        if (entry.message == null) {
+                        if (finalMsg == null) {
                             logger.debug("Skipping broadcast delivery resource {} ", r.uuid());
-                            clearUUIDCache(r,entry.cache);
+                            clearUUIDCache(r, entry.cache);
                             continue;
                         }
 
                         replaceCacheEntry(r, entry);
                         if (entry.writeLocally) {
-                            queueWriteIO(r, entry.message, entry);
+                            queueWriteIO(r, finalMsg, entry);
                         }
                     }
                 }
@@ -879,6 +879,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     /**
      * Swap the message
+     *
      * @param r
      * @param entry
      */
@@ -988,6 +989,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
 
+        // For legacy BroadcasterCache
         boolean after = cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER;
         if (cache && after && !bc.uuidCache()) {
             trackBroadcastMessage(r != null ? (r.uuid().equals("-1") ? null : r) : r, after ? finalMsg : msg.originalMessage);
@@ -1071,6 +1073,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     /**
      * Return false if no cached messages has been found, true if cached.
+     *
      * @param r
      * @param e
      * @return false if no cached messages has been found, true if cached.
@@ -1115,7 +1118,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     // An exception occurred
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
-                    for (Object o : (List)e.getMessage()) {
+                    for (Object o : cacheMessages) {
                         bc.getBroadcasterCache().addToCache(getID(), r, o);
                     }
                     return true;
@@ -1526,6 +1529,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     /**
      * Look in the cache to see of there are messages available, and takes the appropriate actions.
+     *
      * @param r AtmosphereResource
      */
     protected void cacheAndSuspend(AtmosphereResource r) {
@@ -1597,7 +1601,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         boolean removed;
-        synchronized(resources) {
+        synchronized (resources) {
             removed = resources.remove(r);
         }
 
