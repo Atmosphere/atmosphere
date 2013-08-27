@@ -354,4 +354,126 @@ public class UUIDBroadcasterCacheTest {
 
         c.close();
     }
+
+    @Test(timeOut = 60000, enabled = false)
+    public void testEventListenerOnBroadcast() throws IllegalAccessException, ClassNotFoundException, InstantiationException {
+        logger.info("{}: running test: testEventListenerOnBroadcast", getClass().getSimpleName());
+
+        atmoServlet.framework().setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName());
+        final CountDownLatch suspendLatch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(1);
+        final AtomicInteger messagesCount = new AtomicInteger();
+
+        atmoServlet.framework().addAtmosphereHandler(ROOT, new AbstractHttpAtmosphereHandler() {
+            public AtomicInteger count = new AtomicInteger(0);
+
+            public void onRequest(AtmosphereResource event) throws IOException {
+                try {
+                    if (event.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null) {
+                        event.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                            @Override
+                            public void onSuspend(AtmosphereResourceEvent event) {
+                                suspendLatch.countDown();
+                            }
+
+                            @Override
+                            public void onBroadcast(AtmosphereResourceEvent event) {
+                                Object message = event.getMessage();
+                                if (message != null) {
+                                    if (List.class.isAssignableFrom(message.getClass())) {
+                                        List list = (List)message;
+                                        messagesCount.addAndGet(list.size());
+                                    }
+                                    else {
+                                        messagesCount.incrementAndGet();
+                                    }
+                                }
+                            }
+                        }).suspend();
+                        return;
+                    }
+                    event.getBroadcaster().broadcast("message-" + count.getAndIncrement()).get();
+                } catch (InterruptedException e) {
+                    logger.error("", e);
+                } catch (ExecutionException e) {
+                    logger.error("", e);
+                }
+                event.getResponse().flushBuffer();
+            }
+
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                if (event.isResuming() || event.isCancelled()) {
+                    return;
+                }
+
+                if (List.class.isAssignableFrom(event.getMessage().getClass())) {
+                    for (String m : (List<String>)event.getMessage()) {
+                        event.getResource().getResponse().getOutputStream().write(m.getBytes());
+                    }
+                }
+                event.getResource().resume();
+            }
+        }, BroadcasterFactory.getDefault().get(DefaultBroadcaster.class, "cache"));
+
+        AsyncHttpClient c = new AsyncHttpClient();
+        try {
+            final AtomicReference<Response> response = new AtomicReference<Response>();
+            //Suspend
+            c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, String.valueOf(0)).execute(new AsyncCompletionHandler<Response>() {
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    response.set(r);
+                    return r;
+                }
+            });
+
+            try {
+                suspendLatch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            // This will resume the connection
+            c.prepareGet(urlTarget).execute().get();
+
+            // Generate Cached messages
+            c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
+            c.prepareGet(urlTarget).execute().get();
+
+
+            // Cache will be returned with 5 messages in it.
+            c.prepareGet(urlTarget).addHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, response.get().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID))
+                    .addHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT).execute(new AsyncCompletionHandler<Response>() {
+                @Override
+                public Response onCompleted(Response r) throws Exception {
+                    try {
+                        response.set(r);
+                        return r;
+                    } finally {
+                        latch.countDown();
+                    }
+                }
+            });
+
+
+            try {
+                latch.await(20, TimeUnit.SECONDS);
+            } catch (InterruptedException e) {
+                fail(e.getMessage());
+            }
+
+            assertNotNull(response.get());
+            assertEquals(response.get().getStatusCode(), 200);
+            assertEquals(response.get().getResponseBody().trim(), "message-1message-2message-3message-4message-5");
+            assertEquals(messagesCount.get(), 6);
+        } catch (Exception e) {
+            logger.error("test failed", e);
+            fail(e.getMessage());
+        }
+
+        c.close();
+    }
 }
