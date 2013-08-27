@@ -244,6 +244,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         for (String broadcasterID : tracker.ids()) {
             Broadcaster b = factory.lookup(broadcasterID, false);
             BroadcasterCache cache;
+            logger.trace("About to retrieve cached messages for resource {} with Broadcaster {}, tracked by " + b, r.uuid(), r.getBroadcaster());
             if (force || (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID()))) {
                 // We cannot add the resource now. we need to first make sure there is no cached message.
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
