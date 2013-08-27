@@ -991,16 +991,16 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             e.setMessage(filteredMessage);
 
-            r.getRequest().setAttribute(CACHED, "true");
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
+                    r.getRequest().setAttribute(CACHED, "true");
                     prepareInvokeOnStateChange(r, e);
                 } catch (Throwable t) {
                     // An exception occured
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
-                    for (Object o : (List)e.getMessage()) {
+                    for (Object o : cacheMessages) {
                         bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(o));
                     }
                     return true;
