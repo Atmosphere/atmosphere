@@ -832,7 +832,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         continue;
                     }
 
-                    afterFilterCacheEntry(r, entry);
+                    afterFilterCacheEntry(r, entry, finalMsg);
                     if (entry.writeLocally) {
                         queueWriteIO(r, finalMsg, entry);
                     }
@@ -847,7 +847,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     return;
                 }
 
-                afterFilterCacheEntry(r, entry);
+                afterFilterCacheEntry(r, entry, finalMsg);
                 if (entry.writeLocally) {
                     queueWriteIO(r, finalMsg, entry);
                 }
@@ -864,7 +864,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             continue;
                         }
 
-                        afterFilterCacheEntry(r, entry);
+                        afterFilterCacheEntry(r, entry, finalMsg);
                         if (entry.writeLocally) {
                             queueWriteIO(r, finalMsg, entry);
                         }
@@ -877,11 +877,9 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void afterFilterCacheEntry(AtmosphereResource r, Entry entry) {
-        if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER
-                && bc.uuidCache()
-                && !entry.message.equals(entry.originalMessage)) {
-            entry.cache = UUIDBroadcasterCache.class.cast(bc.getBroadcasterCache()).addCacheCandidate(getID(), r, entry.message);
+    protected void afterFilterCacheEntry(AtmosphereResource r, Entry entry, Object finalMsg) {
+        if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER && bc.uuidCache()) {
+            entry.cache = UUIDBroadcasterCache.class.cast(bc.getBroadcasterCache()).addCacheCandidate(getID(), r, finalMsg);
         }
     }
 
