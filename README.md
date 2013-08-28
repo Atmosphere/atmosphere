@@ -9,9 +9,10 @@ The Atmosphere Framework contains client and server side components for building
 Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
 The Atmosphere Framework Stack consists of: 
-                               
-![alt text](http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack")
 
+<p align="center">
+  <img src="http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack"" alt="Atmosphere Stack"/>
+</p>
 Using the Netty Framework? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
 
 Using the Play Framework? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-play)
