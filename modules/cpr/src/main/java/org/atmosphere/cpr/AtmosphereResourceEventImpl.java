@@ -98,7 +98,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
      * {@inheritDoc}
      */
     public boolean isResuming() {
-        return resource.action().type() == Action.TYPE.RESUME;
+        return resource != null ? resource.action().type() == Action.TYPE.RESUME : false;
     }
 
     /**
