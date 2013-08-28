@@ -325,7 +325,7 @@ public class UUIDBroadcasterCacheTest {
                 @Override
                 public Response onCompleted(Response r) throws Exception {
                     try {
-                        messages.get().append(r.getResponseBody());
+                        messages.get().append(r.getResponseBody().trim());
                         return r;
                     } finally {
                         latch.countDown();
