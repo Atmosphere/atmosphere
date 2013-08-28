@@ -1,4 +1,6 @@
-![alt text](http://atmosphere.github.io/atmosphere/images/atmosphere.png "Logo")
+<p align="center">
+  <img src="http://atmosphere.github.io/atmosphere/images/atmosphere.png" alt="LOGO"/>
+</p>
 ### Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Application. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all majors [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers)
 
