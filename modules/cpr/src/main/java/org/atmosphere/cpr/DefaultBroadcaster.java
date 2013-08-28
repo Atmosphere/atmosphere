@@ -874,8 +874,9 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected void afterFilterCacheEntry(AtmosphereResource r, Object finalMsg) {
+    protected void afterFilterCacheEntry(AtmosphereResource r, Object finalMsg, CacheMessage cacheMessage) {
         if (cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER && bc.uuidCache()) {
+            clearUUIDCache(r, cacheMessage);
             UUIDBroadcasterCache.class.cast(bc.getBroadcasterCache()).addCacheCandidate(getID(), r, finalMsg);
         }
     }
@@ -926,7 +927,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (!bc.uuidCache()) {
                     trackBroadcastMessage(r, cacheStrategy == BroadcasterCache.STRATEGY.AFTER_FILTER ? finalMsg : entry.originalMessage);
                 } else {
-                    afterFilterCacheEntry(r, finalMsg);
+                    afterFilterCacheEntry(r, finalMsg, entry.cache);
                 }
                 return;
             }
@@ -1015,7 +1016,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
             if (!isAtmosphereResourceValid(r)) {
                 logger.trace("Unable to sent {}. AtmosphereResource {} state is invalid for Broadcaster " + name, token.msg, r.uuid());
-                afterFilterCacheEntry(r, token.msg);
+                afterFilterCacheEntry(r, token.msg, token.cache);
                 removeAtmosphereResource(r);
                 return;
             }
