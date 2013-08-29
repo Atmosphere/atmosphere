@@ -1014,7 +1014,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     return true;
                 }
 
-                for (AtmosphereResourceEventListener l : willBeResumed ? listeners : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
+                for (AtmosphereResourceEventListener l : willBeResumed ? listeners : rImpl.atmosphereResourceEventListener()) {
                     l.onBroadcast(e);
                 }
 
