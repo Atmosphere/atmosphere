@@ -1772,7 +1772,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             }
         } catch (Exception ex) {
-            logger.error("Unable to parse query string", "");
+            logger.error("Unable to parse query string", ex);
         }
         logger.trace("Query String translated to headers {}", headers);
         return headers;
