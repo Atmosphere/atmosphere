@@ -85,16 +85,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     private final AtmosphereRequest req;
     private final AtmosphereResponse response;
-    protected final Action action = new Action();
+    private final Action action = new Action();
     protected Broadcaster broadcaster;
     private final AtmosphereConfig config;
     protected final AsyncSupport asyncSupport;
     private Serializer serializer;
-    private boolean isInScope = true;
+    private final AtomicBoolean isInScope = new AtomicBoolean(true);
     private final AtmosphereResourceEventImpl event;
-    private AtomicBoolean isResumed = new AtomicBoolean();
-    private AtomicBoolean isCancelled = new AtomicBoolean();
-    private AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
+    private final AtomicBoolean isResumed = new AtomicBoolean();
+    private final AtomicBoolean isCancelled = new AtomicBoolean();
+    private final AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
     private Object writeOnTimeout = null;
     private boolean disableSuspend = false;
     private final AtomicBoolean disconnected = new AtomicBoolean();
@@ -275,7 +275,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
 
         try {
-            if (!isResumed.getAndSet(true) && isInScope) {
+            if (!isResumed.getAndSet(true) && isInScope.get()) {
                 logger.trace("AtmosphereResource {} is resuming", uuid());
 
                 action.type(Action.TYPE.RESUME);
@@ -443,7 +443,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * {@inheritDoc}
      */
     public AtmosphereRequest getRequest(boolean enforceScope) {
-        if (enforceScope && !isInScope) {
+        if (enforceScope && !isInScope.get()) {
             throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
         }
         return req;
@@ -453,7 +453,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * {@inheritDoc}
      */
     public AtmosphereResponse getResponse(boolean enforceScope) {
-        if (enforceScope && !isInScope) {
+        if (enforceScope && !isInScope.get()) {
             throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
         }
         return response;
@@ -538,12 +538,24 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
+     * Reset completely the instance to it's initial state.
+     */
+    public void reset(){
+        isResumed.set(false);
+        isCancelled.set(false);
+        isInScope.set(true);
+        isSuspendEvent.set(false);
+        listeners.clear();
+        action.type(Action.TYPE.CREATED);
+    }
+
+    /**
      * Protect the object for being used after it got cancelled.
      *
      * @param isInScope
      */
     public void setIsInScope(boolean isInScope) {
-        this.isInScope = isInScope;
+        this.isInScope.set(isInScope);
     }
 
     /**
@@ -552,7 +564,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @return true if the {@link AtmosphereRequest} still valid
      */
     public boolean isInScope() {
-        return isInScope;
+        return isInScope.get();
     }
 
     /**
