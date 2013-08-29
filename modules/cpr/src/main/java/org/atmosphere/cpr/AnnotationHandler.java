@@ -335,7 +335,26 @@ public class AnnotationHandler {
                     }
                 }
 
-                interceptors(a.interceptors(), framework);
+                if (!a.servlet().isEmpty()) {
+                    ReflectorServletProcessor r = new ReflectorServletProcessor();
+                    r.setServletClassName(a.servlet());
+
+                    String mapping = a.path();
+
+                    Class<?>[] interceptors = a.interceptors();
+                    List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+                    for (Class i : interceptors) {
+                        try {
+                            AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
+                            l.add(ai);
+                        } catch (Throwable e) {
+                            logger.warn("", e);
+                        }
+                    }
+                    framework.addAtmosphereHandler(mapping, r, l);
+                }  else {
+                    interceptors(a.interceptors(), framework);
+                }
 
                 framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
             } catch (Throwable e) {

@@ -81,4 +81,14 @@ public @interface AtmosphereService {
      * @return The {@link org.atmosphere.cpr.Broadcaster} class name. Default is {@link org.atmosphere.cache.UUIDBroadcasterCache}
      */
     Class<? extends BroadcasterCache> broadcasterCache() default UUIDBroadcasterCache.class;
+
+    /**
+     * The Servlet instance to instantiate at startup.
+     */
+    String servlet() default "";
+
+    /**
+     * The Servlet path  instance to instantiate at startup.
+     */
+    String path() default "/";
 }
