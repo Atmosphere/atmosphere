@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -22,16 +23,19 @@ import org.testng.annotations.Test;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.atomic.AtomicInteger;
 
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 public class BroadcasterListenerTest {
     private AtmosphereFramework framework;
-    private static final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
-    private static final AtomicReference<String> message = new AtomicReference<String>();
     private static final AtomicBoolean completed = new AtomicBoolean();
     private static final AtomicBoolean postCreated = new AtomicBoolean();
     private static final AtomicBoolean preDssrtoyed = new AtomicBoolean();
@@ -56,12 +60,12 @@ public class BroadcasterListenerTest {
                     e.printStackTrace();
                 }
             }
-        }).addBroadcasterListener(new L()).addAtmosphereHandler("/*", new AR()).init();
+        }).addBroadcasterListener(new L());
     }
 
     @AfterMethod
     public void after() {
-        r.set(null);
+        BAR.count.set(0);
         framework.destroy();
     }
 
@@ -85,13 +89,123 @@ public class BroadcasterListenerTest {
 
     @Test
     public void testGet() throws IOException, ServletException {
-
+        framework.addAtmosphereHandler("/*", new AR()).init();
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertTrue(completed.get());
         assertTrue(postCreated.get());
         assertTrue(preDssrtoyed.get());
     }
+
+
+    @Test
+    public void testOnBroadcast() throws IOException, ServletException {
+        framework.addAtmosphereHandler("/*", new BAR()).init();
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(BAR.count.get(), 1);
+    }
+
+    @Test
+    public void testLongPollingOnBroadcast() throws IOException, ServletException {
+        framework.addAtmosphereHandler("/*", new BAR()).init();
+
+        Map<String,String> m = new HashMap<String,String>();
+        m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
+        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(BAR.count.get(),1);
+    }
+
+    @Test
+    public void testCachedOnBroadcast() throws IOException, ServletException {
+        framework.setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName()).addAtmosphereHandler("/*", new CachedAR()).init();
+
+        Map<String,String> m = new HashMap<String,String>();
+        m.put(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, UUID.randomUUID().toString());
+        m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
+        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(CachedAR.count.get(), 3);
+    }
+
+    public final static class CachedAR implements AtmosphereHandler {
+
+        static AtomicInteger count = new AtomicInteger();
+
+        @Override
+        public void onRequest(AtmosphereResource e) throws IOException {
+            try {
+                e.suspend();
+                e.getBroadcaster().broadcast("test1").get();
+                e.resume();
+
+                ((AtmosphereResourceImpl)e).reset();
+
+                e.getBroadcaster().broadcast("test2").get();
+                e.getBroadcaster().broadcast("test3").get();
+                e.getBroadcaster().broadcast("test4").get();
+
+                e.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    @Override
+                    public void onBroadcast(AtmosphereResourceEvent event) {
+                        if (List.class.isAssignableFrom(event.getMessage().getClass())) {
+                            count.set(List.class.cast(event.getMessage()).size());
+                        }
+                    }
+                }).suspend();
+                e.getBroadcaster().destroy();
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+            } catch (ExecutionException e1) {
+                e1.printStackTrace();
+            }
+        }
+
+        @Override
+        public void onStateChange(AtmosphereResourceEvent e) throws IOException {
+        }
+
+
+        @Override
+        public void destroy() {
+        }
+    }
+
+    public final static class BAR implements AtmosphereHandler {
+
+        static AtomicInteger count = new AtomicInteger();
+
+
+         @Override
+         public void onRequest(AtmosphereResource e) throws IOException {
+             try {
+                 e.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                     @Override
+                     public void onBroadcast(AtmosphereResourceEvent event) {
+                        count.incrementAndGet();
+                     }
+                 }).suspend();
+                 e.getBroadcaster().broadcast("test").get();
+                 e.getBroadcaster().destroy();
+             } catch (InterruptedException e1) {
+                 e1.printStackTrace();
+             } catch (ExecutionException e1) {
+                 e1.printStackTrace();
+             }
+         }
+
+         @Override
+         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
+         }
+
+
+         @Override
+         public void destroy() {
+         }
+     }
+
 
     public final static class AR implements AtmosphereHandler {
 

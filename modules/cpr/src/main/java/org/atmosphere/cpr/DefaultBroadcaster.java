@@ -939,6 +939,7 @@ public class DefaultBroadcaster implements Broadcaster {
             if (notifyListeners) {
                 // Long Polling listener will be cleared when the resume() is called.
                 if (willBeResumed) {
+                    event.setMessage(token.msg);
                     for (AtmosphereResourceEventListener e: listeners) {
                         e.onBroadcast(event);
                     }
@@ -1439,8 +1440,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     private boolean isAtmosphereResourceValid(AtmosphereResource r) {
-        return !AtmosphereResourceImpl.class.cast(r).isResumed()
-                && !AtmosphereResourceImpl.class.cast(r).isCancelled()
+        return !r.isResumed()
+                && !r.isCancelled()
                 && AtmosphereResourceImpl.class.cast(r).isInScope();
     }
 
