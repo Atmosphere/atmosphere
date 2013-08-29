@@ -1721,8 +1721,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param broadcasterCacheClassName
      */
-    public void setBroadcasterCacheClassName(String broadcasterCacheClassName) {
+    public AtmosphereFramework setBroadcasterCacheClassName(String broadcasterCacheClassName) {
         this.broadcasterCacheClassName = broadcasterCacheClassName;
+        return this;
     }
 
     /**
