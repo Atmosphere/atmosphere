@@ -992,13 +992,20 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             e.setMessage(filteredMessage);
 
+            final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
+            List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
+            AtmosphereResourceImpl rImpl = AtmosphereResourceImpl.class.cast(r);
+            if (willBeResumed && !rImpl.atmosphereResourceEventListener().isEmpty()) {
+                listeners.addAll(rImpl.atmosphereResourceEventListener());
+            }
+
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
                     r.getRequest().setAttribute(CACHED, "true");
                     prepareInvokeOnStateChange(r, e);
                 } catch (Throwable t) {
-                    // An exception occured
+                    // An exception occurred
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
                     for (Object o : cacheMessages) {
@@ -1007,8 +1014,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     return true;
                 }
 
-                // TODO: CAST is dangerous
-                for (AtmosphereResourceEventListener l : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
+                for (AtmosphereResourceEventListener l : willBeResumed ? listeners : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
                     l.onBroadcast(e);
                 }
 
