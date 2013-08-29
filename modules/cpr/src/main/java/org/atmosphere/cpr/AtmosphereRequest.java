@@ -278,7 +278,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Enumeration<String> getHeaderNames() {
-        ArrayList list = Collections.list(b.request.getHeaderNames());
+        Set list = new HashSet();
+        list.addAll(b.headers.keySet());
+
+        list.addAll(Collections.list(b.request.getHeaderNames()));
         if (b.request != null) {
             Enumeration e = b.request.getAttributeNames();
             while (e.hasMoreElements()) {
@@ -288,8 +291,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 }
             }
         }
-
-        list.addAll(b.headers.keySet());
 
         return Collections.enumeration(list);
     }
