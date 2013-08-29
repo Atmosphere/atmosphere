@@ -279,10 +279,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public Enumeration<String> getHeaderNames() {
         ArrayList list = Collections.list(b.request.getHeaderNames());
-        if (b.contentType != null) {
-            list.add("Content-Type");
-        }
-
         if (b.request != null) {
             Enumeration e = b.request.getAttributeNames();
             while (e.hasMoreElements()) {
