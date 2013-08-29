@@ -1754,18 +1754,25 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected Map<String, String> configureQueryStringAsRequest(AtmosphereRequest request) {
         Map<String, String> headers = new HashMap<String, String>();
 
-        Enumeration<String> e = request.getParameterNames();
-        String s;
-        while (e.hasMoreElements()) {
-            s = e.nextElement();
-            if (s.equalsIgnoreCase("Content-Type")) {
-                // Use the one set by the user first.
-                if (request.getContentType() == null ||
-                        !request.getContentType().equalsIgnoreCase(request.getParameter(s))) {
-                    request.contentType(request.getParameter(s));
+        try {
+            String qs = request.getQueryString();
+            if (qs != null && !qs.isEmpty()) {
+                String[] params = qs.split("&");
+                String[] s;
+                for (String p : params) {
+                    s = p.split("=");
+                    if (s[0].equalsIgnoreCase("Content-Type")) {
+                        // Use the one set by the user first.
+                        if (request.getContentType() == null ||
+                                !request.getContentType().equalsIgnoreCase(s.length > 1 ? s[1] : "")) {
+                            request.contentType(s.length > 1 ? s[1] : "");
+                        }
+                    }
+                    headers.put(s[0], s.length > 1 ? s[1] : "");
                 }
             }
-            headers.put(s, request.getParameter(s));
+        } catch (Exception ex) {
+            logger.error("Unable to parse query string", "");
         }
         logger.trace("Query String translated to headers {}", headers);
         return headers;

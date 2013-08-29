@@ -140,7 +140,18 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getQueryString() {
-        return b.queryString != "" ? b.queryString : isNotNoOps() ? b.request.getQueryString() : "";
+        return b.queryString != "" ? b.queryString : isNotNoOps() ? b.request.getQueryString() : toQs();
+    }
+
+    private String toQs(){
+        StringBuilder q = new StringBuilder();
+        for (Map.Entry<String, String[]> e: b.queryStrings.entrySet()) {
+            for (String k : e.getValue()) {
+                q.append(e.getKey()).append("=").append(k).append("&");
+            }
+        }
+        q.deleteCharAt(q.length()-1);
+        return q.toString();
     }
 
     /**
