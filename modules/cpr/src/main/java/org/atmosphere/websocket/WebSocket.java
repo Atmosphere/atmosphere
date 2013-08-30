@@ -165,6 +165,10 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
      */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
+        if (data == null) {
+            logger.error("Cannot write null value for {}", resource());
+            return this;
+        }
         return write(r, data, 0, data.length);
     }
 
