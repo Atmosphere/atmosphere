@@ -22,9 +22,9 @@ import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.config.managed.MeteorServiceInterceptor;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
-import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
+import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.config.service.BroadcasterFactoryService;
@@ -47,10 +47,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
+
+import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 
 /**
  * A class that handles the results of an annotation scan. This class contains the logic that maps
@@ -336,13 +341,13 @@ public class AnnotationHandler {
                 }
 
                 if (!a.servlet().isEmpty()) {
-                    ReflectorServletProcessor r = new ReflectorServletProcessor();
+                    final ReflectorServletProcessor r = new ReflectorServletProcessor();
                     r.setServletClassName(a.servlet());
 
                     String mapping = a.path();
 
                     Class<?>[] interceptors = a.interceptors();
-                    List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+                    LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
                     for (Class i : interceptors) {
                         try {
                             AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
@@ -351,8 +356,44 @@ public class AnnotationHandler {
                             logger.warn("", e);
                         }
                     }
-                    framework.addAtmosphereHandler(mapping, r, l);
-                }  else {
+
+                    if (!a.dispatch()) {
+                        AtmosphereHandler proxy = new AtmosphereServletProcessor() {
+
+                            private String method = "GET";
+
+                            @Override
+                            public void onRequest(AtmosphereResource resource) throws IOException {
+                                if (!resource.getRequest().getMethod().equalsIgnoreCase(method)) {
+                                    r.onRequest(resource);
+                                }
+                            }
+
+                            @Override
+                            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                                r.onStateChange(event);
+                            }
+
+                            @Override
+                            public void destroy() {
+                                r.destroy();
+                            }
+
+                            @Override
+                            public void init(ServletConfig sc) throws ServletException {
+                                String s = sc.getInitParameter(ATMOSPHERERESOURCE_INTERCEPTOR_METHOD);
+                                if (s != null) {
+                                    method = s;
+                                }
+                               r.init(sc);
+                            }
+                        };
+
+                        framework.addAtmosphereHandler(mapping, proxy, l);
+                    }  else {
+                        framework.addAtmosphereHandler(mapping, r, l);
+                    }
+                } else {
                     interceptors(a.interceptors(), framework);
                 }
 
