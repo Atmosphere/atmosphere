@@ -1030,6 +1030,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      */
     public AtmosphereResponse write(byte[] data, boolean writeUsingOriginalResponse) {
 
+        if (data == null) {
+            logger.error("Cannot write null value for {}", resource());
+            return this;
+        }
+
         if (Proxy.class.isAssignableFrom(response.getClass())) {
             writeUsingOriginalResponse = false;
         }
@@ -1074,6 +1079,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      * @param writeUsingOriginalResponse if true, execute the write without invoking the {@link AsyncIOWriter}
      */
     public AtmosphereResponse write(byte[] data, int offset, int length, boolean writeUsingOriginalResponse) {
+
+        if (data == null) {
+            logger.error("Cannot write null value for {}", resource());
+            return this;
+        }
 
         if (Proxy.class.isAssignableFrom(response.getClass())) {
             writeUsingOriginalResponse = false;
