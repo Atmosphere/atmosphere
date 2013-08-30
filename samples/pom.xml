@@ -23,6 +23,7 @@
         <module>chat-multiroom</module>
         <module>pubsub</module>
         <module>atmospherehandler-pubsub</module>
+        <module>jersey2-chat</module>
 
         <module>jersey-pubsub</module>
         <module>meteor-pubsub</module>
