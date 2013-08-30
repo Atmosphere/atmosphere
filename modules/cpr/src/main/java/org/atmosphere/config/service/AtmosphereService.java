@@ -91,4 +91,9 @@ public @interface AtmosphereService {
      * The Servlet path  instance to instantiate at startup.
      */
     String path() default "/";
+
+    /**
+     * Dispatch the managed {@link org.atmosphere.cpr.AtmosphereResource} to the mapped {@link org.atmosphere.cpr.AtmosphereHandler#onRequest(org.atmosphere.cpr.AtmosphereResource)}
+     */
+    boolean dispatch() default true;
 }
