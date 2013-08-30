@@ -18,13 +18,10 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -98,7 +95,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
 
         if (!AtmosphereResourceImpl.class.cast(r).action().equals(Action.CANCELLED)
                 && r.getRequest().getMethod().equalsIgnoreCase(method)) {
-            logger.debug("Marking AtmosphereResource {} for suspend operation", r.uuid());
+            logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onBroadcast(AtmosphereResourceEvent event) {
