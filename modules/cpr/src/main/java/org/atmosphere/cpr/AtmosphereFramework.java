@@ -46,6 +46,7 @@ import org.atmosphere.util.analytics.JGoogleAnalyticsTracker;
 import org.atmosphere.util.analytics.ModuleDetection;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
@@ -116,10 +117,10 @@ import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
@@ -192,6 +193,21 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean isInit;
     protected boolean sharedThreadPools = true;
     protected final List<String> packages = new ArrayList<String>();
+
+    /**
+     * An implementation of {@link AbstractReflectorAtmosphereHandler}
+     */
+    public final static AtmosphereHandler REFLECTOR_ATMOSPHEREHANDLER = new AbstractReflectorAtmosphereHandler() {
+        @Override
+        public void onRequest(AtmosphereResource resource) throws IOException {
+            logger.trace("VoidHandler", resource.uuid());
+        }
+
+        @Override
+        public void destroy() {
+            logger.trace("VoidHandler");
+        }
+    };
 
     public static final class AtmosphereHandlerWrapper {
 
@@ -273,7 +289,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param mapping The servlet mapping (servlet path)
      * @param h       implementation of an {@link AtmosphereHandler}
-     * @param l       An attay of {@link AtmosphereInterceptor}
+     * @param l       An array of {@link AtmosphereInterceptor}
      */
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         if (!mapping.startsWith("/")) {
@@ -1857,10 +1873,20 @@ public class AtmosphereFramework implements ServletContextProvider {
         return this;
     }
 
+    /**
+     * The current {@link org.atmosphere.websocket.WebSocketProcessor} used to handle websocket requests.
+     * @return {@link org.atmosphere.websocket.WebSocketProcessor}
+     */
     public String getWebSocketProcessorClassName() {
         return webSocketProcessorClassName;
     }
 
+    /**
+     * Set the {@link org.atmosphere.websocket.WebSocketProcessor} class name used to process WebSocket request. Default is
+     * {@link DefaultWebSocketProcessor}
+     * @param webSocketProcessorClassName {@link org.atmosphere.websocket.WebSocketProcessor}
+     * @return this
+     */
     public AtmosphereFramework setWebsocketProcessorClassName(String webSocketProcessorClassName) {
         this.webSocketProcessorClassName = webSocketProcessorClassName;
         return this;
@@ -2068,10 +2094,19 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
+    /**
+     * The current {@link EndpointMapper} used to map request to {@link AtmosphereHandler}
+     * @return {@link EndpointMapper}
+     */
     public EndpointMapper<AtmosphereHandlerWrapper> endPointMapper() {
         return endpointMapper;
     }
 
+    /**
+     * Set the {@link EndpointMapper}
+     * @param endpointMapper  {@link EndpointMapper}
+     * @return this
+     */
     public AtmosphereFramework endPointMapper(EndpointMapper endpointMapper) {
         this.endpointMapper = endpointMapper;
         return this;
@@ -2114,4 +2149,51 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
+    /**
+     * Add an {@link WebSocketHandler} mapped to "/*"
+     * return this
+     */
+    public AtmosphereFramework addWebSocketHandler(WebSocketHandler handler) {
+        addWebSocketHandler("/*", handler);
+        return this;
+    }
+
+    /**
+     * Add an {@link WebSocketHandler} mapped to the path.
+     * return this
+     */
+    public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler) {
+        addWebSocketHandler(path, handler, REFLECTOR_ATMOSPHEREHANDLER, Collections.EMPTY_LIST);
+        return this;
+    }
+
+    /**
+     * Add an {@link WebSocketHandler} mapped to the path and the {@link AtmosphereHandler} in case {@link Broadcaster} are
+     * used.
+     *
+     * @param path a path
+     * @param handler a {@link WebSocketHandler}
+     * @param h  an {@link AtmosphereHandler}
+     * @return this
+     */
+    public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h) {
+        addWebSocketHandler(path, handler, REFLECTOR_ATMOSPHEREHANDLER, Collections.EMPTY_LIST);
+        return this;
+    }
+
+    /**
+     * Add an {@link WebSocketHandler} mapped to the path and the {@link AtmosphereHandler} in case {@link Broadcaster} are
+     * used.
+     *
+     * @param path a path
+     * @param handler a {@link WebSocketHandler}
+     * @param h  an {@link AtmosphereHandler}
+     * @param l {@link AtmosphereInterceptor}
+     * @return this
+     */
+    public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
+        WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this).registerWebSocketHandler(path, handler);
+        addAtmosphereHandler(path, h, l);
+        return this;
+    }
 }

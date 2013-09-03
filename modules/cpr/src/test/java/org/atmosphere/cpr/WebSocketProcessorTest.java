@@ -19,6 +19,7 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
+import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -328,5 +329,34 @@ public class WebSocketProcessorTest {
         @Override
         public void close() {
         }
+    }
+
+    @Test
+    public void basicProgrammaticAPIWorkflow() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+
+        framework.addWebSocketHandler("/*", new WebSocketHandlerAdapter(){
+
+            @Override
+            public void onTextMessage(WebSocket webSocket, String data) throws IOException {
+                webSocket.write(data);
+            }
+
+            @Override
+            public void onOpen(WebSocket webSocket) throws IOException {
+                webSocket.write(webSocket.resource().getRequest().getReader().readLine());
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        processor.invokeWebSocketProtocol(w, "yoWebSocket");
+        BroadcasterFactory.getDefault().lookup("/*").broadcast("yoBroadcast").get();
+
+        assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
+
     }
 }
