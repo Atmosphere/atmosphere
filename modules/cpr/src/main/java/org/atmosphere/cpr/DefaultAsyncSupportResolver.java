@@ -187,9 +187,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     if (testClassExists(JSR356_WEBSOCKET))
                         add(JSR356AsyncSupport.class);
 
-                    if (testClassExists(JBOSS_AS7_WEBSOCKET))
-                        add(JBossWebSocketSupport.class);
-
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7Servlet30SupportWithWebSocket.class);
 
@@ -213,6 +210,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                     if (testClassExists(GRIZZLY2_WEBSOCKET))
                         add(Grizzly2WebSocketSupport.class);
+
+                    if (testClassExists(JBOSS_AS7_WEBSOCKET))
+                        add(JBossWebSocketSupport.class);
                 }
             }
         };
