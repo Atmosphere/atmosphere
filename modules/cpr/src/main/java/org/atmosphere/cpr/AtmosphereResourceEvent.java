@@ -127,6 +127,12 @@ public interface AtmosphereResourceEvent {
     public boolean isClosedByClient();
 
     /**
+     * Return true if the application closed the connection using {@link org.atmosphere.cpr.AtmosphereResource#close()}.
+     * @return if the application.
+     */
+    public boolean isClosedByApplication();
+
+    /**
      * Return a {@link Throwable} if an unexpected exception occured.
      *
      * @return {@link Throwable} if an unexpected exception occured.

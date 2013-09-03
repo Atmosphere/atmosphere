@@ -74,4 +74,9 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
     public void onThrowable(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
+
+    @Override
+    public void onClose(AtmosphereResourceEvent event) {
+        logger.trace("{}", event);
+    }
 }

@@ -102,10 +102,14 @@ public interface AtmosphereResourceEventListener {
 
     /**
      * Invoked when an operations failed to execute for an unknown reason like : IOException because the client
-     * remotly closed the connection, a broken connection, etc.
+     * remotely closed the connection, a broken connection, etc.
      *
      * @param event a {@link AtmosphereResourceEvent}
      */
     void onThrowable(AtmosphereResourceEvent event);
 
+    /**
+     * Invoked when {@link AtmosphereResource#close} gets called.
+     */
+    void onClose(AtmosphereResourceEvent event);
 }

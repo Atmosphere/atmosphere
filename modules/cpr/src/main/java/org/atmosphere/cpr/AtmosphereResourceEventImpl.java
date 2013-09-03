@@ -71,6 +71,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     protected AtmosphereResourceImpl resource;
     private final AtomicBoolean isClosedByClient = new AtomicBoolean(false);
     private final String uuid;
+    private final AtomicBoolean isClosedByApplication = new AtomicBoolean(false);
 
     public AtmosphereResourceEventImpl(AtmosphereResourceImpl resource) {
         this.resource = resource;
@@ -113,6 +114,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isResuming() {
         return resource == null ? false : resource.action().type() == Action.TYPE.RESUME;
     }
@@ -120,6 +122,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isSuspended() {
         return resource == null ? false : resource.action().type() == Action.TYPE.SUSPEND;
     }
@@ -127,24 +130,36 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isClosedByClient() {
         return isClosedByClient.get();
     }
 
     /**
-     * Return the object that were pass to {@link Broadcaster#broadcast(java.lang.Object)}
-     *
-     * @return the object that were pass to {@link Broadcaster#broadcast(java.lang.Object)}
+     * {@inheritDoc}
      */
+    @Override
+    public boolean isClosedByApplication() {
+        return isClosedByApplication.get();
+    }
+
+    public AtmosphereResourceEventImpl setCloseByApplication(boolean b) {
+        isClosedByApplication.set(b);
+        return this;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
     public Object getMessage() {
         return message;
     }
 
     /**
-     * Set the message broadcasted using {@link Broadcaster#broadcast(java.lang.Object)}
-     *
-     * @param message The message broadcasted using {@link Broadcaster#broadcast(java.lang.Object)}
+     * {@inheritDoc}
      */
+    @Override
     public AtmosphereResourceEventImpl setMessage(Object message) {
         this.message = message;
         return this;
@@ -158,6 +173,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isResumedOnTimeout() {
         return isResumedOnTimeout.get();
     }
@@ -165,6 +181,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean isCancelled() {
         return isCancelled.get();
     }
@@ -183,6 +200,9 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -200,6 +220,9 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return true;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public int hashCode() {
         int result = isCancelled != null ? isCancelled.hashCode() : 0;
@@ -213,6 +236,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Throwable throwable() {
         return throwable;
     }
@@ -228,6 +252,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public AtmosphereResource getResource() {
         return resource;
     }
@@ -248,6 +273,9 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return this;
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public String toString() {
         return "AtmosphereResourceEventImpl{" +

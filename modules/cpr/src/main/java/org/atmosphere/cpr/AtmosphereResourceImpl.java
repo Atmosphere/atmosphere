@@ -674,7 +674,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action oldAction = action;
         try {
-            if (event.isCancelled() || event.isClosedByClient()) {
+            if (event.isClosedByApplication()) {
+                onClose(event);
+            } else if (event.isCancelled() || event.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
                     onDisconnect(event);
                 }
@@ -755,6 +757,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onBroadcast(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onBroadcast(e);
+        }
+    }
+
+    void onClose(AtmosphereResourceEvent e) {
+        for (AtmosphereResourceEventListener r : listeners) {
+            r.onClose(e);
         }
     }
 
@@ -853,6 +861,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public void close() throws IOException {
         cancel();
+        event.setCloseByApplication(true);
+        notifyListeners();
     }
 
     /**

@@ -29,7 +29,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
 public class AtmosphereResourceListenerTest {
@@ -61,7 +60,6 @@ public class AtmosphereResourceListenerTest {
             }
         });
     }
-
 
     @Test
     public void testListenersCallback() throws IOException, ServletException {
@@ -113,6 +111,10 @@ public class AtmosphereResourceListenerTest {
             @Override
             public void onThrowable(AtmosphereResourceEvent event) {
             }
+
+            @Override
+            public void onClose(AtmosphereResourceEvent event) {
+            }
         };
 
         framework.interceptor(new AtmosphereInterceptor() {
@@ -138,9 +140,62 @@ public class AtmosphereResourceListenerTest {
         });
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
+
         assertTrue(preSuspended.get());
         assertTrue(suspended.get());
         assertTrue(resumed.get());
         assertTrue(broadcasted.get());
+    }
+
+    @Test
+    public void testOnClose() throws IOException, ServletException {
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+
+        final AtomicReference<Boolean> closed = new AtomicReference<Boolean>();
+
+        final AtmosphereResourceEventListener listener = new AtmosphereResourceEventListenerAdapter() {
+            @Override
+            public void onClose(AtmosphereResourceEvent event) {
+                closed.set(true);
+            }
+        };
+
+        framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                r.addEventListener(listener).suspend();
+                try {
+                    r.getBroadcaster().broadcast("void").get();
+                } catch (InterruptedException e) {
+                } catch (ExecutionException e) {
+                }
+                return Action.CONTINUE;
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+                try {
+                    r.close();
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        });
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertTrue(closed.get());
     }
 }

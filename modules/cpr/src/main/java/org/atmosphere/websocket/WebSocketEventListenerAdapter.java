@@ -117,4 +117,9 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
     public void onThrowable(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
+
+    @Override
+    public void onClose(AtmosphereResourceEvent event) {
+        logger.trace("{}", event);
+    }
 }
