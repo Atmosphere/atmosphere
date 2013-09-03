@@ -38,6 +38,10 @@ class Console extends WebSocketEventListener {
     logger.info("onResume(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
   }
 
+  def onClose(event: AtmosphereResourceEvent): Unit = {
+    logger.info("onClose(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
+  }
+
   def onDisconnect(event: AtmosphereResourceEvent): Unit = {
     logger.info("onDisconnect(): {}:{}", event.getResource.getRequest.getRemoteAddr, event.getResource.getRequest.getRemotePort)
   }

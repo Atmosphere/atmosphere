@@ -61,7 +61,12 @@ public class EventsLogger implements WebSocketEventListener {
 		logger.warn("onThrowable(): " + event);
 	}
 
-	public void onHandshake(WebSocketEvent event) {
+    @Override
+    public void onClose(AtmosphereResourceEvent event) {
+
+    }
+
+    public void onHandshake(WebSocketEvent event) {
 		logger.debug("onHandshake(): " + event);
 	}
 

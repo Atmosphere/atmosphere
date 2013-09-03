@@ -56,4 +56,8 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     public void onThrowable(AtmosphereResourceEvent event) {
         logger.warn("onThrowable(): {}", event);
     }
+
+    @Override
+    public void onClose(AtmosphereResourceEvent event) {
+    }
 }

@@ -47,10 +47,15 @@ public class EventsLogger implements AtmosphereResourceEventListener {
     }
 
     public void onBroadcast(AtmosphereResourceEvent event) {
-        logger.info("onBroadcast(): {}", event);
+        logger.warn("onThrowable(): {}", event);
     }
 
     public void onThrowable(AtmosphereResourceEvent event) {
         logger.warn("onThrowable(): {}", event);
+    }
+
+    @Override
+    public void onClose(AtmosphereResourceEvent event) {
+        logger.warn("onClose(): {}", event);
     }
 }
