@@ -130,11 +130,13 @@ public final class JerseyBroadcasterUtil {
             } catch (Throwable t) {
                 boolean notifyAndCache = true;
                 logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster {}", r.uuid(), broadcaster.getID());
-                for (StackTraceElement element : t.getStackTrace()) {
-                    if (element.getClassName().equals("java.io.BufferedWriter")
-                            && element.getMethodName().equals("flush")) {
-                        logger.trace("Workaround issue https://github.com/Atmosphere/atmosphere/issues/710");
-                        notifyAndCache = false;
+                if (isJetty(r)) {
+                    for (StackTraceElement element : t.getStackTrace()) {
+                        if (element.getClassName().equals("java.io.BufferedWriter")
+                                && element.getMethodName().equals("flush")) {
+                            logger.trace("Workaround issue https://github.com/Atmosphere/atmosphere/issues/710");
+                            notifyAndCache = false;
+                        }
                     }
                 }
 
@@ -169,5 +171,13 @@ public final class JerseyBroadcasterUtil {
         logger.trace("onException()", t);
         r.notifyListeners(new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
         AtmosphereResourceImpl.class.cast(r)._destroy();
+    }
+
+    public static boolean isJetty(AtmosphereResource r) {
+        final String container = r.getAtmosphereConfig().getServletContext().getServerInfo();
+        if (container != null && container.toLowerCase().indexOf("jetty") != -1) {
+            return true;
+        }
+        return false;
     }
 }
