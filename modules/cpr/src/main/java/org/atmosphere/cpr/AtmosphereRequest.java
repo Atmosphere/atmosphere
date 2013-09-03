@@ -209,7 +209,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRequestURI() {
-        return b.requestURI != null ? b.requestURI : (isNotNoOps() ? b.request.getRequestURI() : null);
+        return b.requestURI != null ? b.requestURI : b.request.getRequestURI();
     }
 
     /**
@@ -217,7 +217,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public StringBuffer getRequestURL() {
-        return b.requestURL != null ? new StringBuffer(b.requestURL) : (isNotNoOps() ? b.request.getRequestURL() : null);
+        return b.requestURL != null ? new StringBuffer(b.requestURL) : b.request.getRequestURL();
     }
 
     /**
@@ -1182,6 +1182,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final static class NoOpsRequest implements HttpServletRequest {
 
         public HttpSession fake;
+        private final static Enumeration<String> EMPTY_ENUM_STRING = Collections.enumeration(Collections.<String>emptyList());
+        private final static Enumeration<Locale> EMPTY_ENUM_LOCALE = Collections.enumeration(Collections.<Locale>emptyList());
+        private final static List<Part> EMPTY_ENUM_PART = Collections.<Part>emptyList();
+        private final static Map<String, String[]> EMPTY_MAP_STRING = Collections.<String, String[]>emptyMap();
+        private final static String[] EMPTY_ARRAY = new String[0];
+        private final StringBuffer EMPTY_STRING_BUFFER = new StringBuffer();
 
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
@@ -1190,7 +1196,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public String getAuthType() {
-            return null;
+            return "";
         }
 
         @Override
@@ -1215,12 +1221,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public Enumeration<String> getHeaderNames() {
-            return Collections.enumeration(Collections.<String>emptyList());
+            return EMPTY_ENUM_STRING;
         }
 
         @Override
         public Enumeration<String> getHeaders(String name) {
-            return Collections.enumeration(Collections.<String>emptyList());
+            return EMPTY_ENUM_STRING;
         }
 
         @Override
@@ -1240,7 +1246,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public Collection<Part> getParts() throws IOException, ServletException {
-            return Collections.<Part>emptyList();
+            return EMPTY_ENUM_PART;
         }
 
         @Override
@@ -1270,12 +1276,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public String getRequestURI() {
-            return "";
+            return "/";
         }
 
         @Override
         public StringBuffer getRequestURL() {
-            return new StringBuffer();
+            return EMPTY_STRING_BUFFER;
         }
 
         @Override
@@ -1346,9 +1352,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return null;
         }
 
+
         @Override
         public Enumeration<String> getAttributeNames() {
-            return Collections.enumeration(Collections.<String>emptyList());
+            return EMPTY_ENUM_STRING;
         }
 
         @Override
@@ -1363,7 +1370,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public String getContentType() {
-            return null;
+            return "text/plain";
         }
 
         @Override
@@ -1383,7 +1390,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public Enumeration<Locale> getLocales() {
-            return Collections.enumeration(Collections.<Locale>emptyList());
+            return EMPTY_ENUM_LOCALE;
         }
 
         @Override
@@ -1408,17 +1415,17 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public Map<String, String[]> getParameterMap() {
-            return Collections.<String, String[]>emptyMap();
+            return EMPTY_MAP_STRING;
         }
 
         @Override
         public Enumeration<String> getParameterNames() {
-            return Collections.enumeration(Collections.<String>emptyList());
+            return EMPTY_ENUM_STRING;
         }
 
         @Override
         public String[] getParameterValues(String name) {
-            return new String[0];
+            return EMPTY_ARRAY;
         }
 
         @Override
@@ -1458,7 +1465,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public String getScheme() {
-            return "WebSocket";
+            return "ws";
         }
 
         @Override
