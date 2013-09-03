@@ -967,7 +967,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             List<Object> cacheMessages = (List) e.getMessage();
             BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1);
-            LinkedList<Object> filteredMessage = new LinkedList<Object>();
+            LinkedList<Object> filteredMessage = new LinkedList<Object>(), filteredMessageClone;
             Entry entry;
             Object newMessage;
             for (Object o : cacheMessages) {
@@ -991,6 +991,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 return false;
             }
             e.setMessage(filteredMessage);
+            filteredMessageClone = (LinkedList<Object>)filteredMessage.clone();
 
             final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
             List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
@@ -1013,6 +1014,9 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                     return true;
                 }
+
+                // Need to set the messages for the event again, because onResume() have cleared them
+                e.setMessage(filteredMessageClone);
 
                 for (AtmosphereResourceEventListener l : willBeResumed ? listeners : rImpl.atmosphereResourceEventListener()) {
                     l.onBroadcast(e);
