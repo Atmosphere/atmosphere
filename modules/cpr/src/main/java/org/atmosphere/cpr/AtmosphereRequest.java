@@ -1188,6 +1188,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private final static Map<String, String[]> EMPTY_MAP_STRING = Collections.<String, String[]>emptyMap();
         private final static String[] EMPTY_ARRAY = new String[0];
         private final StringBuffer EMPTY_STRING_BUFFER = new StringBuffer();
+        private final static Cookie[] EMPTY_COOKIE = new Cookie[0];
 
         @Override
         public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
@@ -1196,7 +1197,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public String getAuthType() {
-            return "";
+            return null;
         }
 
         @Override
@@ -1206,7 +1207,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public Cookie[] getCookies() {
-            return new Cookie[0];
+            return EMPTY_COOKIE;
         }
 
         @Override
