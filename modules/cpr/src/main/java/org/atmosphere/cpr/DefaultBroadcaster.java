@@ -968,7 +968,7 @@ public class DefaultBroadcaster implements Broadcaster {
             List<Object> cacheMessages = (List) e.getMessage();
             BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1);
             LinkedList<Object> filteredMessage = new LinkedList<Object>();
-            LinkedList<Object> filteredMessageClone = new LinkedList<Object>();
+            LinkedList<Object> filteredMessageClone = null;
             Entry entry;
             Object newMessage;
             for (Object o : cacheMessages) {
