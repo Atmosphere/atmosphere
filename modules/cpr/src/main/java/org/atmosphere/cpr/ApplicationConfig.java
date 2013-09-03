@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
+import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -585,5 +586,11 @@ public interface ApplicationConfig {
      * Value: MUST be set using System's properties: org.atmosphere.cpr.jsr356.pathMappingLength"
      */
     String JSR356_PATH_MAPPING_LENGTH = ApplicationConfig.class.getName() + ".jsr356.pathMappingLength";
+    /**
+     * Default Server Side Event content type.
+     * Default: text/event-stream
+     * Value: org.atmosphere.interceptor.SSEAtmosphereInterceptor.contentType
+     */
+    String SSE_DEFAULT_CONTENTTYPE = SSEAtmosphereInterceptor.class.getName() + ".contentType";
 }
 

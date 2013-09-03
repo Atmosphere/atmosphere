@@ -16,8 +16,10 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -46,6 +48,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private static final byte[] padding;
     private static final String paddingText;
     private static final byte[] END = "\n\n".getBytes();
+    private String contentType = "text/event-stream";
 
     static {
         StringBuffer whitespace = new StringBuffer();
@@ -57,10 +60,18 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         padding = paddingText.getBytes();
     }
 
+    @Override
+    public void configure(AtmosphereConfig config) {
+        String s = config.getInitParameter(ApplicationConfig.SSE_DEFAULT_CONTENTTYPE);
+        if (s != null) {
+            contentType = s;
+        }
+    }
+
     private boolean writePadding(AtmosphereResponse response) {
         if (response.request() != null && response.request().getAttribute("paddingWritten") != null) return false;
 
-        response.setContentType("text/event-stream");
+        response.setContentType(contentType);
         response.setCharacterEncoding("utf-8");
         boolean isUsingStream = (Boolean) response.request().getAttribute(PROPERTY_USE_STREAM);
         if (isUsingStream) {
