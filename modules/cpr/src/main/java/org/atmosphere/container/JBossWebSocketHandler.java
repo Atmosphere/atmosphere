@@ -50,6 +50,7 @@ public class JBossWebSocketHandler extends WebSocketServlet {
     private static final String JBOSS_WEB_SOCKET_PROCESSOR = "jboss.webSocketProcessor";
     private final AtmosphereConfig config;
     private final WebSocketProcessor webSocketProcessor;
+    private org.atmosphere.websocket.WebSocket webSocket;
 
     public JBossWebSocketHandler(AtmosphereConfig config) {
         this.config = config;
@@ -62,14 +63,13 @@ public class JBossWebSocketHandler extends WebSocketServlet {
         logger.trace("WebSocket.onSocketOpened.");
 
         AtmosphereRequest r = AtmosphereRequest.wrap(socket.getServletRequest());
-        org.atmosphere.websocket.WebSocket webSocket = new JBossWebSocket(socket, config);
+        webSocket = new JBossWebSocket(socket, config);
         webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
     }
 
     @Override
     protected void onSocketClosed(WebSocket socket) throws IOException {
         logger.trace("WebSocket.onSocketClosed.");
-        org.atmosphere.websocket.WebSocket webSocket = new JBossWebSocket(socket, config);
         webSocketProcessor.close(webSocket, 0);
     }
 
@@ -80,16 +80,16 @@ public class JBossWebSocketHandler extends WebSocketServlet {
         if (webSocketProcessor != null) {
             if (frame instanceof TextFrame) {
                 logger.trace("WebSocket.onReceivedFrame (TextFrame)");
-                webSocketProcessor.invokeWebSocketProtocol(new JBossWebSocket(socket, config), ((TextFrame) frame).getText());
+                webSocketProcessor.invokeWebSocketProtocol(webSocket, ((TextFrame) frame).getText());
             } else if (frame instanceof BinaryFrame) {
                 logger.trace("WebSocket.onReceivedFrame (BinaryFrame)");
                 BinaryFrame binaryFrame = (BinaryFrame) frame;
-                webSocketProcessor.invokeWebSocketProtocol(new JBossWebSocket(socket, config), binaryFrame.getByteArray(), 0,
+                webSocketProcessor.invokeWebSocketProtocol(webSocket, binaryFrame.getByteArray(), 0,
                         binaryFrame.getByteArray().length);
             } else if (frame instanceof CloseFrame) {
                 // TODO shall we call this here?
                 logger.trace("WebSocket.onReceivedFrame (CloseFrame)");
-                webSocketProcessor.close(new JBossWebSocket(socket, config), 0);
+                webSocketProcessor.close(webSocket, 0);
             } else {
                 logger.trace("WebSocket.onReceivedFrame skipping: " + frame);
             }
