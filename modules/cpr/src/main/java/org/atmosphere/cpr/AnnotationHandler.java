@@ -75,6 +75,8 @@ public class AnnotationHandler {
     // TODO: Refactor this class, please!
     public static void handleAnnotation(final AtmosphereFramework framework, final Class<? extends Annotation> annotation, final Class<?> discoveredClass) {
         logger.info("Found Annotation in {} being scanned: {}", discoveredClass, annotation);
+        framework.annotationScanned(true);
+
         if (AtmosphereHandlerService.class.equals(annotation)) {
             try {
                 AtmosphereHandlerService a = discoveredClass.getAnnotation(AtmosphereHandlerService.class);

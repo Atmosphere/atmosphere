@@ -193,6 +193,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean isInit;
     protected boolean sharedThreadPools = true;
     protected final List<String> packages = new ArrayList<String>();
+    protected boolean annnotationFound = false;
 
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}
@@ -2060,7 +2061,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                 for (String s : packages) {
                     annotationProcessor.scan(s);
                 }
-            } else {
+            }
+
+            if (!annnotationFound) {
                 if (path != null) {
                     annotationProcessor.scan(new File(path));
                 }
@@ -2194,6 +2197,16 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this).registerWebSocketHandler(path, handler);
         addAtmosphereHandler(path, h, l);
+        return this;
+    }
+
+    /**
+     * Invoked when a {@link AnnotationProcessor} found annotation.
+     * @param b true when found
+     * @return this
+     */
+    public AtmosphereFramework annotationScanned(boolean b) {
+        annnotationFound = b;
         return this;
     }
 }
