@@ -939,6 +939,11 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         r.removeEventListener(a);
                         response.setResponse(b.entity(entity).build());
                         response.write();
+                        try {
+                            response.getOutputStream().flush();
+                        } catch (IOException ex) {
+                            logger.trace("", ex);
+                        }
                     }
                 }
 
