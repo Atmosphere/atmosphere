@@ -22,7 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation for telling Atmosphere to add the {@link org.atmosphere.cpr.BroadcastFilter} to all created {@link Broadcaster}
+ * An annotation for telling Atmosphere to add the {@link org.atmosphere.cpr.BroadcastFilter} to all created {@link org.atmosphere.cpr.Broadcaster}
  *
  * @author Jeanfrancois Arcand
  */
