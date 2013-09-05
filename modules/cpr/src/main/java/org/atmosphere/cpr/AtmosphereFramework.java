@@ -963,8 +963,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 try {
                     sc.getServletContext().addListener(SessionSupport.class);
                 } catch (Throwable t) {
-                    logger.error("SessionSupport error", t);
-                    logger.debug("Make sure you define {} as a listener in web.xml", SessionSupport.class.getName());
+                    logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName(), t);
                 }
             } else {
                 logger.debug("Make sure you define {} as a listener in web.xml", SessionSupport.class.getName());
