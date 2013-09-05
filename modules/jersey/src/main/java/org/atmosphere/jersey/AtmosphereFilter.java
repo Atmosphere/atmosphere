@@ -593,7 +593,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
         void configureResumeOnBroadcast(Broadcaster b) {
             Iterator<AtmosphereResource> i = b.getAtmosphereResources().iterator();
             while (i.hasNext()) {
-                HttpServletRequest r = (HttpServletRequest) i.next().getRequest();
+                HttpServletRequest r = i.next().getRequest();
                 r.setAttribute(RESUME_ON_BROADCAST, true);
             }
         }
@@ -775,11 +775,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
             boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             configureFilter(r.getBroadcaster());
-            if (sessionSupported) {
-                servletReq.getSession().setAttribute(SUSPENDED_RESOURCE, r);
-                servletReq.getSession().setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
-            }
-
             servletReq.setAttribute(SUSPENDED_RESOURCE, r);
 
             // Set the content-type based on the returned entity.
