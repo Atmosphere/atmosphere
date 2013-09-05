@@ -592,5 +592,19 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.interceptor.SSEAtmosphereInterceptor.contentType
      */
     String SSE_DEFAULT_CONTENTTYPE = SSEAtmosphereInterceptor.class.getName() + ".contentType";
+    /**
+     * A list, separated by comma, of package name to scan when looking for @AtmosphereAnnotation custom Annotation.
+     * <p>
+     * Default: ""<br>
+     * Value: org.atmosphere.annotation.packages
+     */
+    String CUSTOM_ANNOTATION_PACKAGE = "org.atmosphere.annotation.packages";
+    /**
+     * Set to false if you want Atmosphere to scan the entire classpath looking for annotation.
+     * <p>
+     * Default: true<br>
+     * Value: org.atmosphere.cpr.scanClassPath
+     */
+    String SCAN_CLASSPATH = ApplicationConfig.class.getName() + ".scanClassPath";
 }
 

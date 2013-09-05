@@ -27,7 +27,7 @@ public interface AnnotationProcessor {
 
     /**
      * Configure this class with an instance of {@link AtmosphereFramework}
-     * @param framework
+     * @param framework the {@link AtmosphereFramework}
      * @return this
      */
     public AnnotationProcessor configure(AtmosphereFramework framework);
@@ -35,18 +35,24 @@ public interface AnnotationProcessor {
     /**
      * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.
      *
-     * @param rootDir
+     * @param rootDir a directory when annotation can possibly be defined
      * @throws IOException
      * @return this
      */
     public AnnotationProcessor scan(File rootDir) throws IOException;
 
     /**
-     * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.
-     * @param packageName
+     * Scan the package looking for classes annotated with Atmosphere's Service annotation.
+     * @param packageName package name
      * @return this
      */
     public AnnotationProcessor scan(String packageName) throws IOException;
+
+    /**
+     * Scan all classes on the classpath looking for classes annotated with Atmosphere's Service annotation.
+     * @return this
+     */
+    public AnnotationProcessor scanAll() throws IOException;
 
     /**
      * Destroy all resources associated with this object. Once destroyed, this object can no longer be used.

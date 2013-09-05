@@ -360,7 +360,7 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public void setBroadcasterLifeCyclePolicy(final BroadcasterLifeCyclePolicy lifeCyclePolicy) {
         this.lifeCyclePolicy = lifeCyclePolicy;
-        logger.debug("{} new lifecycle policy: {}", name, lifeCyclePolicy.getLifeCyclePolicy().name());
+        logger.trace("{} new lifecycle policy: {}", name, lifeCyclePolicy.getLifeCyclePolicy().name());
 
         if (currentLifecycleTask != null) {
             currentLifecycleTask.cancel(false);
@@ -611,7 +611,6 @@ public class DefaultBroadcaster implements Broadcaster {
             bc.getBroadcasterCache().start();
 
             setID(name);
-            logger.debug("{} lifecycle policy: {}", name, lifeCyclePolicy.getLifeCyclePolicy().name());
             // Only start if we know a child haven't started them.
             if (notifierFuture == null && asyncWriteFuture == null) {
                 spawnReactor();

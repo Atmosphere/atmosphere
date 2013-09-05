@@ -1,5 +1,6 @@
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
@@ -23,7 +24,6 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.HandlesTypes;
 import java.lang.annotation.Annotation;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
@@ -32,6 +32,8 @@ import java.util.Set;
 /**
  * A ServletContainerInitializer that scans for annotations, and places them in a map keyed by annotation type in the
  * servlet context.
+ *
+ * NOTE: Any new Atmosphere's annotation must be hardcoded here.
  *
  * @author Stuart Douglas
  */
@@ -53,6 +55,7 @@ import java.util.Set;
         ManagedService.class,
         AtmosphereService.class,
         EndpoinMapperService.class,
+        AtmosphereAnnotation.class,
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {
 
@@ -70,6 +73,6 @@ public class AnnotationScanningServletContainerInitializer implements ServletCon
                 }
             }
         }
-        servletContext.setAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, Collections.unmodifiableMap(classesByAnnotation));
+        servletContext.setAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, classesByAnnotation);
     }
 }

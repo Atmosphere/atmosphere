@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.annotation.Processor;
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.config.ApplicationConfiguration;
@@ -193,8 +194,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean isInit;
     protected boolean sharedThreadPools = true;
     protected final List<String> packages = new ArrayList<String>();
-    protected boolean annnotationFound = false;
-
+    protected final LinkedList<String> annotationPackages = new LinkedList<String>();
+    protected boolean allowAllClassesScan = false;
+    protected boolean annotationFound = false;
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}
      */
@@ -215,7 +217,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         public final AtmosphereHandler atmosphereHandler;
         public Broadcaster broadcaster;
         public String mapping;
-        public List<AtmosphereInterceptor> interceptors = Collections.<AtmosphereInterceptor>emptyList();
+        public List<AtmosphereInterceptor> interceptors = Collections.emptyList();
         public boolean create;
 
         public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, AtmosphereHandler atmosphereHandler, String mapping) {
@@ -530,6 +532,23 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
+     * Prevent Atmosphere from scanning the entire class path. 
+     */
+    protected void preventOOM(){
+
+        String s = config.getInitParameter(ApplicationConfig.SCAN_CLASSPATH);
+        if (s != null) {
+            allowAllClassesScan = Boolean.parseBoolean(s);
+        }
+
+        try {
+            Class.forName("org.testng.Assert");
+        } catch (ClassNotFoundException e) {
+            allowAllClassesScan = false;
+        }
+    }
+
+    /**
      * Initialize the AtmosphereFramework using the {@link ServletContext}
      *
      * @param sc the {@link ServletContext}
@@ -565,10 +584,12 @@ public class AtmosphereFramework implements ServletContextProvider {
                     public Enumeration<String> getInitParameterNames() {
                         if (!done.getAndSet(true)) {
                             Enumeration en = sc.getInitParameterNames();
-                            while (en.hasMoreElements()) {
-                                String name = (String) en.nextElement();
-                                if (!initParams.containsKey(name)) {
-                                    initParams.put(name, sc.getInitParameter(name));
+                            if (en != null) {
+                                while (en.hasMoreElements()) {
+                                    String name = (String) en.nextElement();
+                                    if (!initParams.containsKey(name)) {
+                                        initParams.put(name, sc.getInitParameter(name));
+                                    }
                                 }
                             }
                         }
@@ -579,9 +600,13 @@ public class AtmosphereFramework implements ServletContextProvider {
                 scFacade = sc;
             }
             this.servletConfig = scFacade;
+
+            preventOOM();
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
             asyncSupportListener(new AsyncSupportListenerAdapter());
+
+            configureAnnotationPackages();
 
             configureBroadcasterFactory();
             configureScanningPackage(scFacade);
@@ -647,17 +672,24 @@ public class AtmosphereFramework implements ServletContextProvider {
         return this;
     }
 
-    protected void analytics() {
-        final String container = getServletContext().getServerInfo();
-
-        boolean ok = false;
-        try {
-            Class.forName("org.testng.Assert");
-        } catch (ClassNotFoundException e) {
-            ok = true;
+    private void configureAnnotationPackages() {
+        // We must scan the default annotation set.
+        if (!allowAllClassesScan) {
+            annotationPackages.add(Processor.class.getPackage().getName());
         }
 
-        if (ok) {
+        String s = config.getInitParameter(ApplicationConfig.CUSTOM_ANNOTATION_PACKAGE);
+        if (s != null) {
+            String[] l = s.split(",");
+            for (String p : l) {
+                annotationPackages.addLast(p);
+            }
+        }
+    }
+
+    protected void analytics() {
+        final String container = getServletContext().getServerInfo();
+        if (allowAllClassesScan) {
             Thread t = new Thread() {
                 public void run() {
                     try {
@@ -805,7 +837,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void configureBroadcasterFactory() {
+    public void configureBroadcasterFactory() {
         try {
             // Check auto supported one
             if (isBroadcasterSpecified == false) {
@@ -1099,7 +1131,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         return defaultB;
     }
 
-    protected void sessionSupport(boolean sessionSupport) {
+    public void sessionSupport(boolean sessionSupport) {
         if (!isSessionSupportSpecified) {
             config.setSupportSession(sessionSupport);
         } else if (!config.isSupportSession()) {
@@ -2063,7 +2095,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                 }
             }
 
-            if (!annnotationFound) {
+            // Second try.
+            if (!annotationFound) {
                 if (path != null) {
                     annotationProcessor.scan(new File(path));
                 }
@@ -2085,6 +2118,11 @@ public class AtmosphereFramework implements ServletContextProvider {
                         }
                     }
                 }
+            }
+
+            if (!annotationFound && allowAllClassesScan) {
+                logger.debug("Scanning all classes on the classpath");
+                annotationProcessor.scanAll();
             }
         } catch (Throwable e) {
             logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service");
@@ -2206,7 +2244,25 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @return this
      */
     public AtmosphereFramework annotationScanned(boolean b) {
-        annnotationFound = b;
+        annotationFound = b;
+        return this;
+    }
+
+    /**
+     * Return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
+     * @return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
+     */
+    public List<String> customAnnotation() {
+        return annotationPackages;
+    }
+
+    /**
+     * Add a package containing classes annotated with {@link org.atmosphere.config.AtmosphereAnnotation}.
+     * @param p a package
+     * @return this;
+     */
+    public AtmosphereFramework addCustomAnnotationPackage(Class p){
+        annotationPackages.addLast(p.getPackage().getName());
         return this;
     }
 }

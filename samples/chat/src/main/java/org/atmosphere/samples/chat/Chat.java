@@ -20,6 +20,7 @@ import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.samples.chat.custom.Config;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,6 +30,7 @@ import java.io.IOException;
  * Simple annotated class that demonstrate the power of Atmosphere. This class supports all transports, support
  * message length garantee, heart beat, message cache thanks to the @managedAService.
  */
+@Config
 @ManagedService(path = "/chat")
 public class Chat {
     private final Logger logger = LoggerFactory.getLogger(Chat.class);
