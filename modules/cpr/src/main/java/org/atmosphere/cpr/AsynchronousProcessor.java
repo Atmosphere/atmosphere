@@ -184,8 +184,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         if (config.handlers().isEmpty()) {
-            logger.error("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @AtmosphereHandlerService");
-            throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @AtmosphereHandlerService");
+            logger.error("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
+            throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
         }
 
         if (res.request() == null) {
