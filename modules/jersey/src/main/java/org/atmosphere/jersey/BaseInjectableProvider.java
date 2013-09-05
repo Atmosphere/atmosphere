@@ -69,20 +69,10 @@ abstract public class BaseInjectableProvider implements InjectableProvider<Conte
     HttpServletRequest req;
 
     protected AtmosphereResource getAtmosphereResource(Class injectType, boolean session) {
-        AtmosphereResource r = null;
 
         try {
-            if (session) {
-                if ((Boolean) req.getAttribute(FrameworkConfig.SUPPORT_SESSION)) {
-                    r = (AtmosphereResource) req.getSession().
-                            getAttribute(AtmosphereFilter.SUSPENDED_RESOURCE);
-                }
-            }
-
-            if (r == null) {
-                r = (AtmosphereResource)
-                        req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            }
+            AtmosphereResource r = (AtmosphereResource)
+                    req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
 
             return r;
         } catch (IllegalStateException ex) {

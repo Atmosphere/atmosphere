@@ -458,13 +458,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
                     }
 
-                    boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
-                    if (sessionSupported) {
-                        r = (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
-                    } else {
-                        String path = response.getContainerRequest().getPath();
-                        r = resumeCandidates.remove(path.substring(path.lastIndexOf("/") + 1));
-                    }
+                    String path = response.getContainerRequest().getPath();
+                    r = resumeCandidates.remove(path.substring(path.lastIndexOf("/") + 1));
 
                     if (r != null) {
                         resume(r);
@@ -717,19 +712,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             if (bc == null && localScope != Suspend.SCOPE.REQUEST) {
                 bc = r.getBroadcaster();
             }
-
-//            TODO: legacy code
-//            if (sessionSupported && localScope != Suspend.SCOPE.REQUEST && servletReq.getSession().getAttribute(SUSPENDED_RESOURCE) != null) {
-//                AtmosphereResource cached =
-//                        (AtmosphereResource) servletReq.getSession().getAttribute(SUSPENDED_RESOURCE);
-//                bc = cached.getBroadcaster();
-//                // Just in case something went wrong.
-//                try {
-//                    bc.removeAtmosphereResource(cached);
-//                } catch (IllegalStateException ex) {
-//                    logger.trace(ex.getMessage(), ex);
-//                }
-//            }
 
             if (response.getEntity() instanceof Broadcastable) {
                 Broadcastable b = (Broadcastable) response.getEntity();
