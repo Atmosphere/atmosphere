@@ -532,9 +532,9 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Prevent Atmosphere from scanning the entire class path. 
+     * Prevent Atmosphere from scanning the entire class path.
      */
-    protected void preventOOM(){
+    protected void preventOOM() {
 
         String s = config.getInitParameter(ApplicationConfig.SCAN_CLASSPATH);
         if (s != null) {
@@ -1568,25 +1568,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                 body = null;
             }
 
-            // We need to strip Atmosphere's own query string from the request in case an
-            // interceptor re-inject the request because the wrong body will be passed.
-            StringBuilder queryStrings = new StringBuilder("");
-            Enumeration<String> e = req.getParameterNames();
-            String name, key;
-            while (e.hasMoreElements()) {
-                key = e.nextElement();
-                name = key.toLowerCase().trim();
-                if (!name.startsWith("x-atmosphere") && !name.equalsIgnoreCase("x-cache-date")) {
-                    queryStrings.append(key).append("=").append(req.getParameter(key));
-                }
-                if (e.hasMoreElements() && queryStrings.length() > 0) {
-                    queryStrings.append("&");
-                }
-            }
-
             // Reconfigure the request. Clear the Atmosphere queryString
             req.headers(headers)
-                    .queryString(queryStrings.toString())
                     .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
 
             if (body != null) {
@@ -1802,6 +1785,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected Map<String, String> configureQueryStringAsRequest(AtmosphereRequest request) {
         Map<String, String> headers = new HashMap<String, String>();
 
+        StringBuilder q = new StringBuilder();
         try {
             String qs = request.getQueryString();
             if (qs != null && !qs.isEmpty()) {
@@ -1816,30 +1800,23 @@ public class AtmosphereFramework implements ServletContextProvider {
                             request.contentType(s.length > 1 ? s[1] : "");
                         }
                     }
+                    if (!s[0].toLowerCase().startsWith("x-atmosphere")
+                            && !s[0].equalsIgnoreCase("x-cache-date")
+                            && !s[0].equalsIgnoreCase("Content-Type")
+                            && !s[0].equalsIgnoreCase("_")) {
+                        q.append(s[0]).append("=").append(s.length > 1 ? s[1] : "").append("&");
+                    }
                     headers.put(s[0], s.length > 1 ? s[1] : "");
                 }
             }
         } catch (Exception ex) {
             logger.error("Unable to parse query string", ex);
         }
+        if (q.length() > 0) q.deleteCharAt(q.length() - 1);
+        request.queryString(q.toString());
+
         logger.trace("Query String translated to headers {}", headers);
         return headers;
-    }
-
-    protected boolean isIECandidate(AtmosphereRequest request) {
-        String userAgent = request.getHeader("User-Agent");
-        if (userAgent == null) return false;
-
-        if (userAgent.contains("MSIE") || userAgent.contains(".NET")) {
-            // Now check the header
-            String transport = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-            if (transport != null) {
-                return false;
-            } else {
-                return true;
-            }
-        }
-        return false;
     }
 
     public WebSocketProtocol getWebSocketProtocol() {
@@ -1907,6 +1884,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * The current {@link org.atmosphere.websocket.WebSocketProcessor} used to handle websocket requests.
+     *
      * @return {@link org.atmosphere.websocket.WebSocketProcessor}
      */
     public String getWebSocketProcessorClassName() {
@@ -1916,6 +1894,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Set the {@link org.atmosphere.websocket.WebSocketProcessor} class name used to process WebSocket request. Default is
      * {@link DefaultWebSocketProcessor}
+     *
      * @param webSocketProcessorClassName {@link org.atmosphere.websocket.WebSocketProcessor}
      * @return this
      */
@@ -2136,6 +2115,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * The current {@link EndpointMapper} used to map request to {@link AtmosphereHandler}
+     *
      * @return {@link EndpointMapper}
      */
     public EndpointMapper<AtmosphereHandlerWrapper> endPointMapper() {
@@ -2144,7 +2124,8 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Set the {@link EndpointMapper}
-     * @param endpointMapper  {@link EndpointMapper}
+     *
+     * @param endpointMapper {@link EndpointMapper}
      * @return this
      */
     public AtmosphereFramework endPointMapper(EndpointMapper endpointMapper) {
@@ -2211,9 +2192,9 @@ public class AtmosphereFramework implements ServletContextProvider {
      * Add an {@link WebSocketHandler} mapped to the path and the {@link AtmosphereHandler} in case {@link Broadcaster} are
      * used.
      *
-     * @param path a path
+     * @param path    a path
      * @param handler a {@link WebSocketHandler}
-     * @param h  an {@link AtmosphereHandler}
+     * @param h       an {@link AtmosphereHandler}
      * @return this
      */
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h) {
@@ -2225,10 +2206,10 @@ public class AtmosphereFramework implements ServletContextProvider {
      * Add an {@link WebSocketHandler} mapped to the path and the {@link AtmosphereHandler} in case {@link Broadcaster} are
      * used.
      *
-     * @param path a path
+     * @param path    a path
      * @param handler a {@link WebSocketHandler}
-     * @param h  an {@link AtmosphereHandler}
-     * @param l {@link AtmosphereInterceptor}
+     * @param h       an {@link AtmosphereHandler}
+     * @param l       {@link AtmosphereInterceptor}
      * @return this
      */
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
@@ -2239,6 +2220,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Invoked when a {@link AnnotationProcessor} found annotation.
+     *
      * @param b true when found
      * @return this
      */
@@ -2249,6 +2231,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
+     *
      * @return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
      */
     public List<String> customAnnotation() {
@@ -2257,10 +2240,11 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Add a package containing classes annotated with {@link org.atmosphere.config.AtmosphereAnnotation}.
+     *
      * @param p a package
      * @return this;
      */
-    public AtmosphereFramework addCustomAnnotationPackage(Class p){
+    public AtmosphereFramework addCustomAnnotationPackage(Class p) {
         annotationPackages.addLast(p.getPackage().getName());
         return this;
     }
