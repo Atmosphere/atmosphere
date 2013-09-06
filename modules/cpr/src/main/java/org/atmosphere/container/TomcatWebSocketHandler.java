@@ -40,7 +40,6 @@ public class TomcatWebSocketHandler extends StreamInbound {
     private final AtmosphereRequest request;
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
-    private final int webSocketWriteTimeout;
 
     public TomcatWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.request = request;
@@ -49,9 +48,7 @@ public class TomcatWebSocketHandler extends StreamInbound {
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.valueOf(s);
-        } else {
-            webSocketWriteTimeout = -1;
+            logger.warn("{} is not supported by Tomcat. Put a time out in server.xml instead.");
         }
 
         s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE);
