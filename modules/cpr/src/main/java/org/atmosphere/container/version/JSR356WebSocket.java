@@ -48,7 +48,7 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public WebSocket write(String s) throws IOException {
         try {
-            session.getBasicRemote().sendText(s);
+            session.getAsyncRemote().sendText(s);
         } catch (NullPointerException e) {
             patchGlassFish(e);
         }
@@ -58,7 +58,7 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public WebSocket write(byte[] data, int offset, int length) throws IOException {
         try {
-            session.getBasicRemote().sendBinary(ByteBuffer.wrap(data, offset, length));
+            session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length));
         } catch (NullPointerException e) {
             patchGlassFish(e);
         }

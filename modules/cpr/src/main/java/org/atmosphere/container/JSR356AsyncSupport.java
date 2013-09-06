@@ -25,4 +25,9 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
     public boolean supportWebSocket() {
         return true;
     }
+
+    @Override
+    public String getContainerName() {
+        return super.getContainerName() + " using javax.servlet/3.0 and jsr356/WebSocket API";
+    }
 }
