@@ -21,6 +21,7 @@ import javax.servlet.http.HttpSessionContext;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FakeHttpSession implements HttpSession {
     private final long creationTime;
@@ -28,8 +29,8 @@ public class FakeHttpSession implements HttpSession {
     private final String sessionId;
     private final ServletContext servletContext;
     private int maxInactiveInterval;
-    private boolean valid = true;
-
+    private final AtomicBoolean valid = new AtomicBoolean(true);
+      
     public FakeHttpSession(String sessionId, ServletContext servletContext, long creationTime, int maxInactiveInterval) {
         this.sessionId = sessionId;
         this.servletContext = servletContext;
@@ -48,20 +49,20 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public long getCreationTime() {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         return creationTime;
     }
 
     @Override
     public String getId() {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         return sessionId;
     }
 
     // TODO: Not supported for now. Must update on every WebSocket Message
     @Override
     public long getLastAccessedTime() {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         return 0;
     }
 
@@ -87,49 +88,49 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public Object getAttribute(String name) {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         return attributes.get(name);
     }
 
     @Override
     public Object getValue(String name) {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         return attributes.get(name);
     }
 
     @Override
     public Enumeration<String> getAttributeNames() {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         return attributes.keys();
     }
 
     @Override
     public String[] getValueNames() {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         return (String[]) Collections.list(attributes.keys()).toArray();
     }
 
     @Override
     public void setAttribute(String name, Object value) {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         attributes.put(name, value);
     }
 
     @Override
     public void putValue(String name, Object value) {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         attributes.put(name, value);
     }
 
     @Override
     public void removeAttribute(String name) {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         attributes.remove(name);
     }
 
     @Override
     public void removeValue(String name) {
-        if (!valid) throw new IllegalStateException();
+        if (!valid.get()) throw new IllegalStateException();
         attributes.remove(name);
     }
 
@@ -150,13 +151,12 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public void invalidate() {
-        if (!valid) throw new IllegalStateException();
-    	valid = false;
+        if (!valid.get()) throw new IllegalStateException();
+    	valid.set(false);
     }
 
     @Override
     public boolean isNew() {
-    	if (!valid) throw new IllegalStateException();
         return false;
     }
 
