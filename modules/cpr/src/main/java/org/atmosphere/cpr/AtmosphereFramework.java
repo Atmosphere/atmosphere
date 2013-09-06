@@ -195,7 +195,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean sharedThreadPools = true;
     protected final List<String> packages = new ArrayList<String>();
     protected final LinkedList<String> annotationPackages = new LinkedList<String>();
-    protected boolean allowAllClassesScan = false;
+    protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}
