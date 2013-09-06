@@ -431,9 +431,9 @@ public interface ApplicationConfig {
      * The default content-type value used when Atmosphere requires one.
      * <p>
      * Default: "text/plain"<br>
-     * Value: org.atmosphere.cpr.defaultContextType
+     * Value: org.atmosphere.cpr.defaultContentType
      */
-    String DEFAULT_CONTENT_TYPE = ApplicationConfig.class.getPackage().getName() + ".defaultContextType";
+    String DEFAULT_CONTENT_TYPE = ApplicationConfig.class.getPackage().getName() + ".defaultContentType";
     /**
      * A list of {@link AtmosphereInterceptor} class name that will be invoked before the {@link AtmosphereResource}
      * gets delivered to an application or framework.
