@@ -88,8 +88,8 @@ public class JSR356Endpoint extends Endpoint {
         try {
 
             request = new AtmosphereRequest.Builder()
-                    .requestURI(session.getRequestURI().toString())
-                    .requestURL(session.getRequestURI().toString())
+                    .requestURI(session.getRequestURI().toASCIIString())
+                    .requestURL(session.getRequestURI().toASCIIString())
                     .headers(headers)
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo.toString())
