@@ -157,6 +157,7 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public boolean isNew() {
+        if (!valid.get()) throw new IllegalStateException();
         return false;
     }
 
