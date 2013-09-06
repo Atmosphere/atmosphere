@@ -133,6 +133,11 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     @Override
     public WebSocket write(AtmosphereResponse r, String data) throws IOException {
         firstWrite.set(true);
+        if (data == null) {
+            logger.error("Cannot write null value for {}", resource());
+            return this;
+        }
+
         if (!isOpen()) throw new IOException("Connection remotely closed");
         logger.trace("WebSocket.write()");
 
@@ -178,6 +183,10 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] b, int offset, int length) throws IOException {
         firstWrite.set(true);
+        if (b == null) {
+            logger.error("Cannot write null value for {}", resource());
+            return this;
+        }
         if (!isOpen()) throw new IOException("Connection remotely closed");
 
         logger.trace("WebSocket.write()");
@@ -231,7 +240,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         super.writeError(r, errorCode, message);
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} " +
-                    "The WebSocket connection is still open and client can continue sending messages.", errorCode + message, retrieveUUID());
+                    "The WebSocket connection is still open and client can continue sending messages.", errorCode + " " + message, retrieveUUID());
         } else {
             logger.debug("{} {}", errorCode, message);
         }
