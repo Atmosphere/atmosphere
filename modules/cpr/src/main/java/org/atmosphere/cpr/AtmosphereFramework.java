@@ -543,8 +543,9 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         try {
             Class.forName("org.testng.Assert");
-        } catch (ClassNotFoundException e) {
             allowAllClassesScan = false;
+        } catch (ClassNotFoundException e) {
+            e.printStackTrace();
         }
     }
 
