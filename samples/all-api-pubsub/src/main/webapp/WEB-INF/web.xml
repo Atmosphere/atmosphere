@@ -18,6 +18,7 @@
             <param-name>com.sun.jersey.config.property.packages</param-name>
             <param-value>org.atmosphere.samples.pubsub.websocket</param-value>
         </init-param>
+        <async-supported>true</async-supported>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>

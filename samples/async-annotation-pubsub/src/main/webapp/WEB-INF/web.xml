@@ -17,6 +17,7 @@
             <param-name>org.atmosphere.websocket.messageContentType</param-name>
             <param-value>application/json</param-value>
         </init-param>
+        <async-supported>true</async-supported>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>

@@ -15,9 +15,7 @@
         <description>AtmosphereServlet</description>
         <servlet-name>AtmosphereServlet</servlet-name>
         <servlet-class>org.atmosphere.cpr.AtmosphereServlet</servlet-class>
-        <!-- Uncomment if you want to use Servlet 3.0 Async Support
         <async-supported>true</async-supported>
-        -->
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
