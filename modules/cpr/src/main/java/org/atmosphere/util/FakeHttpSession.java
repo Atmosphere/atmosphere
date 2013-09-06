@@ -48,17 +48,20 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public long getCreationTime() {
+        if (!valid) throw new IllegalStateException();
         return creationTime;
     }
 
     @Override
     public String getId() {
+        if (!valid) throw new IllegalStateException();
         return sessionId;
     }
 
     // TODO: Not supported for now. Must update on every WebSocket Message
     @Override
     public long getLastAccessedTime() {
+        if (!valid) throw new IllegalStateException();
         return 0;
     }
 
@@ -84,41 +87,49 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public Object getAttribute(String name) {
+        if (!valid) throw new IllegalStateException();
         return attributes.get(name);
     }
 
     @Override
     public Object getValue(String name) {
+        if (!valid) throw new IllegalStateException();
         return attributes.get(name);
     }
 
     @Override
     public Enumeration<String> getAttributeNames() {
+        if (!valid) throw new IllegalStateException();
         return attributes.keys();
     }
 
     @Override
     public String[] getValueNames() {
+        if (!valid) throw new IllegalStateException();
         return (String[]) Collections.list(attributes.keys()).toArray();
     }
 
     @Override
     public void setAttribute(String name, Object value) {
+        if (!valid) throw new IllegalStateException();
         attributes.put(name, value);
     }
 
     @Override
     public void putValue(String name, Object value) {
+        if (!valid) throw new IllegalStateException();
         attributes.put(name, value);
     }
 
     @Override
     public void removeAttribute(String name) {
+        if (!valid) throw new IllegalStateException();
         attributes.remove(name);
     }
 
     @Override
     public void removeValue(String name) {
+        if (!valid) throw new IllegalStateException();
         attributes.remove(name);
     }
 
@@ -139,6 +150,7 @@ public class FakeHttpSession implements HttpSession {
 
     @Override
     public void invalidate() {
+        if (!valid) throw new IllegalStateException();
     	valid = false;
     }
 
