@@ -70,7 +70,9 @@ public class JSR356Endpoint extends Endpoint {
     public void onOpen(Session session, EndpointConfig endpointConfig) {
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
+        // TODO: This is quite bogus!
         Map<String, String> headers = new HashMap<String, String>();
+        headers.put("Sec-WebSocket-Version", "13");
         headers.put("Connection", "Upgrade");
         headers.put("Upgrade", "websocket");
 
@@ -83,6 +85,7 @@ public class JSR356Endpoint extends Endpoint {
 
             request = new AtmosphereRequest.Builder()
                     .requestURI(session.getRequestURI().toString())
+                    .requestURL(session.getRequestURI().toString())
                     .headers(headers)
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo.toString())

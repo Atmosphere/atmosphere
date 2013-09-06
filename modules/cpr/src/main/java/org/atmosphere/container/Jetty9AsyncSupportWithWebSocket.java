@@ -31,6 +31,8 @@ import org.eclipse.jetty.websocket.api.WebSocketBehavior;
 import org.eclipse.jetty.websocket.api.WebSocketPolicy;
 import org.eclipse.jetty.websocket.server.ServletWebSocketRequest;
 import org.eclipse.jetty.websocket.server.WebSocketServerFactory;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeResponse;
 import org.eclipse.jetty.websocket.servlet.WebSocketCreator;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,8 +41,7 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import java.lang.reflect.Method;
 
 /**
  * Jetty 9 WebSocket support.
@@ -65,15 +66,41 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
             policy.setIdleTimeout(Integer.parseInt(max));
         }
 
-        max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
-        if (max != null) {
-            policy.setMaxMessageSize(Integer.parseInt(max));
+        // Crazy Jetty API Incompatibility
+        String serverInfo = config.getServletConfig().getServletContext().getServerInfo();
+        boolean isJetty91 = false;
+        if (serverInfo != null && serverInfo.indexOf("9.1") != -1) {
+            isJetty91 = true;
         }
 
-        max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
-        if (max != null) {
-            policy.setMaxMessageSize(Integer.parseInt(max));
+        max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);;
+        try {
+            if (max != null) {
+                //policy.setMaxMessageSize(Integer.parseInt(max));
+                Method m;
+                if (isJetty91) {
+                    m = policy.getClass().getMethod("setMaxTextMessageSize", new Class[]{int.class});
+                } else {
+                    m = policy.getClass().getMethod("setMaxMessageSize", new Class[]{int.class});
+                }
+                m.invoke(policy, Integer.parseInt(max));
+            }
+
+            max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
+            if (max != null) {
+                //policy.setMaxMessageSize(Integer.parseInt(max));
+                Method m;
+                if (isJetty91) {
+                    m = policy.getClass().getMethod("setMaxBinaryMessageSize", new Class[]{int.class});
+                } else {
+                    m = policy.getClass().getMethod("setMaxMessageSize", new Class[]{int.class});
+                }
+                m.invoke(policy, Integer.parseInt(max));
+            }
+        } catch (Exception ex) {
+            logger.warn("", ex);
         }
+
         final WebSocketProcessor webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
         webSocketFactory = new WebSocketServerFactory(policy) {
@@ -81,12 +108,18 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
             public boolean acceptWebSocket(final HttpServletRequest request, HttpServletResponse response) throws IOException {
                 setCreator(new WebSocketCreator() {
 
-                    @Override
+                    // @Override  9.0.x
                     public Object createWebSocket(UpgradeRequest upgradeRequest, UpgradeResponse upgradeResponse) {
 
                         ServletWebSocketRequest r = ServletWebSocketRequest.class.cast(upgradeRequest);
                         r.getExtensions().clear();
 
+                        return new Jetty9WebSocketHandler(request, config.framework(), webSocketProcessor);
+                    }
+
+                    // @Override 9.1.x
+                    public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
+                        req.getExtensions().clear();
                         return new Jetty9WebSocketHandler(request, config.framework(), webSocketProcessor);
                     }
                 });
