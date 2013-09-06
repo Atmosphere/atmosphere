@@ -14,6 +14,7 @@
             <param-name>org.atmosphere.cpr.packages</param-name>
             <param-value>org.atmosphere.samples</param-value>
         </init-param>
+        <async-supported>true</async-supported>
         <load-on-startup>0</load-on-startup>
     </servlet>
     <servlet-mapping>
