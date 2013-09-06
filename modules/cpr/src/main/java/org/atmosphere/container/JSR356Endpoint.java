@@ -52,6 +52,10 @@ public class JSR356Endpoint extends Endpoint {
         this.framework = framework;
         this.webSocketProcessor = webSocketProcessor;
 
+        if (framework.isUseNativeImplementation()) {
+            throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
+        }
+
         // TODO: Find a way to set those values.
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
