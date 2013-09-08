@@ -122,7 +122,7 @@ public class CustomAnnotationTest {
     @Retention(RetentionPolicy.RUNTIME)
     @Documented
     public static @interface MyAnnotation {
-        String value() default "/a";
+        String value() default "/z";
     }
 
     @MyAnnotation
@@ -138,7 +138,7 @@ public class CustomAnnotationTest {
     @Test
     public void testGet() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/z").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         r.get().resume();
 
