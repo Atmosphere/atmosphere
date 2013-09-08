@@ -107,8 +107,8 @@ public class ManagedAtmosphereHandlerTest {
     public final static class ManagedGet {
         @Get
         public void get(AtmosphereResource resource) {
-            resource.suspend();
             r.set(resource);
+            resource.suspend();
         }
     }
 
