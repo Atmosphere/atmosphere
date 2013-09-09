@@ -1,5 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_GB" lang="en_GB">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 <title>AtmosphereResourceInjector xref</title>
@@ -103,7 +103,7 @@
 <a class="jxr_linenumber" name="93" href="#93">93</a>          <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="94" href="#94">94</a>      }
 <a class="jxr_linenumber" name="95" href="#95">95</a>  
-<a class="jxr_linenumber" name="96" href="#96">96</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/jersey/AtmosphereResourceInjector.html">PerRequest</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/jersey/AtmosphereResourceInjector.html">AtmosphereResourceInjector</a> {
+<a class="jxr_linenumber" name="96" href="#96">96</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/jersey/BroadcasterInjector.html">PerRequest</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/jersey/AtmosphereResourceInjector.html">AtmosphereResourceInjector</a> {
 <a class="jxr_linenumber" name="97" href="#97">97</a>          @Override
 <a class="jxr_linenumber" name="98" href="#98">98</a>          <strong class="jxr_keyword">public</strong> ComponentScope getScope() {
 <a class="jxr_linenumber" name="99" href="#99">99</a>              <strong class="jxr_keyword">return</strong> ComponentScope.PerRequest;
@@ -123,7 +123,7 @@
 <a class="jxr_linenumber" name="113" href="#113">113</a>         }
 <a class="jxr_linenumber" name="114" href="#114">114</a>     }
 <a class="jxr_linenumber" name="115" href="#115">115</a> 
-<a class="jxr_linenumber" name="116" href="#116">116</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/jersey/AtmosphereResourceInjector.html">Singleton</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/jersey/AtmosphereResourceInjector.html">AtmosphereResourceInjector</a> {
+<a class="jxr_linenumber" name="116" href="#116">116</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/jersey/BroadcasterInjector.html">Singleton</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/jersey/AtmosphereResourceInjector.html">AtmosphereResourceInjector</a> {
 <a class="jxr_linenumber" name="117" href="#117">117</a>         @Override
 <a class="jxr_linenumber" name="118" href="#118">118</a>         <strong class="jxr_keyword">public</strong> ComponentScope getScope() {
 <a class="jxr_linenumber" name="119" href="#119">119</a>             <strong class="jxr_keyword">return</strong> ComponentScope.Singleton;

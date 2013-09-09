@@ -1,5 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_GB" lang="en_GB">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 <title>AtmosphereInterceptorAdapter xref</title>
@@ -40,7 +40,7 @@
 <a class="jxr_linenumber" name="30" href="#30">30</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> inspect(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
 <a class="jxr_linenumber" name="31" href="#31">31</a>          <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res = r.getResponse();
 <a class="jxr_linenumber" name="32" href="#32">32</a>          <strong class="jxr_keyword">if</strong> (res.getAsyncIOWriter() == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="33" href="#33">33</a>              res.asyncIOWriter(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereInterceptorWriter.html">AtmosphereInterceptorWriter</a>(res));
+<a class="jxr_linenumber" name="33" href="#33">33</a>              res.asyncIOWriter(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereInterceptorWriter.html">AtmosphereInterceptorWriter</a>());
 <a class="jxr_linenumber" name="34" href="#34">34</a>          }
 <a class="jxr_linenumber" name="35" href="#35">35</a>          <strong class="jxr_keyword">return</strong> Action.CONTINUE;
 <a class="jxr_linenumber" name="36" href="#36">36</a>      }

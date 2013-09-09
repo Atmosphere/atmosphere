@@ -1,0 +1,92 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
+<head>
+<meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title>AnnotationScanningServletContainerInitializer xref</title>
+<link type="text/css" rel="stylesheet" href="../../../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../../apidocs/org/atmosphere/cpr/AnnotationScanningServletContainerInitializer.html">View Javadoc</a></div><pre>
+
+<a class="jxr_linenumber" name="1" href="#1">1</a>   <strong class="jxr_keyword">package</strong> org.atmosphere.cpr;
+<a class="jxr_linenumber" name="2" href="#2">2</a>   
+<a class="jxr_linenumber" name="3" href="#3">3</a>   <strong class="jxr_keyword">import</strong> org.atmosphere.config.AtmosphereAnnotation;
+<a class="jxr_linenumber" name="4" href="#4">4</a>   <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AsyncSupportListenerService;
+<a class="jxr_linenumber" name="5" href="#5">5</a>   <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AsyncSupportService;
+<a class="jxr_linenumber" name="6" href="#6">6</a>   <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AtmosphereHandlerService;
+<a class="jxr_linenumber" name="7" href="#7">7</a>   <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AtmosphereInterceptorService;
+<a class="jxr_linenumber" name="8" href="#8">8</a>   <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AtmosphereService;
+<a class="jxr_linenumber" name="9" href="#9">9</a>   <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterCacheInspectorService;
+<a class="jxr_linenumber" name="10" href="#10">10</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterCacheService;
+<a class="jxr_linenumber" name="11" href="#11">11</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterFactoryService;
+<a class="jxr_linenumber" name="12" href="#12">12</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterFilterService;
+<a class="jxr_linenumber" name="13" href="#13">13</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterListenerService;
+<a class="jxr_linenumber" name="14" href="#14">14</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterService;
+<a class="jxr_linenumber" name="15" href="#15">15</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.EndpoinMapperService;
+<a class="jxr_linenumber" name="16" href="#16">16</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.ManagedService;
+<a class="jxr_linenumber" name="17" href="#17">17</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.MeteorService;
+<a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketHandlerService;
+<a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketProcessorService;
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.WebSocketProtocolService;
+<a class="jxr_linenumber" name="21" href="#21">21</a>  
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> javax.servlet.ServletContainerInitializer;
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> javax.servlet.ServletContext;
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> javax.servlet.ServletException;
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> javax.servlet.annotation.HandlesTypes;
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> java.lang.annotation.Annotation;
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> java.util.HashSet;
+<a class="jxr_linenumber" name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
+<a class="jxr_linenumber" name="31" href="#31">31</a>  
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment"> * A ServletContainerInitializer that scans for annotations, and places them in a map keyed by annotation type in the</em>
+<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment"> * servlet context.</em>
+<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> * NOTE: Any new Atmosphere's annotation must be hardcoded here.</em>
+<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment"> * @author Stuart Douglas</em>
+<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="40" href="#40">40</a>  @HandlesTypes({
+<a class="jxr_linenumber" name="41" href="#41">41</a>          AtmosphereHandlerService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="42" href="#42">42</a>          BroadcasterCacheService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="43" href="#43">43</a>          BroadcasterFilterService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="44" href="#44">44</a>          BroadcasterFactoryService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="45" href="#45">45</a>          BroadcasterService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="46" href="#46">46</a>          MeteorService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="47" href="#47">47</a>          WebSocketHandlerService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="48" href="#48">48</a>          WebSocketProtocolService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="49" href="#49">49</a>          AtmosphereInterceptorService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="50" href="#50">50</a>          BroadcasterListenerService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="51" href="#51">51</a>          AsyncSupportService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="52" href="#52">52</a>          AsyncSupportListenerService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="53" href="#53">53</a>          WebSocketProcessorService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="54" href="#54">54</a>          BroadcasterCacheInspectorService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="55" href="#55">55</a>          ManagedService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="56" href="#56">56</a>          AtmosphereService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="57" href="#57">57</a>          EndpoinMapperService.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="58" href="#58">58</a>          AtmosphereAnnotation.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="59" href="#59">59</a>  })
+<a class="jxr_linenumber" name="60" href="#60">60</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/AnnotationScanningServletContainerInitializer.html">AnnotationScanningServletContainerInitializer</a> <strong class="jxr_keyword">implements</strong> ServletContainerInitializer {
+<a class="jxr_linenumber" name="61" href="#61">61</a>  
+<a class="jxr_linenumber" name="62" href="#62">62</a>      @Override
+<a class="jxr_linenumber" name="63" href="#63">63</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onStartup(<strong class="jxr_keyword">final</strong> Set&lt;Class&lt;?&gt;&gt; classes, <strong class="jxr_keyword">final</strong> ServletContext servletContext) <strong class="jxr_keyword">throws</strong> ServletException {
+<a class="jxr_linenumber" name="64" href="#64">64</a>          <strong class="jxr_keyword">final</strong> Map&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt;, Set&lt;Class&lt;?&gt;&gt;&gt; classesByAnnotation = <strong class="jxr_keyword">new</strong> HashMap&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt;, Set&lt;Class&lt;?&gt;&gt;&gt;();
+<a class="jxr_linenumber" name="65" href="#65">65</a>          <strong class="jxr_keyword">if</strong> (classes != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="66" href="#66">66</a>              <strong class="jxr_keyword">for</strong>(<strong class="jxr_keyword">final</strong> Class&lt;?&gt; clazz : classes) {
+<a class="jxr_linenumber" name="67" href="#67">67</a>                  <strong class="jxr_keyword">for</strong>(Annotation annotation : clazz.getAnnotations()) {
+<a class="jxr_linenumber" name="68" href="#68">68</a>                      Set&lt;Class&lt;?&gt;&gt; classSet = classesByAnnotation.get(annotation.annotationType());
+<a class="jxr_linenumber" name="69" href="#69">69</a>                      <strong class="jxr_keyword">if</strong>(classSet == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="70" href="#70">70</a>                          classesByAnnotation.put(annotation.annotationType(), classSet = <strong class="jxr_keyword">new</strong> HashSet&lt;Class&lt;?&gt;&gt;());
+<a class="jxr_linenumber" name="71" href="#71">71</a>                      }
+<a class="jxr_linenumber" name="72" href="#72">72</a>                      classSet.add(clazz);
+<a class="jxr_linenumber" name="73" href="#73">73</a>                  }
+<a class="jxr_linenumber" name="74" href="#74">74</a>              }
+<a class="jxr_linenumber" name="75" href="#75">75</a>          }
+<a class="jxr_linenumber" name="76" href="#76">76</a>          servletContext.setAttribute(DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, classesByAnnotation);
+<a class="jxr_linenumber" name="77" href="#77">77</a>      }
+<a class="jxr_linenumber" name="78" href="#78">78</a>  }
+</pre>
+<hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
+</html>
+

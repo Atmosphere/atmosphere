@@ -1,5 +1,5 @@
 <!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_GB" lang="en_GB">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
 <head>
 <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
 <title>PubSub xref</title>
@@ -196,7 +196,7 @@
 <a class="jxr_linenumber" name="186" href="#186">186</a> <em class="jxr_javadoccomment">     * @return A {@link Broadcastable} used to broadcast events.</em>
 <a class="jxr_linenumber" name="187" href="#187">187</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="188" href="#188">188</a>     @POST
-<a class="jxr_linenumber" name="189" href="#189">189</a>     @Broadcast(value = {StringFilterAggregator.<strong class="jxr_keyword">class</strong>})
+<a class="jxr_linenumber" name="189" href="#189">189</a>     @Broadcast(filters = {StringFilterAggregator.<strong class="jxr_keyword">class</strong>})
 <a class="jxr_linenumber" name="190" href="#190">190</a>     @Path(<span class="jxr_string">"aggregate"</span>)
 <a class="jxr_linenumber" name="191" href="#191">191</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/jersey/Broadcastable.html">Broadcastable</a> aggregate(@FormParam(<span class="jxr_string">"message"</span>) String message) {
 <a class="jxr_linenumber" name="192" href="#192">192</a>         <strong class="jxr_keyword">return</strong> broadcast(message);
