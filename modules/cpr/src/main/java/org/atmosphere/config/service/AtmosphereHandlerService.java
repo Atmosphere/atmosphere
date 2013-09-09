@@ -17,6 +17,7 @@ package org.atmosphere.config.service;
 
 import org.atmosphere.cache.DefaultBroadcasterCache;
 import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
@@ -90,4 +91,9 @@ public @interface AtmosphereHandlerService {
       * @return The {@link org.atmosphere.cpr.Broadcaster} class name
       */
      Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
+
+    /**
+     * Add {@link org.atmosphere.cpr.AtmosphereResourceEventListener} to track internal events.
+     */
+    public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 }

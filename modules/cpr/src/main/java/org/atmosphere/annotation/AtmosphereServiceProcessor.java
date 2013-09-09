@@ -17,14 +17,11 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AtmosphereService;
-import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
@@ -39,6 +36,7 @@ import java.util.LinkedList;
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.interceptors;
+import static org.atmosphere.annotation.AnnotationUtil.listeners;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 
 @AtmosphereAnnotation(AtmosphereService.class)
@@ -56,41 +54,10 @@ public class AtmosphereServiceProcessor implements Processor {
             framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
             filters(a.broadcastFilters(), framework);
 
-            final Class<? extends AtmosphereResourceEventListener>[] listeners = a.listeners();
-            if (listeners.length > 0) {
-                try {
-                    AtmosphereInterceptor ai = new AtmosphereInterceptor() {
-
-                        @Override
-                        public void configure(AtmosphereConfig config) {
-                        }
-
-                        @Override
-                        public Action inspect(AtmosphereResource r) {
-                            for (Class<? extends AtmosphereResourceEventListener> l : listeners) {
-                                try {
-                                    r.addEventListener(l.newInstance());
-                                } catch (Throwable e) {
-                                    logger.warn("", e);
-                                }
-                            }
-                            return Action.CONTINUE;
-                        }
-
-                        @Override
-                        public void postInspect(AtmosphereResource r) {
-                        }
-
-                        @Override
-                        public String toString() {
-                            return "@Atmosphere Managed Event Listeners";
-                        }
-
-                    };
-                    framework.interceptor(ai);
-                } catch (Throwable e) {
-                    logger.warn("", e);
-                }
+            LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            AtmosphereInterceptor aa = listeners(a.listeners(), framework);
+            if (aa != null) {
+                l.add(aa);
             }
 
             if (!a.servlet().isEmpty()) {
@@ -100,7 +67,6 @@ public class AtmosphereServiceProcessor implements Processor {
                 String mapping = a.path();
 
                 Class<?>[] interceptors = a.interceptors();
-                LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
                 for (Class i : interceptors) {
                     try {
                         AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
@@ -141,7 +107,6 @@ public class AtmosphereServiceProcessor implements Processor {
                             r.init(sc);
                         }
                     };
-
                     framework.addAtmosphereHandler(mapping, proxy, l);
                 } else {
                     framework.addAtmosphereHandler(mapping, r, l);

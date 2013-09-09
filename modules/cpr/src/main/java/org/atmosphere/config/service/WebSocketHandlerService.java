@@ -21,6 +21,7 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
+import org.atmosphere.websocket.WebSocketEventListener;
 
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
@@ -78,5 +79,10 @@ public @interface WebSocketHandlerService {
       * delimited using "=" and separated using coma.
       */
      String[] atmosphereConfig() default {};
+
+    /**
+     * Add {@link org.atmosphere.cpr.AtmosphereResourceEventListener} to track internal events.
+     */
+    public Class<? extends WebSocketEventListener>[] listeners() default {};
 
 }

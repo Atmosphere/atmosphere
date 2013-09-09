@@ -18,6 +18,7 @@ package org.atmosphere.annotation;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -32,6 +33,7 @@ import java.lang.annotation.Annotation;
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.interceptors;
+import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(WebSocketHandlerService.class)
 public class WebSocketHandlerServiceProcessor implements Processor {
@@ -59,6 +61,11 @@ public class WebSocketHandlerServiceProcessor implements Processor {
             filters(m.broadcastFilters(), framework);
 
             interceptors(m.interceptors(), framework);
+
+            AtmosphereInterceptor aa = listeners(m.listeners(), framework);
+            if (aa != null) {
+                framework.interceptor(aa);
+            }
 
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
             p.registerWebSocketHandler(m.path(), s.newInstance());

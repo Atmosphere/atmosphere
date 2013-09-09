@@ -31,6 +31,7 @@ import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
+import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(MeteorService.class)
 public class MeteorServiceProcessor implements Processor {
@@ -42,6 +43,7 @@ public class MeteorServiceProcessor implements Processor {
         try {
             ReflectorServletProcessor r = new ReflectorServletProcessor();
             r.setServletClassName(discoveredClass.getName());
+            List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
             Class<Servlet> s = (Class<Servlet>) discoveredClass;
             MeteorService m = s.getAnnotation(MeteorService.class);
@@ -52,8 +54,12 @@ public class MeteorServiceProcessor implements Processor {
             framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
             filters(m.broadcastFilters(), framework);
 
+            AtmosphereInterceptor aa = listeners(m.listeners(), framework);
+            if (aa != null) {
+                l.add(aa);
+            }
+
             Class<?>[] interceptors = m.interceptors();
-            List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
             for (Class i : interceptors) {
                 try {
                     AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();

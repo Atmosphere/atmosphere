@@ -31,6 +31,7 @@ import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
+import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(AtmosphereHandlerService.class)
 public class AtmosphereHandlerServiceProcessor implements Processor {
@@ -59,6 +60,11 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
 
             if (a.path().contains("{")) {
                 l.add(new AtmosphereHandlerServiceInterceptor());
+            }
+
+            AtmosphereInterceptor aa = listeners(a.listeners(), framework);
+            if (aa != null) {
+                l.add(aa);
             }
 
             framework.sessionSupport(a.supportSession());

@@ -15,8 +15,12 @@
  */
 package org.atmosphere.annotation;
 
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,5 +50,37 @@ public class AnnotationUtil {
             String[] nv = s.split("=");
             framework.addInitParameter(nv[0], nv[1]);
         }
+    }
+
+    public static AtmosphereInterceptor listeners(final Class<? extends AtmosphereResourceEventListener>[] listeners, AtmosphereFramework framework) {
+        if (listeners.length > 0) {
+            try {
+                return new AtmosphereInterceptorAdapter() {
+
+                    @Override
+                    public Action inspect(AtmosphereResource r) {
+                        if (!r.isSuspended()) {
+                            for (Class<? extends AtmosphereResourceEventListener> l : listeners) {
+                                try {
+                                    r.addEventListener(l.newInstance());
+                                } catch (Throwable e) {
+                                    logger.warn("", e);
+                                }
+                            }
+                        }
+                        return Action.CONTINUE;
+                    }
+
+                    @Override
+                    public String toString() {
+                        return "@Service Event Listeners";
+                    }
+
+                };
+            } catch (Throwable e) {
+                logger.warn("", e);
+            }
+        }
+        return null;
     }
 }

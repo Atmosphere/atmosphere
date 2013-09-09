@@ -19,13 +19,9 @@ import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.managed.AnnotationServiceInterceptor;
 import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,7 +29,9 @@ import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 
-import static org.atmosphere.annotation.AnnotationUtil.*;
+import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
+import static org.atmosphere.annotation.AnnotationUtil.filters;
+import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(ManagedService.class)
 public class ManagedServiceProcessor implements Processor {
@@ -51,41 +49,9 @@ public class ManagedServiceProcessor implements Processor {
             framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
             filters(a.broadcastFilters(), framework);
 
-            final Class<? extends AtmosphereResourceEventListener>[] listeners = a.listeners();
-            if (listeners.length > 0) {
-                try {
-                    AtmosphereInterceptor ai = new AtmosphereInterceptor() {
-
-                        @Override
-                        public void configure(AtmosphereConfig config) {
-                        }
-
-                        @Override
-                        public Action inspect(AtmosphereResource r) {
-                            for (Class<? extends AtmosphereResourceEventListener> l : listeners) {
-                                try {
-                                    r.addEventListener(l.newInstance());
-                                } catch (Throwable e) {
-                                    logger.warn("", e);
-                                }
-                            }
-                            return Action.CONTINUE;
-                        }
-
-                        @Override
-                        public void postInspect(AtmosphereResource r) {
-                        }
-
-                        @Override
-                        public String toString() {
-                            return "@ManagedService Event Listeners";
-                        }
-
-                    };
-                    l.add(ai);
-                } catch (Throwable e) {
-                    logger.warn("", e);
-                }
+            AtmosphereInterceptor aa = listeners(a.listeners(), framework);
+            if (aa != null) {
+                l.add(aa);
             }
 
             Object c = aClass.newInstance();
