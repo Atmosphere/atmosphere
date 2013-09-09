@@ -92,7 +92,7 @@ public @interface ManagedService {
             TrackMessageSizeInterceptor.class,
             HeartbeatInterceptor.class,
             SuspendTrackerInterceptor.class,
-            AnnotationServiceInterceptor.class }
+            AnnotationServiceInterceptor.class
     };
 
     /**
