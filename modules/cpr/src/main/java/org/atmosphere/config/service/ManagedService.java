@@ -47,7 +47,7 @@ import java.lang.annotation.Target;
  * </ul>
  *
  * Annotating your {@link org.atmosphere.cpr.AtmosphereHandler} is the same as doing:
- * <blockquote>
+ * <pre><blockquote>
  @AtmosphereHandlerService(
         path = "/chat",
         broadcasterCache = UUIDBroadcasterCache.class,
@@ -55,8 +55,9 @@ import java.lang.annotation.Target;
         BroadcastOnPostAtmosphereInterceptor.class,
         TrackMessageSizeInterceptor.class,
         HeartbeatInterceptor.class})
- * </blockquote>
+ * </blockquote></pre>
  *
+ * This annotation can be used with @Get, @Post, @Delete, @Ready, @Singleton and @Resume
  * @author Jeanfrancois Arcand
  */
 @Target({ElementType.TYPE})
