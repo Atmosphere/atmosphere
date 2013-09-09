@@ -67,6 +67,7 @@ public class MeteorServiceProcessor implements Processor {
                 l.add(new MeteorServiceInterceptor());
             }
             framework.addAtmosphereHandler(mapping, r, l);
+            framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);
         }

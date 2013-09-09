@@ -28,19 +28,9 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Date;
 
-import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.LONG_POLLING;
-
 /**
  * Simple Servlet that implement the logic to build a Chat application using
- * a {@link Meteor} to suspend and broadcast chat message.  The Meteor is annotated using the {@link MeteorService}
- * but can also be defined in web.xml using
- * <blockquote>
- * <init-param>
- *    <param-name>org.atmosphere.servlet</param-name>
- *    <param-value>org.atmosphere.samples.chat.MeteorChat</param-value>
- * </init-param>
- * <p/>
- * </blockquote>
+ * a {@link Meteor} to suspend and broadcast chat message.
  *
  * @author Jeanfrancois Arcand
  */

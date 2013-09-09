@@ -83,9 +83,11 @@ public @interface AtmosphereHandlerService {
     Class<? extends AtmosphereInterceptor>[] interceptors() default {};
 
     /**
-     * The {@link org.atmosphere.cpr.BroadcasterCache} class name
-     *
-     * @return The {@link org.atmosphere.cpr.Broadcaster} class name
-     */
-    Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
+      * The {@link org.atmosphere.cpr.BroadcasterCache} class name. By default, a no ops {@link DefaultBroadcasterCache}
+      * is installed. It is strongly recommend to install the {@link org.atmosphere.cache.UUIDBroadcasterCache} to prevent
+      * message being lost.
+      *
+      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
+      */
+     Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
 }
