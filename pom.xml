@@ -153,6 +153,12 @@
                                 <include>*.log</include>
                             </includes>
                         </fileset>
+                        <fileset>
+                            <directory>${project.basedir}</directory>
+                            <includes>
+                                <include>depencency-reduced-pom.xml</include>
+                            </includes>
+                        </fileset>
                     </filesets>
                 </configuration>
             </plugin>

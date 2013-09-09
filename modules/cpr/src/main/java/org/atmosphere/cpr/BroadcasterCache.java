@@ -59,12 +59,41 @@ import org.atmosphere.cache.DefaultBroadcasterCache;
 import java.util.List;
 
 /**
- * A BroadcasterCache is used to persist broadcasted Object {@link Broadcaster#broadcast(Object)}. Disconnected clients
- * can always retrieve messages that were broadcasted during their "downtime". {@link BroadcasterCache} is useful when
- * the long polling technique is used to prevent applications from loosing event between re-connection.
+ * A BroadcasterCache is cache broadcasted message. When a Broadcaster is about to execute a broadcast operation ({@link Broadcaster#broadcast(Object)},
+ * the messages is cached, and the the write operation is executed. If the write operation succeed, the message is removed from the cache. If the write
+ * operation fails for an {@link AtmosphereResource}, the message stay in the cache so next time the client reconnect, the message can be
+ * send back to the client. BroadcasterCache are useful for application that requires no messge lost, e.g all broadcasted message
+ * must be delivered to the client. If your application can survive message's lost, your don't need to install a BroadcasterCache.
  * <p/>
+ * BroadcasterCache works the following way. They are always invoked from the application's {@link Broadcaster}
+ <blockquote><pre>
+ *     1. When the Broadcaster gets created, a unique BroadcasterCache gets created as well. That means a BroadcasterCache is, by default,
+ *     associated with a Broadcaster. You can write share BroadcasterCache amongs Broadcaster as well.
+ *     2. Just after the constructor has been invoked, the {@link #configure(BroadcasterConfig)} will get invoked, allowing
+ *     the instance to configure itself based on a {@link BroadcasterConfig}
+ *     3. When {@link Broadcaster} starts, {@link #start()} will be invoked.
+ *     4. Every time a {@link Broadcaster#broadcast(Object)} invocation occurs, the {@link #addToCache(String, AtmosphereResource, org.atmosphere.cache.BroadcastMessage)}
+ *     method will be invoked, allowing the instance to cache the object.
+ *     5. If the write operation succeed, the {@link #clearCache(String, AtmosphereResource, org.atmosphere.cache.CacheMessage)} method will
+ *     be invoked. If the write operation fail, that means the cache won't be cleared, and the message will be available next time the
+ *     client reconnect. An application that write a BroadcasterCache must makes sure cached message aren't staying in the cache forever
+ *     to prevent memory leaks.
+ *     6. When a client reconnects, the {@link #retrieveFromCache(String, AtmosphereResource)} method will be invoked. If messages are
+ *     available, a {@link List} will be returned and written back to the client.
+ *     7. When messages are added to the cache, an application can always customize the messages by creating {@link BroadcasterCacheInspector}
+ *     and add them using {@link #inspector(org.atmosphere.cache.BroadcasterCacheInspector)}. BroadcasterCacheInspector
+ *     will be invoked every time {@link #addToCache(String, AtmosphereResource, org.atmosphere.cache.BroadcastMessage)} is executed.
+ *     8. An application may decide that, at one point in time, stops caching message for a particular {@link AtmosphereResource} by invoking
+ *     {@link #excludeFromCache(String, AtmosphereResource)}
+ *
+ </pre></blockquote>
+ *
+ * Implementation of this interface must be thread-safe.
+ *
  * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)} by
  * defining it in your web/application.xml or by using the {@link org.atmosphere.config.service.BroadcasterCacheService}
+ *
+ * @author Jeanfrancois Arcand
  */
 public interface BroadcasterCache {
 
@@ -89,7 +118,7 @@ public interface BroadcasterCache {
     /**
      * Configure the cache
      *
-     * @param config
+     * @param config a {@link BroadcasterConfig}
      */
     void configure(BroadcasterConfig config);
 
@@ -130,7 +159,7 @@ public interface BroadcasterCache {
     /**
      * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.
      *
-     * @param interceptor
+     * @param interceptor  an instance of {@link BroadcasterCacheInspector}
      * @return this
      */
     BroadcasterCache inspector(BroadcasterCacheInspector interceptor);
