@@ -36,7 +36,11 @@ import java.lang.annotation.Target;
  * Atmosphere's components like {@link Broadcaster}, {@link AtmosphereInterceptor}, etc.
  *
  * This annotation doesn't install any Atmosphere Component like {@link ManagedService}, {@link org.atmosphere.cpr.AtmosphereHandler}
- * or {@link org.atmosphere.websocket.WebSocketHandler}. The framework supporting the annotation must deploy itself an Atmosphere's Service.
+ * or {@link org.atmosphere.websocket.WebSocketHandler}. The framework supporting the annotation must deploy itself an Atmosphere's Service or
+ * When specified, The {@link #servlet()} returned value will be used to install a
+ * {@link org.atmosphere.handler.ReflectorServletProcessor} that will dispatch requests to the {@link javax.servlet.Servlet}. You can
+ * customize the request dispatch bu setting the {@link #dispatch()} to false. When set to false, the {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)}
+ * will never be invoked.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
@@ -64,7 +68,7 @@ public @interface AtmosphereService {
      */
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             TrackMessageSizeInterceptor.class,
-            HeartbeatInterceptor.class,
+            HeartbeatInterceptor.class
     };
 
     /**
@@ -93,7 +97,11 @@ public @interface AtmosphereService {
     String path() default "/";
 
     /**
-     * Dispatch the managed {@link org.atmosphere.cpr.AtmosphereResource} to the mapped {@link org.atmosphere.cpr.AtmosphereHandler#onRequest(org.atmosphere.cpr.AtmosphereResource)}
+     * Dispatch the managed {@link org.atmosphere.cpr.AtmosphereResource} to the mapped
+     * {@link org.atmosphere.cpr.AtmosphereHandler#onRequest(org.atmosphere.cpr.AtmosphereResource)}. If set to false, all
+     * HTTP Get operation will not invoke the {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)}.
+     * The HTTP method can be customized using {@link org.atmosphere.cpr.ApplicationConfig#ATMOSPHERERESOURCE_INTERCEPTOR_METHOD} value via
+     * {@link #atmosphereConfig}.  If the {@link #servlet()} is undefined, changing that value has no effect.
      */
     boolean dispatch() default true;
 }
