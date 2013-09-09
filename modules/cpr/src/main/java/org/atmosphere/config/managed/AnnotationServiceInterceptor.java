@@ -15,9 +15,7 @@
  */
 package org.atmosphere.config.managed;
 
-import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -38,7 +36,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Handle {@link Singleton}, {@link ManagedService}, {@link MeteorService} and {@link AtmosphereHandlerService}
+ * Handle {@link Singleton} for {@link ManagedService}
  * processing.
  *
  * @author Jeanfrancois Arcand

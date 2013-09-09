@@ -39,11 +39,9 @@ import java.lang.annotation.Target;
  * <ul>
  *     <li>The {@link org.atmosphere.cache.UUIDBroadcasterCache}for caching message. </li>
  *     <li>The {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor} for managing the connection lifecycle</li>
- *     <li>The {@link org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor} for pushing messages to suspended connection</li>
  *     <li>The {@link org.atmosphere.client.TrackMessageSizeInterceptor} for making sure messages are delivered entirely</li>
  *     <li>The {@link org.atmosphere.interceptor.HeartbeatInterceptor} for keeping the connection active</li>
- *     <li>The {@link org.atmosphere.interceptor.OnDisconnectInterceptor} for detecting  when the connection get closed by the browser</li>
- *     <li>The {@link org.atmosphere.interceptor.JavaScriptProtocol} to enable the Atmosphere protocol between the client and Atmosphere</li>
+ *     <li>The {@link org.atmosphere.interceptor.HeartbeatInterceptor} for keeping the connection active</li>
  * </ul>
  *
  * Annotating your {@link org.atmosphere.cpr.AtmosphereHandler} is the same as doing:
@@ -51,10 +49,12 @@ import java.lang.annotation.Target;
  @AtmosphereHandlerService(
         path = "/chat",
         broadcasterCache = UUIDBroadcasterCache.class,
-        interceptors = {AtmosphereResourceLifecycleInterceptor.class,
-        BroadcastOnPostAtmosphereInterceptor.class,
-        TrackMessageSizeInterceptor.class,
-        HeartbeatInterceptor.class})
+        interceptors = {
+            AtmosphereResourceLifecycleInterceptor.class,
+            TrackMessageSizeInterceptor.class,
+            HeartbeatInterceptor.class,
+            SuspendTrackerInterceptor.class,
+            AnnotationServiceInterceptor.class})
  * </blockquote></pre>
  *
  * This annotation can be used with @Get, @Post, @Delete, @Ready, @Singleton and @Resume
@@ -92,8 +92,7 @@ public @interface ManagedService {
             TrackMessageSizeInterceptor.class,
             HeartbeatInterceptor.class,
             SuspendTrackerInterceptor.class,
-            AnnotationServiceInterceptor.class
-
+            AnnotationServiceInterceptor.class }
     };
 
     /**
