@@ -52,9 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -68,7 +65,6 @@ import java.util.concurrent.TimeoutException;
  * @author Jeanfrancois Arcand
  */
 public class BroadcasterFuture<E> implements Future {
-    private static final Logger logger = LoggerFactory.getLogger(BroadcasterFuture.class);
 
     private final CountDownLatch latch;
     private boolean isCancelled = false;
