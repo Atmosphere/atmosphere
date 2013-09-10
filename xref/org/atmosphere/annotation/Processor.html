@@ -27,25 +27,22 @@
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
 <a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
 <a class="jxr_linenumber" name="19" href="#19">19</a>  
-<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> java.lang.annotation.Annotation;
-<a class="jxr_linenumber" name="21" href="#21">21</a>  
-<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment"> * Class annotated with {@link org.atmosphere.config.AtmosphereAnnotation} must implement this interface in order to get invoked</em>
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_javadoccomment"> * when the {@link org.atmosphere.cpr.AtmosphereFramework#init()} execute. Classes implementing this interface will</em>
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <em class="jxr_javadoccomment"> * have a chance to process annotated classes and take the appropriate action.</em>
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/atmosphere/annotation/Processor.html">Processor</a> {
-<a class="jxr_linenumber" name="28" href="#28">28</a>  
-<a class="jxr_linenumber" name="29" href="#29">29</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment">     * Invoked by the {@link org.atmosphere.cpr.AnnotationHandler} when an annotation is detected.</em>
-<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment">     * @param framework       the {@link org.atmosphere.cpr.AtmosphereFramework}</em>
-<a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment">     * @param annotation      a detected {@link java.lang.annotation.Annotation}</em>
-<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment">     * @param discoveredClass the annotated classes.</em>
-<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="36" href="#36">36</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> handle(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework, <strong class="jxr_keyword">final</strong> Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt; annotation, <strong class="jxr_keyword">final</strong> Class&lt;?&gt; discoveredClass);
-<a class="jxr_linenumber" name="37" href="#37">37</a>  
-<a class="jxr_linenumber" name="38" href="#38">38</a>  }
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_javadoccomment"> * Class annotated with {@link org.atmosphere.config.AtmosphereAnnotation} must implement this interface in order to get invoked</em>
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment"> * when the {@link org.atmosphere.cpr.AtmosphereFramework#init()} execute. Classes implementing this interface will</em>
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment"> * have a chance to process annotated classes and take the appropriate action.</em>
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/atmosphere/annotation/Processor.html">Processor</a> {
+<a class="jxr_linenumber" name="26" href="#26">26</a>  
+<a class="jxr_linenumber" name="27" href="#27">27</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment">     * Invoked by the {@link org.atmosphere.cpr.AnnotationHandler} when an annotation is detected.</em>
+<a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment">     * @param framework       the {@link org.atmosphere.cpr.AtmosphereFramework}</em>
+<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment">     * @param annotatedClass the annotated classes.</em>
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="33" href="#33">33</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> handle(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework, <strong class="jxr_keyword">final</strong> Class&lt;?&gt; annotatedClass);
+<a class="jxr_linenumber" name="34" href="#34">34</a>  
+<a class="jxr_linenumber" name="35" href="#35">35</a>  }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
