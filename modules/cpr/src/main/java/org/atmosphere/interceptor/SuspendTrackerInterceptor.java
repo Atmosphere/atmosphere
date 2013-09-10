@@ -16,8 +16,7 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
@@ -37,15 +36,10 @@ import java.util.Set;
  *
  * @author Jeanfrancois Arcand
  */
-public class SuspendTrackerInterceptor implements AtmosphereInterceptor {
+public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Set<String> trackedUUID = Collections.synchronizedSet(new HashSet<String>());
     private final Logger logger = LoggerFactory.getLogger(SuspendTrackerInterceptor.class);
-
-    @Override
-    public void configure(AtmosphereConfig config) {
-
-    }
 
     @Override
     public Action inspect(final AtmosphereResource r) {
@@ -64,10 +58,6 @@ public class SuspendTrackerInterceptor implements AtmosphereInterceptor {
             });
         }
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
     }
 
     @Override

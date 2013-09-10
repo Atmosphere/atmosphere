@@ -16,8 +16,7 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -30,14 +29,10 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * @author Jeanfrancois Arcand
  */
-public class SessionCreationInterceptor implements AtmosphereInterceptor {
+public class SessionCreationInterceptor extends AtmosphereInterceptorAdapter {
 
     // This can cause memory leak.
     private ConcurrentLinkedQueue<String> ids = new ConcurrentLinkedQueue<String>();
-
-    @Override
-    public void configure(AtmosphereConfig config) {
-    }
 
     @Override
     public Action inspect(AtmosphereResource r) {
@@ -51,8 +46,5 @@ public class SessionCreationInterceptor implements AtmosphereInterceptor {
         return Action.CONTINUE;
     }
 
-    @Override
-    public void postInspect(AtmosphereResource r) {
-    }
 }
 

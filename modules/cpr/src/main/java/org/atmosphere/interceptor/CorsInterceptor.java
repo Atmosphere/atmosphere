@@ -15,26 +15,23 @@
  */
 package org.atmosphere.interceptor;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * CORS support
  *
  * @author Janusz Sobolewski
  */
-public class CorsInterceptor implements AtmosphereInterceptor {
-    
-    @Override
-    public void configure(AtmosphereConfig arg0) {
-    }
-    
+public class CorsInterceptor extends AtmosphereInterceptorAdapter {
+
+    private final AtomicReference<String> emptyMessage = new AtomicReference<String>("");
+
     @Override
     public Action inspect(AtmosphereResource resource) {
         
@@ -52,8 +49,7 @@ public class CorsInterceptor implements AtmosphereInterceptor {
             res.setHeader("Access-Control-Allow-Headers",
                     "Origin, Content-Type, X-Atmosphere-Framework, X-Cache-Date, X-Atmosphere-tracking-id, X-Atmosphere-Transport");
             res.setHeader("Access-Control-Max-Age", "-1");
-            
-            final AtomicReference<String> emptyMessage = new AtomicReference<String>("");
+
             res.write(emptyMessage.get());
             
             return Action.SKIP_ATMOSPHEREHANDLER;
@@ -63,8 +59,12 @@ public class CorsInterceptor implements AtmosphereInterceptor {
     }
 
     @Override
-    public void postInspect(AtmosphereResource resource) {
-        
+    public PRIORITY priority() {
+        return InvokationOrder.FIRST_BEFORE_DEFAULT;
     }
 
+    @Override
+    public String toString() {
+        return "CORS Interceptor Support";
+    }
 }

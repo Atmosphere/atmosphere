@@ -1122,6 +1122,8 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             return null;
         }
+
+        public void interrupt() {}
     }
 
     public void onException(Throwable t, final AtmosphereResource ar) {

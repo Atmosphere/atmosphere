@@ -31,6 +31,7 @@ import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
 import org.atmosphere.interceptor.DefaultHeadersInterceptor;
+import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
@@ -197,6 +198,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected final LinkedList<String> annotationPackages = new LinkedList<String>();
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
+    protected boolean executeFirstSet = false;
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}
      */
@@ -780,7 +782,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             interceptors.addFirst(newAInterceptor(PaddingAtmosphereInterceptor.class));
             // Default Interceptor
             interceptors.addFirst(newAInterceptor(DefaultHeadersInterceptor.class));
-            logger.info("Set org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults in your xml to disable them.", interceptors);
+            logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR, interceptors);
         }
         initInterceptors();
     }
@@ -802,10 +804,26 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
+            List<AtmosphereInterceptor> remove = new ArrayList<AtmosphereInterceptor>();
             if (w.interceptors != null) {
                 for (AtmosphereInterceptor i : w.interceptors) {
+
+                    //
+                    InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(i.getClass()) ?
+                            InvokationOrder.class.cast(i).priority() : InvokationOrder.AFTER_DEFAULT;
+
+                    // We need to relocate the interceptor
+                    if (!p.equals(InvokationOrder.AFTER_DEFAULT)) {
+                        positionInterceptor(p, i);
+                        remove.add(i);
+                    }
                     i.configure(config);
                 }
+
+                for (AtmosphereInterceptor i : remove) {
+                    w.interceptors.remove(i);
+                }
+
             }
         }
     }
@@ -1920,10 +1938,31 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
 
         if (!found) {
-            interceptors.addLast(c);
-            logger.info("Installed AtmosphereInterceptor {}. ", c);
+            InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(c.getClass()) ? InvokationOrder.class.cast(c).priority() : InvokationOrder.AFTER_DEFAULT;
+            positionInterceptor(p, c);
+
+            logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
         }
         return this;
+    }
+
+    protected void positionInterceptor(InvokationOrder.PRIORITY p, AtmosphereInterceptor c) {
+        switch (p) {
+            case AFTER_DEFAULT:
+                interceptors.addLast(c);
+                break;
+            case BEFORE_DEFAULT:
+                int pos = executeFirstSet ? 1 : 0;
+                interceptors.add(pos, c);
+                break;
+            case FIRST_BEFORE_DEFAULT:
+                if (executeFirstSet)
+                    throw new IllegalStateException("Cannot set more than one AtmosphereInterceptor to be executed first");
+                logger.info("AtmosphereInterceptor {} will always be executed first", c);
+                interceptors.addFirst(c);
+                executeFirstSet = true;
+                break;
+        }
     }
 
     /**

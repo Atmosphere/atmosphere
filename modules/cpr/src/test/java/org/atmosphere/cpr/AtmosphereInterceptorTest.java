@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.interceptor.InvokationOrder;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -26,6 +27,7 @@ import java.util.Enumeration;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.AssertJUnit.fail;
 
 public class AtmosphereInterceptorTest {
 
@@ -173,4 +175,76 @@ public class AtmosphereInterceptorTest {
         assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
     }
 
+    @Test
+    public void priorityTest() throws ServletException, IOException {
+        framework.addAtmosphereHandler("/*", handler);
+        framework.interceptor(new AtmosphereInterceptorAdapter() {
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                return Action.CREATED;
+            }
+
+            @Override
+            public PRIORITY priority() {
+                return InvokationOrder.FIRST_BEFORE_DEFAULT;
+            }
+
+            @Override
+            public String toString() {
+                return "XXX";
+            }
+        });
+
+        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
+        assertEquals(framework.interceptors().getFirst().toString(), "XXX");
+
+    }
+
+    @Test
+    public void priorityIllegalTest() throws ServletException, IOException {
+        framework.addAtmosphereHandler("/*", handler);
+        framework.interceptor(new AtmosphereInterceptorAdapter() {
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                return Action.CREATED;
+            }
+
+            @Override
+            public PRIORITY priority() {
+                return InvokationOrder.FIRST_BEFORE_DEFAULT;
+            }
+
+            @Override
+            public String toString() {
+                return "XXX";
+            }
+        });
+        Exception exception = null;
+        try {
+            framework.interceptor(new AtmosphereInterceptorAdapter() {
+
+                @Override
+                public Action inspect(AtmosphereResource r) {
+                    return Action.CREATED;
+                }
+
+                @Override
+                public PRIORITY priority() {
+                    return InvokationOrder.FIRST_BEFORE_DEFAULT;
+                }
+
+                @Override
+                public String toString() {
+                    return "XXX";
+                }
+            });
+            fail();
+        } catch (Exception ex) {
+            exception = ex;
+        }
+        assertEquals(IllegalStateException.class, exception.getClass());
+
+    }
 }

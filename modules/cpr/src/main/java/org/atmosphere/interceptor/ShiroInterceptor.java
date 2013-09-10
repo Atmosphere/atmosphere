@@ -7,8 +7,7 @@ import org.apache.shiro.web.env.WebEnvironment;
 import org.apache.shiro.web.subject.WebSubject;
 import org.apache.shiro.web.util.WebUtils;
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -21,12 +20,8 @@ import org.slf4j.LoggerFactory;
  * http://jfarcand.wordpress.com/2011/07/13/quick-tip-using-apache-shiro-with-your-atmospheres-websocketcomet-app/
  *
  */
-public class ShiroInterceptor implements AtmosphereInterceptor {
+public class ShiroInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger logger = LoggerFactory.getLogger(ShiroInterceptor.class);
-
-    @Override
-    public void configure(AtmosphereConfig config) {
-    }
 
     @Override
     public Action inspect(AtmosphereResource r) {
@@ -50,10 +45,6 @@ public class ShiroInterceptor implements AtmosphereInterceptor {
         }
 
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {		
     }
 
 }

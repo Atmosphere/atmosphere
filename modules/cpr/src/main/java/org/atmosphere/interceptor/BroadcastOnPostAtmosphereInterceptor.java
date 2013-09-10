@@ -16,8 +16,7 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,13 +33,9 @@ import java.io.Reader;
  *
  * @author Jeanfrancois Arcand
  */
-public class BroadcastOnPostAtmosphereInterceptor implements AtmosphereInterceptor {
+public class BroadcastOnPostAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private final static Logger logger = LoggerFactory.getLogger(BroadcastOnPostAtmosphereInterceptor.class);
-
-    @Override
-    public void configure(AtmosphereConfig config) {
-    }
 
     @Override
     public Action inspect(AtmosphereResource r) {

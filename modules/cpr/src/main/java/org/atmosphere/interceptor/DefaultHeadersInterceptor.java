@@ -18,7 +18,7 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -36,7 +36,7 @@ import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
  *
  * @author Jeanfrancois Arcand
  */
-public class DefaultHeadersInterceptor implements AtmosphereInterceptor{
+public class DefaultHeadersInterceptor extends AtmosphereInterceptorAdapter {
     private boolean injectCacheHeaders;
     private boolean enableAccessControl;
     private boolean writeHeaders;
@@ -77,10 +77,6 @@ public class DefaultHeadersInterceptor implements AtmosphereInterceptor{
             response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
         }
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
     }
 
     @Override

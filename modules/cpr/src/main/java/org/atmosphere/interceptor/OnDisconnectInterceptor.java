@@ -18,7 +18,7 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
@@ -36,7 +36,7 @@ import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
  *
  * @author Jeanfrancois Arcand
  */
-public class OnDisconnectInterceptor implements AtmosphereInterceptor {
+public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(OnDisconnectInterceptor.class);
     private AsynchronousProcessor p;
@@ -66,10 +66,6 @@ public class OnDisconnectInterceptor implements AtmosphereInterceptor {
             return Action.CANCELLED;
         }
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
     }
 
     public String toString() {

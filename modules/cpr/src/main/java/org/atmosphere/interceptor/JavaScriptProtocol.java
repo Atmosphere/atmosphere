@@ -19,7 +19,7 @@ import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
@@ -39,7 +39,7 @@ import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
  *
  * @author Jeanfrancois Arcand
  */
-public class JavaScriptProtocol implements AtmosphereInterceptor {
+public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private final static Logger logger = LoggerFactory.getLogger(JavaScriptProtocol.class);
     private String wsDelimiter = "|";
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
@@ -108,10 +108,6 @@ public class JavaScriptProtocol implements AtmosphereInterceptor {
             }
         }
         return Action.CONTINUE;
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
     }
 
     @Override

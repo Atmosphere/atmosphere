@@ -25,12 +25,14 @@ import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -217,7 +219,7 @@ public class ManagedAtmosphereHandlerTest {
         assertEquals(message.get(), "message");
 
     }
-    
+
     @ManagedService(path = "/k")
     public final static class ManagedMessageWithResource {
 
@@ -240,14 +242,14 @@ public class ManagedAtmosphereHandlerTest {
           }).suspend();
 
         }
-  
+
         @Message
         public void message(AtmosphereResource resource, String m) {
             message.set(m);
             assertSame(resource, r.get());
         }
     }
-    
+
     @Test
     public void testMessageWithResource() throws IOException, ServletException {
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("GET").build();
@@ -277,6 +279,42 @@ public class ManagedAtmosphereHandlerTest {
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/j").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+    }
+
+    public final static class I extends AtmosphereInterceptorAdapter {
+       @Override
+       public PRIORITY priority() {
+           return InvokationOrder.FIRST_BEFORE_DEFAULT;
+       }
+
+        @Override
+        public String toString(){
+            return "XXX";
+        }
+    }
+
+    @ManagedService(path = "/priority", interceptors = I.class)
+    public final static class Priority {
+        @Get
+        public void get(AtmosphereResource resource) {
+            // Normally we don't need that, this will be done using an Interceptor.
+            resource.suspend();
+        }
+
+        @Ready
+        public void suspend(AtmosphereResource resource) {
+            r.set(resource);
+        }
+    }
+
+    @Test
+    public void testPriority() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/priority").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(framework.interceptors().getFirst().toString(), "XXX");
+
         assertNotNull(r.get());
     }
 }
