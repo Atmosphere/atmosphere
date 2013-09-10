@@ -55,7 +55,7 @@ import java.util.Set;
         ManagedService.class,
         AtmosphereService.class,
         EndpoinMapperService.class,
-        AtmosphereAnnotation.class,
+        AtmosphereAnnotation.class
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {
 
