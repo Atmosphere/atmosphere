@@ -22,17 +22,15 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(BroadcasterCacheInspectorService.class)
 public class BroadcasterCacheInspectorServiceProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterCacheInspectorServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) discoveredClass.newInstance());
+            framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) annotatedClass.newInstance());
         } catch (Throwable e) {
             logger.warn("", e);
         }

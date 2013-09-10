@@ -22,17 +22,15 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(AsyncSupportListenerService.class)
 public class AsyncSupportListenerServiceProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncSupportListenerServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.asyncSupportListener((AsyncSupportListener) discoveredClass.newInstance());
+            framework.asyncSupportListener((AsyncSupportListener) annotatedClass.newInstance());
         } catch (Throwable e) {
             logger.warn("", e);
         }

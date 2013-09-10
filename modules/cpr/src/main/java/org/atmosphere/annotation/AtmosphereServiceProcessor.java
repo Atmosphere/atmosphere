@@ -30,7 +30,6 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.util.LinkedList;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
@@ -45,9 +44,9 @@ public class AtmosphereServiceProcessor implements Processor {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            Class<?> aClass = discoveredClass;
+            Class<?> aClass = annotatedClass;
             AtmosphereService a = aClass.getAnnotation(AtmosphereService.class);
 
             atmosphereConfig(a.atmosphereConfig(), framework);

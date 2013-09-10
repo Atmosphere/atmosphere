@@ -22,17 +22,15 @@ import org.atmosphere.cpr.BroadcasterListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(BroadcasterListenerService.class)
 public class BroadcasterListenerServiceProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterListenerServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.addBroadcasterListener((BroadcasterListener) discoveredClass.newInstance());
+            framework.addBroadcasterListener((BroadcasterListener) annotatedClass.newInstance());
         } catch (Throwable e) {
             logger.warn("", e);
         }

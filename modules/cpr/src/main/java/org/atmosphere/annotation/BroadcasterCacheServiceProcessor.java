@@ -19,14 +19,12 @@ import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.cpr.AtmosphereFramework;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(BroadcasterCacheService.class)
 public class BroadcasterCacheServiceProcessor implements Processor {
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
-        framework.setBroadcasterCacheClassName(discoveredClass.getName());
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+        framework.setBroadcasterCacheClassName(annotatedClass.getName());
 
     }
 }

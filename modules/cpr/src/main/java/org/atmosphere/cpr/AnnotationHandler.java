@@ -72,7 +72,7 @@ public class AnnotationHandler {
                 }
                 processors.put(a, p);
             }
-            p.handle(framework, annotation, discoveredClass);
+            p.handle(framework, discoveredClass);
             logger.trace("Annotation {} handled by {}", annotation, p.getClass().getName());
         } else {
             logger.trace("Annotation {} unhandled", annotation);

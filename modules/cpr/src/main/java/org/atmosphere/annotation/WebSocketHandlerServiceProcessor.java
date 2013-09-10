@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
@@ -41,9 +40,9 @@ public class WebSocketHandlerServiceProcessor implements Processor {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketHandlerServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            Class<WebSocketHandler> s = (Class<WebSocketHandler>) discoveredClass;
+            Class<WebSocketHandler> s = (Class<WebSocketHandler>) annotatedClass;
             WebSocketHandlerService m = s.getAnnotation(WebSocketHandlerService.class);
 
             framework.addAtmosphereHandler(m.path(), new AbstractReflectorAtmosphereHandler() {

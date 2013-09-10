@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,13 +38,13 @@ public class MeteorServiceProcessor implements Processor {
     private static final Logger logger = LoggerFactory.getLogger(MeteorServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
             ReflectorServletProcessor r = new ReflectorServletProcessor();
-            r.setServletClassName(discoveredClass.getName());
+            r.setServletClassName(annotatedClass.getName());
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
-            Class<Servlet> s = (Class<Servlet>) discoveredClass;
+            Class<Servlet> s = (Class<Servlet>) annotatedClass;
             MeteorService m = s.getAnnotation(MeteorService.class);
 
             String mapping = m.path();

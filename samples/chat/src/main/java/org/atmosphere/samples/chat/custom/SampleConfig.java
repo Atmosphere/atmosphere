@@ -21,8 +21,6 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-
 /**
  * A Simple {@link Processor} that demonstrate how you can extend you application with custom annotation.
  *
@@ -34,7 +32,7 @@ public class SampleConfig implements Processor {
     private final Logger logger = LoggerFactory.getLogger(SampleConfig.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         logger.info("Custom annotation {} discovered. Starting the Chat Sample", annotation.getName());
     }
 }

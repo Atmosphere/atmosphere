@@ -35,7 +35,6 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.lang.annotation.Annotation;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -106,10 +105,10 @@ public class CustomAnnotationTest {
     public final static class MyAnnotationProcessor implements Processor {
 
         @Override
-        public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
-            MyAnnotation a = discoveredClass.getAnnotation(MyAnnotation.class);
+        public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+            MyAnnotation a = annotatedClass.getAnnotation(MyAnnotation.class);
             try {
-                framework.addAtmosphereHandler(a.value(), (AtmosphereHandler) discoveredClass.newInstance());
+                framework.addAtmosphereHandler(a.value(), (AtmosphereHandler) annotatedClass.newInstance());
             } catch (InstantiationException e) {
                 e.printStackTrace();
             } catch (IllegalAccessException e) {

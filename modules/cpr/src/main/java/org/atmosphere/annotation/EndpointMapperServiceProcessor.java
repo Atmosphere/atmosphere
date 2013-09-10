@@ -22,17 +22,15 @@ import org.atmosphere.util.EndpointMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(EndpoinMapperService.class)
 public class EndpointMapperServiceProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(EndpointMapperServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.endPointMapper((EndpointMapper<?>) discoveredClass.newInstance());
+            framework.endPointMapper((EndpointMapper<?>) annotatedClass.newInstance());
         } catch (Throwable e) {
             logger.warn("", e);
         }

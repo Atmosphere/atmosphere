@@ -21,17 +21,15 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(WebSocketProcessorService.class)
 public class WebSocketProcessorServiceProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessorServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.setWebsocketProcessorClassName(discoveredClass.getName());
+            framework.setWebsocketProcessorClassName(annotatedClass.getName());
         } catch (Throwable e) {
             logger.warn("", e);
         }

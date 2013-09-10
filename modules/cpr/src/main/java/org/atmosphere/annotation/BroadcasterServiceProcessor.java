@@ -19,14 +19,12 @@ import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.cpr.AtmosphereFramework;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(BroadcasterService.class)
 public class BroadcasterServiceProcessor implements Processor {
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
-        framework.setDefaultBroadcasterClassName(discoveredClass.getName());
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+        framework.setDefaultBroadcasterClassName(annotatedClass.getName());
 
     }
 }

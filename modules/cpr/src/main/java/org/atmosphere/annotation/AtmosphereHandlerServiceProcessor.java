@@ -25,7 +25,6 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,9 +38,9 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            AtmosphereHandlerService a = discoveredClass.getAnnotation(AtmosphereHandlerService.class);
+            AtmosphereHandlerService a = annotatedClass.getAnnotation(AtmosphereHandlerService.class);
 
             atmosphereConfig(a.atmosphereConfig(), framework);
             framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
@@ -69,7 +68,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
 
             framework.sessionSupport(a.supportSession());
 
-            AtmosphereHandler handler = (AtmosphereHandler) discoveredClass.newInstance();
+            AtmosphereHandler handler = (AtmosphereHandler) annotatedClass.newInstance();
             for (String s : a.properties()) {
                 String[] nv = s.split("=");
                 IntrospectionUtils.setProperty(handler, nv[0], nv[1]);

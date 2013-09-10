@@ -22,17 +22,15 @@ import org.atmosphere.cpr.DefaultAsyncSupportResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
-
 @AtmosphereAnnotation(AsyncSupportService.class)
 public class AsyncSupportServiceProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncSupportServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.setAsyncSupport(new DefaultAsyncSupportResolver(framework.getAtmosphereConfig()).newCometSupport(discoveredClass.getName()));
+            framework.setAsyncSupport(new DefaultAsyncSupportResolver(framework.getAtmosphereConfig()).newCometSupport(annotatedClass.getName()));
         } catch (Throwable e) {
             logger.warn("", e);
         }

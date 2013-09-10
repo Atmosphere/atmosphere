@@ -17,8 +17,6 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.cpr.AtmosphereFramework;
 
-import java.lang.annotation.Annotation;
-
 /**
  * Class annotated with {@link org.atmosphere.config.AtmosphereAnnotation} must implement this interface in order to get invoked
  * when the {@link org.atmosphere.cpr.AtmosphereFramework#init()} execute. Classes implementing this interface will
@@ -30,9 +28,8 @@ public interface Processor {
      * Invoked by the {@link org.atmosphere.cpr.AnnotationHandler} when an annotation is detected.
      *
      * @param framework       the {@link org.atmosphere.cpr.AtmosphereFramework}
-     * @param annotation      a detected {@link java.lang.annotation.Annotation}
-     * @param discoveredClass the annotated classes.
+     * @param annotatedClass the annotated classes.
      */
-    public void handle(final AtmosphereFramework framework, final Class<? extends Annotation> annotation, final Class<?> discoveredClass);
+    public void handle(final AtmosphereFramework framework, final Class<?> annotatedClass);
 
 }

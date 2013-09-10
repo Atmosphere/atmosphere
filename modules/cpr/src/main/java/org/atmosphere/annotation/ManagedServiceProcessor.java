@@ -25,7 +25,6 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -39,9 +38,9 @@ public class ManagedServiceProcessor implements Processor {
     private static final Logger logger = LoggerFactory.getLogger(ManagedServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<? extends Annotation> annotation, Class<?> discoveredClass) {
+    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            Class<?> aClass = discoveredClass;
+            Class<?> aClass = annotatedClass;
             ManagedService a = aClass.getAnnotation(ManagedService.class);
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
