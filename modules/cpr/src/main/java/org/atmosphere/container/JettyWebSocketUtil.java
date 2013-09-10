@@ -33,8 +33,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
-
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JettyWebSocketUtil {
 
@@ -80,6 +79,14 @@ public class JettyWebSocketUtil {
     }
 
     public final static WebSocketFactory getFactory(final AtmosphereConfig config, final WebSocketProcessor webSocketProcessor) {
+
+        final AtomicBoolean useBuildInSession = new AtomicBoolean(false);
+        // Override the value.
+        String s = config.getInitParameter(ApplicationConfig.BUILT_IN_SESSION);
+        if (s != null) {
+            useBuildInSession.set(Boolean.valueOf(s));
+        }
+
         WebSocketFactory webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
             public boolean checkOrigin(HttpServletRequest request, String origin) {
                 // Allow all origins
@@ -95,7 +102,7 @@ public class JettyWebSocketUtil {
                 if (s != null && Boolean.valueOf(s)) {
                     isDestroyable = true;
                 }
-                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, config.isSupportSession(), isDestroyable),
+                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, useBuildInSession.get(), isDestroyable),
                         config.framework(), webSocketProcessor);
             }
         });

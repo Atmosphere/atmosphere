@@ -606,5 +606,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.scanClassPath
      */
     String SCAN_CLASSPATH = ApplicationConfig.class.getName() + ".scanClassPath";
+    /**
+     * Use a build in {@link javax.servlet.http.HttpSession} when using native WebSocket implementation.
+     * <p>
+     * Default: false<br>
+     * Value: org.atmosphere.cpr.useBuildInSession
+     */
+    String BUILT_IN_SESSION = ApplicationConfig.class.getName() + ".useBuildInSession";
 }
 

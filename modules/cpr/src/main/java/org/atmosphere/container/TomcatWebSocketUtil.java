@@ -79,6 +79,14 @@ public class TomcatWebSocketUtil {
                                    WebSocketProcessor webSocketProcessor) throws IOException, ServletException {
         // First, handshake
         if (req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
+
+            boolean useBuildInSession = true;
+            // Override the value.
+            String s = config.getInitParameter(ApplicationConfig.BUILT_IN_SESSION);
+            if (s != null) {
+                useBuildInSession= Boolean.valueOf(s);
+            }
+
             // Information required to send the server handshake message
             String key;
             String subProtocol = null;
@@ -122,11 +130,11 @@ public class TomcatWebSocketUtil {
 
             RequestFacade facade = (RequestFacade) hsr;
             boolean isDestroyable = false;
-            String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
+            s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
             if (s != null && Boolean.valueOf(s)) {
                 isDestroyable = true;
             }
-            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.cloneRequest(req, true, config.isSupportSession(), isDestroyable),
+            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.cloneRequest(req, true, useBuildInSession, isDestroyable),
                     config.framework(), webSocketProcessor);
             facade.doUpgrade(inbound);
             return new Action(Action.TYPE.CREATED);

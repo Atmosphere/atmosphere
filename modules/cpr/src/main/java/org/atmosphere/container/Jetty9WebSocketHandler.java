@@ -32,7 +32,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     private AtmosphereRequest cloneRequest(final HttpServletRequest request) {
         try {
             AtmosphereRequest r = AtmosphereRequest.wrap(request);
-            return AtmosphereRequest.cloneRequest(r, false, framework.getAtmosphereConfig().isSupportSession(), false);
+            return AtmosphereRequest.cloneRequest(r, false, false, false);
         } catch (Exception ex) {
             logger.error("", ex);
             throw new RuntimeException("Invalid WebSocket Request");
