@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.interceptor.InvokationOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,18 +42,31 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
 
     private final static Logger logger = LoggerFactory.getLogger(MeteorServiceInterceptor.class);
     private AtmosphereConfig config;
+    private boolean wildcardMapping = false;
 
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
+        optimizeMapping();
     }
 
     @Override
     public Action inspect(AtmosphereResource r) {
+        if (!wildcardMapping) return Action.CONTINUE;
+
         mapAnnotatedService(r.getRequest(), (AtmosphereHandlerWrapper)
                 r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER));
 
         return Action.CONTINUE;
+    }
+
+    protected void optimizeMapping() {
+        for (String w : config.handlers().keySet()) {
+            if (w.contains("{") && w.contains("}")) {
+                wildcardMapping = true;
+                break;
+            }
+        }
     }
 
     /**
@@ -116,5 +130,10 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
                 }
             }
         }
+    }
+
+    @Override
+    public PRIORITY priority() {
+        return InvokationOrder.BEFORE_DEFAULT;
     }
 }

@@ -70,7 +70,7 @@ public class MeteorServiceProcessor implements Processor {
             }
 
             if (m.path().contains("{")) {
-                l.add(new MeteorServiceInterceptor());
+                framework.interceptors().add(new MeteorServiceInterceptor());
             }
             framework.addAtmosphereHandler(mapping, r, l);
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());

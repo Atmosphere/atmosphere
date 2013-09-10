@@ -17,7 +17,6 @@ package org.atmosphere.config.service;
 
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
-import org.atmosphere.config.managed.AnnotationServiceInterceptor;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.BroadcastFilter;
@@ -85,14 +84,13 @@ public @interface ManagedService {
 
     /**
      * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are {@link AtmosphereResourceLifecycleInterceptor}
-     * , {@link org.atmosphere.config.managed.AnnotationServiceInterceptor}, {@link TrackMessageSizeInterceptor}, {@link HeartbeatInterceptor}  and {@link SuspendTrackerInterceptor}
+     * , {@link org.atmosphere.config.managed.ManagedServiceInterceptor}, {@link TrackMessageSizeInterceptor}, {@link HeartbeatInterceptor}  and {@link SuspendTrackerInterceptor}
      */
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             AtmosphereResourceLifecycleInterceptor.class,
             TrackMessageSizeInterceptor.class,
             HeartbeatInterceptor.class,
-            SuspendTrackerInterceptor.class,
-            AnnotationServiceInterceptor.class
+            SuspendTrackerInterceptor.class
     };
 
     /**

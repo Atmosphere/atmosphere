@@ -21,19 +21,17 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
+import org.atmosphere.interceptor.InvokationOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.ArrayList;
-import java.util.List;
 
 /**
  * Handle {@link Singleton} for {@link ManagedService}
@@ -41,14 +39,14 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInterceptor {
+public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereInterceptor {
 
-    private final static Logger logger = LoggerFactory.getLogger(AnnotationServiceInterceptor.class);
+    private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
     private ManagedAtmosphereHandler proxy;
     private AtmosphereConfig config;
     private boolean wildcardMapping = false;
 
-    public AnnotationServiceInterceptor(ManagedAtmosphereHandler proxy) {
+    public ManagedServiceInterceptor(ManagedAtmosphereHandler proxy) {
         this.proxy = proxy;
     }
 
@@ -72,12 +70,9 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
         for (String w : config.handlers().keySet()) {
             if (w.contains("{") && w.contains("}")) {
                 wildcardMapping = true;
+                break;
             }
         }
-    }
-
-    public boolean wildcardMapping() {
-        return wildcardMapping;
     }
 
     /**
@@ -130,21 +125,12 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
                                         ManagedAtmosphereHandler h = (ManagedAtmosphereHandler) w.atmosphereHandler.getClass().getConstructor(Object.class)
                                                 .newInstance(ap.target().getClass().newInstance());
 
-                                        AnnotationServiceInterceptor m = null;
-                                        for (AtmosphereInterceptor i : w.interceptors) {
-                                            if (AnnotationServiceInterceptor.class.isAssignableFrom(i.getClass())) {
-                                                m = AnnotationServiceInterceptor.class.cast(i);
-                                                break;
-                                            }
-                                        }
-                                        List<AtmosphereInterceptor> interceptors = new ArrayList<AtmosphereInterceptor>();
-                                        interceptors.addAll(w.interceptors);
-                                        interceptors.remove(m);
-                                        interceptors.add(new AnnotationServiceInterceptor(h));
+                                        // Quite dangerous
+                                        w.interceptors.set(0, new ManagedServiceInterceptor(h));
 
-                                        config.framework().addAtmosphereHandler(path, h, interceptors);
+                                        config.framework().addAtmosphereHandler(path, h, w.interceptors);
                                     } else {
-                                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler);
+                                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);
                                     }
                                 }
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
@@ -173,8 +159,13 @@ public class AnnotationServiceInterceptor extends BroadcastOnPostAtmosphereInter
                     r.getBroadcaster().broadcast(o);
                 }
             } else {
-                logger.warn("{} received an empty body", AnnotationServiceInterceptor.class.getSimpleName());
+                logger.warn("{} received an empty body", ManagedServiceInterceptor.class.getSimpleName());
             }
         }
+    }
+
+    @Override
+    public PRIORITY priority() {
+        return InvokationOrder.AFTER_DEFAULT;
     }
 }

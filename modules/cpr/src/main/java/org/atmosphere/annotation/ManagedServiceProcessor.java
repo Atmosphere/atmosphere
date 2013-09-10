@@ -16,8 +16,8 @@
 package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
-import org.atmosphere.config.managed.AnnotationServiceInterceptor;
 import org.atmosphere.config.managed.ManagedAtmosphereHandler;
+import org.atmosphere.config.managed.ManagedServiceInterceptor;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -56,16 +56,13 @@ public class ManagedServiceProcessor implements Processor {
 
             Object c = aClass.newInstance();
             AtmosphereHandler handler = new ManagedAtmosphereHandler(c);
+            // MUST BE ADDED FIRST, ALWAYS!
+            l.add(new ManagedServiceInterceptor(ManagedAtmosphereHandler.class.cast(handler)));
+
             Class<?>[] interceptors = a.interceptors();
             for (Class i : interceptors) {
                 try {
-                    AtmosphereInterceptor ai;
-                    if (AnnotationServiceInterceptor.class.isAssignableFrom(i)) {
-                        ai = new AnnotationServiceInterceptor(ManagedAtmosphereHandler.class.cast(handler));
-                    } else {
-                        ai = (AtmosphereInterceptor) i.newInstance();
-                    }
-                    l.add(ai);
+                    l.add((AtmosphereInterceptor) i.newInstance());
                 } catch (Throwable e) {
                     logger.warn("", e);
                 }
