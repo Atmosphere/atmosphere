@@ -33,6 +33,6 @@ public class SampleConfig implements Processor {
 
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
-        logger.info("Custom annotation {} discovered. Starting the Chat Sample", annotation.getName());
+        logger.info("Custom annotation {} discovered. Starting the Chat Sample", annotatedClass.getAnnotation(Config.class));
     }
 }
