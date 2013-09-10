@@ -151,12 +151,7 @@
                             <directory>${project.basedir}</directory>
                             <includes>
                                 <include>*.log</include>
-                            </includes>
-                        </fileset>
-                        <fileset>
-                            <directory>${project.basedir}</directory>
-                            <includes>
-                                <include>depencency-reduced-pom.xml</include>
+                                <include>dependency-reduced-pom.xml</include>
                             </includes>
                         </fileset>
                     </filesets>
@@ -278,7 +273,6 @@
     <modules>
         <module>modules</module>
         <module>assembly</module>
-        <module>samples</module>
         <module>integration-tests</module>
     </modules>
     <reporting>

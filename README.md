@@ -13,15 +13,9 @@ The Atmosphere Framework Stack consists of:
 <p align="center">
   <img src="http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack"" alt="Atmosphere Stack"/>
 </p>
-Using the Netty Framework? Take a look at [Atmosphere's Netty Framework implementation](https://github.com/Atmosphere/nettosphere)
+The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](https://github.com/Atmosphere/nettosphere) [Play! Framework](https://github.com/Atmosphere/atmosphere-play)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx)
 
-Using the Play Framework? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-play)
-
-Using Vert.x? Try our [Atmosphere's module](https://github.com/Atmosphere/atmosphere-vertx)
-
-The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, WebSphere, WebLogic etc.
-
-Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions)
+Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/)
 
 ### Commercial support now available!
 Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
@@ -35,7 +29,7 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
 
 ### Quick Start
 
-The Atmosphere's Framework ships with many examples describing how to implements WebSockets, Server Side Events, Long Polling, Http Streaming and JSONP client's application. Take a look at [this page](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-the-samples) to pick the best sample to starts with.
+The Atmosphere's Framework ships with many examples describing how to implements WebSockets, Server Side Events, Long Polling, Http Streaming and JSONP client's application. Take a look at [this page](https://github.com/Atmosphere/atmosphere-samples/) to pick the best sample to starts with.
 
 ### To use Atmosphere, add the following dependency:
 ```xml
@@ -50,7 +44,7 @@ Where atmosphere-module can be: jersey, runtime (main module), guice, redis, haz
 
 #### Jump directly inside the code: WebSockets, Server Side Events (SSE), Long-Polling, JSONP and Http Streaming!
 
-Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob/master/samples/jersey-pubsub/src/main/webapp/index.html#L34)-[Server](https://github.com/Atmosphere/atmosphere/blob/master/samples/jersey-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L36) or the infamous Chat [Client](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat/src/main/webapp/javascript/application.js#L1)-[Server](https://github.com/Atmosphere/atmosphere/blob/master/samples/chat/src/main/java/org/atmosphere/samples/chat/Chat.java#L32) to realize how simple Atmosphere is!
+Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/webapp/index.html#L34)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/java/org/atmosphere/samples/pubsub/JQueryPubSub.java#L36) or the infamous Chat [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/webapp/javascript/application.js#L1)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/java/org/atmosphere/samples/chat/Chat.java#L32) to realize how simple Atmosphere is!
 
 [Top](#Top)
 
@@ -67,7 +61,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere/blob
 
 #### RoadMap
 
-Atmosphere 1.0.15 is our official release, and our work in progress version is 2.0, targeted for end of End of July 2013
+Atmosphere 1.0.17 is our official release, and our work in progress version is 2.0, targeted for end of September 20, 2013
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
