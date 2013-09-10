@@ -199,6 +199,23 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
+
+    protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
+            OnDisconnectInterceptor.class,
+            // ADD Tracking ID Handshake
+            JavaScriptProtocol.class,
+            // ADD JSONP support
+            JSONPAtmosphereInterceptor.class,
+            // Add SSE support
+            SSEAtmosphereInterceptor.class,
+            // Android 2.3.x streaming support
+            AndroidAtmosphereInterceptor.class,
+            // WebKit & IE Padding
+            PaddingAtmosphereInterceptor.class,
+            // Default Interceptor
+            DefaultHeadersInterceptor.class
+    };
+
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}
      */
@@ -768,20 +785,9 @@ public class AtmosphereFramework implements ServletContextProvider {
         logger.info("Installing Default AtmosphereInterceptor");
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         if (s == null) {
-            // OnDisconnect
-            interceptors.addFirst(newAInterceptor(OnDisconnectInterceptor.class));
-            // ADD Tracking ID Handshake
-            interceptors.addFirst(newAInterceptor(JavaScriptProtocol.class));
-            // ADD JSONP support
-            interceptors.addFirst(newAInterceptor(JSONPAtmosphereInterceptor.class));
-            // Add SSE support
-            interceptors.addFirst(newAInterceptor(SSEAtmosphereInterceptor.class));
-            // Android 2.3.x streaming support
-            interceptors.addFirst(newAInterceptor(AndroidAtmosphereInterceptor.class));
-            // WebKit & IE Padding
-            interceptors.addFirst(newAInterceptor(PaddingAtmosphereInterceptor.class));
-            // Default Interceptor
-            interceptors.addFirst(newAInterceptor(DefaultHeadersInterceptor.class));
+            for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
+                interceptors.addFirst(newAInterceptor(a));
+            }
             logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR, interceptors);
         }
         initInterceptors();
