@@ -273,7 +273,6 @@
     <modules>
         <module>modules</module>
         <module>assembly</module>
-        <module>integration-tests</module>
     </modules>
     <reporting>
         <outputDirectory>target/site</outputDirectory>
