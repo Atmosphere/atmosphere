@@ -33,9 +33,12 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Import-Package>*</Import-Package>
+                        <Import-Package>
+                            org.apache.catalina.comet.*;version="0.0",
+                            *
+                        </Import-Package>
                         <Export-Package>
-                            org.apache.catalina.comet.*
+                            org.apache.catalina.comet.*;version="0.0"
                         </Export-Package>
                     </instructions>
                 </configuration>
