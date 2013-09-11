@@ -2278,7 +2278,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
      */
-    public List<String> customAnnotation() {
+    public List<String> customAnnotationPackages() {
         return annotationPackages;
     }
 

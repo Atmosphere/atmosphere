@@ -89,14 +89,15 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         logger.info("AnnotationProcessor {} being used", delegate.getClass());
 
         if (scanForAtmosphereAnnotation) {
-            scanForAnnotation(framework.customAnnotation());
+            scanForAnnotation(framework);
         }
 
         delegate.configure(framework);
         return this;
     }
 
-    private void scanForAnnotation(List<String> packages) {
+    private void scanForAnnotation(AtmosphereFramework f) {
+        List<String> packages = f.customAnnotationPackages();
         AnnotationDetector detector = new AnnotationDetector(atmosphereReporter);
         try {
             if (packages.size() > 0) {
@@ -104,6 +105,12 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                     logger.trace("Package {} scanned for @AtmosphereAnnotation", p);
                     detector.detect(p);
                 }
+            }
+
+            // Now look for application defined annotation
+            String path = f.getHandlersPath();
+            if (path != null) {
+                detector.detect(new File(path));
             }
         } catch (IOException e) {
             logger.warn("Unable to scan annotation", e);
