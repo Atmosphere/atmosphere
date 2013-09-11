@@ -33,9 +33,12 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Import-Package>*</Import-Package>
+                        <Import-Package>
+                            org.jboss.servlet.http.*;version="0.0",
+                            *
+                        </Import-Package>
                         <Export-Package>
-                            org.jboss.servlet.http.*,
+                            org.jboss.servlet.http.*;version="0.0",
                         </Export-Package>
                     </instructions>
                 </configuration>
