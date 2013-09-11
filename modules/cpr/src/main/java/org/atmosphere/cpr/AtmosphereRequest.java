@@ -1757,15 +1757,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         public int getPort() {
-            return address.getPort();
+            return address().getPort();
         }
 
         public String getHostAddress() {
-            return address.getAddress().getHostAddress();
+            return address().getAddress().getHostAddress();
         }
 
         public String getHostName() {
-            return address.getHostName();
+            return address().getHostName();
         }
 
     }
