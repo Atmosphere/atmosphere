@@ -146,7 +146,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
     protected final AtmosphereResource noOpsResource;
-    protected int waitTime = 1000;
+    protected int waitTime = 100;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
