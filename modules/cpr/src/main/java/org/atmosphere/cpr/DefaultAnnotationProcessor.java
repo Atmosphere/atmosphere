@@ -103,10 +103,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 for (String p : packages) {
                     logger.trace("Package {} scanned for @AtmosphereAnnotation", p);
                     detector.detect(p);
-
                 }
-            } else {
-                detector.detect();
             }
         } catch (IOException e) {
             logger.warn("Unable to scan annotation", e);

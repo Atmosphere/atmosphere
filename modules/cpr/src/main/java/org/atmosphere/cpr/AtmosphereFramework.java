@@ -694,9 +694,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     private void configureAnnotationPackages() {
         // We must scan the default annotation set.
-        if (!allowAllClassesScan) {
-            annotationPackages.add(Processor.class.getPackage().getName());
-        }
+        annotationPackages.add(Processor.class.getPackage().getName());
 
         String s = config.getInitParameter(ApplicationConfig.CUSTOM_ANNOTATION_PACKAGE);
         if (s != null) {
