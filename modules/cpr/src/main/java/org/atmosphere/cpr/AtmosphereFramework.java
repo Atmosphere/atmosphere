@@ -2188,7 +2188,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         return this;
     }
 
-    protected void notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {
+    public void notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {
         for (AsyncSupportListener l : asyncSupportListeners()) {
             try {
                 switch (type) {
