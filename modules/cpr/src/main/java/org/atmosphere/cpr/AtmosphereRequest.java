@@ -41,6 +41,7 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
+import java.net.InetSocketAddress;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -753,7 +754,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRemoteAddr() {
-        return isNotNoOps() ? b.request.getRemoteAddr() : b.remoteAddr;
+        return isNotNoOps() ? b.request.getRemoteAddr() : b.lazyRemote != null ? b.lazyRemote.getHostAddress() : b.remoteAddr;
     }
 
     /**
@@ -761,7 +762,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRemoteHost() {
-        return isNotNoOps() ? b.request.getRemoteHost() : b.remoteHost;
+        return isNotNoOps() ? b.request.getRemoteHost() : b.lazyRemote != null ? b.lazyRemote.getHostName() : b.remoteHost;
     }
 
     /**
@@ -769,7 +770,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public int getRemotePort() {
-        return isNotNoOps() ? b.request.getRemotePort() : b.remotePort;
+        return isNotNoOps() ? b.request.getRemotePort() : b.lazyRemote != null ? b.lazyRemote.getPort() : b.remotePort;
     }
 
     /**
@@ -841,7 +842,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getLocalName() {
-        return isNotNoOps() ? b.request.getLocalName() : b.localName;
+        return isNotNoOps() ? b.request.getLocalName() : b.lazyLocal != null ? b.lazyLocal.getHostName() : b.localName;
     }
 
     /**
@@ -849,7 +850,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public int getLocalPort() {
-        return isNotNoOps() ? b.request.getLocalPort() : b.localPort;
+        return isNotNoOps() ? b.request.getLocalPort() : b.lazyLocal != null ? b.lazyLocal.getPort() :b.localPort;
     }
 
     /**
@@ -857,7 +858,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getLocalAddr() {
-        return isNotNoOps() ? b.request.getLocalAddr() : b.localAddr;
+        return isNotNoOps() ? b.request.getLocalAddr() : b.lazyLocal != null ? b.lazyLocal.getHostAddress() : b.localAddr;
     }
 
     private boolean isNotNoOps() {
@@ -1017,6 +1018,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private HttpSession webSocketFakeSession;
         private String queryString = "";
         private boolean isSecure = false;
+        // Callable to lazily execute.
+        private LazyComputation lazyRemote = null;
+        private LazyComputation lazyLocal = null;
 
         public Builder() {
         }
@@ -1068,6 +1072,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder localPort(int localPort) {
             this.localPort = localPort;
+            return this;
+        }
+
+        public Builder remoteInetSocketAddress(InetSocketAddress remoteAddr) {
+            this.lazyRemote = new LazyComputation(remoteAddr);
+            return this;
+        }
+
+        public Builder localInetSocketAddress(InetSocketAddress localAddr) {
+            this.lazyLocal = new LazyComputation(localAddr);
             return this;
         }
 
@@ -1719,6 +1733,28 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         while (l.hasMoreElements()) {
             b.locale(l.nextElement());
         }
+    }
+
+    private static final class LazyComputation {
+
+        private final InetSocketAddress address;
+
+        public LazyComputation(InetSocketAddress address) {
+            this.address = address;
+        }
+
+        public int getPort() {
+            return address.getPort();
+        }
+
+        public String getHostAddress() {
+            return address.getAddress().getHostAddress();
+        }
+
+        public String getHostName() {
+            return address.getHostName();
+        }
+
     }
 
     @Override
