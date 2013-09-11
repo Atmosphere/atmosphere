@@ -426,7 +426,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             for (Cookie c : cookies) {
                 headers.put("Set-Cookie", c.toString());
             }
-            headerHandled = false;
+            headerHandled = true;
         }
         return headers;
     }
