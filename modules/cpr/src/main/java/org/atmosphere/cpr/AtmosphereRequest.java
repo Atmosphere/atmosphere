@@ -55,6 +55,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.Callable;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
@@ -69,7 +70,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  */
 public class AtmosphereRequest extends HttpServletRequestWrapper {
 
-    private Logger logger = LoggerFactory.getLogger(AtmosphereRequest.class);
+    private final static Logger logger = LoggerFactory.getLogger(AtmosphereRequest.class);
     private ServletInputStream bis;
     private BufferedReader br;
     private final Builder b;
@@ -1075,12 +1076,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
-        public Builder remoteInetSocketAddress(InetSocketAddress remoteAddr) {
+        public Builder remoteInetSocketAddress(Callable remoteAddr) {
             this.lazyRemote = new LazyComputation(remoteAddr);
             return this;
         }
 
-        public Builder localInetSocketAddress(InetSocketAddress localAddr) {
+        public Builder localInetSocketAddress(Callable localAddr) {
             this.lazyLocal = new LazyComputation(localAddr);
             return this;
         }
@@ -1737,10 +1738,22 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private static final class LazyComputation {
 
-        private final InetSocketAddress address;
+        private final Callable<InetSocketAddress> callable;
+        private InetSocketAddress address;
 
-        public LazyComputation(InetSocketAddress address) {
-            this.address = address;
+        public LazyComputation(Callable<InetSocketAddress> callable) {
+            this.callable = callable;
+        }
+
+        public InetSocketAddress address() {
+            if (address == null) {
+                try {
+                    address = callable.call();
+                } catch (Exception e) {
+                    logger.warn("", e);
+                }
+            }
+            return address;
         }
 
         public int getPort() {
