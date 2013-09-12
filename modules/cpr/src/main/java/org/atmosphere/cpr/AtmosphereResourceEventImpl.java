@@ -55,7 +55,7 @@ package org.atmosphere.cpr;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
- * {@link AtmosphereResourceEvent} implementation for Servlet Container.
+ * {@link AtmosphereResourceEvent} implementation.
  *
  * @author Jeanfrancois Arcand
  */
@@ -187,16 +187,18 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     }
 
     protected AtmosphereResourceEventImpl setCancelled(boolean isCancelled) {
-        check();
-        resource.action().type(Action.TYPE.CANCELLED);
-        this.isCancelled.set(isCancelled);
+        if (check()) {
+            resource.action().type(Action.TYPE.CANCELLED);
+            this.isCancelled.set(isCancelled);
+        }
         return this;
     }
 
     protected AtmosphereResourceEventImpl setIsResumedOnTimeout(boolean isResumedOnTimeout) {
-        check();
-        resource.action().type(Action.TYPE.TIMEOUT);
-        this.isResumedOnTimeout.set(isResumedOnTimeout);
+        if (check()) {
+            resource.action().type(Action.TYPE.TIMEOUT);
+            this.isResumedOnTimeout.set(isResumedOnTimeout);
+        }
         return this;
     }
 
@@ -257,8 +259,8 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return resource;
     }
 
-    private void check() {
-        if (resource == null) throw new IllegalStateException("Recycled");
+    private boolean check() {
+        return resource == null ? false : true;
     }
 
     public AtmosphereResourceEvent setThrowable(Throwable t) {
