@@ -81,10 +81,10 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             String charEncoding = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
                             // TODO: TOTALLY INEFFICIENT. We MUST uses binary replacement instead.
                             String s = new String(responseDraft, charEncoding);
-							return s.replaceAll("(['\"\\/])", "\\\\$1")
-									.replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
-									.replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
-									.replaceAll("\r", "\\\\r").getBytes(charEncoding);
+                            return s.replaceAll("(['\"\\/])", "\\\\$1")
+                            .replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
+                            .replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
+                            .replaceAll("\r", "\\\\r").getBytes(charEncoding);
                         }
                         return responseDraft;
                     }
