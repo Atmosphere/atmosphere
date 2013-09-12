@@ -42,7 +42,6 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
-
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
         if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP)) {
@@ -82,7 +81,10 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             String charEncoding = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
                             // TODO: TOTALLY INEFFICIENT. We MUST uses binary replacement instead.
                             String s = new String(responseDraft, charEncoding);
-                            return s.replace("\"", "\\\"").getBytes(charEncoding);
+							return s.replaceAll("(['\"\\/])", "\\\\$1")
+									.replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
+									.replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
+									.replaceAll("\r", "\\\\r").getBytes(charEncoding);
                         }
                         return responseDraft;
                     }
