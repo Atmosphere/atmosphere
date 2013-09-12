@@ -38,6 +38,8 @@ import java.util.Arrays;
 public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(JSONPAtmosphereInterceptor.class);
+    private static final String END_CHUNK = "\"});";
+    private static final Object START_CHUNK = "({\"message\" : \"";
 
     @Override
     public Action inspect(AtmosphereResource r) {
@@ -57,9 +59,8 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         String callbackName = callbackName();
-                        response.write(callbackName + "({\"message\" : \"");
+                        response.write(callbackName + START_CHUNK);
                     }
-
 
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
@@ -77,7 +78,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write("\"});", true);
+                        response.write(END_CHUNK, true);
                     }
                 });
             } else {
