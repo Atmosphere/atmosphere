@@ -102,6 +102,12 @@ public class JettyWebSocketUtil {
                 if (s != null && Boolean.valueOf(s)) {
                     isDestroyable = true;
                 }
+
+                if (!webSocketProcessor.handshake(request)) {
+                    // res.sendError(HttpServletResponse.SC_FORBIDDEN, "WebSocket requests rejected.");
+                    throw new IllegalStateException();
+                }
+
                 return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, useBuildInSession.get(), isDestroyable),
                         config.framework(), webSocketProcessor);
             }

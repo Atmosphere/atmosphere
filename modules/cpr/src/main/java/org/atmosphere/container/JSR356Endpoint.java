@@ -43,6 +43,8 @@ public class JSR356Endpoint extends Endpoint {
     private static final Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);
 
     private final WebSocketProcessor webSocketProcessor;
+    private final Integer maxBinaryBufferSize;
+    private final Integer maxTextBufferSize;
     private AtmosphereRequest request;
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
@@ -56,7 +58,6 @@ public class JSR356Endpoint extends Endpoint {
             throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
         }
 
-        // TODO: Find a way to set those values.
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
             webSocketWriteTimeout = Integer.valueOf(s);
@@ -64,14 +65,37 @@ public class JSR356Endpoint extends Endpoint {
             webSocketWriteTimeout = -1;
         }
 
-        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE);
+        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
         if (s != null) {
-            //TODO
+            maxBinaryBufferSize = Integer.valueOf(s);
+        } else {
+            maxBinaryBufferSize = -1;
+        }
+
+        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
+        if (s != null) {
+            maxTextBufferSize = Integer.valueOf(s);
+        } else {
+            maxTextBufferSize = -1;
         }
     }
 
     @Override
     public void onOpen(Session session, EndpointConfig endpointConfig) {
+
+        if (!webSocketProcessor.handshake(request)) {
+            try {
+                session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Handshake not accepted."));
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
+            return;
+        }
+
+        if (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
+        if (webSocketWriteTimeout != -1) session.setMaxIdleTimeout(webSocketWriteTimeout);
+        if (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
+
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
         // TODO: This is quite bogus!

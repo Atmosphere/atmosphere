@@ -32,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -61,6 +62,11 @@ public class JBossWebSocketHandler extends WebSocketServlet {
     @Override
     protected void onSocketOpened(WebSocket socket) throws IOException {
         logger.trace("WebSocket.onSocketOpened.");
+
+        if (!webSocketProcessor.handshake(socket.getServletRequest())) {
+            socket.closeSocket();
+            throw new IOException();
+        }
 
         AtmosphereRequest r = AtmosphereRequest.wrap(socket.getServletRequest());
         webSocket = new JBossWebSocket(socket, config);

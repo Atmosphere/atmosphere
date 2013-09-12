@@ -18,8 +18,10 @@ package org.atmosphere.container;
 import com.sun.grizzly.tcp.Request;
 import com.sun.grizzly.websockets.DataFrame;
 import com.sun.grizzly.websockets.DefaultWebSocket;
+import com.sun.grizzly.websockets.ProtocolHandler;
 import com.sun.grizzly.websockets.WebSocket;
 import com.sun.grizzly.websockets.WebSocketApplication;
+import com.sun.grizzly.websockets.WebSocketListener;
 import org.atmosphere.container.version.GrizzlyWebSocket;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -58,6 +60,15 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         paths(config.getServletContext());
         webSocketProcessor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(config.framework());
+    }
+
+    @Override
+    public WebSocket createWebSocket(ProtocolHandler protocolHandler, final WebSocketListener... listeners) {
+        if (!webSocketProcessor.handshake(null)) {
+            protocolHandler.close(0x00, "");
+            throw new IllegalStateException();
+        }
+        return super.createWebSocket(protocolHandler,listeners);
     }
 
     void paths(ServletContext sc) {

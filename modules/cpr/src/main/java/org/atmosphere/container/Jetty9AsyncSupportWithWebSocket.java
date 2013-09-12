@@ -105,7 +105,7 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
 
         webSocketFactory = new WebSocketServerFactory(policy) {
             @Override
-            public boolean acceptWebSocket(final HttpServletRequest request, HttpServletResponse response) throws IOException {
+            public boolean acceptWebSocket(final HttpServletRequest request, final HttpServletResponse response) throws IOException {
                 setCreator(new WebSocketCreator() {
 
                     // @Override  9.0.x
@@ -114,12 +114,30 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
                         ServletWebSocketRequest r = ServletWebSocketRequest.class.cast(upgradeRequest);
                         r.getExtensions().clear();
 
+                        if (!webSocketProcessor.handshake(request)) {
+                            try {
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "WebSocket requests rejected.");
+                            } catch (IOException e) {
+                                logger.trace("", e);
+                            }
+                            return null;
+                        }
+
                         return new Jetty9WebSocketHandler(request, config.framework(), webSocketProcessor);
                     }
 
                     // @Override 9.1.x
                     public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
                         req.getExtensions().clear();
+
+                        if (!webSocketProcessor.handshake(request)) {
+                            try {
+                                response.sendError(HttpServletResponse.SC_FORBIDDEN, "WebSocket requests rejected.");
+                            } catch (IOException e) {
+                                logger.trace("", e);
+                            }
+                            return null;
+                        }
                         return new Jetty9WebSocketHandler(request, config.framework(), webSocketProcessor);
                     }
                 });

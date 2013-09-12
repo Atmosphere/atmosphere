@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
@@ -32,6 +33,15 @@ import java.io.Reader;
  * @author Jeanfrancois Arcand
  */
 public interface WebSocketProcessor {
+    /**
+     * Determine if the WebSocket's handshake data can be processed, or if the request be cancelled. Since it's container
+     * related native API, the {@link HttpServletRequest} might be null, so implementation must check for null.
+     *
+     * @param request {@link HttpServletRequest}
+     * @return true if the processing can continue, false if not.
+     */
+    boolean handshake(HttpServletRequest request);
+
     /**
      * Register a {@link WebSocketHandler}
      *

@@ -37,6 +37,7 @@ import org.atmosphere.util.VoidExecutorService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -123,6 +124,20 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         optimizeMapping();
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public boolean handshake(HttpServletRequest request) {
+        if (request != null) {
+            logger.trace("Processing request {}", request);
+        }
+        return true;
+    }
+
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandler webSockethandler) {
         handlers.put(path, webSockethandler);

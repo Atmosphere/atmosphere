@@ -103,6 +103,12 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
 
         // --------------------------- Methods from Grizzly2WebSocketApplication
 
+        @Override
+        protected void handshake(org.glassfish.grizzly.websockets.HandShake handshake) throws org.glassfish.grizzly.websockets.HandshakeException{
+            if (!webSocketProcessor.handshake(null)) {
+                throw new org.glassfish.grizzly.websockets.HandshakeException("WebSocket not accepted");
+            }
+        }
 
         @Override
         public boolean isApplicationRequest(HttpRequestPacket request) {

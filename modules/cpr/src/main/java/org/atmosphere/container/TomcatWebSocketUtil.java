@@ -110,6 +110,12 @@ public class TomcatWebSocketUtil {
             }
 
             String requireSameOrigin = config.getInitParameter(ApplicationConfig.WEBSOCKET_REQUIRE_SAME_ORIGIN);
+
+            if (!webSocketProcessor.handshake(req)) {
+                res.sendError(HttpServletResponse.SC_FORBIDDEN, "WebSocket requests rejected.");
+                return new Action(Action.TYPE.CANCELLED);
+            }
+
             if (Boolean.valueOf(requireSameOrigin) && !verifyOrigin(req)) {
                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Origin header does not match expected value");
                 return new Action(Action.TYPE.CANCELLED);
