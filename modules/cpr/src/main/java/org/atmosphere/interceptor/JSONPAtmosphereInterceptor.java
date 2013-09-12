@@ -23,7 +23,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,19 +49,6 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
-
-                    String contentType() {
-                        String c = response.getContentType();
-                        if (c == null) {
-                            c = (String) request.getAttribute(FrameworkConfig.EXPECTED_CONTENT_TYPE);
-                        }
-
-                        if (c == null) {
-                            c = request.getContentType();
-                        }
-
-                        return c;
-                    }
 
                     String callbackName() {
                         return request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
