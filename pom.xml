@@ -1,4 +1,5 @@
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <parent>
         <groupId>org.sonatype.oss</groupId>
@@ -37,17 +38,17 @@
         </developer>
     </developers>
     <issueManagement>
-        <system>bugzilla</system>
-        <url>https://github.com/Atmosphere/atmosphere/servlets/ProjectIssues</url>
+        <system>GitHub Issues</system>
+        <url>https://github.com/Atmosphere/atmosphere/issues</url>
     </issueManagement>
     <mailingLists>
         <mailingList>
             <name>atmosphere Dev List</name>
-            <archive>dev@github.com/Atmosphere/atmosphere</archive>
+            <archive>https://groups.google.com/group/atmosphere-framework</archive>
         </mailingList>
         <mailingList>
             <name>atmosphere Support List</name>
-            <archive>users@github.com/Atmosphere/atmosphere</archive>
+            <archive>https://groups.google.com/group/atmosphere-framework</archive>
         </mailingList>
     </mailingLists>
     <licenses>
@@ -144,7 +145,7 @@
                         <fileset>
                             <directory>${project.basedir}/work</directory>
                         </fileset>
-                         <fileset>
+                        <fileset>
                             <directory>${project.basedir}/overlays</directory>
                         </fileset>
                         <fileset>
