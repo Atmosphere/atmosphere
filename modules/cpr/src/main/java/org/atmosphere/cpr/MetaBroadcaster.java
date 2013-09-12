@@ -44,8 +44,16 @@ import java.util.concurrent.TimeoutException;
  * The rule used is similar to path/uri mapping used by technology like Servlet, Jersey, etc.
  * <p/>
  * NOTE: Broadcaster's name must start with / in order to get retrieved by this class.
- *
+ * <p/>
  * This class is not THREAD SAFE.
+ * <p/>
+ * If you want to use MetaBroadcaster with Jersey or any framework, make sure all {@link org.atmosphere.cpr.Broadcaster#getID()}
+ * starts with '/'. For example, with Jersey:
+ * <blockquote><pre>
+ * @Path(RestConstants.STREAMING + "/workspace{wid:/[0-9A-Z]+}")
+ * public class JerseyPubSub {
+ *    @PathParam("wid") private Broadcaster topic;
+ * </pre></blockquote>
  *
  * @author Jeanfrancois Arcand
  */
