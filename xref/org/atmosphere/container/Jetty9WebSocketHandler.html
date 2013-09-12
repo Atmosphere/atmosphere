@@ -42,7 +42,7 @@
 <a class="jxr_linenumber" name="32" href="#32">32</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> cloneRequest(<strong class="jxr_keyword">final</strong> HttpServletRequest request) {
 <a class="jxr_linenumber" name="33" href="#33">33</a>          <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="34" href="#34">34</a>              <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> r = AtmosphereRequest.wrap(request);
-<a class="jxr_linenumber" name="35" href="#35">35</a>              <strong class="jxr_keyword">return</strong> AtmosphereRequest.cloneRequest(r, false, framework.getAtmosphereConfig().isSupportSession(), false);
+<a class="jxr_linenumber" name="35" href="#35">35</a>              <strong class="jxr_keyword">return</strong> AtmosphereRequest.cloneRequest(r, false, false, false);
 <a class="jxr_linenumber" name="36" href="#36">36</a>          } <strong class="jxr_keyword">catch</strong> (Exception ex) {
 <a class="jxr_linenumber" name="37" href="#37">37</a>              logger.error(<span class="jxr_string">""</span>, ex);
 <a class="jxr_linenumber" name="38" href="#38">38</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(<span class="jxr_string">"Invalid WebSocket Request"</span>);

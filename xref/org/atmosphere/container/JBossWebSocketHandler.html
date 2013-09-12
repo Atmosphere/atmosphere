@@ -42,72 +42,78 @@
 <a class="jxr_linenumber" name="32" href="#32">32</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
 <a class="jxr_linenumber" name="33" href="#33">33</a>  
 <a class="jxr_linenumber" name="34" href="#34">34</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServletRequest;
-<a class="jxr_linenumber" name="35" href="#35">35</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
-<a class="jxr_linenumber" name="36" href="#36">36</a>  
-<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment"> * Dispatches JBoss websocket events to Atmosphere's {@link org.atmosphere.websocket.WebSocketProcessor}.</em>
-<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> * This websocket handler is based Mike Brock's websockets implementation.</em>
-<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> * </em>
-<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment"> * @author Péter Miklós</em>
-<a class="jxr_linenumber" name="42" href="#42">42</a>  <em class="jxr_javadoccomment"> * @see https://github.com/mikebrock/jboss-websockets</em>
-<a class="jxr_linenumber" name="43" href="#43">43</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="44" href="#44">44</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/JBossWebSocketHandler.html">JBossWebSocketHandler</a> <strong class="jxr_keyword">extends</strong> WebSocketServlet {
-<a class="jxr_linenumber" name="45" href="#45">45</a>  
-<a class="jxr_linenumber" name="46" href="#46">46</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">long</strong> serialVersionUID = 1L;
-<a class="jxr_linenumber" name="47" href="#47">47</a>  
-<a class="jxr_linenumber" name="48" href="#48">48</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(JBossWebSocketHandler.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="49" href="#49">49</a>  
-<a class="jxr_linenumber" name="50" href="#50">50</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String JBOSS_WEB_SOCKET_PROCESSOR = <span class="jxr_string">"jboss.webSocketProcessor"</span>;
-<a class="jxr_linenumber" name="51" href="#51">51</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
-<a class="jxr_linenumber" name="52" href="#52">52</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor;
-<a class="jxr_linenumber" name="53" href="#53">53</a>      <strong class="jxr_keyword">private</strong> org.atmosphere.websocket.WebSocket webSocket;
-<a class="jxr_linenumber" name="54" href="#54">54</a>  
-<a class="jxr_linenumber" name="55" href="#55">55</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/container/JBossWebSocketHandler.html">JBossWebSocketHandler</a>(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
-<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">this</strong>.config = config;
-<a class="jxr_linenumber" name="57" href="#57">57</a>          <strong class="jxr_keyword">this</strong>.webSocketProcessor = WebSocketProcessorFactory.getDefault()
-<a class="jxr_linenumber" name="58" href="#58">58</a>                  .getWebSocketProcessor(config.framework());
-<a class="jxr_linenumber" name="59" href="#59">59</a>      }
-<a class="jxr_linenumber" name="60" href="#60">60</a>  
-<a class="jxr_linenumber" name="61" href="#61">61</a>      @Override
-<a class="jxr_linenumber" name="62" href="#62">62</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> onSocketOpened(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> socket) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="63" href="#63">63</a>          logger.trace(<span class="jxr_string">"WebSocket.onSocketOpened."</span>);
-<a class="jxr_linenumber" name="64" href="#64">64</a>  
-<a class="jxr_linenumber" name="65" href="#65">65</a>          <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> r = AtmosphereRequest.wrap(socket.getServletRequest());
-<a class="jxr_linenumber" name="66" href="#66">66</a>          webSocket = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/version/JBossWebSocket.html">JBossWebSocket</a>(socket, config);
-<a class="jxr_linenumber" name="67" href="#67">67</a>          webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
-<a class="jxr_linenumber" name="68" href="#68">68</a>      }
-<a class="jxr_linenumber" name="69" href="#69">69</a>  
-<a class="jxr_linenumber" name="70" href="#70">70</a>      @Override
-<a class="jxr_linenumber" name="71" href="#71">71</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> onSocketClosed(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> socket) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="72" href="#72">72</a>          logger.trace(<span class="jxr_string">"WebSocket.onSocketClosed."</span>);
-<a class="jxr_linenumber" name="73" href="#73">73</a>          webSocketProcessor.close(webSocket, 0);
+<a class="jxr_linenumber" name="35" href="#35">35</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpServletResponse;
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
+<a class="jxr_linenumber" name="37" href="#37">37</a>  
+<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> * Dispatches JBoss websocket events to Atmosphere's {@link org.atmosphere.websocket.WebSocketProcessor}.</em>
+<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> * This websocket handler is based Mike Brock's websockets implementation.</em>
+<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment"> * </em>
+<a class="jxr_linenumber" name="42" href="#42">42</a>  <em class="jxr_javadoccomment"> * @author Péter Miklós</em>
+<a class="jxr_linenumber" name="43" href="#43">43</a>  <em class="jxr_javadoccomment"> * @see https://github.com/mikebrock/jboss-websockets</em>
+<a class="jxr_linenumber" name="44" href="#44">44</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="45" href="#45">45</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/JBossWebSocketHandler.html">JBossWebSocketHandler</a> <strong class="jxr_keyword">extends</strong> WebSocketServlet {
+<a class="jxr_linenumber" name="46" href="#46">46</a>  
+<a class="jxr_linenumber" name="47" href="#47">47</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">long</strong> serialVersionUID = 1L;
+<a class="jxr_linenumber" name="48" href="#48">48</a>  
+<a class="jxr_linenumber" name="49" href="#49">49</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(JBossWebSocketHandler.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="50" href="#50">50</a>  
+<a class="jxr_linenumber" name="51" href="#51">51</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> String JBOSS_WEB_SOCKET_PROCESSOR = <span class="jxr_string">"jboss.webSocketProcessor"</span>;
+<a class="jxr_linenumber" name="52" href="#52">52</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
+<a class="jxr_linenumber" name="53" href="#53">53</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor;
+<a class="jxr_linenumber" name="54" href="#54">54</a>      <strong class="jxr_keyword">private</strong> org.atmosphere.websocket.WebSocket webSocket;
+<a class="jxr_linenumber" name="55" href="#55">55</a>  
+<a class="jxr_linenumber" name="56" href="#56">56</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/container/JBossWebSocketHandler.html">JBossWebSocketHandler</a>(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
+<a class="jxr_linenumber" name="57" href="#57">57</a>          <strong class="jxr_keyword">this</strong>.config = config;
+<a class="jxr_linenumber" name="58" href="#58">58</a>          <strong class="jxr_keyword">this</strong>.webSocketProcessor = WebSocketProcessorFactory.getDefault()
+<a class="jxr_linenumber" name="59" href="#59">59</a>                  .getWebSocketProcessor(config.framework());
+<a class="jxr_linenumber" name="60" href="#60">60</a>      }
+<a class="jxr_linenumber" name="61" href="#61">61</a>  
+<a class="jxr_linenumber" name="62" href="#62">62</a>      @Override
+<a class="jxr_linenumber" name="63" href="#63">63</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> onSocketOpened(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> socket) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="64" href="#64">64</a>          logger.trace(<span class="jxr_string">"WebSocket.onSocketOpened."</span>);
+<a class="jxr_linenumber" name="65" href="#65">65</a>  
+<a class="jxr_linenumber" name="66" href="#66">66</a>          <strong class="jxr_keyword">if</strong> (!webSocketProcessor.handshake(socket.getServletRequest())) {
+<a class="jxr_linenumber" name="67" href="#67">67</a>              socket.closeSocket();
+<a class="jxr_linenumber" name="68" href="#68">68</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException();
+<a class="jxr_linenumber" name="69" href="#69">69</a>          }
+<a class="jxr_linenumber" name="70" href="#70">70</a>  
+<a class="jxr_linenumber" name="71" href="#71">71</a>          <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> r = AtmosphereRequest.wrap(socket.getServletRequest());
+<a class="jxr_linenumber" name="72" href="#72">72</a>          webSocket = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/version/JBossWebSocket.html">JBossWebSocket</a>(socket, config);
+<a class="jxr_linenumber" name="73" href="#73">73</a>          webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
 <a class="jxr_linenumber" name="74" href="#74">74</a>      }
 <a class="jxr_linenumber" name="75" href="#75">75</a>  
 <a class="jxr_linenumber" name="76" href="#76">76</a>      @Override
-<a class="jxr_linenumber" name="77" href="#77">77</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> onReceivedFrame(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> socket) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="78" href="#78">78</a>          Frame frame = socket.readFrame();
-<a class="jxr_linenumber" name="79" href="#79">79</a>  
-<a class="jxr_linenumber" name="80" href="#80">80</a>          <strong class="jxr_keyword">if</strong> (webSocketProcessor != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="81" href="#81">81</a>              <strong class="jxr_keyword">if</strong> (frame instanceof TextFrame) {
-<a class="jxr_linenumber" name="82" href="#82">82</a>                  logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame (TextFrame)"</span>);
-<a class="jxr_linenumber" name="83" href="#83">83</a>                  webSocketProcessor.invokeWebSocketProtocol(webSocket, ((TextFrame) frame).getText());
-<a class="jxr_linenumber" name="84" href="#84">84</a>              } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (frame instanceof BinaryFrame) {
-<a class="jxr_linenumber" name="85" href="#85">85</a>                  logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame (BinaryFrame)"</span>);
-<a class="jxr_linenumber" name="86" href="#86">86</a>                  BinaryFrame binaryFrame = (BinaryFrame) frame;
-<a class="jxr_linenumber" name="87" href="#87">87</a>                  webSocketProcessor.invokeWebSocketProtocol(webSocket, binaryFrame.getByteArray(), 0,
-<a class="jxr_linenumber" name="88" href="#88">88</a>                          binaryFrame.getByteArray().length);
-<a class="jxr_linenumber" name="89" href="#89">89</a>              } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (frame instanceof CloseFrame) {
-<a class="jxr_linenumber" name="90" href="#90">90</a>                  <em class="jxr_comment">// TODO shall we call this here?</em>
-<a class="jxr_linenumber" name="91" href="#91">91</a>                  logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame (CloseFrame)"</span>);
-<a class="jxr_linenumber" name="92" href="#92">92</a>                  webSocketProcessor.close(webSocket, 0);
-<a class="jxr_linenumber" name="93" href="#93">93</a>              } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="94" href="#94">94</a>                  logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame skipping: "</span> + frame);
-<a class="jxr_linenumber" name="95" href="#95">95</a>              }
-<a class="jxr_linenumber" name="96" href="#96">96</a>          } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="97" href="#97">97</a>              logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame but no atmosphere processor in request, skipping: "</span> + frame);
-<a class="jxr_linenumber" name="98" href="#98">98</a>          }
-<a class="jxr_linenumber" name="99" href="#99">99</a>      }
-<a class="jxr_linenumber" name="100" href="#100">100</a> }
+<a class="jxr_linenumber" name="77" href="#77">77</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> onSocketClosed(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> socket) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="78" href="#78">78</a>          logger.trace(<span class="jxr_string">"WebSocket.onSocketClosed."</span>);
+<a class="jxr_linenumber" name="79" href="#79">79</a>          webSocketProcessor.close(webSocket, 0);
+<a class="jxr_linenumber" name="80" href="#80">80</a>      }
+<a class="jxr_linenumber" name="81" href="#81">81</a>  
+<a class="jxr_linenumber" name="82" href="#82">82</a>      @Override
+<a class="jxr_linenumber" name="83" href="#83">83</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> onReceivedFrame(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> socket) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="84" href="#84">84</a>          Frame frame = socket.readFrame();
+<a class="jxr_linenumber" name="85" href="#85">85</a>  
+<a class="jxr_linenumber" name="86" href="#86">86</a>          <strong class="jxr_keyword">if</strong> (webSocketProcessor != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="87" href="#87">87</a>              <strong class="jxr_keyword">if</strong> (frame instanceof TextFrame) {
+<a class="jxr_linenumber" name="88" href="#88">88</a>                  logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame (TextFrame)"</span>);
+<a class="jxr_linenumber" name="89" href="#89">89</a>                  webSocketProcessor.invokeWebSocketProtocol(webSocket, ((TextFrame) frame).getText());
+<a class="jxr_linenumber" name="90" href="#90">90</a>              } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (frame instanceof BinaryFrame) {
+<a class="jxr_linenumber" name="91" href="#91">91</a>                  logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame (BinaryFrame)"</span>);
+<a class="jxr_linenumber" name="92" href="#92">92</a>                  BinaryFrame binaryFrame = (BinaryFrame) frame;
+<a class="jxr_linenumber" name="93" href="#93">93</a>                  webSocketProcessor.invokeWebSocketProtocol(webSocket, binaryFrame.getByteArray(), 0,
+<a class="jxr_linenumber" name="94" href="#94">94</a>                          binaryFrame.getByteArray().length);
+<a class="jxr_linenumber" name="95" href="#95">95</a>              } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (frame instanceof CloseFrame) {
+<a class="jxr_linenumber" name="96" href="#96">96</a>                  <em class="jxr_comment">// TODO shall we call this here?</em>
+<a class="jxr_linenumber" name="97" href="#97">97</a>                  logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame (CloseFrame)"</span>);
+<a class="jxr_linenumber" name="98" href="#98">98</a>                  webSocketProcessor.close(webSocket, 0);
+<a class="jxr_linenumber" name="99" href="#99">99</a>              } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="100" href="#100">100</a>                 logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame skipping: "</span> + frame);
+<a class="jxr_linenumber" name="101" href="#101">101</a>             }
+<a class="jxr_linenumber" name="102" href="#102">102</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="103" href="#103">103</a>             logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame but no atmosphere processor in request, skipping: "</span> + frame);
+<a class="jxr_linenumber" name="104" href="#104">104</a>         }
+<a class="jxr_linenumber" name="105" href="#105">105</a>     }
+<a class="jxr_linenumber" name="106" href="#106">106</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

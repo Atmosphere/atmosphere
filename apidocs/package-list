@@ -2,7 +2,6 @@ org.atmosphere
 org.atmosphere.annotation
 org.atmosphere.cache
 org.atmosphere.client
-org.atmosphere.commons.util
 org.atmosphere.config
 org.atmosphere.config.managed
 org.atmosphere.config.service
@@ -14,17 +13,9 @@ org.atmosphere.handler
 org.atmosphere.interceptor
 org.atmosphere.jersey
 org.atmosphere.jersey.util
-org.atmosphere.samples.chat
-org.atmosphere.samples.chat.custom
-org.atmosphere.samples.chat.jersey
-org.atmosphere.samples.multirequest.handlers
-org.atmosphere.samples.multirequest.jobs
-org.atmosphere.samples.pubsub
-org.atmosphere.samples.twitter
 org.atmosphere.util
 org.atmosphere.util.analytics
 org.atmosphere.util.annotation
 org.atmosphere.util.uri
 org.atmosphere.websocket
 org.atmosphere.websocket.protocol
-org.jersey.devoxx.samples.ee6.atmosphere

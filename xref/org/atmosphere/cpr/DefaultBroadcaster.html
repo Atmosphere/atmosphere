@@ -156,7 +156,7 @@
 <a class="jxr_linenumber" name="146" href="#146">146</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> AtomicBoolean outOfOrderBroadcastSupported = <strong class="jxr_keyword">new</strong> AtomicBoolean(false);
 <a class="jxr_linenumber" name="147" href="#147">147</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">int</strong> writeTimeoutInSecond = -1;
 <a class="jxr_linenumber" name="148" href="#148">148</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> noOpsResource;
-<a class="jxr_linenumber" name="149" href="#149">149</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">int</strong> waitTime = 1000;
+<a class="jxr_linenumber" name="149" href="#149">149</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">int</strong> waitTime = 100;
 <a class="jxr_linenumber" name="150" href="#150">150</a> 
 <a class="jxr_linenumber" name="151" href="#151">151</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a>(String name, URI uri, <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
 <a class="jxr_linenumber" name="152" href="#152">152</a>         <strong class="jxr_keyword">this</strong>.name = name;
