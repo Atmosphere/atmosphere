@@ -1704,6 +1704,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             logger.trace("Broadcaster {} already set in web.xml", broadcasterClassName);
             return this;
         }
+        isBroadcasterSpecified = true;
 
         broadcasterClassName = bccn;
 
