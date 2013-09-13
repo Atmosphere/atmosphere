@@ -283,6 +283,8 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return "AtmosphereResourceEventImpl{" +
                 "\n\t message=" + message +
                 "\n\t isCancelled=" + isCancelled +
+                "\n\t isClosedByClient=" + isClosedByClient +
+                "\n\t isClosedByApplication=" + isClosedByApplication +
                 "\n\t isResumedOnTimeout=" + isResumedOnTimeout +
                 "\n\t throwable=" + throwable +
                 "\n\t resource=" + uuid +
