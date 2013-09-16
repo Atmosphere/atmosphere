@@ -502,7 +502,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
                 if (webSocket != null) {
                     try {
-                        webSocket.resource(null).close(null);
+                        webSocket.resource(null).close(s);
                     } catch (IOException e) {
                         logger.trace("", e);
                     }
