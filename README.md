@@ -13,7 +13,7 @@ The Atmosphere Framework Stack consists of:
 <p align="center">
   <img src="http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack"" alt="Atmosphere Stack"/>
 </p>
-The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](https://github.com/Atmosphere/nettosphere) [Play! Framework](https://github.com/Atmosphere/atmosphere-play)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx)
+The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/) [Play! Framework](http://atmosphere.github.io/atmosphere-play/)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx)
 
 Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/)
 
