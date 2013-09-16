@@ -168,4 +168,9 @@ public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereIntercep
     public PRIORITY priority() {
         return InvokationOrder.AFTER_DEFAULT;
     }
+
+    @Override
+    public String toString(){
+        return "@ManagedService Interceptor";
+    }
 }

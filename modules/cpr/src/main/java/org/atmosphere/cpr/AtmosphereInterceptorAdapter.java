@@ -45,4 +45,9 @@ public abstract class AtmosphereInterceptorAdapter implements AtmosphereIntercep
     public PRIORITY priority() {
         return InvokationOrder.AFTER_DEFAULT;
     }
+
+    @Override
+    public String toString(){
+        return getClass().getName();
+    }
 }
