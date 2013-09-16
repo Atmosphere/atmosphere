@@ -56,6 +56,15 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samp
          <version>1.0.17</version>
       </dependency>
 ```
+If you where using Atmosphere's Client, please not that starting with version 1.0.15, the javascript has been updated to use the newest version of [atmosphere-javascript](https://github.com/Atmosphere/atmosphere-javascript). It is strongly recommended to use:
+```xml
+     <dependency>
+         <groupId>org.atmosphere.client</groupId>
+         <artifactId>jquery|javascript</artifactId>
+         <version>2.0.x</version>
+      </dependency>
+```
+to get the latest fixes.
 
 [Top](#Top)
 
