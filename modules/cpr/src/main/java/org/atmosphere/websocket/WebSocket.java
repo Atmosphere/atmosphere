@@ -55,8 +55,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
     private WebSocketHandler webSocketHandler;
-    protected ByteBuffer bb = ByteBuffer.allocate(8192);
-    protected CharBuffer cb = CharBuffer.allocate(8192);
+    protected final ByteBuffer bb = ByteBuffer.allocate(8192);
+    protected final CharBuffer cb = CharBuffer.allocate(8192);
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
@@ -269,6 +269,13 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
         close();
+        try {
+            bb.clear();
+            cb.clear();
+            buffer.close(r);
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
     }
 
     /**
