@@ -92,8 +92,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;
 
-    private ByteBuffer bb = ByteBuffer.allocate(8192);
-    private CharBuffer cb = CharBuffer.allocate(8192);
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -596,10 +594,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     protected void dispatchStream(WebSocket webSocket, InputStream is) throws IOException {
         int read = 0;
+        ByteBuffer bb = webSocket.bb;
         while (read > -1) {
             bb.position(bb.position() + read);
             if (bb.remaining() == 0) {
-                resizeByteBuffer();
+                resizeByteBuffer(webSocket);
             }
             read = is.read(bb.array(), bb.position(), bb.remaining());
         }
@@ -613,10 +612,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     protected void dispatchReader(WebSocket webSocket, Reader r) throws IOException {
         int read = 0;
+        CharBuffer cb = webSocket.cb;
         while (read > -1) {
             cb.position(cb.position() + read);
             if (cb.remaining() == 0) {
-                resizeCharBuffer();
+                resizeCharBuffer(webSocket);
             }
             read = r.read(cb.array(), cb.position(), cb.remaining());
         }
@@ -628,8 +628,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    private void resizeByteBuffer() throws IOException {
+    private void resizeByteBuffer(WebSocket webSocket) throws IOException {
         int maxSize = getByteBufferMaxSize();
+        ByteBuffer bb = webSocket.bb;
         if (bb.limit() >= maxSize) {
             throw new IOException("Message Buffer too small");
         }
@@ -643,11 +644,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         ByteBuffer newBuffer = ByteBuffer.allocate((int) newSize);
         bb.rewind();
         newBuffer.put(bb);
-        bb = newBuffer;
+        webSocket.bb = newBuffer;
     }
 
-    private void resizeCharBuffer() throws IOException {
+    private void resizeCharBuffer(WebSocket webSocket) throws IOException {
         int maxSize = getCharBufferMaxSize();
+        CharBuffer cb = webSocket.cb;
         if (cb.limit() >= maxSize) {
             throw new IOException("Message Buffer too small");
         }
@@ -661,7 +663,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         CharBuffer newBuffer = CharBuffer.allocate((int) newSize);
         cb.rewind();
         newBuffer.put(cb);
-        cb = newBuffer;
+        webSocket.cb = newBuffer;
     }
 
     /**

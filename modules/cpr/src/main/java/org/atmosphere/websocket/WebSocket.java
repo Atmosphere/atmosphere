@@ -28,6 +28,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
+import java.nio.CharBuffer;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -53,6 +55,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
     private WebSocketHandler webSocketHandler;
+    protected ByteBuffer bb = ByteBuffer.allocate(8192);
+    protected CharBuffer cb = CharBuffer.allocate(8192);
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
