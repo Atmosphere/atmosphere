@@ -806,6 +806,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected void initInterceptors() {
         for (AtmosphereInterceptor i : interceptors) {
             i.configure(config);
+            InjectorProvider.getInjector().inject(i);
         }
 
         for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
@@ -823,6 +824,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                         remove.add(i);
                     }
                     i.configure(config);
+                    InjectorProvider.getInjector().inject(i);
                 }
 
                 for (AtmosphereInterceptor i : remove) {
