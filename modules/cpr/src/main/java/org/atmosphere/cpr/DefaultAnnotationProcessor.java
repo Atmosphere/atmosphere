@@ -157,6 +157,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             // JBoss|vfs with APR issue, or any strange containers may fail. This is a hack for them.
             // https://github.com/Atmosphere/atmosphere/issues/1292
             if (!coreAnnotationsFound.get()) {
+                logger.warn("Unable to detect annotations. Application may to deploy.");
                 for (Class a : coreAnnotations) {
                     try {
                         handler.handleProcessor(loadClass(getClass(), a.getName()));

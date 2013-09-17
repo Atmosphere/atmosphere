@@ -50,6 +50,7 @@ import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -294,9 +295,14 @@ public final class AnnotationDetector {
                         if (idx > -1) {
                             jarPath = jarPath.substring(0, idx + 4);
                             final File jarFile = new File(jarPath);
-                            if (jarFile.isFile()) {
+                            if (jarFile.isFile() && jarFile.exists()) {
                                 files.add(jarFile);
                                 if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
+                            } else {
+                                List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
+                                for (org.jboss.vfs.VirtualFile f: vfs) {
+                                    files.add(f.getPhysicalFile());
+                                }
                             }
                         }
                     }
