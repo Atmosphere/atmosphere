@@ -52,16 +52,17 @@
  */
 package org.atmosphere.container;
 
-import org.apache.catalina.CometEvent;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
-import org.jboss.servlet.http.HttpEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,18 +120,38 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         } finally {
             Object event = req.getAttribute(TomcatCometSupport.COMET_EVENT);
             if (event != null) {
-                if (org.apache.catalina.CometEvent.class.isAssignableFrom(event.getClass())) {
-                    org.apache.catalina.CometEvent.class.cast(event).close();
+                try {
+                    Class.forName(org.apache.catalina.CometEvent.class.getName());
+
+                    if (org.apache.catalina.CometEvent.class.isAssignableFrom(event.getClass())) {
+                        org.apache.catalina.CometEvent.class.cast(event).close();
+                    }
+                } catch (Throwable e) {
+                    logger.trace("", e);
                 }
 
-                if (org.apache.catalina.comet.CometEvent.class.isAssignableFrom(event.getClass())) {
-                    org.apache.catalina.comet.CometEvent.class.cast(event).close();
+
+                try {
+                    Class.forName(org.apache.catalina.comet.CometEvent.class.getName());
+
+                    if (org.apache.catalina.comet.CometEvent.class.isAssignableFrom(event.getClass())) {
+                        org.apache.catalina.comet.CometEvent.class.cast(event).close();
+                    }
+                } catch (Throwable e) {
+                    logger.trace("", e);
                 }
             }
 
-            HttpEvent he = (HttpEvent) req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
-            if (he != null) {
-                he.close();
+            try {
+                event = req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
+                if (event != null) {
+                    Class.forName(org.jboss.servlet.http.HttpEvent.class.getName());
+                    if (event != null) {
+                        org.jboss.servlet.http.HttpEvent.class.cast(event).close();
+                    }
+                }
+            } catch (Throwable e) {
+                logger.trace("", e);
             }
         }
         return action;
@@ -148,11 +169,18 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     protected void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(1);
         req.setAttribute(LATCH, latch);
 
         boolean ok = true;
         try {
+            AtmosphereResource resource = req.resource();
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onResume(AtmosphereResourceEvent event) {
+                    latch.countDown();
+                }
+            });
             if (action.timeout() != -1) {
                 ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
             } else {
