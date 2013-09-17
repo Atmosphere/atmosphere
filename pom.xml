@@ -499,7 +499,7 @@
         <logback-version>1.0.13</logback-version>
         <jbossaswebsockets-version>0.5</jbossaswebsockets-version>
         <client-version>2.0.1</client-version>
-        <compat-version>2.0.1-SNAPSHOT</compat-version>
+        <compat-version>2.0.2</compat-version>
         <shiro-version>1.2.2</shiro-version>
     </properties>
 </project>
