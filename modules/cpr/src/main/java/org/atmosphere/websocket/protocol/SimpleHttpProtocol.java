@@ -28,6 +28,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.ConcurrentModificationException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -92,8 +93,9 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             logger.trace("The WebSocket has been closed before the message was processed.");
             return null;
         }
-        String pathInfo = resource.getRequest().getPathInfo();
-        String requestURI = resource.getRequest().getRequestURI();
+        AtmosphereRequest request = resource.getRequest();
+        String pathInfo = request.getPathInfo();
+        String requestURI = request.getRequestURI();
 
         if (d.startsWith(delimiter)) {
             int delimiterLength = delimiter.length();
@@ -105,16 +107,12 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             }
         }
 
-        Map<String, Object> m = new HashMap<String, Object>();
-        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
-        // Propagate the original attribute to WebSocket message.
-        m.putAll(resource.getRequest().attributes());
-
+        Map<String,Object> m = attributes(request);
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
         list.add(new AtmosphereRequest.Builder()
-                .request(resource.getRequest())
+                .request(request)
                 .method(methodType)
                 .contentType(contentType)
                 .body(d)
@@ -122,11 +120,38 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .pathInfo(pathInfo)
                 .requestURI(requestURI)
                 .destroyable(destroyable)
-                .headers(resource.getRequest().headersMap())
+                .headers(request.headersMap())
                 .session(resource.session())
                 .build());
 
         return list;
+    }
+
+    private Map<String, Object> attributes(AtmosphereRequest request) {
+
+        Map<String, Object> m = new HashMap<String, Object>();
+        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
+
+        Integer hint = (Integer) request.getAttribute(FrameworkConfig.HINT_ATTRIBUTES_SIZE);
+        try {
+            if (hint != null && hint != request.attributes().size()) {
+                // The original AtmosphereRequest seems to be used, take no risk and clone the attribute.
+                Map<String, Object> copy = (HashMap<String,Object>) HashMap.class.cast(request.attributes()).clone();
+                m.putAll(copy);
+            } else {
+                // Propagate the original attribute to WebSocket message.
+                m.putAll(request.attributes());
+            }
+        } catch (ConcurrentModificationException ex) {
+            // There is a small risk that m.putAll(request.attributes()) throw this exception, event if we used a hint.
+            // Changing the original Atmosphere's request attributes is not something recommended, but an application
+            // can always do it. In that case, just clone the array.
+            // We could have synchronized here
+            logger.trace("", ex);
+            Map<String, Object> copy = (HashMap<String,Object>) HashMap.class.cast(request.attributes()).clone();
+            m.putAll(copy);
+        }
+        return m;
     }
 
     /**
@@ -141,20 +166,16 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             logger.trace("The WebSocket has been closed before the message was processed.");
             return null;
         }
-        String pathInfo = resource.getRequest().getPathInfo();
-        String requestURI = resource.getRequest().getRequestURI();
+        AtmosphereRequest request = resource.getRequest();
+        String pathInfo = request.getPathInfo();
+        String requestURI = request.getRequestURI();
 
-
-        Map<String, Object> m = new HashMap<String, Object>();
-        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
-        // Propagate the original attribute to WebSocket message.
-        m.putAll(resource.getRequest().attributes());
-
+        Map<String,Object> m = attributes(request);
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
         list.add(new AtmosphereRequest.Builder()
-                .request(resource.getRequest())
+                .request(request)
                 .method(methodType)
                 .contentType(contentType)
                 .body(d, offset, length)
@@ -162,7 +183,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
                 .pathInfo(pathInfo)
                 .requestURI(requestURI)
                 .destroyable(destroyable)
-                .headers(resource.getRequest().headersMap())
+                .headers(request.headersMap())
                 .session(resource.session())
                 .build());
 

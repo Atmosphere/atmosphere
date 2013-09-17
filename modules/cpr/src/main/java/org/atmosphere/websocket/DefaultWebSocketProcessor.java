@@ -29,6 +29,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
@@ -91,7 +92,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;
-
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -206,6 +206,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } else {
             logger.warn("AtmosphereResource was null");
         }
+
+        // Hints for preventing cloning the attribute.
+        request.setAttribute(FrameworkConfig.HINT_ATTRIBUTES_SIZE, request.attributes().size() + 1);
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
     }
 
@@ -348,7 +351,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResource r = webSocket.resource();
         webSocketHandler.onError(webSocket, new WebSocketException(ex,
                 new AtmosphereResponse.Builder()
-                        .request(r != null ? r.getRequest() : null)
+                        .request(r != null ? AtmosphereResourceImpl.class.cast(r).getRequest(false) : null)
                         .status(500)
                         .statusMessage("Server Error").build()));
     }
