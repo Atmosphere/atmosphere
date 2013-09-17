@@ -57,6 +57,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.jboss.servlet.http.HttpEvent;
@@ -114,6 +115,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         logger.trace("Event Type {} for {}", event.getType(), req.getQueryString());
         Action action = null;
         // For now, we are just interested in HttpEvent.REA
+        AtmosphereResource r = req.resource();
         if (event.getType() == HttpEvent.EventType.BEGIN) {
             action = suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND) {
@@ -140,7 +142,10 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         } else if (event.getType() == HttpEvent.EventType.EOF
                 || event.getType() == HttpEvent.EventType.ERROR
                 || event.getType() == HttpEvent.EventType.END) {
-            if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
+
+            if (r != null && r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) && event.getType() == HttpEvent.EventType.END) {
+                event.close();
+            } else if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
