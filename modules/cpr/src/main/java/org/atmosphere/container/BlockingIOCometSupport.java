@@ -57,6 +57,9 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
@@ -166,11 +169,18 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     protected void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(1);
         req.setAttribute(LATCH, latch);
 
         boolean ok = true;
         try {
+            AtmosphereResource resource = req.resource();
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onResume(AtmosphereResourceEvent event) {
+                    latch.countDown();
+                }
+            });
             if (action.timeout() != -1) {
                 ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
             } else {
