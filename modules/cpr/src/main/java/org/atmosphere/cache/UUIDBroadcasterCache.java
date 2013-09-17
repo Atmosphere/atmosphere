@@ -15,9 +15,7 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
@@ -226,8 +224,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     protected String uuid(AtmosphereResource r) {
-        return r.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
-                ? (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID) : r.uuid();
+        return r.uuid();
     }
 
     private void addMessageIfNotExists(String clientId, CacheMessage message) {
