@@ -575,6 +575,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public void setAttribute(String s, Object o) {
+        if (o == null) o = "";
         b.localAttributes.put(s, o);
         if (isNotNoOps()) {
             b.request.setAttribute(s, o);
