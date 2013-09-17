@@ -54,6 +54,7 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.Callable;
 
@@ -999,7 +1000,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
-        private Map<String, Object> localAttributes = Collections.synchronizedMap(new HashMap<String, Object>());
+        private Map<String, Object> localAttributes = new ConcurrentHashMap<String, Object>();
         private InputStream inputStream;
         private String remoteAddr = "";
         private String remoteHost = "";

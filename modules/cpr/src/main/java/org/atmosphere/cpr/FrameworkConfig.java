@@ -150,8 +150,4 @@ public interface FrameworkConfig {
      * long-polling.
      */
     String MESSAGE_WRITTEN = Broadcaster.class.getName() + ".messageWritten";
-    /**
-     * The size of the attribute's map, after the webSocket successfully opened.
-     */
-    String HINT_ATTRIBUTES_SIZE = AtmosphereRequest.class.getName() + ".attributesSize";
 }
