@@ -8,6 +8,7 @@
 .settings
 .classpath
 .metadata
+dependency-reduced-pom.xml
 .idea
 *.iml
 *.ipr
