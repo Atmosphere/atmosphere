@@ -17,6 +17,23 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
+import org.atmosphere.config.service.AsyncSupportListenerService;
+import org.atmosphere.config.service.AsyncSupportService;
+import org.atmosphere.config.service.AtmosphereHandlerService;
+import org.atmosphere.config.service.AtmosphereInterceptorService;
+import org.atmosphere.config.service.AtmosphereService;
+import org.atmosphere.config.service.BroadcasterCacheInspectorService;
+import org.atmosphere.config.service.BroadcasterCacheService;
+import org.atmosphere.config.service.BroadcasterFactoryService;
+import org.atmosphere.config.service.BroadcasterFilterService;
+import org.atmosphere.config.service.BroadcasterListenerService;
+import org.atmosphere.config.service.BroadcasterService;
+import org.atmosphere.config.service.EndpoinMapperService;
+import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.MeteorService;
+import org.atmosphere.config.service.WebSocketHandlerService;
+import org.atmosphere.config.service.WebSocketProcessorService;
+import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.util.annotation.AnnotationDetector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,6 +46,7 @@ import java.lang.annotation.Annotation;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An {@link AnnotationProcessor} that selects between a ServletContextInitializer based scanner, and
@@ -46,8 +64,30 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
      */
     public static final String ANNOTATION_ATTRIBUTE = "org.atmosphere.cpr.ANNOTATION_MAP";
 
+    // Annotation is java is broken.
+    private static final Class[] coreAnnotations = {AtmosphereHandlerService.class,
+            BroadcasterCacheService.class,
+            BroadcasterFilterService.class,
+            BroadcasterFactoryService.class,
+            BroadcasterService.class,
+            MeteorService.class,
+            WebSocketHandlerService.class,
+            WebSocketProtocolService.class,
+            AtmosphereInterceptorService.class,
+            BroadcasterListenerService.class,
+            AsyncSupportService.class,
+            AsyncSupportListenerService.class,
+            WebSocketProcessorService.class,
+            BroadcasterCacheInspectorService.class,
+            ManagedService.class,
+            AtmosphereService.class,
+            EndpoinMapperService.class,
+            AtmosphereAnnotation.class
+    };
+
     private AnnotationProcessor delegate;
     private final AnnotationHandler handler;
+    private final AtomicBoolean coreAnnotationsFound = new AtomicBoolean();
 
     private final AnnotationDetector.TypeReporter atmosphereReporter = new AnnotationDetector.TypeReporter() {
         @SuppressWarnings("unchecked")
@@ -61,6 +101,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         @Override
         public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
             try {
+                coreAnnotationsFound.set(true);
                 handler.handleProcessor(loadClass(getClass(), className));
             } catch (Exception e) {
                 logger.warn("Error scanning @AtmosphereAnnotation", e);
@@ -111,6 +152,18 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             String path = f.getHandlersPath();
             if (path != null) {
                 detector.detect(new File(path));
+            }
+
+            // JBoss|vfs with APR issue, or any strange containers may fail. This is a hack for them.
+            // https://github.com/Atmosphere/atmosphere/issues/1292
+            if (!coreAnnotationsFound.get()) {
+                for (Class a : coreAnnotations) {
+                    try {
+                        handler.handleProcessor(loadClass(getClass(), a.getName()));
+                    } catch (Exception e) {
+                        logger.trace("", e);
+                    }
+                }
             }
         } catch (IOException e) {
             logger.warn("Unable to scan annotation", e);
