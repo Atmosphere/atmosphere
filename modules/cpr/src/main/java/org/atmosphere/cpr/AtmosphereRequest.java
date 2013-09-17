@@ -1680,6 +1680,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             b.request(request);
         }
 
+        HttpSession session = null;
+        if (copySession) {
+            session = request.getSession(true);
+            if (session != null) {
+                session = new FakeHttpSession(session);
+            }
+        }
+
         b.servletPath(request.getServletPath())
                 .pathInfo(request.getPathInfo())
                 .contextPath(request.getContextPath())
@@ -1693,7 +1701,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .remotePort(request.getRemotePort())
                 .destroyable(isDestroyable)
                 .cookies(hs)
-                .session(copySession ? new FakeHttpSession(request.getSession(true)) : null)
+                .session(session)
                 .principal(request.getUserPrincipal())
                 .authType(request.getAuthType())
                 .isSSecure(request.isSecure());
