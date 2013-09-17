@@ -58,7 +58,7 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
             AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
             if (ss != null) {
                 // Block websocket closing detection
-                ss.getRequest().setAttribute(ASYNCHRONOUS_HOOK, null);
+                AtmosphereResourceImpl.class.cast(ss).getRequest(false).setAttribute(ASYNCHRONOUS_HOOK, null);
                 AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
                 p.completeLifecycle(ss, false);
