@@ -143,8 +143,8 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 || event.getType() == HttpEvent.EventType.ERROR
                 || event.getType() == HttpEvent.EventType.END) {
 
-            if (r != null && r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) && event.getType() == HttpEvent.EventType.END) {
-                event.close();
+            if (r != null && r.isResumed()) {
+                AtmosphereResourceImpl.class.cast(req.resource()).cancel();
             } else if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
