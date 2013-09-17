@@ -289,14 +289,31 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     /**
      * Is the underlying WebSocket open.
      *
-     * @return
+     * @return true is opened
      */
     abstract public boolean isOpen();
 
+    /**
+     * Use the underlying container's websocket to write the String.
+     * @param s a websocket String message
+     * @return  this
+     * @throws IOException
+     */
     abstract public WebSocket write(String s) throws IOException;
 
+    /**
+     * Use the underlying container's websocket to write the byte.
+     * @param b a websocket byte message
+     * @param offset start
+     * @param length end
+     * @return this
+     * @throws IOException
+     */
     abstract public WebSocket write(byte[] b, int offset, int length) throws IOException;
 
+    /**
+     * Close the underlying WebSocket
+     */
     abstract public void close();
 
     protected String retrieveUUID() {
