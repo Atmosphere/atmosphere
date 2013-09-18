@@ -20,12 +20,14 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletRegistration;
 import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
 import javax.websocket.EndpointConfig;
@@ -49,6 +51,7 @@ public class JSR356Endpoint extends Endpoint {
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
+    private String servletContext = "";
 
     public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
@@ -78,6 +81,18 @@ public class JSR356Endpoint extends Endpoint {
         } else {
             maxTextBufferSize = -1;
         }
+
+        try {
+            Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
+            for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
+                if (AtmosphereServlet.class.isAssignableFrom(loadClass(e.getValue().getClassName()))) {
+                    // TODO: This is a hack and won't work with serveral Servlet
+                    servletContext = "/" + e.getValue().getMappings().iterator().next().replace("/","").replace("*","");
+                }
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
     }
 
     @Override
@@ -104,19 +119,42 @@ public class JSR356Endpoint extends Endpoint {
         headers.put("Connection", "Upgrade");
         headers.put("Upgrade", "websocket");
 
-        StringBuffer pathInfo = new StringBuffer("/");
-        for (Map.Entry<String, String> e : session.getPathParameters().entrySet()) {
-            pathInfo.append(e.getValue());
+        String pathInfo = "";
+        StringBuffer p = new StringBuffer("/");
+        try {
+            ;
+            boolean append = true;
+            for (Map.Entry<String, String> e : session.getPathParameters().entrySet()) {
+                // Glasfish return reverse path!!!
+                if (append && !e.getKey().equalsIgnoreCase("{path}")) {
+                    append = false;
+                }
+
+                if (append) {
+                    p.append(e.getValue()).append("/");
+                } else {
+                    p.insert(0, e.getValue()).insert(0, "/");
+                }
+            }
+            if (p.length() > 0) {
+                p.deleteCharAt(p.length() - 1);
+            }
+
+            pathInfo = p.toString();
+            if (!pathInfo.equals(servletContext) && pathInfo.length() > servletContext.length()) {
+                pathInfo = p.toString().substring(servletContext.length());
+            }
+        } catch (Exception ex) {
+            logger.warn("Unexpected path decoding", ex);
         }
 
         try {
-
             request = new AtmosphereRequest.Builder()
                     .requestURI(session.getRequestURI().toASCIIString())
                     .requestURL(session.getRequestURI().toASCIIString())
                     .headers(headers)
                     .contextPath(framework.getServletContext().getContextPath())
-                    .pathInfo(pathInfo.toString())
+                    .pathInfo(pathInfo)
                     .build()
                     .queryString(session.getQueryString());
 
@@ -167,5 +205,13 @@ public class JSR356Endpoint extends Endpoint {
         logger.error("", t);
         webSocketProcessor.notifyListener(webSocket,
                 new WebSocketEventListener.WebSocketEvent<Throwable>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
+    }
+
+    protected Class<?> loadClass(String className) throws Exception {
+        try {
+            return Thread.currentThread().getContextClassLoader().loadClass(className);
+        } catch (Throwable t) {
+            return getClass().getClassLoader().loadClass(className);
+        }
     }
 }
