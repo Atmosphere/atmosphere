@@ -741,14 +741,18 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                         String inputLine;
                         String newVersion = Version.getRawVersion();
+                        String clientVersion = "2.0.3";
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
                                 if (inputLine.startsWith("ATMO_VERSION=")) {
                                     newVersion = inputLine.substring("ATMO_VERSION=".length());
+                                } else if (inputLine.startsWith("CLIENT_VERSION=")) {
+                                    clientVersion = inputLine.substring("CLIENT_VERSION=".length());
                                     break;
                                 }
                             }
                         } finally {
+                            logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
                             if (newVersion.compareTo(Version.getRawVersion()) != 0) {
                                 logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
                             }
