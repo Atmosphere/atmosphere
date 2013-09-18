@@ -80,6 +80,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
     private String uuid = "0";
+    private final AtomicBoolean usingStream = new AtomicBoolean(true);
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -1002,12 +1003,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     private boolean isUsingStream() {
-        Object s = request().getAttribute(PROPERTY_USE_STREAM);
-        if (s == null) {
-            return true;
-        } else {
-            return (Boolean) request().getAttribute(PROPERTY_USE_STREAM);
+        if (atmosphereRequest != null) {
+            Object s = atmosphereRequest.getAttribute(PROPERTY_USE_STREAM);
+            if (s != null) {
+                usingStream.set((Boolean) s);
+            }
         }
+        return usingStream.get();
     }
 
     /**
