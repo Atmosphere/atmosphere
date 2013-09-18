@@ -122,7 +122,6 @@ public class JSR356Endpoint extends Endpoint {
         String pathInfo = "";
         StringBuffer p = new StringBuffer("/");
         try {
-            ;
             boolean append = true;
             for (Map.Entry<String, String> e : session.getPathParameters().entrySet()) {
                 // Glasfish return reverse path!!!
@@ -136,7 +135,7 @@ public class JSR356Endpoint extends Endpoint {
                     p.insert(0, e.getValue()).insert(0, "/");
                 }
             }
-            if (p.length() > 0) {
+            if (p.length() > 1) {
                 p.deleteCharAt(p.length() - 1);
             }
 
