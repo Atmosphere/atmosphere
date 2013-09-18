@@ -24,13 +24,14 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 public class FakeHttpSession implements HttpSession {
+
     private final long creationTime;
     private final ConcurrentHashMap<String, Object> attributes = new ConcurrentHashMap<String, Object>();
     private final String sessionId;
     private final ServletContext servletContext;
     private int maxInactiveInterval;
     private final AtomicBoolean valid = new AtomicBoolean(true);
-      
+
     public FakeHttpSession(String sessionId, ServletContext servletContext, long creationTime, int maxInactiveInterval) {
         this.sessionId = sessionId;
         this.servletContext = servletContext;
@@ -134,10 +135,10 @@ public class FakeHttpSession implements HttpSession {
         attributes.remove(name);
     }
 
-    public FakeHttpSession copyAttributes(HttpSession httpSession){
+    public FakeHttpSession copyAttributes(HttpSession httpSession) {
         Enumeration<String> e = httpSession.getAttributeNames();
         String k;
-        while(e.hasMoreElements()) {
+        while (e.hasMoreElements()) {
             k = e.nextElement();
             if (k == null) continue;
 
@@ -152,7 +153,7 @@ public class FakeHttpSession implements HttpSession {
     @Override
     public void invalidate() {
         if (!valid.get()) throw new IllegalStateException();
-    	valid.set(false);
+        valid.set(false);
     }
 
     @Override

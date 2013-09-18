@@ -100,7 +100,7 @@ public class JBossWebSocketHandler extends WebSocketServlet {
                 logger.trace("WebSocket.onReceivedFrame skipping: " + frame);
             }
         } else {
-            logger.trace("WebSocket.onReceivedFrame but no atmosphere processor in request, skipping: " + frame);
+            logger.trace("WebSocket.onReceivedFrame but no atmosphere processor in request, skipping: {}", frame);
         }
     }
 }

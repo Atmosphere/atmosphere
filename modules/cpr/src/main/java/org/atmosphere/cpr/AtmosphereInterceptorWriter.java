@@ -20,8 +20,8 @@ import java.util.Collections;
 import java.util.LinkedList;
 
 /**
- * An {@link AsyncIOWriter} that delegates the write operation to it's {@link AsyncIOInterceptor}. If no
- * AsyncIOInterceptor are specified, this class does nothing and the response's will never get written.
+ * An {@link AsyncIOWriter} that delegates the write operation to its {@link AsyncIOInterceptor}. If no
+ * AsyncIOInterceptor is specified, this class does nothing and the responses will never get written.
  *
  * @author Jeanfrancois Arcand
  */

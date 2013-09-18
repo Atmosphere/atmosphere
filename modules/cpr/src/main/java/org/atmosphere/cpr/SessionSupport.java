@@ -26,7 +26,7 @@ public class SessionSupport implements HttpSessionListener {
 
     private final Logger logger = LoggerFactory.getLogger(SessionSupport.class);
 
-    public SessionSupport(){
+    public SessionSupport() {
     }
 
     @Override

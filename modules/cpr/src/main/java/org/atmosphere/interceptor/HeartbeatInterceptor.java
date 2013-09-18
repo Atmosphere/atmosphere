@@ -36,7 +36,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * An interceptor that send whitespace every 30 seconds
+ * An interceptor that send whitespace every 30 seconds.
  *
  * @author Jeanfrancois Arcand
  */
@@ -107,7 +107,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                         logger.trace("{}", r.uuid(), t);
                                         try {
                                             AtmosphereResourceImpl.class.cast(r).close();
-                                        } catch (IOException e) {};
+                                        } catch (IOException e) {
+                                        }
+                                        ;
                                         writeFuture.cancel(false);
                                     }
                                 } else {

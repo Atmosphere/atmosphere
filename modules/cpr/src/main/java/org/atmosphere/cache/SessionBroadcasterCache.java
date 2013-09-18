@@ -62,7 +62,7 @@ import java.util.List;
 
 /**
  * Simple {@link org.atmosphere.cpr.BroadcasterCache} that use an {@link javax.servlet.http.HttpSession} to cache
- * lost message.
+ * messages.
  *
  * @author Jeanfrancois Arcand
  */
@@ -90,8 +90,8 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
             session.setAttribute(broadcasterId, String.valueOf(now));
         } catch (IllegalStateException ex) {
-            logger.trace("",ex);
-            logger.warn("The Session has been invalidated. Message will be loat.");
+            logger.trace("", ex);
+            logger.warn("The Session has been invalidated. Message will be lost.");
         }
         return cacheMessage;
     }
@@ -117,7 +117,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
             return get(cacheHeaderTime);
         } catch (IllegalStateException ex) {
-            logger.trace("",ex);
+            logger.trace("", ex);
             logger.warn("The Session has been invalidated. Unable to retrieve cached messages");
             return Collections.emptyList();
         }

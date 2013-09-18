@@ -15,7 +15,6 @@
  */
 package org.atmosphere.config.service;
 
-
 import org.atmosphere.config.managed.Encoder;
 
 import java.lang.annotation.ElementType;
@@ -24,8 +23,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Use this annotation with the {@link ManagedService}. A method annotated with this annotation will be invoked when the
- * connection has been suspended and ready.
+ * Use this annotation with the {@link ManagedService} annotation. A method annotated with this annotation will be
+ * invoked when the connection has been suspended and ready.
  *
  * @author Jeanfrancois Arcand
  */
@@ -36,9 +35,10 @@ public @interface Ready {
     static enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
 
     /**
-     * Broadcast the returned value to only the calling resource {@link org.atmosphere.config.service.Ready.DELIVER_TO#RESOURCE},
-     * to it's associated Broadcaster {@link org.atmosphere.config.service.Ready.DELIVER_TO#BROADCASTER}
-     * or to all created Broadcaster {@link org.atmosphere.config.service.Ready.DELIVER_TO#ALL}
+     * Broadcast the returned value only to the calling resource {@link org.atmosphere.config.service.Ready.DELIVER_TO#RESOURCE},
+     * to its associated Broadcaster {@link org.atmosphere.config.service.Ready.DELIVER_TO#BROADCASTER}
+     * or to all created Broadcasters {@link org.atmosphere.config.service.Ready.DELIVER_TO#ALL}
+     *
      * @return the {@link org.atmosphere.config.service.Ready.DELIVER_TO}
      */
     DELIVER_TO value() default  DELIVER_TO.RESOURCE;

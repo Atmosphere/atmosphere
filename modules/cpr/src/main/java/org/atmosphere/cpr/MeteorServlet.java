@@ -73,12 +73,12 @@ import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
  * Simple Servlet to use when Atmosphere {@link Meteor} are used. This Servlet will look
  * for a Servlet init-param named org.atmosphere.servlet or org.atmosphere.filter and will
  * delegate request processing to them. When used, this Servlet will ignore any
- * value defined in META-INF/atmosphere.xml as internally it will create a
- * {@link ReflectorServletProcessor}
+ * value defined in META-INF/atmosphere.xml as internally it will create a {@link ReflectorServletProcessor}.
  *
  * @author Jean-Francois Arcand
  */
 public class MeteorServlet extends AtmosphereServlet {
+
     protected static final Logger logger = LoggerFactory.getLogger(MeteorServlet.class);
 
     private Servlet delegate;

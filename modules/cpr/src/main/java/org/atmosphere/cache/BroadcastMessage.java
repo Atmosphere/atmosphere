@@ -15,11 +15,10 @@
  */
 package org.atmosphere.cache;
 
-
 import java.util.UUID;
 
 /**
- * A wrapper around a the object passed to {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
+ * A wrapper around an object passed to {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
  *
  * @author Jeanfrancois Arcand
  */

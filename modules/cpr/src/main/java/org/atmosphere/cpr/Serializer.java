@@ -57,9 +57,9 @@ import java.io.IOException;
 import java.io.OutputStream;
 
 /**
- * Serialize the {@link Object} the result of invoking {@link Broadcaster#broadcast}.
- *
- * IMPORTANT: This class isn't supported by the link Atmosphere-Jersey extension.
+ * Serialize the {@link Object} that was used as parameter to {@link Broadcaster#broadcast}.
+ * <p/>
+ * IMPORTANT: This class isn't supported by the Atmosphere-Jersey extension.
  *
  * @author Paul Sandoz
  * @author Jeanfrancois Arcand
@@ -67,12 +67,11 @@ import java.io.OutputStream;
 public interface Serializer {
 
     /**
-     * Serialize the {@link Object} using the {@link OutputStream}
+     * Serialize the {@link Object} using the {@link OutputStream}.
      *
-     * @param os The {@link java.io.OutputStream} to use when writing.
-     * @param o  The broacasted object.
+     * @param os The {@link java.io.OutputStream} to use when writing
+     * @param o  The broacasted object
      * @throws IOException
      */
     void write(OutputStream os, Object o) throws IOException;
-
 }

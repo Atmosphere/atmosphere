@@ -24,8 +24,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Annotate a method that will gets invoked when String message are broadcasted using the {@link org.atmosphere.cpr.Broadcaster} associated
- * with the class where the annotation is associated.
+ * Annotate a method that will get invoked when String messages are broadcasted using the {@link org.atmosphere.cpr.Broadcaster}
+ * associated with the class where the annotation is associated.
  *
  * @author Jeanfrancois Arcand
  */

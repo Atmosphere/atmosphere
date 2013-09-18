@@ -60,20 +60,16 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
- * A Broadcaster is responsible for delivering messages to its subscribed
- * {@link AtmosphereResource}, which are representing a suspended response.
- * {@link AtmosphereResource} can be added using {@link Broadcaster#addAtmosphereResource},
- * so when {@link #broadcast(java.lang.Object)} execute,
- * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} will
- * be invoked and the suspended connection will have a chance to write the
- * message available using {@link AtmosphereResourceEvent#getMessage()}
- * <br>
- * A {@link Broadcaster}, by default, will use an {@link ExecutorService}, and the
- * number of Thread will be computed based on the core/cpu of the OS under
- * which the application run. Thus invoking {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} will be executed
- * <strong>asynchronously</strong> so this is important to wait for the {@link Future#get} to awake/unblock to be garantee
- * the  operation has completed.
- * <br>
+ * A Broadcaster is responsible for delivering messages to its subscribed {@link AtmosphereResource}s, which are
+ * representing suspended responses. {@link AtmosphereResource} can be added using {@link Broadcaster#addAtmosphereResource},
+ * so when {@link #broadcast(java.lang.Object)} is executed, {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}
+ * will be invoked and the suspended connection will have a chance to write the message available using {@link AtmosphereResourceEvent#getMessage()}.
+ * <p/>
+ * A {@link Broadcaster} will by default use an {@link ExecutorService}, and the number of Threads will be computed
+ * based on the number of cores/CPUs of the OS under which the application runs. Thus invoking
+ * {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} will be executed <strong>asynchronously</strong> so this is
+ * important to wait for the {@link Future#get} to awake/unblock to be guaranteed that the operation has completed.
+ * <p/>
  * One final word on Broadcaster: by default, a Broadcaster will broadcast using
  * all {@link AtmosphereResource} on which the response has been suspended, e.g. {AtmosphereResource#suspend()}
  * has been invoked. This behavior is configurable and you can configure it by invoking the
@@ -96,54 +92,52 @@ public interface Broadcaster {
     }
 
     /**
-     * Set the maximum number of suspended {@link AtmosphereResource}. If the max is reached, Atmosphere will either
+     * Set the maximum number of suspended {@link AtmosphereResource}s. If the maximum is reached, Atmosphere will either
      * resume {@link AtmosphereResource} using {@link org.atmosphere.cpr.Broadcaster.POLICY#FIFO} (first in first out)
      * or {@link org.atmosphere.cpr.Broadcaster.POLICY#REJECT} the {@link AtmosphereResource}.
      * <p/>
-     * By default the number is uunlimited.
+     * By default the number is unlimited.
      *
-     * @param maxSuspended max suspended
+     * @param maxSuspended maximum number of suspended AtmosphereResource
      * @oaram policy the {@link org.atmosphere.cpr.Broadcaster.POLICY}
      */
     void setSuspendPolicy(long maxSuspended, POLICY policy);
 
     /**
-     * Broadcast the {@link Object} to all suspended response, e.g. invoke
-     * {@link AtmosphereHandler#onStateChange}.
+     * Broadcast the {@link Object} to all suspended responses, eg. invoke {@link AtmosphereHandler#onStateChange}.
      *
-     * @param o and {@link Object} to be broadcasted.
+     * @param o the {@link Object} to be broadcasted
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
     Future<Object> broadcast(Object o);
 
     /**
-     * Delay the broadcast operation. The {@link Object} will be broadcasted
-     * when the first {@link #broadcast(java.lang.Object)}
-     * is invoked.
+     * Delay the broadcast operation. The {@link Object} will be broadcasted when {@link #broadcast(java.lang.Object)}
+     * is invoked the first time.
      *
-     * @param o and {@link Object} to be broadcasted.
+     * @param o the {@link Object} to be broadcasted
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
     Future<Object> delayBroadcast(Object o);
 
     /**
      * Delay the broadcast operation. The {@link Object} will be broadcasted once the
-     * specified delay expires or when the first {@link #broadcast(java.lang.Object)}
+     * specified delay expires or when {@link #broadcast(java.lang.Object)} is invoked the first time.
      *
-     * @param o     and {@link Object} to be broadcasted.
-     * @param delay Amount of time to delay.
-     * @param t     a {@link TimeUnit} of delay.
+     * @param o     the {@link Object} to be broadcasted
+     * @param delay Amount of time to delay
+     * @param t     the {@link TimeUnit} of the delay
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
     Future<Object> delayBroadcast(Object o, long delay, TimeUnit t);
 
     /**
      * Broadcast periodically. The {@link Object} will be broadcasted after every period
-     * specified time frame expires. If the {@link TimeUnit} is set null, the
+     * specified time frame expires. If the {@link TimeUnit} is set to null, the
      * {@link Object} will be broadcasted when the first {@link #broadcast(java.lang.Object)}
      * is invoked.
      *
-     * @param o      and {@link Object} to be broadcasted.
+     * @param o      the {@link Object} to be broadcasted
      * @param period Every so often broadcast.
      * @param t      a {@link TimeUnit} of period.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
@@ -153,51 +147,51 @@ public interface Broadcaster {
     /**
      * Broadcast periodically. The {@link Object} will be broadcasted after every period
      * specified time frame expires. If the {@link TimeUnit} is set null, the
-     * {@link Object} will be broadcasted when the first {@link #broadcast(java.lang.Object)}      * is invoked.
+     * {@link Object} will be broadcasted when the first {@link #broadcast(java.lang.Object)} is invoked.
      *
-     * @param o       and {@link Object} to be broadcasted.
-     * @param waitFor Wait for that long before first broadcast.
+     * @param o       the {@link Object} to be broadcasted
+     * @param waitFor Wait for that long before first broadcast
      * @param period  The period inbetween broadcast.
      * @param t       a {@link TimeUnit} of waitFor and period.
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    Future<Object>  scheduleFixedBroadcast(Object o, long waitFor, long period, TimeUnit t);
+    Future<Object> scheduleFixedBroadcast(Object o, long waitFor, long period, TimeUnit t);
 
     /**
-     * Broadcast the {@link Object} to all suspended response, e.g. invoke
+     * Broadcast the {@link Object} to all suspended responses, eg. invoke
      * {@link AtmosphereHandler#onStateChange} with an instance of {@link AtmosphereResource}, representing
-     * a single suspended response..
+     * a single suspended response.
      *
-     * @param o        and {@link Object} to be broadcasted.
+     * @param o        the {@link Object} to be broadcasted
      * @param resource an {@link AtmosphereResource}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    Future<Object>  broadcast(Object o, AtmosphereResource resource);
+    Future<Object> broadcast(Object o, AtmosphereResource resource);
 
     /**
      * Broadcast the {@link Object} when an {@link AtmosphereResource} is resumed by a timeout or when using
-     * {@link org.atmosphere.cpr.AtmosphereResource#resume()}
+     * {@link org.atmosphere.cpr.AtmosphereResource#resume()}.
      *
-     * @param o and {@link Object} to be broadcasted.
+     * @param o the {@link Object} to be broadcasted
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
     Future<Object> broadcastOnResume(Object o);
 
     /**
-     * Broadcast the {@link Object} to all suspended response, e.g. invoke
-     * {@link AtmosphereHandler#onStateChange} with a {@link Set} of  {@link AtmosphereResource},
+     * Broadcast the {@link Object} to all suspended response, eg. invoke
+     * {@link AtmosphereHandler#onStateChange} with a {@link Set} of {@link AtmosphereResource},
      * representing a set of {@link AtmosphereHandler}.
      *
-     * @param o      and {@link Object} to be broadcasted.
+     * @param o      the {@link Object} to be broadcasted
      * @param subset a Set of {@link AtmosphereResource}
      * @return a {@link Future} that can be used to synchronize using the {@link Future#get()}
      */
-    Future<Object>  broadcast(Object o, Set<AtmosphereResource> subset);
+    Future<Object> broadcast(Object o, Set<AtmosphereResource> subset);
 
     /**
-     * Add a {@link AtmosphereResource} to the list of item to be notified when
+     * Add a {@link AtmosphereResource} to the list of items to be notified when
      * the {@link Broadcaster#broadcast} is invoked.
-     *
+     * <p/>
      * It is strongly recommended to suspend the {@link AtmosphereResource} before
      * adding it to a {@link Broadcaster}.
      *
@@ -207,7 +201,7 @@ public interface Broadcaster {
     Broadcaster addAtmosphereResource(AtmosphereResource resource);
 
     /**
-     * Remove a {@link AtmosphereResource} from the list of item to be notified when
+     * Remove a {@link AtmosphereResource} from the list of s to be notified when
      * the {@link Broadcaster#broadcast} is invoked.
      *
      * @param resource an {@link AtmosphereResource}
@@ -223,14 +217,14 @@ public interface Broadcaster {
     void setBroadcasterConfig(BroadcasterConfig bc);
 
     /**
-     * Return the current {@link BroadcasterConfig}
+     * Return the current {@link BroadcasterConfig}.
      *
      * @return the current {@link BroadcasterConfig}
      */
     BroadcasterConfig getBroadcasterConfig();
 
     /**
-     * Destroy this instance and shutdown it's associated {@link ExecutorService}
+     * Destroy this instance and shutdown it's associated {@link ExecutorService}.
      */
     void destroy();
 
@@ -250,23 +244,23 @@ public interface Broadcaster {
     void setScope(SCOPE scope);
 
     /**
-     * Return the {@link Broadcaster.SCOPE}
+     * Return the {@link Broadcaster.SCOPE}.
      *
      * @return {@link Broadcaster.SCOPE} of {@link Broadcaster}.
      */
     SCOPE getScope();
 
     /**
-     * Set the id of this {@link Broadcaster}
+     * Set the ID of this {@link Broadcaster}.
      *
      * @param name ID of this {@link Broadcaster}
      */
     void setID(String name);
 
     /**
-     * Return the id of this {@link Broadcaster}
+     * Return the ID of this {@link Broadcaster}.
      *
-     * @return the id of this {@link Broadcaster}
+     * @return the ID of this {@link Broadcaster}
      */
     String getID();
 
@@ -285,29 +279,30 @@ public interface Broadcaster {
 
     /**
      * Set the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}. Make sure you are selecting the right policy
-     * to avoid unexpected situation.
+     * to avoid unexpected situations.
      *
      * @param policy a {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
      */
     public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
 
     /**
-     * Add a {@link BroadcasterLifeCyclePolicyListener}
+     * Add a {@link BroadcasterLifeCyclePolicyListener}.
      *
      * @param b a {@link BroadcasterLifeCyclePolicyListener}
      */
     void addBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b);
 
     /**
-     * Remove a {@link BroadcasterLifeCyclePolicyListener}
+     * Remove a {@link BroadcasterLifeCyclePolicyListener}.
      *
      * @param b a {@link BroadcasterLifeCyclePolicyListener}
      */
     void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b);
 
     /**
-     * Return true if that {@link Broadcaster} has been destroyed
-     * @return true if that {@link Broadcaster} has been destroyed
+     * Return true if this {@link Broadcaster} has been destroyed.
+     *
+     * @return true if this {@link Broadcaster} has been destroyed
      */
     boolean isDestroyed();
 
@@ -315,20 +310,21 @@ public interface Broadcaster {
      * Await for available {@link AtmosphereResource} before broadcasting. This method will block until
      * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} gets invoked.
      */
-    Future<Object>  awaitAndBroadcast(Object t, long time, TimeUnit timeUnit);
+    Future<Object> awaitAndBroadcast(Object t, long time, TimeUnit timeUnit);
 
     /**
-     * Add a {@link BroadcasterListener}
+     * Add a {@link BroadcasterListener}.
+     *
      * @param b a {@link BroadcasterListener}
      * @return this
      */
     Broadcaster addBroadcasterListener(BroadcasterListener b);
 
     /**
-     * Remove a {@link BroadcasterListener}
+     * Remove a {@link BroadcasterListener}.
+     *
      * @param b a {@link BroadcasterListener}
      * @return this
      */
     Broadcaster removeBroadcasterListener(BroadcasterListener b);
-
 }

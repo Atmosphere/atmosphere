@@ -45,7 +45,6 @@ import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
-
 /**
  * {@code ClassFileIterator} is used to iterate over all Java ClassFile files
  * available within a specific context. For every Java ClassFile ({@code .class})
@@ -150,5 +149,4 @@ final class ClassFileIterator {
         final int n = suffix.length();
         return value.regionMatches(true, value.length() - n, suffix, 0, n);
     }
-
 }

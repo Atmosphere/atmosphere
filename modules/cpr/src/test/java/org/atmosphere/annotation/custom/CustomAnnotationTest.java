@@ -54,7 +54,7 @@ public class CustomAnnotationTest {
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
-        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName()) ;
+        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
         framework.addAnnotationPackage(MyAnnotation.class);
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
 

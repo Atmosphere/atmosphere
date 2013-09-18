@@ -67,18 +67,12 @@ public class TomcatWebSocket extends WebSocket {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
         outbound.close(1005, ByteBuffer.wrap(new byte[0]));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket flush(AtmosphereResponse r) throws IOException {
         outbound.flush();

@@ -36,7 +36,7 @@ package org.atmosphere.config.managed;
          message.set(m.toString());
      }
  * </pre></blockquote>
- * You can chain decoder, they will be invoked in the order they are defined and the last decoded value will be used to invoke the
+ * You can chain Decoders. They will be invoked in the order they are defined and the last decoded value will be used to invoke the
  * @Message annotated method.
  * @param <U>
  * @param <T>

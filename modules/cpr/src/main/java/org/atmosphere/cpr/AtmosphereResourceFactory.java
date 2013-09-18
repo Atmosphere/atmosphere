@@ -24,8 +24,8 @@ import java.lang.reflect.Proxy;
 import java.util.Collection;
 
 /**
- * A Factory used to manage {@link AtmosphereResource} instance. You can use that factory to create, remove and find
- * {@link AtmosphereResource} instance that are associated with one or several {@link Broadcaster}.
+ * A Factory used to manage {@link AtmosphereResource} instances. You can use this factory to create, remove and find
+ * {@link AtmosphereResource} instances that are associated with one or several {@link Broadcaster}s.
  *
  * @author Jeanfrancois Arcand
  */
@@ -74,7 +74,7 @@ public final class AtmosphereResourceFactory {
     }
 
     /**
-     * Create an {@link AtmosphereResourceImpl}
+     * Create an {@link AtmosphereResourceImpl}.
      *
      * @param config      an {@link AtmosphereConfig}
      * @param broadcaster a {@link Broadcaster}
@@ -93,7 +93,7 @@ public final class AtmosphereResourceFactory {
     }
 
     /**
-     * Create an {@link AtmosphereResourceImpl}
+     * Create an {@link AtmosphereResourceImpl}.
      *
      * @param config      an {@link AtmosphereConfig}
      * @param broadcaster a {@link Broadcaster}
@@ -111,7 +111,7 @@ public final class AtmosphereResourceFactory {
     }
 
     /**
-     * Create an {@link AtmosphereResourceImpl}
+     * Create an {@link AtmosphereResourceImpl}.
      *
      * @param config   an {@link AtmosphereConfig}
      * @param response an {@link AtmosphereResponse}
@@ -143,7 +143,7 @@ public final class AtmosphereResourceFactory {
     }
 
     /**
-     * Remove the {@link AtmosphereResource} from all instance of {@link Broadcaster}
+     * Remove the {@link AtmosphereResource} from all instances of {@link Broadcaster}.
      *
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.
@@ -157,7 +157,7 @@ public final class AtmosphereResourceFactory {
     }
 
     /**
-     * Find an {@link AtmosphereResource} based on its {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
+     * Find an {@link AtmosphereResource} based on its {@link org.atmosphere.cpr.AtmosphereResource#uuid()}.
      *
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.

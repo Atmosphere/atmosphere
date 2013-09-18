@@ -17,7 +17,7 @@ package org.atmosphere.di;
 
 /**
  * Represent an injector, capable of providing instances or inject resources into objects.
- * Implementations are likely to delegate to some DI frameworks like Google Guice or Spring
+ * Implementations are likely to delegate to some DI frameworks like Google Guice or Spring.
  *
  * @author Mathieu Carbou
  * @since 0.7

@@ -30,7 +30,7 @@ import java.util.Map;
  * @author Jeanfrancois Arcand
  */
 public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
-    
+
     private static final Logger logger = LoggerFactory.getLogger(DefaultEndpointMapper.class);
 
     public DefaultEndpointMapper() {
@@ -54,9 +54,6 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         return handler;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public U map(AtmosphereRequest req, Map<String, U> handlers) {
         String path;
@@ -110,9 +107,6 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         return handler;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public U map(String path, Map<String, U> handlers) {
 
@@ -131,7 +125,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
 
                 // (4) try without a path
                 if (handler == null) {
-                    String p = path.lastIndexOf("/")  <= 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
+                    String p = path.lastIndexOf("/") <= 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
                     while (p.length() > 0 && p.indexOf("/") != -1) {
                         handler = match(p, handlers);
 

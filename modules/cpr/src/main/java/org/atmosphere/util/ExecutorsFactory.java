@@ -38,8 +38,9 @@ public class ExecutorsFactory {
 
     /**
      * Create an {@link ExecutorService} to be used for dispatching messages, not I/O events.
+     *
      * @param config the {@link AtmosphereConfig}
-     * @param name  a name to use if shared is false.
+     * @param name   a name to use if shared is false.
      * @return {@link ExecutorService}
      */
     public static ExecutorService getMessageDispatcher(final AtmosphereConfig config, final String name) {
@@ -97,8 +98,9 @@ public class ExecutorsFactory {
 
     /**
      * Create an {@link ExecutorService} to be used for dispatching I/O events.
+     *
      * @param config the {@link AtmosphereConfig}
-     * @param name  a name to use if shared is false.
+     * @param name   a name to use if shared is false.
      * @return {@link ExecutorService}
      */
     public static ExecutorService getAsyncOperationExecutor(final AtmosphereConfig config, final String name) {
@@ -156,6 +158,7 @@ public class ExecutorsFactory {
 
     /**
      * Create a {@link ScheduledExecutorService} used ot schedule I/O and non I/O events.
+     *
      * @param config the {@link AtmosphereConfig}
      * @return {@link ScheduledExecutorService}
      */

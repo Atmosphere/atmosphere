@@ -24,7 +24,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * An implementation of {@link AtmosphereHandler} that doesn't nothing.
+ * An implementation of {@link AtmosphereHandler} that does nothing.
  *
  * @author Jeanfrancois Arcand
  */
@@ -44,6 +44,5 @@ public class AtmosphereHandlerAdapter implements AtmosphereHandler {
 
     @Override
     public void destroy() {
-
     }
 }

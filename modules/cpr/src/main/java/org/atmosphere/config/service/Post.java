@@ -21,7 +21,8 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Use this annotation with the {@link ManagedService}. Annotate a method who will get invoked when an HTTP POST is send.
+ * Use this annotation with the {@link ManagedService} annotation. Annotate a method which will get invoked when an
+ * HTTP POST is sent.
  *
  * @author Jeanfrancois Arcand
  */

@@ -94,37 +94,28 @@ public final class FilterConfigImpl implements FilterConfig {
      */
     private String filterName;
 
-
     // ------------------------------------------------------------------ //
 
     public FilterConfigImpl(ServletConfig sc) {
         this.sc = sc;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public String getInitParameter(String name) {
         return sc.getInitParameter(name);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public String getFilterName() {
         return filterName;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Enumeration getInitParameterNames() {
         return sc.getInitParameterNames();
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public ServletContext getServletContext() {
         return sc.getServletContext();
     }

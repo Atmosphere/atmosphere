@@ -52,29 +52,30 @@ public @interface AtmosphereHandlerService {
     Class<? extends BroadcastFilter>[] broadcastFilters() default {};
 
     /**
-     * The mapping path, or context-root used to map this AtmosphereHandler
-     * @return mapping path, or context-root used to map this AtmosphereHandler
+     * The mapping path or context-root used to map this AtmosphereHandler
+     *
+     * @return mapping path or context-root used to map this AtmosphereHandler
      */
     String path() default "/";
 
     /**
      * Properties that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Properties are defined
-     * delimited using "=" and separated using coma.
+     * delimited using "=" and separated using comma.
+     *
      * @return an array of properties that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}
      */
     String[] properties() default {};
 
     /**
-     * Does this {@link org.atmosphere.cpr.AtmosphereHandler} support session
+     * Set to true if this {@link org.atmosphere.cpr.AtmosphereHandler} supports sessions
+     *
      * @return true if session are supported.
      */
     boolean supportSession() default false;
 
     /**
-     * Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-     * delimited using "=" and separated using coma.
-     * @return Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-     * delimited using "=" and separated using coma.
+     * Atmosphere's configuration that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Configuration
+     * name and value is delimited by "=", and different configuration lines are separated by comma.
      */
     String[] atmosphereConfig() default {};
 
@@ -84,8 +85,8 @@ public @interface AtmosphereHandlerService {
     Class<? extends AtmosphereInterceptor>[] interceptors() default {};
 
     /**
-      * The {@link org.atmosphere.cpr.BroadcasterCache} class name. By default, a no ops {@link DefaultBroadcasterCache}
-      * is installed. It is strongly recommend to install the {@link org.atmosphere.cache.UUIDBroadcasterCache} to prevent
+      * The {@link org.atmosphere.cpr.BroadcasterCache} class name. By default, a no-ops {@link DefaultBroadcasterCache}
+      * is installed. It is strongly recommended to install the {@link org.atmosphere.cache.UUIDBroadcasterCache} to prevent
       * message being lost.
       *
       * @return The {@link org.atmosphere.cpr.Broadcaster} class name

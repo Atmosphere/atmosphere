@@ -45,6 +45,5 @@ public class SessionCreationInterceptor extends AtmosphereInterceptorAdapter {
         }
         return Action.CONTINUE;
     }
-
 }
 

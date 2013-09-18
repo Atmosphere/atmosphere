@@ -18,6 +18,7 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.AtmosphereConfig;
 
 public class JSR356AsyncSupport extends Servlet30CometSupport {
+
     public JSR356AsyncSupport(AtmosphereConfig config) {
         super(config);
     }

@@ -16,9 +16,10 @@
 package org.atmosphere.cpr;
 
 /**
- * Throw when {@link AsynchronousProcessor} is unable to map the request to an {@link AtmosphereHandler}
+ * Thrown when {@link AsynchronousProcessor} is unable to map the request to an {@link AtmosphereHandler}.
  */
 public class AtmosphereMappingException extends RuntimeException {
+
     public AtmosphereMappingException() {
         super();
     }
@@ -34,6 +35,4 @@ public class AtmosphereMappingException extends RuntimeException {
     public AtmosphereMappingException(java.lang.Throwable throwable) {
         super(throwable);
     }
-
-
 }

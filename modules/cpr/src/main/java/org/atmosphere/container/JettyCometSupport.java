@@ -1,4 +1,3 @@
-
 /*
  * Copyright 2013 Jeanfrancois Arcand
  *
@@ -86,9 +85,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
         super(config);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse response)
             throws IOException, ServletException {
         Continuation c = ContinuationSupport.getContinuation(req, null);
@@ -129,9 +126,6 @@ public class JettyCometSupport extends AsynchronousProcessor {
         return action;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);

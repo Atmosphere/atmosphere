@@ -239,11 +239,11 @@ public class BroadcastFilterTest {
         AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
         for (int i = 0; i < 10; i++) {
             broadcaster.addAtmosphereResource(new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
-                            broadcaster,
-                            req,
-                            AtmosphereResponse.newInstance(),
-                            mock(BlockingIOCometSupport.class),
-                            new AR()));
+                    broadcaster,
+                    req,
+                    AtmosphereResponse.newInstance(),
+                    mock(BlockingIOCometSupport.class),
+                    new AR()));
         }
 
         broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
@@ -260,11 +260,11 @@ public class BroadcastFilterTest {
         s.add(ar);
         for (int i = 0; i < 10; i++) {
             ar = new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
-                            broadcaster,
-                            req,
-                            AtmosphereResponse.newInstance(),
-                            mock(BlockingIOCometSupport.class),
-                            new AR());
+                    broadcaster,
+                    req,
+                    AtmosphereResponse.newInstance(),
+                    mock(BlockingIOCometSupport.class),
+                    new AR());
             broadcaster.addAtmosphereResource(ar);
         }
 

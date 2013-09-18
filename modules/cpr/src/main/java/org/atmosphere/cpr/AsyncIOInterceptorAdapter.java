@@ -18,11 +18,12 @@ package org.atmosphere.cpr;
 import java.io.IOException;
 
 /**
- * An Adapter for {@link AsyncIOInterceptor}
+ * An Adapter for {@link AsyncIOInterceptor}.
  *
  * @author Jeanfrancois Arcand
  */
 public class AsyncIOInterceptorAdapter implements AsyncIOInterceptor {
+
     @Override
     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
     }

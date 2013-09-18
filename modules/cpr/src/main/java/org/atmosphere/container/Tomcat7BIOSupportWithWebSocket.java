@@ -47,6 +47,7 @@ import java.io.IOException;
  * Tomcat's WebSocket support. This code has been adapted from {@link org.apache.catalina.websocket.WebSocketServlet}
  */
 public class Tomcat7BIOSupportWithWebSocket extends BlockingIOCometSupport implements TomcatWebSocketUtil.Delegate {
+
     private static final Logger logger = LoggerFactory.getLogger(Tomcat7BIOSupportWithWebSocket.class);
     private static final long serialVersionUID = 1L;
     private final WebSocketProcessor webSocketProcessor;
@@ -61,6 +62,7 @@ public class Tomcat7BIOSupportWithWebSocket extends BlockingIOCometSupport imple
         return TomcatWebSocketUtil.doService(req, res, this, config, webSocketProcessor);
     }
 
+    @Override
     public Action doService(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
         return super.service(req, res);
     }

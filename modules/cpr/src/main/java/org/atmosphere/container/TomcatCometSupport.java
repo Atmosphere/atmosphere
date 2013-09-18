@@ -181,9 +181,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         return action;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl resource) {
         super.action(resource);

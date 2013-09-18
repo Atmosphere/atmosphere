@@ -36,7 +36,7 @@ public class WriteTimeoutTest {
     private AtmosphereResource ar;
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
-    private  AtmosphereConfig config;
+    private AtmosphereConfig config;
 
     @BeforeMethod
     public void setUp() throws Exception {

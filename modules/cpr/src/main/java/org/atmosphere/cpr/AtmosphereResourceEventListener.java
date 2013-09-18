@@ -53,8 +53,7 @@
 package org.atmosphere.cpr;
 
 /**
- * Receive notification when a resume, client disconnect or broadcast events
- * occurs.
+ * Receive notifications when resume, client disconnect or broadcast events occur.
  *
  * @author Jeanfrancois Arcand
  */
@@ -63,14 +62,14 @@ public interface AtmosphereResourceEventListener {
     /**
      * Invoked when the {@link AtmosphereResource#suspend} is in the process of being suspended
      * but nothing has yet been written on the connection. An implementation could configure the request's headers,
-     * flush some data etc during that stage.
+     * flush some data, etc. during that stage.
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
     void onPreSuspend(AtmosphereResourceEvent event);
 
     /**
-     * Invoked when the {@link AtmosphereResource#suspend} has been completed and the response
+     * Invoked when the {@link AtmosphereResource#suspend} has been completed and the response is
      * considered as suspended.
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
@@ -99,17 +98,18 @@ public interface AtmosphereResourceEventListener {
      */
     void onBroadcast(AtmosphereResourceEvent event);
 
-
     /**
-     * Invoked when an operations failed to execute for an unknown reason like : IOException because the client
-     * remotely closed the connection, a broken connection, etc.
+     * Invoked when an operations failed to execute for an unknown reason (eg. IOException because the client
+     * remotely closed the connection, a broken connection, etc.).
      *
-     * @param event a {@link AtmosphereResourceEvent}
+     * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
     void onThrowable(AtmosphereResourceEvent event);
 
     /**
      * Invoked when {@link AtmosphereResource#close} gets called.
+     *
+     * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
     void onClose(AtmosphereResourceEvent event);
 }

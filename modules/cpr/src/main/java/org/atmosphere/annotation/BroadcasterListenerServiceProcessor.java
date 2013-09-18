@@ -34,6 +34,5 @@ public class BroadcasterListenerServiceProcessor implements Processor {
         } catch (Throwable e) {
             logger.warn("", e);
         }
-
     }
 }

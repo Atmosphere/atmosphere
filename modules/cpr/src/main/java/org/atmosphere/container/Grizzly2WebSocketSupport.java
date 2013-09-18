@@ -115,8 +115,6 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
             return request.getRequestURI().startsWith(contextPath);
         }
 
-
-
         @Override
         public void onClose(WebSocket socket, DataFrame frame) {
             super.onClose(socket, frame);
@@ -192,5 +190,4 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
         }
 
     } // END Grizzly2WebSocketApplication
-
 }

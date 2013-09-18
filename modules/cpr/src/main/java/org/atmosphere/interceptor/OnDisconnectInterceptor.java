@@ -53,7 +53,7 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        if (p !=  null && s != null && uuid != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
+        if (p != null && s != null && uuid != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
             logger.trace("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
             if (ss != null) {

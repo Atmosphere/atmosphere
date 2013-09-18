@@ -33,6 +33,5 @@ public class WebSocketProcessorServiceProcessor implements Processor {
         } catch (Throwable e) {
             logger.warn("", e);
         }
-
     }
 }

@@ -101,7 +101,7 @@ public class TomcatWebSocketHandler extends StreamInbound {
     }
 
     @Override
-    public int getReadTimeout(){
+    public int getReadTimeout() {
         return webSocketWriteTimeout;
     }
 }

@@ -34,8 +34,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 
 /**
- * Handle {@link Singleton} for {@link ManagedService}
- * processing.
+ * Handle {@link Singleton} for {@link ManagedService} processing.
  *
  * @author Jeanfrancois Arcand
  */
@@ -168,7 +167,7 @@ public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereIntercep
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return "@ManagedService Interceptor";
     }
 }

@@ -23,7 +23,8 @@ package org.atmosphere.handler;
 public interface AnnotatedProxy {
 
     /**
-     * The the Object the {@link org.atmosphere.cpr.AtmosphereHandler} is proxing.
+     * The Object the {@link org.atmosphere.cpr.AtmosphereHandler} is proxying.
+     *
      * @return
      */
     public Object target();

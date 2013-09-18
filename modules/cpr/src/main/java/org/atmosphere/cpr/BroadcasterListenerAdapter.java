@@ -19,11 +19,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An implementation of {@link BroadcasterListener}
+ * An implementation of {@link BroadcasterListener}.
  *
  * @author Jeanfrancois Arcand
  */
-public class BroadcasterListenerAdapter implements BroadcasterListener{
+public class BroadcasterListenerAdapter implements BroadcasterListener {
 
     private final Logger logger = LoggerFactory.getLogger(BroadcasterListenerAdapter.class);
 

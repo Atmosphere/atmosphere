@@ -28,29 +28,29 @@ public final class Action {
     public enum TYPE {
         /**
          * SUSPEND the underlying connection/response.
-         * The request will be dispatched to frameworks/container via {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
+         * The request will be dispatched to framework/container via {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
          */
         SUSPEND,
         /**
          * Resume the underlying connection/response.
-         * The request will be dispatched to frameworks/container via {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
+         * The request will be dispatched to framework/container via {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
          */
         RESUME,
         /**
          * Timeout the underlying connection/response and invoke the {@link org.atmosphere.cpr.AtmosphereResource#resume()}.
-         * The request will be dispatched to frameworks/container via {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
+         * The request will be dispatched to framework/container via {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
          */
         TIMEOUT,
         /**
-         * Cancel the current connection/response and close it. The request will NOT be dispatched to frameworks/container via {@link AtmosphereHandler}
+         * Cancel the current connection/response and close it. The request will NOT be dispatched to framework/container via {@link AtmosphereHandler}
          */
         CANCELLED,
         /**
-         * Continue the processing of the request. The request will still be dispatched to frameworks/container via {@link AtmosphereHandler}
+         * Continue the processing of the request. The request will still be dispatched to framework/container via {@link AtmosphereHandler}
          */
         CONTINUE,
         /**
-         * Mark this action as created. The request will still be dispatched to frameworks/container via {@link AtmosphereHandler}
+         * Mark this action as created. The request will still be dispatched to framework/container via {@link AtmosphereHandler}
          */
         CREATED,
         /**
@@ -58,7 +58,7 @@ public final class Action {
          */
         DESTROYED,
         /**
-         *  Skip the invocation of {@link AtmosphereHandler}, but invoke all {@link AtmosphereInterceptor}.
+         * Skip the invocation of {@link AtmosphereHandler}, but invoke all {@link AtmosphereInterceptor}.
          */
         SKIP_ATMOSPHEREHANDLER
     }
@@ -93,11 +93,11 @@ public final class Action {
         this.type = type;
     }
 
-    public Action.TYPE type(){
+    public Action.TYPE type() {
         return type;
     }
 
-    public Action type(Action.TYPE type){
+    public Action type(Action.TYPE type) {
         if (immutable) {
             throw new IllegalStateException("immutable");
         }
@@ -105,11 +105,11 @@ public final class Action {
         return this;
     }
 
-    public long timeout(){
+    public long timeout() {
         return timeout;
     }
 
-    public Action timeout(long timeout){
+    public Action timeout(long timeout) {
         if (immutable) {
             throw new IllegalStateException("immutable");
         }

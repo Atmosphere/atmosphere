@@ -27,7 +27,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocketProtocolStream extends WebSocketProtocol{
+public interface WebSocketProtocolStream extends WebSocketProtocol {
 
     /**
      * Parse the WebSocket stream, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} or
@@ -39,9 +39,8 @@ public interface WebSocketProtocolStream extends WebSocketProtocol{
      * Jersey runtime.
      * <br>
      *
-     *
      * @param webSocket The {@link org.atmosphere.websocket.WebSocket} connection
-     * @param r a {@link java.io.Reader}
+     * @param r         a {@link java.io.Reader}
      * @return a List of {@link org.atmosphere.cpr.AtmosphereRequest}
      */
     List<AtmosphereRequest> onTextStream(WebSocket webSocket, Reader r);
@@ -57,7 +56,7 @@ public interface WebSocketProtocolStream extends WebSocketProtocol{
      * <br>
      *
      * @param webSocket The {@link WebSocket} connection
-     * @param stream a {@link Reader}
+     * @param stream    a {@link Reader}
      * @return a List of {@link AtmosphereRequest}
      */
     List<AtmosphereRequest> onBinaryStream(WebSocket webSocket, InputStream stream);

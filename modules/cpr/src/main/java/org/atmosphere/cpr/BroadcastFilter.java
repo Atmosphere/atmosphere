@@ -53,8 +53,7 @@
 package org.atmosphere.cpr;
 
 /**
- * Transform a message before it get broadcasted to
- * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent) }.
+ * Transform a message before it get broadcasted to {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent) }.
  * <p/>
  * See {@link org.atmosphere.util.XSSHtmlFilter} for an example.
  *
@@ -64,13 +63,12 @@ public interface BroadcastFilter {
 
     /**
      * When a message is about to get cached and some {@link BroadcastFilter} are defined, and when no {@link AtmosphereResource}
-     * are available, a noop {@link AtmosphereResource} with uuid == -1 will be used to invoke BroadcastFilter.
+     * is available, a no-op {@link AtmosphereResource} with uuid == -1 will be used to invoke BroadcastFilter.
      */
     public final static String VOID_ATMOSPHERE_RESOURCE_UUID = "-1";
 
     /**
-     * Simple class that tells the {@link Broadcaster} to broadcast or not
-     * the transformed value.
+     * Simple class that tells the {@link Broadcaster} to broadcast or not the transformed value.
      */
     public class BroadcastAction {
 
@@ -80,16 +78,16 @@ public interface BroadcastFilter {
 
         public enum ACTION {
             /**
-             * Return Continue to invoke all remaining {@link BroadcastFilter}
+             * Return CONTINUE to invoke all remaining {@link BroadcastFilter}s.
              */
             CONTINUE,
             /**
-             * Return Abort to stop invoking all remaining {@link BroadcastFilter} and to discard the message
-             * for being delivered to {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
+             * Return ABORT to stop invoking any remaining {@link BroadcastFilter} and to discard the message
+             * for being delivered to {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}.
              */
             ABORT,
             /**
-             *  Return Skip to stop invoking all remaining {@link BroadcastFilter}, but deliver the last transformed message.
+             * Return SKIP to stop invoking any remaining {@link BroadcastFilter}, but deliver the last transformed message.
              */
             SKIP
         }
@@ -122,8 +120,8 @@ public interface BroadcastFilter {
     }
 
     /**
-     * Transform or Filter a message. Return BroadcastAction(ACTION.ABORT, message)
-     * {@link Broadcaster} to discard the message, e.g to not broadcast it.
+     * Transform or filter a message. Return BroadcastAction(ACTION.ABORT, message)
+     * {@link Broadcaster} to discard the message, eg. to not broadcast it.
      *
      * @param originalMessage The original message which was {@link Broadcaster#broadcast(Object)};
      * @param message         The transformed or not message.

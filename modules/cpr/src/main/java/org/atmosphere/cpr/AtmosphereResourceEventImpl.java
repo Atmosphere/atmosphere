@@ -111,33 +111,21 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         uuid = resource.uuid();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isResuming() {
         return resource == null ? false : resource.action().type() == Action.TYPE.RESUME;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isSuspended() {
         return resource == null ? false : resource.action().type() == Action.TYPE.SUSPEND;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isClosedByClient() {
         return isClosedByClient.get();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isClosedByApplication() {
         return isClosedByApplication.get();
@@ -148,17 +136,11 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Object getMessage() {
         return message;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResourceEventImpl setMessage(Object message) {
         this.message = message;
@@ -170,17 +152,11 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isResumedOnTimeout() {
         return isResumedOnTimeout.get();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isCancelled() {
         return isCancelled.get();
@@ -202,9 +178,6 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -222,9 +195,6 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return true;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int hashCode() {
         int result = isCancelled != null ? isCancelled.hashCode() : 0;
@@ -235,25 +205,16 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return result;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Throwable throwable() {
         return throwable;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Broadcaster broadcaster() {
         return resource.getBroadcaster();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource getResource() {
         return resource;
@@ -275,9 +236,6 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String toString() {
         return "AtmosphereResourceEventImpl{" +

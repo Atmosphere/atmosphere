@@ -40,6 +40,7 @@ import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
  * @author Jeanfrancois Arcand
  */
 public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
+
     private final static Logger logger = LoggerFactory.getLogger(JavaScriptProtocol.class);
     private String wsDelimiter = "|";
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();

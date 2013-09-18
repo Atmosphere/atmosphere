@@ -45,6 +45,7 @@ import java.io.IOException;
  * Tomcat's WebSocket support. This code has been adapted from {@link org.apache.catalina.websocket.WebSocketServlet}
  */
 public class Tomcat7AsyncSupportWithWebSocket extends Tomcat7CometSupport implements TomcatWebSocketUtil.Delegate {
+
     private final WebSocketProcessor webSocketProcessor;
 
     public Tomcat7AsyncSupportWithWebSocket(AtmosphereConfig config) {
@@ -57,6 +58,7 @@ public class Tomcat7AsyncSupportWithWebSocket extends Tomcat7CometSupport implem
         return TomcatWebSocketUtil.doService(req, res, this, config, webSocketProcessor);
     }
 
+    @Override
     public Action doService(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
         return super.service(req, res);
     }

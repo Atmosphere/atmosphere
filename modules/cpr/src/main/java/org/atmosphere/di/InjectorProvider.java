@@ -19,7 +19,7 @@ import java.util.NoSuchElementException;
 import java.util.ServiceLoader;
 
 /**
- * Retreive the injector to use to inject resources into objects
+ * Retreive the injector to use to inject resources into objects.
  *
  * @author Mathieu Carbou
  * @since 0.7

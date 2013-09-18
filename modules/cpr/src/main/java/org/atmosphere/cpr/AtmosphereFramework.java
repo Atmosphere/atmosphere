@@ -143,6 +143,7 @@ import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
  * @author Jeanfrancois Arcand
  */
 public class AtmosphereFramework implements ServletContextProvider {
+
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
     public static final String DEFAULT_HANDLER_PATH = "/WEB-INF/classes/";
@@ -219,7 +220,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     };
 
     /**
-     * An implementation of {@link AbstractReflectorAtmosphereHandler}
+     * An implementation of {@link AbstractReflectorAtmosphereHandler}.
      */
     public final static AtmosphereHandler REFLECTOR_ATMOSPHEREHANDLER = new AbstractReflectorAtmosphereHandler() {
         @Override
@@ -274,7 +275,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(javax.servlet.ServletConfig)}
+     * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(javax.servlet.ServletConfig)}.
      */
     public AtmosphereFramework(ServletConfig sc) throws ServletException {
         this(false, true);
@@ -367,7 +368,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}
+     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
      * This API is exposed to allow embedding an Atmosphere application.
      *
      * @param mapping       The servlet mapping (servlet path)
@@ -392,12 +393,12 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}
+     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
      * This API is exposed to allow embedding an Atmosphere application.
      *
      * @param mapping       The servlet mapping (servlet path)
      * @param h             implementation of an {@link AtmosphereHandler}
-     * @param broadcasterId The {@link Broadcaster#getID} value.
+     * @param broadcasterId The {@link Broadcaster#getID} value
      */
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, String broadcasterId) {
         addAtmosphereHandler(mapping, h, broadcasterId, Collections.<AtmosphereInterceptor>emptyList());
@@ -405,13 +406,13 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}
+     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
      * This API is exposed to allow embedding an Atmosphere application.
      *
      * @param mapping     The servlet mapping (servlet path)
      * @param h           implementation of an {@link AtmosphereHandler}
-     * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler.
-     * @param l           An attay of {@link AtmosphereInterceptor}
+     * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler
+     * @param l           A list of {@link AtmosphereInterceptor}s
      */
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster, List<AtmosphereInterceptor> l) {
         if (!mapping.startsWith("/")) {
@@ -430,7 +431,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}
+     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
      * This API is exposed to allow embedding an Atmosphere application.
      *
      * @param mapping     The servlet mapping (servlet path)
@@ -443,7 +444,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Remove an {@link AtmosphereHandler}
+     * Remove an {@link AtmosphereHandler}.
      *
      * @param mapping the mapping used when invoking {@link #addAtmosphereHandler(String, AtmosphereHandler)};
      * @return true if removed
@@ -459,7 +460,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Remove all {@link AtmosphereHandler}
+     * Remove all {@link AtmosphereHandler}s.
      */
     public AtmosphereFramework removeAllAtmosphereHandler() {
         atmosphereHandlers.clear();
@@ -512,7 +513,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Initialize the AtmosphereFramework. Invoke that method after having properly configured this class using the setter.
+     * Initialize the AtmosphereFramework. Invoke this method after having properly configured this class using the setters.
      */
     public AtmosphereFramework init() {
         try {
@@ -551,7 +552,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Initialize the AtmosphereFramework using the {@link ServletContext}
+     * Initialize the AtmosphereFramework using the {@link ServletContext}.
      *
      * @param sc the {@link ServletContext}
      */
@@ -577,7 +578,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Initialize the AtmosphereFramework using the {@link ServletContext}
+     * Initialize the AtmosphereFramework using the {@link ServletContext}.
      *
      * @param sc the {@link ServletContext}
      */
@@ -974,7 +975,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Read init param from web.xml and apply them.
+     * Read init params from web.xml and apply them.
      *
      * @param sc {@link ServletConfig}
      */
@@ -1094,7 +1095,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Auto-detect Jersey when no atmosphere.xml file are specified.
+     * Auto-detect Jersey when no atmosphere.xml file is specified.
      *
      * @param sc {@link ServletConfig}
      * @return true if Jersey classes are detected
@@ -1130,7 +1131,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         logger.warn("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
 
         // Atmosphere 1.1 : could add regressions
-        // Jersey will handle itself the headers.
+        // Jersey will itself handle the headers.
         //initParams.put(WRITE_HEADERS, "false");
 
         ReflectorServletProcessor rsp = new ReflectorServletProcessor();
@@ -1191,7 +1192,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Initialize {@link AtmosphereServletProcessor}
+     * Initialize {@link AtmosphereServletProcessor}.
      *
      * @param sc the {@link ServletConfig}
      * @throws javax.servlet.ServletException
@@ -1286,7 +1287,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Load AtmosphereHandler defined under META-INF/atmosphere.xml
+     * Load AtmosphereHandler defined under META-INF/atmosphere.xml.
      *
      * @param stream The input stream we read from.
      * @param c      The classloader
@@ -1401,9 +1402,8 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Set the {@link AsyncSupport} implementation. Make sure you don't set
-     * an implementation that only works on some Container. See {@link BlockingIOCometSupport}
-     * for an example.
+     * Set the {@link AsyncSupport} implementation. Make sure you don't set an implementation that only works on
+     * some container. See {@link BlockingIOCometSupport} for an example.
      *
      * @param asyncSupport
      */
@@ -1422,7 +1422,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the current {@link AsyncSupport}
+     * Return the current {@link AsyncSupport}.
      *
      * @return the current {@link AsyncSupport}
      */
@@ -1431,7 +1431,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the current {@link AsyncSupport}
+     * Return the current {@link AsyncSupport}.
      *
      * @return the current {@link AsyncSupport}
      * @deprecated Use getAsyncSupport
@@ -1441,7 +1441,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Returns an instance of AsyncSupportResolver {@link AsyncSupportResolver}
+     * Returns an instance of AsyncSupportResolver {@link AsyncSupportResolver}.
      *
      * @return CometSupportResolver
      */
@@ -1570,9 +1570,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-
     /**
-     * Get the list of possible candidate to load as {@link AtmosphereHandler}
+     * Get a list of possible candidates to load as {@link AtmosphereHandler}.
      *
      * @param f the real path {@link File}
      */
@@ -1593,7 +1592,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Configure some Attribute on the {@link AtmosphereRequest}
+     * Configure some attributes on the {@link AtmosphereRequest}.
      *
      * @param req {@link AtmosphereRequest}
      */
@@ -1658,7 +1657,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Invoke the proprietary {@link AsyncSupport}
+     * Invoke the proprietary {@link AsyncSupport}.
      *
      * @param req
      * @param res
@@ -1674,7 +1673,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         } catch (IllegalStateException ex) {
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed"))) {
                 if (!isFilter) {
-                    logger.warn("Failed using comet support: {}, error: {} Is the Nio or Apr Connector enabled?", asyncSupport.getClass().getName(),
+                    logger.warn("Failed using comet support: {}, error: {} Is the NIO or APR Connector enabled?", asyncSupport.getClass().getName(),
                             ex.getMessage());
                 }
                 logger.error("If you have more than one Connector enabled, make sure they both use the same protocol, " +
@@ -1720,7 +1719,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Set the default {@link Broadcaster} class name
+     * Set the default {@link Broadcaster} class name.
      *
      * @param bccn the broadcasterClassName to set
      */
@@ -1767,7 +1766,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Get the {@link BroadcasterFactory} which is used by Atmosphere to construct
-     * {@link Broadcaster}
+     * {@link Broadcaster}.
      *
      * @return {@link BroadcasterFactory}
      */
@@ -1777,7 +1776,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     /**
      * Set the {@link BroadcasterFactory} which is used by Atmosphere to construct
-     * {@link Broadcaster}
+     * {@link Broadcaster}.
      *
      * @return {@link BroadcasterFactory}
      */
@@ -1790,7 +1789,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Return the {@link org.atmosphere.cpr.BroadcasterCache} class name.
      *
-     * @return the {@link org.atmosphere.cpr.BroadcasterCache} class name.
+     * @return the {@link org.atmosphere.cpr.BroadcasterCache} class name
      */
     public String getBroadcasterCacheClassName() {
         return broadcasterCacheClassName;
@@ -1807,7 +1806,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add a new Broadcaster class name AtmosphereServlet can use when initializing requests, and when
+     * Add a new Broadcaster class name that AtmosphereServlet can use when initializing requests, and when the
      * atmosphere.xml broadcaster element is unspecified.
      *
      * @param broadcasterTypeString
@@ -1912,18 +1911,18 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the location of the jars containing the application classes. Default is WEB-INF/lib
+     * Return the location of the JARs containing the application classes. Default is WEB-INF/lib.
      *
-     * @return the location of the jars containing the application classes. Default is WEB-INF/lib
+     * @return the location of the JARs containing the application classes. Default is WEB-INF/lib
      */
     public String getLibPath() {
         return libPath;
     }
 
     /**
-     * Set the location of the jars containing the application.
+     * Set the location of the JARs containing the application.
      *
-     * @param libPath the location of the jars containing the application.
+     * @param libPath the location of the JARs containing the application.
      * @return this
      */
     public AtmosphereFramework setLibPath(String libPath) {
@@ -1941,7 +1940,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Set the {@link org.atmosphere.websocket.WebSocketProcessor} class name used to process WebSocket request. Default is
+     * Set the {@link org.atmosphere.websocket.WebSocketProcessor} class name used to process WebSocket requests. Default is
      * {@link DefaultWebSocketProcessor}
      *
      * @param webSocketProcessorClassName {@link org.atmosphere.websocket.WebSocketProcessor}
@@ -1953,7 +1952,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AtmosphereInterceptor} implementation. The adding order or {@link AtmosphereInterceptor} will be used, e.g
+     * Add an {@link AtmosphereInterceptor} implementation. The adding order of {@link AtmosphereInterceptor} will be used, e.g
      * the first added {@link AtmosphereInterceptor} will always be called first.
      *
      * @param c {@link AtmosphereInterceptor}
@@ -1997,7 +1996,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the list of {@link AtmosphereInterceptor}
+     * Return the list of {@link AtmosphereInterceptor}.
      *
      * @return the list of {@link AtmosphereInterceptor}
      */
@@ -2017,7 +2016,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link AsyncSupportListener}
+     * Add an {@link AsyncSupportListener}.
      *
      * @param asyncSupportListener an {@link AsyncSupportListener}
      * @return this;
@@ -2028,7 +2027,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the list of an {@link AsyncSupportListener}
+     * Return the list of {@link AsyncSupportListener}s.
      *
      * @return
      */
@@ -2037,7 +2036,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add {@link BroadcasterListener} to all created {@link Broadcaster}
+     * Add {@link BroadcasterListener} to all created {@link Broadcaster}s.
      */
     public AtmosphereFramework addBroadcasterListener(BroadcasterListener b) {
         broadcasterFactory.addBroadcasterListener(b);
@@ -2046,7 +2045,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add a {@link BroadcasterCacheInspector} which will be associated with the defined {@link BroadcasterCache}
+     * Add a {@link BroadcasterCacheInspector} which will be associated with the defined {@link BroadcasterCache}.
      *
      * @param b {@link BroadcasterCacheInspector}
      * @return this;
@@ -2057,16 +2056,16 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the list of {@link BroadcasterCacheInspector}
+     * Return the list of {@link BroadcasterCacheInspector}s.
      *
-     * @return the list of {@link BroadcasterCacheInspector}
+     * @return the list of {@link BroadcasterCacheInspector}s
      */
     protected ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors() {
         return inspectors;
     }
 
     /**
-     * Return a configured instance of {@link AtmosphereConfig}
+     * Return a configured instance of {@link AtmosphereConfig}.
      *
      * @return a configured instance of {@link AtmosphereConfig}
      */
@@ -2084,16 +2083,16 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the list of {@link BroadcastFilter}
+     * Return the list of {@link BroadcastFilter}s.
      *
-     * @return the list of {@link BroadcastFilter
+     * @return the list of {@link BroadcastFilter}s
      */
     public List<String> broadcasterFilters() {
         return broadcasterFilters;
     }
 
     /**
-     * Add a {@link BroadcastFilter}
+     * Add a {@link BroadcastFilter}.
      *
      * @return
      */
@@ -2107,16 +2106,16 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Returns true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     * Returns true if {@link java.util.concurrent.ExecutorService} is shared among all components.
      *
-     * @return true if {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     * @return true if {@link java.util.concurrent.ExecutorService} is shared amongst all components
      */
     public boolean isShareExecutorServices() {
         return sharedThreadPools;
     }
 
     /**
-     * Set to true to have a {@link java.util.concurrent.ExecutorService} shared amongst all components.
+     * Set to true to have a {@link java.util.concurrent.ExecutorService} shared among all components.
      *
      * @param sharedThreadPools
      * @return this
@@ -2173,7 +2172,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 annotationProcessor.scanAll();
             }
         } catch (Throwable e) {
-            logger.debug("Atmosphere's Service Annotation Not Supported. Please add https://github.com/rmuller/infomas-asl as dependencies or your own AnnotationProcessor to support @Service");
+            logger.debug("Atmosphere's Service annotation not supported. Please add https://github.com/rmuller/infomas-asl as dependency or your own AnnotationProcessor to support @Service");
             logger.trace("", e);
             return;
         } finally {
@@ -2184,7 +2183,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * The current {@link EndpointMapper} used to map request to {@link AtmosphereHandler}
+     * The current {@link EndpointMapper} used to map requests to {@link AtmosphereHandler}.
      *
      * @return {@link EndpointMapper}
      */
@@ -2193,7 +2192,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Set the {@link EndpointMapper}
+     * Set the {@link EndpointMapper}.
      *
      * @param endpointMapper {@link EndpointMapper}
      * @return this
@@ -2204,7 +2203,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add support for package detecttion of Atmosphere's Component.
+     * Add support for package detection of Atmosphere's Component.
      *
      * @param clazz a Class
      * @return this.
@@ -2241,7 +2240,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Add an {@link WebSocketHandler} mapped to "/*"
+     * Add an {@link WebSocketHandler} mapped to "/*".
      * return this
      */
     public AtmosphereFramework addWebSocketHandler(WebSocketHandler handler) {
@@ -2289,7 +2288,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Invoked when a {@link AnnotationProcessor} found annotation.
+     * Invoked when a {@link AnnotationProcessor} found an annotation.
      *
      * @param b true when found
      * @return this
@@ -2300,7 +2299,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     /**
-     * Return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
+     * Return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}.
      *
      * @return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
      */

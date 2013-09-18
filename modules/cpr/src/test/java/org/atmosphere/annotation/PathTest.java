@@ -60,7 +60,7 @@ public class PathTest {
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
-        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName()) ;
+        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
         framework.addAnnotationPackage(ManagedPath.class);
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
 
@@ -92,7 +92,7 @@ public class PathTest {
     public final static class ManagedPath {
 
 
-        public ManagedPath(){
+        public ManagedPath() {
             ++instanceCount;
         }
 
@@ -117,7 +117,7 @@ public class PathTest {
     @AtmosphereHandlerService(path = "/ah/{g}")
     public final static class AtmosphereHandlerPath implements AtmosphereHandler {
 
-        public AtmosphereHandlerPath(){
+        public AtmosphereHandlerPath() {
             ++instanceCount;
         }
 
@@ -152,7 +152,7 @@ public class PathTest {
     @MeteorService(path = "/a/b/{g}")
     public final static class MeteorPath extends HttpServlet {
 
-        public MeteorPath(){
+        public MeteorPath() {
             ++instanceCount;
         }
 
@@ -187,7 +187,7 @@ public class PathTest {
     @ManagedService(path = "/foo/{g}/{h}")
     public final static class ManagedDoublePath {
 
-        public ManagedDoublePath(){
+        public ManagedDoublePath() {
             ++instanceCount;
         }
 
@@ -210,9 +210,9 @@ public class PathTest {
     }
 
     @WebSocketHandlerService(path = "/ws/{g}")
-    public final static class WebSocketHandlerPath extends WebSocketHandlerAdapter{
+    public final static class WebSocketHandlerPath extends WebSocketHandlerAdapter {
 
-        public WebSocketHandlerPath(){
+        public WebSocketHandlerPath() {
             ++instanceCount;
         }
 
@@ -272,7 +272,7 @@ public class PathTest {
     @ManagedService(path = "/singleton/managed/{a}")
     public final static class SingletonManagedPath {
 
-        public SingletonManagedPath(){
+        public SingletonManagedPath() {
             ++instanceCount;
         }
 
@@ -298,7 +298,7 @@ public class PathTest {
     @AtmosphereHandlerService(path = "/singleton/atmospherehandler/{g}")
     public final static class SingletonAtmosphereHandlerPath implements AtmosphereHandler {
 
-        public SingletonAtmosphereHandlerPath(){
+        public SingletonAtmosphereHandlerPath() {
             ++instanceCount;
         }
 
@@ -334,7 +334,7 @@ public class PathTest {
     @MeteorService(path = "/singleton/meteor/{g}")
     public final static class SingletonMeteorPath extends HttpServlet {
 
-        public SingletonMeteorPath(){
+        public SingletonMeteorPath() {
             ++instanceCount;
         }
 
@@ -368,9 +368,9 @@ public class PathTest {
 
     @Singleton
     @WebSocketHandlerService(path = "/singleton/ws/{g}")
-    public final static class SingletonWebSocketHandlerPath extends WebSocketHandlerAdapter{
+    public final static class SingletonWebSocketHandlerPath extends WebSocketHandlerAdapter {
 
-        public SingletonWebSocketHandlerPath(){
+        public SingletonWebSocketHandlerPath() {
             ++instanceCount;
         }
 

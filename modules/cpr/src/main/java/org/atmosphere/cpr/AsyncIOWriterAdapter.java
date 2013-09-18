@@ -27,56 +27,35 @@ public class AsyncIOWriterAdapter implements AsyncIOWriter {
     public AsyncIOWriterAdapter() {
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter redirect(AtmosphereResponse r, String location) throws IOException {
         return this;
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         return this;
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException {
         return this;
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
         return this;
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
         return this;
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public void close(AtmosphereResponse r) throws IOException {
     }
 
-    /**
-     * No OPS
-     */
     @Override
     public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
         return this;

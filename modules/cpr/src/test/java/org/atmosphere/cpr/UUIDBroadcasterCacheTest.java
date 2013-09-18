@@ -60,7 +60,7 @@ public class UUIDBroadcasterCacheTest {
     }
 
     @AfterMethod
-    public void addAR(){
+    public void addAR() {
         broadcaster.removeAtmosphereResource(ar);
         BroadcasterFactory.getDefault().destroy();
     }
@@ -122,7 +122,7 @@ public class UUIDBroadcasterCacheTest {
         ExecutorService s = Executors.newCachedThreadPool();
         final AtomicInteger y = new AtomicInteger();
 
-        for (int i=0; i < 100; i++) {
+        for (int i = 0; i < 100; i++) {
             s.submit(new Runnable() {
                 @Override
                 public void run() {
@@ -138,22 +138,21 @@ public class UUIDBroadcasterCacheTest {
 
     public final static class AR implements AtmosphereHandler {
 
-         public AtomicReference<StringBuffer> value = new AtomicReference<StringBuffer>(new StringBuffer());
+        public AtomicReference<StringBuffer> value = new AtomicReference<StringBuffer>(new StringBuffer());
 
-         @Override
-         public void onRequest(AtmosphereResource e) throws IOException {
-         }
+        @Override
+        public void onRequest(AtmosphereResource e) throws IOException {
+        }
 
-         @Override
-         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
-             value.get().append(e.getMessage());
-         }
+        @Override
+        public void onStateChange(AtmosphereResourceEvent e) throws IOException {
+            value.get().append(e.getMessage());
+        }
 
-         @Override
-         public void destroy() {
-         }
-     }
-
+        @Override
+        public void destroy() {
+        }
+    }
 
 
 }

@@ -137,7 +137,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         uuid = s == null ? UUID.randomUUID().toString() : s;
 
         if (config.isSupportSession()) {
-            //Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
+            // Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
             try {
                 session = req.getSession(true);
             } catch (NullPointerException ex) {
@@ -174,34 +174,22 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResourceEventImpl getAtmosphereResourceEvent() {
         return event;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereHandler getAtmosphereHandler() {
         return atmosphereHandler;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource writeOnTimeout(Object o) {
         writeOnTimeout = o;
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Object writeOnTimeout() {
         return writeOnTimeout;
@@ -212,9 +200,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return uuid;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public TRANSPORT transport() {
         return transport;
@@ -231,9 +216,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast) {
         this.resumeOnBroadcast.set(resumeOnBroadcast);
@@ -242,17 +224,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isSuspended() {
         return event.isSuspended();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean resumeOnBroadcast() {
         boolean rob = resumeOnBroadcast.get();
@@ -263,9 +239,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return rob;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource resume() {
 
@@ -336,17 +309,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource suspend() {
         return suspend(-1);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource suspend(long timeout, TimeUnit timeunit) {
         long timeoutms = -1;
@@ -357,6 +324,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return suspend(timeoutms);
     }
 
+    @Override
     public AtmosphereResource suspend(long timeout) {
 
         if (event.isSuspended() || disableSuspend) return this;
@@ -439,9 +407,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public AtmosphereRequest getRequest(boolean enforceScope) {
         if (enforceScope && !isInScope.get()) {
             throw new IllegalStateException("Request object no longer" + " valid. This object has been cancelled");
@@ -449,9 +414,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return req;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     public AtmosphereResponse getResponse(boolean enforceScope) {
         if (enforceScope && !isInScope.get()) {
             throw new IllegalStateException("Response object no longer valid. This object has been cancelled");
@@ -459,25 +421,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return response;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereRequest getRequest() {
         return getRequest(true);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResponse getResponse() {
         return getResponse(true);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Broadcaster getBroadcaster() {
         return getBroadcaster(true);
@@ -494,7 +447,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
 
         if (autoCreate && broadcaster.isDestroyed() && config.getBroadcasterFactory() != null) {
-            logger.debug("Broadcaster {} has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off that" +
+            logger.debug("Broadcaster {} has been destroyed and cannot be re-used. Recreating a new one with the same name. You can turn off this" +
                     " mechanism by adding, in web.xml, {} set to false", broadcaster.getID(), ApplicationConfig.RECOVER_DEAD_BROADCASTER);
 
             Broadcaster.SCOPE scope = broadcaster.getScope();
@@ -510,26 +463,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return broadcaster;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResourceImpl setBroadcaster(Broadcaster broadcaster) {
         this.broadcaster = broadcaster;
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
     }
 
     /**
-     * Return the {@link Action} which represent the state of the response,
-     * e.g. suspended, resumed or timedout.
+     * Return the {@link Action} which represent the state of the response, e.g. suspended, resumed or timed out.
      *
      * @return the {@link Action}
      */
@@ -538,9 +484,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Reset completely the instance to it's initial state.
+     * Completely reset the instance to its initial state.
      */
-    public void reset(){
+    public void reset() {
         isResumed.set(false);
         isCancelled.set(false);
         isInScope.set(true);
@@ -550,7 +496,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Protect the object for being used after it got cancelled.
+     * Protect the object from being used after it got cancelled.
      *
      * @param isInScope
      */
@@ -559,16 +505,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Is the {@link AtmosphereRequest} still valid.
+     * Check if the {@link AtmosphereRequest} still is valid.
      *
-     * @return true if the {@link AtmosphereRequest} still valid
+     * @return true if the {@link AtmosphereRequest} still is valid
      */
     public boolean isInScope() {
         return isInScope.get();
     }
 
     /**
-     * Set the {@link Serializer} used to write broadcasted object.
+     * Set the {@link Serializer} used to write broadcasted objects.
      *
      * @param s
      */
@@ -578,25 +524,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isResumed() {
         return isResumed.get();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isCancelled() {
         return isCancelled.get();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource write(String s) {
         response.write(s);
@@ -615,9 +552,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Serializer getSerializer() {
         return serializer;
@@ -628,42 +562,31 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param e an instance of AtmosphereResourceEventListener
      */
+    @Override
     public AtmosphereResource addEventListener(AtmosphereResourceEventListener e) {
         if (listeners.contains(e)) return this;
         listeners.add(e);
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource removeEventListener(AtmosphereResourceEventListener e) {
         listeners.remove(e);
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource removeEventListeners() {
         listeners.clear();
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource notifyListeners() {
         notifyListeners(event);
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.size() > 0) {
@@ -706,7 +629,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Notify {@link AtmosphereResourceEventListener} an unexpected exception occured.\
+     * Notify {@link AtmosphereResourceEventListener} thah an unexpected exception occured.
      *
      * @pram a {@link Throwable}
      */
@@ -809,7 +732,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 } catch (IllegalStateException ex) {
                     logger.trace(ex.getMessage(), ex);
                 }
-                if (config.getBroadcasterFactory().getDefault() != null){
+                if (config.getBroadcasterFactory().getDefault() != null) {
                     config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
                 }
             }
@@ -843,9 +766,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public HttpSession session(boolean create) {
         if (session == null) {
@@ -855,9 +775,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return session;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void close() throws IOException {
         cancel();
@@ -865,9 +782,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         notifyListeners();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public HttpSession session() {
         return session(true);
@@ -892,7 +806,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * Disable invocation of {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
      * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)}. You normally disable those events
-     * after the first onSupend has been called so all transport behave the same way.
+     * after the first onSuspend has been called so all transports behave the same way.
      * <br/>
      * {@link AtmosphereResourceEventListener} marked with {@link org.atmosphere.interceptor.AllowInterceptor} will not
      * be affected by this property.
@@ -906,10 +820,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Return true is {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
+     * Return true if {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
      * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)} events are disabled.
      *
-     * @return true if disabled.
+     * @return true if disabled
      */
     public boolean disableSuspendEvent() {
         return disableSuspendEvent;

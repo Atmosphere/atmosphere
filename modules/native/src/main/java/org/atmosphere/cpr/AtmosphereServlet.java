@@ -209,8 +209,8 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
                         AsyncSupport current = framework.asyncSupport;
                         logger.warn("TomcatCometSupport is enabled, switching to it");
                         framework.asyncSupport = new TomcatCometSupport(framework.config);
-                        if(current instanceof AsynchronousProcessor) {
-                            ((AsynchronousProcessor)current).shutdown();
+                        if (current instanceof AsynchronousProcessor) {
+                            ((AsynchronousProcessor) current).shutdown();
                         }
                         framework.asyncSupport.init(framework.config.getServletConfig());
                     }
@@ -241,8 +241,8 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
                         AsyncSupport current = framework.asyncSupport;
                         logger.warn("TomcatCometSupport7 is enabled, switching to it");
                         framework.asyncSupport = new Tomcat7CometSupport(framework.config);
-                        if(current instanceof AsynchronousProcessor) {
-                            ((AsynchronousProcessor)current).shutdown();
+                        if (current instanceof AsynchronousProcessor) {
+                            ((AsynchronousProcessor) current).shutdown();
                         }
                         framework.asyncSupport.init(framework.config.getServletConfig());
                     }
@@ -272,7 +272,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
             }
         }
 
-        if (webSocketSupported){
+        if (webSocketSupported) {
             cometEvent.close();
         }
     }
@@ -298,8 +298,8 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
                     AsyncSupport current = framework.asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
                     framework.asyncSupport = new JBossWebCometSupport(framework.config);
-                    if(current instanceof AsynchronousProcessor) {
-                        ((AsynchronousProcessor)current).shutdown();
+                    if (current instanceof AsynchronousProcessor) {
+                        ((AsynchronousProcessor) current).shutdown();
                     }
                     framework.asyncSupport.init(framework.config.getServletConfig());
                 }

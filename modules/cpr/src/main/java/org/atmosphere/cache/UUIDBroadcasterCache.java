@@ -37,7 +37,8 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
 /**
- * An improved {@link BroadcasterCache} implementation.
+ * An improved {@link BroadcasterCache} implementation that is based on the unique identifier (UUID) that all
+ * {@link AtmosphereResource}s have.
  *
  * @author Paul Khodchenkov
  * @author Jeanfrancois Arcand
@@ -52,8 +53,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
     protected ScheduledExecutorService taskScheduler;
-    private long clientIdleTime = TimeUnit.MINUTES.toMillis(2);//2 minutes
-    private long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
+    private long clientIdleTime = TimeUnit.MINUTES.toMillis(2); // 2 minutes
+    private long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1); // 1 minute
     private boolean shared = true;
     protected final List<Object> emptyList = Collections.<Object>emptyList();
 
@@ -77,9 +78,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void configure(BroadcasterConfig config) {
         Object o = config.getAtmosphereConfig().properties().get("shared");
@@ -94,9 +92,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void start() {
         scheduledFuture = taskScheduler.scheduleWithFixedDelay(new Runnable() {
@@ -107,9 +102,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void stop() {
         cleanup();
@@ -127,9 +119,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
 
@@ -158,9 +147,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return cacheMessage;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
         String clientId = uuid(r);
@@ -194,9 +180,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return result;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage message) {
         if (message == null) {
@@ -214,9 +197,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public BroadcasterCache inspector(BroadcasterCacheInspector b) {
         inspectors.add(b);

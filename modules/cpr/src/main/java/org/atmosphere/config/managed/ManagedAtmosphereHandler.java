@@ -48,14 +48,14 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 /**
- * An internal implementation of {@link AtmosphereHandler} that implement supports for Atmosphere 1.1 annotation.
+ * An internal implementation of {@link AtmosphereHandler} that implement support for Atmosphere 2.0 annotations.
  *
  * @author Jeanfrancois
  */
 public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler implements AnnotatedProxy {
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
-    private final static List<Decoder<?,?>> EMPTY = Collections.<Decoder<?,?>>emptyList();
+    private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private final Object object;
     private final List<Method> onRuntimeMethod;
     private final Method onDisconnectMethod;
@@ -203,7 +203,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     private void populateEncoders() {
-        for (Method m: onRuntimeMethod) {
+        for (Method m : onRuntimeMethod) {
             List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
             for (Class<? extends Encoder> s : m.getAnnotation(Message.class).encoders()) {
                 try {
@@ -229,7 +229,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     private void populateDecoders() {
-        for (Method m: onRuntimeMethod) {
+        for (Method m : onRuntimeMethod) {
             List<Decoder<?, ?>> l = new CopyOnWriteArrayList<Decoder<?, ?>>();
             for (Class<? extends Decoder> s : m.getAnnotation(Message.class).decoders()) {
                 try {
@@ -272,16 +272,16 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 Object objectToEncode = null;
                 if (m.getParameterTypes().length == 2) {
-                  objectToEncode = Invoker.invokeMethod(m, object, resource, decoded);
+                    objectToEncode = Invoker.invokeMethod(m, object, resource, decoded);
                 } else {
-                  objectToEncode = Invoker.invokeMethod(m, object, decoded);
+                    objectToEncode = Invoker.invokeMethod(m, object, decoded);
                 }
                 if (objectToEncode != null) {
                     return Invoker.encode(encoders.get(m), objectToEncode);
                 }
             }
         } catch (Throwable t) {
-            logger.error("",t);
+            logger.error("", t);
         }
         return null;
     }
@@ -324,8 +324,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return "ManagedAtmosphereHandler proxy for " + object.getClass().getName();
     }
-
 }

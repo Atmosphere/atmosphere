@@ -27,37 +27,26 @@ public class AsyncSupportListenerAdapter implements AsyncSupportListener {
 
     private final Logger logger = LoggerFactory.getLogger(AsyncSupportListenerAdapter.class);
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onSuspend(AtmosphereRequest request, AtmosphereResponse response) {
         logger.trace("Suspended resource {} for request {}", request.resource(), request);
     }
-    /**
-     * {@inheritDoc}
-     */
+
     @Override
     public void onResume(AtmosphereRequest request, AtmosphereResponse response) {
         logger.trace("Resume resource {} for request {}", request.resource(), request);
     }
-    /**
-     * {@inheritDoc}
-     */
+
     @Override
     public void onTimeout(AtmosphereRequest request, AtmosphereResponse response) {
         logger.trace("Timeout resource {} for request {}", request.resource(), request);
     }
-    /**
-     * {@inheritDoc}
-     */
+
     @Override
     public void onClose(AtmosphereRequest request, AtmosphereResponse response) {
         logger.trace("Closing resource {} for request {}", request.resource(), request);
     }
-    /**
-     * {@inheritDoc}
-     */
+
     @Override
     public void onDestroyed(AtmosphereRequest request, AtmosphereResponse response) {
         logger.trace("Destroyed resource {} for request {}", request.resource(), request);

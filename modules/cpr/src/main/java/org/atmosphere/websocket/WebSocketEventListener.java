@@ -23,47 +23,54 @@ import org.atmosphere.cpr.AtmosphereResourceEventListener;
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocketEventListener extends AtmosphereResourceEventListener{
+public interface WebSocketEventListener extends AtmosphereResourceEventListener {
 
     /**
      * When the hanshake occurs
+     *
      * @param event {@link WebSocketEvent}
      */
     void onHandshake(WebSocketEvent event);
 
     /**
      * When a message is sent
+     *
      * @param event {@link WebSocketEvent}
      */
     void onMessage(WebSocketEvent event);
 
     /**
      * When the close occurs
+     *
      * @param event {@link WebSocketEvent}
      */
     void onClose(WebSocketEvent event);
 
     /**
      * When the control occurs
+     *
      * @param event {@link WebSocketEvent}
      */
     void onControl(WebSocketEvent event);
 
     /**
      * When the disconnect occurs
+     *
      * @param event {@link WebSocketEvent}
      */
     void onDisconnect(WebSocketEvent event);
 
-     /**
+    /**
      * When the connect occurs
+     *
      * @param event {@link WebSocketEvent}
      */
     void onConnect(WebSocketEvent event);
 
 
     public static final class WebSocketEvent<T> {
-        public enum TYPE { CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT, STREAM, EXCEPTION}
+        public enum TYPE {CONNECT, HANDSHAKE, CLOSE, MESSAGE, CONTROL, DISCONNECT, STREAM, EXCEPTION}
+
         private final T message;
         private final TYPE type;
         private final WebSocket webSocket;
@@ -76,22 +83,25 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener{
 
         /**
          * The received message if the message was a String.
+         *
          * @return received message
          */
-        public T message(){
+        public T message() {
             return message;
         }
 
         /**
          * The WebSocket.
+         *
          * @return
          */
-        public WebSocket webSocket(){
+        public WebSocket webSocket() {
             return webSocket;
         }
 
         /**
          * The type of the last Websocket's event.
+         *
          * @return the type.
          */
         public TYPE type() {

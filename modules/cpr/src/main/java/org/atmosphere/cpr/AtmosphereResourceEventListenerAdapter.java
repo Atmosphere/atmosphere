@@ -19,7 +19,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * An implementation of {@link AtmosphereResourceEventListener} with just log event as trace.
+ * An implementation of {@link AtmosphereResourceEventListener} which just log events with log level TRACE.
  *
  * @author Jeanfrancois Arcand
  */
@@ -27,49 +27,31 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceEventListener.class);
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onPreSuspend(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onSuspend(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onResume(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onDisconnect(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onBroadcast(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onThrowable(AtmosphereResourceEvent event) {
         logger.trace("{}", event);

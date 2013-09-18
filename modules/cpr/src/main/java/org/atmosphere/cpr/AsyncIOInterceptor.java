@@ -18,10 +18,10 @@ package org.atmosphere.cpr;
 import java.io.IOException;
 
 /**
- * A filter like API that allow an {@link AtmosphereInterceptor} to intercept the response before it get written back
+ * A filter-like API that allow an {@link AtmosphereInterceptor} to intercept the response before it gets written back
  * to the client. An AsyncIOInterceptor can only be used with an {@link AtmosphereInterceptorWriter}.
  * <p/>
- * An implementation of this class must make sure the data is written inside the intercept method because it
+ * An implementation of this class must make sure the data is written inside the intercept method because otherwise it
  * will be lost.
  *
  * @author Jeanfrancois Arcand
@@ -37,5 +37,4 @@ public interface AsyncIOInterceptor {
     byte[] error(AtmosphereResponse response, int statusCode, String reasonPhrase);
 
     void redirect(AtmosphereResponse response, String location);
-
 }

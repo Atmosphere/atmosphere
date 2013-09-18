@@ -55,17 +55,14 @@ package org.atmosphere.cpr;
 import java.io.IOException;
 
 /**
- * Implementation of {@link AtmosphereHandler} allows creation of
- * event-driven web applications which are hosted in the browser.
- * An {@link AtmosphereHandler} allows a web application to suspend and resume
- * an http response. An http response can be suspended {@link AtmosphereResource#suspend()}
- * and later resume via {@link  AtmosphereResource#resume()}. Messages can also
- * be shared between suspended response and their associated {@link AtmosphereHandler}
- * using a {@link Broadcaster}. Any invocation of {@link Broadcaster#broadcast(java.lang.Object)}
- * will allow a suspended response to write the content of the message
- * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}.
+ * Implementation of {@link AtmosphereHandler} allows creation of event-driven web applications which are hosted in
+ * the browser. An {@link AtmosphereHandler} allows a web application to suspend and resume an HTTP response. An HTTP
+ * response can be suspended {@link AtmosphereResource#suspend()} and later resume via {@link  AtmosphereResource#resume()}.
+ * Messages can also be shared between suspended responses and their associated {@link AtmosphereHandler} using a
+ * {@link Broadcaster}. Any invocation of {@link Broadcaster#broadcast(java.lang.Object)} will allow a suspended
+ * response to write the content of the message {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}.
  * <p/>
- * <strong>A class implementing {@link AtmosphereHandler} must be thread safe</strong>
+ * <strong>A class implementing {@link AtmosphereHandler} must be thread safe.</strong>
  * <p/>
  * For example, a simple pubsub based AtmosphereHandler will take the form of
  * <p/>
@@ -111,46 +108,41 @@ import java.io.IOException;
  *
  * It is recommended to use the {@link org.atmosphere.config.service.AtmosphereHandlerService}
  * or {@link org.atmosphere.config.service.ManagedService} annotation to reduce the number
- * of line of code and take advantage of {@link AtmosphereInterceptor} such as
+ * of lines of code and take advantage of {@link AtmosphereInterceptor} such as
  * {@link org.atmosphere.interceptor.AtmosphereResourceStateRecovery} and
- * {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
+ * {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}.
  *
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereHandler {
 
     /**
-     * When a client send a request to its associated {@link AtmosphereHandler}, it can decide
-     * if the underlying connection can be suspended (creating a Continuation)
-     * or handle the connection synchronously.
+     * When a client sends a request to its associated {@link AtmosphereHandler}, it can decide if the underlying
+     * connection can be suspended (creating a Continuation) or handle the connection synchronously.
      * <p/>
-     * It is recommended to only suspend request for which HTTP method is a GET
-     * and use the POST method to send data to the server, without marking the
-     * connection as asynchronous.
+     * It is recommended to only suspend requests for which HTTP method is a GET and use the POST method to send data
+     * to the server, without marking the connection as asynchronous.
      *
      * @param resource an {@link AtmosphereResource}
      * @throws java.io.IOException
      */
     void onRequest(AtmosphereResource resource) throws IOException;
 
-
     /**
-     * This method is invoked when the {@link Broadcaster} execute a broadcast
-     * operations. When this method is invoked its associated {@link Broadcaster}, any
-     * suspended connection will be allowed to write the data back to its
-     * associated clients. <br>
-     * This method will also be invoked when a response get resumed,
-     * e.g. when {@link AtmosphereResource#resume} gets invoked. In that case,
-     * {@link AtmosphereResourceEvent#isResuming} will return true.<br>
-     * This method will also be invoked when the {@link AtmosphereResource#suspend(long)}
-     * expires. In that case, {@link AtmosphereResourceEvent#isResumedOnTimeout} will return
-     * <tt>true</tt>
+     * This method is invoked when the {@link Broadcaster} executes a broadcast operation. When this method is invoked
+     * its associated {@link Broadcaster}, any suspended connection will be allowed to write the data back to its
+     * associated clients.
+     * <p/>
+     * This method will also be invoked when a response get resumed, e.g. when {@link AtmosphereResource#resume} gets
+     * invoked. In that case, {@link AtmosphereResourceEvent#isResuming} will return true.
+     * <p/>
+     * This method will also be invoked when the {@link AtmosphereResource#suspend(long)} expires. In that case,
+     * {@link AtmosphereResourceEvent#isResumedOnTimeout} will return <tt>true</tt>.
      *
      * @param event an {@link AtmosphereResourceEvent}
      * @throws java.io.IOException
      */
     void onStateChange(AtmosphereResourceEvent event) throws IOException;
-
 
     /**
      * Destroy this handler

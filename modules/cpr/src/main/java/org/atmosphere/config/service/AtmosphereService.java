@@ -31,16 +31,16 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation which exactly acts as a {@link org.atmosphere.config.service.ManagedService} annotated resource, but that can
- * be used with framework like Jersey, Wicket or any framework running the Atmosphere Framework. The annotation allow configuring
- * Atmosphere's components like {@link Broadcaster}, {@link AtmosphereInterceptor}, etc.
+ * An annotation which acts exactly as a {@link org.atmosphere.config.service.ManagedService} annotated resource, but
+ * that can be used with frameworks like Jersey, Wicket or any framework running the Atmosphere Framework. The annotation
+ * allow configuring Atmosphere's components like {@link Broadcaster}, {@link AtmosphereInterceptor}, etc.
  *
  * This annotation doesn't install any Atmosphere Component like {@link ManagedService}, {@link org.atmosphere.cpr.AtmosphereHandler}
- * or {@link org.atmosphere.websocket.WebSocketHandler}. The framework supporting the annotation must deploy itself an Atmosphere's Service or
- * When specified, The {@link #servlet()} returned value will be used to install a
- * {@link org.atmosphere.handler.ReflectorServletProcessor} that will dispatch requests to the {@link javax.servlet.Servlet}. You can
- * customize the request dispatch bu setting the {@link #dispatch()} to false. When set to false, the {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)}
- * will never be invoked.
+ * or {@link org.atmosphere.websocket.WebSocketHandler}. The framework supporting the annotation must itself deploy an
+ * Atmosphere's Service when specified, The {@link #servlet()} returned value will be used to install a
+ * {@link org.atmosphere.handler.ReflectorServletProcessor} that will dispatch requests to the {@link javax.servlet.Servlet}.
+ * You can customize the request dispatch by setting the {@link #dispatch()} to false. When set to false, the
+ * {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)} will never be invoked.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
@@ -64,7 +64,7 @@ public @interface AtmosphereService {
 
     /**
      * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are
-     * , {@link org.atmosphere.client.TrackMessageSizeInterceptor} and {@link org.atmosphere.interceptor.HeartbeatInterceptor}
+     * {@link org.atmosphere.client.TrackMessageSizeInterceptor} and {@link org.atmosphere.interceptor.HeartbeatInterceptor}
      */
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             TrackMessageSizeInterceptor.class,
@@ -72,12 +72,10 @@ public @interface AtmosphereService {
     };
 
     /**
-      * Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-      * delimited using "=" and separated using coma.
-      * @return Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-      * delimited using "=" and separated using coma.
-      */
-     String[] atmosphereConfig() default {};
+     * Atmosphere's configuration that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Configuration
+     * name and value is delimited by "=", and different configuration lines are separated by comma.
+     */
+    String[] atmosphereConfig() default {};
 
     /**
      * The {@link org.atmosphere.cpr.BroadcasterCache} class name
@@ -92,16 +90,16 @@ public @interface AtmosphereService {
     String servlet() default "";
 
     /**
-     * The Servlet path  instance to instantiate at startup.
+     * The Servlet path instance to instantiate at startup.
      */
     String path() default "/";
 
     /**
      * Dispatch the managed {@link org.atmosphere.cpr.AtmosphereResource} to the mapped
-     * {@link org.atmosphere.cpr.AtmosphereHandler#onRequest(org.atmosphere.cpr.AtmosphereResource)}. If set to false, all
-     * HTTP Get operation will not invoke the {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)}.
+     * {@link org.atmosphere.cpr.AtmosphereHandler#onRequest(org.atmosphere.cpr.AtmosphereResource)}. If set to false, no
+     * HTTP GET operations will invoke the {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)}.
      * The HTTP method can be customized using {@link org.atmosphere.cpr.ApplicationConfig#ATMOSPHERERESOURCE_INTERCEPTOR_METHOD} value via
-     * {@link #atmosphereConfig}.  If the {@link #servlet()} is undefined, changing that value has no effect.
+     * {@link #atmosphereConfig}. If the {@link #servlet()} is undefined changing this value has no effect.
      */
     boolean dispatch() default true;
 }

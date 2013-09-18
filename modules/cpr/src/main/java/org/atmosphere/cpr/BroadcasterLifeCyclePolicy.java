@@ -18,9 +18,9 @@ package org.atmosphere.cpr;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This class can be used to configure the life cycle of a {@link org.atmosphere.cpr.Broadcaster}, e.g when a broadcaster
- * gets destroyed {@link org.atmosphere.cpr.Broadcaster#destroy()} or when it's associated resources
- * get released {@link Broadcaster#releaseExternalResources()}.
+ * This class can be used to configure the life cycle of a {@link org.atmosphere.cpr.Broadcaster}, eg. when a broadcaster
+ * gets destroyed {@link org.atmosphere.cpr.Broadcaster#destroy()} or when its associated resources
+ * are released {@link Broadcaster#releaseExternalResources()}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -43,9 +43,9 @@ public class BroadcasterLifeCyclePolicy {
         IDLE,
 
         /**
-         * Release all resources associated with the Broadcaster when the idle time expires
-         * and destroy the Broadcaster. This operation remove the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}
-         * Invoke {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked. Suspended {@link AtmosphereResource}
+         * Release all resources associated with the Broadcaster when the idle time expires and destroy the Broadcaster.
+         * This operation removes the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}
+         * {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked. Suspended {@link AtmosphereResource}
          * will NOT get resumed.
          */
         IDLE_DESTROY,
@@ -64,8 +64,8 @@ public class BroadcasterLifeCyclePolicy {
         EMPTY,
         /**
          * If there is no {@link org.atmosphere.cpr.AtmosphereResource} associated with the Broadcaster, release all resources,
-         * and destroy the broadcaster. This operation remove the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}
-         * Invoke {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked
+         * and destroy the broadcaster. This operation removes the Broadcaster from its associated {@link org.atmosphere.cpr.BroadcasterFactory}
+         * {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked
          */
         EMPTY_DESTROY,
 
@@ -131,5 +131,4 @@ public class BroadcasterLifeCyclePolicy {
             return new BroadcasterLifeCyclePolicy(policy, time, timeUnit);
         }
     }
-
 }

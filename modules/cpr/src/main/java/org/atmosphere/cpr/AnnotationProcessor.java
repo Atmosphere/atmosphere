@@ -19,7 +19,7 @@ import java.io.File;
 import java.io.IOException;
 
 /**
- * An annotation processor for configuring the {@link AtmosphereFramework}
+ * An annotation processor for configuring the {@link AtmosphereFramework}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -27,6 +27,7 @@ public interface AnnotationProcessor {
 
     /**
      * Configure this class with an instance of {@link AtmosphereFramework}
+     *
      * @param framework the {@link AtmosphereFramework}
      * @return this
      */
@@ -35,7 +36,7 @@ public interface AnnotationProcessor {
     /**
      * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.
      *
-     * @param rootDir a directory when annotation can possibly be defined
+     * @param rootDir a directory where annotation can possibly be defined
      * @throws IOException
      * @return this
      */
@@ -43,6 +44,7 @@ public interface AnnotationProcessor {
 
     /**
      * Scan the package looking for classes annotated with Atmosphere's Service annotation.
+     *
      * @param packageName package name
      * @return this
      */
@@ -50,6 +52,7 @@ public interface AnnotationProcessor {
 
     /**
      * Scan all classes on the classpath looking for classes annotated with Atmosphere's Service annotation.
+     *
      * @return this
      */
     public AnnotationProcessor scanAll() throws IOException;

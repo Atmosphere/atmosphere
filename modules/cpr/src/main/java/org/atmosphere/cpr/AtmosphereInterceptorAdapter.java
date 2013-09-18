@@ -18,12 +18,13 @@ package org.atmosphere.cpr;
 import org.atmosphere.interceptor.InvokationOrder;
 
 /**
- * A Simple {@link AtmosphereInterceptor} that creates an {@link AtmosphereInterceptorWriter} and set it as
- * the default {@link AsyncIOWriter} on an {@link AtmosphereResponse}
+ * A Simple {@link AtmosphereInterceptor} that creates an {@link AtmosphereInterceptorWriter} and sets it as
+ * the default {@link AsyncIOWriter} on an {@link AtmosphereResponse}.
  *
  * @author Jeanfrancois Arcand
  */
 public abstract class AtmosphereInterceptorAdapter implements AtmosphereInterceptor, InvokationOrder {
+
     @Override
     public void configure(AtmosphereConfig config) {
     }
@@ -47,7 +48,7 @@ public abstract class AtmosphereInterceptorAdapter implements AtmosphereIntercep
     }
 
     @Override
-    public String toString(){
+    public String toString() {
         return getClass().getName();
     }
 }

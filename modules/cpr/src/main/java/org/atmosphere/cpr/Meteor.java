@@ -68,12 +68,12 @@ import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
  * A {@link Meteor} is a simple class that can be used from a {@link javax.servlet.Servlet}
- * to suspend, broadcast and resume a response. A {@link Meteor} can be created by invoking
+ * to suspend, broadcast and resume responses. A {@link Meteor} can be created by invoking
  * the build() method.
  * <p><code>
  * Meteor.build(HttpServletRequest).suspend(-1);
  * </code></p><p>
- * A Meteor is usually created when an application need to suspend a response.
+ * A Meteor is usually created when an application needs to suspend a response.
  * A Meteor instance can then be cached and re-used later for either
  * broadcasting a message, or when an application needs to resume the
  * suspended response.
@@ -104,7 +104,7 @@ public class Meteor {
     }
 
     /**
-     * Retrieve an instance of {@link Meteor} based on the {@link HttpServletRequest}
+     * Retrieve an instance of {@link Meteor} based on the {@link HttpServletRequest}.
      *
      * @param r {@link HttpServletRequest}
      * @return a {@link Meteor} or null if not found
@@ -115,7 +115,7 @@ public class Meteor {
 
 
     /**
-     * Create a {@link Meteor} using the {@link HttpServletRequest}
+     * Create a {@link Meteor} using the {@link HttpServletRequest}.
      *
      * @param r an {@link HttpServletRequest}
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
@@ -126,11 +126,11 @@ public class Meteor {
 
     /**
      * Create a {@link Meteor} using the {@link HttpServletRequest} and use the
-     * {@link Serializer} for writting the result of a broadcast operation using
-     * the {@link HttpServletResponse}
+     * {@link Serializer} for writing the result of a broadcast operation using
+     * the {@link HttpServletResponse}.
      *
      * @param r an {@link HttpServletRequest}
-     * @param s a {@link Serializer} used when writing broadcast events.
+     * @param s a {@link Serializer} used when writing broadcast events
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
     public final static Meteor build(HttpServletRequest r, Serializer s) {
@@ -139,12 +139,12 @@ public class Meteor {
 
     /**
      * Create a {@link Meteor} using the {@link HttpServletRequest} and use a list of
-     * {@link BroadcastFilter} and {@link Serializer} for writting the result
+     * {@link BroadcastFilter} and {@link Serializer} for writing the result
      * of a broadcast operation the {@link HttpServletResponse}.
      *
      * @param req an {@link HttpServletRequest}
      * @param l   a list of {@link BroadcastFilter}
-     * @param s   a {@link Serializer} used when writing broadcast events.
+     * @param s   a {@link Serializer} used when writing broadcast events
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
     public final static Meteor build(HttpServletRequest req, List<BroadcastFilter> l, Serializer s) {
@@ -153,13 +153,13 @@ public class Meteor {
 
     /**
      * Create a {@link Meteor} using the {@link HttpServletRequest} and use a list of
-     * {@link BroadcastFilter} and {@link Serializer} for writting the result
+     * {@link BroadcastFilter} and {@link Serializer} for writing the result
      * of a broadcast operation the {@link HttpServletResponse}.
      *
      * @param req   an {@link HttpServletRequest}
      * @param scope the {@link Broadcaster.SCOPE}}
      * @param l     a list of {@link BroadcastFilter}
-     * @param s     a {@link Serializer} used when writing broadcast events.
+     * @param s     a {@link Serializer} used when writing broadcast events
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
     public final static Meteor build(HttpServletRequest req, Broadcaster.SCOPE scope,
@@ -189,10 +189,10 @@ public class Meteor {
     }
 
     /**
-     * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
-     * suspend the response forever.
+     * Suspend the underlying {@link HttpServletResponse}. Passing a value of -1
+     * suspends the response forever.
      *
-     * @param l the maximum time a response stay suspended.
+     * @param l the maximum time a response stay suspended
      * @return {@link Meteor}
      */
     public Meteor suspend(long l) {
@@ -203,6 +203,7 @@ public class Meteor {
 
     /**
      * Resume the Meteor after the first broadcast operation. This is useful when long-polling is used.
+     *
      * @param resumeOnBroadcast
      * @return this
      */
@@ -214,7 +215,8 @@ public class Meteor {
     /**
      * Return the current {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}. The transport needs to be
      * explicitly set by the client by adding the appropriate {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT} value,
-     * which can be long-polling, streaming, websocket or jsonp.
+     * which can be long-polling, streaming, websocket or JSONP.
+     *
      * @return
      */
     public AtmosphereResource.TRANSPORT transport() {
@@ -222,10 +224,10 @@ public class Meteor {
     }
 
     /**
-     * Suspend the underlying {@link HttpServletResponse}. Passing value of -1
-     * suspend the response forever.
+     * Suspend the underlying {@link HttpServletResponse}. Passing a value of -1
+     * suspends the response forever.
      *
-     * @param timeout  the maximum time a response stay suspended.
+     * @param timeout  the maximum time a response stay suspended
      * @param timeunit The time unit of the timeout value
      * @return {@link Meteor}
      */
@@ -237,7 +239,7 @@ public class Meteor {
     }
 
     /**
-     * Resume the underlying {@link HttpServletResponse}
+     * Resume the underlying {@link HttpServletResponse}.
      *
      * @return {@link Meteor}
      */
@@ -249,7 +251,7 @@ public class Meteor {
     }
 
     /**
-     * Broadcast an {@link Object} to all suspended response.
+     * Broadcast an {@link Object} to all suspended responses.
      *
      * @param o an {@link Object}
      * @return {@link Meteor}
@@ -287,7 +289,7 @@ public class Meteor {
     }
 
     /**
-     * Return the underlying {@link Broadcaster}
+     * Return the underlying {@link Broadcaster}.
      *
      * @return
      */
@@ -307,7 +309,7 @@ public class Meteor {
     }
 
     /**
-     * Return an {@link Object} with this {@link Meteor}
+     * Return an {@link Object} with this {@link Meteor}.
      *
      * @return the {@link Object}
      */
@@ -316,7 +318,7 @@ public class Meteor {
     }
 
     /**
-     * Attach an {@link Object} with this {@link Meteor}
+     * Attach an {@link Object} with this {@link Meteor}.
      *
      * @return the {@link Object}
      */
@@ -326,10 +328,10 @@ public class Meteor {
 
     /**
      * Add a {@link AtmosphereResourceEventListener} which gets invoked when
-     * response are resuming, when the remote client close the connection or
+     * responses are resuming, when the remote client closes the connection or
      * when the a {@link Broadcaster#broadcast} operations occurs.
      *
-     * @param e an inatance of {@link AtmosphereResourceEventListener}
+     * @param e an instance of {@link AtmosphereResourceEventListener}
      */
     public Meteor addListener(AtmosphereResourceEventListener e) {
         if (!destroyed()) {
@@ -340,27 +342,27 @@ public class Meteor {
 
     /**
      * Remove a {@link AtmosphereResourceEventListener} which gets invoked when
-     * response are resuming, when the remote client close the connection or
+     * a response is resuming, when the remote client closes the connection or
      * when the a {@link Broadcaster#broadcast} operations occurs.
      *
-     * @param e an inatance of {@link AtmosphereResourceEventListener}
+     * @param e an instance of {@link AtmosphereResourceEventListener}
      */
     public Meteor removeListener(AtmosphereResourceEventListener e) {
-        if (!destroyed()){
+        if (!destroyed()) {
             r.removeEventListener(e);
         }
         return this;
     }
 
     /**
-     * Mark this instance as Destroyed. No more operation will be allowed.
+     * Mark this instance as destroyed. No more operations will be allowed.
      */
     public void destroy() {
         isDestroyed.set(true);
         cache.remove(r);
     }
 
-    private boolean destroyed(){
+    private boolean destroyed() {
         if (isDestroyed.get()) {
             logger.debug("This Meteor is destroyed and cannot be used.");
             return true;
@@ -369,12 +371,11 @@ public class Meteor {
     }
 
     /**
-     * Return the underlying {@link AtmosphereResource}
+     * Return the underlying {@link AtmosphereResource}.
      *
      * @return the underlying {@link AtmosphereResource}
      */
     public AtmosphereResource getAtmosphereResource() {
         return r;
     }
-
 }

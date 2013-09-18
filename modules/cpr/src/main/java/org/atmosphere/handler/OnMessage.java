@@ -40,6 +40,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     public final static String MESSAGE_DELIMITER = "|";
     private final Logger logger = LoggerFactory.getLogger(OnMessage.class);
+
     @Override
     public final void onRequest(AtmosphereResource resource) throws IOException {
         if (resource.getRequest().getMethod().equalsIgnoreCase("GET")) {
@@ -49,15 +50,15 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
     @Override
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
-        AtmosphereResponse response = ((AtmosphereResourceImpl)event.getResource()).getResponse(false);
+        AtmosphereResponse response = ((AtmosphereResourceImpl) event.getResource()).getResponse(false);
 
         logger.trace("{} with event {}", event.getResource().uuid(), event);
         if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
             List<T> messages = List.class.cast(event.getMessage());
-            for (T t: messages) {
+            for (T t : messages) {
                 onMessage(response, t);
             }
-        }else if (event.isSuspended()) {
+        } else if (event.isSuspended()) {
             onMessage(response, (T) event.getMessage());
         } else if (event.isResuming()) {
             onResume(response);

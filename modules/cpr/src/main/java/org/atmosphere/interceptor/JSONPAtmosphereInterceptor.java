@@ -69,9 +69,9 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             // TODO: TOTALLY INEFFICIENT. We MUST uses binary replacement instead.
                             String s = new String(responseDraft, charEncoding);
                             return s.replaceAll("(['\"\\/])", "\\\\$1")
-                            .replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
-                            .replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
-                            .replaceAll("\r", "\\\\r").getBytes(charEncoding);
+                                    .replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
+                                    .replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
+                                    .replaceAll("\r", "\\\\r").getBytes(charEncoding);
                         }
                         return responseDraft;
                     }

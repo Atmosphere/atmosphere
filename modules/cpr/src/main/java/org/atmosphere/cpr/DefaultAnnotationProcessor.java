@@ -50,7 +50,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * An {@link AnnotationProcessor} that selects between a ServletContextInitializer based scanner, and
- * a bytecode based scanner based on <a href="https://github.com/rmuller/infomas-asl"></a>
+ * a bytecode based scanner based on <a href="https://github.com/rmuller/infomas-asl"></a>.
  * <p/>
  *
  * @author Jeanfrancois Arcand
@@ -60,12 +60,13 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     private static final Logger logger = LoggerFactory.getLogger(DefaultAnnotationProcessor.class);
 
     /**
-     * The attribute name under which the annotations are stored in the servlet context
+     * The attribute name under which the annotations are stored in the servlet context.
      */
     public static final String ANNOTATION_ATTRIBUTE = "org.atmosphere.cpr.ANNOTATION_MAP";
 
-    // Annotation is java is broken.
-    private static final Class[] coreAnnotations = {AtmosphereHandlerService.class,
+    // Annotation in java is broken.
+    private static final Class[] coreAnnotations = {
+            AtmosphereHandlerService.class,
             BroadcasterCacheService.class,
             BroadcasterFilterService.class,
             BroadcasterFactoryService.class,
@@ -213,7 +214,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
          * but it looks like it is a public API.
          */
         private boolean alreadyScanned = false;
-
 
         private ServletContainerInitializerAnnotationProcessor(AnnotationHandler handler,
                                                                final Map<Class<? extends Annotation>, Set<Class<?>>> annotations,

@@ -30,8 +30,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Handle {@link org.atmosphere.config.service.Singleton},{@link org.atmosphere.config.service.MeteorService} and {@link org.atmosphere.config.service.AtmosphereHandlerService}
- * processing.
+ * Handle {@link org.atmosphere.config.service.Singleton},{@link org.atmosphere.config.service.MeteorService} and
+ * {@link org.atmosphere.config.service.AtmosphereHandlerService} processing.
  *
  * @author Jeanfrancois Arcand
  */

@@ -19,7 +19,6 @@ import java.lang.annotation.Target;
 public @interface AtmosphereAnnotation {
     /**
      * Return the handled annotation associated with the {@link org.atmosphere.annotation.Processor}
-     * @return the handled annotation associated with the {@link org.atmosphere.annotation.Processor}
      */
     Class<? extends Annotation> value();
 }

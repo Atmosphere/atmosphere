@@ -38,7 +38,6 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
 
     @Override
     public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e) {
-
         long now = System.nanoTime();
         CacheMessage cacheMessage = put(e, now);
 
@@ -67,5 +66,4 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
         }
         return get(cacheHeaderTime);
     }
-
 }

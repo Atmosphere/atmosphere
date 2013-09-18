@@ -60,14 +60,12 @@ import java.awt.event.ActionEvent;
 import java.io.IOException;
 
 /**
- * Atmosphere's supported WebServer must implement this interface in order
- * to be auto detected by the {@link AtmosphereFramework}. If the {@link AtmosphereFramework}
- * fail to detect the {@link AsyncSupport}, it will use a blocking thread
- * approach to emulate Comet using the {@link BlockingIOCometSupport}.
+ * Atmosphere's supported WebServer must implement this interface in order to be auto detected by the
+ * {@link AtmosphereFramework}. If the {@link AtmosphereFramework} fail to detect the {@link AsyncSupport}, it will
+ * use a blocking thread approach to emulate Comet using the {@link BlockingIOCometSupport}.
  * <p/>
- * Framework designer or Atmosphere application developer
- * can also add their own implementation of that class by referencing their
- * class within the atmosphere.xml file:
+ * Framework designers or Atmosphere application developers can also add their own implementation of that class by
+ * referencing their class within the atmosphere.xml file:
  * <p><pre><code>
  * <&lt;atmosphere-handler ... comet-support="your.class.name"&gt;
  * </code></pre></p>
@@ -86,7 +84,7 @@ public interface AsyncSupport<E extends AtmosphereResource> {
     /**
      * Initialize the WebServer using the {@link ServletConfig}
      *
-     * @param sc the  {@link ServletConfig}
+     * @param sc the {@link ServletConfig}
      * @throws javax.servlet.ServletException
      */
     public void init(ServletConfig sc) throws ServletException;
@@ -101,8 +99,7 @@ public interface AsyncSupport<E extends AtmosphereResource> {
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action service(AtmosphereRequest req, AtmosphereResponse res)
-            throws IOException, ServletException;
+    public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException;
 
     /**
      * Process an {@link Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
@@ -113,7 +110,8 @@ public interface AsyncSupport<E extends AtmosphereResource> {
 
     /**
      * Return true if this implementation supports the websocket protocol.
-     * return true if supported
+     *
+     * @return true if supported
      */
     public boolean supportWebSocket();
 }

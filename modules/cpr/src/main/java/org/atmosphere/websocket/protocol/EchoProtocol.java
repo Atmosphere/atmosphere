@@ -37,9 +37,6 @@ import java.util.List;
 public class EchoProtocol implements WebSocketProtocol {
     private static final Logger logger = LoggerFactory.getLogger(EchoProtocol.class);
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, String data) {
         logger.trace("broadcast String");
@@ -47,9 +44,6 @@ public class EchoProtocol implements WebSocketProtocol {
         return null;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.trace("broadcast byte");
@@ -59,33 +53,20 @@ public class EchoProtocol implements WebSocketProtocol {
         return null;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void configure(AtmosphereConfig config) {
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onOpen(WebSocket webSocket) {
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onClose(WebSocket webSocket) {
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
         logger.error(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
-
 }

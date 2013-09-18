@@ -17,8 +17,7 @@ package org.atmosphere.config.managed;
 
 /**
  * Encode a message returned by a method annotated with {@link org.atmosphere.config.service.Message} or a {@link org.atmosphere.config.service.ManagedService}
- * annotated class. The encoded object will be
- * written back to the client. For example
+ * annotated class. The encoded object will be written back to the client. For example
  *
  * <blockquote><pre>
 
@@ -38,10 +37,10 @@ package org.atmosphere.config.managed;
          return new StringBuffer(m);
      }
  * </pre></blockquote>
- * You can chain Encoder by defining more than one. They will be invoked in the order they have been added and the last encoder's value
+ * You can chain Encoders by defining more than one. They will be invoked in the order they have been added and the last Encoder's value
  * will be used for the write operation.
  *
- * @author  Jeanfrancois Arcand
+ * @author Jeanfrancois Arcand
  */
 public interface Encoder<U, T> {
 

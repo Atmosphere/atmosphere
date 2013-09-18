@@ -29,7 +29,7 @@ import java.io.Reader;
 
 /**
  * This read the request's body and invoke the associated {@link org.atmosphere.cpr.Broadcaster} of an {@link AtmosphereResource}.
- * The broadcast always happens AFTER the request has been delivered to an {@link org.atmosphere.cpr.AtmosphereHandler}
+ * The broadcast always happens AFTER the request has been delivered to an {@link org.atmosphere.cpr.AtmosphereHandler}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -52,7 +52,7 @@ public class BroadcastOnPostAtmosphereInterceptor extends AtmosphereInterceptorA
                     bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
                 }
             } catch (IllegalStateException ex) {
-                logger.trace("",ex);
+                logger.trace("", ex);
                 Reader reader = r.getRequest().getReader();
                 if (reader != null) {
                     bufferedReader = new BufferedReader(reader);

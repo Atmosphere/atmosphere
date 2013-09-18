@@ -25,6 +25,5 @@ public class BroadcasterServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         framework.setDefaultBroadcasterClassName(annotatedClass.getName());
-
     }
 }

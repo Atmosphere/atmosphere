@@ -60,7 +60,7 @@ import java.util.concurrent.TimeoutException;
 
 /**
  * Simple {@link Future} that can be used when awaiting for a {@link Broadcaster} to finish
- * it's broadcast operations to {@link AtmosphereHandler}
+ * its broadcast operation to {@link AtmosphereHandler}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -94,9 +94,6 @@ public class BroadcasterFuture<E> implements Future {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean cancel(boolean b) {
 
@@ -111,9 +108,6 @@ public class BroadcasterFuture<E> implements Future {
         return isCancelled;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isCancelled() {
 
@@ -124,9 +118,6 @@ public class BroadcasterFuture<E> implements Future {
         return isCancelled;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isDone() {
 
@@ -139,7 +130,7 @@ public class BroadcasterFuture<E> implements Future {
     }
 
     /**
-     * Invoked when a {@link Broadcaster} completed it broadcast operation.
+     * Invoked when a {@link Broadcaster} completed its broadcast operation.
      */
     public BroadcasterFuture<E> done() {
         isDone = true;
@@ -150,9 +141,6 @@ public class BroadcasterFuture<E> implements Future {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public E get() throws InterruptedException, ExecutionException {
         if (innerFuture != null) {
@@ -164,9 +152,6 @@ public class BroadcasterFuture<E> implements Future {
 
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public E get(long l, TimeUnit tu) throws InterruptedException, ExecutionException, TimeoutException {
 

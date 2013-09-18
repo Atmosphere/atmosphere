@@ -81,7 +81,7 @@ import java.util.LinkedList;
 import java.util.List;
 
 /**
- * This is the default implementation of @link {AsyncSupportResolver}
+ * This is the default implementation of @link {AsyncSupportResolver}.
  *
  * @author Viktor Klang
  */
@@ -115,7 +115,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     /**
-     * Convenience method that tests if a class with the given FQN is present on the classpath
+     * Convenience method that tests if a class with the given FQN is present on the classpath.
      *
      * @param testClass
      * @return true if the class is present
@@ -128,14 +128,14 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             return false;
         } catch (NoClassDefFoundError ex) {
             return false;
-        // JDK 7
-        }  catch (UnsupportedClassVersionError ex) {
+            // JDK 7
+        } catch (UnsupportedClassVersionError ex) {
             return false;
         }
     }
 
     /**
-     * Returns a list of comet support by containers available on the classpath
+     * Returns a list of comet support by containers available on the classpath.
      *
      * @return
      */
@@ -222,7 +222,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     /**
-     * This method is used to determine the default AsyncSupport if all else fails
+     * This method is used to determine the default AsyncSupport if all else fails.
      *
      * @param preferBlocking
      * @return
@@ -236,9 +236,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     /**
-     * Given a Class of something that extends AsyncSupport, it tries to return an instance of that class
+     * Given a Class of something that extends AsyncSupport, it tries to return an instance of that class.
      * <p/>
-     * The class has to have a visible constructor with the signature (@link {AtmosphereConfig})
+     * The class has to have a visible constructor with the signature (@link {AtmosphereConfig}).
      *
      * @param targetClass
      * @return an instance of the specified class
@@ -266,7 +266,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     /**
-     * This method is the general interface to the outside world
+     * This method is the general interface to the outside world.
      *
      * @param useNativeIfPossible - should the resolver try to use a native container comet support if present?
      * @param defaultToBlocking   - should the resolver default to blocking IO comet support?
@@ -284,6 +284,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         return servletAsyncSupport;
     }
 
+    @Override
     public AsyncSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useServlet30Async) {
         AsyncSupport cs = null;
 
@@ -312,7 +313,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     /**
-     * This method is called to determine which native comet support to the used
+     * This method is called to determine which native comet support to the used.
      *
      * @param available
      * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available ontainers
@@ -324,7 +325,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     /**
-     * This method is called if there are more than one potential native container in scope
+     * This method is called if there are more than one potential native container in scope.
      *
      * @return a AsyncSupport instance
      */

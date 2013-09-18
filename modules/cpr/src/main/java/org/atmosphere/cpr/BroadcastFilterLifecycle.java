@@ -59,7 +59,7 @@ package org.atmosphere.cpr;
 public interface BroadcastFilterLifecycle extends BroadcastFilter {
 
     /**
-     * Initialize the {@link BroadcastFilter}
+     * Initialize the {@link BroadcastFilter}.
      */
     void init(AtmosphereConfig config);
 
@@ -67,5 +67,4 @@ public interface BroadcastFilterLifecycle extends BroadcastFilter {
      * Destroy this {@link BroadcastFilter} and its internal resources.
      */
     void destroy();
-
 }

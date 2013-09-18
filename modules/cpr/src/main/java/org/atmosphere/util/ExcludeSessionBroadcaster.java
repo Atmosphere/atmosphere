@@ -49,8 +49,7 @@ import java.util.concurrent.Future;
  *
  * @author Jeanfrancois Arcand
  */
-public class ExcludeSessionBroadcaster
-        extends DefaultBroadcaster {
+public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(ExcludeSessionBroadcaster.class);
 

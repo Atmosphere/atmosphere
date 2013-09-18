@@ -42,7 +42,7 @@ public class CacheMessage {
         return id;
     }
 
-    public String toString(){
+    public String toString() {
         return message.toString();
     }
 

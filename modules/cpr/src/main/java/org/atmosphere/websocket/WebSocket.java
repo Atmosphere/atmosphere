@@ -131,9 +131,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket write(AtmosphereResponse r, String data) throws IOException {
         firstWrite.set(true);
@@ -169,9 +166,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] data) throws IOException {
         if (data == null) {
@@ -181,9 +175,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         return write(r, data, 0, data.length);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket write(AtmosphereResponse r, byte[] b, int offset, int length) throws IOException {
         firstWrite.set(true);
@@ -236,9 +227,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
         super.writeError(r, errorCode, message);
@@ -252,9 +240,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket redirect(AtmosphereResponse r, String location) throws IOException {
         logger.error("WebSocket Redirect not supported");
@@ -262,9 +247,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     }
 
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
@@ -278,9 +260,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket flush(AtmosphereResponse r) throws IOException {
         return this;
@@ -295,15 +274,17 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
     /**
      * Use the underlying container's websocket to write the String.
+     *
      * @param s a websocket String message
-     * @return  this
+     * @return this
      * @throws IOException
      */
     abstract public WebSocket write(String s) throws IOException;
 
     /**
      * Use the underlying container's websocket to write the byte.
-     * @param b a websocket byte message
+     *
+     * @param b      a websocket byte message
      * @param offset start
      * @param length end
      * @return this

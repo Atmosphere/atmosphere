@@ -20,7 +20,7 @@ import java.lang.ref.WeakReference;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * Holds the reference of an object being able to return the current ServletContext of the web application
+ * Holds the reference of an object being able to return the current ServletContext of the web application.
  *
  * @author Mathieu Carbou
  * @since 0.7

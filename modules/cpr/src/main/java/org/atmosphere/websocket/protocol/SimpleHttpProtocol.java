@@ -51,9 +51,6 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     private String delimiter = "@@";
     private boolean destroyable;
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void configure(AtmosphereConfig config) {
         String contentType = config.getInitParameter(ApplicationConfig.WEBSOCKET_CONTENT_TYPE);
@@ -82,9 +79,6 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, String d) {
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
@@ -106,7 +100,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             }
         }
 
-        Map<String,Object> m = attributes(request);
+        Map<String, Object> m = attributes(request);
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
@@ -133,9 +127,6 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         return m;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
 
@@ -149,7 +140,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
 
-        Map<String,Object> m = attributes(request);
+        Map<String, Object> m = attributes(request);
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
@@ -169,23 +160,14 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         return list;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onOpen(WebSocket webSocket) {
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onClose(WebSocket webSocket) {
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
         logger.warn(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());

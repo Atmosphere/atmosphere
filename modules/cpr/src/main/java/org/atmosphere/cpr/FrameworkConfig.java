@@ -20,61 +20,61 @@ import org.atmosphere.cpr.AtmosphereRequest.NoOpsRequest;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 
 /**
- * Request Attribute a framework integrator can use to lookup Atmosphere internal object.
+ * Request attribute a framework integrator can use to lookup Atmosphere internal objects.
  *
  * @author Jeanfrancois Arcand
  */
 public interface FrameworkConfig {
     /**
-     * The default Hazelcast Broadcaster class
+     * The default Hazelcast Broadcaster class.
      */
     String HAZELCAST_BROADCASTER = "org.atmosphere.plugin.hazelcast.HazelcastBroadcaster";
     /**
-     * The default Jersey Broadcaster class
+     * The default Jersey Broadcaster class.
      */
     String JERSEY_BROADCASTER = "org.atmosphere.jersey.JerseyBroadcaster";
     /**
-     * The default Redis Broadcaster class
+     * The default Redis Broadcaster class.
      */
     String REDIS_BROADCASTER = "org.atmosphere.plugin.redis.RedisBroadcaster";
     /**
-     * The default JMS Broadcaster class
+     * The default JMS Broadcaster class.
      */
     String JMS_BROADCASTER = "org.atmosphere.plugin.jms.JMSBroadcaster";
     /**
-     * The default JGroups Broadcaster class
+     * The default JGroups Broadcaster class.
      */
     String JGROUPS_BROADCASTER = "org.atmosphere.plugin.jgroups.JGroupsBroadcaster";
     /**
-     * The default RMI Broadcaster class
+     * The default RMI Broadcaster class.
      */
     String RMI_BROADCASTER = "org.atmosphere.plugin.rmi.RMIBroadcaster";
     /**
-     * The default RabbitMQ Broadcaster class
+     * The default RabbitMQ Broadcaster class.
      */
     String RABBITMQ_BROADCASTER = "org.atmosphere.plugin.rabbitmq.RabbitMQBroadcaster";
     /**
-     * The default XMPP Broadcaster class
+     * The default XMPP Broadcaster class.
      */
     String XMPP_BROADCASTER = "org.atmosphere.plugin.xmpp.XMPPBroadcaster";
     /**
-     * The default Jersey container class
+     * The default Jersey container class.
      */
     String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     /**
-     * A request attribute used to lookup the {@link AtmosphereNativeCometServlet}. This attribute is for framework integrator and not recommend for normal application.
+     * A request attribute used to lookup the {@link AtmosphereNativeCometServlet}. This attribute is for framework integrators and not recommend for normal applications.
      */
     String ATMOSPHERE_SERVLET = "org.atmosphere.cpr.AtmosphereServlet";
     /**
-     * A request attribute used to lookup the {@link AtmosphereResource}. This attribute is for framework integrator and not recommend for normal application.
+     * A request attribute used to lookup the {@link AtmosphereResource}. This attribute is for framework integrators and not recommend for normal applications.
      */
     String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
     /**
-     * A request attribute used to lookup the {@link AtmosphereResource} created by an external component and injected inside the {@link AsynchronousProcessor}
+     * A request attribute used to lookup the {@link AtmosphereResource} created by an external component and injected inside the {@link AsynchronousProcessor}.
      */
     String INJECTED_ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName() + ".injected";
     /**
-     * Tell a {@link AsyncSupport} it can support session or not
+     * Tell a {@link AsyncSupport} it can support session or not.
      */
     String SUPPORT_SESSION = AsynchronousProcessor.class.getName() + ".supportSession";
     /**
@@ -82,11 +82,11 @@ public interface FrameworkConfig {
      */
     String ATMOSPHERE_HANDLER_WRAPPER = AtmosphereHandlerWrapper.class.getName();
     /**
-     * True if the {@link AtmosphereHandlerWrapper} has been modified by an {@link AtmosphereInterceptor}
+     * True if the {@link AtmosphereHandlerWrapper} has been modified by an {@link AtmosphereInterceptor}.
      */
     String NEW_MAPPING = AtmosphereHandlerWrapper.class.getName() + ".newMapping";
     /**
-     * A reference to the Jersey's {@link ContainerResponse}
+     * A reference to the Jersey's {@link ContainerResponse}.
      */
     String CONTAINER_RESPONSE = "org.atmosphere.jersey.containerResponse";
     /**
@@ -94,7 +94,7 @@ public interface FrameworkConfig {
      */
     String WRITE_HEADERS = AtmosphereResource.class.getName() + ".writeHeader";
     /**
-     * Used by a Container to tell Atmosphere Runtime what is the expected content type
+     * Used by a container to tell Atmosphere Runtime what is the expected content type.
      */
     String EXPECTED_CONTENT_TYPE = FrameworkConfig.class.getName() + ".expectedContentType";
     /**
@@ -102,31 +102,31 @@ public interface FrameworkConfig {
      */
     String WEBSOCKET_SUBPROTOCOL = "websocket-subprotocol";
     /**
-     * The SimpleHttpProtocol
+     * The SimpleHttpProtocol.
      */
     String SIMPLE_HTTP_OVER_WEBSOCKET = "polling-websocket-message";
     /**
-     * Cance suspending a connection
+     * Cancel suspending a connection.
      */
     String CANCEL_SUSPEND_OPERATION = "doNotSuspend";
     /**
-     * AtmosphereConfig instance
+     * AtmosphereConfig instance.
      */
     String ATMOSPHERE_CONFIG = AtmosphereConfig.class.getName();
     /**
-     * Instance of Jersey's ContainerResponseWriter that can be configured by a Framework running on top of Atmosphere
+     * Instance of Jersey's ContainerResponseWriter that can be configured by a Framework running on top of Atmosphere.
      */
     String JERSEY_CONTAINER_RESPONSE_WRITER_INSTANCE = "org.atmosphere.jersey.containerResponseWriterInstance";
     /**
-     * Current transport used
+     * Current transport used.
      */
     String TRANSPORT_IN_USE = AtmosphereConfig.class.getName() + ".transportUsed";
     /**
-     *  Callback hook for Framework implementing Atmosphere support.
+     * Callback hook for framework implementing Atmosphere support.
      */
     String ASYNCHRONOUS_HOOK = FrameworkConfig.class.getName() + ".asynchronousProcessorHook";
     /**
-     * The Callback for handshaking the {@link org.atmosphere.interceptor.JavaScriptProtocol}
+     * The callback for handshaking the {@link org.atmosphere.interceptor.JavaScriptProtocol}.
      */
     String CALLBACK_JAVASCRIPT_PROTOCOL = JavaScriptProtocol.class.getName() + ".callback";
     /**
@@ -134,15 +134,15 @@ public interface FrameworkConfig {
      */
     String JERSEY_SCANNING_PACKAGE = "com.sun.jersey.config.property.packages";
     /**
-     * Throw Exception from cloned request
+     * Throw Exception from cloned request.
      */
     String THROW_EXCEPTION_ON_CLONED_REQUEST = NoOpsRequest.class.getName() + ".throwExceptionOnClonedRequest";
     /**
-     * The subject for the current request
+     * The subject for the current request.
      */
     String SECURITY_SUBJECT = AtmosphereRequest.class.getName() + ".subject";
     /**
-     * The {@link javax.servlet.AsyncContext}
+     * The {@link javax.servlet.AsyncContext}.
      */
     String ASYNC_CONTEXT = "org.atmosphere.container.asyncContext";
     /**

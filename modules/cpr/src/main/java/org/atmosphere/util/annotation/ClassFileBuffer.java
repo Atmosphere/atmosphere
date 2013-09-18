@@ -48,7 +48,7 @@ import java.io.InputStream;
  * read Java ClassFile files from an {@link java.io.InputStream} and parse the content
  * via the {@link java.io.DataInput} interface.
  * <br/>
- * Note that Java ClassFile files can grow really big, 
+ * Note that Java ClassFile files can grow really big,
  * {@code com.sun.corba.se.impl.logging.ORBUtilSystemException} is 128.2 kb!
  *
  * @author <a href="mailto:rmuller@xiam.nl">Ronald K. Muller</a>
@@ -59,14 +59,14 @@ final class ClassFileBuffer implements DataInput {
     private byte[] buffer;
     private int size; // the number of significant bytes read
     private int pointer; // the "read pointer"
-    
+
     /**
      * Create a new, empty {@code ClassFileBuffer} with the default initial capacity (8 kb).
      */
     ClassFileBuffer() {
         this(8 * 1024);
     }
-    
+
     /**
      * Create a new, empty {@code ClassFileBuffer} with the specified initial capacity.
      * The initial capacity must be greater than zero. The internal buffer will grow
@@ -80,7 +80,7 @@ final class ClassFileBuffer implements DataInput {
         }
         this.buffer = new byte[initialCapacity];
     }
-    
+
     /**
      * Clear and fill the buffer of this {@code ClassFileBuffer} with the
      * supplied byte stream.
@@ -100,7 +100,7 @@ final class ClassFileBuffer implements DataInput {
     }
 
     /**
-     * Sets the file-pointer offset, measured from the beginning of this file, 
+     * Sets the file-pointer offset, measured from the beginning of this file,
      * at which the next read or write occurs.
      */
     public void seek(final int position) throws IOException {
@@ -119,9 +119,9 @@ final class ClassFileBuffer implements DataInput {
     public int size() {
         return size;
     }
-    
+
     // DataInput
-    
+
     @Override
     public void readFully(final byte bytes[]) throws IOException {
         readFully(bytes, 0, bytes.length);
@@ -152,7 +152,7 @@ final class ClassFileBuffer implements DataInput {
         }
         return buffer[pointer++];
     }
-    
+
     @Override
     public boolean readBoolean() throws IOException {
         return readByte() != 0;
@@ -176,12 +176,12 @@ final class ClassFileBuffer implements DataInput {
 
     @Override
     public short readShort() throws IOException {
-        return (short)readUnsignedShort();
+        return (short) readUnsignedShort();
     }
-    
+
     @Override
     public char readChar() throws IOException {
-        return (char)readUnsignedShort();
+        return (char) readUnsignedShort();
     }
 
     @Override
@@ -189,10 +189,10 @@ final class ClassFileBuffer implements DataInput {
         if (pointer + 4 > size) {
             throw new EOFException();
         }
-        return (read() << 24) + 
-            (read() << 16) + 
-            (read() << 8) + 
-            read();
+        return (read() << 24) +
+                (read() << 16) +
+                (read() << 8) +
+                read();
     }
 
     @Override
@@ -200,14 +200,14 @@ final class ClassFileBuffer implements DataInput {
         if (pointer + 8 > size) {
             throw new EOFException();
         }
-        return (read() << 56) + 
-            (read() << 48) + 
-            (read() << 40) + 
-            (read() << 32) + 
-            (read() << 24) + 
-            (read() << 16) + 
-            (read() << 8) + 
-            read();
+        return (read() << 56) +
+                (read() << 48) +
+                (read() << 40) +
+                (read() << 32) +
+                (read() << 24) +
+                (read() << 16) +
+                (read() << 8) +
+                read();
     }
 
     @Override
@@ -229,18 +229,18 @@ final class ClassFileBuffer implements DataInput {
     public String readLine() throws IOException {
         throw new UnsupportedOperationException("readLine() is deprecated and not supported");
     }
-    
+
     @Override
     public String readUTF() throws IOException {
         return DataInputStream.readUTF(this);
     }
-    
+
     // private
 
     private int read() {
         return buffer[pointer++] & 0xff;
     }
-    
+
     private void resizeIfNeeded() {
         if (size >= buffer.length) {
             final byte[] newBuffer = new byte[buffer.length * 2];
@@ -249,8 +249,7 @@ final class ClassFileBuffer implements DataInput {
         }
     }
 
-    public void destroy(){
+    public void destroy() {
         buffer = null;
     }
-
 }

@@ -54,17 +54,17 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.Callable;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
 /**
  * An Atmosphere request representation. An {@link AtmosphereRequest} is a two-way communication channel between the
  * client and the server. If the {@link org.atmosphere.cpr.AtmosphereRequest#isDestroyable()} is set to false, or if its
- * associated {@link AtmosphereResource} has been suspended, this object can be re-used at any moments between requests.
- * You can use it's associated {@link AtmosphereResponse} to write bytes at any moment, making this object bi-directional.
+ * associated {@link AtmosphereResource} has been suspended, this object can be re-used at any moment between requests.
+ * You can use its associated {@link AtmosphereResponse} to write bytes at any moment, making this object bi-directional.
  * <br/>
  *
  * @author Jeanfrancois Arcand
@@ -121,26 +121,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-
     public String getPathInfo() {
         return b.pathInfo != "" ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getPathTranslated() {
         return b.request.getPathTranslated();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getQueryString() {
         return b.queryString != "" ? b.queryString : isNotNoOps() ? b.request.getQueryString() : toQs();
@@ -157,49 +147,30 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return q.toString();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getRemoteUser() {
         return b.principal != null ? b.principal.getName() : b.request.getRemoteUser();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getRequestedSessionId() {
         return b.request.getRequestedSessionId();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getMethod() {
         return b.methodType != null ? b.methodType : b.request.getMethod();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Part getPart(String name) throws IOException, ServletException {
         return b.request.getPart(name);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Collection<Part> getParts() throws IOException, ServletException {
         return b.request.getParts();
     }
-
-    /**
-     * {@inheritDoc}
-     */
 
     @Override
     public String getContentType() {
@@ -211,33 +182,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return b.request.getDispatcherType();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getServletPath() {
         return b.servletPath != "" ? b.servletPath : (isNotNoOps() ? b.request.getServletPath() : "");
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getRequestURI() {
         return b.requestURI != null ? b.requestURI : (isNotNoOps() ? b.request.getRequestURI() : null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public StringBuffer getRequestURL() {
         return b.requestURL != null ? new StringBuffer(b.requestURL) : (isNotNoOps() ? b.request.getRequestURL() : null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Enumeration getHeaders(String name) {
 
@@ -268,17 +227,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return Collections.enumeration(list);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int getIntHeader(String name) {
         return b.request.getIntHeader(name);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Enumeration<String> getHeaderNames() {
         Set list = new HashSet();
@@ -298,33 +251,21 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return Collections.enumeration(list);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
         return b.request.authenticate(response);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getAuthType() {
         return b.authType != null ? b.authType : b.request.getAuthType();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getContextPath() {
         return isNotNoOps() && b.request.getContextPath() != null ? b.request.getContextPath() : b.contextPath != null ? b.contextPath : "";
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Cookie[] getCookies() {
         if (!cookieComputed) {
@@ -337,17 +278,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return b.cookies.toArray(new Cookie[]{});
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public long getDateHeader(String name) {
         return b.request.getDateHeader(name);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getHeader(String s) {
         return getHeader(s, true);
@@ -385,9 +320,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return name;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getParameter(String s) {
         String name = isNotNoOps() ? b.request.getParameter(s) : null;
@@ -399,9 +331,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return name;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Map<String, String[]> getParameterMap() {
         if (!queryComputed) {
@@ -414,17 +343,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return Collections.unmodifiableMap(b.queryStrings);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Enumeration<String> getParameterNames() {
         return Collections.enumeration(getParameterMap().keySet());
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String[] getParameterValues(String s) {
         String[] list = b.request.getParameterValues(s);
@@ -443,40 +366,28 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getProtocol() {
         return b.request.getProtocol();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public ServletInputStream getInputStream() throws IOException {
         return bis == null ? (isNotNoOps() ? b.request.getInputStream() : null) : bis;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public BufferedReader getReader() throws IOException {
         return br == null ? (isNotNoOps() ? b.request.getReader() : null) : br;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getRealPath(String path) {
         return b.request.getRealPath(path);
     }
 
     /**
-     * Add all headers contained with the Map.
+     * Add all headers contained within the Map.
      *
      * @param headers
      * @return this;
@@ -499,7 +410,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     /**
-     * Set the query string
+     * Set the query string.
      *
      * @param queryString
      * @return this
@@ -570,9 +481,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void setAttribute(String s, Object o) {
         if (o == null) o = "";
@@ -582,49 +490,31 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void setCharacterEncoding(String env) throws UnsupportedEncodingException {
         b.request.setCharacterEncoding(env);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AsyncContext startAsync() {
         return b.request.startAsync();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
         return b.request.startAsync(request, response);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public AsyncContext getAsyncContext() {
         return b.request.getAsyncContext();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Object getAttribute(String s) {
         return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (isNotNoOps() ? b.request.getAttribute(s) : null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void removeAttribute(String name) {
         b.localAttributes.remove(name);
@@ -634,7 +524,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     /**
-     * Return the locally added attribute.
+     * Return the locally added attributes.
      *
      * @return
      */
@@ -642,17 +532,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return b.localAttributes;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public HttpSession getSession() {
         return getSession(true);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public HttpSession getSession(boolean create) {
 
@@ -688,177 +572,111 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Principal getUserPrincipal() {
         return b.principal != null ? b.principal : b.request.getUserPrincipal();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isRequestedSessionIdFromCookie() {
         return b.request.isRequestedSessionIdFromCookie();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isRequestedSessionIdFromUrl() {
         return b.request.isRequestedSessionIdFromUrl();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isRequestedSessionIdFromURL() {
         return b.request.isRequestedSessionIdFromURL();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isRequestedSessionIdValid() {
         return b.request.isRequestedSessionIdValid();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isUserInRole(String role) {
         return b.request.isUserInRole(role);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void login(String username, String password) throws ServletException {
         b.request.login(username, password);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void logout() throws ServletException {
         b.request.logout();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getRemoteAddr() {
         return isNotNoOps() ? b.request.getRemoteAddr() : b.lazyRemote != null ? b.lazyRemote.getHostAddress() : b.remoteAddr;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getRemoteHost() {
         return isNotNoOps() ? b.request.getRemoteHost() : b.lazyRemote != null ? b.lazyRemote.getHostName() : b.remoteHost;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int getRemotePort() {
         return isNotNoOps() ? b.request.getRemotePort() : b.lazyRemote != null ? b.lazyRemote.getPort() : b.remotePort;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public RequestDispatcher getRequestDispatcher(String path) {
         return b.request.getRequestDispatcher(path);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getScheme() {
         return b.request.getScheme();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getServerName() {
         return b.serverName != "" ? b.serverName : b.request.getServerName();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int getServerPort() {
         return b.serverPort != 0 ? b.serverPort : b.request.getServerPort();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public ServletContext getServletContext() {
         return b.request.getServletContext();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isAsyncStarted() {
         return b.request.isAsyncStarted();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isAsyncSupported() {
         return b.request.isAsyncSupported();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isSecure() {
         return isNotNoOps() ? b.request.isSecure() : b.isSecure;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getLocalName() {
         return isNotNoOps() ? b.request.getLocalName() : b.lazyLocal != null ? b.lazyLocal.getHostName() : b.localName;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int getLocalPort() {
-        return isNotNoOps() ? b.request.getLocalPort() : b.lazyLocal != null ? b.lazyLocal.getPort() :b.localPort;
+        return isNotNoOps() ? b.request.getLocalPort() : b.lazyLocal != null ? b.lazyLocal.getPort() : b.localPort;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getLocalAddr() {
         return isNotNoOps() ? b.request.getLocalAddr() : b.lazyLocal != null ? b.lazyLocal.getHostAddress() : b.localAddr;
@@ -868,9 +686,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return !NoOpsRequest.class.isAssignableFrom(b.request.getClass());
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Locale getLocale() {
         return isNotNoOps() ? b.request.getLocale() : b.locales.iterator().next();
@@ -886,9 +701,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Enumeration<Locale> getLocales() {
         return isNotNoOps() ? b.request.getLocales() : Collections.enumeration(b.locales);
@@ -897,14 +709,14 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     /**
      * Dispatch the request asynchronously to container. The default is false.
      *
-     * @return true to dispatch asynchronously the request to container.
+     * @return true to dispatch the request asynchronously to container.
      */
     public boolean dispatchRequestAsynchronously() {
         return b.dispatchRequestAsynchronously;
     }
 
     /**
-     * Can this object be destroyed. Default is true.
+     * Cjeck if this object can be destroyed. Default is true.
      */
     public boolean isDestroyable() {
         return b.destroyable;
@@ -915,9 +727,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Enumeration<String> getAttributeNames() {
         Set<String> l = new HashSet();
@@ -931,17 +740,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return Collections.enumeration(l);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public String getCharacterEncoding() {
         return b.request.getCharacterEncoding();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public int getContentLength() {
         if (b.contentLength == null) {
@@ -1632,7 +1435,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     /**
-     * Create an instance of this class without an associated {@link HttpServletRequest}
+     * Create an instance of this class without an associated {@link HttpServletRequest}.
      *
      * @return an instance of this class without an associated {@link HttpServletRequest}
      */

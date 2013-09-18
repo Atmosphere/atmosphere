@@ -17,7 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketStreamingHandler;
 import org.testng.annotations.AfterMethod;
@@ -32,8 +31,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
-import java.io.StringReader;
-import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutionException;

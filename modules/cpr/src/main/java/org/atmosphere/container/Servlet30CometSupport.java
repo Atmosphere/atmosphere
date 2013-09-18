@@ -71,7 +71,7 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 
 /**
- * This class gets used when the {@link org.atmosphere.cpr.AtmosphereFramework} detect the container
+ * This class is used when the {@link org.atmosphere.cpr.AtmosphereFramework} detect the container
  * detect Servlet 3.0 Asynch API.
  *
  * @author Jeanfrancois Arcand
@@ -94,9 +94,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         return super.getContainerName() + " using javax.servlet/3.0";
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Action service(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
 
@@ -141,9 +139,6 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
@@ -181,6 +176,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             this.p = processor;
         }
 
+        @Override
         public void onComplete(AsyncEvent event) throws IOException {
             // Jetty 9.0.3 error: https://gist.github.com/jfarcand/5628129
             try {
@@ -189,6 +185,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             }
         }
 
+        @Override
         public void onTimeout(AsyncEvent event) throws IOException {
             logger.trace("onTimeout(): event: {}", event.getAsyncContext().getRequest());
 
@@ -205,6 +202,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             }
         }
 
+        @Override
         public void onError(AsyncEvent event) {
             logger.trace("onError(): event: {}", event.getAsyncContext().getResponse());
 
@@ -221,9 +219,9 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             }
         }
 
+        @Override
         public void onStartAsync(AsyncEvent event) {
             logger.trace("onStartAsync(): event: {}", event.getAsyncContext().getResponse());
         }
     }
-
 }

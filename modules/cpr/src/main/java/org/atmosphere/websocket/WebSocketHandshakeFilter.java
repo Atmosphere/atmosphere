@@ -29,7 +29,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
-import java.util.Enumeration;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
@@ -57,7 +56,7 @@ public class WebSocketHandshakeFilter implements Filter {
 
         HttpServletRequest r = HttpServletRequest.class.cast(request);
         if (Utils.webSocketEnabled(r)) {
-            int draft =r.getIntHeader("Sec-WebSocket-Version");
+            int draft = r.getIntHeader("Sec-WebSocket-Version");
             if (draft < 0) {
                 draft = r.getIntHeader("Sec-WebSocket-Draft");
             }

@@ -52,7 +52,6 @@
  */
 package org.atmosphere.util;
 
-
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -80,11 +79,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         super(id, config);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config){
+    protected BroadcasterConfig createBroadcasterConfig(AtmosphereConfig config) {
         BroadcasterConfig bc = (BroadcasterConfig) config.properties().get(BroadcasterConfig.class.getName());
         if (bc == null) {
             bc = new BroadcasterConfig(config.framework().broadcasterFilters(), config, false, getID())
@@ -93,9 +89,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         return bc;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void start() {
         if (!started.getAndSet(true)) {
@@ -104,9 +97,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void setBroadcasterConfig(BroadcasterConfig bc) {
         this.bc = bc;
@@ -114,11 +104,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
                 .setScheduledExecutorService(ExecutorsFactory.getScheduler(config));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-   public Future<Object> broadcast(Object msg) {
+    public Future<Object> broadcast(Object msg) {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
@@ -134,11 +121,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         return f;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-   public Future<Object> broadcast(Object msg, AtmosphereResource r) {
+    public Future<Object> broadcast(Object msg, AtmosphereResource r) {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
@@ -154,11 +138,8 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         return f;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
-   public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
+    public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
 
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used");
@@ -183,9 +164,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         invokeOnStateChange(r, e);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     protected void queueWriteIO(AtmosphereResource r, Entry entry) throws InterruptedException {
         synchronized (r) {

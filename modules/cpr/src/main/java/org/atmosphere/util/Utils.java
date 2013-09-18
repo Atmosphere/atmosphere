@@ -15,8 +15,6 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.cpr.AtmosphereResponse;
-
 import javax.servlet.http.HttpServletRequest;
 import java.util.Enumeration;
 

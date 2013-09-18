@@ -70,9 +70,8 @@ import java.io.IOException;
 import java.util.Enumeration;
 
 /**
- * Atmosphere supports for {@link Filter}, delegating all works to {@link AtmosphereServlet}.
- * This {@link Filter} only works with Jetty and Grizzly/GlassFish. With others
- * containers it will use its {@link BlockingIOCometSupport}.
+ * Atmosphere has support for {@link Filter}s, delegating all work to {@link AtmosphereServlet}. This {@link Filter}
+ * only works with Jetty and Grizzly/GlassFish. With other containers it will use its {@link BlockingIOCometSupport}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -91,7 +90,7 @@ public class AtmosphereFilter implements Filter {
     }
 
     /**
-     * Initialize the {@link Filter}
+     * Initialize the {@link Filter}.
      *
      * @param filterConfig The {@link javax.servlet.FilterConfig}
      * @throws ServletException
@@ -101,18 +100,22 @@ public class AtmosphereFilter implements Filter {
 
         as.init(new ServletConfig() {
 
+            @Override
             public String getServletName() {
                 return filterConfig.getFilterName();
             }
 
+            @Override
             public ServletContext getServletContext() {
                 return filterConfig.getServletContext();
             }
 
+            @Override
             public String getInitParameter(String name) {
                 return filterConfig.getInitParameter(name);
             }
 
+            @Override
             public Enumeration<String> getInitParameterNames() {
                 return filterConfig.getInitParameterNames();
             }
@@ -126,7 +129,7 @@ public class AtmosphereFilter implements Filter {
     }
 
     /**
-     * Normal doFilter invokation.
+     * Normal doFilter invocation.
      *
      * @param request
      * @param response
@@ -143,8 +146,8 @@ public class AtmosphereFilter implements Filter {
 
         if (req.getServletPath() == null
                 || (as.framework().getServletContext().getResource(req.getServletPath()) == null
-                && !req.getServletPath().matches(excluded) )) {
-            a = as.framework().doCometSupport(req,res);
+                && !req.getServletPath().matches(excluded))) {
+            a = as.framework().doCometSupport(req, res);
         }
 
         if (a == null || a.type() != Action.TYPE.SUSPEND) {

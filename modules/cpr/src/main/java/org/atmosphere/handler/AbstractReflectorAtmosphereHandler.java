@@ -71,9 +71,9 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 
 /**
  * Simple {@link AtmosphereHandler} that reflect every call to
- * {@link Broadcaster#broadcast}, e.g sent the broadcasted event back to the remote client. All broadcast will be by default returned
+ * {@link Broadcaster#broadcast}, eg sent the broadcasted event back to the remote client. All broadcasts will be by default returned
  * as it is to the suspended {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream}
- * or {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}
+ * or {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
  *
  * @author Jean-francois Arcand
  */
@@ -92,13 +92,14 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event the {@link AtmosphereResourceEvent#getMessage()}
      * @throws java.io.IOException
      */
+    @Override
     public void onStateChange(AtmosphereResourceEvent event)
             throws IOException {
 
         Object message = event.getMessage();
         AtmosphereResource resource = event.getResource();
         AtmosphereResponse r = resource.getResponse();
-        
+
         if (message == null) {
             logger.trace("Message was null for AtmosphereEvent {}", event);
             return;
@@ -109,20 +110,20 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
                 if (message instanceof List) {
                     for (Object s : (List<Object>) message) {
-                         resource.getSerializer().write(resource.getResponse().getOutputStream(), s);
+                        resource.getSerializer().write(resource.getResponse().getOutputStream(), s);
                     }
-                }  else {
+                } else {
                     resource.getSerializer().write(resource.getResponse().getOutputStream(), message);
                 }
             } catch (Throwable ex) {
-                logger.warn("Serializer exception: message: " + message, ex);
+                logger.warn("Serializer exception: message: {}", message, ex);
                 throw new IOException(ex);
             }
         } else {
             boolean isUsingStream = true;
             Object o = resource.getRequest().getAttribute(PROPERTY_USE_STREAM);
             if (o != null) {
-                isUsingStream = (Boolean)o;
+                isUsingStream = (Boolean) o;
             }
 
             if (!isUsingStream) {
@@ -134,7 +135,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
             }
 
             if (message instanceof List) {
-                Iterator<Object> i = ((List)message).iterator();
+                Iterator<Object> i = ((List) message).iterator();
                 try {
                     Object s;
                     while (i.hasNext()) {
@@ -145,9 +146,9 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                             } else {
                                 r.getWriter().write(s.toString());
                             }
-                        } else if (byte[].class.isAssignableFrom(s.getClass())){
+                        } else if (byte[].class.isAssignableFrom(s.getClass())) {
                             if (isUsingStream) {
-                                r.getOutputStream().write((byte[])s);
+                                r.getOutputStream().write((byte[]) s);
                             } else {
                                 r.getWriter().write(s.toString());
                             }
@@ -161,22 +162,22 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                         i.remove();
                     }
                 } catch (IOException ex) {
-                    event.setMessage(new ArrayList<String>().addAll((List)message));
+                    event.setMessage(new ArrayList<String>().addAll((List) message));
                     throw ex;
                 }
 
                 if (isUsingStream) {
-                   r.getOutputStream().flush();
+                    r.getOutputStream().flush();
                 } else {
-                   r.getWriter().flush();
+                    r.getWriter().flush();
                 }
             } else {
                 if (isUsingStream) {
-                   r.getOutputStream().write(message.toString().getBytes(r.getCharacterEncoding()));
-                   r.getOutputStream().flush();
+                    r.getOutputStream().write(message.toString().getBytes(r.getCharacterEncoding()));
+                    r.getOutputStream().flush();
                 } else {
-                   r.getWriter().write(message.toString());
-                   r.getWriter().flush();
+                    r.getWriter().write(message.toString());
+                    r.getWriter().flush();
                 }
             }
         }
@@ -185,6 +186,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
     /**
      * Inspect the event and decide if the underlying connection must be resumed.
+     *
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
@@ -211,5 +213,6 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
     }
 
     @Override
-    public void destroy() {}
+    public void destroy() {
+    }
 }

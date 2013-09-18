@@ -40,7 +40,6 @@ import java.lang.annotation.Target;
  *     <li>The {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor} for managing the connection lifecycle</li>
  *     <li>The {@link org.atmosphere.client.TrackMessageSizeInterceptor} for making sure messages are delivered entirely</li>
  *     <li>The {@link org.atmosphere.interceptor.HeartbeatInterceptor} for keeping the connection active</li>
- *     <li>The {@link org.atmosphere.interceptor.HeartbeatInterceptor} for keeping the connection active</li>
  * </ul>
  *
  * Annotating your {@link org.atmosphere.cpr.AtmosphereHandler} is the same as doing:
@@ -64,9 +63,9 @@ import java.lang.annotation.Target;
 @Documented
 public @interface ManagedService {
     /**
-     * The mapping path, or context-root used to map this AtmosphereHandler
+     * The mapping path or context-root used to map this AtmosphereHandler
      *
-     * @return mapping path, or context-root used to map this AtmosphereHandler
+     * @return mapping path or context-root used to map this AtmosphereHandler
      */
     String path() default "/";
 
@@ -83,8 +82,9 @@ public @interface ManagedService {
     Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
 
     /**
-     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are {@link AtmosphereResourceLifecycleInterceptor}
-     * , {@link org.atmosphere.config.managed.ManagedServiceInterceptor}, {@link TrackMessageSizeInterceptor}, {@link HeartbeatInterceptor}  and {@link SuspendTrackerInterceptor}
+     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are {@link AtmosphereResourceLifecycleInterceptor},
+     * {@link org.atmosphere.config.managed.ManagedServiceInterceptor}, {@link TrackMessageSizeInterceptor},
+     * {@link HeartbeatInterceptor} and {@link SuspendTrackerInterceptor}
      */
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             AtmosphereResourceLifecycleInterceptor.class,
@@ -94,17 +94,17 @@ public @interface ManagedService {
     };
 
     /**
-      * Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-      * delimited using "=" and separated using coma.
-      * @return Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-      * delimited using "=" and separated using coma.
-      */
-     String[] atmosphereConfig() default {};
+     * Atmosphere's configuration that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Configuration
+     * name and value is delimited by "=", and different configuration lines are separated by comma.
+     */
+    String[] atmosphereConfig() default {};
 
     /**
      * The {@link org.atmosphere.cpr.BroadcasterCache} class name
+     * <p/>
+     * Default is {@link UUIDBroadcasterCache}.
      *
-     * @return The {@link org.atmosphere.cpr.Broadcaster} class name. Default is {@link UUIDBroadcasterCache}
+     * @return The {@link org.atmosphere.cpr.Broadcaster} class name.
      */
     Class<? extends BroadcasterCache> broadcasterCache() default UUIDBroadcasterCache.class;
 

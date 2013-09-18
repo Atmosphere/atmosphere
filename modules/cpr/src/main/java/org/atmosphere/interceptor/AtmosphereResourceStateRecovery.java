@@ -139,7 +139,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                          * invoked.
                          */
                         final List<Object> cachedMessages = retrieveCache(r, tracker, true);
-                        logger.trace("message size " + cachedMessages.size());
+                        logger.trace("message size {}", cachedMessages.size());
                         if (cachedMessages.size() > 0) {
                             logger.trace("About to write to the cache {}", r.uuid());
                             writeCache(r, cachedMessages);
@@ -150,7 +150,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                         if (doNotSuspend.get()) {
                             AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
                         }
-                        logger.trace("doNotSuspend " + doNotSuspend.get());
+                        logger.trace("doNotSuspend {}", doNotSuspend.get());
                     }
                 });
             }

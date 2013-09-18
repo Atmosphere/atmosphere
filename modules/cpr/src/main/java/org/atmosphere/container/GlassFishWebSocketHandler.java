@@ -90,6 +90,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         }
     }
 
+    @Override
     public void onConnect(WebSocket w) {
         super.onConnect(w);
 

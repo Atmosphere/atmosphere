@@ -46,9 +46,6 @@ public class JettyServlet30AsyncSupportWithWebSocket extends Servlet30CometSuppo
         webSocketFactory = JettyWebSocketUtil.getFactory(config, webSocketProcessor);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {

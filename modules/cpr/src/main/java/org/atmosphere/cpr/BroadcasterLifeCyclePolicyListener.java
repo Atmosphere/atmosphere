@@ -23,18 +23,18 @@ package org.atmosphere.cpr;
 public interface BroadcasterLifeCyclePolicyListener {
 
     /**
-     * Invoked when a {@link Broadcaster}'s list of {@link AtmosphereResource} becomes empty, e.g
-     * the broadcaster has no longer resource associated with it.
+     * Invoked when a {@link Broadcaster}'s list of {@link AtmosphereResource} becomes empty, eg.
+     * the broadcaster has no longer resources associated with it.
      */
     void onEmpty();
 
     /**
-     * Invoke when a {@link Broadcaster} has no activitie.
+     * Invoke when a {@link Broadcaster} has no activity.
      */
     void onIdle();
 
     /**
-     * Both method {@link org.atmosphere.cpr.Broadcaster#releaseExternalResources()} and   {@link org.atmosphere.cpr.Broadcaster#destroy()}
+     * Both {@link org.atmosphere.cpr.Broadcaster#releaseExternalResources()} and {@link org.atmosphere.cpr.Broadcaster#destroy()}
      * are about to be invoked.
      */
     void onDestroy();

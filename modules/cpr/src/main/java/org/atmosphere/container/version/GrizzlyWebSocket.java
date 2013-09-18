@@ -59,9 +59,6 @@ public final class GrizzlyWebSocket extends WebSocket {
         webSocket.close();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocket flush(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.flush() not supported by Grizzly");

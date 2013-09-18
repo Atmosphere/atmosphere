@@ -153,9 +153,6 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
@@ -200,6 +197,4 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
     public boolean supportWebSocket() {
         return true;
     }
-
-
 }

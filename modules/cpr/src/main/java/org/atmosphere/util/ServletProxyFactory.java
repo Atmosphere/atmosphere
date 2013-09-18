@@ -23,11 +23,12 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * A Factory class that can be used to handle the Servlet API internal proxy.
+ * A factory class that can be used to handle the Servlet API internal proxy.
  *
  * @author Jeanfrancois Arcand
  */
 public class ServletProxyFactory {
+
     private final static Logger logger = LoggerFactory.getLogger(ServletProxyFactory.class);
     private static ServletProxyFactory factory;
     private final Map<String, MethodHandler> methods = new HashMap<String, MethodHandler>();
@@ -74,6 +75,7 @@ public class ServletProxyFactory {
     public static interface MethodHandler {
         /**
          * Same API as the {@link java.lang.reflect.Proxy} class
+         *
          * @param clazz
          * @param method
          * @param methodObjects
@@ -82,14 +84,14 @@ public class ServletProxyFactory {
         public Object handle(Object clazz, Method method, Object[] methodObjects);
     }
 
-    public static class EchoMethodHandler implements MethodHandler{
+    public static class EchoMethodHandler implements MethodHandler {
         @Override
         public Object handle(Object clazz, Method method, Object[] methodObjects) {
             return methodObjects[0];
         }
     }
 
-    public static class UTF8Handler implements MethodHandler{
+    public static class UTF8Handler implements MethodHandler {
         @Override
         public Object handle(Object clazz, Method method, Object[] methodObjects) {
             return "UTF-8";

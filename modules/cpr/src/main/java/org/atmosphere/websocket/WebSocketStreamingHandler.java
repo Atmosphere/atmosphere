@@ -30,7 +30,7 @@ public interface WebSocketStreamingHandler extends WebSocketHandler {
     /**
      * Invoked when a byte message is received.
      *
-     * @param webSocket a {@link WebSocket}
+     * @param webSocket   a {@link WebSocket}
      * @param inputStream
      */
     void onBinaryStream(WebSocket webSocket, InputStream inputStream) throws IOException;

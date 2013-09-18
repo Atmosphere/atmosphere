@@ -56,9 +56,6 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
         super.shutdown();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Action service(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
@@ -80,6 +77,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
     /**
      * Return the container's name.
      */
+    @Override
     public String getContainerName() {
         return config.getServletConfig().getServletContext().getServerInfo() + " with WebSocket enabled.";
     }

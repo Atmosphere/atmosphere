@@ -27,10 +27,10 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.bind.DatatypeConverter;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.HashSet;
-import javax.xml.bind.DatatypeConverter;
 
 import static org.atmosphere.cpr.ApplicationConfig.EXCLUDED_CONTENT_TYPES;
 
@@ -49,7 +49,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
     private static final String DELIMITER = "|";
     private final static String OUT_ENCODING = "UTF-8";
     public final static String SKIP_INTERCEPTOR = TrackMessageSizeB64Interceptor.class.getName() + ".skip";
-    
+
     private final HashSet<String> excludedContentTypes = new HashSet<String>();
 
     private final Interceptor interceptor = new Interceptor();
@@ -64,6 +64,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
 
     /**
      * Excluse response's content-type from being processed by this class.
+     *
      * @param excludedContentType the value of {@link org.atmosphere.cpr.AtmosphereResponse#getContentType()}
      * @return this
      */
@@ -87,7 +88,6 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
         return Action.CONTINUE;
     }
 
-
     @Override
     public String toString() {
         return " Track Message Size Base64 Interceptor using " + DELIMITER;
@@ -107,7 +107,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
                 return sb.toString().getBytes(OUT_ENCODING);
             } else {
                 return responseDraft;
-            }        
+            }
 
         }
     }

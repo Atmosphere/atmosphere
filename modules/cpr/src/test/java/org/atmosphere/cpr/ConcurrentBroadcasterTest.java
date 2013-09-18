@@ -82,8 +82,8 @@ public class ConcurrentBroadcasterTest {
         @Override
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
             count.incrementAndGet();
-           // System.out.println("Message received => " + count);
-          //System.out.println(e.getMessage());
+            // System.out.println("Message received => " + count);
+            //System.out.println(e.getMessage());
         }
 
         @Override
@@ -121,7 +121,7 @@ public class ConcurrentBroadcasterTest {
 
         StringBuffer b = new StringBuffer();
         for (int i = 0; i < 1000; i++) {
-            b.append("message-"+i);
+            b.append("message-" + i);
             broadcaster.broadcast("message-" + i);
         }
         latch.await(60, TimeUnit.SECONDS);
@@ -136,7 +136,7 @@ public class ConcurrentBroadcasterTest {
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
-        for (int i=0; i < client; i++) {
+        for (int i = 0; i < client; i++) {
             broadcaster.addAtmosphereResource(newAR(a));
         }
 
@@ -181,7 +181,7 @@ public class ConcurrentBroadcasterTest {
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
-        for (int i=0; i < client; i++) {
+        for (int i = 0; i < client; i++) {
             broadcaster.addAtmosphereResource(newAR(a));
         }
 
@@ -226,7 +226,7 @@ public class ConcurrentBroadcasterTest {
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
-        for (int i=0; i < client; i++) {
+        for (int i = 0; i < client; i++) {
             broadcaster.addAtmosphereResource(newAR(a));
         }
 
@@ -268,7 +268,7 @@ public class ConcurrentBroadcasterTest {
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
-        for (int i=0; i < client; i++) {
+        for (int i = 0; i < client; i++) {
             broadcaster.addAtmosphereResource(newAR(a));
         }
 
@@ -334,7 +334,7 @@ public class ConcurrentBroadcasterTest {
 
         StringBuffer b = new StringBuffer();
         for (int i = 0; i < 1000; i++) {
-            b.append("message-"+i);
+            b.append("message-" + i);
             broadcaster.broadcast("message-" + i);
         }
         latch.await(60, TimeUnit.SECONDS);

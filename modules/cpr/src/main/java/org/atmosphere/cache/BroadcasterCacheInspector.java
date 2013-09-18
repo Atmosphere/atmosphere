@@ -16,7 +16,7 @@
 package org.atmosphere.cache;
 
 /**
- * Inspect {@link BroadcastMessage} before they gets added to the BroadcasterCache. Message can also be modified
+ * Inspect {@link BroadcastMessage}s before they get added to the BroadcasterCache. Messages can also be modified
  * before they get added to the cache.
  *
  * @author Jeanfrancois Arcand
@@ -24,7 +24,7 @@ package org.atmosphere.cache;
 public interface BroadcasterCacheInspector {
     /**
      * Inspect the {@link BroadcastMessage} and return true if the message can be cached, false if not. A
-     * Message can also be modified
+     * Message can also be modified.
      * @param message {@link BroadcastMessage}
      * @return true if allowed to be cached, false if not.
      */

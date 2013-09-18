@@ -33,31 +33,33 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 /**
- * Broadcast events to all or a subset of available {@link Broadcaster} based on their{@link org.atmosphere.cpr.Broadcaster#getID()} value.
- * This class allow broadcasting events to a set of broadcaster that maps some String like:
+ * Broadcast events to all or a subset of available {@link Broadcaster}s based on their {@link org.atmosphere.cpr.Broadcaster#getID()} value.
+ * This class allows broadcasting events to a set of broadcasters that maps to some String like:
  * <blockquote><pre>
  *        // Broadcast the event to all Broadcaster ID starting with /hello
  *        broadcast("/hello", event)
  *        // Broadcast the event to all Broadcaster ID
  *        broaccast("/*", event);
  * </pre></blockquote>
- * The rule used is similar to path/uri mapping used by technology like Servlet, Jersey, etc.
+ * The rule used is similar to path/URI mapping used by technology like Servlet, Jersey, etc.
  * <p/>
- * NOTE: Broadcaster's name must start with / in order to get retrieved by this class.
+ * NOTE: Broadcasters' name must start with / in order to get retrieved by this class.
  * <p/>
- * This class is not THREAD SAFE.
+ * This class is NOT thread safe.
  * <p/>
  * If you want to use MetaBroadcaster with Jersey or any framework, make sure all {@link org.atmosphere.cpr.Broadcaster#getID()}
  * starts with '/'. For example, with Jersey:
  * <blockquote><pre>
+ *
  * @Path(RestConstants.STREAMING + "/workspace{wid:/[0-9A-Z]+}")
  * public class JerseyPubSub {
- *    @PathParam("wid") private Broadcaster topic;
+ * @PathParam("wid") private Broadcaster topic;
  * </pre></blockquote>
  *
  * @author Jeanfrancois Arcand
  */
 public class MetaBroadcaster {
+
     public static final String MAPPING_REGEX = "[/a-zA-Z0-9-&.*=@_;\\?]+";
 
     private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
@@ -82,7 +84,7 @@ public class MetaBroadcaster {
             }
 
             if (l.isEmpty()) {
-                logger.warn("No Broadcaster match {}. Message {} WILL BE LOST. Make sure you cache it or make sure the Broadcaster exists before.", path, message);
+                logger.warn("No Broadcaster matches {}. Message {} WILL BE LOST. Make sure you cache it or make sure the Broadcaster exists before.", path, message);
                 return E;
             }
 
@@ -127,39 +129,39 @@ public class MetaBroadcaster {
     }
 
     /**
-     * Broadcast the message to all Broadcaster whose {@link org.atmosphere.cpr.Broadcaster#getID()} maps the broadcasterID value.
+     * Broadcast the message to all Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()} matches the broadcasterID value.
      *
      * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param message       a message to be broadcasted
-     * @return a Future.
+     * @return a Future
      */
     public Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message) {
         return map(broadcasterID, message, -1, null, false);
     }
 
     /**
-     * Broadcast the message at a fixed rate to all Broadcaster whose {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * maps the broadcasterID value. This operation will invoke {@link Broadcaster#scheduleFixedBroadcast(Object, long, java.util.concurrent.TimeUnit)}}
+     * Broadcast the message at a fixed rate to all Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * matches the broadcasterID value. This operation will invoke {@link Broadcaster#scheduleFixedBroadcast(Object, long, java.util.concurrent.TimeUnit)}}
      *
      * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param message       a message to be broadcasted
      * @param time          a time value
      * @param unit          a {@link TimeUnit}
-     * @return a Future.
+     * @return a Future
      */
     public Future<List<Broadcaster>> scheduleTo(String broadcasterID, Object message, int time, TimeUnit unit) {
         return map(broadcasterID, message, time, unit, false);
     }
 
     /**
-     * Delay the message delivery to {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * maps the broadcasterID value. This operation will invoke {@link Broadcaster#delayBroadcast(Object, long, java.util.concurrent.TimeUnit)} (Object, long, java.util.concurrent.TimeUnit)}}
+     * Delay the message delivery to Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * matches the broadcasterID value. This operation will invoke {@link Broadcaster#delayBroadcast(Object, long, java.util.concurrent.TimeUnit)} (Object, long, java.util.concurrent.TimeUnit)}}
      *
      * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param message       a message to be broadcasted
      * @param time          a time value
      * @param unit          a {@link TimeUnit}
-     * @return a Future.
+     * @return a Future
      */
     public Future<List<Broadcaster>> delayTo(String broadcasterID, Object message, int time, TimeUnit unit) {
         return map(broadcasterID, message, time, unit, true);
@@ -259,7 +261,7 @@ public class MetaBroadcaster {
     }
 
     /**
-     * Add a {@link BroadcasterListener} to all mapped {@link Broadcaster}. T
+     * Add a {@link BroadcasterListener} to all mapped {@link Broadcaster}s.
      *
      * @param b {@link BroadcasterListener}
      * @return this

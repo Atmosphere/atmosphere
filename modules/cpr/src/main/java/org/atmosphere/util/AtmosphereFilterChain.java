@@ -174,7 +174,7 @@ public final class AtmosphereFilterChain implements FilterChain {
                 if (rd == null) {
                     throw new ServletException("No Servlet Found");
                 }
-                rd.forward(request,  response);
+                rd.forward(request, response);
             }
 
         } catch (IOException e) {

@@ -53,21 +53,19 @@
 package org.atmosphere.cpr;
 
 /**
- * An AtmosphereResourceEvent is created every time an event occurs like when a
- * {@link Broadcaster#broadcast(java.lang.Object)} is executed, when a Browser close
- * remotely close the connection or when a suspended times out or gets resumed. When
- * such events occurs, an instance of that class will be created and its associated
- * {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)}
- * will be invoked.
+ * An AtmosphereResourceEvent is created every time an event occurs, like when a
+ * {@link Broadcaster#broadcast(java.lang.Object)} is executed, when a browser remotely closes the connection or
+ * when a suspended resource times out or gets resumed. When such events occur, an instance of that class will be
+ * created and its associated {@link AtmosphereHandler#onStateChange(org.atmosphere.cpr.AtmosphereResourceEvent)} will be invoked.
  *
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereResourceEvent {
 
     /**
-     * Return the object that were pass to {@link Broadcaster#broadcast(java.lang.Object)}
+     * Return the object that was passed to {@link Broadcaster#broadcast(java.lang.Object)}.
      *
-     * @return the object that were pass to {@link Broadcaster#broadcast(java.lang.Object)}
+     * @return the object that was passed to {@link Broadcaster#broadcast(java.lang.Object)}
      */
     public Object getMessage();
 
@@ -94,25 +92,21 @@ public interface AtmosphereResourceEvent {
     public boolean isCancelled();
 
     /**
-     * Return <tt>true<//tt> if that {@link AtmosphereResource#suspend()} has been
-     * invoked and set to <tt>true</tt>
+     * Return <tt>true</tt> if {@link AtmosphereResource#suspend()} has been invoked and set to <tt>true</tt>.
      *
-     * @return <tt>true<//tt> if that {@link AtmosphereResource#suspend()} has been
-     *         invoked and set to <tt>true</tt>
+     * @return <tt>true</tt> if {@link AtmosphereResource#suspend()} has been invoked and set to <tt>true</tt>
      */
     public boolean isSuspended();
 
     /**
-     * Return <tt>true<//tt> if that {@link AtmosphereResource#resume()} has been
-     * invoked
+     * Return <tt>true</tt> if {@link AtmosphereResource#resume()} has been invoked.
      *
-     * @return <tt>true<//tt> if that {@link AtmosphereResource#resume()} has been
-     *         invoked and set to <tt>true</tt>
+     * @return <tt>true</tt> if {@link AtmosphereResource#resume()} has been invoked and set to <tt>true</tt>
      */
     public boolean isResuming();
 
     /**
-     * Return the {@link AtmosphereResource} associated with this event
+     * Return the {@link AtmosphereResource} associated with this event.
      *
      * @return {@link AtmosphereResource}
      */
@@ -121,13 +115,15 @@ public interface AtmosphereResourceEvent {
     /**
      * Return true if the client closed the connection and send the Atmosphere close message. You must
      * use the {@link org.atmosphere.interceptor.OnDisconnectInterceptor} in order to receive the proper value,
-     * and enableProtocol set to true on the client side (enabledProtocol is true by default).
+     * and enableProtocol must be set to true on the client side (enabledProtocol is true by default).
+     *
      * @return
      */
     public boolean isClosedByClient();
 
     /**
      * Return true if the application closed the connection using {@link org.atmosphere.cpr.AtmosphereResource#close()}.
+     *
      * @return if the application.
      */
     public boolean isClosedByApplication();

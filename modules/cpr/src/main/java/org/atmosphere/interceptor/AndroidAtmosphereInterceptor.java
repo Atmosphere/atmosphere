@@ -16,7 +16,6 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
@@ -27,10 +26,8 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
-
 /**
- * Fix for the Android 2.2.x bogus HTTP implementation
+ * Fix for the Android 2.2.x bogus HTTP implementation.
  *
  * @author Jeanfrancois Arcand
  */

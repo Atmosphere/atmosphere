@@ -61,7 +61,14 @@ import org.atmosphere.util.FilterConfigImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.*;
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
@@ -78,7 +85,7 @@ import java.util.Map;
  * to a set of {@link FilterChain} and {@link Servlet#service(javax.servlet.ServletRequest, javax.servlet.ServletResponse)}
  * and store the {@link AtmosphereResource} as a {@link org.atmosphere.cpr.AtmosphereRequest#getAttribute(String)} attribute named
  * {@link org.atmosphere.cpr.FrameworkConfig#ATMOSPHERE_RESOURCE}. The {@link AtmosphereResource} can later be retrieved
- * and used to supend/resume and broadcast
+ * and used to suspend/resume and broadcast.
  *
  * @author Jeanfrancois Arcand
  */
@@ -201,6 +208,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         }
     }
 
+    @Override
     public void init(ServletConfig sc) throws ServletException {
         try {
             loadWebApplication(sc);
@@ -214,6 +222,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         filters.add(filter);
     }
 
+    @Override
     public void destroy() {
         filterChain.destroy();
     }
@@ -262,6 +271,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * Add a FilterClass. Since we are using Reflection to call this method,
      * what we are really doing is addFilterClass.
      * <p/>
+     *
      * @param filterClass
      */
     public void setFilterClassName(String filterClass) {
@@ -274,7 +284,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * what we are really doing is addFilterClass.
      *
      * @param filterClass class name of the filter to instantiate.
-     * @param filterName mapping name of the filter to instantiate
+     * @param filterName  mapping name of the filter to instantiate
      */
     public void addFilterClassName(String filterClass, String filterName) {
         if (filterClass == null || filterName == null) return;

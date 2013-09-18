@@ -172,9 +172,6 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
         return action;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);

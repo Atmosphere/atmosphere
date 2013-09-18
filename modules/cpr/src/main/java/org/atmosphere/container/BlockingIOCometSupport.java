@@ -72,12 +72,11 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
 /**
- * This class gets used when the {@link org.atmosphere.cpr.AtmosphereFramework} fails to autodetect
+ * This class is used when the {@link org.atmosphere.cpr.AtmosphereFramework} fails to autodetect
  * the Servlet Container we are running on.
  * <p/>
  * This {@link org.atmosphere.cpr.AsyncSupport} implementation uses a blocking approach, meaning
- * the request thread will be blocked until another Thread invoke the
- * {@link Broadcaster#broadcast}
+ * the request thread will be blocked until another Thread invoke the {@link Broadcaster#broadcast}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -91,9 +90,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         super(config);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
@@ -211,9 +208,6 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         return a;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl r) {
         try {

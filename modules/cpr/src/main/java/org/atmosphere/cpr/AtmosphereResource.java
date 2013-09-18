@@ -57,12 +57,10 @@ import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
-
 /**
- * A {@link AtmosphereResource} encapsulates the mechanism to {@link #suspend()},
- * {@link #resume()} and broadcast ({@link #getBroadcaster()}) messages among
- * suspended response. {@link AtmosphereResource} are passed at runtime to an
- * instance of {@link AtmosphereHandler}.
+ * An {@link AtmosphereResource} encapsulates the mechanism to {@link #suspend()}, {@link #resume()} and
+ * broadcast ({@link #getBroadcaster()}) messages among suspended resources. {@link AtmosphereResource}s are passed to
+ * an instance of {@link AtmosphereHandler} at runtime.
  *
  * @author Jeanfrancois Arcand
  */
@@ -77,123 +75,115 @@ public interface AtmosphereResource {
     TRANSPORT transport();
 
     /**
-     * Set to true to resume the response once after the first broadcast. False by default.
+     * Set to true to resume the response after the first broadcast. False by default.
      *
      * @param resumeOnBroadcast
      */
     AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast);
 
     /**
-     * Return true is the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked.
+     * Return true if the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked.
      *
-     * @return true is the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked.
+     * @return true if the {@link org.atmosphere.cpr.AtmosphereResource#suspend()} has been invoked
      */
     boolean isSuspended();
 
     /**
-     * Return the is the {@link org.atmosphere.cpr.AtmosphereResource#resumeOnBroadcast()}
+     * Return true if this AtmosphereResource is resumed after the first broadcast.
+     *
+     * @see org.atmosphere.cpr.AtmosphereResource#resumeOnBroadcast()
      */
     boolean resumeOnBroadcast();
 
     /**
      * Return true if this object has been resumed.
      *
-     * @return true if this object has been resumed.
+     * @return true if this object has been resumed
      */
     boolean isResumed();
 
     /**
      * Return true if this object has been cancelled.
      *
-     * @return true if this object has been cancelled.
+     * @return true if this object has been cancelled
      */
     boolean isCancelled();
 
     /**
-     * Complete the {@link AtmosphereResponse} and finish/commit it. If the
-     * {@link AtmosphereResponse} is in the process of being resumed, invoking
-     * that method has no effect.
+     * Complete the {@link AtmosphereResponse} and finish/commit it. If the {@link AtmosphereResponse} is in the
+     * process of being resumed, invoking this method has no effect.
      */
     AtmosphereResource resume();
 
     /**
      * Suspend the {@link AtmosphereResponse} indefinitely.
-     * Suspending a {@link AtmosphereResponse} will
-     * tell the underlying container to avoid recycling objects associated with
-     * the current instance, and also to avoid commiting response.
+     * Suspending a {@link AtmosphereResponse} will tell the underlying container to avoid recycling objects associated
+     * with the current instance, and also to avoid committing a response.
      * <p/>
-     * The Framework will output some HTML comments when suspending the response
-     * in order to make sure all Browser works well with suspended response.
+     * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
+     * work well with suspended responses.
      */
     AtmosphereResource suspend();
 
     /**
-     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
-     * tell the underlying container to avoid recycling objects associated with
-     * the current instance, and also to avoid commiting response. Invoking
-     * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
-     * has no effect.
+     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will tell the underlying
+     * container to avoid recycling objects associated with the current instance, and also to avoid committing response.
+     * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
+     * returns true) has no effect.
      * <p/>
-     * The Framework will output some HTML comments when suspending the response
-     * in order to make sure all Browser works well with suspended response. By default,
-     * the {@link AtmosphereResponse#getWriter} will be used. You can change that
-     * behavior by setting a request attribute named org.atmosphere.useStream to
-     * so the framework will use {@link AtmosphereResponse#getOutputStream()}
+     * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
+     * work well with suspended responses. By default, the {@link AtmosphereResponse#getWriter} will be used. You can
+     * change that behavior by setting a request attribute named org.atmosphere.useStream so the framework will
+     * use {@link AtmosphereResponse#getOutputStream()}.
      *
-     * @param timeout The maximum amount of time, in milliseconds,
-     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires,
-     *                the {@link AtmosphereResponse} will be automatically resumed and committed.
-     *                Usage of any methods of a {@link AtmosphereResponse} that
-     *                times out will throw an {@link IllegalStateException}.
+     * @param timeout The maximum amount of time, in milliseconds, a {@link AtmosphereResponse} can be suspended. When
+     *                the timeout expires, the {@link AtmosphereResponse} will be automatically resumed and committed.
+     *                Usage of any methods of a {@link AtmosphereResponse} that times out will throw an {@link IllegalStateException}.
      */
     AtmosphereResource suspend(long timeout);
 
     /**
-     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will
-     * tell the underlying container to avoid recycling objects associated with
-     * the current instance, and also to avoid commiting response. Invoking
-     * this method when a request is being timed out, e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout} return true,
-     * has no effect.
+     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will tell the underlying
+     * container to avoid recycling objects associated with the current instance, and also to avoid committing response.
+     * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
+     * returns true) has no effect.
      * <p/>
-     * The Framework will output some HTML comments when suspending the response
-     * in order to make sure all Browser works well with suspended response. By default,
-     * the {@link AtmosphereResponse#getWriter} will be used. You can change that
-     * behavior by setting a request attribute named org.atmosphere.useStream to
-     * so the framework will use {@link AtmosphereResponse#getOutputStream()}
+     * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
+     * work well with suspended responses. By default, the {@link AtmosphereResponse#getWriter} will be used. You can
+     * change that behavior by setting a request attribute named org.atmosphere.useStream so the framework will
+     * use {@link AtmosphereResponse#getOutputStream()}.
      *
-     * @param timeout The maximum amount of time, in milliseconds,
-     *                a {@link AtmosphereResponse} can be suspended. When the timeout expires,
-     *                the {@link AtmosphereResponse} will be automatically resumed and committed.
-     *                Usage of any methods of a {@link AtmosphereResponse} that
-     *                times out will throw an {@link IllegalStateException}.
+     * @param timeout  The maximum amount of time a {@link AtmosphereResponse} can be suspended. When the timeout
+     *                 expires, the {@link AtmosphereResponse} will be automatically resumed and committed. Usage of any
+     *                 methods of a {@link AtmosphereResponse} that times out will throw an {@link IllegalStateException}.
      * @param timeunit The time unit of the timeout value
      */
 
     AtmosphereResource suspend(long timeout, TimeUnit timeunit);
 
     /**
-     * Return the underlying {@link AtmosphereRequest} Request.
+     * Return the underlying {@link AtmosphereRequest} request.
      *
-     * @return {@link AtmosphereRequest} the underlying Request.
+     * @return {@link AtmosphereRequest} the underlying request.
      */
     AtmosphereRequest getRequest();
 
     /**
-     * Return the {@link AtmosphereResponse}
+     * Return the {@link AtmosphereResponse}.
      *
-     * @return {@link AtmosphereResponse} the underlying Response.
+     * @return {@link AtmosphereResponse} the underlying response.
      */
     AtmosphereResponse getResponse();
 
     /**
-     * Return the {@link AtmosphereConfig}
+     * Return the {@link AtmosphereConfig}.
      *
      * @return the {@link AtmosphereConfig}
      */
     AtmosphereConfig getAtmosphereConfig();
 
     /**
-     * Return the current {@link Broadcaster}
+     * Return the current {@link Broadcaster}.
      *
      * @return the current {@link Broadcaster}
      */
@@ -201,7 +191,7 @@ public interface AtmosphereResource {
 
     /**
      * Set the current {@link Broadcaster}. If null, a new Broadcaster will be created with {@link Broadcaster.SCOPE#REQUEST}
-     * will be created if that resource hasn't been yet suspended.
+     * if that resource hasn't been suspended yet.
      *
      * @param broadcaster
      * @return this
@@ -209,8 +199,8 @@ public interface AtmosphereResource {
     AtmosphereResource setBroadcaster(Broadcaster broadcaster);
 
     /**
-     * Set the {@link Serializer} to use when {@link AtmosphereResource#write}
-     * execute the operation. By default, the {@link Serializer} is null.
+     * Set the {@link Serializer} to use when {@link AtmosphereResource#write} execute the operation.
+     * By default, the {@link Serializer} is null.
      *
      * @param s the {@link Serializer}
      * @return this
@@ -219,6 +209,7 @@ public interface AtmosphereResource {
 
     /**
      * Write the String. If {@link #resumeOnBroadcast()} is true, the underlying connection will be resumed (@link #resume());
+     *
      * @param s
      * @return this
      */
@@ -226,6 +217,7 @@ public interface AtmosphereResource {
 
     /**
      * Write the bytes If {@link #resumeOnBroadcast()} is true, the underlying connection will be resumed (@link #resume());
+     *
      * @param s
      * @return this
      */
@@ -234,7 +226,7 @@ public interface AtmosphereResource {
     /**
      * Get the {@link Serializer} or null if not defined.
      *
-     * @return the {@link Serializer} or null if not defined.
+     * @return the {@link Serializer} or null if not defined
      */
     Serializer getSerializer();
 
@@ -246,25 +238,26 @@ public interface AtmosphereResource {
     /**
      * Return the associated {@link AtmosphereHandler} associated with this resource.
      *
-     * @return the associated {@link AtmosphereHandler} associated with this resource.
+     * @return the associated {@link AtmosphereHandler} associated with this resource
      */
     AtmosphereHandler getAtmosphereHandler();
 
     /**
-     * Set a message that will be written when the resource times out. Cab be an {@link Object} or {@link java.util.concurrent.Callable}
+     * Set a message that will be written when the resource times out. Can be an {@link Object} or {@link java.util.concurrent.Callable}.
+     *
      * @return this
      */
     AtmosphereResource writeOnTimeout(Object o);
 
     /**
-     * Return the object that will be written when the resource times out;
+     * Return the object that will be written when the resource times out.
      */
     Object writeOnTimeout();
 
     /**
      * Return the unique ID associated with this AtmosphereResource.
      *
-     * @return the unique ID associated with this AtmosphereResource.
+     * @return the unique ID associated with this AtmosphereResource
      */
     String uuid();
 
@@ -277,7 +270,7 @@ public interface AtmosphereResource {
     AtmosphereResource addEventListener(AtmosphereResourceEventListener e);
 
     /**
-     * Remove a{@link AtmosphereResourceEventListener}.
+     * Remove a {@link AtmosphereResourceEventListener}.
      *
      * @param e
      * @return this
@@ -285,13 +278,14 @@ public interface AtmosphereResource {
     AtmosphereResource removeEventListener(AtmosphereResourceEventListener e);
 
     /**
-     * Remove all {@link AtmosphereResourceEventListener}.
+     * Remove all {@link AtmosphereResourceEventListener}s.
+     *
      * @return this
      */
     AtmosphereResource removeEventListeners();
 
     /**
-     * Notify {@link AtmosphereResourceEventListener}.
+     * Notify all {@link AtmosphereResourceEventListener}.
      *
      * @param e an instance of AtmosphereResourceEvent
      * @return this
@@ -299,27 +293,29 @@ public interface AtmosphereResource {
     AtmosphereResource notifyListeners(AtmosphereResourceEvent e);
 
     /**
-     * Notify All {@link AtmosphereResourceEventListener}.
+     * Notify all {@link AtmosphereResourceEventListener}s.
+     *
      * @return this
      */
     AtmosphereResource notifyListeners();
 
     /**
-     * Return the {@link HttpSession} is supported, null if not
-     * @return the {@link HttpSession} is supported, null if not
+     * Return the {@link HttpSession} if supported, null if not
+     *
+     * @return the {@link HttpSession} if supported, null if not
      */
     HttpSession session();
 
-     /**
-     * Return the {@link HttpSession} is supported, and creates it if not already created.
-     * @return the {@link HttpSession} is supported, and creates it if not already created
+    /**
+     * Return the {@link HttpSession} if supported, and creates it if not already created.
+     *
+     * @return the {@link HttpSession} if supported, and creates it if not already created
      */
     HttpSession session(boolean create);
 
     /**
      * Close the underlying connection. Invoking this method will close the underlying connection and resume the
-     * {@link AtmosphereResource}}
+     * {@link AtmosphereResource}}.
      */
     void close() throws IOException;
-
 }

@@ -111,18 +111,18 @@ public class BroadcasterListenerTest {
     public void testLongPollingOnBroadcast() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
-        Map<String,String> m = new HashMap<String,String>();
+        Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
         AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
-        assertEquals(BAR.count.get(),1);
+        assertEquals(BAR.count.get(), 1);
     }
 
     @Test
     public void testCachedOnBroadcast() throws IOException, ServletException {
         framework.setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName()).addAtmosphereHandler("/*", new CachedAR()).init();
 
-        Map<String,String> m = new HashMap<String,String>();
+        Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, UUID.randomUUID().toString());
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
         AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
@@ -141,7 +141,7 @@ public class BroadcasterListenerTest {
                 e.getBroadcaster().broadcast("test1").get();
                 e.resume();
 
-                ((AtmosphereResourceImpl)e).reset();
+                ((AtmosphereResourceImpl) e).reset();
 
                 e.getBroadcaster().broadcast("test2").get();
                 e.getBroadcaster().broadcast("test3").get();
@@ -178,33 +178,33 @@ public class BroadcasterListenerTest {
         static AtomicInteger count = new AtomicInteger();
 
 
-         @Override
-         public void onRequest(AtmosphereResource e) throws IOException {
-             try {
-                 e.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                     @Override
-                     public void onBroadcast(AtmosphereResourceEvent event) {
+        @Override
+        public void onRequest(AtmosphereResource e) throws IOException {
+            try {
+                e.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    @Override
+                    public void onBroadcast(AtmosphereResourceEvent event) {
                         count.incrementAndGet();
-                     }
-                 }).suspend();
-                 e.getBroadcaster().broadcast("test").get();
-                 e.getBroadcaster().destroy();
-             } catch (InterruptedException e1) {
-                 e1.printStackTrace();
-             } catch (ExecutionException e1) {
-                 e1.printStackTrace();
-             }
-         }
+                    }
+                }).suspend();
+                e.getBroadcaster().broadcast("test").get();
+                e.getBroadcaster().destroy();
+            } catch (InterruptedException e1) {
+                e1.printStackTrace();
+            } catch (ExecutionException e1) {
+                e1.printStackTrace();
+            }
+        }
 
-         @Override
-         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
-         }
+        @Override
+        public void onStateChange(AtmosphereResourceEvent e) throws IOException {
+        }
 
 
-         @Override
-         public void destroy() {
-         }
-     }
+        @Override
+        public void destroy() {
+        }
+    }
 
 
     public final static class AR implements AtmosphereHandler {

@@ -94,11 +94,11 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
 
 /**
- * {@link Broadcaster} implementation.
+ * The default {@link Broadcaster} implementation.
  * <p/>
- * Broadcast messages to suspended response using the caller's Thread.
+ * Broadcast messages to suspended responses using the caller's Thread.
  * This basic {@link Broadcaster} use an {@link java.util.concurrent.ExecutorService}
- * to broadcast message, hence the broadcast operation is asynchronous. Make sure
+ * to broadcast messages, hence the broadcast operation is asynchronous. Make sure
  * you block on {@link #broadcast(Object)}.get()} if you need synchronous operations.
  *
  * @author Jeanfrancois Arcand
@@ -183,7 +183,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     /**
-     * Create {@link BroadcasterConfig}
+     * Create {@link BroadcasterConfig}.
      *
      * @param config the {@link AtmosphereConfig}
      * @return an instance of {@link BroadcasterConfig}
@@ -192,9 +192,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return new BroadcasterConfig(config.framework().broadcasterFilters, config, getID());
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public synchronized void destroy() {
 
         if (notifyOnPreDestroy()) return;
@@ -233,16 +231,12 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Collection<AtmosphereResource> getAtmosphereResources() {
         return Collections.unmodifiableCollection(resources);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public void setScope(SCOPE scope) {
         if (destroyed.get()) {
             logger.debug(DESTROYED, getID(), "setScope");
@@ -291,16 +285,12 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public SCOPE getScope() {
         return scope;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public synchronized void setID(String id) {
         if (id == null) {
             id = getClass().getSimpleName() + "/" + UUID.randomUUID();
@@ -323,16 +313,12 @@ public class DefaultBroadcaster implements Broadcaster {
         bc.broadcasterID(name);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public String getID() {
         return name;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public void resumeAll() {
         synchronized (resources) {
             for (AtmosphereResource r : resources) {
@@ -347,16 +333,10 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void releaseExternalResources() {
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void setBroadcasterLifeCyclePolicy(final BroadcasterLifeCyclePolicy lifeCyclePolicy) {
         this.lifeCyclePolicy = lifeCyclePolicy;
@@ -443,33 +423,21 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void addBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
         lifeCycleListeners.add(b);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void removeBroadcasterLifeCyclePolicyListener(BroadcasterLifeCyclePolicyListener b) {
         lifeCycleListeners.remove(b);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean isDestroyed() {
         return destroyed.get();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Future<Object> awaitAndBroadcast(Object t, long time, TimeUnit timeUnit) {
         if (resources.isEmpty()) {
@@ -486,9 +454,6 @@ public class DefaultBroadcaster implements Broadcaster {
         return broadcast(t);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Broadcaster addBroadcasterListener(BroadcasterListener b) {
         if (!broadcasterListeners.contains(b)) {
@@ -497,9 +462,6 @@ public class DefaultBroadcaster implements Broadcaster {
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Broadcaster removeBroadcasterListener(BroadcasterListener b) {
         broadcasterListeners.remove(b);
@@ -700,7 +662,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         Object finalMsg = callable(entry.message);
         if (finalMsg == null) {
-            logger.error("Callable exception. Please catch all exception from you callable. Message {} will be lost and all AtmosphereResource " +
+            logger.error("Callable exception. Please catch all exceptions from your callable. Message {} will be lost and all AtmosphereResource " +
                     "associated with this Broadcaster resumed.", entry.message);
             entryDone(entry.future);
             switch (entry.type) {
@@ -732,7 +694,7 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.originalMessage = (entry.originalMessage != entry.message ? callable(entry.originalMessage) : finalMsg);
 
         if (entry.originalMessage == null) {
-            logger.trace("Broadcast message was null {}", prevM);
+            logger.trace("Broadcasted message was null {}", prevM);
             entryDone(entry.future);
             return;
         }
@@ -909,7 +871,7 @@ public class DefaultBroadcaster implements Broadcaster {
             } catch (Throwable t) {
                 logger.debug("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
-                logger.trace("If you are using Tomcat 7.0.22 and lower, your most probably hitting http://is.gd/NqicFT");
+                logger.trace("If you are using Tomcat 7.0.22 and lower, you're most probably hitting http://is.gd/NqicFT");
                 logger.trace("", t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(r, false);
@@ -939,7 +901,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 // Long Polling listener will be cleared when the resume() is called.
                 if (willBeResumed) {
                     event.setMessage(token.msg);
-                    for (AtmosphereResourceEventListener e: listeners) {
+                    for (AtmosphereResourceEventListener e : listeners) {
                         e.onBroadcast(event);
                     }
                 } else {
@@ -995,7 +957,7 @@ public class DefaultBroadcaster implements Broadcaster {
             final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
 
             if (willBeResumed) {
-                filteredMessageClone = (LinkedList<Object>)filteredMessage.clone();
+                filteredMessageClone = (LinkedList<Object>) filteredMessage.clone();
             }
 
             List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
@@ -1123,7 +1085,8 @@ public class DefaultBroadcaster implements Broadcaster {
             return null;
         }
 
-        public void interrupt() {}
+        public void interrupt() {
+        }
     }
 
     public void onException(Throwable t, final AtmosphereResource ar) {
@@ -1227,9 +1190,6 @@ public class DefaultBroadcaster implements Broadcaster {
         this.policy = policy;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Future<Object> broadcast(Object msg) {
 
@@ -1280,9 +1240,6 @@ public class DefaultBroadcaster implements Broadcaster {
             return a.message();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Future<Object> broadcast(Object msg, AtmosphereResource r) {
 
@@ -1300,9 +1257,6 @@ public class DefaultBroadcaster implements Broadcaster {
         return f;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Future<Object> broadcastOnResume(Object msg) {
 
@@ -1332,9 +1286,6 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
 
@@ -1352,9 +1303,6 @@ public class DefaultBroadcaster implements Broadcaster {
         return f;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Broadcaster addAtmosphereResource(AtmosphereResource r) {
         try {
@@ -1416,7 +1364,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     /**
-     * Look in the cache to see of there are messages available, and takes the appropriate actions.
+     * Look in the cache to see if there are messages available, and take the appropriate actions.
      *
      * @param r AtmosphereResource
      */
@@ -1498,9 +1446,6 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Broadcaster removeAtmosphereResource(AtmosphereResource r) {
         return removeAtmosphereResource(r, true);
@@ -1569,35 +1514,22 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    /**
-     * Set the {@link BroadcasterConfig} instance.
-     *
-     * @param bc
-     */
     @Override
     public void setBroadcasterConfig(BroadcasterConfig bc) {
         this.bc = bc;
     }
 
-    /**
-     * Return the current {@link BroadcasterConfig}
-     *
-     * @return the current {@link BroadcasterConfig}
-     */
+    @Override
     public BroadcasterConfig getBroadcasterConfig() {
         return bc;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Future<Object> delayBroadcast(Object o) {
         return delayBroadcast(o, 0, null);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Future<Object> delayBroadcast(final Object o, long delay, TimeUnit t) {
 
         if (destroyed.get()) {
@@ -1644,16 +1576,12 @@ public class DefaultBroadcaster implements Broadcaster {
         return future;
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Future<Object> scheduleFixedBroadcast(final Object o, long period, TimeUnit t) {
         return scheduleFixedBroadcast(o, 0, period, t);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Future<Object> scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t) {
 
         if (destroyed.get()) {
@@ -1693,6 +1621,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }, waitFor, period, t);
     }
 
+    @Override
     public String toString() {
         return new StringBuilder().append("\n\tName: ").append(name)
                 .append("\n\tAtmosphereResource: ").append(resources.size())

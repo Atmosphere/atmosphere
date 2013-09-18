@@ -18,7 +18,7 @@ package org.atmosphere.interceptor;
 /**
  * A simple marker class to use with {@link org.atmosphere.cpr.AtmosphereInterceptor} in order to determine in which
  * position in the interceptor's chain the AtmosphereInterceptor must be installed.
- *
+ * <p/>
  * Normally all {@link org.atmosphere.cpr.AtmosphereInterceptor} are installed using the {@link InvokationOrder.PRIORITY#AFTER_DEFAULT}
  *
  * @author Jeanfrancois Arcand
@@ -46,6 +46,7 @@ public interface InvokationOrder {
 
     /**
      * Return the priority an AtmosphereInterceptor must be executed.
+     *
      * @return PRIORITY
      */
     PRIORITY priority();

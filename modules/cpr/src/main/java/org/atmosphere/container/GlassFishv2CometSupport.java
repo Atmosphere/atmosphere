@@ -75,8 +75,7 @@ import java.io.IOException;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
- * Comet Portable Runtime implementation on top of Grizzly API included
- * with GlassFish v2.
+ * Comet Portable Runtime implementation on top of Grizzly API included with GlassFish v2.
  *
  * @author Jeanfrancois Arcand
  */
@@ -113,6 +112,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
@@ -148,7 +148,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
     }
 
     /**
-     * Resume the underlying response,
+     * Resume the underlying response.
      *
      * @param req an {@link AtmosphereRequest}
      * @param ctx a {@link CometContext}
@@ -173,9 +173,6 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl actionEvent) {
         super.action(actionEvent);
@@ -210,33 +207,23 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
             this.res = res;
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public void attach(Object o) {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public void onEvent(CometEvent ce) throws IOException {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public void onInitialize(CometEvent ce) throws IOException {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public void onTerminate(CometEvent ce) throws IOException {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public synchronized void onInterrupt(CometEvent ce) throws IOException {
             long timeStamp = (Long) ce.getCometContext().getAttribute("Time");
             try {

@@ -74,9 +74,7 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
         logger.debug("Created CometContext for atmosphere context: {}", atmosphereCtx);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
@@ -142,9 +140,6 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
@@ -198,27 +193,19 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
         public void attach(Object o) {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public void onEvent(CometEvent ce) throws IOException {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public void onInitialize(CometEvent ce) throws IOException {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public void onTerminate(CometEvent ce) throws IOException {
         }
 
-        /**
-         * {@inheritDoc}
-         */
+        @Override
         public synchronized void onInterrupt(CometEvent ce) throws IOException {
             long timeStamp = (Long) ce.getCometContext().getAttribute("Time");
             try {

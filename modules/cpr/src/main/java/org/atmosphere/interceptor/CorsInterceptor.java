@@ -24,7 +24,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import java.util.concurrent.atomic.AtomicReference;
 
 /**
- * CORS support
+ * CORS support.
  *
  * @author Janusz Sobolewski
  */
@@ -34,27 +34,27 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource resource) {
-        
-        AtmosphereRequest req = resource.getRequest();                                   
+
+        AtmosphereRequest req = resource.getRequest();
         AtmosphereResponse res = resource.getResponse();
-        
-        if(req.getHeader("Origin") != null){
+
+        if (req.getHeader("Origin") != null) {
             res.addHeader("Access-Control-Allow-Origin", req.getHeader("Origin"));
             res.addHeader("Access-Control-Expose-Headers", "X-Cache-Date, X-Atmosphere-tracking-id");
             res.setHeader("Access-Control-Allow-Credentials", "true");
         }
 
-        if("OPTIONS".equals(req.getMethod())){
+        if ("OPTIONS".equals(req.getMethod())) {
             res.setHeader("Access-Control-Allow-Methods", "OPTIONS, GET, POST");
             res.setHeader("Access-Control-Allow-Headers",
                     "Origin, Content-Type, X-Atmosphere-Framework, X-Cache-Date, X-Atmosphere-tracking-id, X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
             res.setHeader("Access-Control-Max-Age", "-1");
 
             res.write(emptyMessage.get());
-            
+
             return Action.SKIP_ATMOSPHEREHANDLER;
-        } 
-        
+        }
+
         return Action.CONTINUE;
     }
 

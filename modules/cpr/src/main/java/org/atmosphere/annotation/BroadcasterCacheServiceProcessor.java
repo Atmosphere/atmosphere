@@ -25,6 +25,5 @@ public class BroadcasterCacheServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         framework.setBroadcasterCacheClassName(annotatedClass.getName());
-
     }
 }

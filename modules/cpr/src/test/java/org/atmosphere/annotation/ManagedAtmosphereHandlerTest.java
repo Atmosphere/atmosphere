@@ -58,7 +58,7 @@ public class ManagedAtmosphereHandlerTest {
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
-        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName()) ;
+        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
         framework.addAnnotationPackage(ManagedGet.class);
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
 
@@ -223,23 +223,23 @@ public class ManagedAtmosphereHandlerTest {
     @ManagedService(path = "/k")
     public final static class ManagedMessageWithResource {
 
-      @Get
-      public void get(AtmosphereResource resource) {
-          r.set(resource);
-          resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-              @Override
-              public void onSuspend(AtmosphereResourceEvent event) {
-                  AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("POST").body("message").build();
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(resource);
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("POST").body("message").build();
 
-                  try {
-                      event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
-                  } catch (IOException e) {
-                      e.printStackTrace();
-                  } catch (ServletException e) {
-                      e.printStackTrace();
-                  }
-              }
-          }).suspend();
+                    try {
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ServletException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).suspend();
 
         }
 
@@ -283,13 +283,13 @@ public class ManagedAtmosphereHandlerTest {
     }
 
     public final static class I extends AtmosphereInterceptorAdapter {
-       @Override
-       public PRIORITY priority() {
-           return InvokationOrder.FIRST_BEFORE_DEFAULT;
-       }
+        @Override
+        public PRIORITY priority() {
+            return InvokationOrder.FIRST_BEFORE_DEFAULT;
+        }
 
         @Override
-        public String toString(){
+        public String toString() {
             return "XXX";
         }
     }

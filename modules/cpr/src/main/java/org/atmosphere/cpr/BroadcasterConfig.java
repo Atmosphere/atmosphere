@@ -69,8 +69,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * Handle {@link Broadcaster} configuration like {@link ExecutorService} and
- * {@link BroadcastFilter}
+ * Handle {@link Broadcaster} configuration like {@link ExecutorService} and {@link BroadcastFilter}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -120,6 +119,7 @@ public class BroadcasterConfig {
         this.handleExecutors = true;
         this.shared = config.framework().isShareExecutorServices();
     }
+
     private void configureBroadcasterCache() {
         try {
             String className = config.framework().getBroadcasterCacheClassName();
@@ -193,7 +193,7 @@ public class BroadcasterConfig {
     /**
      * Set an {@link ExecutorService} which can be used to dispatch
      * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
-     * of size 1 is used if that method is not invoked.
+     * of size 1 is used if this method is not invoked.
      *
      * @param executorService to be used when broadcasting.
      */
@@ -204,11 +204,12 @@ public class BroadcasterConfig {
     /**
      * Set an {@link ExecutorService} which can be used to dispatch
      * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
-     * of size 1 is used if that method is not invoked.
+     * of size 1 is used if this method is not invoked.
      *
      * @param executorService  to be used when broadcasting.
-     * @param isExecutorShared true is the life cycle of the {@link ExecutorService} will be executed by the application.
-     *                         That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     * @param isExecutorShared true if the life cycle of the {@link ExecutorService} will be executed by the application.
+     *                         It means Atmosphere will NOT invoke the shutdown method when {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     *                         is invoked.
      */
     public BroadcasterConfig setExecutorService(ExecutorService executorService, boolean isExecutorShared) {
         if (!this.isExecutorShared && this.executorService != null) {
@@ -220,8 +221,8 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Return the {@link ExecutorService} this {@link Broadcaster} support.
-     * By default it returns {@link java.util.concurrent.Executors#newFixedThreadPool(int)} of size 1.
+     * Return the {@link ExecutorService} this {@link Broadcaster} supports.
+     * By default it returns an {@link java.util.concurrent.Executors#newFixedThreadPool(int)} of size 1.
      *
      * @return An ExecutorService.
      */
@@ -232,9 +233,9 @@ public class BroadcasterConfig {
     /**
      * Set an {@link ExecutorService} which can be used to write
      * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
-     * is used if that method is not invoked.
+     * is used if this method is not invoked.
      *
-     * @param asyncWriteService to be used when writing events .
+     * @param asyncWriteService to be used when writing events.
      */
     public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService) {
         return setAsyncWriteService(asyncWriteService, false);
@@ -243,11 +244,12 @@ public class BroadcasterConfig {
     /**
      * Set an {@link ExecutorService} which can be used to write
      * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
-     * is used if that method is not invoked.
+     * is used if this method is not invoked.
      *
-     * @param asyncWriteService     to be used when writing events .
-     * @param isAsyncExecutorShared true is the life cycle of the {@link ExecutorService} will be executed by the application.
-     *                              That means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     * @param asyncWriteService     to be used when writing events.
+     * @param isAsyncExecutorShared true if the life cycle of the {@link ExecutorService} will be executed by the application.
+     *                              It means Atmosphere will NOT invoke the shutdown method when this {@link org.atmosphere.cpr.BroadcasterConfig#destroy()}
+     *                              is invoked.
      */
     public BroadcasterConfig setAsyncWriteService(ExecutorService asyncWriteService, boolean isAsyncExecutorShared) {
         if (!this.isAsyncExecutorShared && this.asyncWriteService != null) {
@@ -260,7 +262,7 @@ public class BroadcasterConfig {
 
     /**
      * Return the {@link ExecutorService} this {@link Broadcaster} use for executing asynchronous write of events.
-     * By default it returns {@link java.util.concurrent.Executors#newCachedThreadPool()} of size 1.
+     * By default it returns an {@link java.util.concurrent.Executors#newCachedThreadPool()} of size 1.
      *
      * @return An ExecutorService.
      */
@@ -269,20 +271,20 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Add a {@link BroadcastFilter}
+     * Add a {@link BroadcastFilter}.
      *
      * @param e {@link BroadcastFilter}
-     * @return true if added.
+     * @return true if successfully added
      */
     public boolean addFilter(BroadcastFilter e) {
         return addFilter(e, true);
     }
 
     /**
-     * Add a {@link BroadcastFilter}
+     * Add a {@link BroadcastFilter}.
      *
      * @param e {@link BroadcastFilter}
-     * @return true if added.
+     * @return true if successfully added
      */
     protected boolean addFilter(BroadcastFilter e, boolean init) {
         logDuplicateFilter(e);
@@ -317,10 +319,11 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Return the current list of installed {@link BroadcastFilter}
-     * @return the current list of installed {@link BroadcastFilter}
+     * Return the current list of installed {@link BroadcastFilter}s.
+     *
+     * @return the current list of installed {@link BroadcastFilter}s
      */
-    public Collection<BroadcastFilter> filters(){
+    public Collection<BroadcastFilter> filters() {
         return filters;
     }
 
@@ -356,20 +359,19 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Force shutdown of all {@link ExecutorService}
+     * Force shutdown of all {@link ExecutorService}s.
      */
     public void forceDestroy() {
         destroy(true);
     }
 
     /**
-     * Remove a {@link BroadcastFilter}
+     * Remove a {@link BroadcastFilter}.
      *
      * @param filter {@link BroadcastFilter}
-     * @return true if removed
+     * @return true if successfully removed
      */
     public boolean removeFilter(BroadcastFilter filter) {
-
         if (filter instanceof BroadcastFilterLifecycle) {
             ((BroadcastFilterLifecycle) filter).destroy();
         }
@@ -382,7 +384,7 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Remove all {@link BroadcastFilter}
+     * Remove all {@link BroadcastFilter}s.
      */
     public void removeAllFilters() {
         for (BroadcastFilter filter : filters) {
@@ -391,18 +393,18 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Return true if this object contains {@link BroadcastFilter}
+     * Check if this object contains {@link BroadcastFilter}s.
      *
-     * @return true if this object contains {@link BroadcastFilter}
+     * @return true if this object contains {@link BroadcastFilter}s
      */
     public boolean hasFilters() {
         return !filters.isEmpty();
     }
 
     /**
-     * Return true if this object contains {@link BroadcastFilter}
+     * Check if this object contains {@link BroadcastFilter}s.
      *
-     * @return true if this object contains {@link BroadcastFilter}
+     * @return true if this object contains {@link BroadcastFilter}s
      */
     public boolean hasPerRequestFilters() {
         if (filters.isEmpty()) {
@@ -418,7 +420,7 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Invoke {@link BroadcastFilter} in the other they were added.
+     * Invoke {@link BroadcastFilter}s in the order they were added.
      *
      * @param object the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
@@ -439,14 +441,14 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Invoke {@link BroadcastFilter} in the other they were added, with a unique {@link AtmosphereRequest}
+     * Invoke {@link BroadcastFilter}s in the order they were added, with a unique {@link AtmosphereRequest}.
      *
      * @param r       {@link AtmosphereResource}
      * @param message the broadcasted object.
      * @param message the broadcasted object.
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
-    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage)  {
+    protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
         BroadcastAction transformed = new BroadcastAction(message);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
@@ -463,11 +465,12 @@ public class BroadcasterConfig {
 
     /**
      * Apply all filters to the {@link AtmosphereResource} and the provided {@link List} of messages.
-     * @param r  {@link AtmosphereResource}
+     *
+     * @param r             {@link AtmosphereResource}
      * @param cacheMessages list of messages
      * @return the new list of objects.
      */
-    public List<Object> applyFilters(AtmosphereResource r, List<Object> cacheMessages){
+    public List<Object> applyFilters(AtmosphereResource r, List<Object> cacheMessages) {
         LinkedList<Object> filteredMessage = new LinkedList<Object>();
         BroadcastFilter.BroadcastAction a;
         for (Object o : cacheMessages) {
@@ -494,8 +497,8 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to dispatch
-     * {@link AtmosphereResourceEvent}. By default, an {@link java.util.concurrent.ScheduledExecutorService}
-     * is used if that method is not invoked.
+     * {@link AtmosphereResourceEvent}s. By default a {@link java.util.concurrent.ScheduledExecutorService}
+     * is used if this method is not invoked.
      *
      * @param scheduler to be used when broadcasting.
      * @return this.
@@ -509,8 +512,8 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Return the {@link ScheduledExecutorService} this {@link Broadcaster} support.
-     * By default it returns {@link Executors#newScheduledThreadPool} and will use
+     * Return the {@link ScheduledExecutorService} this {@link Broadcaster} supports.
+     * By default it returns an {@link Executors#newScheduledThreadPool} and will use
      * the underlying number of core/protocol as an indication of the thread number.
      *
      * @return An ExecutorService.
@@ -520,7 +523,7 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Set a {@link BroadcasterCache}
+     * Set a {@link BroadcasterCache}.
      *
      * @param broadcasterCache a {@link BroadcasterCache}
      * @return this
@@ -531,9 +534,9 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Get a {@link BroadcasterCache}
+     * Get the {@link BroadcasterCache} used for this {@link Broadcaster}.
      *
-     * @return this
+     * @return a {@link BroadcasterCache}
      */
     public BroadcasterCache getBroadcasterCache() {
         return broadcasterCache;
@@ -546,9 +549,9 @@ public class BroadcasterConfig {
                 bf = BroadcastFilter.class
                         .cast(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
             } catch (InstantiationException e) {
-                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+                logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
             } catch (IllegalAccessException e) {
-                logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+                logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
             } catch (ClassNotFoundException e) {
                 try {
                     bf = BroadcastFilter.class
@@ -556,14 +559,13 @@ public class BroadcasterConfig {
                 } catch (InstantiationException e1) {
                 } catch (IllegalAccessException e1) {
                 } catch (ClassNotFoundException e1) {
-                    logger.warn("Error trying to instantiate BroadcastFilter: " + broadcastFilter, e);
+                    logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
                 }
             }
             if (bf != null) {
                 InjectorProvider.getInjector().inject(bf);
                 addFilter(bf);
             }
-
         }
     }
 

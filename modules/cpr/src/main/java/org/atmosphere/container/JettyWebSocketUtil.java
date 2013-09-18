@@ -15,7 +15,6 @@
  */
 package org.atmosphere.container;
 
-
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;

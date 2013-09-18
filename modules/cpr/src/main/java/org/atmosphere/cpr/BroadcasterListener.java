@@ -16,39 +16,44 @@
 package org.atmosphere.cpr;
 
 /**
- * A listener for {@link Broadcaster} events lifecycle.
+ * A listener for a {@link Broadcaster}'s event lifecycle.
  *
  * @author Jeanfrancois Arcand
  */
 public interface BroadcasterListener {
 
     /**
-     * Invoked just after the {@link Broadcaster} has been created
+     * Invoked just after the {@link Broadcaster} has been created.
+     *
      * @param b a Broadcaster
      */
     void onPostCreate(Broadcaster b);
 
     /**
-     * Invoked when the Broadcast operation complete.
+     * Invoked when the Broadcast operation completes.
+     *
      * @param b a Broadcaster
      */
     void onComplete(Broadcaster b);
 
     /**
      * Invoked before a Broadcaster is about to be deleted.
+     *
      * @param b a Broadcaster
      */
     void onPreDestroy(Broadcaster b);
 
     /**
-     * Invoked when an {@link AtmosphereResource} is getting associated to a {@link Broadcaster}
+     * Invoked when an {@link AtmosphereResource} is getting associated to a {@link Broadcaster}.
+     *
      * @param b a Broadcaster
      * @param r an AtmosphereResource
      */
     void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r);
 
     /**
-     * Invoked when an {@link AtmosphereResource} is getting removed to a {@link Broadcaster}
+     * Invoked when an {@link AtmosphereResource} is getting removed to a {@link Broadcaster}.
+     *
      * @param b a Broadcaster
      * @param r an AtmosphereResource
      */
@@ -59,7 +64,7 @@ public interface BroadcasterListener {
      */
     public final static class BroadcastListenerException extends RuntimeException {
 
-        public BroadcastListenerException(){
+        public BroadcastListenerException() {
         }
     }
 }

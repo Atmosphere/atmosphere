@@ -23,14 +23,15 @@ import java.util.Map;
  * This class is responsible for mapping request to handler like {@link org.atmosphere.cpr.AtmosphereHandler}
  * or {@link org.atmosphere.websocket.WebSocketHandler}
  *
- * @Jeanfrancois Arcand
  * @param <U>
+ * @Jeanfrancois Arcand
  */
 public interface EndpointMapper<U> {
 
     /**
      * Mape the request to its associated endpoint.
-     * @param req an {@link AtmosphereRequest}
+     *
+     * @param req      an {@link AtmosphereRequest}
      * @param handlers a map used for mapping the request to.
      * @return U the result, or null if not mapped
      */
@@ -39,10 +40,10 @@ public interface EndpointMapper<U> {
 
     /**
      * Mape the request to its associated endpoint.
-     * @param path a URI
+     *
+     * @param path     a URI
      * @param handlers a map used for mapping the request to.
      * @return U the result, or null if not mapped
      */
     U map(String path, Map<String, U> handlers);
-
 }

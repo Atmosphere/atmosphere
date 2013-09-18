@@ -41,5 +41,4 @@ public class NginxInterceptor extends AtmosphereInterceptorAdapter {
         }
         return Action.CONTINUE;
     }
-
 }

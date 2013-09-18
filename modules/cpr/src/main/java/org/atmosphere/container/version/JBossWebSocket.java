@@ -24,8 +24,7 @@ import java.io.IOException;
 import java.util.Arrays;
 
 /**
- * Adapts a JBoss {@link WebSocket} to an atmosphere
- * {@link org.atmosphere.websocket.WebSocket}.
+ * Adapts a JBoss {@link WebSocket} to an Atmosphere {@link org.atmosphere.websocket.WebSocket}.
  * 
  * @author Péter Miklós
  */
@@ -64,5 +63,4 @@ public class JBossWebSocket extends org.atmosphere.websocket.WebSocket {
             logger.trace("Error closing websocket.", e);
         }
     }
-
 }

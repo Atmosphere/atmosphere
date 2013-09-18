@@ -15,11 +15,11 @@
  */
 package org.atmosphere.cpr;
 
-import java.util.Map;
-import java.util.WeakHashMap;
-
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProcessor;
+
+import java.util.Map;
+import java.util.WeakHashMap;
 
 /**
  * Factory for {@link WebSocketProcessor}.
@@ -40,13 +40,12 @@ public class WebSocketProcessorFactory {
     }
 
     /**
-     * Return the {@link WebSocketProcessor}
+     * Return the {@link WebSocketProcessor}.
      *
      * @param framework {@link AtmosphereFramework}
      * @return an instance of {@link WebSocketProcessor}
      */
-    public WebSocketProcessor getWebSocketProcessor(
-            AtmosphereFramework framework) {
+    public WebSocketProcessor getWebSocketProcessor(AtmosphereFramework framework) {
         WebSocketProcessor processor = processors.get(framework);
         if (processor == null) {
             synchronized (framework) {

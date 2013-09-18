@@ -122,7 +122,7 @@ public class WebSocketProcessorTest {
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-        final AtomicReference<String> url = new  AtomicReference<String>();
+        final AtomicReference<String> url = new AtomicReference<String>();
 
         framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
 
@@ -158,21 +158,21 @@ public class WebSocketProcessorTest {
         framework.addInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR, "true")
                 .addAtmosphereHandler("/*", new AtmosphereHandler() {
 
-            @Override
-            public void onRequest(AtmosphereResource resource) throws IOException {
-                resource.getBroadcaster().addAtmosphereResource(resource);
-                resource.getResponse().write(resource.getRequest().getReader().readLine());
-            }
+                    @Override
+                    public void onRequest(AtmosphereResource resource) throws IOException {
+                        resource.getBroadcaster().addAtmosphereResource(resource);
+                        resource.getResponse().write(resource.getRequest().getReader().readLine());
+                    }
 
-            @Override
-            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
-                event.getResource().write(event.getMessage().toString().getBytes());
-            }
+                    @Override
+                    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                        event.getResource().write(event.getMessage().toString().getBytes());
+                    }
 
-            @Override
-            public void destroy() {
-            }
-        });
+                    @Override
+                    public void destroy() {
+                    }
+                });
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
@@ -338,7 +338,7 @@ public class WebSocketProcessorTest {
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
 
-        framework.addWebSocketHandler("/*", new WebSocketHandlerAdapter(){
+        framework.addWebSocketHandler("/*", new WebSocketHandlerAdapter() {
 
             @Override
             public void onTextMessage(WebSocket webSocket, String data) throws IOException {

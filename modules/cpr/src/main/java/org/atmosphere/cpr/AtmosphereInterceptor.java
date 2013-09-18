@@ -17,34 +17,34 @@ package org.atmosphere.cpr;
 
 /**
  * Intercept the dispatch of {@link AtmosphereResource} before they get dispatched to {@link AtmosphereHandler}s.
- * An implementation of this class can intercept the dispatch and modify the AtmosphereResource and it's
- * associated {@link AtmosphereRequest} and {@link AtmosphereResponse}
+ * An implementation of this class can intercept the dispatch and modify the AtmosphereResource and its
+ * associated {@link AtmosphereRequest} and {@link AtmosphereResponse}.
  * <p/>
- * This class can be used to implement custom protocol like Server Side Events, Socket.IO, etc.
+ * This class can be used to implement custom protocols like Server-Side Events, Socket.IO, etc.
  *
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereInterceptor {
 
     /**
-     * Allow this object to configure it's state when initialized
+     * Allow this object to configure its state when initialized.
      *
      * @param config an {@link AtmosphereConfig}
      */
     void configure(AtmosphereConfig config);
 
     /**
-     * Invoked before an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}
+     * Invoked before an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}.
      *
      * @param r a {@link AtmosphereResource}
-     * @return {@link Action#CONTINUE} or  {@link Action#SUSPEND}
+     * @return {@link Action#CONTINUE} or {@link Action#SUSPEND}
      *         to dispatch the {@link AtmosphereResource} to other {@link AtmosphereInterceptor} or {@link AtmosphereHandler}.
      *         Return {@link Action.TYPE#CANCELLED} to stop the processing.
      */
     Action inspect(AtmosphereResource r);
 
     /**
-     * Invoked after an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}
+     * Invoked after an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}.
      *
      * @param r a {@link AtmosphereResource}
      */

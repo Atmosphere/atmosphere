@@ -45,18 +45,18 @@ public @interface WebSocketHandlerService {
     Class<? extends BroadcastFilter>[] broadcastFilters() default {};
 
     /**
-      * The {@link org.atmosphere.cpr.BroadcasterCache} class name. By default, a no ops {@link DefaultBroadcasterCache}
-      * is installed. It is strongly recommend to install the {@link org.atmosphere.cache.UUIDBroadcasterCache} to prevent
-      * message being lost.
+      * The {@link org.atmosphere.cpr.BroadcasterCache} class name. By default, a no-ops {@link DefaultBroadcasterCache}
+      * is installed. It is strongly recommended to install the {@link org.atmosphere.cache.UUIDBroadcasterCache} to prevent
+      * messages being lost.
       *
       * @return The {@link org.atmosphere.cpr.Broadcaster} class name
       */
      Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
 
     /**
-     * The mapping path, or context-root used to map this WebSocketHandler
+     * The mapping path or context-root used to map this WebSocketHandler
      *
-     * @return mapping path, or context-root used to map this WebSocketHandler
+     * @return mapping path or context-root used to map this WebSocketHandler
      */
     String path() default "/";
 
@@ -73,12 +73,10 @@ public @interface WebSocketHandlerService {
     Class<? extends AtmosphereInterceptor>[] interceptors() default {};
 
     /**
-      * Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-      * delimited using "=" and separated using coma.
-      * @return Atmosphere's config that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Atmosphere's config are defined
-      * delimited using "=" and separated using coma.
-      */
-     String[] atmosphereConfig() default {};
+     * Atmosphere's configuration that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Configuration
+     * name and value is delimited by "=", and different configuration lines are separated by comma.
+     */
+    String[] atmosphereConfig() default {};
 
     /**
      * Add {@link org.atmosphere.cpr.AtmosphereResourceEventListener} to track internal events.

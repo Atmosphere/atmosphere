@@ -25,7 +25,6 @@ import java.net.URLEncoder;
  * @author : Siddique Hameed
  * @version : 0.1
  */
-
 public class FocusPoint {
 
     private String name;
@@ -45,7 +44,6 @@ public class FocusPoint {
     public String getName() {
         return name;
     }
-
 
     public void setParentTrackPoint(FocusPoint parentFocusPoint) {
         this.parentFocusPoint = parentFocusPoint;

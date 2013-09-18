@@ -54,20 +54,20 @@ import java.util.zip.ZipFile;
  * @since annotation-detector 3.0.0
  */
 final class ZipFileIterator {
-    
+
     private final ZipFile zipFile;
     private final Enumeration<? extends ZipEntry> entries;
     private ZipEntry current;
-    
+
     ZipFileIterator(final File file) throws IOException {
         zipFile = new ZipFile(file);
         entries = zipFile.entries();
     }
-    
+
     public ZipEntry getEntry() {
         return current;
     }
-    
+
     public InputStream next() throws IOException {
         while (entries.hasMoreElements()) {
             current = entries.nextElement();
@@ -84,5 +84,5 @@ final class ZipFileIterator {
         }
         return null;
     }
-    
+
 }

@@ -83,7 +83,7 @@ public class AtmosphereResourceStateRecoveryTest {
     }
 
     // This test is no longer working since isClosedByClient changes the behavior.
-    @Test (enabled = false)
+    @Test(enabled = false)
     public void restoreStateTest() throws ServletException, IOException {
         recovery.configure(config);
         recovery.inspect(r);
@@ -125,7 +125,7 @@ public class AtmosphereResourceStateRecoveryTest {
 
     }
 
-    @Test (enabled = false)
+    @Test(enabled = false)
     public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
         final AtomicReference<Object> ref = new AtomicReference<Object>();
         AtmosphereResourceImpl r = (AtmosphereResourceImpl) AtmosphereResourceFactory.getDefault().create(config, "1234567");

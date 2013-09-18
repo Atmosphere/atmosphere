@@ -36,7 +36,7 @@ import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 /**
- * Abstract {@link org.atmosphere.cpr.BroadcasterCache} which is used to implement headers or query parameters or
+ * Abstract {@link org.atmosphere.cpr.BroadcasterCache} which is used to implement headers, query parameters or
  * session based caching.
  *
  * @author Paul Khodchenkov
@@ -49,8 +49,8 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected final Set<String> messagesIds = new HashSet<String>();
     protected final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
     protected ScheduledFuture scheduledFuture;
-    protected long maxCacheTime = TimeUnit.MINUTES.toMillis(2);//2 minutes
-    protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
+    protected long maxCacheTime = TimeUnit.MINUTES.toMillis(2); // 2 minutes
+    protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1); // 1 minute
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     protected boolean isShared = false;
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
@@ -138,9 +138,9 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     /**
-     * Set the time, in millisecond, the cache will be checked and purged.
+     * Set the delay between cache purges.
      *
-     * @param invalidateCacheInterval
+     * @param invalidateCacheInterval the purge interval in milliseconds
      * @return this
      */
     public AbstractBroadcasterCache setInvalidateCacheInterval(long invalidateCacheInterval) {
@@ -149,9 +149,9 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     /**
-     * Set the maxium time, in millisecond, a message stay alive in the cache.
+     * Set the maximum time a message stays alive in the cache.
      *
-     * @param maxCacheTime the maxium time, in millisecond, a message stay alive in the cache.
+     * @param maxCacheTime the maximum time in milliseconds.
      * @return this
      */
     public AbstractBroadcasterCache setMaxCacheTime(long maxCacheTime) {

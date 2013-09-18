@@ -84,9 +84,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         super(config);
     }
 
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public Action service(final AtmosphereRequest req, final AtmosphereResponse res) throws IOException, ServletException {
         Action action = null;
 
@@ -170,9 +168,6 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
         return ContinuationSupport.getContinuation(req);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);

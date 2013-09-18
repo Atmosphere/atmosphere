@@ -15,12 +15,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Shiro Interceptor, it creates a request attribute (subject) that contains the true Subject. 
+ * Shiro Interceptor, it creates a request attribute (subject) that contains the true Subject.
  * For more information about why don't use directly SecurityUtils.getSubject
  * http://jfarcand.wordpress.com/2011/07/13/quick-tip-using-apache-shiro-with-your-atmospheres-websocketcomet-app/
- *
  */
 public class ShiroInterceptor extends AtmosphereInterceptorAdapter {
+
     private static final Logger logger = LoggerFactory.getLogger(ShiroInterceptor.class);
 
     @Override
@@ -37,14 +37,13 @@ public class ShiroInterceptor extends AtmosphereInterceptorAdapter {
                 if (currentUser != null) {
                     r.getRequest().setAttribute(FrameworkConfig.SECURITY_SUBJECT, currentUser);
                 }
-            } catch(UnavailableSecurityManagerException ex) {
+            } catch (UnavailableSecurityManagerException ex) {
                 logger.info("Shiro Web Security : {}", ex.getMessage());
-            } catch(java.lang.IllegalStateException ex) {
+            } catch (java.lang.IllegalStateException ex) {
                 logger.info("Shiro Web Environment : {}", ex.getMessage());
             }
         }
 
         return Action.CONTINUE;
     }
-
 }

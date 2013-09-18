@@ -28,6 +28,7 @@ import static org.testng.Assert.assertEquals;
 
 public class ServiceTest {
     private AtmosphereFramework framework;
+
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();

@@ -57,8 +57,9 @@ package org.atmosphere.cpr;
  * @author Jeanfrancois Arcand
  */
 public interface ClusterBroadcastFilter extends BroadcastFilterLifecycle {
+
     /**
-     * Cluster's name or address
+     * Cluster's name or address.
      *
      * @param name
      */
@@ -72,7 +73,7 @@ public interface ClusterBroadcastFilter extends BroadcastFilterLifecycle {
     void setBroadcaster(Broadcaster bc);
 
     /**
-     * Return the {@link Broadcaster}
+     * Return the {@link Broadcaster}.
      *
      * @return the {@link Broadcaster}
      */

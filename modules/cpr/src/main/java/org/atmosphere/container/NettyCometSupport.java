@@ -47,9 +47,6 @@ public class NettyCometSupport extends AsynchronousProcessor {
         super(config);
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
@@ -77,9 +74,6 @@ public class NettyCometSupport extends AsynchronousProcessor {
         return action;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
@@ -93,9 +87,6 @@ public class NettyCometSupport extends AsynchronousProcessor {
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean supportWebSocket() {
         return true;

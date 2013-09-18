@@ -18,8 +18,6 @@ package org.atmosphere.websocket;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 
-import java.io.InputStream;
-import java.io.Reader;
 import java.util.List;
 
 /**
@@ -72,20 +70,23 @@ public interface WebSocketProtocol {
 
     /**
      * Invoked when a WebSocket is opened
+     *
      * @param webSocket {@link WebSocket}
      */
     void onOpen(WebSocket webSocket);
 
     /**
      * Invoked when a WebSocket is closed
+     *
      * @param webSocket {@link WebSocket}
      */
     void onClose(WebSocket webSocket);
 
     /**
      * Invoked when an error occurs.
+     *
      * @param webSocket {@link WebSocket}
-     * @param t a {@link org.atmosphere.websocket.WebSocketProcessor.WebSocketException}
+     * @param t         a {@link org.atmosphere.websocket.WebSocketProcessor.WebSocketException}
      */
     void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t);
 

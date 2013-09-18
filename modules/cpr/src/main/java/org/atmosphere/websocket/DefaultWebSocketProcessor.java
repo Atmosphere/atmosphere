@@ -121,9 +121,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         optimizeMapping();
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public boolean handshake(HttpServletRequest request) {
         if (request != null) {
@@ -132,18 +129,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return true;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandler webSockethandler) {
         handlers.put(path, webSockethandler);
         return this;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
         if (!loggedMsg.getAndSet(true)) {
@@ -278,9 +269,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
@@ -310,9 +298,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(webSocketMessage, MESSAGE, webSocket));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length) {
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
@@ -352,9 +337,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         .statusMessage("Server Error").build()));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, InputStream stream) {
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
@@ -383,9 +365,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<InputStream>(stream, MESSAGE, webSocket));
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, Reader reader) {
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
@@ -440,9 +419,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void close(WebSocket webSocket, int closeCode) {
         logger.trace("WebSocket closed with {}", closeCode);
@@ -510,9 +486,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void destroy() {
         boolean shared = framework.isShareExecutorServices();
@@ -534,9 +507,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent event) {
         AtmosphereResource resource = webSocket.resource();

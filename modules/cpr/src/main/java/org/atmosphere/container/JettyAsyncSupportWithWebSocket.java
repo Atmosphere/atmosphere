@@ -60,9 +60,6 @@ public class JettyAsyncSupportWithWebSocket extends Jetty7CometSupport {
         webSocketFactory = wsf;
     }
 
-    /**
-     * {@inheritDoc}
-     */
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {

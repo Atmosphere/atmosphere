@@ -534,7 +534,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
 
             s = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-            if (s != null && s != "0"){
+            if (s != null && s != "0") {
                 return s;
             } else {
                 return r.uuid();

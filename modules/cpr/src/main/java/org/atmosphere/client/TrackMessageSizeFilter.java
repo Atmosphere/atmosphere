@@ -30,12 +30,11 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
  * NOTE: The broadcasted message MUST BE a String. If your application is broadcasting another object, you need to
  * write your own Filter.
  *
- * If aren't using atmosphere.js, you need to add the {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRACKMESSAGESIZE} header in order to
- * enable that Filter. The delimiter char used is '|'.
+ * If you aren't using atmosphere.js, you need to add the {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRACKMESSAGESIZE} header in order to
+ * enable that Filter. The delimiter character used is '|'.
  *
- * For example, broadcasting String 'helloword' will be received by the client as '9 | helloword' but delivered as 'helloword'
+ * For example, broadcasting String 'helloword' will be received by the client as '9|helloword' but delivered as 'helloword'
  * to the Javascript function/callback.
- *
  */
 public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
 

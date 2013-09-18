@@ -59,39 +59,42 @@ import org.atmosphere.cache.DefaultBroadcasterCache;
 import java.util.List;
 
 /**
- * A BroadcasterCache is cache broadcasted message. When a Broadcaster is about to execute a broadcast operation ({@link Broadcaster#broadcast(Object)},
- * the messages is cached, and the the write operation is executed. If the write operation succeed, the message is removed from the cache. If the write
- * operation fails for an {@link AtmosphereResource}, the message stay in the cache so next time the client reconnect, the message can be
- * send back to the client. BroadcasterCache are useful for application that requires no messge lost, e.g all broadcasted message
- * must be delivered to the client. If your application can survive message's lost, your don't need to install a BroadcasterCache.
+ * A BroadcasterCache is a cache for broadcasted messages. When a Broadcaster is about to execute a broadcast operation
+ * ({@link Broadcaster#broadcast(Object)}, the messages is cached, and the the write operation is executed. If the
+ * write operation succeed, the message is removed from the cache. If the write operation fails for an
+ * {@link AtmosphereResource}, the message stays in the cache so next time the client reconnects, the message can be sent
+ * back to the client. BroadcasterCache is useful for applications that require that no messages are lost, e.g all
+ * broadcasted message must be delivered to the client. If your application can survive lost messages, your don't need
+ * to install a BroadcasterCache.
  * <p/>
- * BroadcasterCache works the following way. They are always invoked from the application's {@link Broadcaster}
- <blockquote><pre>
- *     1. When the Broadcaster gets created, a unique BroadcasterCache gets created as well. That means a BroadcasterCache is, by default,
- *     associated with a Broadcaster. You can write share BroadcasterCache amongs Broadcaster as well.
+ * A BroadcasterCache works the following way. The methods are always invoked from the application's {@link Broadcaster}.
+ * <blockquote><pre>
+ *     1. When the Broadcaster is created, a unique BroadcasterCache is created and assigned to it as well. That means
+ *     a BroadcasterCache is, by default, associated with a Broadcaster. You can share BroadcasterCache instances among
+ *     Broadcasters as well.
  *     2. Just after the constructor has been invoked, the {@link #configure(BroadcasterConfig)} will get invoked, allowing
- *     the instance to configure itself based on a {@link BroadcasterConfig}
+ *     the instance to configure itself based on a {@link BroadcasterConfig}.
  *     3. When {@link Broadcaster} starts, {@link #start()} will be invoked.
  *     4. Every time a {@link Broadcaster#broadcast(Object)} invocation occurs, the {@link #addToCache(String, AtmosphereResource, org.atmosphere.cache.BroadcastMessage)}
  *     method will be invoked, allowing the instance to cache the object.
- *     5. If the write operation succeed, the {@link #clearCache(String, AtmosphereResource, org.atmosphere.cache.CacheMessage)} method will
- *     be invoked. If the write operation fail, that means the cache won't be cleared, and the message will be available next time the
- *     client reconnect. An application that write a BroadcasterCache must makes sure cached message aren't staying in the cache forever
- *     to prevent memory leaks.
- *     6. When a client reconnects, the {@link #retrieveFromCache(String, AtmosphereResource)} method will be invoked. If messages are
- *     available, a {@link List} will be returned and written back to the client.
+ *     5. If the write operation succeeds, the {@link #clearCache(String, AtmosphereResource, org.atmosphere.cache.CacheMessage)} method will
+ *     be invoked. If the write operation fail the cache won't be cleared, and the message will be available next time the
+ *     client reconnects. An application that write a BroadcasterCache must make sure cached message aren't staying in the
+ *     cache forever to prevent memory leaks.
+ *     6. When a client reconnects, the {@link #retrieveFromCache(String, AtmosphereResource)} method will be invoked.
+ *     If messages are available, a {@link List} will be returned and written back to the client.
  *     7. When messages are added to the cache, an application can always customize the messages by creating {@link BroadcasterCacheInspector}
  *     and add them using {@link #inspector(org.atmosphere.cache.BroadcasterCacheInspector)}. BroadcasterCacheInspector
  *     will be invoked every time {@link #addToCache(String, AtmosphereResource, org.atmosphere.cache.BroadcastMessage)} is executed.
- *     8. An application may decide that, at one point in time, stops caching message for a particular {@link AtmosphereResource} by invoking
+ *     8. An application may decide that, at one point in time, stop caching message for a particular {@link AtmosphereResource} by invoking
  *     {@link #excludeFromCache(String, AtmosphereResource)}
  *
- </pre></blockquote>
- *
- * Implementation of this interface must be thread-safe.
- *
- * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)} by
- * defining it in your web/application.xml or by using the {@link org.atmosphere.config.service.BroadcasterCacheService}
+ * </pre></blockquote>
+ * <p/>
+ * Implementations of this interface must be thread-safe.
+ * <p/>
+ * A BroadcasterCache can be configured by invoking {@link org.atmosphere.cpr.BroadcasterConfig#setBroadcasterCache(BroadcasterCache)}, by
+ * defining it in your web/application.xml or by using the {@link org.atmosphere.config.service.BroadcasterCacheService} annotation.
  *
  * @author Jeanfrancois Arcand
  */
@@ -100,30 +103,30 @@ public interface BroadcasterCache {
     BroadcasterCache DEFAULT = new DefaultBroadcasterCache();
 
     /**
-     * Start
+     * This method is invoked when the Broadcaster is started.
      */
     void start();
 
     /**
-     * Stop
+     * This method is invoked when the Broadcaster is stopped.
      */
     void stop();
 
     /**
-     * Clean resource associated with this instance. This method is useful when used when ExecutorServices are shared
+     * Clean resources associated with this instance. This method is useful when ExecutorServices are shared
      * and some future must be cancelled. This method will always be invoked when a {@link Broadcaster} gets destroyed.
      */
     void cleanup();
 
     /**
-     * Configure the cache
+     * Configure the cache.
      *
      * @param config a {@link BroadcasterConfig}
      */
     void configure(BroadcasterConfig config);
 
     /**
-     * Start tracking messages associated with {@link AtmosphereResource} from the cache
+     * Start tracking messages associated with {@link AtmosphereResource} from the cache.
      *
      * @param broadcasterId The associated {@link Broadcaster#addAtmosphereResource(AtmosphereResource).getID}
      * @param r             {@link AtmosphereResource}
@@ -133,7 +136,7 @@ public interface BroadcasterCache {
     CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e);
 
     /**
-     * Retrieve messages associated with {@link AtmosphereResource}
+     * Retrieve messages associated with {@link AtmosphereResource}.
      *
      * @param id The associated {@link Broadcaster#addAtmosphereResource(AtmosphereResource).getID}
      * @param r  {@link AtmosphereResource}
@@ -143,25 +146,27 @@ public interface BroadcasterCache {
 
     /**
      * Remove the previously cached message.
+     *
      * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * @param r an {@link AtmosphereResource}
-     * @param cache the {@link CacheMessage}
+     * @param r             an {@link AtmosphereResource}
+     * @param cache         the {@link CacheMessage}
      */
     void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache);
 
     /**
-     * Allow an application to exclude, or block, an {@link AtmosphereResource} to received cached message. No new message will get sent to this client except the ones already cached.
+     * Allow an application to exclude, or block, an {@link AtmosphereResource} to received cached message.
+     * No new message will get sent to this client except the ones already cached.
+     *
      * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * @param r an {@link AtmosphereResource}
+     * @param r             an {@link AtmosphereResource}
      */
     void excludeFromCache(String broadcasterId, AtmosphereResource r);
 
     /**
      * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.
      *
-     * @param interceptor  an instance of {@link BroadcasterCacheInspector}
+     * @param interceptor an instance of {@link BroadcasterCacheInspector}
      * @return this
      */
     BroadcasterCache inspector(BroadcasterCacheInspector interceptor);
-
 }
