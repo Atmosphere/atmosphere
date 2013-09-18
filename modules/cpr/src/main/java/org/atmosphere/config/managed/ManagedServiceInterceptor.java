@@ -114,8 +114,9 @@ public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereIntercep
                 // ManagedService
                 if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
                     AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-                    if (ap.target().getClass().getAnnotation(ManagedService.class) != null) {
-                        String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
+                    ManagedService a = ap.target().getClass().getAnnotation(ManagedService.class);
+                    if (a != null) {
+                        String targetPath = a.path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
                                 boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;

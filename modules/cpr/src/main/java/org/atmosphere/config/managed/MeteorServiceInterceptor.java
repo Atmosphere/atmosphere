@@ -108,8 +108,9 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
                 // MeteorService
                 if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
                     Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
-                    if (s.getClass().getAnnotation(MeteorService.class) != null) {
-                        String targetPath = s.getClass().getAnnotation(MeteorService.class).path();
+                    MeteorService m = s.getClass().getAnnotation(MeteorService.class);
+                    if (m!= null) {
+                        String targetPath = m.path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
                                 boolean singleton = s.getClass().getAnnotation(Singleton.class) != null;

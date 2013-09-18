@@ -91,7 +91,8 @@ public class AtmosphereHandlerServiceInterceptor extends AtmosphereInterceptorAd
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // AtmosphereHandlerService
-                if (w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class) != null) {
+                AtmosphereHandlerService m = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class);
+                if (m != null) {
                     try {
                         boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
                         if (!singleton) {
