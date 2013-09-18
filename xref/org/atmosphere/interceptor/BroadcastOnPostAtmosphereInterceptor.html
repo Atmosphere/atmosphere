@@ -39,7 +39,7 @@
 <a class="jxr_linenumber" name="29" href="#29">29</a>  
 <a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment"> * This read the request's body and invoke the associated {@link org.atmosphere.cpr.Broadcaster} of an {@link AtmosphereResource}.</em>
-<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment"> * The broadcast always happens AFTER the request has been delivered to an {@link org.atmosphere.cpr.AtmosphereHandler}</em>
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment"> * The broadcast always happens AFTER the request has been delivered to an {@link org.atmosphere.cpr.AtmosphereHandler}.</em>
 <a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment"> *</em>
 <a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment"> */</em>
@@ -62,7 +62,7 @@
 <a class="jxr_linenumber" name="52" href="#52">52</a>                      bufferedReader = <strong class="jxr_keyword">new</strong> BufferedReader(<strong class="jxr_keyword">new</strong> InputStreamReader(inputStream));
 <a class="jxr_linenumber" name="53" href="#53">53</a>                  }
 <a class="jxr_linenumber" name="54" href="#54">54</a>              } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
-<a class="jxr_linenumber" name="55" href="#55">55</a>                  logger.trace(<span class="jxr_string">""</span>,ex);
+<a class="jxr_linenumber" name="55" href="#55">55</a>                  logger.trace(<span class="jxr_string">""</span>, ex);
 <a class="jxr_linenumber" name="56" href="#56">56</a>                  Reader reader = r.getRequest().getReader();
 <a class="jxr_linenumber" name="57" href="#57">57</a>                  <strong class="jxr_keyword">if</strong> (reader != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="58" href="#58">58</a>                      bufferedReader = <strong class="jxr_keyword">new</strong> BufferedReader(reader);

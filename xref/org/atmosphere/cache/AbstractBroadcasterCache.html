@@ -46,7 +46,7 @@
 <a class="jxr_linenumber" name="36" href="#36">36</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.locks.ReentrantReadWriteLock;
 <a class="jxr_linenumber" name="37" href="#37">37</a>  
 <a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> * Abstract {@link org.atmosphere.cpr.BroadcasterCache} which is used to implement headers or query parameters or</em>
+<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> * Abstract {@link org.atmosphere.cpr.BroadcasterCache} which is used to implement headers, query parameters or</em>
 <a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> * session based caching.</em>
 <a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment"> *</em>
 <a class="jxr_linenumber" name="42" href="#42">42</a>  <em class="jxr_javadoccomment"> * @author Paul Khodchenkov</em>
@@ -59,8 +59,8 @@
 <a class="jxr_linenumber" name="49" href="#49">49</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> Set&lt;String&gt; messagesIds = <strong class="jxr_keyword">new</strong> HashSet&lt;String&gt;();
 <a class="jxr_linenumber" name="50" href="#50">50</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> ReadWriteLock readWriteLock = <strong class="jxr_keyword">new</strong> ReentrantReadWriteLock();
 <a class="jxr_linenumber" name="51" href="#51">51</a>      <strong class="jxr_keyword">protected</strong> ScheduledFuture scheduledFuture;
-<a class="jxr_linenumber" name="52" href="#52">52</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">long</strong> maxCacheTime = TimeUnit.MINUTES.toMillis(2);<em class="jxr_comment">//2 minutes</em>
-<a class="jxr_linenumber" name="53" href="#53">53</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">long</strong> invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);<em class="jxr_comment">//1 minute</em>
+<a class="jxr_linenumber" name="52" href="#52">52</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">long</strong> maxCacheTime = TimeUnit.MINUTES.toMillis(2); <em class="jxr_comment">// 2 minutes</em>
+<a class="jxr_linenumber" name="53" href="#53">53</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">long</strong> invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1); <em class="jxr_comment">// 1 minute</em>
 <a class="jxr_linenumber" name="54" href="#54">54</a>      <strong class="jxr_keyword">protected</strong> ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
 <a class="jxr_linenumber" name="55" href="#55">55</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isShared = false;
 <a class="jxr_linenumber" name="56" href="#56">56</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> List&lt;BroadcasterCacheInspector&gt; inspectors = <strong class="jxr_keyword">new</strong> LinkedList&lt;BroadcasterCacheInspector&gt;();
@@ -148,9 +148,9 @@
 <a class="jxr_linenumber" name="138" href="#138">138</a>     }
 <a class="jxr_linenumber" name="139" href="#139">139</a> 
 <a class="jxr_linenumber" name="140" href="#140">140</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="141" href="#141">141</a> <em class="jxr_javadoccomment">     * Set the time, in millisecond, the cache will be checked and purged.</em>
+<a class="jxr_linenumber" name="141" href="#141">141</a> <em class="jxr_javadoccomment">     * Set the delay between cache purges.</em>
 <a class="jxr_linenumber" name="142" href="#142">142</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="143" href="#143">143</a> <em class="jxr_javadoccomment">     * @param invalidateCacheInterval</em>
+<a class="jxr_linenumber" name="143" href="#143">143</a> <em class="jxr_javadoccomment">     * @param invalidateCacheInterval the purge interval in milliseconds</em>
 <a class="jxr_linenumber" name="144" href="#144">144</a> <em class="jxr_javadoccomment">     * @return this</em>
 <a class="jxr_linenumber" name="145" href="#145">145</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="146" href="#146">146</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cache/AbstractBroadcasterCache.html">AbstractBroadcasterCache</a> setInvalidateCacheInterval(<strong class="jxr_keyword">long</strong> invalidateCacheInterval) {
@@ -159,9 +159,9 @@
 <a class="jxr_linenumber" name="149" href="#149">149</a>     }
 <a class="jxr_linenumber" name="150" href="#150">150</a> 
 <a class="jxr_linenumber" name="151" href="#151">151</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="152" href="#152">152</a> <em class="jxr_javadoccomment">     * Set the maxium time, in millisecond, a message stay alive in the cache.</em>
+<a class="jxr_linenumber" name="152" href="#152">152</a> <em class="jxr_javadoccomment">     * Set the maximum time a message stays alive in the cache.</em>
 <a class="jxr_linenumber" name="153" href="#153">153</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="154" href="#154">154</a> <em class="jxr_javadoccomment">     * @param maxCacheTime the maxium time, in millisecond, a message stay alive in the cache.</em>
+<a class="jxr_linenumber" name="154" href="#154">154</a> <em class="jxr_javadoccomment">     * @param maxCacheTime the maximum time in milliseconds.</em>
 <a class="jxr_linenumber" name="155" href="#155">155</a> <em class="jxr_javadoccomment">     * @return this</em>
 <a class="jxr_linenumber" name="156" href="#156">156</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="157" href="#157">157</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cache/AbstractBroadcasterCache.html">AbstractBroadcasterCache</a> setMaxCacheTime(<strong class="jxr_keyword">long</strong> maxCacheTime) {

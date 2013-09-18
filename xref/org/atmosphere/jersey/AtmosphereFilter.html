@@ -544,7 +544,7 @@
 <a class="jxr_linenumber" name="534" href="#534">534</a>             }
 <a class="jxr_linenumber" name="535" href="#535">535</a> 
 <a class="jxr_linenumber" name="536" href="#536">536</a>             s = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-<a class="jxr_linenumber" name="537" href="#537">537</a>             <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong> &amp;&amp; s != <span class="jxr_string">"0"</span>){
+<a class="jxr_linenumber" name="537" href="#537">537</a>             <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong> &amp;&amp; s != <span class="jxr_string">"0"</span>) {
 <a class="jxr_linenumber" name="538" href="#538">538</a>                 <strong class="jxr_keyword">return</strong> s;
 <a class="jxr_linenumber" name="539" href="#539">539</a>             } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="540" href="#540">540</a>                 <strong class="jxr_keyword">return</strong> r.uuid();

@@ -28,9 +28,9 @@
 <a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.TimeUnit;
 <a class="jxr_linenumber" name="19" href="#19">19</a>  
 <a class="jxr_linenumber" name="20" href="#20">20</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_javadoccomment"> * This class can be used to configure the life cycle of a {@link org.atmosphere.cpr.Broadcaster}, e.g when a broadcaster</em>
-<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment"> * gets destroyed {@link org.atmosphere.cpr.Broadcaster#destroy()} or when it's associated resources</em>
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment"> * get released {@link Broadcaster#releaseExternalResources()}.</em>
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_javadoccomment"> * This class can be used to configure the life cycle of a {@link org.atmosphere.cpr.Broadcaster}, eg. when a broadcaster</em>
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment"> * gets destroyed {@link org.atmosphere.cpr.Broadcaster#destroy()} or when its associated resources</em>
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <em class="jxr_javadoccomment"> * are released {@link Broadcaster#releaseExternalResources()}.</em>
 <a class="jxr_linenumber" name="24" href="#24">24</a>  <em class="jxr_javadoccomment"> *</em>
 <a class="jxr_linenumber" name="25" href="#25">25</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment"> */</em>
@@ -53,9 +53,9 @@
 <a class="jxr_linenumber" name="43" href="#43">43</a>          IDLE,
 <a class="jxr_linenumber" name="44" href="#44">44</a>  
 <a class="jxr_linenumber" name="45" href="#45">45</a>          <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="46" href="#46">46</a>  <em class="jxr_javadoccomment">         * Release all resources associated with the Broadcaster when the idle time expires</em>
-<a class="jxr_linenumber" name="47" href="#47">47</a>  <em class="jxr_javadoccomment">         * and destroy the Broadcaster. This operation remove the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}</em>
-<a class="jxr_linenumber" name="48" href="#48">48</a>  <em class="jxr_javadoccomment">         * Invoke {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked. Suspended {@link AtmosphereResource}</em>
+<a class="jxr_linenumber" name="46" href="#46">46</a>  <em class="jxr_javadoccomment">         * Release all resources associated with the Broadcaster when the idle time expires and destroy the Broadcaster.</em>
+<a class="jxr_linenumber" name="47" href="#47">47</a>  <em class="jxr_javadoccomment">         * This operation removes the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}</em>
+<a class="jxr_linenumber" name="48" href="#48">48</a>  <em class="jxr_javadoccomment">         * {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked. Suspended {@link AtmosphereResource}</em>
 <a class="jxr_linenumber" name="49" href="#49">49</a>  <em class="jxr_javadoccomment">         * will NOT get resumed.</em>
 <a class="jxr_linenumber" name="50" href="#50">50</a>  <em class="jxr_javadoccomment">         */</em>
 <a class="jxr_linenumber" name="51" href="#51">51</a>          IDLE_DESTROY,
@@ -74,8 +74,8 @@
 <a class="jxr_linenumber" name="64" href="#64">64</a>          EMPTY,
 <a class="jxr_linenumber" name="65" href="#65">65</a>          <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="66" href="#66">66</a>  <em class="jxr_javadoccomment">         * If there is no {@link org.atmosphere.cpr.AtmosphereResource} associated with the Broadcaster, release all resources,</em>
-<a class="jxr_linenumber" name="67" href="#67">67</a>  <em class="jxr_javadoccomment">         * and destroy the broadcaster. This operation remove the Broadcaster from it's associated {@link org.atmosphere.cpr.BroadcasterFactory}</em>
-<a class="jxr_linenumber" name="68" href="#68">68</a>  <em class="jxr_javadoccomment">         * Invoke {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked</em>
+<a class="jxr_linenumber" name="67" href="#67">67</a>  <em class="jxr_javadoccomment">         * and destroy the broadcaster. This operation removes the Broadcaster from its associated {@link org.atmosphere.cpr.BroadcasterFactory}</em>
+<a class="jxr_linenumber" name="68" href="#68">68</a>  <em class="jxr_javadoccomment">         * {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked</em>
 <a class="jxr_linenumber" name="69" href="#69">69</a>  <em class="jxr_javadoccomment">         */</em>
 <a class="jxr_linenumber" name="70" href="#70">70</a>          EMPTY_DESTROY,
 <a class="jxr_linenumber" name="71" href="#71">71</a>  
@@ -141,8 +141,7 @@
 <a class="jxr_linenumber" name="131" href="#131">131</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a>(policy, time, timeUnit);
 <a class="jxr_linenumber" name="132" href="#132">132</a>         }
 <a class="jxr_linenumber" name="133" href="#133">133</a>     }
-<a class="jxr_linenumber" name="134" href="#134">134</a> 
-<a class="jxr_linenumber" name="135" href="#135">135</a> }
+<a class="jxr_linenumber" name="134" href="#134">134</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

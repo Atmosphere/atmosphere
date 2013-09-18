@@ -110,7 +110,7 @@
 <a class="jxr_linenumber" name="100" href="#100">100</a>                 logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame skipping: "</span> + frame);
 <a class="jxr_linenumber" name="101" href="#101">101</a>             }
 <a class="jxr_linenumber" name="102" href="#102">102</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="103" href="#103">103</a>             logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame but no atmosphere processor in request, skipping: "</span> + frame);
+<a class="jxr_linenumber" name="103" href="#103">103</a>             logger.trace(<span class="jxr_string">"WebSocket.onReceivedFrame but no atmosphere processor in request, skipping: {}"</span>, frame);
 <a class="jxr_linenumber" name="104" href="#104">104</a>         }
 <a class="jxr_linenumber" name="105" href="#105">105</a>     }
 <a class="jxr_linenumber" name="106" href="#106">106</a> }

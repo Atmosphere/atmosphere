@@ -26,19 +26,19 @@
 <a class="jxr_linenumber" name="16" href="#16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.cpr;
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
 <a class="jxr_linenumber" name="18" href="#18">18</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="19" href="#19">19</a>  <em class="jxr_javadoccomment"> * An extended {@link BroadcastFilter} that can vbe used to filter based on {@link AtmosphereResource}</em>
+<a class="jxr_linenumber" name="19" href="#19">19</a>  <em class="jxr_javadoccomment"> * An extended {@link BroadcastFilter} that can be used to filter based on {@link AtmosphereResource}.</em>
 <a class="jxr_linenumber" name="20" href="#20">20</a>  <em class="jxr_javadoccomment"> *</em>
 <a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_javadoccomment"> * @author Jean-francois Arcand</em>
 <a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment"> */</em>
 <a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/atmosphere/cpr/PerRequestBroadcastFilter.html">PerRequestBroadcastFilter</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastFilter</a> {
 <a class="jxr_linenumber" name="24" href="#24">24</a>  
 <a class="jxr_linenumber" name="25" href="#25">25</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment">     * Transform or Filter a message per {@link AtmosphereResource}. Be careful when setting headers on the</em>
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment">     * Transform or filter a message per {@link AtmosphereResource}. Be careful when setting headers on the</em>
 <a class="jxr_linenumber" name="27" href="#27">27</a>  <em class="jxr_javadoccomment">     * {@link AtmosphereResponse} as the headers may have been already sent back to the browser.</em>
 <a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment">     * @param r</em>
-<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment">     * @param message  Object a message</em>
-<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment">     * @param originalMessage  The original message used when calling {@link Broadcaster#broadcast(Object)}</em>
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment">     * @param message         a message</em>
+<a class="jxr_linenumber" name="31" href="#31">31</a>  <em class="jxr_javadoccomment">     * @param originalMessage The original message used when calling {@link Broadcaster#broadcast(Object)}</em>
 <a class="jxr_linenumber" name="32" href="#32">32</a>  <em class="jxr_javadoccomment">     * @return a {@link BroadcastAction}</em>
 <a class="jxr_linenumber" name="33" href="#33">33</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="34" href="#34">34</a>      <a href="../../../org/atmosphere/cpr/BroadcastFilter.html">BroadcastAction</a> filter(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object originalMessage, Object message);

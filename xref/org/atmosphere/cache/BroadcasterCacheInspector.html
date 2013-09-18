@@ -26,7 +26,7 @@
 <a class="jxr_linenumber" name="16" href="#16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.cache;
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
 <a class="jxr_linenumber" name="18" href="#18">18</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="19" href="#19">19</a>  <em class="jxr_javadoccomment"> * Inspect {@link BroadcastMessage} before they gets added to the BroadcasterCache. Message can also be modified</em>
+<a class="jxr_linenumber" name="19" href="#19">19</a>  <em class="jxr_javadoccomment"> * Inspect {@link BroadcastMessage}s before they get added to the BroadcasterCache. Messages can also be modified</em>
 <a class="jxr_linenumber" name="20" href="#20">20</a>  <em class="jxr_javadoccomment"> * before they get added to the cache.</em>
 <a class="jxr_linenumber" name="21" href="#21">21</a>  <em class="jxr_javadoccomment"> *</em>
 <a class="jxr_linenumber" name="22" href="#22">22</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
@@ -34,7 +34,7 @@
 <a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">interface</strong> <a href="../../../org/atmosphere/cache/BroadcasterCacheInspector.html">BroadcasterCacheInspector</a> {
 <a class="jxr_linenumber" name="25" href="#25">25</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="26" href="#26">26</a>  <em class="jxr_javadoccomment">     * Inspect the {@link BroadcastMessage} and return true if the message can be cached, false if not. A</em>
-<a class="jxr_linenumber" name="27" href="#27">27</a>  <em class="jxr_javadoccomment">     * Message can also be modified</em>
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <em class="jxr_javadoccomment">     * Message can also be modified.</em>
 <a class="jxr_linenumber" name="28" href="#28">28</a>  <em class="jxr_javadoccomment">     * @param message {@link BroadcastMessage}</em>
 <a class="jxr_linenumber" name="29" href="#29">29</a>  <em class="jxr_javadoccomment">     * @return true if allowed to be cached, false if not.</em>
 <a class="jxr_linenumber" name="30" href="#30">30</a>  <em class="jxr_javadoccomment">     */</em>

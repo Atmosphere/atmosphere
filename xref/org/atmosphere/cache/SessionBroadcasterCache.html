@@ -72,7 +72,7 @@
 <a class="jxr_linenumber" name="62" href="#62">62</a>  
 <a class="jxr_linenumber" name="63" href="#63">63</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="64" href="#64">64</a>  <em class="jxr_javadoccomment"> * Simple {@link org.atmosphere.cpr.BroadcasterCache} that use an {@link javax.servlet.http.HttpSession} to cache</em>
-<a class="jxr_linenumber" name="65" href="#65">65</a>  <em class="jxr_javadoccomment"> * lost message.</em>
+<a class="jxr_linenumber" name="65" href="#65">65</a>  <em class="jxr_javadoccomment"> * messages.</em>
 <a class="jxr_linenumber" name="66" href="#66">66</a>  <em class="jxr_javadoccomment"> *</em>
 <a class="jxr_linenumber" name="67" href="#67">67</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
 <a class="jxr_linenumber" name="68" href="#68">68</a>  <em class="jxr_javadoccomment"> */</em>
@@ -100,8 +100,8 @@
 <a class="jxr_linenumber" name="90" href="#90">90</a>  
 <a class="jxr_linenumber" name="91" href="#91">91</a>              session.setAttribute(broadcasterId, String.valueOf(now));
 <a class="jxr_linenumber" name="92" href="#92">92</a>          } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
-<a class="jxr_linenumber" name="93" href="#93">93</a>              logger.trace(<span class="jxr_string">""</span>,ex);
-<a class="jxr_linenumber" name="94" href="#94">94</a>              logger.warn(<span class="jxr_string">"The Session has been invalidated. Message will be loat."</span>);
+<a class="jxr_linenumber" name="93" href="#93">93</a>              logger.trace(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="94" href="#94">94</a>              logger.warn(<span class="jxr_string">"The Session has been invalidated. Message will be lost."</span>);
 <a class="jxr_linenumber" name="95" href="#95">95</a>          }
 <a class="jxr_linenumber" name="96" href="#96">96</a>          <strong class="jxr_keyword">return</strong> cacheMessage;
 <a class="jxr_linenumber" name="97" href="#97">97</a>      }
@@ -127,7 +127,7 @@
 <a class="jxr_linenumber" name="117" href="#117">117</a> 
 <a class="jxr_linenumber" name="118" href="#118">118</a>             <strong class="jxr_keyword">return</strong> get(cacheHeaderTime);
 <a class="jxr_linenumber" name="119" href="#119">119</a>         } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
-<a class="jxr_linenumber" name="120" href="#120">120</a>             logger.trace(<span class="jxr_string">""</span>,ex);
+<a class="jxr_linenumber" name="120" href="#120">120</a>             logger.trace(<span class="jxr_string">""</span>, ex);
 <a class="jxr_linenumber" name="121" href="#121">121</a>             logger.warn(<span class="jxr_string">"The Session has been invalidated. Unable to retrieve cached messages"</span>);
 <a class="jxr_linenumber" name="122" href="#122">122</a>             <strong class="jxr_keyword">return</strong> Collections.emptyList();
 <a class="jxr_linenumber" name="123" href="#123">123</a>         }

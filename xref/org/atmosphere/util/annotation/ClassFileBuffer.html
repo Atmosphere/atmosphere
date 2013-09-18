@@ -58,7 +58,7 @@
 <a class="jxr_linenumber" name="48" href="#48">48</a>  <em class="jxr_javadoccomment"> * read Java ClassFile files from an {@link java.io.InputStream} and parse the content</em>
 <a class="jxr_linenumber" name="49" href="#49">49</a>  <em class="jxr_javadoccomment"> * via the {@link java.io.DataInput} interface.</em>
 <a class="jxr_linenumber" name="50" href="#50">50</a>  <em class="jxr_javadoccomment"> * &lt;br/&gt;</em>
-<a class="jxr_linenumber" name="51" href="#51">51</a>  <em class="jxr_javadoccomment"> * Note that Java ClassFile files can grow really big, </em>
+<a class="jxr_linenumber" name="51" href="#51">51</a>  <em class="jxr_javadoccomment"> * Note that Java ClassFile files can grow really big,</em>
 <a class="jxr_linenumber" name="52" href="#52">52</a>  <em class="jxr_javadoccomment"> * {@code com.sun.corba.se.impl.logging.ORBUtilSystemException} is 128.2 kb!</em>
 <a class="jxr_linenumber" name="53" href="#53">53</a>  <em class="jxr_javadoccomment"> *</em>
 <a class="jxr_linenumber" name="54" href="#54">54</a>  <em class="jxr_javadoccomment"> * @author &lt;a href="<a href="mailto:rmuller@xiam.nl" target="alexandria_uri">mailto:rmuller@xiam.nl</a>"&gt;Ronald K. Muller&lt;/a&gt;</em>
@@ -69,14 +69,14 @@
 <a class="jxr_linenumber" name="59" href="#59">59</a>      <strong class="jxr_keyword">private</strong> byte[] buffer;
 <a class="jxr_linenumber" name="60" href="#60">60</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> size; <em class="jxr_comment">// the number of significant bytes read</em>
 <a class="jxr_linenumber" name="61" href="#61">61</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> pointer; <em class="jxr_comment">// the "read pointer"</em>
-<a class="jxr_linenumber" name="62" href="#62">62</a>      
+<a class="jxr_linenumber" name="62" href="#62">62</a>  
 <a class="jxr_linenumber" name="63" href="#63">63</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="64" href="#64">64</a>  <em class="jxr_javadoccomment">     * Create a new, empty {@code ClassFileBuffer} with the default initial capacity (8 kb).</em>
 <a class="jxr_linenumber" name="65" href="#65">65</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="66" href="#66">66</a>      <a href="../../../../org/atmosphere/util/annotation/ClassFileBuffer.html">ClassFileBuffer</a>() {
 <a class="jxr_linenumber" name="67" href="#67">67</a>          <strong class="jxr_keyword">this</strong>(8 * 1024);
 <a class="jxr_linenumber" name="68" href="#68">68</a>      }
-<a class="jxr_linenumber" name="69" href="#69">69</a>      
+<a class="jxr_linenumber" name="69" href="#69">69</a>  
 <a class="jxr_linenumber" name="70" href="#70">70</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="71" href="#71">71</a>  <em class="jxr_javadoccomment">     * Create a new, empty {@code ClassFileBuffer} with the specified initial capacity.</em>
 <a class="jxr_linenumber" name="72" href="#72">72</a>  <em class="jxr_javadoccomment">     * The initial capacity must be greater than zero. The internal buffer will grow</em>
@@ -90,7 +90,7 @@
 <a class="jxr_linenumber" name="80" href="#80">80</a>          }
 <a class="jxr_linenumber" name="81" href="#81">81</a>          <strong class="jxr_keyword">this</strong>.buffer = <strong class="jxr_keyword">new</strong> byte[initialCapacity];
 <a class="jxr_linenumber" name="82" href="#82">82</a>      }
-<a class="jxr_linenumber" name="83" href="#83">83</a>      
+<a class="jxr_linenumber" name="83" href="#83">83</a>  
 <a class="jxr_linenumber" name="84" href="#84">84</a>      <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="85" href="#85">85</a>  <em class="jxr_javadoccomment">     * Clear and fill the buffer of this {@code ClassFileBuffer} with the</em>
 <a class="jxr_linenumber" name="86" href="#86">86</a>  <em class="jxr_javadoccomment">     * supplied byte stream.</em>
@@ -110,7 +110,7 @@
 <a class="jxr_linenumber" name="100" href="#100">100</a>     }
 <a class="jxr_linenumber" name="101" href="#101">101</a> 
 <a class="jxr_linenumber" name="102" href="#102">102</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="103" href="#103">103</a> <em class="jxr_javadoccomment">     * Sets the file-pointer offset, measured from the beginning of this file, </em>
+<a class="jxr_linenumber" name="103" href="#103">103</a> <em class="jxr_javadoccomment">     * Sets the file-pointer offset, measured from the beginning of this file,</em>
 <a class="jxr_linenumber" name="104" href="#104">104</a> <em class="jxr_javadoccomment">     * at which the next read or write occurs.</em>
 <a class="jxr_linenumber" name="105" href="#105">105</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="106" href="#106">106</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> seek(<strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> position) <strong class="jxr_keyword">throws</strong> IOException {
@@ -129,9 +129,9 @@
 <a class="jxr_linenumber" name="119" href="#119">119</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> size() {
 <a class="jxr_linenumber" name="120" href="#120">120</a>         <strong class="jxr_keyword">return</strong> size;
 <a class="jxr_linenumber" name="121" href="#121">121</a>     }
-<a class="jxr_linenumber" name="122" href="#122">122</a>     
+<a class="jxr_linenumber" name="122" href="#122">122</a> 
 <a class="jxr_linenumber" name="123" href="#123">123</a>     <em class="jxr_comment">// DataInput</em>
-<a class="jxr_linenumber" name="124" href="#124">124</a>     
+<a class="jxr_linenumber" name="124" href="#124">124</a> 
 <a class="jxr_linenumber" name="125" href="#125">125</a>     @Override
 <a class="jxr_linenumber" name="126" href="#126">126</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> readFully(<strong class="jxr_keyword">final</strong> byte bytes[]) <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="127" href="#127">127</a>         readFully(bytes, 0, bytes.length);
@@ -162,7 +162,7 @@
 <a class="jxr_linenumber" name="152" href="#152">152</a>         }
 <a class="jxr_linenumber" name="153" href="#153">153</a>         <strong class="jxr_keyword">return</strong> buffer[pointer++];
 <a class="jxr_linenumber" name="154" href="#154">154</a>     }
-<a class="jxr_linenumber" name="155" href="#155">155</a>     
+<a class="jxr_linenumber" name="155" href="#155">155</a> 
 <a class="jxr_linenumber" name="156" href="#156">156</a>     @Override
 <a class="jxr_linenumber" name="157" href="#157">157</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> readBoolean() <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="158" href="#158">158</a>         <strong class="jxr_keyword">return</strong> readByte() != 0;
@@ -186,12 +186,12 @@
 <a class="jxr_linenumber" name="176" href="#176">176</a> 
 <a class="jxr_linenumber" name="177" href="#177">177</a>     @Override
 <a class="jxr_linenumber" name="178" href="#178">178</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">short</strong> readShort() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="179" href="#179">179</a>         <strong class="jxr_keyword">return</strong> (<strong class="jxr_keyword">short</strong>)readUnsignedShort();
+<a class="jxr_linenumber" name="179" href="#179">179</a>         <strong class="jxr_keyword">return</strong> (<strong class="jxr_keyword">short</strong>) readUnsignedShort();
 <a class="jxr_linenumber" name="180" href="#180">180</a>     }
-<a class="jxr_linenumber" name="181" href="#181">181</a>     
+<a class="jxr_linenumber" name="181" href="#181">181</a> 
 <a class="jxr_linenumber" name="182" href="#182">182</a>     @Override
 <a class="jxr_linenumber" name="183" href="#183">183</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">char</strong> readChar() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">return</strong> (<strong class="jxr_keyword">char</strong>)readUnsignedShort();
+<a class="jxr_linenumber" name="184" href="#184">184</a>         <strong class="jxr_keyword">return</strong> (<strong class="jxr_keyword">char</strong>) readUnsignedShort();
 <a class="jxr_linenumber" name="185" href="#185">185</a>     }
 <a class="jxr_linenumber" name="186" href="#186">186</a> 
 <a class="jxr_linenumber" name="187" href="#187">187</a>     @Override
@@ -199,10 +199,10 @@
 <a class="jxr_linenumber" name="189" href="#189">189</a>         <strong class="jxr_keyword">if</strong> (pointer + 4 &gt; size) {
 <a class="jxr_linenumber" name="190" href="#190">190</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> EOFException();
 <a class="jxr_linenumber" name="191" href="#191">191</a>         }
-<a class="jxr_linenumber" name="192" href="#192">192</a>         <strong class="jxr_keyword">return</strong> (read() &lt;&lt; 24) + 
-<a class="jxr_linenumber" name="193" href="#193">193</a>             (read() &lt;&lt; 16) + 
-<a class="jxr_linenumber" name="194" href="#194">194</a>             (read() &lt;&lt; 8) + 
-<a class="jxr_linenumber" name="195" href="#195">195</a>             read();
+<a class="jxr_linenumber" name="192" href="#192">192</a>         <strong class="jxr_keyword">return</strong> (read() &lt;&lt; 24) +
+<a class="jxr_linenumber" name="193" href="#193">193</a>                 (read() &lt;&lt; 16) +
+<a class="jxr_linenumber" name="194" href="#194">194</a>                 (read() &lt;&lt; 8) +
+<a class="jxr_linenumber" name="195" href="#195">195</a>                 read();
 <a class="jxr_linenumber" name="196" href="#196">196</a>     }
 <a class="jxr_linenumber" name="197" href="#197">197</a> 
 <a class="jxr_linenumber" name="198" href="#198">198</a>     @Override
@@ -210,14 +210,14 @@
 <a class="jxr_linenumber" name="200" href="#200">200</a>         <strong class="jxr_keyword">if</strong> (pointer + 8 &gt; size) {
 <a class="jxr_linenumber" name="201" href="#201">201</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> EOFException();
 <a class="jxr_linenumber" name="202" href="#202">202</a>         }
-<a class="jxr_linenumber" name="203" href="#203">203</a>         <strong class="jxr_keyword">return</strong> (read() &lt;&lt; 56) + 
-<a class="jxr_linenumber" name="204" href="#204">204</a>             (read() &lt;&lt; 48) + 
-<a class="jxr_linenumber" name="205" href="#205">205</a>             (read() &lt;&lt; 40) + 
-<a class="jxr_linenumber" name="206" href="#206">206</a>             (read() &lt;&lt; 32) + 
-<a class="jxr_linenumber" name="207" href="#207">207</a>             (read() &lt;&lt; 24) + 
-<a class="jxr_linenumber" name="208" href="#208">208</a>             (read() &lt;&lt; 16) + 
-<a class="jxr_linenumber" name="209" href="#209">209</a>             (read() &lt;&lt; 8) + 
-<a class="jxr_linenumber" name="210" href="#210">210</a>             read();
+<a class="jxr_linenumber" name="203" href="#203">203</a>         <strong class="jxr_keyword">return</strong> (read() &lt;&lt; 56) +
+<a class="jxr_linenumber" name="204" href="#204">204</a>                 (read() &lt;&lt; 48) +
+<a class="jxr_linenumber" name="205" href="#205">205</a>                 (read() &lt;&lt; 40) +
+<a class="jxr_linenumber" name="206" href="#206">206</a>                 (read() &lt;&lt; 32) +
+<a class="jxr_linenumber" name="207" href="#207">207</a>                 (read() &lt;&lt; 24) +
+<a class="jxr_linenumber" name="208" href="#208">208</a>                 (read() &lt;&lt; 16) +
+<a class="jxr_linenumber" name="209" href="#209">209</a>                 (read() &lt;&lt; 8) +
+<a class="jxr_linenumber" name="210" href="#210">210</a>                 read();
 <a class="jxr_linenumber" name="211" href="#211">211</a>     }
 <a class="jxr_linenumber" name="212" href="#212">212</a> 
 <a class="jxr_linenumber" name="213" href="#213">213</a>     @Override
@@ -239,18 +239,18 @@
 <a class="jxr_linenumber" name="229" href="#229">229</a>     <strong class="jxr_keyword">public</strong> String readLine() <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="230" href="#230">230</a>         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> UnsupportedOperationException(<span class="jxr_string">"readLine() is deprecated and not supported"</span>);
 <a class="jxr_linenumber" name="231" href="#231">231</a>     }
-<a class="jxr_linenumber" name="232" href="#232">232</a>     
+<a class="jxr_linenumber" name="232" href="#232">232</a> 
 <a class="jxr_linenumber" name="233" href="#233">233</a>     @Override
 <a class="jxr_linenumber" name="234" href="#234">234</a>     <strong class="jxr_keyword">public</strong> String readUTF() <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="235" href="#235">235</a>         <strong class="jxr_keyword">return</strong> DataInputStream.readUTF(<strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="236" href="#236">236</a>     }
-<a class="jxr_linenumber" name="237" href="#237">237</a>     
+<a class="jxr_linenumber" name="237" href="#237">237</a> 
 <a class="jxr_linenumber" name="238" href="#238">238</a>     <em class="jxr_comment">// private</em>
 <a class="jxr_linenumber" name="239" href="#239">239</a> 
 <a class="jxr_linenumber" name="240" href="#240">240</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> read() {
 <a class="jxr_linenumber" name="241" href="#241">241</a>         <strong class="jxr_keyword">return</strong> buffer[pointer++] &amp; 0xff;
 <a class="jxr_linenumber" name="242" href="#242">242</a>     }
-<a class="jxr_linenumber" name="243" href="#243">243</a>     
+<a class="jxr_linenumber" name="243" href="#243">243</a> 
 <a class="jxr_linenumber" name="244" href="#244">244</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> resizeIfNeeded() {
 <a class="jxr_linenumber" name="245" href="#245">245</a>         <strong class="jxr_keyword">if</strong> (size &gt;= buffer.length) {
 <a class="jxr_linenumber" name="246" href="#246">246</a>             <strong class="jxr_keyword">final</strong> byte[] newBuffer = <strong class="jxr_keyword">new</strong> byte[buffer.length * 2];
@@ -259,11 +259,10 @@
 <a class="jxr_linenumber" name="249" href="#249">249</a>         }
 <a class="jxr_linenumber" name="250" href="#250">250</a>     }
 <a class="jxr_linenumber" name="251" href="#251">251</a> 
-<a class="jxr_linenumber" name="252" href="#252">252</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy(){
+<a class="jxr_linenumber" name="252" href="#252">252</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
 <a class="jxr_linenumber" name="253" href="#253">253</a>         buffer = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="254" href="#254">254</a>     }
-<a class="jxr_linenumber" name="255" href="#255">255</a> 
-<a class="jxr_linenumber" name="256" href="#256">256</a> }
+<a class="jxr_linenumber" name="255" href="#255">255</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

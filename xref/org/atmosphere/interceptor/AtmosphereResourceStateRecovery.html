@@ -149,7 +149,7 @@
 <a class="jxr_linenumber" name="139" href="#139">139</a> <em class="jxr_javadoccomment">                         * invoked.</em>
 <a class="jxr_linenumber" name="140" href="#140">140</a> <em class="jxr_javadoccomment">                         */</em>
 <a class="jxr_linenumber" name="141" href="#141">141</a>                         <strong class="jxr_keyword">final</strong> List&lt;Object&gt; cachedMessages = retrieveCache(r, tracker, <strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="142" href="#142">142</a>                         logger.trace(<span class="jxr_string">"message size "</span> + cachedMessages.size());
+<a class="jxr_linenumber" name="142" href="#142">142</a>                         logger.trace(<span class="jxr_string">"message size {}"</span>, cachedMessages.size());
 <a class="jxr_linenumber" name="143" href="#143">143</a>                         <strong class="jxr_keyword">if</strong> (cachedMessages.size() &gt; 0) {
 <a class="jxr_linenumber" name="144" href="#144">144</a>                             logger.trace(<span class="jxr_string">"About to write to the cache {}"</span>, r.uuid());
 <a class="jxr_linenumber" name="145" href="#145">145</a>                             writeCache(r, cachedMessages);
@@ -160,7 +160,7 @@
 <a class="jxr_linenumber" name="150" href="#150">150</a>                         <strong class="jxr_keyword">if</strong> (doNotSuspend.get()) {
 <a class="jxr_linenumber" name="151" href="#151">151</a>                             AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).action().type(Action.TYPE.CONTINUE);
 <a class="jxr_linenumber" name="152" href="#152">152</a>                         }
-<a class="jxr_linenumber" name="153" href="#153">153</a>                         logger.trace(<span class="jxr_string">"doNotSuspend "</span> + doNotSuspend.get());
+<a class="jxr_linenumber" name="153" href="#153">153</a>                         logger.trace(<span class="jxr_string">"doNotSuspend {}"</span>, doNotSuspend.get());
 <a class="jxr_linenumber" name="154" href="#154">154</a>                     }
 <a class="jxr_linenumber" name="155" href="#155">155</a>                 });
 <a class="jxr_linenumber" name="156" href="#156">156</a>             }

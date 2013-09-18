@@ -63,12 +63,12 @@
 <a class="jxr_linenumber" name="53" href="#53">53</a>          <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).getRequest(false);
 <a class="jxr_linenumber" name="54" href="#54">54</a>          String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
 <a class="jxr_linenumber" name="55" href="#55">55</a>          String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">if</strong> (p !=  <strong class="jxr_keyword">null</strong> &amp;&amp; s != <strong class="jxr_keyword">null</strong> &amp;&amp; uuid != <strong class="jxr_keyword">null</strong> &amp;&amp; s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
+<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">if</strong> (p != <strong class="jxr_keyword">null</strong> &amp;&amp; s != <strong class="jxr_keyword">null</strong> &amp;&amp; uuid != <strong class="jxr_keyword">null</strong> &amp;&amp; s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
 <a class="jxr_linenumber" name="57" href="#57">57</a>              logger.trace(<span class="jxr_string">"AtmosphereResource {} disconnected"</span>, uuid);
 <a class="jxr_linenumber" name="58" href="#58">58</a>              <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> ss = AtmosphereResourceFactory.getDefault().find(uuid);
 <a class="jxr_linenumber" name="59" href="#59">59</a>              <strong class="jxr_keyword">if</strong> (ss != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="60" href="#60">60</a>                  <em class="jxr_comment">// Block websocket closing detection</em>
-<a class="jxr_linenumber" name="61" href="#61">61</a>                  ss.getRequest().setAttribute(ASYNCHRONOUS_HOOK, <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="61" href="#61">61</a>                  AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(ss).getRequest(false).setAttribute(ASYNCHRONOUS_HOOK, <strong class="jxr_keyword">null</strong>);
 <a class="jxr_linenumber" name="62" href="#62">62</a>                  AtmosphereResourceEventImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(ss.getAtmosphereResourceEvent()).isClosedByClient(<strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="63" href="#63">63</a>  
 <a class="jxr_linenumber" name="64" href="#64">64</a>                  p.completeLifecycle(ss, false);

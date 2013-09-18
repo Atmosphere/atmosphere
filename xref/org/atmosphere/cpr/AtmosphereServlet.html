@@ -219,8 +219,8 @@
 <a class="jxr_linenumber" name="209" href="#209">209</a>                         <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> current = framework.asyncSupport;
 <a class="jxr_linenumber" name="210" href="#210">210</a>                         logger.warn(<span class="jxr_string">"TomcatCometSupport is enabled, switching to it"</span>);
 <a class="jxr_linenumber" name="211" href="#211">211</a>                         framework.asyncSupport = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/TomcatCometSupport.html">TomcatCometSupport</a>(framework.config);
-<a class="jxr_linenumber" name="212" href="#212">212</a>                         <strong class="jxr_keyword">if</strong>(current instanceof <a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>) {
-<a class="jxr_linenumber" name="213" href="#213">213</a>                             ((<a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>)current).shutdown();
+<a class="jxr_linenumber" name="212" href="#212">212</a>                         <strong class="jxr_keyword">if</strong> (current instanceof AsynchronousProcessor) {
+<a class="jxr_linenumber" name="213" href="#213">213</a>                             ((<a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>) current).shutdown();
 <a class="jxr_linenumber" name="214" href="#214">214</a>                         }
 <a class="jxr_linenumber" name="215" href="#215">215</a>                         framework.asyncSupport.init(framework.config.getServletConfig());
 <a class="jxr_linenumber" name="216" href="#216">216</a>                     }
@@ -251,8 +251,8 @@
 <a class="jxr_linenumber" name="241" href="#241">241</a>                         <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> current = framework.asyncSupport;
 <a class="jxr_linenumber" name="242" href="#242">242</a>                         logger.warn(<span class="jxr_string">"TomcatCometSupport7 is enabled, switching to it"</span>);
 <a class="jxr_linenumber" name="243" href="#243">243</a>                         framework.asyncSupport = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/Tomcat7CometSupport.html">Tomcat7CometSupport</a>(framework.config);
-<a class="jxr_linenumber" name="244" href="#244">244</a>                         <strong class="jxr_keyword">if</strong>(current instanceof <a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>) {
-<a class="jxr_linenumber" name="245" href="#245">245</a>                             ((<a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>)current).shutdown();
+<a class="jxr_linenumber" name="244" href="#244">244</a>                         <strong class="jxr_keyword">if</strong> (current instanceof AsynchronousProcessor) {
+<a class="jxr_linenumber" name="245" href="#245">245</a>                             ((<a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>) current).shutdown();
 <a class="jxr_linenumber" name="246" href="#246">246</a>                         }
 <a class="jxr_linenumber" name="247" href="#247">247</a>                         framework.asyncSupport.init(framework.config.getServletConfig());
 <a class="jxr_linenumber" name="248" href="#248">248</a>                     }
@@ -282,7 +282,7 @@
 <a class="jxr_linenumber" name="272" href="#272">272</a>             }
 <a class="jxr_linenumber" name="273" href="#273">273</a>         }
 <a class="jxr_linenumber" name="274" href="#274">274</a> 
-<a class="jxr_linenumber" name="275" href="#275">275</a>         <strong class="jxr_keyword">if</strong> (webSocketSupported){
+<a class="jxr_linenumber" name="275" href="#275">275</a>         <strong class="jxr_keyword">if</strong> (webSocketSupported) {
 <a class="jxr_linenumber" name="276" href="#276">276</a>             cometEvent.close();
 <a class="jxr_linenumber" name="277" href="#277">277</a>         }
 <a class="jxr_linenumber" name="278" href="#278">278</a>     }
@@ -308,23 +308,25 @@
 <a class="jxr_linenumber" name="298" href="#298">298</a>                     <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> current = framework.asyncSupport;
 <a class="jxr_linenumber" name="299" href="#299">299</a>                     logger.warn(<span class="jxr_string">"JBossWebCometSupport is enabled, switching to it"</span>);
 <a class="jxr_linenumber" name="300" href="#300">300</a>                     framework.asyncSupport = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/JBossWebCometSupport.html">JBossWebCometSupport</a>(framework.config);
-<a class="jxr_linenumber" name="301" href="#301">301</a>                     <strong class="jxr_keyword">if</strong>(current instanceof <a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>) {
-<a class="jxr_linenumber" name="302" href="#302">302</a>                         ((<a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>)current).shutdown();
+<a class="jxr_linenumber" name="301" href="#301">301</a>                     <strong class="jxr_keyword">if</strong> (current instanceof AsynchronousProcessor) {
+<a class="jxr_linenumber" name="302" href="#302">302</a>                         ((<a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a>) current).shutdown();
 <a class="jxr_linenumber" name="303" href="#303">303</a>                     }
 <a class="jxr_linenumber" name="304" href="#304">304</a>                     framework.asyncSupport.init(framework.config.getServletConfig());
 <a class="jxr_linenumber" name="305" href="#305">305</a>                 }
 <a class="jxr_linenumber" name="306" href="#306">306</a>             }
 <a class="jxr_linenumber" name="307" href="#307">307</a>         }
-<a class="jxr_linenumber" name="308" href="#308">308</a>         <strong class="jxr_keyword">if</strong> (framework.asyncSupport.getClass().equals(JBossWebSocketSupport.<strong class="jxr_keyword">class</strong>)) {
-<a class="jxr_linenumber" name="309" href="#309">309</a>             logger.trace(<span class="jxr_string">"Dispatching websocket event: "</span> + httpEvent);
-<a class="jxr_linenumber" name="310" href="#310">310</a>             ((<a href="../../../org/atmosphere/container/JBossWebSocketSupport.html">JBossWebSocketSupport</a>) framework.asyncSupport).dispatch(httpEvent);
-<a class="jxr_linenumber" name="311" href="#311">311</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="312" href="#312">312</a>             logger.trace(<span class="jxr_string">"Dispatching comet event: "</span> + httpEvent);
-<a class="jxr_linenumber" name="313" href="#313">313</a>             framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
-<a class="jxr_linenumber" name="314" href="#314">314</a>         }
-<a class="jxr_linenumber" name="315" href="#315">315</a>     }
-<a class="jxr_linenumber" name="316" href="#316">316</a> 
-<a class="jxr_linenumber" name="317" href="#317">317</a> }
+<a class="jxr_linenumber" name="308" href="#308">308</a> 
+<a class="jxr_linenumber" name="309" href="#309">309</a>         <strong class="jxr_keyword">boolean</strong> isWebSocket = req.getHeader(<span class="jxr_string">"Upgrade"</span>) == <strong class="jxr_keyword">null</strong> ? false : <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="310" href="#310">310</a>         <strong class="jxr_keyword">if</strong> (isWebSocket &amp;&amp; framework.asyncSupport.getClass().equals(JBossWebSocketSupport.<strong class="jxr_keyword">class</strong>)) {
+<a class="jxr_linenumber" name="311" href="#311">311</a>             logger.trace(<span class="jxr_string">"Dispatching websocket event: "</span> + httpEvent);
+<a class="jxr_linenumber" name="312" href="#312">312</a>             ((<a href="../../../org/atmosphere/container/JBossWebSocketSupport.html">JBossWebSocketSupport</a>) framework.asyncSupport).dispatch(httpEvent);
+<a class="jxr_linenumber" name="313" href="#313">313</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="314" href="#314">314</a>             logger.trace(<span class="jxr_string">"Dispatching comet event: "</span> + httpEvent);
+<a class="jxr_linenumber" name="315" href="#315">315</a>             framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+<a class="jxr_linenumber" name="316" href="#316">316</a>         }
+<a class="jxr_linenumber" name="317" href="#317">317</a>     }
+<a class="jxr_linenumber" name="318" href="#318">318</a> 
+<a class="jxr_linenumber" name="319" href="#319">319</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>
