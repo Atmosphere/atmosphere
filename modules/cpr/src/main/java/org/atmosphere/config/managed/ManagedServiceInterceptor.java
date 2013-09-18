@@ -118,20 +118,17 @@ public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereIntercep
                         String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
-                                synchronized (config.handlers()) {
+                                boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
+                                if (!singleton) {
+                                    ManagedAtmosphereHandler h = (ManagedAtmosphereHandler) w.atmosphereHandler.getClass().getConstructor(Object.class)
+                                            .newInstance(ap.target().getClass().newInstance());
 
-                                    boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
-                                    if (!singleton) {
-                                        ManagedAtmosphereHandler h = (ManagedAtmosphereHandler) w.atmosphereHandler.getClass().getConstructor(Object.class)
-                                                .newInstance(ap.target().getClass().newInstance());
+                                    // Quite dangerous
+                                    w.interceptors.set(0, new ManagedServiceInterceptor(h));
 
-                                        // Quite dangerous
-                                        w.interceptors.set(0, new ManagedServiceInterceptor(h));
-
-                                        config.framework().addAtmosphereHandler(path, h, w.interceptors);
-                                    } else {
-                                        config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);
-                                    }
+                                    config.framework().addAtmosphereHandler(path, h, w.interceptors);
+                                } else {
+                                    config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);
                                 }
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                             } catch (Throwable e) {
