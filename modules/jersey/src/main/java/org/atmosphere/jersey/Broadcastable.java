@@ -103,6 +103,9 @@ public class Broadcastable {
         this.b = b;
         this.message = message;
         this.callerMessage = callerMessage;
+        if (callerMessage == null) {
+            throw new NullPointerException("callerMessage cannot be null");
+        }
     }
 
     /**
