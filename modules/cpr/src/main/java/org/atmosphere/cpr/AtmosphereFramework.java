@@ -312,7 +312,7 @@ public class AtmosphereFramework implements ServletContextProvider {
      *
      * @param mapping The servlet mapping (servlet path)
      * @param h       implementation of an {@link AtmosphereHandler}
-     * @param l       An array of {@link AtmosphereInterceptor}
+     * @param l       An array of {@link AtmosphereInterceptor}.
      */
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         if (!mapping.startsWith("/")) {
@@ -321,11 +321,18 @@ public class AtmosphereFramework implements ServletContextProvider {
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
         w.interceptors = l;
         addMapping(mapping, w);
-        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
-        logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
-        if (l.size() > 0) {
-            for (AtmosphereInterceptor s : l) {
-                logger.info("\t{} : {}", s.getClass().getSimpleName(), s);
+
+        if (isInit) {
+            initHandlerInterceptors(w);
+        }
+
+        if (logger.isDebugEnabled()) {
+            logger.debug("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+            logger.debug("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
+            if (l.size() > 0) {
+                for (AtmosphereInterceptor s : l) {
+                    logger.debug("\t{} : {}", s.getClass().getSimpleName(), s);
+                }
             }
         }
         return this;
@@ -649,20 +656,10 @@ public class AtmosphereFramework implements ServletContextProvider {
             configureAtmosphereInterceptor(scFacade);
             analytics();
 
-            if (broadcasterCacheClassName == null) {
-                logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
-                        "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
-            } else {
-                logger.info("Using BroadcasterCache: {}", broadcasterCacheClassName);
-            }
 
             // http://java.net/jira/browse/ATMOSPHERE-157
             if (sc.getServletContext() != null) {
                 sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
-            }
-
-            for (String i : broadcasterFilters) {
-                logger.info("Using BroadcastFilter: {}", i);
             }
 
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
@@ -670,15 +667,11 @@ public class AtmosphereFramework implements ServletContextProvider {
                 sharedThreadPools = Boolean.parseBoolean(s);
             }
 
-            logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
-            logger.info("HttpSession supported: {}", config.isSupportSession());
-            logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
-            logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
-            logger.info("Using Broadcaster: {}", broadcasterClassName);
-            logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
 
-            logger.info("\n\n\tFor Atmosphere Framework Commercial Support, visit \n\t{} " +
-                    "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
+            for (String i : broadcasterFilters) {
+                logger.info("Using BroadcastFilter: {}", i);
+            }
+            info();
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
@@ -690,6 +683,26 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
         isInit = true;
         return this;
+    }
+
+    private void info() {
+        if (broadcasterCacheClassName == null) {
+            logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
+                    "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
+        } else {
+            logger.info("Using BroadcasterCache: {}", broadcasterCacheClassName);
+        }
+        logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
+        logger.info("HttpSession supported: {}", config.isSupportSession());
+        logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
+        logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
+        logger.info("Using Broadcaster: {}", broadcasterClassName);
+        logger.info("Atmosphere is using async support: {} running under container: {}",
+                getAsyncSupport().getClass().getName(), asyncSupport.getContainerName());
+        logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
+
+        logger.info("\n\n\tFor Atmosphere Framework Commercial Support, visit \n\t{} " +
+                "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
     }
 
     private void configureAnnotationPackages() {
@@ -803,35 +816,43 @@ public class AtmosphereFramework implements ServletContextProvider {
         return ai;
     }
 
-    protected void initInterceptors() {
+    protected void initGlobalInterceptors(){
         for (AtmosphereInterceptor i : interceptors) {
             InjectorProvider.getInjector().inject(i);
             i.configure(config);
         }
+    }
+
+    protected void initHandlerInterceptors(AtmosphereHandlerWrapper w){
+        List<AtmosphereInterceptor> remove = new ArrayList<AtmosphereInterceptor>();
+        if (w.interceptors != null) {
+            for (AtmosphereInterceptor i : w.interceptors) {
+
+                //
+                InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(i.getClass()) ?
+                        InvokationOrder.class.cast(i).priority() : InvokationOrder.AFTER_DEFAULT;
+
+                // We need to relocate the interceptor
+                if (!p.equals(InvokationOrder.AFTER_DEFAULT)) {
+                    positionInterceptor(p, i);
+                    remove.add(i);
+                }
+                InjectorProvider.getInjector().inject(i);
+                i.configure(config);
+            }
+
+            for (AtmosphereInterceptor i : remove) {
+                w.interceptors.remove(i);
+            }
+
+        }
+    }
+
+    protected void initInterceptors() {
+        initGlobalInterceptors();
 
         for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
-            List<AtmosphereInterceptor> remove = new ArrayList<AtmosphereInterceptor>();
-            if (w.interceptors != null) {
-                for (AtmosphereInterceptor i : w.interceptors) {
-
-                    //
-                    InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(i.getClass()) ?
-                            InvokationOrder.class.cast(i).priority() : InvokationOrder.AFTER_DEFAULT;
-
-                    // We need to relocate the interceptor
-                    if (!p.equals(InvokationOrder.AFTER_DEFAULT)) {
-                        positionInterceptor(p, i);
-                        remove.add(i);
-                    }
-                    InjectorProvider.getInjector().inject(i);
-                    i.configure(config);
-                }
-
-                for (AtmosphereInterceptor i : remove) {
-                    w.interceptors.remove(i);
-                }
-
-            }
+            initHandlerInterceptors(w);
         }
     }
 
@@ -1433,9 +1454,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             setAsyncSupport(createAsyncSupportResolver()
                     .resolve(useNativeImplementation, useBlockingImplementation, useServlet30));
         }
-
-        logger.info("Atmosphere is using async support: {} running under container: {}",
-                getAsyncSupport().getClass().getName(), asyncSupport.getContainerName());
     }
 
     /**
