@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.cache.BroadcasterCacheInspector;
+import org.atmosphere.cache.DefaultBroadcasterCache;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.config.ApplicationConfiguration;
 import org.atmosphere.config.AtmosphereHandlerConfig;
@@ -686,7 +687,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     }
 
     private void info() {
-        if (broadcasterCacheClassName == null) {
+        if (broadcasterCacheClassName == null || DefaultBroadcasterCache.class.getName().equals(broadcasterCacheClassName)) {
             logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                     "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
         } else {
