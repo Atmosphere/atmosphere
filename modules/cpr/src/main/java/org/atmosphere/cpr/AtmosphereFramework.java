@@ -100,6 +100,7 @@ import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_WAIT_TIME;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCAST_FILTER_CLASSES;
 import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_ATMOSPHERE_XML;
@@ -694,6 +695,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         } else {
             logger.info("Using BroadcasterCache: {}", broadcasterCacheClassName);
         }
+
+        String s = config.getInitParameter(BROADCASTER_WAIT_TIME);
+
+        logger.info("Broadcaster Polling Wait Time {}", s == null ? "100" : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
         logger.info("HttpSession supported: {}", config.isSupportSession());
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());

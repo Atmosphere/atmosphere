@@ -53,8 +53,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
     protected ScheduledExecutorService taskScheduler;
-    private long clientIdleTime = TimeUnit.MINUTES.toMillis(2); // 2 minutes
-    private long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1); // 1 minute
+    private long clientIdleTime = TimeUnit.SECONDS.toMillis(60); // 1 minutes
+    private long invalidateCacheInterval = TimeUnit.SECONDS.toMillis(30); // 30 seconds
     private boolean shared = true;
     protected final List<Object> emptyList = Collections.<Object>emptyList();
 

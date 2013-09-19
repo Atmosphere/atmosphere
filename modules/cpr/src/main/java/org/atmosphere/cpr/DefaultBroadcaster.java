@@ -174,7 +174,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
         if (outOfOrderBroadcastSupported.get()) {
-            logger.debug("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
+            logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
         }
     }
 
