@@ -945,7 +945,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 if (entry.message != null) {
-                    filteredMessage.addLast(newMessage);
+                    filteredMessage.addLast(entry.message);
                 }
             }
 
