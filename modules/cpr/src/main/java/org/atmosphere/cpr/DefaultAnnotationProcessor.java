@@ -366,7 +366,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
         @Override
         public void destroy() {
-            detector.destroy();
+            if (detector != null) detector.destroy();
         }
     }
 
