@@ -45,7 +45,8 @@
                             org.jboss.servlet*;resolution:=optional,
 							org.apache.coyote*;resolution:=optional,
                             org.mortbay.util.ajax*;resolution:=optional,
-                            org.atmosphere.jboss;resolution:=optional,
+                            org.atmosphere.jboss*;resolution:=optional,
+                            org.apache.shiro*;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
