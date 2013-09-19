@@ -40,7 +40,7 @@
                             com.sun*;resolution:=optional,
                             org.glassfish.grizzly*;resolution:=optional,
                             org.apache.catalina*;resolution:=optional,
-                            org.apache.tomcat*;resolution:=optional,
+                            org.apache.tomcat*;resolution:=optional;version="0.0",
                             org.eclipse.jetty*;resolution:=optional,
                             org.jboss.servlet*;resolution:=optional,
 							org.apache.coyote*;resolution:=optional,
