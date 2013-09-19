@@ -47,6 +47,8 @@
                             org.mortbay.util.ajax*;resolution:=optional,
                             org.atmosphere.jboss*;resolution:=optional,
                             org.apache.shiro*;resolution:=optional,
+                            org.jboss.vfs*;resolution:=optional,
+                            javax.websocket*;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
@@ -228,7 +230,7 @@
         <dependency>
             <groupId>javax.websocket</groupId>
             <artifactId>javax.websocket-api</artifactId>
-            <version>1.0-rc4</version>
+            <version>1.0</version>
             <scope>provided</scope>
         </dependency>
 
