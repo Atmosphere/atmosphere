@@ -184,7 +184,7 @@
 <a class="jxr_linenumber" name="174" href="#174">174</a>         }
 <a class="jxr_linenumber" name="175" href="#175">175</a>         noOpsResource = AtmosphereResourceFactory.getDefault().create(config, <span class="jxr_string">"-1"</span>);
 <a class="jxr_linenumber" name="176" href="#176">176</a>         <strong class="jxr_keyword">if</strong> (outOfOrderBroadcastSupported.get()) {
-<a class="jxr_linenumber" name="177" href="#177">177</a>             logger.debug(<span class="jxr_string">"{} supports Out Of Order Broadcast: {}"</span>, name, outOfOrderBroadcastSupported.get());
+<a class="jxr_linenumber" name="177" href="#177">177</a>             logger.trace(<span class="jxr_string">"{} supports Out Of Order Broadcast: {}"</span>, name, outOfOrderBroadcastSupported.get());
 <a class="jxr_linenumber" name="178" href="#178">178</a>         }
 <a class="jxr_linenumber" name="179" href="#179">179</a>     }
 <a class="jxr_linenumber" name="180" href="#180">180</a> 
@@ -955,7 +955,7 @@
 <a class="jxr_linenumber" name="945" href="#945">945</a>                 }
 <a class="jxr_linenumber" name="946" href="#946">946</a> 
 <a class="jxr_linenumber" name="947" href="#947">947</a>                 <strong class="jxr_keyword">if</strong> (entry.message != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="948" href="#948">948</a>                     filteredMessage.addLast(newMessage);
+<a class="jxr_linenumber" name="948" href="#948">948</a>                     filteredMessage.addLast(entry.message);
 <a class="jxr_linenumber" name="949" href="#949">949</a>                 }
 <a class="jxr_linenumber" name="950" href="#950">950</a>             }
 <a class="jxr_linenumber" name="951" href="#951">951</a> 
