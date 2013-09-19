@@ -956,6 +956,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             }
         } catch (Exception ex) {
             handleException(ex);
+            throw new RuntimeException(ex);
         }
         return this;
     }
