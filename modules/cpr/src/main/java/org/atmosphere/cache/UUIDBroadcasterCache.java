@@ -16,6 +16,7 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
@@ -183,6 +184,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage message) {
         if (message == null) {
+            AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
+            logger.trace("Cached message is null for {}, but event was {}", r.uuid(), e == null ? "null" : e.getMessage());
             return;
         }
 
