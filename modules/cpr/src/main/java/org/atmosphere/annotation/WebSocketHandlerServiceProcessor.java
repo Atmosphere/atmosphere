@@ -67,7 +67,7 @@ public class WebSocketHandlerServiceProcessor implements Processor {
             }
 
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
-            p.registerWebSocketHandler(m.path(), s.newInstance());
+            p.registerWebSocketHandler(m.path(), framework.newClassInstance(s));
         } catch (Throwable e) {
             logger.warn("", e);
         }

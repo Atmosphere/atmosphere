@@ -61,7 +61,7 @@ public class MeteorServiceProcessor implements Processor {
             Class<?>[] interceptors = m.interceptors();
             for (Class i : interceptors) {
                 try {
-                    AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
+                    AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(i);
                     l.add(ai);
                 } catch (Throwable e) {
                     logger.warn("", e);

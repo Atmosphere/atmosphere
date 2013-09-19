@@ -30,7 +30,7 @@ public class AtmosphereInterceptorServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            AtmosphereInterceptor a = (AtmosphereInterceptor) annotatedClass.newInstance();
+            AtmosphereInterceptor a = (AtmosphereInterceptor) framework.newClassInstance(annotatedClass);
             framework.interceptor(a);
         } catch (Throwable e) {
             logger.warn("", e);

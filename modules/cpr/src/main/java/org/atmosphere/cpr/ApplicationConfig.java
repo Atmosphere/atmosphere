@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.client.TrackMessageSizeInterceptor;
+import org.atmosphere.cpr.AtmosphereFramework.BasicAtmosphereClassInstantiator;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
@@ -613,5 +614,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.useBuildInSession
      */
     String BUILT_IN_SESSION = ApplicationConfig.class.getName() + ".useBuildInSession";
+    /**
+     * The default {@link org.atmosphere.di.AtmosphereClassInstantiator} class.
+     * <p>
+     * Default: BasicAtmosphereClassInstantiator (calls newInstance() on class)<br>
+     * Value: org.atmosphere.cpr.classInstantiator
+     */
+    String CUSTOM_CLASS_INSTANTIATOR = ApplicationConfig.class.getName() + ".classInstantiator";
 }
 

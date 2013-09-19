@@ -68,7 +68,7 @@ public class AtmosphereServiceProcessor implements Processor {
                 Class<?>[] interceptors = a.interceptors();
                 for (Class i : interceptors) {
                     try {
-                        AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
+                        AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(i);
                         l.add(ai);
                     } catch (Throwable e) {
                         logger.warn("", e);

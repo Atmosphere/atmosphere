@@ -31,7 +31,7 @@ public class BroadcasterFactoryServiceProcessor implements Processor {
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
             Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) annotatedClass;
-            framework.setBroadcasterFactory(bf.newInstance());
+            framework.setBroadcasterFactory(framework.newClassInstance(bf));
             framework.configureBroadcasterFactory();
         } catch (Throwable e) {
             logger.warn("", e);

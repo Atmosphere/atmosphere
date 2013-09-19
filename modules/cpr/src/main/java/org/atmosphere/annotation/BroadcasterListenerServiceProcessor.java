@@ -30,7 +30,7 @@ public class BroadcasterListenerServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.addBroadcasterListener((BroadcasterListener) annotatedClass.newInstance());
+            framework.addBroadcasterListener((BroadcasterListener) framework.newClassInstance(annotatedClass));
         } catch (Throwable e) {
             logger.warn("", e);
         }
