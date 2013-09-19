@@ -327,14 +327,12 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (isInit) {
             initHandlerInterceptors(w);
-        }
-
-        if (logger.isDebugEnabled()) {
-            logger.debug("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
-            logger.debug("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
+        } else {
+            logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+            logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
             if (l.size() > 0) {
                 for (AtmosphereInterceptor s : l) {
-                    logger.debug("\t{} : {}", s.getClass().getSimpleName(), s);
+                    logger.info("\t{} : {}", s.getClass().getSimpleName(), s);
                 }
             }
         }
