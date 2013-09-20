@@ -42,7 +42,7 @@
 
         <section id="main_content">
             <h2>The Async-IO dev team are pleased to announce the release of <a
-                    href="https://github.com/Atmosphere/atmosphere">The Atmosphere Framework Stack 2.0!</a> You can
+                    href="https://github.com/Atmosphere/atmosphere">The Atmosphere Framework 2.0!</a> You can
                 download it <a href="./download.html">here</a></h2>
 
             <p>Besides all of the performance and cache memory improvements made between Atmosphere 1.0, version 2.0
@@ -64,7 +64,7 @@
                 WebSockets on JBoss 7.2.x and Wildfly's newly Servlet Container <a
                         href="http://undertow.io/">Undertow</a>. Apache Tomcat 5 to 8, Jetty 6 to 9.1, GlassFish 2 to 4,
                 Resin 3 to 4, JBoss 5 to the upcoming Wildfly, WebLogic 10 and 12, WebSphere 7 and up all of them works
-                OUT OF THE BOX. Atmosphere 2.0 always pick the best configuration available, transparently!</p>
+                OUT OF THE BOX. Atmosphere 2.0 always picks the best configuration available, transparently!</p>
 
             <h3>Scary number of Frameworks supported</h3>
 
@@ -77,27 +77,27 @@
                 framework like Akka, Cometd, Socket.IO, distributed solutions like Hazelcast, Redis, JGroups, JMS for
                 extreme scaling!</p>
 
-            <p>Google Atmosphere+framework_name for more information.</p>
+            <p>Google 'Atmosphere + framework_name' for more information.</p>
 
             <h3>JSR 356: Java API for WebSocket</h3>
 
             <p>Atmosphere 2.0 natively jsr 356 and will use it when available. Current supported servers are GlassFish
-                4.x, Tomcat 8.0.0-RC1 and Jetty 9.1.0.Mx</p>
+                4.x, Tomcat 8.0.0-RC3 and Jetty 9.1.0.Mx</p>
 
             <h3>JSR 339: Java API for RESTful Services (JAX-RS2)</h3>
 
-            <p>JAX-RS2 ships with a an asynchronous API ... without support for WebSocket!! Atmosphere 2.0 transparently
+            <p>JAX-RS2 ships with a new asynchronous API ... without support for WebSocket!! Atmosphere 2.0 transparently
                 brings WebSocket to JAX-RS2 implementation like Jersey 2 and RestEasy 3</p>
 
-            <h2>JavaScript Client: You have choice!</h2>
+            <h3>JavaScript Client: You have choice! Node.js included!!</h3>
 
             <p>Atmosphere 2.0 now ships with a pure <a href="">Javascript Client</a>, and with a JQuery Plug In. Our
-                Javascript client also support Node.js!!</p>
+                Javascript client also supports <strong>Node.js!!</strong></p>
 
-            <h3>JVM Client: wAsync</h3>
+            <h3>JVM Client: wAsync: Android, Node.js and Atmosphere altogether!</h3>
 
             <p>Atmosphere 2.0 now ships with a new Java based Client called <a
-                    href="https://github.com/Atmosphere/wasync">wAsync</a>. As simple as </p>
+                    href="https://github.com/Atmosphere/wasync">wAsync</a>. Wasync supports Android, Node.jas and Atmosphere. As simple as </p>
 
             <div class="example">
                 <div class="example-left-long">
@@ -106,17 +106,17 @@
     RequestBuilder request = client.newRequestBuilder()
             .method(Request.METHOD.GET)
             .uri("http://async-io.org")
-            .encoder(new Encoder<String, Reader>() {
+            .encoder(new Encoder&lt;String, Reader&gt;() {
                     ...
             })
-            .decoder(new Decoder<String, Reader>() {
+            .decoder(new Decoder&lt;String, Reader&gt;() {
                  ...
             })
             .transport(WEBSOCKET)     // Try WebSocket
             .transport(LONG_POLLING); // Fallback to Long-Polling
 
     Socket socket = client.create();
-    socket.on(new Function<Reader>() {
+    socket.on(new Function&lt;Reader&gt;() {
                             ...
 
     }).open(request.build()).fire("echo").fire("bong");
@@ -164,22 +164,33 @@
             <h3>Many many more changes!!!</h3>
 
             <p>Improved BroadcasterCache, State Recovery after a network outage, Heart Beat Support for Proxy lover, GWT
-                support completely re-written are amongs the new features. Hundreds and Hundreds of bugs fixes, new
-                features, etc. Surf <a
+                support completely re-written are amongst the new features. Hundreds and Hundreds of bugs fixed, new
+                features, etc. Surf our <a
                         href="https://github.com/Atmosphere/atmosphere/issues?labels=&milestone=&page=1&state=closed">Change
                     logs</a></p>
 
             <h3>Several Samples: Pick the one you like to get started</h3>
 
-            <p>Many easy to use sampled <a
-                    href="https://github.com/Atmosphere/atmosphere-samples">SSSSSSSaaammmples!</a></p>
+            <p>Get started <a href="https://github.com/Atmosphere/atmosphere/wiki">documentations</a>. Many easy to use <a
+                    href="https://github.com/Atmosphere/atmosphere-samples">SSSSSSSaaammmples! are available as wel!!</a></p>
+
+            <h3>Get it now!</h3>
+
+            <p>The Atmosphere Framework 2.0.Stack contains the following component</p>
+            <ul>
+                <li>runtime: server side components for Servlet based framework.</li>
+                <li>javascript: client side library for Atmosphere</li>
+                <li>wAsync: Java client side library for Atmosphere</li>
+                <li>NettoSphere: server side server running on top of the Netty Framework</li>
+                <li>VertoSphere: server side server running on top of the Vert.x Framework</li>
+                <li>Playtosphere: server side server running on top of the Play! Framework</li>
+            </ul>
 
             <h3>Thanks to our Sponsors</h3>
 
             <p>A big thanks to the company sponsoring Atmosphere: All the Async.io.org's subscribers, <a
                     href="http://helloreverb.com/">Reverb</a>, who significantly sponsored Atmosphere from 2011 to early
-                2013, <a href="http://www.primetek.com.tr/">PrimeTek</a> and <a
-                        href="http://wwww.vmware.com/">VmWare</a></p>
+                2013, and our friends at <a href="http://www.primetek.com.tr/">PrimeTek</a></p>
         </section>
         <footer>
             <p>©2013. All Rights Reserved - <a href="http://async-io.org">Async-IO.org</a>. Follow us on <a
