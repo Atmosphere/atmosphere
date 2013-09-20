@@ -3,31 +3,31 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>1.0.18</version>
+        <version>1.0.19-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-gwt-libs</artifactId>
     <name>atmosphere-gwt-libs</name>
-    <version>1.0.18</version>
+    <version>1.0.19-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-client</artifactId>
-            <version>1.0.18</version>
+            <version>1.0.19-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-server</artifactId>
-            <version>1.0.18</version>
+            <version>1.0.19-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-poll</artifactId>
-            <version>1.0.18</version>
+            <version>1.0.19-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>com.google.gwt</groupId>
@@ -42,7 +42,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-gwt-extra</artifactId>
-            <version>1.0.18</version>
+            <version>1.0.19-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
