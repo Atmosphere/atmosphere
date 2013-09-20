@@ -121,7 +121,7 @@ public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereIntercep
                                 boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
                                     ManagedAtmosphereHandler h = (ManagedAtmosphereHandler) w.atmosphereHandler.getClass().getConstructor(Object.class)
-                                            .newInstance(ap.target().getClass().newInstance());
+                                            .newInstance(config.framework().newClassInstance(ap.target().getClass()));
 
                                     // Quite dangerous
                                     w.interceptors.set(0, new ManagedServiceInterceptor(h));
