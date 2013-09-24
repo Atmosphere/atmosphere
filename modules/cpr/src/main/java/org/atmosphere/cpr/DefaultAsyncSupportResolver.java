@@ -182,7 +182,12 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                if (useServlet30Async && !useNativeIfPossible) {
+                boolean tomcat7043ImcompatibleChange = false;
+                if (useServlet30Async && System.getProperty("java.version").startsWith("1.6") && testClassExists(TOMCAT_7)) {
+                    tomcat7043ImcompatibleChange = true;
+                }
+
+                if (!tomcat7043ImcompatibleChange && useServlet30Async && !useNativeIfPossible) {
                     // Must always be called first.
                     if (testClassExists(JSR356_WEBSOCKET))
                         add(JSR356AsyncSupport.class);
