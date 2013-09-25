@@ -24,6 +24,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.websocket.Endpoint;
+import javax.websocket.HandshakeResponse;
+import javax.websocket.server.HandshakeRequest;
 import javax.websocket.server.ServerApplicationConfig;
 import javax.websocket.server.ServerEndpointConfig;
 import java.util.Collections;
@@ -66,14 +68,23 @@ public class JSR356ServerApplicationConfig implements ServerApplicationConfig {
 
     public final static class AtmosphereConfigurator extends ServerEndpointConfig.Configurator {
 
+        final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<JSR356Endpoint>();
+
         public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
             if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
                 AtmosphereConfig config = BroadcasterFactory.getDefault().lookup("/*", true).getBroadcasterConfig().getAtmosphereConfig();
                 AtmosphereFramework f = config.framework();
-                return (T) new JSR356Endpoint(f, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(f));
+                JSR356Endpoint e = new JSR356Endpoint(f, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(f));
+                endPoint.set(e);
+                return (T) e;
             } else {
                 return super.getEndpointInstance(endpointClass);
             }
+        }
+
+        public void modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse response) {
+            endPoint.get().handshakeRequest(request);
+            endPoint.set(null);
         }
     }
 }

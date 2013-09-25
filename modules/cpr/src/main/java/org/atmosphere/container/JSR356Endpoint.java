@@ -28,14 +28,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletRegistration;
+import javax.servlet.http.HttpSession;
 import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
 import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
+import javax.websocket.server.HandshakeRequest;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
@@ -52,6 +55,7 @@ public class JSR356Endpoint extends Endpoint {
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
     private String servletContext = "";
+    private HandshakeRequest handshakeRequest;
 
     public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
@@ -95,6 +99,11 @@ public class JSR356Endpoint extends Endpoint {
         }
     }
 
+    public  JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
+        this.handshakeRequest = handshakeRequest;
+        return this;
+    }
+
     @Override
     public void onOpen(Session session, EndpointConfig endpointConfig) {
 
@@ -113,11 +122,10 @@ public class JSR356Endpoint extends Endpoint {
 
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
-        // TODO: This is quite bogus!
         Map<String, String> headers = new HashMap<String, String>();
-        headers.put("Sec-WebSocket-Version", "13");
-        headers.put("Connection", "Upgrade");
-        headers.put("Upgrade", "websocket");
+        for (Map.Entry<String, List<String>> e :handshakeRequest.getHeaders().entrySet()) {
+            headers.put(e.getKey(), e.getValue().size() > 0 ? e.getValue().get(0) : "");
+        }
 
         String pathInfo = "";
         StringBuffer p = new StringBuffer("/");
@@ -152,8 +160,10 @@ public class JSR356Endpoint extends Endpoint {
                     .requestURI(session.getRequestURI().toASCIIString())
                     .requestURL(session.getRequestURI().toASCIIString())
                     .headers(headers)
+                    .session((HttpSession)handshakeRequest.getHttpSession())
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo)
+                    .userPrincipal(session.getUserPrincipal())
                     .build()
                     .queryString(session.getQueryString());
 

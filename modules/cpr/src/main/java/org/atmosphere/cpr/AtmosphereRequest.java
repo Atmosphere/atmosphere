@@ -1019,6 +1019,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             locales.add(locale);
             return this;
         }
+
+        public Builder userPrincipal(Principal userPrincipal) {
+            this.principal = userPrincipal;
+            return this;
+        }
     }
 
     private final static class IS extends ServletInputStream {
