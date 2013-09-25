@@ -76,7 +76,8 @@ public class JSR356WebSocket extends WebSocket {
         logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {
             session.close();
-        } catch (IOException e) {
+        // Tomcat may throw  https://gist.github.com/jfarcand/6702738
+        } catch (Exception e) {
             logger.trace("", e);
         }
     }
