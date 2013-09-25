@@ -54,6 +54,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.container.GlassFishServ30WebSocketSupport;
 import org.atmosphere.container.GlassFishServlet30WebSocketSupport;
 import org.atmosphere.container.GlassFishWebSocketSupport;
 import org.atmosphere.container.GlassFishv2CometSupport;
@@ -195,7 +196,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         add(JettyServlet30AsyncSupportWithWebSocket.class);
 
                     if (testClassExists(GRIZZLY2_WEBSOCKET))
-                        add(Grizzly2WebSocketSupport.class);
+                        add(GlassFishServ30WebSocketSupport.class);
 
                     if (testClassExists(GRIZZLY_WEBSOCKET))
                         add(GlassFishServlet30WebSocketSupport.class);
