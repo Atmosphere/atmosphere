@@ -201,6 +201,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     if (testClassExists(JETTY_8))
                         add(JettyServlet30AsyncSupportWithWebSocket.class);
 
+                    if (testClassExists(GRIZZLY2_WEBSOCKET))
+                        add(Grizzly2WebSocketSupport.class);
+
                     if (testClassExists(GRIZZLY_WEBSOCKET))
                         add(GlassFishServlet30WebSocketSupport.class);
                 } else {
