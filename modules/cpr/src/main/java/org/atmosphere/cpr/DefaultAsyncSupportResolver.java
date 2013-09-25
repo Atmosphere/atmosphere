@@ -182,15 +182,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                boolean tomcat7043ImcompatibleChange = false;
-                if (useServlet30Async && System.getProperty("java.version").startsWith("1.6") && testClassExists(TOMCAT_7)) {
-                    tomcat7043ImcompatibleChange = true;
-                }
+                if (useServlet30Async && !useNativeIfPossible) {
 
-                if (!tomcat7043ImcompatibleChange && useServlet30Async && !useNativeIfPossible) {
-                    // Must always be called first.
-                    if (testClassExists(JSR356_WEBSOCKET))
-                        add(JSR356AsyncSupport.class);
 
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7Servlet30SupportWithWebSocket.class);
@@ -206,6 +199,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                     if (testClassExists(GRIZZLY_WEBSOCKET))
                         add(GlassFishServlet30WebSocketSupport.class);
+
+                    if (testClassExists(JSR356_WEBSOCKET))
+                        add(JSR356AsyncSupport.class);
                 } else {
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7AsyncSupportWithWebSocket.class);
