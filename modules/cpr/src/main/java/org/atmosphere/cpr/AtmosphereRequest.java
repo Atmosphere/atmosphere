@@ -235,9 +235,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     @Override
     public Enumeration<String> getHeaderNames() {
         Set list = new HashSet();
-        if (b.contentType != null) {
-            list.add("Content-Type");
-        }
         list.addAll(b.headers.keySet());
 
         list.addAll(Collections.list(b.request.getHeaderNames()));
@@ -251,6 +248,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
 
+        if (b.contentType != null) {
+            list.add("Content-Type");
+        }
         return Collections.enumeration(list);
     }
 
