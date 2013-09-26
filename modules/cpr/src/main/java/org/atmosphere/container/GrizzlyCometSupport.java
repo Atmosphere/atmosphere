@@ -164,10 +164,12 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
             req.getSession().removeAttribute(ATMOSPHERE);
         }
 
-        try {
-            AtmosphereResourceImpl.class.cast(req.resource()).cancel();
-        } catch (IOException e) {
-            logger.trace("", e);
+        if (req.resource() != null) {
+            try {
+                AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
         }
 
         if (handler != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
