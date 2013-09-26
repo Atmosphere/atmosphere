@@ -55,12 +55,12 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.GlassFishServ30WebSocketSupport;
-import org.atmosphere.container.GlassFishServlet30WebSocketSupport;
 import org.atmosphere.container.GlassFishWebSocketSupport;
 import org.atmosphere.container.GlassFishv2CometSupport;
 import org.atmosphere.container.Grizzly2CometSupport;
 import org.atmosphere.container.Grizzly2WebSocketSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
+import org.atmosphere.container.GrizzlyServlet30WebSocketSupport;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
@@ -199,7 +199,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         add(GlassFishServ30WebSocketSupport.class);
 
                     if (testClassExists(GRIZZLY_WEBSOCKET))
-                        add(GlassFishServlet30WebSocketSupport.class);
+                        add(GrizzlyServlet30WebSocketSupport.class);
 
                     if (testClassExists(JSR356_WEBSOCKET))
                         add(JSR356AsyncSupport.class);
