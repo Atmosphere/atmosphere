@@ -447,23 +447,27 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         webSocketHandler.onClose(webSocket);
                     }
 
-                    AsynchronousProcessor.AsynchronousProcessorHook h = (AsynchronousProcessor.AsynchronousProcessorHook)
-                            r.getAttribute(ASYNCHRONOUS_HOOK);
-                    if (!resource.isCancelled() && h != null) {
-                        if (closeCode == 1005) {
-                            h.closed();
-                        } else {
-                            h.timedOut();
-                        }
+                    Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
+                    AsynchronousProcessor.AsynchronousProcessorHook h;
+                    if (o != null && AsynchronousProcessor.class.isAssignableFrom(o.getClass())) {
+                        h = (AsynchronousProcessor.AsynchronousProcessorHook)
+                                r.getAttribute(ASYNCHRONOUS_HOOK);
+                        if (!resource.isCancelled()) {
+                            if (closeCode == 1005) {
+                                h.closed();
+                            } else {
+                                h.timedOut();
+                            }
 
-                        resource.setIsInScope(false);
-                        try {
-                            resource.cancel();
-                        } catch (IOException e) {
-                            logger.trace("", e);
+                            resource.setIsInScope(false);
+                            try {
+                                resource.cancel();
+                            } catch (IOException e) {
+                                logger.trace("", e);
+                            }
                         }
+                        AtmosphereResourceImpl.class.cast(resource)._destroy();
                     }
-                    AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
 
             } finally {
