@@ -38,9 +38,10 @@ public class HTTPGetMethod {
     }
 
     public void request(String urlString) {
+        HttpURLConnection urlConnection = null;
         try {
             URL url = new URL(urlString);
-            HttpURLConnection urlConnection = openURLConnection(url);
+            urlConnection = openURLConnection(url);
             urlConnection.setInstanceFollowRedirects(true);
             urlConnection.setRequestMethod(GET_METHOD_NAME);
             urlConnection.setRequestProperty("User-agent", uaName + " ("
@@ -55,6 +56,10 @@ public class HTTPGetMethod {
             }
         } catch (Exception e) {
             logError(e.getMessage());
+        } finally {
+            if (urlConnection != null) {
+                urlConnection.disconnect();
+            }
         }
     }
 
