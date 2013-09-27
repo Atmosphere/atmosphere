@@ -125,11 +125,11 @@ public class BroadcasterConfig {
             String className = config.framework().getBroadcasterCacheClassName();
             if (className != null) {
                 try {
-                    broadcasterCache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                            .loadClass(className).newInstance();
+                    broadcasterCache = (BroadcasterCache) config.framework().newClassInstance(Thread.currentThread().getContextClassLoader()
+                            .loadClass(className));
                 } catch (ClassNotFoundException ex) {
-                    broadcasterCache = (BroadcasterCache) getClass().getClassLoader()
-                            .loadClass(className).newInstance();
+                    broadcasterCache = (BroadcasterCache) config.framework().newClassInstance(getClass().getClassLoader()
+                            .loadClass(className));
                 }
                 InjectorProvider.getInjector().inject(broadcasterCache);
                 configureSharedCacheExecutor();

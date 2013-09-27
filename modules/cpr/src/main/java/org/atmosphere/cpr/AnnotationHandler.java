@@ -65,7 +65,7 @@ public class AnnotationHandler {
             Processor p = processors.get(a);
             if (p == null) {
                 try {
-                    p = a.newInstance();
+                    p = framework.newClassInstance(a);
                 } catch (Exception e) {
                     logger.warn("Unable to create Processor {}", p);
                 }

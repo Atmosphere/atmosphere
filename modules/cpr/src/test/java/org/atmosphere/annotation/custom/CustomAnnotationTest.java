@@ -108,7 +108,7 @@ public class CustomAnnotationTest {
         public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
             MyAnnotation a = annotatedClass.getAnnotation(MyAnnotation.class);
             try {
-                framework.addAtmosphereHandler(a.value(), (AtmosphereHandler) annotatedClass.newInstance());
+                framework.addAtmosphereHandler(a.value(), (AtmosphereHandler) framework.newClassInstance(annotatedClass));
             } catch (InstantiationException e) {
                 e.printStackTrace();
             } catch (IllegalAccessException e) {

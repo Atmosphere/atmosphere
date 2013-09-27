@@ -53,7 +53,7 @@ public class ManagedServiceProcessor implements Processor {
                 l.add(aa);
             }
 
-            Object c = aClass.newInstance();
+            Object c = framework.newClassInstance(aClass);
             AtmosphereHandler handler = new ManagedAtmosphereHandler(c);
             // MUST BE ADDED FIRST, ALWAYS!
             l.add(new ManagedServiceInterceptor(ManagedAtmosphereHandler.class.cast(handler)));
@@ -61,7 +61,7 @@ public class ManagedServiceProcessor implements Processor {
             Class<?>[] interceptors = a.interceptors();
             for (Class i : interceptors) {
                 try {
-                    l.add((AtmosphereInterceptor) i.newInstance());
+                    l.add((AtmosphereInterceptor) framework.newClassInstance(i));
                 } catch (Throwable e) {
                     logger.warn("", e);
                 }
