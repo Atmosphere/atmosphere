@@ -51,11 +51,11 @@
  */
 package org.atmosphere.handler;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
 import org.slf4j.Logger;
@@ -101,6 +101,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     private final FilterChainServletWrapper wrapper = new FilterChainServletWrapper();
     private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();
     private Servlet servlet;
+    private AtmosphereConfig config;
 
     public ReflectorServletProcessor() {
     }
@@ -128,13 +129,13 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             throws InstantiationException, IllegalAccessException, ClassNotFoundException {
         if (servletClassName != null && servlet == null) {
             try {
-                servlet = (Servlet) urlC.loadClass(servletClassName).newInstance();
+                servlet = (Servlet) config.framework().newClassInstance(urlC.loadClass(servletClassName));
             } catch (NullPointerException ex) {
                 // We failed to load the servlet, let's try directly.
-                servlet = (Servlet) Thread.currentThread().getContextClassLoader()
-                        .loadClass(servletClassName).newInstance();
+                servlet = (Servlet) config.framework().newClassInstance(Thread.currentThread().getContextClassLoader()
+                        .loadClass(servletClassName));
+
             }
-            InjectorProvider.getInjector().inject(servlet);
         }
 
         logger.info("Installing Servlet {}", servletClassName);
@@ -148,7 +149,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             String fClass = fClassAndName.getKey();
             String filterName = fClassAndName.getValue();
             Filter f = loadFilter(urlC, fClass);
-            InjectorProvider.getInjector().inject(f);
             if (filterName == null) {
                 if (sc.getInitParameter(APPLICATION_NAME) != null) {
                     filterName = sc.getInitParameter(APPLICATION_NAME);
@@ -168,11 +168,11 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             throws InstantiationException, IllegalAccessException, ClassNotFoundException {
         Filter f;
         try {
-            f = (Filter) urlC.loadClass(fClass).newInstance();
+            f = (Filter) config.framework().newClassInstance(urlC.loadClass(fClass));
         } catch (NullPointerException ex) {
             // We failed to load the Filter, let's try directly.
-            f = (Filter) Thread.currentThread().getContextClassLoader()
-                    .loadClass(fClass).newInstance();
+            f = (Filter) config.framework().newClassInstance(Thread.currentThread().getContextClassLoader()
+                    .loadClass(fClass));
         }
         return f;
     }
@@ -209,13 +209,14 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     }
 
     @Override
-    public void init(ServletConfig sc) throws ServletException {
+    public void init(AtmosphereConfig config) throws ServletException {
+        this.config = config;
         try {
-            loadWebApplication(sc);
+            loadWebApplication(config.getServletConfig());
         } catch (Exception ex) {
             throw new ServletException(ex);
         }
-        wrapper.init(sc);
+        wrapper.init(config.getServletConfig());
     }
 
     public void addFilter(Filter filter) {

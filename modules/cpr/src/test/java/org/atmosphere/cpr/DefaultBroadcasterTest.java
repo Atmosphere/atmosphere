@@ -46,8 +46,7 @@ public class DefaultBroadcasterTest {
 
     public static final class B extends DefaultBroadcaster {
 
-        public B(String id, AtmosphereConfig config) {
-            super(id, config);
+        public B() {
         }
 
         protected void cacheAndSuspend(AtmosphereResource r) {

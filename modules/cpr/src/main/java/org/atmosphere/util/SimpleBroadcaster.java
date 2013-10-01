@@ -56,6 +56,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -75,8 +76,10 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleBroadcaster.class);
 
-    public SimpleBroadcaster(String id, AtmosphereConfig config) {
-        super(id, config);
+    public SimpleBroadcaster(){};
+
+    public Broadcaster initialize(String id, AtmosphereConfig config) {
+        return super.initialize(id, config);
     }
 
     @Override

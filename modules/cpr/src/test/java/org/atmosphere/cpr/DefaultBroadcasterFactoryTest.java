@@ -265,8 +265,7 @@ public class DefaultBroadcasterFactoryTest {
 
         public static AtomicInteger instance = new AtomicInteger();
 
-        public TestBroadcaster(String name, AtmosphereConfig config) {
-            super(name, config);
+        public TestBroadcaster() {
             instance.incrementAndGet();
         }
     }

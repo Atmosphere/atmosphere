@@ -24,6 +24,7 @@ import org.atmosphere.config.service.Put;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.config.service.Resume;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -56,21 +57,25 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
-    private final Object object;
-    private final List<Method> onRuntimeMethod;
-    private final Method onDisconnectMethod;
-    private final Method onTimeoutMethod;
-    private final Method onGetMethod;
-    private final Method onPostMethod;
-    private final Method onPutMethod;
-    private final Method onDeleteMethod;
-    private final Method onReadyMethod;
-    private final Method onResumeMethod;
+    private Object object;
+    private List<Method> onRuntimeMethod;
+    private Method onDisconnectMethod;
+    private Method onTimeoutMethod;
+    private Method onGetMethod;
+    private Method onPostMethod;
+    private Method onPutMethod;
+    private Method onDeleteMethod;
+    private Method onReadyMethod;
+    private Method onResumeMethod;
+    private AtmosphereConfig config;
 
     final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
     final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
 
-    public ManagedAtmosphereHandler(Object c) {
+    public ManagedAtmosphereHandler() {
+    }
+
+    public ManagedAtmosphereHandler configure(AtmosphereConfig config, Object c) {
         this.object = c;
         this.onRuntimeMethod = populateMessage(c, Message.class);
         this.onDisconnectMethod = populate(c, Disconnect.class);
@@ -81,11 +86,13 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onDeleteMethod = populate(c, Delete.class);
         this.onReadyMethod = populate(c, Ready.class);
         this.onResumeMethod = populate(c, Resume.class);
+        this.config = config;
 
         if (onRuntimeMethod.size() > 0) {
             populateEncoders();
             populateDecoders();
         }
+        return this;
     }
 
     @Override
@@ -207,7 +214,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
             for (Class<? extends Encoder> s : m.getAnnotation(Message.class).encoders()) {
                 try {
-                    l.add(s.newInstance());
+                    l.add(config.framework().newClassInstance(s));
                 } catch (Exception e) {
                     logger.error("Unable to load encoder {}", s);
                 }
@@ -219,7 +226,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
             for (Class<? extends Encoder> s : onReadyMethod.getAnnotation(Ready.class).encoders()) {
                 try {
-                    l.add(s.newInstance());
+                    l.add(config.framework().newClassInstance(s));
                 } catch (Exception e) {
                     logger.error("Unable to load encoder {}", s);
                 }
@@ -233,7 +240,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             List<Decoder<?, ?>> l = new CopyOnWriteArrayList<Decoder<?, ?>>();
             for (Class<? extends Decoder> s : m.getAnnotation(Message.class).decoders()) {
                 try {
-                    l.add(s.newInstance());
+                    l.add(config.framework().newClassInstance(s));
                 } catch (Exception e) {
                     logger.error("Unable to load encoder {}", s);
                 }

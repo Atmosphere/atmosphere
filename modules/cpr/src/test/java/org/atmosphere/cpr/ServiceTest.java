@@ -65,8 +65,7 @@ public class ServiceTest {
     @BroadcasterService
     public final static class B extends SimpleBroadcaster {
 
-        public B(String id, AtmosphereConfig config) {
-            super(id, config);
+        public B() {
         }
     }
 

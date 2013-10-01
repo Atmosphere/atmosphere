@@ -116,8 +116,8 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
                                 boolean singleton = s.getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
                                     ReflectorServletProcessor r = new ReflectorServletProcessor();
-                                    r.setServlet(s.getClass().newInstance());
-                                    r.init(config.getServletConfig());
+                                    r.setServlet(config.framework().newClassInstance(s.getClass()));
+                                    r.init(config);
                                     config.framework().addAtmosphereHandler(path, r, w.interceptors);
                                 } else {
                                     config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);

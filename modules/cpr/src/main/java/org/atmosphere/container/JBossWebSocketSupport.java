@@ -37,7 +37,6 @@ import java.lang.reflect.Constructor;
  */
 public class JBossWebSocketSupport extends AsynchronousProcessor {
 
-    private static final String WEB_SOCKET_HANDLER = "org.atmosphere.container.JBossWebSocketHandler";
 
     private static final Logger logger = LoggerFactory.getLogger(JBossWebSocketSupport.class);
     
@@ -49,17 +48,14 @@ public class JBossWebSocketSupport extends AsynchronousProcessor {
     }
 
     /**
-     * Loads the {@link JBossWebSocketHandler} using reflection as it imports container
-     * specific classes.
+     * Loads the {@link JBossWebSocketHandler} u
      * 
      * @param config 
      * @return
      */
     private HttpEventServlet newWebSocketHandler(AtmosphereConfig config) {
         try {
-            Class<?> clazz = getClass().getClassLoader().loadClass(WEB_SOCKET_HANDLER);
-            Constructor<?> ctor = clazz.getDeclaredConstructor(new Class[] {AtmosphereConfig.class});
-            return HttpEventServlet.class.cast(ctor.newInstance(config));
+            return new JBossWebSocketHandler(config);
         } catch (Exception e) {
             logger.error("Cannot instantiate JBossWebSocketHandler. Websocket events will not be handled.", e);
         }

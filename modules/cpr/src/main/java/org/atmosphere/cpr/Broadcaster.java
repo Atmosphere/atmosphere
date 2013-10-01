@@ -52,6 +52,7 @@
  */
 package org.atmosphere.cpr;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.List;
 import java.util.Set;
@@ -90,6 +91,15 @@ public interface Broadcaster {
     enum POLICY {
         FIFO, REJECT
     }
+
+    /**
+     * Configure a Broadcaster.
+     * @param name
+     * @param uri
+     * @param config an {@link AtmosphereConfig}
+     * @return a usable Broadcaster.
+     */
+    public Broadcaster initialize(String name, URI uri, AtmosphereConfig config);
 
     /**
      * Set the maximum number of suspended {@link AtmosphereResource}s. If the maximum is reached, Atmosphere will either

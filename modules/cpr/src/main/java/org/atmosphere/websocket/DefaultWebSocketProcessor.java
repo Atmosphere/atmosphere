@@ -230,7 +230,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         try {
                             boolean singleton = w.getClass().getAnnotation(Singleton.class) != null;
                             if (!singleton) {
-                                registerWebSocketHandler(path, w.getClass().newInstance());
+                                registerWebSocketHandler(path, framework.newClassInstance(w.getClass()));
                             } else {
                                 registerWebSocketHandler(path, w);
                             }

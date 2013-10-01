@@ -96,7 +96,7 @@ public class AtmosphereHandlerServiceInterceptor extends AtmosphereInterceptorAd
                     try {
                         boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
                         if (!singleton) {
-                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler.getClass().newInstance(), w.interceptors);
+                            config.framework().addAtmosphereHandler(path, config.framework().newClassInstance(w.atmosphereHandler.getClass()), w.interceptors);
                         } else {
                             config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);
                         }

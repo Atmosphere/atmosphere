@@ -25,10 +25,6 @@ import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
-import org.atmosphere.di.AtmosphereClassInstantiator;
-import org.atmosphere.di.InjectorProvider;
-import org.atmosphere.di.ServletContextHolder;
-import org.atmosphere.di.ServletContextProvider;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
@@ -144,7 +140,7 @@ import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereFramework implements ServletContextProvider {
+public class AtmosphereFramework {
 
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
@@ -203,7 +199,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
-    protected AtmosphereClassInstantiator atmosphereClassInstantiatorClassName = new BasicAtmosphereClassInstantiator();
+    protected AtmosphereObjectFactory objectFactory = new DefaultAtmosphereObjectFactory();
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Default Interceptor
@@ -270,7 +266,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    public static class BasicAtmosphereClassInstantiator implements AtmosphereClassInstantiator {
+    public static class DefaultAtmosphereObjectFactory implements AtmosphereObjectFactory {
 		public <T> T newClassInstance(AtmosphereFramework framework, Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
 			return classToInstantiate.newInstance();
 		}
@@ -369,7 +365,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             path = path + mappingRegex;
         }
 
-        InjectorProvider.getInjector().inject(w.atmosphereHandler);
         atmosphereHandlers.put(path, w);
         return this;
     }
@@ -592,8 +587,6 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
         try {
-            ServletContextHolder.register(this);
-
             ServletConfig scFacade;
 
             if (wrap) {
@@ -642,7 +635,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             doInitParamsForWebSocket(scFacade);
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
-            configureClassInstantiator();
+            configureObjectFactory();
             configureAnnotationPackages();
 
             configureBroadcasterFactory();
@@ -836,7 +829,6 @@ public class AtmosphereFramework implements ServletContextProvider {
 
     protected void initGlobalInterceptors(){
         for (AtmosphereInterceptor i : interceptors) {
-            InjectorProvider.getInjector().inject(i);
             i.configure(config);
         }
     }
@@ -855,7 +847,6 @@ public class AtmosphereFramework implements ServletContextProvider {
                     positionInterceptor(p, i);
                     remove.add(i);
                 }
-                InjectorProvider.getInjector().inject(i);
                 i.configure(config);
             }
 
@@ -925,7 +916,6 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
-            InjectorProvider.getInjector().inject(broadcasterFactory);
         } catch (Exception ex) {
             logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
         }
@@ -947,7 +937,6 @@ public class AtmosphereFramework implements ServletContextProvider {
                     if (broadcasterCacheClassName != null) {
                         BroadcasterCache cache = (BroadcasterCache) newClassInstance(Thread.currentThread().getContextClassLoader()
                                 .loadClass(broadcasterCacheClassName));
-                        InjectorProvider.getInjector().inject(cache);
                         w.broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
                     }
                 }
@@ -1216,7 +1205,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             w = h.getValue();
             a = w.atmosphereHandler;
             if (a instanceof AtmosphereServletProcessor) {
-                ((AtmosphereServletProcessor) a).init(sc);
+                ((AtmosphereServletProcessor) a).init(config);
             }
         }
 
@@ -1517,7 +1506,6 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
                         AtmosphereHandler handler = (AtmosphereHandler) newClassInstance(clazz);
-                        InjectorProvider.getInjector().inject(handler);
                         addMapping("/" + handler.getClass().getSimpleName(),
                                 new AtmosphereHandlerWrapper(broadcasterFactory, handler, "/" + handler.getClass().getSimpleName()));
                         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handler.getClass().getName());
@@ -1572,7 +1560,6 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                     if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
                         webSocketProtocol = (WebSocketProtocol) newClassInstance(clazz);
-                        InjectorProvider.getInjector().inject(webSocketProtocol);
                         logger.info("Installed WebSocketProtocol {}", webSocketProtocol);
                     }
                 } catch (Throwable t) {
@@ -2085,7 +2072,10 @@ public class AtmosphereFramework implements ServletContextProvider {
         return config;
     }
 
-    @Override
+    /**
+     * Return the {@link ServletContext}
+     * @return the {@link ServletContext}
+     */
     public ServletContext getServletContext() {
         return servletConfig.getServletContext();
     }
@@ -2339,27 +2329,32 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @throws IllegalAccessException
      */
 	public <T> T newClassInstance(Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
-		return atmosphereClassInstantiatorClassName.newClassInstance(this, classToInstantiate);
+		return objectFactory.newClassInstance(this, classToInstantiate);
 	}
 
 	/**
 	 * Set an object used for class instantiation.
 	 * Allows for integration with dependency injection frameworks.
 	 *
-	 * @param instantiator
+	 * @param objectFactory
 	 */
-	public void atmosphereClassInstantiator(AtmosphereClassInstantiator instantiator) {
-		atmosphereClassInstantiatorClassName = instantiator;
+	public void objectFactory(AtmosphereObjectFactory objectFactory) {
+		this.objectFactory = objectFactory;
 	}
 
-    protected void configureClassInstantiator() {
-        String s = config.getInitParameter(ApplicationConfig.CUSTOM_CLASS_INSTANTIATOR);
+    protected void configureObjectFactory() {
+        if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {
+            logger.trace("ObjectFactory already set to {}", objectFactory);
+            return;
+        }
+
+        String s = config.getInitParameter(ApplicationConfig.OBJECT_FACTORY);
         if (s != null) {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             try {
-                AtmosphereClassInstantiator aci = (AtmosphereClassInstantiator) cl.loadClass(s).newInstance();
+                AtmosphereObjectFactory aci = (AtmosphereObjectFactory) cl.loadClass(s).newInstance();
                 if (aci != null)
-                	atmosphereClassInstantiator(aci);
+                    objectFactory(aci);
             } catch (Exception ex) {
                 logger.warn("Unable to load AtmosphereClassInstantiator instance", ex);
             }

@@ -66,8 +66,7 @@ public class WriteTimeoutTest {
     public final static class J extends JerseyBroadcaster {
         private CountDownLatch latch;
 
-        public J(String id, AtmosphereConfig config) {
-            super(id, config);
+        public J() {
         }
 
         JerseyBroadcaster latch(CountDownLatch latch) {

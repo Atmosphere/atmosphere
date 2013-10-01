@@ -32,6 +32,7 @@ package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.Entry;
@@ -53,8 +54,10 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(ExcludeSessionBroadcaster.class);
 
-    public ExcludeSessionBroadcaster(String id, AtmosphereConfig config) {
-        super(id, config);
+    public ExcludeSessionBroadcaster(){}
+
+    public Broadcaster initialize(String id, AtmosphereConfig config) {
+        return super.initialize(id, config);
     }
 
     /**

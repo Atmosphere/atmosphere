@@ -71,14 +71,13 @@ public class WebSocketProcessorFactory {
         if (!webSocketProcessorName
                 .equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
             try {
-                processor = (WebSocketProcessor) Thread.currentThread()
+                processor = (WebSocketProcessor) framework.newClassInstance(Thread.currentThread()
                         .getContextClassLoader()
-                        .loadClass(webSocketProcessorName).newInstance();
+                        .loadClass(webSocketProcessorName));
             } catch (Exception ex) {
                 try {
-                    processor = (WebSocketProcessor) getClass()
-                            .getClassLoader().loadClass(webSocketProcessorName)
-                            .newInstance();
+                    processor = (WebSocketProcessor) framework.newClassInstance(getClass()
+                            .getClassLoader().loadClass(webSocketProcessorName));
                 } catch (Exception ex2) {
                 }
             }

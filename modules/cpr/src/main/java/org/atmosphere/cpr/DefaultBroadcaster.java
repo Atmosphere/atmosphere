@@ -55,7 +55,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
-import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -119,6 +118,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     protected final AtomicBoolean started = new AtomicBoolean(false);
+    protected final AtomicBoolean initialized = new AtomicBoolean(false);
     protected final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     protected SCOPE scope = SCOPE.APPLICATION;
@@ -145,10 +145,13 @@ public class DefaultBroadcaster implements Broadcaster {
     private final Object[] awaitBarrier = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
-    protected final AtmosphereResource noOpsResource;
+    protected AtmosphereResource noOpsResource;
     protected int waitTime = 100;
 
-    public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
+    public DefaultBroadcaster(){
+    }
+
+    public Broadcaster initialize(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
         this.uri = uri;
         this.config = config;
@@ -176,10 +179,12 @@ public class DefaultBroadcaster implements Broadcaster {
         if (outOfOrderBroadcastSupported.get()) {
             logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
         }
+        initialized.set(true);
+        return this;
     }
 
-    public DefaultBroadcaster(String name, AtmosphereConfig config) {
-        this(name, URI.create("http://localhost"), config);
+    public Broadcaster initialize(String name, AtmosphereConfig config) {
+        return initialize(name, URI.create("http://localhost"), config);
     }
 
     /**
@@ -260,8 +265,7 @@ public class DefaultBroadcaster implements Broadcaster {
                      * REQUEST_SCOPE means one BroadcasterCache per Broadcaster,
                      */
                     if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
-                        BroadcasterCache cache = bc.getBroadcasterCache().getClass().newInstance();
-                        InjectorProvider.getInjector().inject(cache);
+                        BroadcasterCache cache = config.framework().newClassInstance(bc.getBroadcasterCache().getClass());
                         b.getBroadcasterConfig().setBroadcasterCache(cache);
                     }
 
@@ -569,6 +573,10 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void start() {
+        if (!initialized.get()) {
+            logger.warn("Broadcaster {} not initialized", getID());
+        }
+
         if (!started.getAndSet(true)) {
             bc.getBroadcasterCache().start();
 

@@ -21,7 +21,6 @@ import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
-import org.atmosphere.di.ServletContextProvider;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
@@ -43,7 +42,7 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereServlet extends HttpServlet implements CometProcessor, HttpEventServlet, ServletContextProvider, org.apache.catalina.comet.CometProcessor {
+public class AtmosphereServlet extends HttpServlet implements CometProcessor, HttpEventServlet, org.apache.catalina.comet.CometProcessor {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected AtmosphereFramework framework;

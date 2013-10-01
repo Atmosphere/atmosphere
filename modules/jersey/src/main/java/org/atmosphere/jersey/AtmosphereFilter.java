@@ -81,7 +81,6 @@ import org.atmosphere.cpr.BroadcasterLifeCyclePolicy;
 import org.atmosphere.cpr.ClusterBroadcastFilter;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
-import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -330,7 +329,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                                 try {
                                     AtmosphereResourceEventListener el = listener.newInstance();
-                                    InjectorProvider.getInjector().inject(el);
                                     r.addEventListener(el);
                                 } catch (Throwable t) {
                                     throw new WebApplicationException(
@@ -421,7 +419,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                             try {
                                 AtmosphereResourceEventListener el = listener.newInstance();
-                                InjectorProvider.getInjector().inject(el);
                                 r.addEventListener(el);
                             } catch (Throwable t) {
                                 throw new WebApplicationException(
@@ -617,7 +614,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (Class<BroadcastFilter> filter : filters) {
                     try {
                         f = filter.newInstance();
-                        InjectorProvider.getInjector().inject(f);
                     } catch (Throwable t) {
                         logger.warn("Invalid @BroadcastFilter: " + filter, t);
                     }
@@ -886,7 +882,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 for (Class<ClusterBroadcastFilter> c : broadcastFilter) {
                     try {
                         ClusterBroadcastFilter cbf = c.newInstance();
-                        InjectorProvider.getInjector().inject(cbf);
                         cbf.setUri(am.getAnnotation(Cluster.class).name());
                         f.addCluster(cbf);
                     } catch (Throwable t) {

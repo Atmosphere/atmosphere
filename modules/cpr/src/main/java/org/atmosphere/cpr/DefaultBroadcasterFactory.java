@@ -52,10 +52,10 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.di.InjectorProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
@@ -90,6 +90,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
     protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
     protected int defaultPolicyInteger = -1;
+    private final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
 
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
@@ -158,9 +159,9 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private <T extends Broadcaster> T createBroadcaster(Class<T> c, Object id) throws BroadcasterCreationException {
         try {
-            T b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
-            InjectorProvider.getInjector().inject(b);
-
+            //T b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
+            T b = config.framework().newClassInstance(c);
+            b.initialize(id.toString(), legacyBroadcasterURI, config);
             b.setSuspendPolicy(defaultPolicyInteger, defaultPolicy);
 
             if (b.getBroadcasterConfig() == null) {

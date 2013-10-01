@@ -54,7 +54,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
-import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -131,14 +130,12 @@ public class BroadcasterConfig {
                     broadcasterCache = (BroadcasterCache) config.framework().newClassInstance(getClass().getClassLoader()
                             .loadClass(className));
                 }
-                InjectorProvider.getInjector().inject(broadcasterCache);
                 configureSharedCacheExecutor();
                 broadcasterCache.configure(this);
             }
 
             for (BroadcasterCacheInspector b : config.framework().inspectors()) {
                 broadcasterCache.inspector(b);
-                InjectorProvider.getInjector().inject(b);
             }
         } catch (InstantiationException e) {
             throw new RuntimeException(e);
@@ -547,7 +544,7 @@ public class BroadcasterConfig {
             BroadcastFilter bf = null;
             try {
                 bf = BroadcastFilter.class
-                        .cast(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter).newInstance());
+                        .cast(config.framework().newClassInstance(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter)));
             } catch (InstantiationException e) {
                 logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
             } catch (IllegalAccessException e) {
@@ -555,7 +552,7 @@ public class BroadcasterConfig {
             } catch (ClassNotFoundException e) {
                 try {
                     bf = BroadcastFilter.class
-                            .cast(BroadcastFilter.class.getClassLoader().loadClass(broadcastFilter).newInstance());
+                            .cast(config.framework().newClassInstance(BroadcastFilter.class.getClassLoader().loadClass(broadcastFilter)));
                 } catch (InstantiationException e1) {
                 } catch (IllegalAccessException e1) {
                 } catch (ClassNotFoundException e1) {
@@ -563,7 +560,6 @@ public class BroadcasterConfig {
                 }
             }
             if (bf != null) {
-                InjectorProvider.getInjector().inject(bf);
                 addFilter(bf);
             }
         }

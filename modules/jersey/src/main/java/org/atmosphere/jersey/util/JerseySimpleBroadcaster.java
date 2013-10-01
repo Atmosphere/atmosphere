@@ -53,7 +53,6 @@
 package org.atmosphere.jersey.util;
 
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.util.SimpleBroadcaster;
@@ -64,10 +63,6 @@ import org.atmosphere.util.SimpleBroadcaster;
  * @author Jeanfrancois Arcand
  */
 public class JerseySimpleBroadcaster extends SimpleBroadcaster {
-
-    public JerseySimpleBroadcaster(String id, AtmosphereConfig config) {
-        super(id, config);
-    }
 
     @Override
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {

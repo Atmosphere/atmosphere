@@ -53,7 +53,6 @@
 package org.atmosphere.jersey;
 
 import com.sun.jersey.spi.container.ContainerResponse;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
@@ -68,9 +67,7 @@ import org.atmosphere.jersey.util.JerseyBroadcasterUtil;
  */
 public class JerseyBroadcaster extends DefaultBroadcaster {
 
-    public JerseyBroadcaster(String id, AtmosphereConfig config) {
-        super(id, config);
-    }
+    public JerseyBroadcaster() {}
 
     @Override
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
