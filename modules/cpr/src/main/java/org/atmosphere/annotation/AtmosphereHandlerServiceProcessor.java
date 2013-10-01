@@ -50,7 +50,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
             for (Class i : interceptors) {
                 try {
-                    AtmosphereInterceptor ai = (AtmosphereInterceptor) i.newInstance();
+                    AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(i);
                     l.add(ai);
                 } catch (Throwable e) {
                     logger.warn("", e);
@@ -68,7 +68,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
 
             framework.sessionSupport(a.supportSession());
 
-            AtmosphereHandler handler = (AtmosphereHandler) annotatedClass.newInstance();
+            AtmosphereHandler handler = (AtmosphereHandler) framework.newClassInstance(annotatedClass);
             for (String s : a.properties()) {
                 String[] nv = s.split("=");
                 IntrospectionUtils.setProperty(handler, nv[0], nv[1]);

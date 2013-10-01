@@ -30,7 +30,7 @@ public class AsyncSupportListenerServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.asyncSupportListener((AsyncSupportListener) annotatedClass.newInstance());
+            framework.asyncSupportListener((AsyncSupportListener) framework.newClassInstance(annotatedClass));
         } catch (Throwable e) {
             logger.warn("", e);
         }

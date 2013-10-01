@@ -30,7 +30,7 @@ public class BroadcasterCacheInspectorServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) annotatedClass.newInstance());
+            framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) framework.newClassInstance(annotatedClass));
         } catch (Throwable e) {
             logger.warn("", e);
         }

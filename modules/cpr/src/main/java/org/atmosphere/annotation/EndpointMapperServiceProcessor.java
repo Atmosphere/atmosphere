@@ -30,7 +30,7 @@ public class EndpointMapperServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            framework.endPointMapper((EndpointMapper<?>) annotatedClass.newInstance());
+            framework.endPointMapper((EndpointMapper<?>) framework.newClassInstance(annotatedClass));
         } catch (Throwable e) {
             logger.warn("", e);
         }

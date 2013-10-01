@@ -25,6 +25,7 @@ import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
+import org.atmosphere.di.AtmosphereClassInstantiator;
 import org.atmosphere.di.InjectorProvider;
 import org.atmosphere.di.ServletContextHolder;
 import org.atmosphere.di.ServletContextProvider;
@@ -202,6 +203,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
+    protected AtmosphereClassInstantiator atmosphereClassInstantiatorClassName = new BasicAtmosphereClassInstantiator();
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Default Interceptor
@@ -266,6 +268,12 @@ public class AtmosphereFramework implements ServletContextProvider {
             return "AtmosphereHandlerWrapper{ atmosphereHandler=" + atmosphereHandler + ", broadcaster=" +
                     broadcaster + " }";
         }
+    }
+
+    public static class BasicAtmosphereClassInstantiator implements AtmosphereClassInstantiator {
+		public <T> T newClassInstance(AtmosphereFramework framework, Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
+			return classToInstantiate.newInstance();
+		}
     }
 
     /**
@@ -634,6 +642,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             doInitParamsForWebSocket(scFacade);
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
+            configureClassInstantiator();
             configureAnnotationPackages();
 
             configureBroadcasterFactory();
@@ -790,8 +799,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             String[] list = s.split(",");
             for (String a : list) {
                 try {
-                    AtmosphereInterceptor ai = (AtmosphereInterceptor) Thread.currentThread().getContextClassLoader()
-                            .loadClass(a.trim()).newInstance();
+                    AtmosphereInterceptor ai = (AtmosphereInterceptor) newClassInstance(Thread.currentThread().getContextClassLoader()
+                            .loadClass(a.trim()));
                     interceptor(ai);
                 } catch (InstantiationException e) {
                     logger.warn("", e);
@@ -817,7 +826,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
         AtmosphereInterceptor ai = null;
         try {
-            ai = (AtmosphereInterceptor) getClass().getClassLoader().loadClass(a.getName()).newInstance();
+            ai = (AtmosphereInterceptor) newClassInstance(getClass().getClassLoader().loadClass(a.getName()));
             logger.info("\t{} : {}", a.getName(), ai);
         } catch (Exception ex) {
             logger.warn("", ex);
@@ -875,7 +884,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                 if (mapping == null) {
                     mapping = ROOT;
                 }
-                addAtmosphereHandler(mapping, (AtmosphereHandler) cl.loadClass(s).newInstance());
+                addAtmosphereHandler(mapping, (AtmosphereHandler) newClassInstance(cl.loadClass(s)));
             } catch (Exception ex) {
                 logger.warn("Unable to load WebSocketHandle instance", ex);
             }
@@ -900,8 +909,8 @@ public class AtmosphereFramework implements ServletContextProvider {
             }
 
             if (broadcasterFactoryClassName != null) {
-                broadcasterFactory = (BroadcasterFactory) Thread.currentThread().getContextClassLoader()
-                        .loadClass(broadcasterFactoryClassName).newInstance();
+                broadcasterFactory = (BroadcasterFactory) newClassInstance(Thread.currentThread().getContextClassLoader()
+                        .loadClass(broadcasterFactoryClassName));
             }
 
             if (broadcasterFactory == null) {
@@ -936,8 +945,8 @@ public class AtmosphereFramework implements ServletContextProvider {
                     w.broadcaster = broadcasterFactory.get(w.mapping);
                 } else {
                     if (broadcasterCacheClassName != null) {
-                        BroadcasterCache cache = (BroadcasterCache) Thread.currentThread().getContextClassLoader()
-                                .loadClass(broadcasterCacheClassName).newInstance();
+                        BroadcasterCache cache = (BroadcasterCache) newClassInstance(Thread.currentThread().getContextClassLoader()
+                                .loadClass(broadcasterCacheClassName));
                         InjectorProvider.getInjector().inject(cache);
                         w.broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
                     }
@@ -1234,13 +1243,13 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         if (webSocketProtocol == null) {
             try {
-                webSocketProtocol = (WebSocketProtocol) Thread.currentThread().getContextClassLoader()
-                        .loadClass(webSocketProtocolClassName).newInstance();
+                webSocketProtocol = (WebSocketProtocol) newClassInstance(Thread.currentThread().getContextClassLoader()
+                        .loadClass(webSocketProtocolClassName));
                 logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName);
             } catch (Exception ex) {
                 try {
-                    webSocketProtocol = (WebSocketProtocol) AtmosphereFramework.class.getClassLoader()
-                            .loadClass(webSocketProtocolClassName).newInstance();
+                    webSocketProtocol = (WebSocketProtocol) newClassInstance(AtmosphereFramework.class.getClassLoader()
+                            .loadClass(webSocketProtocolClassName));
                     logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName);
                 } catch (Exception ex2) {
                     logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
@@ -1256,8 +1265,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         String s = servletConfig.getInitParameter(ApplicationConfig.ENDPOINT_MAPPER);
         if (s != null) {
             try {
-                endpointMapper = (EndpointMapper) AtmosphereFramework.class.getClassLoader()
-                        .loadClass(s).newInstance();
+                endpointMapper = (EndpointMapper) newClassInstance(AtmosphereFramework.class.getClassLoader()
+                        .loadClass(s));
                 logger.info("Installed EndpointMapper {} ", s);
             } catch (Exception ex) {
                 logger.error("Cannot load the EndpointMapper {}", s, ex);
@@ -1309,7 +1318,7 @@ public class AtmosphereFramework implements ServletContextProvider {
             try {
                 if (!atmoHandler.getClassName().startsWith("@")) {
                     if (!ReflectorServletProcessor.class.getName().equals(atmoHandler.getClassName())) {
-                        handler = (AtmosphereHandler) c.loadClass(atmoHandler.getClassName()).newInstance();
+                        handler = (AtmosphereHandler) newClassInstance(c.loadClass(atmoHandler.getClassName()));
                     } else {
                         handler = new ReflectorServletProcessor();
                     }
@@ -1384,7 +1393,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     if (atmoHandler.getAtmosphereInterceptorClasses() != null) {
                         for (String a : atmoHandler.getAtmosphereInterceptorClasses()) {
                             try {
-                                AtmosphereInterceptor ai = (AtmosphereInterceptor) c.loadClass(a).newInstance();
+                                AtmosphereInterceptor ai = (AtmosphereInterceptor) newClassInstance(c.loadClass(a));
                                 l.add(ai);
                             } catch (Throwable e) {
                                 logger.warn("", e);
@@ -1507,7 +1516,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
-                        AtmosphereHandler handler = (AtmosphereHandler) clazz.newInstance();
+                        AtmosphereHandler handler = (AtmosphereHandler) newClassInstance(clazz);
                         InjectorProvider.getInjector().inject(handler);
                         addMapping("/" + handler.getClass().getSimpleName(),
                                 new AtmosphereHandlerWrapper(broadcasterFactory, handler, "/" + handler.getClass().getSimpleName()));
@@ -1562,7 +1571,7 @@ public class AtmosphereFramework implements ServletContextProvider {
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
-                        webSocketProtocol = (WebSocketProtocol) clazz.newInstance();
+                        webSocketProtocol = (WebSocketProtocol) newClassInstance(clazz);
                         InjectorProvider.getInjector().inject(webSocketProtocol);
                         logger.info("Installed WebSocketProtocol {}", webSocketProtocol);
                     }
@@ -2134,7 +2143,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : sc.getRealPath(handlersPath);
         AnnotationProcessor annotationProcessor = null;
         try {
-            annotationProcessor = (AnnotationProcessor) getClass().getClassLoader().loadClass(annotationProcessorClassName).newInstance();
+            annotationProcessor = (AnnotationProcessor) newClassInstance(getClass().getClassLoader().loadClass(annotationProcessorClassName));
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
 
             annotationProcessor.configure(this);
@@ -2319,5 +2328,41 @@ public class AtmosphereFramework implements ServletContextProvider {
     public AtmosphereFramework addCustomAnnotationPackage(Class p) {
         annotationPackages.addLast(p.getPackage().getName());
         return this;
+    }
+
+    /**
+     * Instantiate a class
+     *
+     * @param classToInstantiate
+     * @return the an instance of classToInstantiate
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
+	public <T> T newClassInstance(Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
+		return atmosphereClassInstantiatorClassName.newClassInstance(this, classToInstantiate);
+	}
+
+	/**
+	 * Set an object used for class instantiation.
+	 * Allows for integration with dependency injection frameworks.
+	 *
+	 * @param instantiator
+	 */
+	public void atmosphereClassInstantiator(AtmosphereClassInstantiator instantiator) {
+		atmosphereClassInstantiatorClassName = instantiator;
+	}
+
+    protected void configureClassInstantiator() {
+        String s = config.getInitParameter(ApplicationConfig.CUSTOM_CLASS_INSTANTIATOR);
+        if (s != null) {
+            ClassLoader cl = Thread.currentThread().getContextClassLoader();
+            try {
+                AtmosphereClassInstantiator aci = (AtmosphereClassInstantiator) cl.loadClass(s).newInstance();
+                if (aci != null)
+                	atmosphereClassInstantiator(aci);
+            } catch (Exception ex) {
+                logger.warn("Unable to load AtmosphereClassInstantiator instance", ex);
+            }
+        }
     }
 }
