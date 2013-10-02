@@ -1850,7 +1850,7 @@ public class AtmosphereFramework {
                             request.contentType(s.length > 1 ? s[1] : "");
                         }
                     }
-                    if (!s[0].toLowerCase().startsWith("x-atmosphere")
+                    if (!s[0].toLowerCase().startsWith("x-atmo")
                             && !s[0].equalsIgnoreCase("x-cache-date")
                             && !s[0].equalsIgnoreCase("Content-Type")
                             && !s[0].equalsIgnoreCase("_")) {
