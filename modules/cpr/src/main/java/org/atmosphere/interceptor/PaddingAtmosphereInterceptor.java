@@ -76,7 +76,13 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
 
-        if (r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.LONG_POLLING)) {
+        String uuid = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        boolean padding = r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.LONG_POLLING);
+        if (uuid != null && !uuid.equals("0") && r.transport().equals(TRANSPORT.WEBSOCKET)) {
+            padding = true;
+        }
+
+        if (padding) {
             r.addEventListener(new ForcePreSuspend(response));
 
             super.inspect(r);
