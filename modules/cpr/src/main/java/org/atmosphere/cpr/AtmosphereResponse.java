@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.CookieUtil;
 import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
@@ -372,7 +373,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     public Map<String, String> headers() {
         if (!headerHandled) {
             for (Cookie c : cookies) {
-                headers.put("Set-Cookie", c.toString());
+                headers.put("Set-Cookie", CookieUtil.toString(c));
             }
             headerHandled = true;
         }
