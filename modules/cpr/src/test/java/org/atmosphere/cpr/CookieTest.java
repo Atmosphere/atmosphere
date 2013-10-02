@@ -101,4 +101,50 @@ public class CookieTest {
         assertEquals(i.getName(), cValue.get().getName());
         assertEquals(i.getValue(), cValue.get().getValue());
     }
+
+    @Test
+    public void setCookieTest() throws IOException, ServletException, ExecutionException, InterruptedException {
+        final AtomicReference<Cookie> cValue = new AtomicReference<Cookie>();
+        final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                resource.getResponse().addCookie(resource.getRequest().getCookies()[0]);
+                r.set(resource);
+                resource.getBroadcaster().addAtmosphereResource(resource);
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                Cookie[] c = event.getResource().getRequest().getCookies();
+                cValue.set(c[0]);
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+        Set<Cookie> c = new HashSet<Cookie>();
+        Cookie a = new Cookie("yo", "man");
+        a.setComment("kdaskjdaskda");
+        a.setDomain("dasdasdasd");
+        a.setHttpOnly(true);
+        a.setPath("/ya");
+        c.add(a);
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
+        AtmosphereResponse response = AtmosphereResponse.newInstance().delegateToNativeResponse(false);
+        response.destroyable(false);
+        framework.doCometSupport(request, response);
+
+        r.get().getBroadcaster().broadcast("yo").get();
+        assertNotNull(cValue.get());
+
+        Cookie i = c.iterator().next();
+        assertEquals(i.getName(), cValue.get().getName());
+        assertEquals(i.getValue(), cValue.get().getValue());
+        assertEquals("yo=man; Domain=dasdasdasd; Path=/ya; HttpOnly", response.headers().get("Set-Cookie"));
+    }
 }
