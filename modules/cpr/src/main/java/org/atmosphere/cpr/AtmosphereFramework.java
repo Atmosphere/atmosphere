@@ -115,6 +115,8 @@ import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
+import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
+import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
@@ -123,6 +125,7 @@ import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.SPRING_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
@@ -160,6 +163,7 @@ public class AtmosphereFramework {
     protected final boolean isFilter;
     protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
     protected final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
+    protected final ConcurrentLinkedQueue<String> objectFactoryType = new ConcurrentLinkedQueue<String>();
     protected final ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors = new ConcurrentLinkedQueue<BroadcasterCacheInspector>();
 
     protected String mappingRegex = MAPPING_REGEX;
@@ -270,9 +274,13 @@ public class AtmosphereFramework {
     }
 
     public static class DefaultAtmosphereObjectFactory implements AtmosphereObjectFactory {
-		public <T> T newClassInstance(AtmosphereFramework framework, Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
-			return classToInstantiate.newInstance();
-		}
+        public <T> T newClassInstance(AtmosphereFramework framework, Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
+            return classToInstantiate.newInstance();
+        }
+
+        public String toString() {
+            return "DefaultAtmosphereObjectFactory";
+        }
     }
 
     /**
@@ -298,8 +306,6 @@ public class AtmosphereFramework {
     public AtmosphereFramework(boolean isFilter, boolean autoDetectHandlers) {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
-        readSystemProperties();
-        populateBroadcasterType();
         config = new AtmosphereConfig(this);
     }
 
@@ -314,6 +320,15 @@ public class AtmosphereFramework {
         broadcasterTypes.add(JMS_BROADCASTER);
         broadcasterTypes.add(RMI_BROADCASTER);
         broadcasterTypes.add(RABBITMQ_BROADCASTER);
+    }
+
+    /**
+     * The order of addition is quite important here.
+     */
+    private void populateObjectFactoryType() {
+        objectFactoryType.add(CDI_INJECTOR);
+        objectFactoryType.add(SPRING_INJECTOR);
+        objectFactoryType.add(GUICE_INJECTOR);
     }
 
     /**
@@ -589,6 +604,11 @@ public class AtmosphereFramework {
      */
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
+
+        readSystemProperties();
+        populateBroadcasterType();
+        populateObjectFactoryType();
+
         try {
             ServletConfig scFacade;
 
@@ -636,6 +656,7 @@ public class AtmosphereFramework {
             preventOOM();
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
+            objectFactory = lookupDefaultObjectFactoryType();
             asyncSupportListener(new AsyncSupportListenerAdapter());
 
             configureObjectFactory();
@@ -662,7 +683,6 @@ public class AtmosphereFramework {
             configureAtmosphereInterceptor(scFacade);
             analytics();
 
-
             // http://java.net/jira/browse/ATMOSPHERE-157
             if (sc.getServletContext() != null) {
                 sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterFactory);
@@ -671,11 +691,6 @@ public class AtmosphereFramework {
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
             if (s != null) {
                 sharedThreadPools = Boolean.parseBoolean(s);
-            }
-
-
-            for (String i : broadcasterFilters) {
-                logger.info("Using BroadcastFilter: {}", i);
             }
             info();
         } catch (Throwable t) {
@@ -692,6 +707,11 @@ public class AtmosphereFramework {
     }
 
     private void info() {
+
+        for (String i : broadcasterFilters) {
+            logger.info("Using BroadcastFilter: {}", i);
+        }
+
         if (broadcasterCacheClassName == null || DefaultBroadcasterCache.class.getName().equals(broadcasterCacheClassName)) {
             logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                     "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
@@ -710,6 +730,7 @@ public class AtmosphereFramework {
         logger.info("Atmosphere is using async support: {} running under container: {}",
                 getAsyncSupport().getClass().getName(), asyncSupport.getContainerName());
         logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
+        logger.info("Atmosphere is using {} for dependency injection and object creation", objectFactory);
 
         logger.info("\n\n\tFor Atmosphere Framework Commercial Support, visit \n\t{} " +
                 "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
@@ -830,13 +851,13 @@ public class AtmosphereFramework {
         return ai;
     }
 
-    protected void initGlobalInterceptors(){
+    protected void initGlobalInterceptors() {
         for (AtmosphereInterceptor i : interceptors) {
             i.configure(config);
         }
     }
 
-    protected void initHandlerInterceptors(AtmosphereHandlerWrapper w){
+    protected void initHandlerInterceptors(AtmosphereHandlerWrapper w) {
         List<AtmosphereInterceptor> remove = new ArrayList<AtmosphereInterceptor>();
         if (w.interceptors != null) {
             for (AtmosphereInterceptor i : w.interceptors) {
@@ -1184,6 +1205,18 @@ public class AtmosphereFramework {
         }
 
         return defaultB;
+    }
+
+    protected AtmosphereObjectFactory lookupDefaultObjectFactoryType() {
+        for (String b : objectFactoryType) {
+            try {
+                Class<?> c = Class.forName(b);
+                return (AtmosphereObjectFactory)c.newInstance();
+            } catch (Exception e) {
+                logger.trace("", e);
+            }
+        }
+        return objectFactory;
     }
 
     public void sessionSupport(boolean sessionSupport) {
@@ -2078,6 +2111,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link ServletContext}
+     *
      * @return the {@link ServletContext}
      */
     public ServletContext getServletContext() {
@@ -2332,19 +2366,19 @@ public class AtmosphereFramework {
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-	public <T> T newClassInstance(Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
-		return objectFactory.newClassInstance(this, classToInstantiate);
-	}
+    public <T> T newClassInstance(Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException {
+        return objectFactory.newClassInstance(this, classToInstantiate);
+    }
 
-	/**
-	 * Set an object used for class instantiation.
-	 * Allows for integration with dependency injection frameworks.
-	 *
-	 * @param objectFactory
-	 */
-	public void objectFactory(AtmosphereObjectFactory objectFactory) {
-		this.objectFactory = objectFactory;
-	}
+    /**
+     * Set an object used for class instantiation.
+     * Allows for integration with dependency injection frameworks.
+     *
+     * @param objectFactory
+     */
+    public void objectFactory(AtmosphereObjectFactory objectFactory) {
+        this.objectFactory = objectFactory;
+    }
 
     protected void configureObjectFactory() {
         if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {

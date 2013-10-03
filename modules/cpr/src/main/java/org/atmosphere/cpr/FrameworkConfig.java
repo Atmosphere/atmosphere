@@ -150,4 +150,17 @@ public interface FrameworkConfig {
      * long-polling.
      */
     String MESSAGE_WRITTEN = Broadcaster.class.getName() + ".messageWritten";
+    /**
+     * Guice Injector
+     */
+    String GUICE_INJECTOR = "org.atmosphere.guice.GuiceObjectFactory";
+    /**
+     * Spring Injector
+     */
+    String SPRING_INJECTOR = "org.atmosphere.spring.SpringObjectFactory";
+    /**
+     * CDI Injector
+     */
+    String CDI_INJECTOR = "org.atmosphere.cdi.CDIObjectFactory";
+
 }
