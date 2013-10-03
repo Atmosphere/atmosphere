@@ -885,7 +885,8 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void configureScanningPackage(ServletConfig sc, String packageName) {
+    protected void configureScanningPackage(ServletConfig sc, String value) {
+        String packageName = sc.getInitParameter(value);
         if (packageName != null) {
             String[] list = packageName.split(",");
             for (String a : list) {
