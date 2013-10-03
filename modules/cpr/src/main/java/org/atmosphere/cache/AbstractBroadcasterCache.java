@@ -100,7 +100,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     protected CacheMessage put(BroadcastMessage message, Long now) {
-        if (!inspect(message)) return null;
+        if (message == null || !inspect(message)) return null;
 
         logger.trace("Caching message {} for Broadcaster {}", message.message);
 
