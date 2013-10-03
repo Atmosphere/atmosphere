@@ -158,20 +158,24 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             // JBoss|vfs with APR issue, or any strange containers may fail. This is a hack for them.
             // https://github.com/Atmosphere/atmosphere/issues/1292
             if (!coreAnnotationsFound.get()) {
-                logger.warn("Unable to detect annotations. Application may fail to deploy.");
-                f.annotationScanned(true);
-                for (Class a : coreAnnotations) {
-                    try {
-                        handler.handleProcessor(loadClass(getClass(), a.getName()));
-                    } catch (Exception e) {
-                        logger.trace("", e);
-                    }
-                }
+                fallbackToManualAnnotatedClasses(getClass(), f, handler);
             }
         } catch (IOException e) {
             logger.warn("Unable to scan annotation", e);
         } finally {
             detector.destroy();
+        }
+    }
+
+    private static void fallbackToManualAnnotatedClasses(Class<?> mainClass, AtmosphereFramework f, AnnotationHandler handler) {
+        logger.warn("Unable to detect annotations. Application may fail to deploy.");
+        f.annotationScanned(true);
+        for (Class a : coreAnnotations) {
+            try {
+                handler.handleProcessor(loadClass(mainClass, a.getName()));
+            } catch (Exception e) {
+                logger.trace("", e);
+            }
         }
     }
 
@@ -256,20 +260,21 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             if (atmosphereAnnotatedClasses != null) {
                 for (Class<?> clazz : atmosphereAnnotatedClasses) {
                     handler.handleProcessor(clazz);
-
-                    // If larger, a custom annotation has been defined.
-                    if (atmosphereAnnotatedClasses.size() > AnnotationScanningServletContainerInitializer.class.getAnnotation(HandlesTypes.class).value().length) {
-                        scanForCustomizedAnnotation = true;
-                    }
                 }
                 annotations.remove(AtmosphereAnnotation.class);
             } else {
-                logger.error("No @AtmosphereService annotation found. Annotation won't work.");
+                fallbackToManualAnnotatedClasses(getClass(),framework, handler);
+            }
+
+            // If larger, a custom annotation has been defined.
+            if (atmosphereAnnotatedClasses.size() > AnnotationScanningServletContainerInitializer.class.getAnnotation(HandlesTypes.class).value().length) {
+                scanForCustomizedAnnotation = true;
             }
             return scanForCustomizedAnnotation;
         }
 
         private void scanForCustomAnnotation(Set<Class<?>> atmosphereAnnotatedClasses) throws IOException {
+
             BytecodeBasedAnnotationProcessor b = new BytecodeBasedAnnotationProcessor(handler);
             b.configure(framework);
             for (Class<?> clazz : atmosphereAnnotatedClasses) {
