@@ -98,4 +98,36 @@ public class QueryStringTest {
         assertNotNull(q.get());
         assertEquals(q.get(), "b=d&c=f&a=b");
     }
+
+    @Test
+    public void issue1321() throws IOException, ServletException, ExecutionException, InterruptedException {
+        final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
+        final AtomicReference<String> q = new AtomicReference<String>();
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                r.set(resource);
+                q.set(resource.getRequest().getQueryString());
+                resource.getBroadcaster().addAtmosphereResource(resource);
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+        String s = "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.3-javascript&X-Atmosphere-Transport=long-polling&X-Atmosphere-TrackMessageSize=true&X-Cache-Date=0&X-atmo-protocol=true&_=1380799455333";
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().queryString(s).pathInfo("/a").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+
+        r.get().getBroadcaster().broadcast("yo").get();
+        assertNotNull(q.get());
+        assertEquals(q.get(), "");
+    }
 }
