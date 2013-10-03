@@ -21,32 +21,28 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.AnnotatedProxy;
-import org.atmosphere.interceptor.BroadcastOnPostAtmosphereInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
 
 /**
  * Handle {@link Singleton} for {@link ManagedService} processing.
  *
  * @author Jeanfrancois Arcand
  */
-public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereInterceptor {
+public class ManagedServiceInterceptor extends AtmosphereInterceptorAdapter {
 
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
-    private ManagedAtmosphereHandler proxy;
     private AtmosphereConfig config;
     private boolean wildcardMapping = false;
 
-    public ManagedServiceInterceptor(ManagedAtmosphereHandler proxy) {
-        this.proxy = proxy;
+    public ManagedServiceInterceptor() {
     }
 
     @Override
@@ -122,10 +118,6 @@ public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereIntercep
                                 if (!singleton) {
                                     ManagedAtmosphereHandler h = (ManagedAtmosphereHandler) w.atmosphereHandler.getClass().getConstructor(Object.class)
                                             .newInstance(ap.target().getClass().newInstance());
-
-                                    // Quite dangerous
-                                    w.interceptors.set(0, new ManagedServiceInterceptor(h));
-
                                     config.framework().addAtmosphereHandler(path, h, w.interceptors);
                                 } else {
                                     config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);
@@ -137,26 +129,6 @@ public class ManagedServiceInterceptor extends BroadcastOnPostAtmosphereIntercep
                         }
                     }
                 }
-            }
-        }
-    }
-
-    @Override
-    public void postInspect(AtmosphereResource r) {
-        if (proxy != null && r.getRequest().getMethod().equalsIgnoreCase("POST")) {
-            StringBuilder b = read(r);
-            if (b.length() > 0) {
-                Object o = null;
-                try {
-                    o = proxy.invoke(r, b.toString());
-                } catch (IOException e) {
-                    logger.error("", e);
-                }
-                if (o != null) {
-                    r.getBroadcaster().broadcast(o);
-                }
-            } else {
-                logger.warn("{} received an empty body", ManagedServiceInterceptor.class.getSimpleName());
             }
         }
     }
