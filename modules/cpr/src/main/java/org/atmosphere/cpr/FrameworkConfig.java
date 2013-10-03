@@ -134,6 +134,10 @@ public interface FrameworkConfig {
      */
     String JERSEY_SCANNING_PACKAGE = "com.sun.jersey.config.property.packages";
     /**
+     * The Jersey package used for scanning annotation.
+     */
+    String JERSEY2_SCANNING_PACKAGE = "jersey.config.server.provider.packages";
+    /**
      * Throw Exception from cloned request.
      */
     String THROW_EXCEPTION_ON_CLONED_REQUEST = NoOpsRequest.class.getName() + ".throwExceptionOnClonedRequest";

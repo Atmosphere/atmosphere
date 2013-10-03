@@ -27,6 +27,7 @@ import java.io.IOException;
 
 /**
  * AtmosphereServlet that use Servlet 3.0 Async API when available, and fallback to native comet support if not available.
+ * For Tomcat6/7 and JBossWeb Native support, use atmosphere-native dependencies instead.
  * <p/>
  * If Servlet 3.0 or native API isn't found, Atmosphere will use {@link org.atmosphere.container.BlockingIOCometSupport}.
  *
