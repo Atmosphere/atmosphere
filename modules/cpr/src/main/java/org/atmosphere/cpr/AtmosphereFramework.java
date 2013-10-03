@@ -637,7 +637,10 @@ public class AtmosphereFramework implements ServletContextProvider {
             configureAnnotationPackages();
 
             configureBroadcasterFactory();
-            configureScanningPackage(scFacade);
+            configureScanningPackage(scFacade, ApplicationConfig.ANNOTATION_PACKAGE);
+            configureScanningPackage(scFacade, FrameworkConfig.JERSEY2_SCANNING_PACKAGE);
+            configureScanningPackage(scFacade, FrameworkConfig.JERSEY_SCANNING_PACKAGE);
+
             installAnnotationProcessor(scFacade);
 
             autoConfigureService(scFacade.getServletContext());
@@ -882,10 +885,9 @@ public class AtmosphereFramework implements ServletContextProvider {
         }
     }
 
-    protected void configureScanningPackage(ServletConfig sc) {
-        String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PACKAGE);
-        if (s != null) {
-            String[] list = s.split(",");
+    protected void configureScanningPackage(ServletConfig sc, String packageName) {
+        if (packageName != null) {
+            String[] list = packageName.split(",");
             for (String a : list) {
                 packages.add(a);
             }
