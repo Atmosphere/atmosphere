@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
@@ -52,7 +51,12 @@ public class WebSocketProcessorTest {
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
-        framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
+        framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
+            @Override
+            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return action(req, res);
+            }
+        });
         framework.addInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE, "false");
         framework.init(new ServletConfig() {
             @Override
