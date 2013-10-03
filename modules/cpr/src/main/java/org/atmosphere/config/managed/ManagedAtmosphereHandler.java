@@ -34,6 +34,7 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +58,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
-    private Object object;
+    private Object proxiedInstance;
     private List<Method> onRuntimeMethod;
     private Method onDisconnectMethod;
     private Method onTimeoutMethod;
@@ -76,7 +77,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     public ManagedAtmosphereHandler configure(AtmosphereConfig config, Object c) {
-        this.object = c;
+        this.proxiedInstance = c;
         this.onRuntimeMethod = populateMessage(c, Message.class);
         this.onDisconnectMethod = populate(c, Disconnect.class);
         this.onTimeoutMethod = populate(c, Resume.class);
@@ -123,7 +124,24 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
         } else if (method.equalsIgnoreCase("post")) {
+            String body = IOUtils.readEntirely(resource).toString();
+            resource.getRequest().body(body);
             invoke(onPostMethod, resource);
+
+            if (!body.isEmpty()) {
+                Object o = null;
+                try {
+                    o = invoke(resource, body);
+                } catch (IOException e) {
+                    logger.error("", e);
+                }
+                if (o != null) {
+                    resource.getBroadcaster().broadcast(o);
+                }
+            } else {
+                logger.warn("{} received an empty body", ManagedServiceInterceptor.class.getSimpleName());
+            }
+
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
         } else if (method.equalsIgnoreCase("put")) {
@@ -159,7 +177,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else {
             Object msg = event.getMessage();
             Object o;
-            // No method matched. Give a last chance by trying to decode the object.
+            // No method matched. Give a last chance by trying to decode the proxiedInstance.
             // This makes application development more simpler.
             // Chaining of encoder is not supported.
             // TODO: This could be problematic with String + method
@@ -249,18 +267,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
-    protected Class<?> loadClass(String className) throws Exception {
-        try {
-            return Thread.currentThread().getContextClassLoader().loadClass(className);
-        } catch (Throwable t) {
-            return getClass().getClassLoader().loadClass(className);
-        }
-    }
-
     private Object invoke(Method m, Object o) {
         if (m != null) {
             try {
-                return m.invoke(object, o == null ? new Object[]{} : new Object[]{o});
+                return m.invoke(proxiedInstance, o == null ? new Object[]{} : new Object[]{o});
             } catch (IllegalAccessException e) {
                 logger.debug("", e);
             } catch (InvocationTargetException e) {
@@ -279,9 +289,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 Object objectToEncode = null;
                 if (m.getParameterTypes().length == 2) {
-                    objectToEncode = Invoker.invokeMethod(m, object, resource, decoded);
+                    objectToEncode = Invoker.invokeMethod(m, proxiedInstance, resource, decoded);
                 } else {
-                    objectToEncode = Invoker.invokeMethod(m, object, decoded);
+                    objectToEncode = Invoker.invokeMethod(m, proxiedInstance, decoded);
                 }
                 if (objectToEncode != null) {
                     return Invoker.encode(encoders.get(m), objectToEncode);
@@ -295,14 +305,14 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private Object message(Method m, Object o) {
         if (m != null) {
-            return Invoker.all(encoders.get(m), EMPTY, o, object, m);
+            return Invoker.all(encoders.get(m), EMPTY, o, proxiedInstance, m);
         }
         return null;
     }
 
     @Override
     public Object target() {
-        return object;
+        return proxiedInstance;
     }
 
     protected void processReady(AtmosphereResource r) {
@@ -332,6 +342,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     @Override
     public String toString() {
-        return "ManagedAtmosphereHandler proxy for " + object.getClass().getName();
+        return "ManagedAtmosphereHandler proxy for " + proxiedInstance.getClass().getName();
     }
 }

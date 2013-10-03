@@ -18,14 +18,9 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.io.Reader;
 
 /**
  * This read the request's body and invoke the associated {@link org.atmosphere.cpr.Broadcaster} of an {@link AtmosphereResource}.
@@ -42,51 +37,11 @@ public class BroadcastOnPostAtmosphereInterceptor extends AtmosphereInterceptorA
         return Action.CONTINUE;
     }
 
-    public StringBuilder read(AtmosphereResource r) {
-        StringBuilder stringBuilder = new StringBuilder();
-        BufferedReader bufferedReader = null;
-        try {
-            try {
-                InputStream inputStream = r.getRequest().getInputStream();
-                if (inputStream != null) {
-                    bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                }
-            } catch (IllegalStateException ex) {
-                logger.trace("", ex);
-                Reader reader = r.getRequest().getReader();
-                if (reader != null) {
-                    bufferedReader = new BufferedReader(reader);
-                }
-            }
-
-            if (bufferedReader != null) {
-                char[] charBuffer = new char[8192];
-                int bytesRead = -1;
-                while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
-                    stringBuilder.append(charBuffer, 0, bytesRead);
-                }
-            } else {
-                stringBuilder.append("");
-            }
-        } catch (IOException ex) {
-            logger.warn("", ex);
-        } finally {
-            if (bufferedReader != null) {
-                try {
-                    bufferedReader.close();
-                } catch (IOException ex) {
-                    logger.warn("", ex);
-                }
-            }
-        }
-        return stringBuilder;
-    }
 
     @Override
     public void postInspect(AtmosphereResource r) {
         if (r.getRequest().getMethod().equalsIgnoreCase("POST")) {
-
-            StringBuilder b = read(r);
+            StringBuilder b = IOUtils.readEntirely(r);
             if (b.length() > 0) {
                 r.getBroadcaster().broadcast(b.toString());
             } else {
