@@ -33,6 +33,8 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 
+import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
+
 /**
  * Padding interceptor for Browser that needs whitespace when streaming is used.
  *
@@ -75,10 +77,14 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
+        final AtmosphereRequest request = r.getRequest();
 
-        String uuid = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         boolean padding = r.transport().equals(TRANSPORT.STREAMING) || r.transport().equals(TRANSPORT.LONG_POLLING);
-        if (uuid != null && !uuid.equals("0") && r.transport().equals(TRANSPORT.WEBSOCKET)) {
+        if (uuid != null
+                && !uuid.equals("0")
+                && r.transport().equals(TRANSPORT.WEBSOCKET)
+                && request.getAttribute(INJECTED_ATMOSPHERE_RESOURCE) != null) {
             padding = true;
         }
 
@@ -93,7 +99,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     private void padding() {
                         if (!r.isSuspended()) {
                             writePadding(response);
-                            r.getRequest().setAttribute("paddingWritten", "true");
+                            request.setAttribute("paddingWritten", "true");
                         }
                     }
 
