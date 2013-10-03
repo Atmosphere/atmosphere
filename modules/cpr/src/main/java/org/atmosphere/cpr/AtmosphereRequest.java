@@ -415,18 +415,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     /**
      * Set the query string.
      *
-     * @param queryString
+     * @param qs
      * @return this
      */
-    public AtmosphereRequest queryString(String queryString) {
+    public AtmosphereRequest queryString(String qs) {
 
-        if (queryString == null) return this;
+        if (qs == null) return this;
 
-        // Don't override the builder
-        String qs = queryString;
-        if (qs.isEmpty()) {
-            qs = b.queryString;
-        }
         if (!qs.isEmpty()) {
             QueryStringDecoder decoder = new QueryStringDecoder(getRequestURI() + "?" + qs);
             Map<String, List<String>> m = decoder.getParameters();
@@ -435,8 +430,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 newM.put(q.getKey(), q.getValue().toArray(new String[q.getValue().size()]));
             }
             b.queryStrings(newM);
-            b.queryString = qs;
         }
+        b.queryString = qs;
         return this;
     }
 
