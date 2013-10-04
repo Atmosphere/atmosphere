@@ -512,7 +512,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             }
             return true;
         } else {
-            logger.debug("AtmosphereResource was null, failed to cancel AtmosphereRequest {}");
+            logger.trace("AtmosphereResource {} was already cancelled or gc", r != null ? r.uuid() : "null");
             return false;
         }
     }
