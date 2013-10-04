@@ -267,7 +267,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             }
 
             // If larger, a custom annotation has been defined.
-            if (atmosphereAnnotatedClasses.size() > AnnotationScanningServletContainerInitializer.class.getAnnotation(HandlesTypes.class).value().length) {
+            if (atmosphereAnnotatedClasses != null && atmosphereAnnotatedClasses.size() > AnnotationScanningServletContainerInitializer.class.getAnnotation(HandlesTypes.class).value().length) {
                 scanForCustomizedAnnotation = true;
             }
             return scanForCustomizedAnnotation;
