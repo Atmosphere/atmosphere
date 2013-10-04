@@ -90,6 +90,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private boolean trackActiveRequest = false;
     private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
+    private final static String NO_ATMOSPHERE_HANDLER_FOUND = "No AtmosphereHandler installed. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service";
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
@@ -182,8 +183,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         if (config.handlers().isEmpty()) {
-            logger.error("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
-            throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
+            logger.error(NO_ATMOSPHERE_HANDLER_FOUND);
+            throw new AtmosphereMappingException(NO_ATMOSPHERE_HANDLER_FOUND);
         }
 
         if (res.request() == null) {
@@ -223,6 +224,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             handlerWrapper = config.handlers().get(path(req));
             if (handlerWrapper == null) {
                 logger.debug("Remap {}", resource.uuid());
+                logger.debug("No AtmosphereHandler maps request for {}. \n Available AtmosphereHandler are {}", req.getRequestURI(), config.handlers());
                 throw new AtmosphereMappingException("Invalid state. No AtmosphereHandler maps request for " + req.getRequestURI());
             }
             resource = configureWorkflow(resource, handlerWrapper, req, res);
@@ -373,7 +375,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = mapper.map(req, config.handlers());
         if (atmosphereHandlerWrapper == null) {
-            logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getRequestURI(), config.handlers());
+            logger.debug("No AtmosphereHandler maps request for {}. \n Available AtmosphereHandler are {}", req.getRequestURI(), config.handlers());
             throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + req.getRequestURI());
         }
         config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
