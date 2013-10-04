@@ -2003,6 +2003,10 @@ public class AtmosphereFramework {
             }
         }
 
+        if (isInit) {
+            c.configure(config);
+        }
+
         if (!found) {
             InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(c.getClass()) ? InvokationOrder.class.cast(c).priority() : InvokationOrder.AFTER_DEFAULT;
             positionInterceptor(p, c);
