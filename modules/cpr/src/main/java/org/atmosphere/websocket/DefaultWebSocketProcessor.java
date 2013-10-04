@@ -56,7 +56,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
@@ -81,7 +80,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     private final AtmosphereFramework framework;
     private final WebSocketProtocol webSocketProtocol;
-    private final AtomicBoolean loggedMsg = new AtomicBoolean(false);
     private final boolean destroyable;
     private final boolean executeAsync;
     private ExecutorService asyncExecutor;
@@ -138,10 +136,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
-        if (!loggedMsg.getAndSet(true)) {
-            logger.debug("Atmosphere detected WebSocket: {}", webSocket.getClass().getName());
-        }
-
         // TODO: Fix this. Instead add an Interceptor.
         if (framework.getAtmosphereConfig().handlers().size() == 0) {
             framework.addAtmosphereHandler("/*", AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER);
