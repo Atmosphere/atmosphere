@@ -144,23 +144,27 @@
 <a class="jxr_linenumber" name="134" href="#134">134</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="135" href="#135">135</a>     String JERSEY_SCANNING_PACKAGE = <span class="jxr_string">"com.sun.jersey.config.property.packages"</span>;
 <a class="jxr_linenumber" name="136" href="#136">136</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="137" href="#137">137</a> <em class="jxr_javadoccomment">     * Throw Exception from cloned request.</em>
+<a class="jxr_linenumber" name="137" href="#137">137</a> <em class="jxr_javadoccomment">     * The Jersey package used for scanning annotation.</em>
 <a class="jxr_linenumber" name="138" href="#138">138</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="139" href="#139">139</a>     String THROW_EXCEPTION_ON_CLONED_REQUEST = NoOpsRequest.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".throwExceptionOnClonedRequest"</span>;
+<a class="jxr_linenumber" name="139" href="#139">139</a>     String JERSEY2_SCANNING_PACKAGE = <span class="jxr_string">"jersey.config.server.provider.packages"</span>;
 <a class="jxr_linenumber" name="140" href="#140">140</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="141" href="#141">141</a> <em class="jxr_javadoccomment">     * The subject for the current request.</em>
+<a class="jxr_linenumber" name="141" href="#141">141</a> <em class="jxr_javadoccomment">     * Throw Exception from cloned request.</em>
 <a class="jxr_linenumber" name="142" href="#142">142</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="143" href="#143">143</a>     String SECURITY_SUBJECT = AtmosphereRequest.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".subject"</span>;
+<a class="jxr_linenumber" name="143" href="#143">143</a>     String THROW_EXCEPTION_ON_CLONED_REQUEST = NoOpsRequest.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".throwExceptionOnClonedRequest"</span>;
 <a class="jxr_linenumber" name="144" href="#144">144</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="145" href="#145">145</a> <em class="jxr_javadoccomment">     * The {@link javax.servlet.AsyncContext}.</em>
+<a class="jxr_linenumber" name="145" href="#145">145</a> <em class="jxr_javadoccomment">     * The subject for the current request.</em>
 <a class="jxr_linenumber" name="146" href="#146">146</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="147" href="#147">147</a>     String ASYNC_CONTEXT = <span class="jxr_string">"org.atmosphere.container.asyncContext"</span>;
+<a class="jxr_linenumber" name="147" href="#147">147</a>     String SECURITY_SUBJECT = AtmosphereRequest.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".subject"</span>;
 <a class="jxr_linenumber" name="148" href="#148">148</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="149" href="#149">149</a> <em class="jxr_javadoccomment">     * A flag indicating a message has been written on the resource. This is useful to know if a resource must be resumed for transport like</em>
-<a class="jxr_linenumber" name="150" href="#150">150</a> <em class="jxr_javadoccomment">     * long-polling.</em>
-<a class="jxr_linenumber" name="151" href="#151">151</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="152" href="#152">152</a>     String MESSAGE_WRITTEN = Broadcaster.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".messageWritten"</span>;
-<a class="jxr_linenumber" name="153" href="#153">153</a> }
+<a class="jxr_linenumber" name="149" href="#149">149</a> <em class="jxr_javadoccomment">     * The {@link javax.servlet.AsyncContext}.</em>
+<a class="jxr_linenumber" name="150" href="#150">150</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="151" href="#151">151</a>     String ASYNC_CONTEXT = <span class="jxr_string">"org.atmosphere.container.asyncContext"</span>;
+<a class="jxr_linenumber" name="152" href="#152">152</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="153" href="#153">153</a> <em class="jxr_javadoccomment">     * A flag indicating a message has been written on the resource. This is useful to know if a resource must be resumed for transport like</em>
+<a class="jxr_linenumber" name="154" href="#154">154</a> <em class="jxr_javadoccomment">     * long-polling.</em>
+<a class="jxr_linenumber" name="155" href="#155">155</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="156" href="#156">156</a>     String MESSAGE_WRITTEN = Broadcaster.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".messageWritten"</span>;
+<a class="jxr_linenumber" name="157" href="#157">157</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

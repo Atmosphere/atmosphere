@@ -66,7 +66,7 @@
 <a class="jxr_linenumber" name="56" href="#56">56</a>              Object c = aClass.newInstance();
 <a class="jxr_linenumber" name="57" href="#57">57</a>              <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> handler = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/config/managed/ManagedAtmosphereHandler.html">ManagedAtmosphereHandler</a>(c);
 <a class="jxr_linenumber" name="58" href="#58">58</a>              <em class="jxr_comment">// MUST BE ADDED FIRST, ALWAYS!</em>
-<a class="jxr_linenumber" name="59" href="#59">59</a>              l.add(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/config/managed/ManagedServiceInterceptor.html">ManagedServiceInterceptor</a>(ManagedAtmosphereHandler.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(handler)));
+<a class="jxr_linenumber" name="59" href="#59">59</a>              l.add(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/config/managed/ManagedServiceInterceptor.html">ManagedServiceInterceptor</a>());
 <a class="jxr_linenumber" name="60" href="#60">60</a>  
 <a class="jxr_linenumber" name="61" href="#61">61</a>              Class&lt;?&gt;[] interceptors = a.interceptors();
 <a class="jxr_linenumber" name="62" href="#62">62</a>              <strong class="jxr_keyword">for</strong> (Class i : interceptors) {

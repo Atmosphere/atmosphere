@@ -263,7 +263,7 @@
 <a class="jxr_linenumber" name="253" href="#253">253</a>                 cache = b.getBroadcasterConfig().getBroadcasterCache();
 <a class="jxr_linenumber" name="254" href="#254">254</a>                 List&lt;Object&gt; t = cache.retrieveFromCache(b.getID(), r);
 <a class="jxr_linenumber" name="255" href="#255">255</a> 
-<a class="jxr_linenumber" name="256" href="#256">256</a>                 cachedMessages = b.getBroadcasterConfig().applyFilters(r, cachedMessages);
+<a class="jxr_linenumber" name="256" href="#256">256</a>                 t = b.getBroadcasterConfig().applyFilters(r, t);
 <a class="jxr_linenumber" name="257" href="#257">257</a>                 <strong class="jxr_keyword">if</strong> (t.size() &gt; 0) {
 <a class="jxr_linenumber" name="258" href="#258">258</a>                     logger.trace(<span class="jxr_string">"Found Cached Messages For AtmosphereResource {} with Broadcaster {}"</span>, r.uuid(), broadcasterID);
 <a class="jxr_linenumber" name="259" href="#259">259</a>                     cachedMessages.addAll(t);
