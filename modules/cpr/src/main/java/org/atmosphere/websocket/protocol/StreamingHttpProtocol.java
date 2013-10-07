@@ -21,18 +21,19 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.WebSocketProtocol;
+import org.atmosphere.websocket.WebSocketProtocolStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.Serializable;
+import java.io.InputStream;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.List;
 
 import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
 
 /**
- * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
+ * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket stream to the
  * proper {@link org.atmosphere.websocket.WebSocket} implementation by wrapping the Websocket message's bytes within
  * an {@link javax.servlet.http.HttpServletRequest}.
  * <p/>
@@ -42,13 +43,18 @@ import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
  *
  * @author Jeanfrancois Arcand
  */
-public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
+public class StreamingHttpProtocol implements WebSocketProtocolStream {
 
-    private static final Logger logger = LoggerFactory.getLogger(SimpleHttpProtocol.class);
+    private static final Logger logger = LoggerFactory.getLogger(StreamingHttpProtocol.class);
     protected String contentType = "text/plain";
     protected String methodType = "POST";
     protected String delimiter = "@@";
     protected boolean destroyable;
+    private final SimpleHttpProtocol delegate;
+
+    public StreamingHttpProtocol(){
+        delegate = new SimpleHttpProtocol();
+    }
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -79,35 +85,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     }
 
     @Override
-    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String d) {
-        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
-        if (resource == null) {
-            logger.trace("The WebSocket has been closed before the message was processed.");
-            return null;
-        }
-        AtmosphereRequest request = resource.getRequest();
-        String pathInfo = request.getPathInfo();
-        String requestURI = request.getRequestURI();
-
-        if (d.startsWith(delimiter)) {
-            int delimiterLength = delimiter.length();
-            int bodyBeginIndex = d.indexOf(delimiter, delimiterLength);
-            if (bodyBeginIndex != -1) {
-                pathInfo = d.substring(delimiterLength, bodyBeginIndex);
-                requestURI += pathInfo;
-                d = d.substring(bodyBeginIndex + delimiterLength);
-            }
-        }
-
-        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, pathInfo, requestURI, methodType, contentType, destroyable).body(d).build());
-
-        return list;
-    }
-
-    @Override
-    public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] d, final int offset, final int length) {
-
+    public List<AtmosphereRequest> onTextStream(WebSocket webSocket, Reader r) {
         //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
@@ -117,11 +95,36 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
         AtmosphereRequest request = resource.getRequest();
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType, destroyable).body(d, offset, length).build());
+        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType, destroyable).reader(r).build());
 
         return list;
     }
 
+    @Override
+    public List<AtmosphereRequest> onBinaryStream(WebSocket webSocket, InputStream stream) {
+        //Converting to a string and delegating to onMessage(WebSocket webSocket, String d) causes issues because the binary data may not be a valid string.
+        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
+        if (resource == null) {
+            logger.trace("The WebSocket has been closed before the message was processed.");
+            return null;
+        }
+
+        AtmosphereRequest request = resource.getRequest();
+        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
+        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType, destroyable).inputStream(stream).build());
+
+        return list;
+    }
+
+    @Override
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String data) {
+        return delegate.onMessage(webSocket, data);
+    }
+
+    @Override
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length) {
+        return delegate.onMessage(webSocket, data, offset, length);
+    }
 
     @Override
     public void onOpen(WebSocket webSocket) {

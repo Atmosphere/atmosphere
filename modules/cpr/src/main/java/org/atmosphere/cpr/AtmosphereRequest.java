@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.util.FakeHttpSession;
 import org.atmosphere.util.QueryStringDecoder;
+import org.atmosphere.util.ReaderInputStream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,6 +40,7 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
@@ -81,7 +83,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
-        if (b.inputStream == null) {
+        if (b.inputStream == null && b.reader == null) {
             if (b.dataBytes != null) {
                 configureStream(b.dataBytes, b.offset, b.length, b.encoding);
             } else if (b.data != null) {
@@ -94,8 +96,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 br = new BufferedReader(new StringReader(b.data));
             }
         } else {
-            bis = new IS(b.inputStream);
-            br = new BufferedReader(new InputStreamReader(b.inputStream));
+            bis = b.inputStream == null ? new IS(new ReaderInputStream(b.reader)) : new IS(b.inputStream);
+            br = b.reader == null ? new BufferedReader(new InputStreamReader(b.inputStream)) : new BufferedReader(b.reader);
         }
 
         if (b.request == null) b.request(new NoOpsRequest());
@@ -804,6 +806,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String requestURL;
         private Map<String, Object> localAttributes = new ConcurrentHashMap<String, Object>();
         private InputStream inputStream;
+        private Reader reader;
         private String remoteAddr = "";
         private String remoteHost = "";
         private int remotePort = 0;
@@ -958,6 +961,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         public Builder inputStream(InputStream inputStream) {
             this.inputStream = inputStream;
+            return this;
+        }
+
+        public Builder reader(Reader reader) {
+            this.reader = reader;
             return this;
         }
 
