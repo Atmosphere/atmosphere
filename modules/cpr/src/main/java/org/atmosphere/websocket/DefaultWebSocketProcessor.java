@@ -572,15 +572,16 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     protected void dispatchStream(WebSocket webSocket, InputStream is) throws IOException {
         int read = 0;
         ByteBuffer bb = webSocket.bb;
-        while (read > -1) {
-            bb.position(bb.position() + read);
-            if (bb.remaining() == 0) {
-                resizeByteBuffer(webSocket);
-            }
-            read = is.read(bb.array(), bb.position(), bb.remaining());
-        }
-        bb.flip();
         try {
+            while (read > -1) {
+                bb.position(bb.position() + read);
+                if (bb.remaining() == 0) {
+                    resizeByteBuffer(webSocket);
+                }
+                read = is.read(bb.array(), bb.position(), bb.remaining());
+            }
+            bb.flip();
+
             invokeWebSocketProtocol(webSocket, bb.array(), 0, bb.limit());
         } finally {
             bb.clear();
@@ -590,15 +591,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     protected void dispatchReader(WebSocket webSocket, Reader r) throws IOException {
         int read = 0;
         CharBuffer cb = webSocket.cb;
-        while (read > -1) {
-            cb.position(cb.position() + read);
-            if (cb.remaining() == 0) {
-                resizeCharBuffer(webSocket);
-            }
-            read = r.read(cb.array(), cb.position(), cb.remaining());
-        }
-        cb.flip();
         try {
+            while (read > -1) {
+                cb.position(cb.position() + read);
+                if (cb.remaining() == 0) {
+                    resizeCharBuffer(webSocket);
+                }
+                read = r.read(cb.array(), cb.position(), cb.remaining());
+            }
+            cb.flip();
             invokeWebSocketProtocol(webSocket, cb.toString());
         } finally {
             cb.clear();
