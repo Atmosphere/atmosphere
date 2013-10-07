@@ -34,6 +34,7 @@ import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.VoidExecutorService;
+import org.atmosphere.websocket.protocol.StreamingHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -610,7 +611,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         int maxSize = getByteBufferMaxSize();
         ByteBuffer bb = webSocket.bb;
         if (bb.limit() >= maxSize) {
-            throw new IOException("Message Buffer too small");
+            throw new IOException("Message Buffer too small. Use " + StreamingHttpProtocol.class.getName() + " when streaming over websocket.");
         }
 
         long newSize = bb.limit() * 2;
@@ -629,7 +630,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         int maxSize = getCharBufferMaxSize();
         CharBuffer cb = webSocket.cb;
         if (cb.limit() >= maxSize) {
-            throw new IOException("Message Buffer too small");
+            throw new IOException("Message Buffer too small. Use " + StreamingHttpProtocol.class.getName() + " when streaming over websocket.");
         }
 
         long newSize = cb.limit() * 2;
