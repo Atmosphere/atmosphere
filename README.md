@@ -15,6 +15,8 @@ The Atmosphere Framework Stack consists of:
 </p>
 The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/) [Play! Framework](http://atmosphere.github.io/atmosphere-play/)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx)
 
+Our Java/Scala Client is called [wasync](https://github.com/Atmosphere/wasync)
+
 Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/)
 
 ### Commercial support now available!
