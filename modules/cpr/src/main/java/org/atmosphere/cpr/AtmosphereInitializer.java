@@ -33,10 +33,10 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
 
     @Override
     public void onStartup(Set<Class<?>> classes, ServletContext c) throws ServletException {
-        Object container = c.getAttribute("javax.websocket.server.ServerContainer");
-        // Jetty 9.1.0 return null, so let the Servlet.init() do the work for us.
-        if (container != null && framework == null) {
-            logger.trace("Initializing AtmosphereFramework");
+        logger.trace("Initializing AtmosphereFramework");
+
+        framework = (AtmosphereFramework) c.getAttribute(AtmosphereFramework.class.getName());
+        if (framework == null) {
             framework = new AtmosphereFramework(false, true);
             try {
                 framework.init(c);
