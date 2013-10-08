@@ -36,6 +36,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -197,11 +198,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
     public final static class BroadcasterTracker {
 
-        private final List<String> broadcasterIds;
+        private final ConcurrentLinkedQueue<String> broadcasterIds;
         private long tick;
 
         public BroadcasterTracker() {
-            this.broadcasterIds = new LinkedList<String>();
+            this.broadcasterIds = new ConcurrentLinkedQueue<String>();
             tick = System.currentTimeMillis();
         }
 
@@ -219,7 +220,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             return this;
         }
 
-        public List<String> ids() {
+        public ConcurrentLinkedQueue<String> ids() {
             return broadcasterIds;
         }
 
