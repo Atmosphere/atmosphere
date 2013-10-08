@@ -22,7 +22,6 @@ import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.HandlesTypes;
-import javax.websocket.server.ServerContainer;
 import java.util.Set;
 
 @HandlesTypes({})
@@ -34,7 +33,7 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
 
     @Override
     public void onStartup(Set<Class<?>> classes, ServletContext c) throws ServletException {
-        ServerContainer container = (ServerContainer) c.getAttribute(ServerContainer.class.getName());
+        Object container = c.getAttribute("javax.websocket.server.ServerContainer");
         // Jetty 9.1.0 return null, so let the Servlet.init() do the work for us.
         if (container != null && framework == null) {
             logger.trace("Initializing AtmosphereFramework");
