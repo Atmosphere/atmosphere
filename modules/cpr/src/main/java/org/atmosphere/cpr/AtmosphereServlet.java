@@ -37,6 +37,8 @@ public class AtmosphereServlet extends HttpServlet {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected AtmosphereFramework framework;
+    protected boolean isFilter;
+    protected boolean autoDetectHandlers;
 
     /**
      * Create an Atmosphere Servlet.
@@ -61,7 +63,8 @@ public class AtmosphereServlet extends HttpServlet {
      * @param autoDetectHandlers
      */
     public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
-        framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
+        this.isFilter = isFilter;
+        this.autoDetectHandlers = autoDetectHandlers;
     }
 
     @Override
@@ -71,8 +74,13 @@ public class AtmosphereServlet extends HttpServlet {
 
     @Override
     public void init(final ServletConfig sc) throws ServletException {
+        framework = (AtmosphereFramework) sc.getServletContext().getAttribute(AtmosphereFramework.class.getName());
         super.init(sc);
-        framework.init(sc);
+        if (framework == null) {
+            framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
+            framework.init(sc);
+
+        }
     }
 
     public AtmosphereFramework framework() {

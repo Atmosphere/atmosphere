@@ -1,1 +1,3 @@
 org.atmosphere.cpr.AnnotationScanningServletContainerInitializer
+org.atmosphere.cpr.AtmosphereInitializer
+

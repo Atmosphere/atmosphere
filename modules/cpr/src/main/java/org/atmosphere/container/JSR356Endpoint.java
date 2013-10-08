@@ -91,7 +91,7 @@ public class JSR356Endpoint extends Endpoint {
             for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
                 if (AtmosphereServlet.class.isAssignableFrom(loadClass(e.getValue().getClassName()))) {
                     // TODO: This is a hack and won't work with serveral Servlet
-                    servletContext = "/" + e.getValue().getMappings().iterator().next().replace("/","").replace("*","");
+                    servletContext = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
                 }
             }
         } catch (Exception ex) {
@@ -99,7 +99,7 @@ public class JSR356Endpoint extends Endpoint {
         }
     }
 
-    public  JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
+    public JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
         this.handshakeRequest = handshakeRequest;
         return this;
     }
@@ -123,7 +123,7 @@ public class JSR356Endpoint extends Endpoint {
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
         Map<String, String> headers = new HashMap<String, String>();
-        for (Map.Entry<String, List<String>> e :handshakeRequest.getHeaders().entrySet()) {
+        for (Map.Entry<String, List<String>> e : handshakeRequest.getHeaders().entrySet()) {
             headers.put(e.getKey(), e.getValue().size() > 0 ? e.getValue().get(0) : "");
         }
 
@@ -160,7 +160,7 @@ public class JSR356Endpoint extends Endpoint {
                     .requestURI(session.getRequestURI().toASCIIString())
                     .requestURL(session.getRequestURI().toASCIIString())
                     .headers(headers)
-                    .session((HttpSession)handshakeRequest.getHttpSession())
+                    .session((HttpSession) handshakeRequest.getHttpSession())
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo)
                     .userPrincipal(session.getUserPrincipal())
