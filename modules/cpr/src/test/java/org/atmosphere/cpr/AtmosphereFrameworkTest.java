@@ -67,9 +67,8 @@ public class AtmosphereFrameworkTest {
         @Override
         public void init(ServletConfig config) throws ServletException {
 
-            framework.setBroadcasterFactory(new MyBroadcasterFactory());
             super.init(config);
-
+            framework.setBroadcasterFactory(new MyBroadcasterFactory());
         }
 
     }
