@@ -54,7 +54,7 @@ public class JSR356Endpoint extends Endpoint {
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
-    private String servletContext = "";
+    private String servletPath = "";
     private HandshakeRequest handshakeRequest;
 
     public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
@@ -91,7 +91,7 @@ public class JSR356Endpoint extends Endpoint {
             for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
                 if (AtmosphereServlet.class.isAssignableFrom(loadClass(e.getValue().getClassName()))) {
                     // TODO: This is a hack and won't work with serveral Servlet
-                    servletContext = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
+                    servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
                 }
             }
         } catch (Exception ex) {
@@ -148,19 +148,26 @@ public class JSR356Endpoint extends Endpoint {
             }
 
             pathInfo = p.toString();
-            if (!pathInfo.equals(servletContext) && pathInfo.length() > servletContext.length()) {
-                pathInfo = p.toString().substring(servletContext.length());
+            if (!pathInfo.equals(servletPath) && pathInfo.length() > servletPath.length()) {
+                pathInfo = p.toString().substring(servletPath.length());
+            } else if (pathInfo.equals(servletPath)) {
+                pathInfo = null;
             }
         } catch (Exception ex) {
             logger.warn("Unexpected path decoding", ex);
         }
 
         try {
+            String requestUri = session.getRequestURI().toASCIIString();
+            if (requestUri.contains("?")) {
+                requestUri = requestUri.substring(0, requestUri.indexOf("?"));
+            }
             request = new AtmosphereRequest.Builder()
-                    .requestURI(session.getRequestURI().toASCIIString())
-                    .requestURL(session.getRequestURI().toASCIIString())
+                    .requestURI(requestUri)
+                    .requestURL(requestUri)
                     .headers(headers)
                     .session((HttpSession) handshakeRequest.getHttpSession())
+                    .servletPath(servletPath)
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo)
                     .userPrincipal(session.getUserPrincipal())
