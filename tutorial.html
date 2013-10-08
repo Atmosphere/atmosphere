@@ -60,7 +60,7 @@
 
 <p>To see the power of Atmosphere, let’s build a simple chat application. Let’s assume our chat application will only
     support a single chat room to make the logic simpler.
-    First, let’s write the server side component. Atmosphere supports four components:</p>
+    First, let’s write the server side component. Atmosphere natively supports three components:</p>
 <ul>
     <li>atmosphere-runtime: the core module of Atmosphere. All other modules build on top of this one. This module
         exposes two
@@ -664,14 +664,36 @@ Figure 3: Servers in the Cloud
     <li>Cloud/Cluster enabled</li>
 </ul>
 <h3>Using the @ManagedService annotation</h3>
-<p>Now that you understand how to build an Atmosphere annotation and how it works under the hood, you can simplify your server side class by using the @ManagedService</p>
+<p>Now that you understand how to build an Atmosphere annotation and how it works under the hood, you can simplify your server side class by using the [@ManagedService](https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-the-ManagedService-Annotation)</p>
 <div class="example">
     <div class="example-left-long">
         <h4>Listing 7</h4>
 	    <pre class="prettyprint">
-    @ManagedService(path = "/chat",
-                    broadcaster = RedisBroadcaster.class)
-    public class ChatRoom extends OnMessage&lt;String&gt; {
+            @ManagedService(path = "/chat")
+            public class Chat {
+                private final Logger logger = LoggerFactory.getLogger(Chat.class);
+
+                @Ready
+                public void onReady(final AtmosphereResource r) {
+                    logger.info("Browser {} connected.", r.uuid());
+                }
+
+                @Disconnect
+                public void onDisconnect(AtmosphereResourceEvent event) {
+                    if (event.isCancelled()) {
+                        logger.info("Browser {} unexpectedly disconnected", event.getResource().uuid());
+                    } else if (event.isClosedByClient()) {
+                        logger.info("Browser {} closed the connection", event.getResource().uuid());
+                    }
+                }
+
+                @org.atmosphere.config.service.Message(encoders = {JacksonEncoder.class}, decoders = {JacksonDecoder.class})
+                public Message onMessage(Message message) throws IOException {
+                    logger.info("{} just send {}", message.getAuthor(), message.getMessage());
+                    return message;
+                }
+
+            }
         </pre>
     </div>
 </div>
