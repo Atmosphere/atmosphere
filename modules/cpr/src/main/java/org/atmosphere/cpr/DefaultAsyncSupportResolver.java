@@ -185,7 +185,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             {
                 if (useServlet30Async && !useNativeIfPossible) {
 
-
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7Servlet30SupportWithWebSocket.class);
 
@@ -254,8 +253,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     .newInstance(config);
         } catch (final Exception e) {
             logger.error("failed to create comet support class: {}, error: {}", targetClass, e.getMessage());
-            throw new IllegalArgumentException(
-                    "Comet support class " + targetClass.getCanonicalName() + " has bad signature.", e);
+            throw new IllegalArgumentException("Unable to create" + targetClass, e);
         }
     }
 
@@ -266,7 +264,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
         } catch (final Exception e) {
             logger.error("failed to create comet support class: {}, error: {}", targetClassFQN, e.getMessage());
-            throw new IllegalArgumentException("Comet support class " + targetClassFQN + " has bad signature.", e);
+            throw new IllegalArgumentException("Unable to create" + targetClassFQN, e);
         }
     }
 
