@@ -23,6 +23,8 @@ import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.annotation.HandlesTypes;
+import java.util.Enumeration;
+import java.util.List;
 import java.util.Set;
 
 @HandlesTypes({})
@@ -33,16 +35,30 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
     private AtmosphereFramework framework;
 
     @Override
-    public void onStartup(Set<Class<?>> classes, ServletContext c) throws ServletException {
+    public void onStartup(Set<Class<?>> classes, final ServletContext c) throws ServletException {
         logger.trace("Initializing AtmosphereFramework");
 
         framework = (AtmosphereFramework) c.getAttribute(AtmosphereFramework.class.getName());
         if (framework == null) {
             framework = new AtmosphereFramework(false, true);
-
+            // Hack to make jsr356 works. Pretty ugly.
             DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
-            if (resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
-                framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig()));
+            List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
+
+            if (l.size() == 0 && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
+                framework.setAsyncSupport(new JSR356AsyncSupport(new AtmosphereConfig(framework) {
+                    public ServletContext getServletContext() {
+                        return c;
+                    }
+
+                    public String getInitParameter(String name) {
+                        return c.getInitParameter(name);
+                    }
+
+                    public Enumeration<String> getInitParameterNames() {
+                        return c.getInitParameterNames();
+                    }
+                }));
             }
 
             c.setAttribute(AtmosphereFramework.class.getName(), framework);
