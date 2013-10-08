@@ -554,35 +554,6 @@ public class AtmosphereFramework implements ServletContextProvider {
     /**
      * Initialize the AtmosphereFramework using the {@link ServletContext}.
      *
-     * @param c the {@link ServletContext}
-     */
-    public AtmosphereFramework init(final ServletContext c) throws ServletException {
-        return init(new ServletConfig() {
-            @Override
-            public String getServletName() {
-                return c.getServletContextName();
-            }
-
-            @Override
-            public ServletContext getServletContext() {
-                return c;
-            }
-
-            @Override
-            public String getInitParameter(String name) {
-                return c.getInitParameter(name);
-            }
-
-            @Override
-            public Enumeration<String> getInitParameterNames() {
-                return c.getInitParameterNames();
-            }
-        }, true);
-    }
-
-    /**
-     * Initialize the AtmosphereFramework using the {@link ServletContext}.
-     *
      * @param sc the {@link ServletContext}
      */
     public AtmosphereFramework init(final ServletConfig sc) throws ServletException {
