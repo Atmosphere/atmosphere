@@ -205,6 +205,7 @@ public class AtmosphereFramework {
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
     protected AtmosphereObjectFactory objectFactory = new DefaultAtmosphereObjectFactory();
+    protected boolean isDestroyed = false;
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Default Interceptor
@@ -569,6 +570,35 @@ public class AtmosphereFramework {
             logger.error("", e);
         }
         return this;
+    }
+
+    /**
+     * Initialize the AtmosphereFramework using the {@link ServletContext}.
+     *
+     * @param c the {@link ServletContext}
+     */
+    public AtmosphereFramework init(final ServletContext c) throws ServletException {
+        return init(new ServletConfig() {
+            @Override
+            public String getServletName() {
+                return c.getServletContextName();
+            }
+
+            @Override
+            public ServletContext getServletContext() {
+                return c;
+            }
+
+            @Override
+            public String getInitParameter(String name) {
+                return c.getInitParameter(name);
+            }
+
+            @Override
+            public Enumeration<String> getInitParameterNames() {
+                return c.getInitParameterNames();
+            }
+        }, true);
     }
 
     /**
@@ -1303,6 +1333,10 @@ public class AtmosphereFramework {
     }
 
     public AtmosphereFramework destroy() {
+
+        if (isDestroyed) return this;
+        isDestroyed = true;
+
         if (asyncSupport != null && AsynchronousProcessor.class.isAssignableFrom(asyncSupport.getClass())) {
             ((AsynchronousProcessor) asyncSupport).shutdown();
         }
