@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.JSR356AsyncSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,12 +39,13 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
         framework = (AtmosphereFramework) c.getAttribute(AtmosphereFramework.class.getName());
         if (framework == null) {
             framework = new AtmosphereFramework(false, true);
-            try {
-                framework.init(c);
-                c.setAttribute(AtmosphereFramework.class.getName(), framework);
-            } catch (ServletException ex) {
-                throw new RuntimeException(ex);
+
+            DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
+            if (resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
+                framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig()));
             }
+
+            c.setAttribute(AtmosphereFramework.class.getName(), framework);
         }
     }
 }

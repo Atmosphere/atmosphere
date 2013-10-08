@@ -78,9 +78,8 @@ public class AtmosphereServlet extends HttpServlet {
         super.init(sc);
         if (framework == null) {
             framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
-            framework.init(sc);
-
         }
+        framework.init(sc);
     }
 
     public AtmosphereFramework framework() {
