@@ -121,7 +121,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
                             break;
                     }
                 }
-            }).suspend(timeoutInSeconds == -1 ? timeoutInSeconds : TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS);
+            }).suspend(timeoutInSeconds == -1 ? timeoutInSeconds : TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS));
         }
     }
 
