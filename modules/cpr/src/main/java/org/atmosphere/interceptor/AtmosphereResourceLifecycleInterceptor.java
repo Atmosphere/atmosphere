@@ -26,8 +26,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
+import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT;
 
 /**
  * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
@@ -58,6 +60,7 @@ import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTO
 public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterceptor {
 
     private String method = "GET";
+    private Integer timeoutInSeconds = -1;
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceLifecycleInterceptor.class);
 
     @Override
@@ -65,6 +68,11 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         String s = config.getInitParameter(ATMOSPHERERESOURCE_INTERCEPTOR_METHOD);
         if (s != null) {
             method = s;
+        }
+
+        s = config.getInitParameter(ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT);
+        if (s != null) {
+            timeoutInSeconds = Integer.valueOf(s);
         }
     }
 
@@ -113,7 +121,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
                             break;
                     }
                 }
-            }).suspend();
+            }).suspend(timeoutInSeconds == -1 ? timeoutInSeconds : TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS);
         }
     }
 

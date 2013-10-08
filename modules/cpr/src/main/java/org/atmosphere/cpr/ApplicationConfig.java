@@ -466,6 +466,14 @@ public interface ApplicationConfig {
      */
     String ATMOSPHERERESOURCE_INTERCEPTOR_METHOD = AtmosphereResourceLifecycleInterceptor.class.getName() + ".method";
     /**
+     * The timeout, in second, for configuring the time an AtmosphereResource is suspended. Same as {@link AtmosphereResource#suspend(long, java.util.concurrent.TimeUnit)} when the {@link AtmosphereResourceLifecycleInterceptor}
+     * is used.
+     * <p>
+     * Default: "-1"<br>
+     * Value: org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor.timeout
+     */
+    String ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT= AtmosphereResourceLifecycleInterceptor.class.getName() + ".timeout";
+    /**
      * Disable au-discovery of pre-installed {@link AtmosphereInterceptor}s.
      * <p>
      * Default: false<br>
