@@ -45,7 +45,9 @@ public class AnnotationHandler {
     public Class<? extends Processor> handleProcessor(Class<?> clazz) {
         if (Processor.class.isAssignableFrom(clazz)) {
             Class<Processor> p = (Class<Processor>) clazz;
-            logger.trace("Processor {} associated with {}", p, p.getAnnotation(AtmosphereAnnotation.class).value());
+            if (logger.isTraceEnabled()) {
+                logger.trace("Processor {} associated with {}", p, p.getAnnotation(AtmosphereAnnotation.class).value());
+            }
             annotations.put(p.getAnnotation(AtmosphereAnnotation.class).value(), p);
             return p;
         }

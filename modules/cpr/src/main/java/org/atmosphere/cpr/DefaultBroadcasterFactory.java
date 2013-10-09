@@ -246,7 +246,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                     store.put(id, nb);
                 }
 
-                if (nb == null) {
+                if (nb == null && logger.isTraceEnabled()) {
                     logger.trace("Added Broadcaster {} . Factory size: {}", id, store.size());
                 }
 
