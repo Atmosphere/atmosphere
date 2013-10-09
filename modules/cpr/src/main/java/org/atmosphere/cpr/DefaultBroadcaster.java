@@ -104,7 +104,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  * @author Jeanfrancois Arcand
  */
 public class DefaultBroadcaster implements Broadcaster {
-
+    public static final int POLLING_DEFAULT = 100;
     public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
     public static final String ASYNC_TOKEN = DefaultBroadcaster.class.getName() + ".token";
 
@@ -146,7 +146,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
     protected final AtmosphereResource noOpsResource;
-    protected int waitTime = 100;
+    protected int waitTime = POLLING_DEFAULT;
 
     public DefaultBroadcaster(String name, URI uri, AtmosphereConfig config) {
         this.name = name;
@@ -1098,7 +1098,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
-        logger.debug("Unexpected exception for AtmosphereResource {} and Broadcaster " + name, ar.uuid(), t);
+        logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster " + name, ar.uuid(), t);
 
         if (notifyAndCache) {
             final AtmosphereResourceEventImpl event = r.getAtmosphereResourceEvent();
