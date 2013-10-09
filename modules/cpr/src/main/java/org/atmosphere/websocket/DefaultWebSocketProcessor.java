@@ -246,7 +246,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         for (final AtmosphereRequest r : list) {
             if (r != null) {
 
-                boolean b = r.dispatchRequestAsynchronously();
+                r.dispatchRequestAsynchronously();
                 asyncExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
@@ -430,6 +430,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (resource == null) {
             logger.warn("Unable to retrieve AtmosphereResource for {}", webSocket);
         } else {
+            logger.trace("About to close AtmosphereResource for {}", resource.uuid());
             AtmosphereRequest r = resource.getRequest(false);
             AtmosphereResponse s = resource.getResponse(false);
             try {
@@ -444,24 +445,23 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
                     AsynchronousProcessor.AsynchronousProcessorHook h;
                     if (o != null && AsynchronousProcessor.class.isAssignableFrom(o.getClass())) {
-                        h = (AsynchronousProcessor.AsynchronousProcessorHook)
-                                r.getAttribute(ASYNCHRONOUS_HOOK);
+                        h = (AsynchronousProcessor.AsynchronousProcessorHook)o;
                         if (!resource.isCancelled()) {
                             if (closeCode == 1005) {
                                 h.closed();
                             } else {
                                 h.timedOut();
                             }
-
-                            resource.setIsInScope(false);
-                            try {
-                                resource.cancel();
-                            } catch (IOException e) {
-                                logger.trace("", e);
-                            }
                         }
-                        AtmosphereResourceImpl.class.cast(resource)._destroy();
                     }
+
+                    resource.setIsInScope(false);
+                    try {
+                        resource.cancel();
+                    } catch (IOException e) {
+                        logger.trace("", e);
+                    }
+                    AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
 
             } finally {
