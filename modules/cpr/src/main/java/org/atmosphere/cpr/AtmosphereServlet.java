@@ -69,20 +69,34 @@ public class AtmosphereServlet extends HttpServlet {
 
     @Override
     public void destroy() {
-        framework.destroy();
+        if (framework != null) framework.destroy();
     }
 
     @Override
     public void init(final ServletConfig sc) throws ServletException {
-        framework = (AtmosphereFramework) sc.getServletContext().getAttribute(AtmosphereFramework.class.getName());
+        configureFramework(sc);
         super.init(sc);
+    }
+
+    protected AtmosphereServlet configureFramework(ServletConfig sc) throws ServletException {
         if (framework == null) {
-            framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
+            framework = (AtmosphereFramework) sc.getServletContext().getAttribute(AtmosphereFramework.class.getName());
+            if (framework == null) {
+                framework = newAtmosphereFramework();
+            }
         }
         framework.init(sc);
+        return this;
+    }
+
+    protected AtmosphereFramework newAtmosphereFramework() {
+        return new AtmosphereFramework(isFilter, autoDetectHandlers);
     }
 
     public AtmosphereFramework framework() {
+        if (framework == null) {
+            framework = newAtmosphereFramework();
+        }
         return framework;
     }
 
