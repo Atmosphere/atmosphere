@@ -193,7 +193,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     @Override
     public boolean remove(Broadcaster b, Object id) {
         boolean removed = store.remove(id, b);
-        if (removed) {
+        if (removed && logger.isDebugEnabled()) {
             logger.debug("Removing Broadcaster {} factory size now {} ", id, store.size());
         }
         return removed;
