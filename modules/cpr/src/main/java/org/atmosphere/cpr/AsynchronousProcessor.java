@@ -489,14 +489,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         }
                     }
                     invokeAtmosphereHandler(impl);
-                    try {
-                        impl.getResponse().getOutputStream().close();
-                    } catch (Throwable t) {
-                        try {
-                            impl.getResponse().getWriter().close();
-                        } catch (Throwable t2) {
-                        }
-                    }
                 } catch (Throwable ex) {
                     // Something wrong happened, ignore the exception
                     logger.trace("Failed to cancel resource: {}", impl.uuid(), ex);
@@ -504,6 +496,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     try {
                         impl.notifyListeners();
                         impl.setIsInScope(false);
+                        try {
+                            impl.getResponse().getOutputStream().close();
+                        } catch (Throwable t) {
+                            try {
+                                impl.getResponse().getWriter().close();
+                            } catch (Throwable t2) {
+                            }
+                        }
                         impl.cancel();
                     } catch (Throwable t) {
                         logger.trace("completeLifecycle", t);
