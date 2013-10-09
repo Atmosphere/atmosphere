@@ -98,7 +98,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
             List<Object> cachedMessages = retrieveCache(r, tracker, false);
             if (cachedMessages.size() > 0) {
-                logger.trace("cached messages");
+                logger.trace("Cached messages available {}", cachedMessages);
                 writeCache(r, cachedMessages);
                 return Action.CANCELLED;
             } else {
