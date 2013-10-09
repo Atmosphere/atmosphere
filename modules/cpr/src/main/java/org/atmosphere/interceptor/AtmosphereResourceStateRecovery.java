@@ -190,9 +190,12 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             BroadcasterTracker t = states.get(r.uuid());
             AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
             if (t != null && (e.isClosedByClient() || !r.isResumed() && !e.isResumedOnTimeout())) {
+                logger.trace("Deleting the state of {} with broadcaster {}", r.uuid(), b.getID());
                 t.remove(b);
             } else {
                 logger.trace("Keeping the state of {} with broadcaster {}", r.uuid(), b.getID());
+                logger.trace("State for {} with broadcaster {}", r.uuid(), t != null ? t.ids() : "");
+
             }
         }
     }
