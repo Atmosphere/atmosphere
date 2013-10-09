@@ -203,6 +203,7 @@ public class AtmosphereFramework implements ServletContextProvider {
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
     protected boolean isDestroyed = false;
+    protected boolean externalizeDestroy = false;
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Default Interceptor
@@ -700,7 +701,7 @@ public class AtmosphereFramework implements ServletContextProvider {
 
         String s = config.getInitParameter(BROADCASTER_WAIT_TIME);
 
-        logger.info("Broadcaster Polling Wait Time {}", s == null ? "100" : s);
+        logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
         logger.info("HttpSession supported: {}", config.isSupportSession());
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
@@ -1711,10 +1712,12 @@ public class AtmosphereFramework implements ServletContextProvider {
                 notify(a.type(), req, res);
             }
 
-            if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
-                req.destroy();
-                res.destroy();
-                notify(Action.TYPE.DESTROYED, req, res);
+            if (!externalizeDestroy) {
+                if (req != null && a != null && a.type() != Action.TYPE.SUSPEND) {
+                    req.destroy();
+                    res.destroy();
+                    notify(Action.TYPE.DESTROYED, req, res);
+                }
             }
         }
         return a;
@@ -2331,6 +2334,16 @@ public class AtmosphereFramework implements ServletContextProvider {
      */
     public AtmosphereFramework addCustomAnnotationPackage(Class p) {
         annotationPackages.addLast(p.getPackage().getName());
+        return this;
+    }
+
+    /**
+     * If set to true, the task of finishing the request/response lifecycle will not be handled by this class.
+     * @param externalizeDestroy
+     * @return this
+     */
+    public AtmosphereFramework externalizeDestroy(boolean externalizeDestroy) {
+        this.externalizeDestroy = externalizeDestroy;
         return this;
     }
 }
