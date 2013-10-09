@@ -198,14 +198,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     public Object invoke(AtmosphereResource resource, Object msg) throws IOException {
-        Object o = message(resource, msg);
-
-        if (o != null) {
-            return o;
-        } else if (onRuntimeMethod.size() == 0) {
-            return msg;
-        }
-        return o;
+        return message(resource, msg);
     }
 
     private Method populate(Object c, Class<? extends Annotation> annotation) {
