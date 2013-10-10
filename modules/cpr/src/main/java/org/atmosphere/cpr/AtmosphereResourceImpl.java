@@ -329,7 +329,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (event.isSuspended() || disableSuspend) return this;
 
-        if (req.getSession(false) != null
+        if (config.isSupportSession()
+                && req.getSession(false) != null
                 && req.getSession().getMaxInactiveInterval() != -1
                 && req.getSession().getMaxInactiveInterval() * 1000 < timeout) {
             throw new IllegalStateException("Cannot suspend a " +
@@ -768,7 +769,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public HttpSession session(boolean create) {
-        if (session == null) {
+        if (config.isSupportSession() && session == null) {
             // http://java.net/jira/browse/GLASSFISH-18856
             session = req.getSession(create);
         }
