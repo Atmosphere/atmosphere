@@ -539,7 +539,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public HttpSession getSession(boolean create) {
-
         if (b.webSocketFakeSession != null) {
             return b.webSocketFakeSession;
         }
