@@ -54,6 +54,8 @@ public class SessionTest {
                 response,
                 mock(AsyncSupport.class));
 
+        r.getAtmosphereConfig().setSupportSession(true);
+
         assertNull(r.session(false));
         assertNotNull(r.session());
         assertNotNull(r.session(true));
@@ -65,6 +67,8 @@ public class SessionTest {
                 request,
                 response,
                 mock(AsyncSupport.class));
+
+        r.getAtmosphereConfig().setSupportSession(true);
 
         assertNotNull(r.session());
         assertNotNull(r.session(true));
