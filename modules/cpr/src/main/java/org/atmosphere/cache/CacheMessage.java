@@ -21,17 +21,27 @@ public class CacheMessage {
 
     private final String id;
     private long createTime;
+    private UUIDBroadcasterCache.ClientQueue queue;
 
     public CacheMessage(String id, Object message) {
-        this.id = id;
-        this.message = message;
-        this.createTime = System.nanoTime();
+        this(id, System.nanoTime(), message);
     }
 
     public CacheMessage(String id, Long now, Object message) {
         this.id = id;
         this.message = message;
         this.createTime = now;
+    }
+
+    public CacheMessage queue(UUIDBroadcasterCache.ClientQueue queue) {
+        this.queue = queue;
+        return this;
+    }
+
+    public void destroyFromQueue() {
+        if (queue != null) {
+            queue.getQueue().remove(this);
+        }
     }
 
     public Object getMessage() {
