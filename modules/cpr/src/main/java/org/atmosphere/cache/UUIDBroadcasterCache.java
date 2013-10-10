@@ -25,13 +25,13 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -48,9 +48,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
-    private final Map<String, ClientQueue> messages = new HashMap<String, ClientQueue>();
+    private final Map<String, ClientQueue> messages = new ConcurrentHashMap<String, ClientQueue>();
 
-    private final Map<String, Long> activeClients = new HashMap<String, Long>();
+    private final Map<String, Long> activeClients = new ConcurrentHashMap<String, Long>();
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
     protected ScheduledExecutorService taskScheduler;
@@ -132,18 +132,16 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         long now = System.currentTimeMillis();
         String messageId = UUID.randomUUID().toString();
         CacheMessage cacheMessage = new CacheMessage(messageId, e);
-        synchronized (messages) {
-            if (r == null) {
-                //no clients are connected right now, caching message for all active clients
-                for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
-                    addMessageIfNotExists(entry.getKey(), cacheMessage);
-                }
-            } else {
-                String clientId = uuid(r);
-
-                activeClients.put(clientId, now);
-                addMessageIfNotExists(clientId, cacheMessage);
+        if (r == null) {
+            //no clients are connected right now, caching message for all active clients
+            for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
+                addMessageIfNotExists(entry.getKey(), cacheMessage);
             }
+        } else {
+            String clientId = uuid(r);
+
+            activeClients.put(clientId, now);
+            addMessageIfNotExists(clientId, cacheMessage);
         }
         return cacheMessage;
     }
@@ -156,10 +154,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         List<Object> result = new ArrayList<Object>();
 
         ClientQueue clientQueue;
-        synchronized (messages) {
-            activeClients.put(clientId, now);
-            clientQueue = messages.remove(clientId);
-        }
+        activeClients.put(clientId, now);
+        clientQueue = messages.remove(clientId);
         List<CacheMessage> clientMessages;
         if (clientQueue == null) {
             clientMessages = Collections.emptyList();
@@ -172,10 +168,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
 
         if (logger.isTraceEnabled()) {
-            synchronized (messages) {
-                logger.trace("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
-                logger.trace("Available cached message {}", messages);
-            }
+            logger.trace("Retrieved for AtmosphereResource {} cached messages {}", r.uuid(), result);
+            logger.trace("Available cached message {}", messages);
         }
 
         return result;
@@ -191,12 +185,10 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
         String clientId = uuid(r);
         ClientQueue clientQueue;
-        synchronized (messages) {
-            clientQueue = messages.get(clientId);
-            if (clientQueue != null) {
-                logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
-                clientQueue.getQueue().remove(message);
-            }
+        clientQueue = messages.get(clientId);
+        if (clientQueue != null) {
+            logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
+            clientQueue.getQueue().remove(message);
         }
     }
 
@@ -260,23 +252,21 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     protected void invalidateExpiredEntries() {
         long now = System.currentTimeMillis();
-        synchronized (messages) {
 
-            Set<String> inactiveClients = new HashSet<String>();
+        Set<String> inactiveClients = new HashSet<String>();
 
-            for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
-                if (now - entry.getValue() > clientIdleTime) {
-                    logger.debug("Invalidate client {}", entry.getKey());
-                    inactiveClients.add(entry.getKey());
-                }
+        for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
+            if (now - entry.getValue() > clientIdleTime) {
+                logger.debug("Invalidate client {}", entry.getKey());
+                inactiveClients.add(entry.getKey());
             }
-
-            for (String clientId : inactiveClients) {
-                activeClients.remove(clientId);
-                messages.remove(clientId);
-            }
-
         }
+
+        for (String clientId : inactiveClients) {
+            activeClients.remove(clientId);
+            messages.remove(clientId);
+        }
+
     }
 
     @Override
