@@ -197,7 +197,6 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             if (t != null && (e.isClosedByClient() || !r.isResumed() && !e.isResumedOnTimeout())) {
                 t.remove(b);
             } else {
-
                 // The BroadcasterTracker was swapped
                 if (t == null) {
                     onAddAtmosphereResource(b, r);
@@ -261,7 +260,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             Broadcaster b = factory.lookup(broadcasterID, false);
             BroadcasterCache cache;
             logger.trace("About to retrieve cached messages for resource {} with Broadcaster {}, tracked by " + b, r.uuid(), r.getBroadcaster());
-            if (force || (b != null && !b.getID().equalsIgnoreCase(r.getBroadcaster().getID()))) {
+            if (b != null && (force || !b.getID().equalsIgnoreCase(r.getBroadcaster().getID()))) {
                 // We cannot add the resource now. we need to first make sure there is no cached message.
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
                 List<Object> t = cache.retrieveFromCache(b.getID(), r);
