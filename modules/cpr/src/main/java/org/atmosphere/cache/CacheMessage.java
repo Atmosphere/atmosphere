@@ -33,17 +33,6 @@ public class CacheMessage {
         this.createTime = now;
     }
 
-    public CacheMessage queue(UUIDBroadcasterCache.ClientQueue queue) {
-        this.queue = queue;
-        return this;
-    }
-
-    public void destroyFromQueue() {
-        if (queue != null) {
-            queue.getQueue().remove(this);
-        }
-    }
-
     public Object getMessage() {
         return message;
     }

@@ -49,7 +49,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
     private final Map<String, ClientQueue> messages = new ConcurrentHashMap<String, ClientQueue>();
-    private final Set<String> inactiveClients = new HashSet<String>();
+
     private final Map<String, Long> activeClients = new ConcurrentHashMap<String, Long>();
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
@@ -62,6 +62,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     public final static class ClientQueue {
 
         private final LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
+
         private final Set<String> ids = new HashSet<String>();
 
         public LinkedList<CacheMessage> getQueue() {
@@ -137,7 +138,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                 addMessageIfNotExists(entry.getKey(), cacheMessage);
             }
         } else {
-            String clientId = r.uuid();
+            String clientId = uuid(r);
 
             activeClients.put(clientId, now);
             addMessageIfNotExists(clientId, cacheMessage);
@@ -147,7 +148,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
-        String clientId = r.uuid();
+        String clientId = uuid(r);
         long now = System.currentTimeMillis();
 
         List<Object> result = new ArrayList<Object>();
@@ -182,14 +183,23 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             return;
         }
 
-        logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
-        message.destroyFromQueue();
+        String clientId = uuid(r);
+        ClientQueue clientQueue;
+        clientQueue = messages.get(clientId);
+        if (clientQueue != null) {
+            logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
+            clientQueue.getQueue().remove(message);
+        }
     }
 
     @Override
     public BroadcasterCache inspector(BroadcasterCacheInspector b) {
         inspectors.add(b);
         return this;
+    }
+
+    protected String uuid(AtmosphereResource r) {
+        return r.uuid();
     }
 
     private void addMessageIfNotExists(String clientId, CacheMessage message) {
@@ -206,7 +216,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             clientQueue = new ClientQueue();
             messages.put(clientId, clientQueue);
         }
-        message.queue(clientQueue);
         clientQueue.getQueue().addLast(message);
         clientQueue.getIds().add(message.getId());
     }
@@ -243,21 +252,21 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     protected void invalidateExpiredEntries() {
         long now = System.currentTimeMillis();
-        try {
-            for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
-                if (now - entry.getValue() > clientIdleTime) {
-                    logger.trace("Invalidate client {}", entry.getKey());
-                    inactiveClients.add(entry.getKey());
-                }
-            }
 
-            for (String clientId : inactiveClients) {
-                activeClients.remove(clientId);
-                messages.remove(clientId);
+        Set<String> inactiveClients = new HashSet<String>();
+
+        for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
+            if (now - entry.getValue() > clientIdleTime) {
+                logger.debug("Invalidate client {}", entry.getKey());
+                inactiveClients.add(entry.getKey());
             }
-        } finally {
-            inactiveClients.clear();
         }
+
+        for (String clientId : inactiveClients) {
+            activeClients.remove(clientId);
+            messages.remove(clientId);
+        }
+
     }
 
     @Override
