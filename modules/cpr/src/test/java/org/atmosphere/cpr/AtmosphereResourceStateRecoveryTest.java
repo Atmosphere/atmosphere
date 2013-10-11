@@ -68,6 +68,7 @@ public class AtmosphereResourceStateRecoveryTest {
 
     @Test
     public void removeAtmosphereResourceTest() throws ServletException, IOException {
+        recovery.states().clear();
         recovery.configure(config);
         recovery.inspect(r);
         r.suspend();

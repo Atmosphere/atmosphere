@@ -79,6 +79,8 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             public void run() {
                 long now = System.currentTimeMillis();
                 for (Map.Entry<String, BroadcasterTracker> t : states.entrySet()) {
+                    // The resource may still be suspended but we don't want to keep a reference to it, so we swap
+                    // the state and will recover.
                     if (now - t.getValue().lastTick() > timeout) {
                         logger.trace("AtmosphereResource {} state destroyed.", t.getKey());
                         states.remove(t.getKey());
@@ -190,9 +192,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             // We track cancelled and resumed connection only.
             BroadcasterTracker t = states.get(r.uuid());
             AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
-            if (t != null && (e.isClosedByClient() || !r.isResumed() && !e.isResumedOnTimeout())) {
+            if (e.isClosedByClient() || !r.isResumed() && !e.isResumedOnTimeout()) {
                 logger.trace("Deleting the state of {} with broadcaster {}", r.uuid(), b.getID());
-                t.remove(b);
+                if (t != null) {
+                    t.remove(b);
+                }
             } else {
                 // The BroadcasterTracker was swapped
                 onAddAtmosphereResource(b, r);
