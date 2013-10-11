@@ -195,9 +195,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 t.remove(b);
             } else {
                 // The BroadcasterTracker was swapped
-                if (t == null) {
-                    onAddAtmosphereResource(b, r);
-                }
+                onAddAtmosphereResource(b, r);
                 logger.trace("Keeping the state of {} with broadcaster {}", r.uuid(), b.getID());
                 logger.trace("State for {} with broadcaster {}", r.uuid(), t != null ? t.ids() : "null");
 
