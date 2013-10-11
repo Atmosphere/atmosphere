@@ -49,7 +49,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
     private final Map<String, ClientQueue> messages = new ConcurrentHashMap<String, ClientQueue>();
-
     private final Map<String, Long> activeClients = new ConcurrentHashMap<String, Long>();
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
@@ -62,7 +61,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     public final static class ClientQueue {
 
         private final LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
-
         private final Set<String> ids = new HashSet<String>();
 
         public LinkedList<CacheMessage> getQueue() {
@@ -256,7 +254,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         Set<String> inactiveClients = new HashSet<String>();
         for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
             if (now - entry.getValue() > clientIdleTime) {
-                logger.debug("Invalidate client {}", entry.getKey());
+                logger.trace("Invalidate client {}", entry.getKey());
                 inactiveClients.add(entry.getKey());
             }
         }
