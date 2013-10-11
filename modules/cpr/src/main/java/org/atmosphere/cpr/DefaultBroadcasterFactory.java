@@ -312,6 +312,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
                 logger.debug("Destroy", t);
             }
         }
+        broadcasterListeners.clear();
         store.clear();
         factory = null;
     }
