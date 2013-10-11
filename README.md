@@ -38,7 +38,7 @@ The Atmosphere's Framework ships with many examples describing how to implements
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.0.2</version>
+         <version>2.0.3</version>
       </dependency>
 ```
       
@@ -52,7 +52,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samp
 
 #### RoadMap
 
-Atmosphere 2.0.2 is our official release, and our work in progress version is 2.1, targeted for end of November 2013
+Atmosphere 2.0.3 is our official release, and our work in progress version is 2.1, targeted for end of November 2013
 
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!  We are on irc.freenode.net under #atmosphere-comet
 
