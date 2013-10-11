@@ -25,7 +25,10 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -79,6 +82,24 @@ public class AtmosphereResourceStateRecoveryTest {
         r.suspend();
         r.close();
         r.getBroadcaster().removeAtmosphereResource(r);
+        assertEquals(recovery.states().size(), 1);
+    }
+
+    @Test
+    public void timeoutTest() throws ServletException, IOException, InterruptedException {
+        recovery.configure(config);
+        recovery.inspect(r);
+        final AtomicBoolean resumed = new AtomicBoolean();
+        final CountDownLatch latch = new CountDownLatch(1);
+        r.addEventListener(new AtmosphereResourceEventListenerAdapter(){
+            @Override
+            public void onResume(AtmosphereResourceEvent event) {
+                resumed.set(true);
+            }
+        }).suspend();
+        latch.await(2, TimeUnit.SECONDS);
+        r.resume();
+        assertTrue(resumed.get());
         assertEquals(recovery.states().size(), 1);
     }
 
