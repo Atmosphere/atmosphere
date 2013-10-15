@@ -50,7 +50,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
     private AtmosphereResource r;
     protected long lastWrite = 0;
-    protected final boolean binaryWrite;
+    protected boolean binaryWrite;
     private final ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
@@ -77,6 +77,15 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         return this;
     }
 
+    /**
+     * Switch to binary write, or go back to text write. Default is false.
+     * @param binaryWrite true to switch to binary write.
+     * @return
+     */
+    public WebSocket binaryWrite(boolean binaryWrite) {
+        this.binaryWrite = binaryWrite;
+        return this;
+    }
 
     protected WebSocketHandler webSocketHandler() {
         return webSocketHandler;
