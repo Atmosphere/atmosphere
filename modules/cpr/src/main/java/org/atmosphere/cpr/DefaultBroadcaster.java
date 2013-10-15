@@ -850,10 +850,10 @@ public class DefaultBroadcaster implements Broadcaster {
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(token.resource);
         final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
-        final AtmosphereRequest request = r.getRequest();
-
         List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
         try {
+            final AtmosphereRequest request = r.getRequest();
+
             event.setMessage(token.msg);
 
             // Make sure we cache the message in case the AtmosphereResource has been cancelled, resumed or the client disconnected.
