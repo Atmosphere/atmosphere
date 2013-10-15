@@ -236,8 +236,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
                 }
             }
+            webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(path, true));
         }
-        webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(path, true));
         return w;
     }
 
