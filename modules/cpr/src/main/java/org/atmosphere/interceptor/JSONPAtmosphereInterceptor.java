@@ -28,7 +28,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * JSONP Transport Support.
@@ -64,16 +63,13 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-                        if (Arrays.binarySearch(responseDraft, (byte) 0x22) != -1) {
-                            String charEncoding = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
-                            // TODO: TOTALLY INEFFICIENT. We MUST uses binary replacement instead.
-                            String s = new String(responseDraft, charEncoding);
-                            return s.replaceAll("(['\"\\/])", "\\\\$1")
-                                    .replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
-                                    .replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
-                                    .replaceAll("\r", "\\\\r").getBytes(charEncoding);
-                        }
-                        return responseDraft;
+                        String charEncoding = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
+                        // TODO: TOTALLY INEFFICIENT. We MUST uses binary replacement instead.
+                        String s = new String(responseDraft, charEncoding);
+                        return s.replaceAll("(['\"\\/])", "\\\\$1")
+                                .replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
+                                .replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
+                                .replaceAll("\r", "\\\\r").getBytes(charEncoding);
                     }
 
                     @Override
