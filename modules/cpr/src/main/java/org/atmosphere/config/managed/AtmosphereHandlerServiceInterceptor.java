@@ -96,9 +96,11 @@ public class AtmosphereHandlerServiceInterceptor extends AtmosphereInterceptorAd
                     try {
                         boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
                         if (!singleton) {
-                            config.framework().addAtmosphereHandler(path, config.framework().newClassInstance(w.atmosphereHandler.getClass()), w.interceptors);
+                            config.framework().addAtmosphereHandler(path, config.framework().newClassInstance(w.atmosphereHandler.getClass()),
+                                    config.getBroadcasterFactory().lookup(m.broadcaster(), true), w.interceptors);
                         } else {
-                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);
+                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
+                                    config.getBroadcasterFactory().lookup(m.broadcaster(), true), w.interceptors);
                         }
                         request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                     } catch (Throwable e) {

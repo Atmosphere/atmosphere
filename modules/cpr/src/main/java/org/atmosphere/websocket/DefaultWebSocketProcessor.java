@@ -84,8 +84,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private final boolean executeAsync;
     private ExecutorService asyncExecutor;
     private ScheduledExecutorService scheduler;
-    private final Map<String, WebSocketHandler> handlers = new ConcurrentHashMap<String, WebSocketHandler>();
-    private final EndpointMapper<WebSocketHandler> mapper = new DefaultEndpointMapper<WebSocketHandler>();
+    private final Map<String, WebSocketHandlerProxy> handlers = new ConcurrentHashMap<String, WebSocketHandlerProxy>();
+    private final EndpointMapper<WebSocketHandlerProxy> mapper = new DefaultEndpointMapper<WebSocketHandlerProxy>();
     private boolean wildcardMapping = false;
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
@@ -129,7 +129,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     @Override
-    public WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandler webSockethandler) {
+    public WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandlerProxy webSockethandler) {
         handlers.put(path, webSockethandler);
         return this;
     }
@@ -156,16 +156,16 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         // We must dispatch to execute AtmosphereInterceptor
         dispatch(webSocket, request, response);
         if (handlers.size() != 0) {
-            WebSocketHandler handler = mapper.map(request, handlers);
+            WebSocketHandlerProxy handler = mapper.map(request, handlers);
             if (handler == null) {
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
                 throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
             }
-            handler = postProcessMapping(webSocket, request, handler);
+            WebSocketHandler proxy = postProcessMapping(webSocket, request, handler);
 
             // Force suspend.
-            webSocket.webSocketHandler(handler).resource().suspend(-1);
-            handler.onOpen(webSocket);
+            webSocket.webSocketHandler(proxy).resource().suspend(-1);
+            proxy.onOpen(webSocket);
         }
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
@@ -194,9 +194,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent("", CONNECT, webSocket));
     }
 
-    protected WebSocketHandler postProcessMapping(WebSocket webSocket, AtmosphereRequest request, WebSocketHandler w) {
+    protected WebSocketHandler postProcessMapping(WebSocket webSocket, AtmosphereRequest request, WebSocketHandlerProxy w) {
 
-        if (!wildcardMapping()) return w;
+        if (!wildcardMapping()) return w.proxied;
 
         String path;
         String pathInfo = null;
@@ -216,29 +216,33 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             path = "/";
         }
 
+        WebSocketHandlerProxy p = null;
         synchronized (handlers) {
-            if (handlers.get(path) == null) {
+            p = handlers.get(path);
+            if (p == null) {
                 // AtmosphereHandlerService
-                if (w.getClass().getAnnotation(WebSocketHandlerService.class) != null) {
-                    String targetPath = w.getClass().getAnnotation(WebSocketHandlerService.class).path();
+                WebSocketHandlerService a = w.proxied.getClass().getAnnotation(WebSocketHandlerService.class);
+                if (a != null) {
+                    String targetPath = a.path();
                     if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                         try {
-                            boolean singleton = w.getClass().getAnnotation(Singleton.class) != null;
+                            boolean singleton = w.proxied.getClass().getAnnotation(Singleton.class) != null;
                             if (!singleton) {
-                                registerWebSocketHandler(path, framework.newClassInstance(w.getClass()));
+                                registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(),
+                                        framework.newClassInstance(w.proxied.getClass())));
                             } else {
-                                registerWebSocketHandler(path, w);
+                                registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(), w));
                             }
-                            w = handlers.get(path);
+                            p = handlers.get(path);
                         } catch (Throwable e) {
                             logger.warn("Unable to create WebSocketHandler", e);
                         }
                     }
                 }
             }
-            webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(path, true));
+            webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(p.broadcasterClazz, path, true));
         }
-        return w;
+        return p.proxied;
     }
 
     private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {
@@ -446,7 +450,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
                     AsynchronousProcessor.AsynchronousProcessorHook h;
                     if (o != null && AsynchronousProcessor.class.isAssignableFrom(o.getClass())) {
-                        h = (AsynchronousProcessor.AsynchronousProcessorHook)o;
+                        h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
                         if (!resource.isCancelled()) {
                             if (closeCode == 1005) {
                                 h.closed();
@@ -681,4 +685,5 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public boolean wildcardMapping() {
         return wildcardMapping;
     }
+
 }

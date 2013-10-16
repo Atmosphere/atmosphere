@@ -43,7 +43,6 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
             AtmosphereHandlerService a = annotatedClass.getAnnotation(AtmosphereHandlerService.class);
 
             atmosphereConfig(a.atmosphereConfig(), framework);
-            framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
             filters(a.broadcastFilters(), framework);
 
             Class<?>[] interceptors = a.interceptors();
@@ -75,7 +74,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
                 IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
             }
 
-            framework.addAtmosphereHandler(a.path(), handler, l);
+            framework.addAtmosphereHandler(a.path(), handler, framework.getBroadcasterFactory().lookup(a.broadcaster(), true), l);
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);

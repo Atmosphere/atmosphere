@@ -17,6 +17,7 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent;
 
 import javax.servlet.http.HttpServletRequest;
@@ -46,10 +47,10 @@ public interface WebSocketProcessor {
      * Register a {@link WebSocketHandler}
      *
      * @param path             the URI mapping the WebSocketHandler
-     * @param webSockethandler an instance of {@link WebSocketHandler}
+     * @param webSockethandler an instance of {@link org.atmosphere.websocket.WebSocketProcessor.WebSocketHandlerProxy}
      * @return this
      */
-    WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandler webSockethandler);
+    WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandlerProxy webSockethandler);
 
     /**
      * Invoked when a WebSocket gets opened by the underlying container
@@ -126,6 +127,42 @@ public interface WebSocketProcessor {
 
         public AtmosphereResponse response() {
             return r;
+        }
+    }
+
+    public final static class WebSocketHandlerProxy implements WebSocketHandler {
+
+        final Class<? extends Broadcaster> broadcasterClazz;
+        final WebSocketHandler proxied;
+
+        public WebSocketHandlerProxy(Class<? extends Broadcaster> broadcasterClazz, WebSocketHandler proxied) {
+            this.broadcasterClazz = broadcasterClazz;
+            this.proxied = proxied;
+        }
+
+        @Override
+        public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException {
+            proxied.onByteMessage(webSocket,data,offset,length);
+        }
+
+        @Override
+        public void onTextMessage(WebSocket webSocket, String data) throws IOException {
+            proxied.onTextMessage(webSocket, data);
+        }
+
+        @Override
+        public void onOpen(WebSocket webSocket) throws IOException {
+            proxied.onOpen(webSocket);
+        }
+
+        @Override
+        public void onClose(WebSocket webSocket) {
+            proxied.onClose(webSocket);
+        }
+
+        @Override
+        public void onError(WebSocket webSocket, WebSocketException t) {
+            proxied.onError(webSocket,t);
         }
     }
 }

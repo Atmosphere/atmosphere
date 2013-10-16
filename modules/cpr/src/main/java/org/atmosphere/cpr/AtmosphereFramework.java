@@ -47,6 +47,7 @@ import org.atmosphere.util.analytics.ModuleDetection;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
@@ -2334,7 +2335,9 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
-        WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this).registerWebSocketHandler(path, handler);
+        WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this)
+                .registerWebSocketHandler(path,
+                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(), handler));
         addAtmosphereHandler(path, h, l);
         return this;
     }

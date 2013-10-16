@@ -80,7 +80,7 @@ public class WebSocketHandlerTest {
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-        processor.registerWebSocketHandler("/*", new EchoHandler());
+        registerWebSocketHandler("/*", new EchoHandler());
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
@@ -95,7 +95,7 @@ public class WebSocketHandlerTest {
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-        processor.registerWebSocketHandler("/a", new EchoHandler());
+        registerWebSocketHandler("/a", new EchoHandler());
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/abcd").build();
         try {
@@ -113,8 +113,8 @@ public class WebSocketHandlerTest {
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
 
-        processor.registerWebSocketHandler("/a", new EchoHandler());
-        processor.registerWebSocketHandler("/b", new EchoHandler());
+        registerWebSocketHandler("/a", new EchoHandler());
+        registerWebSocketHandler("/b", new EchoHandler());
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
@@ -137,8 +137,8 @@ public class WebSocketHandlerTest {
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
 
-        processor.registerWebSocketHandler("/a", new EchoHandler());
-        processor.registerWebSocketHandler("/b", new EchoHandler() {
+        registerWebSocketHandler("/a", new EchoHandler());
+        registerWebSocketHandler("/b", new EchoHandler() {
             @Override
             public void onTextMessage(WebSocket webSocket, String data) throws IOException {
                 webSocket.write("2" + data);
@@ -182,6 +182,12 @@ public class WebSocketHandlerTest {
         @Override
         public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
         }
+    }
+
+    private void registerWebSocketHandler(String path, WebSocketHandler w) {
+        WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework).registerWebSocketHandler(path,
+                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup("/*", true).getClass(), w));
     }
 
 

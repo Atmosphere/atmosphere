@@ -45,7 +45,6 @@ public class ManagedServiceProcessor implements Processor {
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
             atmosphereConfig(a.atmosphereConfig(), framework);
-            framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
             filters(a.broadcastFilters(), framework);
 
             AtmosphereInterceptor aa = listeners(a.listeners(), framework);
@@ -66,7 +65,7 @@ public class ManagedServiceProcessor implements Processor {
                     logger.warn("", e);
                 }
             }
-            framework.addAtmosphereHandler(a.path(), handler, l);
+            framework.addAtmosphereHandler(a.path(), handler, framework.getBroadcasterFactory().lookup(a.broadcaster(), true), l);
         } catch (Throwable e) {
             logger.warn("", e);
         }

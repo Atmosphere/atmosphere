@@ -50,7 +50,6 @@ public class MeteorServiceProcessor implements Processor {
             String mapping = m.path();
 
             atmosphereConfig(m.atmosphereConfig(), framework);
-            framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
             filters(m.broadcastFilters(), framework);
 
             AtmosphereInterceptor aa = listeners(m.listeners(), framework);
@@ -71,7 +70,7 @@ public class MeteorServiceProcessor implements Processor {
             if (m.path().contains("{")) {
                 framework.interceptors().add(new MeteorServiceInterceptor());
             }
-            framework.addAtmosphereHandler(mapping, r, l);
+            framework.addAtmosphereHandler(mapping, r, framework.getBroadcasterFactory().lookup(m.broadcaster(), true), l);
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);
