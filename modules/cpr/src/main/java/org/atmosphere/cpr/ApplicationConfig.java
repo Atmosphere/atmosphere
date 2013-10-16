@@ -632,7 +632,7 @@ public interface ApplicationConfig {
      * The maximum number of time, in seconds, thread will be stay alive when created with {@link org.atmosphere.util.ExecutorsFactory}. Those {@link java.util.concurrent.Executor}.
      * are used by the {@link DefaultBroadcaster}'s Thread Pool. See also {@link #BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE} and {@link #BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE}
      * <p>
-     * Default: unlimited<br>
+     * Default: 10 seconds<br>
      * Value: org.atmosphere.cpr.threadPool.maxKeepAliveThreads
      */
     String EXECUTORFACTORY_KEEP_ALIVE = ApplicationConfig.class.getPackage().getName() + ".threadPool.maxKeepAliveThreads";
