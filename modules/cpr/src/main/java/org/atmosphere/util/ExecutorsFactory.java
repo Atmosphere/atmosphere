@@ -24,6 +24,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -35,6 +37,9 @@ import java.util.concurrent.atomic.AtomicInteger;
 public class ExecutorsFactory {
 
     private final static Logger logger = LoggerFactory.getLogger(ExecutorsFactory.class);
+    public final static int DEFAULT_ASYNC_THREAD = 200;
+    public final static int DEFAULT_MESSAGE_THREAD = -1;
+    public final static int DEFAULT_KEEP_ALIVE = 30;
 
     /**
      * Create an {@link ExecutorService} to be used for dispatching messages, not I/O events.
@@ -48,7 +53,7 @@ public class ExecutorsFactory {
 
         boolean isExecutorShared = shared ? true : false;
         if (!shared || config.properties().get("executorService") == null) {
-            int numberOfMessageProcessingThread = -1;
+            int numberOfMessageProcessingThread = DEFAULT_MESSAGE_THREAD;
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfMessageProcessingThread = Integer.parseInt(s);
@@ -60,9 +65,9 @@ public class ExecutorsFactory {
                 numberOfMessageProcessingThread = -1;
             }
 
-            ExecutorService messageService;
+            ThreadPoolExecutor messageService;
             if (numberOfMessageProcessingThread == -1) {
-                messageService = Executors.newCachedThreadPool(new ThreadFactory() {
+                messageService = (ThreadPoolExecutor) Executors.newCachedThreadPool(new ThreadFactory() {
 
                     private final AtomicInteger count = new AtomicInteger();
 
@@ -74,7 +79,7 @@ public class ExecutorsFactory {
                     }
                 });
             } else {
-                messageService = Executors.newFixedThreadPool(numberOfMessageProcessingThread, new ThreadFactory() {
+                messageService = (ThreadPoolExecutor) Executors.newFixedThreadPool(numberOfMessageProcessingThread, new ThreadFactory() {
 
                     private final AtomicInteger count = new AtomicInteger();
 
@@ -87,6 +92,8 @@ public class ExecutorsFactory {
                 });
             }
 
+            keepAliveThreads(messageService, config);
+
             if (shared) {
                 config.properties().put("executorService", messageService);
             }
@@ -94,6 +101,15 @@ public class ExecutorsFactory {
         } else {
             return (ExecutorService) config.properties().get("executorService");
         }
+    }
+
+    private static void keepAliveThreads(ThreadPoolExecutor e, AtmosphereConfig config) {
+        int keepAlive = DEFAULT_KEEP_ALIVE;
+        String s = config.getInitParameter(ApplicationConfig.EXECUTORFACTORY_KEEP_ALIVE);
+        if (s != null) {
+            keepAlive = Integer.parseInt(s);
+        }
+        e.setKeepAliveTime(keepAlive, TimeUnit.SECONDS);
     }
 
     /**
@@ -108,7 +124,7 @@ public class ExecutorsFactory {
 
         boolean isAsyncExecutorShared = shared ? true : false;
         if (!shared || config.properties().get("asyncWriteService") == null) {
-            int numberOfAsyncThread = -1;
+            int numberOfAsyncThread = DEFAULT_ASYNC_THREAD;
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
             if (s != null) {
                 numberOfAsyncThread = Integer.parseInt(s);
@@ -120,9 +136,9 @@ public class ExecutorsFactory {
                 numberOfAsyncThread = -1;
             }
 
-            ExecutorService asyncWriteService;
+            ThreadPoolExecutor asyncWriteService;
             if (numberOfAsyncThread == -1) {
-                asyncWriteService = Executors.newCachedThreadPool(new ThreadFactory() {
+                asyncWriteService = (ThreadPoolExecutor) Executors.newCachedThreadPool(new ThreadFactory() {
 
                     private final AtomicInteger count = new AtomicInteger();
 
@@ -134,7 +150,7 @@ public class ExecutorsFactory {
                     }
                 });
             } else {
-                asyncWriteService = Executors.newFixedThreadPool(numberOfAsyncThread, new ThreadFactory() {
+                asyncWriteService = (ThreadPoolExecutor) Executors.newFixedThreadPool(numberOfAsyncThread, new ThreadFactory() {
 
                     private final AtomicInteger count = new AtomicInteger();
 
@@ -146,6 +162,8 @@ public class ExecutorsFactory {
                     }
                 });
             }
+
+            keepAliveThreads(asyncWriteService, config);
 
             if (shared) {
                 config.properties().put("asyncWriteService", asyncWriteService);

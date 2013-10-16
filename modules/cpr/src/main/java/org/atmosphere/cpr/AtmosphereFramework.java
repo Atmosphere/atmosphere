@@ -88,6 +88,7 @@ import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
@@ -724,16 +725,25 @@ public class AtmosphereFramework {
 
         String s = config.getInitParameter(BROADCASTER_WAIT_TIME);
 
+        logger.info("Using Broadcaster: {}", broadcasterClassName);
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
-        logger.info("HttpSession supported: {}", config.isSupportSession());
+
+        BroadcasterConfig bc = broadcasterFactory.lookup("/*", true).getBroadcasterConfig();
+        if (bc.getAsyncWriteService() != null) {
+            logger.info("Messaging Thread Pool Size: {}",
+                    ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize());
+            logger.info("Async I/O Thread Pool Size: {}",
+                    ThreadPoolExecutor.class.cast(bc.getAsyncWriteService()).getMaximumPoolSize());
+        }
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
         logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
-        logger.info("Using Broadcaster: {}", broadcasterClassName);
+        logger.info("HttpSession supported: {}", config.isSupportSession());
+
+        logger.info("Atmosphere is using {} for dependency injection and object creation", objectFactory);
         logger.info("Atmosphere is using async support: {} running under container: {}",
                 getAsyncSupport().getClass().getName(), asyncSupport.getContainerName());
         logger.info("Atmosphere Framework {} started.", Version.getRawVersion());
-        logger.info("Atmosphere is using {} for dependency injection and object creation", objectFactory);
 
         logger.info("\n\n\tFor Atmosphere Framework Commercial Support, visit \n\t{} " +
                 "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
