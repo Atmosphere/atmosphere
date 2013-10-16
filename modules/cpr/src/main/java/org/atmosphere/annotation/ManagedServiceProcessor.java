@@ -65,7 +65,7 @@ public class ManagedServiceProcessor implements Processor {
                     logger.warn("", e);
                 }
             }
-            framework.addAtmosphereHandler(a.path(), handler, framework.getBroadcasterFactory().lookup(a.broadcaster(), true), l);
+            framework.addAtmosphereHandler(a.path(), handler, framework.getBroadcasterFactory().lookup(a.broadcaster(), a.path(), true), l);
         } catch (Throwable e) {
             logger.warn("", e);
         }

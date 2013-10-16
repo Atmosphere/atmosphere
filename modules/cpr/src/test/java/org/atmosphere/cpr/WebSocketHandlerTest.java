@@ -187,7 +187,7 @@ public class WebSocketHandlerTest {
     private void registerWebSocketHandler(String path, WebSocketHandler w) {
         WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework).registerWebSocketHandler(path,
-                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup("/*", true).getClass(), w));
+                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w));
     }
 
 

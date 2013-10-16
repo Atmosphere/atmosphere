@@ -119,10 +119,10 @@ public class ManagedServiceInterceptor extends AtmosphereInterceptorAdapter {
                                     ManagedAtmosphereHandler h = new ManagedAtmosphereHandler();
                                     h.configure(config, config.framework().newClassInstance(ap.target().getClass()));
                                     config.framework().addAtmosphereHandler(path, h,
-                                            config.getBroadcasterFactory().lookup(a.broadcaster(), true), w.interceptors);
+                                            config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
                                 } else {
                                     config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
-                                            config.getBroadcasterFactory().lookup(a.broadcaster(), true), w.interceptors);
+                                            config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
                                 }
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                             } catch (Throwable e) {
