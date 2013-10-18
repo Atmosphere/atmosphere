@@ -156,7 +156,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         // We must dispatch to execute AtmosphereInterceptor
         dispatch(webSocket, request, response);
-        if (handlers.size() != 0 && REFLECTOR_ATMOSPHEREHANDLER.equals(r.getAtmosphereHandler())){
+        if (handlers.size() != 0 && !REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(r.getAtmosphereHandler().getClass())){
             WebSocketHandlerProxy handler = mapper.map(request, handlers);
             if (handler == null) {
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
