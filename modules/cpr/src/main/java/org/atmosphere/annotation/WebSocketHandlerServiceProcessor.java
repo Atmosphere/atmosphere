@@ -45,15 +45,7 @@ public class WebSocketHandlerServiceProcessor implements Processor {
             Class<WebSocketHandler> s = (Class<WebSocketHandler>) annotatedClass;
             WebSocketHandlerService m = s.getAnnotation(WebSocketHandlerService.class);
 
-            framework.addAtmosphereHandler(m.path(), new AbstractReflectorAtmosphereHandler() {
-                @Override
-                public void onRequest(AtmosphereResource resource) throws IOException {
-                }
-
-                @Override
-                public void destroy() {
-                }
-            }).initWebSocket();
+            framework.addAtmosphereHandler(m.path(), AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER).initWebSocket();
 
             atmosphereConfig(m.atmosphereConfig(), framework);
             framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
