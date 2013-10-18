@@ -61,6 +61,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION;
+import static org.atmosphere.cpr.AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
@@ -138,7 +139,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
         // TODO: Fix this. Instead add an Interceptor.
         if (framework.getAtmosphereConfig().handlers().size() == 0) {
-            framework.addAtmosphereHandler("/*", AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER);
+            framework.addAtmosphereHandler("/*", REFLECTOR_ATMOSPHEREHANDLER);
         }
 
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);
@@ -155,7 +156,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         // We must dispatch to execute AtmosphereInterceptor
         dispatch(webSocket, request, response);
-        if (handlers.size() != 0) {
+        if (handlers.size() != 0 && REFLECTOR_ATMOSPHEREHANDLER.equals(r.getAtmosphereHandler())){
             WebSocketHandlerProxy handler = mapper.map(request, handlers);
             if (handler == null) {
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
