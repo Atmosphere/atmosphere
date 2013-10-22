@@ -57,7 +57,6 @@
                             org.atmosphere.config*,
                             org.atmosphere.container*,
                             org.atmosphere.cpr*,
-                            org.atmosphere.di*,
                             org.atmosphere.handler*,
                             org.atmosphere.interceptor*,
                             org.atmosphere.util*,

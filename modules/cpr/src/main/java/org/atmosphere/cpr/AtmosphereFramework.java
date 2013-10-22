@@ -208,6 +208,7 @@ public class AtmosphereFramework {
     protected AtmosphereObjectFactory objectFactory = new DefaultAtmosphereObjectFactory();
     protected boolean isDestroyed = false;
     protected boolean externalizeDestroy = false;
+    protected AnnotationProcessor annotationProcessor = null;
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Default Interceptor
@@ -2192,7 +2193,6 @@ public class AtmosphereFramework {
         final ClassLoader cl = Thread.currentThread().getContextClassLoader();
 
         String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : sc.getRealPath(handlersPath);
-        AnnotationProcessor annotationProcessor = null;
         try {
             annotationProcessor = (AnnotationProcessor) newClassInstance(getClass().getClassLoader().loadClass(annotationProcessorClassName));
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
@@ -2413,6 +2413,14 @@ public class AtmosphereFramework {
     public AtmosphereFramework externalizeDestroy(boolean externalizeDestroy) {
         this.externalizeDestroy = externalizeDestroy;
         return this;
+    }
+
+    /**
+     * Return the {@link AnnotationProcessor}
+     * @return the {@link AnnotationProcessor}
+     */
+    public AnnotationProcessor annotationProcessor() {
+        return annotationProcessor;
     }
 
     protected void configureObjectFactory() {
