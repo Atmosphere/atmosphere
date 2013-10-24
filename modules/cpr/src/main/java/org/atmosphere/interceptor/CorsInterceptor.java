@@ -47,7 +47,7 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
         if ("OPTIONS".equals(req.getMethod())) {
             res.setHeader("Access-Control-Allow-Methods", "OPTIONS, GET, POST");
             res.setHeader("Access-Control-Allow-Headers",
-                    "Origin, Content-Type, X-Atmosphere-Framework, X-Cache-Date, X-Atmosphere-tracking-id, X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
+                    "Origin, Content-Type, AuthToken, X-Atmosphere-Framework, X-Cache-Date, X-Atmosphere-tracking-id, X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
             res.setHeader("Access-Control-Max-Age", "-1");
 
             res.write(emptyMessage.get());
