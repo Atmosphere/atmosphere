@@ -75,6 +75,7 @@ import org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.Tomcat7Servlet30SupportWithWebSocket;
 import org.atmosphere.container.TomcatCometSupport;
+import org.atmosphere.container.WebLogicServlet30WithWebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -108,6 +109,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String NETTY = "org.jboss.netty.channel.Channel";
     public final static String JBOSS_AS7_WEBSOCKET = "org.atmosphere.jboss.as.websockets.servlet.WebSocketServlet";
     public final static String JSR356_WEBSOCKET = "javax.websocket.Endpoint";
+    public final static String WEBLOGIC_WEBSOCKWET = "weblogic.websocket.annotation.WebSocket";
 
     private final AtmosphereConfig config;
 
@@ -199,6 +201,13 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                     if (testClassExists(GRIZZLY_WEBSOCKET))
                         add(GrizzlyServlet30WebSocketSupport.class);
+
+                    if (testClassExists(WEBLOGIC_WEBSOCKWET)) {
+                        logger.warn("***************************************************************************************************");
+                        logger.warn("WebLogic WebSocket detected and will be deployed under the hardcoded path <<application-name>>/ws/*");
+                        logger.warn("***************************************************************************************************");
+                        add(WebLogicServlet30WithWebSocket.class);
+                    }
 
                     if (testClassExists(JSR356_WEBSOCKET))
                         add(JSR356AsyncSupport.class);
