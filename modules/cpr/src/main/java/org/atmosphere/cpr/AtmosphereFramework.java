@@ -785,11 +785,11 @@ public class AtmosphereFramework {
 
                         String inputLine;
                         String newVersion = Version.getRawVersion();
-                        String clientVersion = "2.0.3";
+                        String clientVersion = "2.0.6";
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
-                                if (inputLine.startsWith("ATMO_VERSION=")) {
-                                    newVersion = inputLine.substring("ATMO_VERSION=".length());
+                                if (inputLine.startsWith("ATMO21_VERSION=")) {
+                                    newVersion = inputLine.substring("ATMO21_VERSION=".length());
                                 } else if (inputLine.startsWith("CLIENT_VERSION=")) {
                                     clientVersion = inputLine.substring("CLIENT_VERSION=".length());
                                     break;
