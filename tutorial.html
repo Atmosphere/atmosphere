@@ -283,7 +283,7 @@ That’s it for the server side. Now let’s use the atmosphere.js to write the 
     // We are now ready to cut the request
     var request = { url: document.location.toString() + 'chat',
         contentType : "application/json",
-        trackMessageSize: true,
+        trackMessageLength : true,
         shared : true,
         transport : transport ,
         fallbackTransport: 'long-polling'};
