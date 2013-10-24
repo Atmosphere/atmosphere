@@ -308,7 +308,26 @@ public final class AnnotationDetector {
                     }
                 } else {
                     // Resource in Jar File
-                    final File jarFile = toFile(((JarURLConnection) url.openConnection()).getJarFileURL());
+                    File jarFile;
+
+                    try {
+                        jarFile = toFile(((JarURLConnection) url.openConnection()).getJarFileURL());
+                    } catch (ClassCastException cce) {
+                        try {
+                            // Weblogic crap
+                            String u = url.toExternalForm();
+                            if (u.startsWith("zip:")) {
+                                u = u.substring(4);
+                                if (!u.startsWith("file:")) {
+                                    u = "file:" + u;
+                                }
+                                u = u.substring(0, u.indexOf("!"));
+                            }
+                            jarFile = toFile(new URL(u));
+                        } catch (Exception ex) {
+                            throw new AssertionError("Not a File: " + url.toExternalForm());
+                        }
+                    }
                     if (jarFile.isFile()) {
                         files.add(jarFile);
                         if (DEBUG) print("Add jar file: '%s'", jarFile);
