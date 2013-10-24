@@ -58,6 +58,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.ApplicationConfig.IN_MEMORY_STREAMING_BUFFER_SIZE;
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION;
@@ -108,6 +109,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             executeAsync = true;
         } else {
             executeAsync = false;
+        }
+
+        s = framework.getAtmosphereConfig().getInitParameter(IN_MEMORY_STREAMING_BUFFER_SIZE);
+        if (s != null) {
+            byteBufferMaxSize = Integer.valueOf(s);
+            charBufferMaxSize = byteBufferMaxSize;
         }
 
         AtmosphereConfig config = framework.getAtmosphereConfig();

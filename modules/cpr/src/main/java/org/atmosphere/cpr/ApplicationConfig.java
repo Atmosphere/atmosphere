@@ -20,6 +20,7 @@ import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.EndpointMapper;
+import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
 
@@ -636,5 +637,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.threadPool.maxKeepAliveThreads
      */
     String EXECUTORFACTORY_KEEP_ALIVE = ApplicationConfig.class.getPackage().getName() + ".threadPool.maxKeepAliveThreads";
+    /**
+     * In Memory WebSocket buffered message size;
+     * <p>
+     * Default: 2097152 (2 mg)<br>
+     * Value: org.atmosphere.websocket.webSocketBufferingMaxSize
+     */
+    String IN_MEMORY_STREAMING_BUFFER_SIZE = DefaultWebSocketProcessor.class.getPackage().getName() + ".webSocketBufferingMaxSize";
 }
 
