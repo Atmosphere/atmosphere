@@ -21,16 +21,12 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 
-import java.util.concurrent.atomic.AtomicReference;
-
 /**
  * CORS support.
  *
  * @author Janusz Sobolewski
  */
 public class CorsInterceptor extends AtmosphereInterceptorAdapter {
-
-    private final AtomicReference<String> emptyMessage = new AtomicReference<String>("");
 
     @Override
     public Action inspect(AtmosphereResource resource) {
@@ -49,8 +45,6 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
             res.setHeader("Access-Control-Allow-Headers",
                     "Origin, Content-Type, AuthToken, X-Atmosphere-Framework, X-Cache-Date, X-Atmosphere-tracking-id, X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
             res.setHeader("Access-Control-Max-Age", "-1");
-
-            res.write(emptyMessage.get());
 
             return Action.SKIP_ATMOSPHEREHANDLER;
         }
