@@ -29,6 +29,6 @@ public class WebLogicServlet30WithWebSocket extends Servlet30CometSupport {
 
     @Override
     public String getContainerName() {
-        return super.getContainerName() + " using javax.servlet/3.0 and jsr356/WebSocket API";
+        return super.getContainerName() + " using javax.servlet/3.0 and Native WebSocket API";
     }
 }
