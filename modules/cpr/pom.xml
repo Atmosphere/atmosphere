@@ -247,6 +247,13 @@
             <version>${shiro-version}</version>
             <scope>provided</scope>
         </dependency>
+
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-stubs</artifactId>
+            <version>1.0.0</version>
+            <scope>provided</scope>
+        </dependency>
         
         <dependency>
             <groupId>org.apache.shiro</groupId>
