@@ -90,7 +90,7 @@ public class JSR356Endpoint extends Endpoint {
             Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
             for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
                 if (AtmosphereServlet.class.isAssignableFrom(loadClass(e.getValue().getClassName()))) {
-                    // TODO: This is a hack and won't work with serveral Servlet
+                    // TODO: This is a hack and won't work with several Servlet
                     servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
                 }
             }
