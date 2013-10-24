@@ -467,6 +467,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
+    public AtmosphereRequest contextPath(String contextPath) {
+        b.contextPath = contextPath;
+        return this;
+    }
+
     private final static class ByteInputStream extends ServletInputStream {
 
         private final ByteArrayInputStream bis;
