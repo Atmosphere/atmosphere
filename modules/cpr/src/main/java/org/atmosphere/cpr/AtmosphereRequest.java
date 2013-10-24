@@ -1520,7 +1520,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .isSSecure(request.isSecure());
 
         if (loadInMemory) {
-            r = new NoOpsRequest(Boolean.parseBoolean(request.getAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST).toString()));
+            String s = (String) request.getAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST);
+            boolean throwException = s == null ? false : Boolean.parseBoolean(s);
+            r = new NoOpsRequest(throwException);
             if (isWrapped) {
                 load(b.request, b);
             } else {
