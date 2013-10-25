@@ -1654,7 +1654,7 @@ public class AtmosphereFramework {
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
-        req.setAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST, config.isThrowExceptionOnCloned());
+        req.setAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST, ""+config.isThrowExceptionOnCloned());
         boolean skip = true;
         String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
         if (s != null) {
