@@ -462,6 +462,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
+    public AtmosphereRequest body(InputStream body) {
+        bis = new IS(body);
+        br = new BufferedReader(new InputStreamReader(body));
+        return this;
+    }
+
     public AtmosphereRequest servletPath(String servletPath) {
         b.servletPath = servletPath;
         return this;
