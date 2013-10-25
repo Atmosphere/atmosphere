@@ -462,6 +462,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
+    public AtmosphereRequest body(byte[] bytes) {
+        try {
+            bis = new ByteInputStream(bytes, 0, bytes.length);
+        } catch (UnsupportedEncodingException e) {
+            logger.trace("", e);
+        }
+        br = new BufferedReader(new StringReader(body));
+        return this;
+    }
+
     public AtmosphereRequest body(InputStream body) {
         bis = new IS(body);
         br = new BufferedReader(new InputStreamReader(body));
