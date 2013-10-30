@@ -84,4 +84,6 @@ public interface HeaderConfig {
     String ATMOSPHERE_POST_BODY = "X-Atmosphere-Post-Body";
 
     String X_ATMO_PROTOCOL = "X-atmo-protocol";
+
+    String X_ATMO_BINARY = "X-Atmosphere-Binary";
 }

@@ -207,6 +207,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
         AtmosphereResourceImpl resource = configureWorkflow(null, handlerWrapper, req, res);
 
+        String v = req.getHeader(HeaderConfig.X_ATMO_BINARY);
+        if (v != null) {
+            resource.forceBinaryWrite(Boolean.valueOf(v));
+        }
+
         // Globally defined
         Action a = invokeInterceptors(config.framework().interceptors(), resource);
         if (a.type() != Action.TYPE.CONTINUE) {
