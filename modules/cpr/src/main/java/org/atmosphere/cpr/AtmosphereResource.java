@@ -318,4 +318,14 @@ public interface AtmosphereResource {
      * {@link AtmosphereResource}}.
      */
     void close() throws IOException;
+
+    /**
+     * Force binary write and never write String value.
+     */
+    AtmosphereResource forceBinaryWrite(boolean force);
+
+    /**
+     * Return true when binary write is forced.
+     */
+    boolean forceBinaryWrite();
 }

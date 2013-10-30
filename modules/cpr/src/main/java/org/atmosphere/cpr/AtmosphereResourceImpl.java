@@ -108,6 +108,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     protected HttpSession session;
     private boolean disableSuspendEvent;
     private TRANSPORT transport;
+    private boolean forceBinaryWrite;
 
     /**
      * Create an {@link AtmosphereResource}.
@@ -781,6 +782,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         cancel();
         event.setCloseByApplication(true);
         notifyListeners();
+    }
+
+    @Override
+    public AtmosphereResource forceBinaryWrite(boolean forceBinaryWrite) {
+        this.forceBinaryWrite = forceBinaryWrite;
+        return this;
+    }
+
+    @Override
+    public boolean forceBinaryWrite() {
+        return forceBinaryWrite;
     }
 
     @Override

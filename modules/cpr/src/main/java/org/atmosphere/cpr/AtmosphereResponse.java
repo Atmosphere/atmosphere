@@ -912,6 +912,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 usingStream.set((Boolean) s);
             }
         }
+
+        // Property always take first.
+        if (resource() != null) {
+            boolean force = resource().forceBinaryWrite();
+            if (!usingStream.get() && force) {
+                usingStream.set(force);
+            }
+        }
         return usingStream.get();
     }
 
