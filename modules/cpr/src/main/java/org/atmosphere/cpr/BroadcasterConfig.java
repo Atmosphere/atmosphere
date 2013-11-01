@@ -91,10 +91,23 @@ public class BroadcasterConfig {
     private boolean handleExecutors;
     private List<String> filterList;
 
+    /**
+     * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
+     * @param broadcastFilters
+     * @param config
+     * @param name
+     */
     public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, String name) {
         this(broadcastFilters, config, true, name);
     }
 
+    /**
+     * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
+     * @param broadcastFilters
+     * @param config
+     * @param handleExecutors
+     * @param name
+     */
     public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, boolean handleExecutors, String name) {
         this.config = config;
         this.name = name;
@@ -103,6 +116,14 @@ public class BroadcasterConfig {
         this.filterList = broadcastFilters;
     }
 
+    /**
+     * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
+     * @param executorService
+     * @param asyncWriteService
+     * @param scheduler
+     * @param config
+     * @param name
+     */
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
                              ScheduledExecutorService scheduler, AtmosphereConfig config, String name) {
         this.executorService = executorService;
