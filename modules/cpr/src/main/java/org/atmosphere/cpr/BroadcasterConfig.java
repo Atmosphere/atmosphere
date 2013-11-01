@@ -89,23 +89,18 @@ public class BroadcasterConfig {
     private final boolean shared;
     private String name;
     private boolean handleExecutors;
+    private List<String> filterList;
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config, String name) {
-        this(list, config, true, name);
+    public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, String name) {
+        this(broadcastFilters, config, true, name);
     }
 
-    public BroadcasterConfig(List<String> list, AtmosphereConfig config, boolean handleExecutors, String name) {
+    public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, boolean handleExecutors, String name) {
         this.config = config;
         this.name = name;
         this.shared = config.framework().isShareExecutorServices();
-
-        if (handleExecutors) {
-            configExecutors();
-        }
-
-        configureBroadcasterFilter(list);
-        configureBroadcasterCache();
         this.handleExecutors = handleExecutors;
+        this.filterList = broadcastFilters;
     }
 
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
@@ -117,6 +112,21 @@ public class BroadcasterConfig {
         this.name = name;
         this.handleExecutors = true;
         this.shared = config.framework().isShareExecutorServices();
+    }
+
+    /**
+     * Initialize BroadcastFilters and BroadcasterCache. Must always be called after creating a new BroadcasterConfig!
+     */
+    public BroadcasterConfig init() {
+        if (handleExecutors) {
+            configExecutors();
+        }
+
+        if (filterList != null) {
+            configureBroadcasterFilter(filterList);
+        }
+        configureBroadcasterCache();
+        return this;
     }
 
     private void configureBroadcasterCache() {

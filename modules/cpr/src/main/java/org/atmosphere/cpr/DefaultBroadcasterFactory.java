@@ -165,7 +165,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             b.setSuspendPolicy(defaultPolicyInteger, defaultPolicy);
 
             if (b.getBroadcasterConfig() == null) {
-                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config, id.toString()));
+                b.setBroadcasterConfig(new BroadcasterConfig(config.framework().broadcasterFilters, config, id.toString()).init());
             }
 
             b.setBroadcasterLifeCyclePolicy(policy);

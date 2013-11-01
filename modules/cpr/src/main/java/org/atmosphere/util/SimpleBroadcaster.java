@@ -87,6 +87,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         BroadcasterConfig bc = (BroadcasterConfig) config.properties().get(BroadcasterConfig.class.getName());
         if (bc == null) {
             bc = new BroadcasterConfig(config.framework().broadcasterFilters(), config, false, getID())
+                    .init()
                     .setScheduledExecutorService(ExecutorsFactory.getScheduler(config));
         }
         return bc;
