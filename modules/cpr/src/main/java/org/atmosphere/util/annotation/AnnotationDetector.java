@@ -35,8 +35,6 @@
   */
 package org.atmosphere.util.annotation;
 
-import org.jboss.vfs.VirtualFile;
-
 import java.io.DataInput;
 import java.io.File;
 import java.io.IOException;
@@ -269,20 +267,18 @@ public final class AnnotationDetector {
      * @see #detect(File...)
      */
     public final void detect(final String... packageNames) throws IOException {
-        final ClassLoader classLoader = Thread.currentThread().getContextClassLoader();
+        final String[] pkgNameFilter = new String[packageNames.length];
+        for (int i = 0; i < pkgNameFilter.length; ++i) {
+            pkgNameFilter[i] = packageNames[i].replace('.', '/');
+            if (!pkgNameFilter[i].endsWith("/")) {
+                pkgNameFilter[i] = pkgNameFilter[i].concat("/");
+            }
+
+        }
         final Set<File> files = new HashSet<File>();
-        for (final String packageName : packageNames) {
-            String internalPackageName = packageName.replace('.', '/');
-            if (!internalPackageName.endsWith("/")) {
-                internalPackageName = internalPackageName.concat("/");
-            }
-
-            Enumeration<URL> resourceEnum = classLoader.getResources(internalPackageName);
-            /* weblogic workaround */
-            if (!resourceEnum.hasMoreElements()) {
-                resourceEnum = this.getClass().getClassLoader().getResources(internalPackageName);
-            }
-
+        for (final String packageName : pkgNameFilter) {
+            final ClassLoader loader = Thread.currentThread().getContextClassLoader();
+            final Enumeration<URL> resourceEnum = loader.getResources(packageName);
             while (resourceEnum.hasMoreElements()) {
                 final URL url = resourceEnum.nextElement();
                 // Handle JBoss VFS URL's which look like (example package 'nl.dvelop'):
@@ -306,8 +302,8 @@ public final class AnnotationDetector {
                                 files.add(jarFile);
                                 if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
                             } else {
-                                List<VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
-                                for (org.jboss.vfs.VirtualFile f: vfs) {
+                                List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
+                                for (org.jboss.vfs.VirtualFile f : vfs) {
                                     files.add(f.getPhysicalFile());
                                 }
                             }
@@ -324,6 +320,10 @@ public final class AnnotationDetector {
                     }
                 }
             }
+        }
+
+        if (!files.isEmpty()) {
+            detect(new ClassFileIterator(files.toArray(new File[files.size()]), pkgNameFilter));
         }
     }
 
