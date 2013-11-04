@@ -1500,8 +1500,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         HttpServletRequest r;
 
         Cookie[] cs = request.getCookies();
+        Set<Cookie> hs = new HashSet();
         if (cs != null) {
-            Set<Cookie> hs = new HashSet();
             for (Cookie c : cs) {
                 hs.add(c);
             }
