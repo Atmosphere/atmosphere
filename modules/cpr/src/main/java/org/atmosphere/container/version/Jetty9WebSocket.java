@@ -40,18 +40,19 @@ public class Jetty9WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
-        blockingConnection.write(s);
+        if (isOpen()) blockingConnection.write(s);
         return this;
     }
 
     @Override
     public WebSocket write(byte[] b, int offset, int length) throws IOException {
-        blockingConnection.write(b, offset, length);
+        if (isOpen()) blockingConnection.write(b, offset, length);
         return this;
     }
 
     @Override
     public void close() {
+        if (!isOpen()) return;
         logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {
             webSocketConnection.close();
