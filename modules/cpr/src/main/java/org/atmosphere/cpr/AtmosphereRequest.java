@@ -78,6 +78,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
     private boolean cookieComputed = false;
+    private final BufferedReader voidReader = new BufferedReader(new StringReader(""));
+    private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
 
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
@@ -376,12 +378,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == null ? (isNotNoOps() ? b.request.getInputStream() : null) : bis;
+        return bis == null ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
     }
 
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == null ? (isNotNoOps() ? b.request.getReader() : null) : br;
+        return br == null ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
     }
 
     @Override
@@ -1081,6 +1083,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private final static String[] EMPTY_ARRAY = new String[0];
         private final StringBuffer EMPTY_STRING_BUFFER = new StringBuffer();
         private final static Cookie[] EMPTY_COOKIE = new Cookie[0];
+        private final BufferedReader voidReader = new BufferedReader(new StringReader(""));
+        private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
 
         public NoOpsRequest() {
             this.throwExceptionOnCloned = false;
@@ -1293,7 +1297,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public ServletInputStream getInputStream() throws IOException {
-            return null;
+            return voidStream;
         }
 
         @Override
@@ -1348,7 +1352,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public BufferedReader getReader() throws IOException {
-            return null;
+            return voidReader;
         }
 
         @Override
