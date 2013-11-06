@@ -146,11 +146,16 @@ public class TomcatWebSocketUtil {
             return new Action(Action.TYPE.CREATED);
         }
 
-        Action action = delegate.suspended(req, res);
-        if (action.type() == Action.TYPE.RESUME) {
-            req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
+        try {
+            Action action = delegate.suspended(req, res);
+            if (action.type() == Action.TYPE.RESUME) {
+                req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
+            }
+            return action;
+        } catch (Exception ex) {
+            logger.error("", ex);
         }
-        return action;
+        return Action.CANCELLED;
     }
 
     private static boolean verifyOrigin(HttpServletRequest req) {

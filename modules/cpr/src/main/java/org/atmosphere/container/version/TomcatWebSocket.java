@@ -23,6 +23,7 @@ import org.atmosphere.websocket.WebSocket;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Tomcat WebSocket Support
@@ -32,6 +33,9 @@ import java.nio.CharBuffer;
 public class TomcatWebSocket extends WebSocket {
 
     private final WsOutbound outbound;
+    private AtomicBoolean isOpen = new AtomicBoolean(true);
+    private AtomicBoolean isClosed = new AtomicBoolean();
+    private final ByteBuffer closeCode = ByteBuffer.wrap(new byte[0]);
 
     public TomcatWebSocket(WsOutbound outbound, AtmosphereConfig config) {
         super(config);
@@ -40,7 +44,7 @@ public class TomcatWebSocket extends WebSocket {
 
     @Override
     public boolean isOpen() {
-        return true;
+        return isOpen.get();
     }
 
     @Override
@@ -59,18 +63,26 @@ public class TomcatWebSocket extends WebSocket {
 
     @Override
     public void close() {
-        try {
-            logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
-            outbound.close(1005, ByteBuffer.wrap(new byte[0]));
-        } catch (IOException e) {
-            logger.trace("", e);
+        isOpen.set(false);
+
+        if (!isClosed.getAndSet(true)) {
+            try {
+                logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
+                outbound.close(1000, closeCode);
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
         }
     }
 
     @Override
     public void close(AtmosphereResponse r) throws IOException {
-        logger.trace("WebSocket.close()");
-        outbound.close(1005, ByteBuffer.wrap(new byte[0]));
+        isOpen.set(false);
+
+        if (!isClosed.getAndSet(true)) {
+            logger.trace("WebSocket.close()");
+            outbound.close(1000, closeCode);
+        }
     }
 
     @Override
