@@ -2228,7 +2228,11 @@ public class AtmosphereFramework implements ServletContextProvider {
      * @return this.
      */
     public AtmosphereFramework addAnnotationPackage(Class<?> clazz) {
-        packages.add(clazz.getPackage().getName());
+        if (clazz.getPackage() == null) {
+            logger.error("Class {} must have a package defined", clazz);
+        } else {
+            packages.add(clazz.getPackage().getName());
+        }
         return this;
     }
 
