@@ -47,6 +47,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     public final static String WEBSOCKET_RESUME = WebSocket.class.getName() + ".resume";
     public final static String WEBSOCKET_ACCEPT_DONE = WebSocket.class.getName() + ".acceptDone";
     public final static String NOT_SUPPORTED = "Websocket protocol not supported";
+    public final static String CLEAN_CLOSE = "Clean_Close";
 
     private AtmosphereResource r;
     protected long lastWrite = 0;
@@ -259,7 +260,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     @Override
     public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
-        close();
+        if (r.request() != null && r.request().getAttribute(CLEAN_CLOSE) == null) {
+            close();
+        }
         try {
             bb.clear();
             cb.clear();

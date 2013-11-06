@@ -478,6 +478,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
 
             } finally {
+                if (webSocket != null) {
+                    try {
+                        r.setAttribute(WebSocket.CLEAN_CLOSE, Boolean.TRUE);
+                        webSocket.resource(null).close(s);
+                    } catch (IOException e) {
+                        logger.trace("", e);
+                    }
+                }
+
                 if (r != null) {
                     r.destroy(true);
                 }
@@ -486,13 +495,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     s.destroy(true);
                 }
 
-                if (webSocket != null) {
-                    try {
-                        webSocket.resource(null).close(s);
-                    } catch (IOException e) {
-                        logger.trace("", e);
-                    }
-                }
             }
         }
     }
