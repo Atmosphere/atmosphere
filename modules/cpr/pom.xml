@@ -65,6 +65,7 @@
                             org.atmosphere.interceptor*,
                             org.atmosphere.util*,
                             org.atmosphere.websocket*,
+                            org.atmosphere.websocket.protocol*,
                         </Export-Package>
                     </instructions>
                 </configuration>
