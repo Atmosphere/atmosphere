@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
+import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
@@ -65,7 +66,7 @@ public class ManagedServiceProcessor implements Processor {
                     logger.warn("", e);
                 }
             }
-            framework.addAtmosphereHandler(a.path(), handler, framework.getBroadcasterFactory().lookup(a.broadcaster(), a.path(), true), l);
+            framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
         } catch (Throwable e) {
             logger.warn("", e);
         }

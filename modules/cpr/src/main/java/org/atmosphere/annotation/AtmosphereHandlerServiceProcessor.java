@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
+import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
@@ -74,7 +75,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
                 IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
             }
 
-            framework.addAtmosphereHandler(a.path(), handler, framework.getBroadcasterFactory().lookup(a.broadcaster(), a.path(), true), l);
+            framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);

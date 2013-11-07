@@ -29,6 +29,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
+import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
@@ -70,7 +71,7 @@ public class MeteorServiceProcessor implements Processor {
             if (m.path().contains("{")) {
                 framework.interceptors().add(new MeteorServiceInterceptor());
             }
-            framework.addAtmosphereHandler(mapping, r, framework.getBroadcasterFactory().lookup(m.broadcaster(), m.path(), true), l);
+            framework.addAtmosphereHandler(mapping, r, broadcaster(framework, m.broadcaster(), m.path()), l);
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);

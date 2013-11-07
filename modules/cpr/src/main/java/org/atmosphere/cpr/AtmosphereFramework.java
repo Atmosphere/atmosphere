@@ -2427,6 +2427,14 @@ public class AtmosphereFramework {
         return annotationProcessor;
     }
 
+    /**
+     * Was a {@link Broadcaster} defined in web.xml or programmatically added.
+     * @return true is defined.
+     */
+    public boolean isBroadcasterSpecified() {
+        return isBroadcasterSpecified;
+    }
+
     protected void configureObjectFactory() {
         if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {
             logger.trace("ObjectFactory already set to {}", objectFactory);

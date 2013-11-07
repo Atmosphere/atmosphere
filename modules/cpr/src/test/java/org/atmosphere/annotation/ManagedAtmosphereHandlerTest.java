@@ -33,6 +33,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.interceptor.InvokationOrder;
+import org.atmosphere.util.ExcludeSessionBroadcaster;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -316,5 +317,31 @@ public class ManagedAtmosphereHandlerTest {
         assertEquals(framework.interceptors().getFirst().toString(), "XXX");
 
         assertNotNull(r.get());
+    }
+
+    @ManagedService(path = "/override", broadcaster = ExcludeSessionBroadcaster.class)
+    public final static class OverrideBroadcaster {
+        @Get
+        public void get(AtmosphereResource resource) {
+            // Normally we don't need that, this will be done using an Interceptor.
+            resource.suspend();
+        }
+
+        @Ready
+        public void suspend(AtmosphereResource resource) {
+            r.set(resource);
+        }
+    }
+
+    @Test
+    public void testOverrideBroadcaster() throws IOException, ServletException {
+        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/override").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+
+        assertNotNull(r.get());
+        assertEquals(r.get().getBroadcaster().getClass().getName(), SimpleBroadcaster.class.getName());
+
     }
 }
