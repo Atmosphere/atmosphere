@@ -49,9 +49,11 @@
                             org.apache.shiro*;resolution:=optional,
                             org.jboss.vfs*;resolution:=optional,
                             javax.websocket*;resolution:=optional,
+                            weblogic.websocket*;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
+                            org.atmosphere.annotation*,
                             org.atmosphere.cache*,
                             org.atmosphere.client*,
                             org.atmosphere.config*,
