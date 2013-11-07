@@ -57,6 +57,8 @@
                             org.atmosphere.cache*,
                             org.atmosphere.client*,
                             org.atmosphere.config*,
+                            org.atmosphere.config.managed*,
+                            org.atmosphere.config.service*,
                             org.atmosphere.container*,
                             org.atmosphere.cpr*,
                             org.atmosphere.handler*,
