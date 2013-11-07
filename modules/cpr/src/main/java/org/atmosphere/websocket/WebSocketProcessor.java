@@ -134,10 +134,20 @@ public interface WebSocketProcessor {
 
         final Class<? extends Broadcaster> broadcasterClazz;
         final WebSocketHandler proxied;
+        private String path;
 
         public WebSocketHandlerProxy(Class<? extends Broadcaster> broadcasterClazz, WebSocketHandler proxied) {
             this.broadcasterClazz = broadcasterClazz;
             this.proxied = proxied;
+        }
+
+        public String path() {
+            return path;
+        }
+
+        public WebSocketHandlerProxy path(String path) {
+            this.path = path;
+            return this;
         }
 
         @Override

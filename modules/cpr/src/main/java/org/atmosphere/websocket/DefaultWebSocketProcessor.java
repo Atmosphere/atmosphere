@@ -15,6 +15,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
@@ -138,7 +139,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public WebSocketProcessor registerWebSocketHandler(String path, WebSocketHandlerProxy webSockethandler) {
-        handlers.put(path, webSockethandler);
+        handlers.put(path, webSockethandler.path(path));
         return this;
     }
 
@@ -160,21 +161,24 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
-
-        // We must dispatch to execute AtmosphereInterceptor
-        dispatch(webSocket, request, response);
-        if (handlers.size() != 0 && REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(r.getAtmosphereHandler().getClass())){
+        WebSocketHandler proxy = null;
+        if (handlers.size() != 0) {
             WebSocketHandlerProxy handler = mapper.map(request, handlers);
             if (handler == null) {
                 logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);
                 throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
             }
-            WebSocketHandler proxy = postProcessMapping(webSocket, request, handler);
-
-            // Force suspend.
-            webSocket.webSocketHandler(proxy).resource().suspend(-1);
-            proxy.onOpen(webSocket);
+            proxy = postProcessMapping(webSocket, request, handler);
         }
+
+        // We must dispatch to execute AtmosphereInterceptor
+        dispatch(webSocket, request, response);
+
+        if (proxy != null) {
+            proxy.onOpen(webSocket);
+            webSocket.webSocketHandler(proxy).resource().suspend(-1);
+        }
+
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
@@ -203,54 +207,59 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     protected WebSocketHandler postProcessMapping(WebSocket webSocket, AtmosphereRequest request, WebSocketHandlerProxy w) {
-
-        if (!wildcardMapping()) return w.proxied;
-
-        String path;
-        String pathInfo = null;
-        try {
-            pathInfo = request.getPathInfo();
-        } catch (IllegalStateException ex) {
-            // http://java.net/jira/browse/GRIZZLY-1301
-        }
-
-        if (pathInfo != null) {
-            path = request.getServletPath() + pathInfo;
-        } else {
-            path = request.getServletPath();
-        }
-
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
-
         WebSocketHandlerProxy p = null;
-        synchronized (handlers) {
-            p = handlers.get(path);
-            if (p == null) {
-                // AtmosphereHandlerService
-                WebSocketHandlerService a = w.proxied.getClass().getAnnotation(WebSocketHandlerService.class);
-                if (a != null) {
-                    String targetPath = a.path();
-                    if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
-                        try {
-                            boolean singleton = w.proxied.getClass().getAnnotation(Singleton.class) != null;
-                            if (!singleton) {
-                                registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(),
-                                        framework.newClassInstance(w.proxied.getClass())));
-                            } else {
-                                registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(), w));
+        String path = w.path();
+        if (wildcardMapping()) {
+            String pathInfo = null;
+            try {
+                pathInfo = request.getPathInfo();
+            } catch (IllegalStateException ex) {
+                // http://java.net/jira/browse/GRIZZLY-1301
+            }
+
+            if (pathInfo != null) {
+                path = request.getServletPath() + pathInfo;
+            } else {
+                path = request.getServletPath();
+            }
+
+            if (path == null || path.isEmpty()) {
+                path = "/";
+            }
+
+            synchronized (handlers) {
+                p = handlers.get(path);
+                if (p == null) {
+                    // AtmosphereHandlerService
+                    WebSocketHandlerService a = w.proxied.getClass().getAnnotation(WebSocketHandlerService.class);
+                    if (a != null) {
+                        String targetPath = a.path();
+                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                            try {
+                                boolean singleton = w.proxied.getClass().getAnnotation(Singleton.class) != null;
+                                if (!singleton) {
+                                    registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(),
+                                            framework.newClassInstance(w.proxied.getClass())));
+                                } else {
+                                    registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(), w));
+                                }
+                                p = handlers.get(path);
+                            } catch (Throwable e) {
+                                logger.warn("Unable to create WebSocketHandler", e);
                             }
-                            p = handlers.get(path);
-                        } catch (Throwable e) {
-                            logger.warn("Unable to create WebSocketHandler", e);
                         }
                     }
                 }
             }
-            webSocket.resource().setBroadcaster(framework.getBroadcasterFactory().lookup(p.broadcasterClazz, path, true));
         }
-        return p.proxied;
+
+        try {
+            webSocket.resource().setBroadcaster(AnnotationUtil.broadcaster(framework, p.broadcasterClazz, path));
+        } catch (Exception e) {
+            logger.error("", e);
+        }
+
+        return p != null ? p.proxied : w.proxied;
     }
 
     private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {
