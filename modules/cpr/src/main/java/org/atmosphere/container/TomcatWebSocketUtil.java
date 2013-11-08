@@ -38,6 +38,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
@@ -88,20 +89,23 @@ public class TomcatWebSocketUtil {
             }
 
             // Information required to send the server handshake message
-            String key;
+            String key =  null;
             String subProtocol = null;
 
-            if (!headerContainsToken(req, "Upgrade", "websocket")) {
-                return delegate.doService(req, res);
-            }
+            boolean allowWebSocketWithoutHeaders = req.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
+            if (!allowWebSocketWithoutHeaders)   {
+                if (!headerContainsToken(req, "Upgrade", "websocket")) {
+                    return delegate.doService(req, res);
+                }
 
-            if (!headerContainsToken(req, "Connection", "upgrade")) {
-                return delegate.doService(req, res);
-            }
+                if (!headerContainsToken(req, "Connection", "upgrade")) {
+                    return delegate.doService(req, res);
+                }
 
-            if (!headerContainsToken(req, "sec-websocket-version", "13")) {
-                WebSocket.notSupported(req, res);
-                return new Action(Action.TYPE.CANCELLED);
+                if (!headerContainsToken(req, "sec-websocket-version", "13")) {
+                    WebSocket.notSupported(req, res);
+                    return new Action(Action.TYPE.CANCELLED);
+                }
             }
 
             key = req.getHeader("Sec-WebSocket-Key");

@@ -86,4 +86,6 @@ public interface HeaderConfig {
     String X_ATMO_PROTOCOL = "X-atmo-protocol";
 
     String X_ATMO_BINARY = "X-Atmosphere-Binary";
+
+    String X_ATMO_WEBSOCKET_PROXY = "X-Atmosphere-WebSocket-Proxy";
 }

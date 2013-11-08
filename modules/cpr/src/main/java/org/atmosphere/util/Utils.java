@@ -15,6 +15,8 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.HeaderConfig;
+
 import javax.servlet.http.HttpServletRequest;
 import java.util.Enumeration;
 
@@ -28,6 +30,10 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 public final class Utils {
 
     public static boolean webSocketEnabled(HttpServletRequest request) {
+
+        boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
+        if (allowWebSocketWithoutHeaders) return true;
+
         boolean webSocketEnabled = false;
         Enumeration<String> connection = request.getHeaders("Connection");
         if (connection == null || !connection.hasMoreElements()) {
