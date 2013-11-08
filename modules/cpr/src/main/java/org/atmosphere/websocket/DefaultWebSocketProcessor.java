@@ -254,7 +254,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
 
         try {
-            webSocket.resource().setBroadcaster(AnnotationUtil.broadcaster(framework, p.broadcasterClazz, path));
+            webSocket.resource().setBroadcaster(AnnotationUtil.broadcaster(framework, p != null ? p.broadcasterClazz : w.broadcasterClazz, path));
         } catch (Exception e) {
             logger.error("", e);
         }
