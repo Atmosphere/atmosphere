@@ -312,7 +312,28 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
 
             if (s.startsWith(X_ATMOSPHERE) && isNotNoOps()) {
-                name = (String) b.request.getAttribute(s);
+                // Craziness with Struts 2 who wraps String attribute as BigDecimal
+                // https://github.com/Atmosphere/atmosphere/issues/1367
+                Object o = b.request.getAttribute(s);
+                if (o == null || String.class.isAssignableFrom(o.getClass())) {
+                    name = String.class.cast(o);
+                } else {
+                    try {
+                        if (HttpServletRequestWrapper.class.isAssignableFrom(b.request.getClass())) {
+                            HttpServletRequest hsr = HttpServletRequestWrapper.class.cast(b.request);
+                            while (hsr instanceof HttpServletRequestWrapper) {
+                                hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
+                                o = hsr.getAttribute(s);
+                                if (o == null || String.class.isAssignableFrom(o.getClass())) {
+                                    name = String.class.cast(o);
+                                    break;
+                                }
+                            }
+                        }
+                    } catch (Exception ex) {
+                        logger.warn("", ex);
+                    }
+                }
             }
         }
 
