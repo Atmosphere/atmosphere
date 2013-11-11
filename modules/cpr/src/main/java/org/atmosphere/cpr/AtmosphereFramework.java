@@ -1900,7 +1900,7 @@ public class AtmosphereFramework {
                         // Use the one set by the user first.
                         if (request.getContentType() == null ||
                                 !request.getContentType().equalsIgnoreCase(s.length > 1 ? s[1] : "")) {
-                            request.contentType(s.length > 1 ? s[1] : "");
+                            request.contentType(s.length > 1 ? URLDecoder.decode(s[1], "UTF-8") : "");
                         }
                     }
                     if (!s[0].isEmpty()
