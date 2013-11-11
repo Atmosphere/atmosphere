@@ -53,19 +53,19 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
         AtmosphereResponse response = ((AtmosphereResourceImpl) event.getResource()).getResponse(false);
 
         logger.trace("{} with event {}", event.getResource().uuid(), event);
-        if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
+        if (event.isCancelled() || event.isClosedByApplication() || event.isClosedByClient()) {
+            onDisconnect(response);
+        } else if (event.getMessage() != null && List.class.isAssignableFrom(event.getMessage().getClass())) {
             List<T> messages = List.class.cast(event.getMessage());
             for (T t : messages) {
                 onMessage(response, t);
             }
-        } else if (event.isSuspended()) {
-            onMessage(response, (T) event.getMessage());
         } else if (event.isResuming()) {
             onResume(response);
         } else if (event.isResumedOnTimeout()) {
             onTimeout(response);
-        } else if (event.isCancelled()) {
-            onDisconnect(response);
+        } else if (event.isSuspended()) {
+            onMessage(response, (T) event.getMessage());
         }
         postStateChange(event);
     }
