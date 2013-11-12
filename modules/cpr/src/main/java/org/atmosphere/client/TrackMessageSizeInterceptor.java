@@ -128,8 +128,10 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                 response.setCharacterEncoding(OUT_ENCODING);
 
                 CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
+                String s = cb.toString();
 
-                if (cb.toString().trim().length() == 0) {
+                if (s.trim().length() == 0 || s.indexOf(endString) != -1) {
+                    logger.debug("Already filtered {}", s);
                     return responseDraft;
                 }
 
