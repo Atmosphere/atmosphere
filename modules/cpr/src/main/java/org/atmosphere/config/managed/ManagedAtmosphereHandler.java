@@ -270,6 +270,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 logger.debug("", e);
             }
         }
+        logger.trace("No Method Mapped for {}", o);
         return null;
     }
 
