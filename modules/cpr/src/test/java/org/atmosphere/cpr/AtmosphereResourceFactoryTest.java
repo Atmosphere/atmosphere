@@ -60,7 +60,7 @@ public class AtmosphereResourceFactoryTest {
 
     @Test
     public void createTest() {
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), mock(Broadcaster.class), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(), mock(Broadcaster.class), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
     }
@@ -69,7 +69,7 @@ public class AtmosphereResourceFactoryTest {
     public void findTest() {
         Broadcaster b1 = BroadcasterFactory.getDefault().get("b1");
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
 
@@ -84,7 +84,7 @@ public class AtmosphereResourceFactoryTest {
         for (int i = 0; i < 10; i++) {
             BroadcasterFactory.getDefault().get(String.valueOf(i));
         }
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(mock(AtmosphereConfig.class), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
         assertNull(AtmosphereResourceFactory.getDefault().find(r.uuid()));

@@ -16,6 +16,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationHandler;
@@ -31,6 +33,7 @@ import java.util.Collection;
  */
 public final class AtmosphereResourceFactory {
 
+    private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceFactory.class);
     private final static AtmosphereResourceFactory factory = new AtmosphereResourceFactory();
     private final static Broadcaster noOps = (Broadcaster)
             Proxy.newProxyInstance(Broadcaster.class.getClassLoader(), new Class[]{Broadcaster.class},
@@ -70,7 +73,14 @@ public final class AtmosphereResourceFactory {
                                            AtmosphereRequest request,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a) {
-        return new AtmosphereResourceImpl(config, null, request, response, a, voidAtmosphereHandler);
+        AtmosphereResource r = null;
+        try {
+            r = config.framework().newClassInstance(AtmosphereResourceImpl.class);
+            r.initialize(config, null, request, response, a, voidAtmosphereHandler);
+        } catch (Exception e) {
+            logger.error("", e);
+        }
+        return r;
     }
 
     /**
@@ -89,7 +99,14 @@ public final class AtmosphereResourceFactory {
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a,
                                            AtmosphereHandler handler) {
-        return new AtmosphereResourceImpl(config, broadcaster, request, response, a, handler);
+        AtmosphereResource r = null;
+        try {
+            r = config.framework().newClassInstance(AtmosphereResourceImpl.class);
+            r.initialize(config, broadcaster, request, response, a, handler);
+        } catch (Exception e) {
+            logger.error("", e);
+        }
+        return r;
     }
 
     /**
@@ -121,7 +138,14 @@ public final class AtmosphereResourceFactory {
     public final AtmosphereResource create(AtmosphereConfig config,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a) {
-        return new AtmosphereResourceImpl(config, null, response.request(), response, a, voidAtmosphereHandler);
+        AtmosphereResource r = null;
+        try {
+            r = config.framework().newClassInstance(AtmosphereResourceImpl.class);
+            r.initialize(config, null, response.request(), response, a, voidAtmosphereHandler);
+        } catch (Exception e) {
+            logger.error("", e);
+        }
+        return r;
     }
 
     /**
@@ -134,7 +158,7 @@ public final class AtmosphereResourceFactory {
     public final AtmosphereResource create(AtmosphereConfig config, String uuid) {
         AtmosphereResponse response = AtmosphereResponse.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
-        return AtmosphereResourceFactory.getDefault().create(config,
+        return create(config,
                 noOps,
                 AtmosphereRequest.newInstance(),
                 response,

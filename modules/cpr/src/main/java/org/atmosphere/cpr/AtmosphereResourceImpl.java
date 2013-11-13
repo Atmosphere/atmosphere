@@ -83,15 +83,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
     public static final String METEOR = Meteor.class.getName();
 
-    private final AtmosphereRequest req;
-    private final AtmosphereResponse response;
+    private AtmosphereRequest req;
+    private AtmosphereResponse response;
     private final Action action = new Action();
     protected Broadcaster broadcaster;
-    private final AtmosphereConfig config;
-    protected final AsyncSupport asyncSupport;
+    private AtmosphereConfig config;
+    protected AsyncSupport asyncSupport;
     private Serializer serializer;
     private final AtomicBoolean isInScope = new AtomicBoolean(true);
-    private final AtmosphereResourceEventImpl event;
+    private AtmosphereResourceEventImpl event;
     private final AtomicBoolean isResumed = new AtomicBoolean();
     private final AtomicBoolean isCancelled = new AtomicBoolean();
     private final AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
@@ -104,14 +104,24 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean();
     private AtmosphereHandler atmosphereHandler;
-    private final String uuid;
+    private String uuid;
     protected HttpSession session;
     private boolean disableSuspendEvent;
     private TRANSPORT transport;
     private boolean forceBinaryWrite;
 
+    public AtmosphereResourceImpl(){
+    }
+
+    @Deprecated
+    public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
+                                  AtmosphereRequest req, AtmosphereResponse response,
+                                  AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
+        initialize(config, broadcaster, req, response, asyncSupport, atmosphereHandler);
+    }
+
     /**
-     * Create an {@link AtmosphereResource}.
+     * Initialize an {@link AtmosphereResource}.
      *
      * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
@@ -119,8 +129,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @param response          The {@link AtmosphereResource}
      * @param asyncSupport      The {@link AsyncSupport}
      * @param atmosphereHandler The {@link AtmosphereHandler}
+     * @return this
      */
-    public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
+    @Override
+    public AtmosphereResource initialize(AtmosphereConfig config, Broadcaster broadcaster,
                                   AtmosphereRequest req, AtmosphereResponse response,
                                   AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
         this.req = req;
@@ -147,6 +159,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         }
         transport = configureTransport();
+        return this;
     }
 
     private TRANSPORT configureTransport() {

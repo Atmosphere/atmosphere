@@ -321,11 +321,29 @@ public interface AtmosphereResource {
 
     /**
      * Force binary write and never write String value.
+     * return this
      */
     AtmosphereResource forceBinaryWrite(boolean force);
 
     /**
      * Return true when binary write is forced.
+     *
+     * @return true when binary write is forced.
      */
     boolean forceBinaryWrite();
+
+    /**
+     * Initialize an {@link AtmosphereResource}.
+     *
+     * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
+     * @param req               The {@link AtmosphereRequest}
+     * @param response          The {@link AtmosphereResource}
+     * @param asyncSupport      The {@link AsyncSupport}
+     * @param atmosphereHandler The {@link AtmosphereHandler}
+     * @return this
+     */
+    public AtmosphereResource initialize(AtmosphereConfig config, Broadcaster broadcaster,
+                                         AtmosphereRequest req, AtmosphereResponse response,
+                                         AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler);
 }
