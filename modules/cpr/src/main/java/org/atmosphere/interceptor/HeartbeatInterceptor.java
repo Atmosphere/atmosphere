@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.ExecutorsFactory;
@@ -106,8 +107,10 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                     } catch (Throwable t) {
                                         logger.trace("{}", r.uuid(), t);
                                         try {
-                                            AtmosphereResourceImpl.class.cast(r).close();
+                                            AtmosphereResourceImpl.class.cast(r).cancel();
+                                            r.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
                                         } catch (IOException e) {
+                                            logger.trace("{}", e);
                                         }
                                         ;
                                         writeFuture.cancel(false);
