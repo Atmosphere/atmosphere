@@ -35,6 +35,9 @@
   */
 package org.atmosphere.util.annotation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.DataInput;
 import java.io.File;
 import java.io.IOException;
@@ -180,6 +183,7 @@ public final class AnnotationDetector {
 
     // Only used during development. If set to "true" debug messages are displayed.
     private static final boolean DEBUG = false;
+    private final Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
 
     // Constant Pool type tags
     private static final int CP_UTF8 = 1;
@@ -302,9 +306,13 @@ public final class AnnotationDetector {
                                 files.add(jarFile);
                                 if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
                             } else {
-                                List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
-                                for (org.jboss.vfs.VirtualFile f : vfs) {
-                                    files.add(f.getPhysicalFile());
+                                try {
+                                    List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
+                                    for (org.jboss.vfs.VirtualFile f : vfs) {
+                                        files.add(f.getPhysicalFile());
+                                    }
+                                } catch (Throwable ex) {
+                                    logger.warn("Unable to scan classes for annotation {}", dir);
                                 }
                             }
                         }

@@ -2235,8 +2235,7 @@ public class AtmosphereFramework {
                 annotationProcessor.scanAll();
             }
         } catch (Throwable e) {
-            logger.warn("Atmosphere's Service annotation not supported. Please add https://github.com/rmuller/infomas-asl as dependency or your own AnnotationProcessor to support @Service");
-            logger.warn("", e);
+            logger.error("", e);
             return;
         } finally {
             if (annotationProcessor != null) {
