@@ -2191,10 +2191,9 @@ public class AtmosphereFramework implements ServletContextProvider {
                 annotationProcessor.scanAll();
             }
         } catch (Throwable e) {
-            logger.debug("Atmosphere's Service annotation not supported. Please add https://github.com/rmuller/infomas-asl as dependency or your own AnnotationProcessor to support @Service");
-            logger.trace("", e);
+            logger.error("", e);
             return;
-        } finally {
+        } finally {                                                     q
             if (annotationProcessor != null) {
                 annotationProcessor.destroy();
             }

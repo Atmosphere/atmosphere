@@ -35,6 +35,9 @@
   */
 package org.atmosphere.util.annotation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.DataInput;
 import java.io.File;
 import java.io.IOException;
@@ -181,6 +184,8 @@ public final class AnnotationDetector {
     // Only used during development. If set to "true" debug messages are displayed.
     private static final boolean DEBUG = false;
 
+    private final Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
+
     // Constant Pool type tags
     private static final int CP_UTF8 = 1;
     private static final int CP_INTEGER = 3;
@@ -281,11 +286,7 @@ public final class AnnotationDetector {
             final Enumeration<URL> resourceEnum = loader.getResources(packageName);
             while (resourceEnum.hasMoreElements()) {
                 final URL url = resourceEnum.nextElement();
-                // Handle JBoss VFS URL's which look like (example package 'nl.dvelop'):
-                // vfs:/foo/bar/website.war/WEB-INF/classes/nl/dvelop/
-                // vfs:/foo/bar/website.war/WEB-INF/lib/dwebcore-0.0.1.jar/nl/dvelop/
-                // On JBoss 5.1, the protocol of VFS URL is vfsfile, make it work on JBoss 5.1
-                final boolean isVfs = ("vfs".equals(url.getProtocol()) || "vfsfile".equals(url.getProtocol()));
+                final boolean isVfs = url.getProtocol() != null && url.getProtocol().startsWith("vfs");
                 if ("file".equals(url.getProtocol()) || isVfs) {
                     final File dir = toFile(url);
                     if (dir.isDirectory()) {
@@ -302,9 +303,13 @@ public final class AnnotationDetector {
                                 files.add(jarFile);
                                 if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
                             } else {
-                                List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
-                                for (org.jboss.vfs.VirtualFile f : vfs) {
-                                    files.add(f.getPhysicalFile());
+                               try {
+                                    List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
+                                    for (org.jboss.vfs.VirtualFile f : vfs) {
+                                        files.add(f.getPhysicalFile());
+                                    }
+                                } catch (Throwable ex) {
+                                   logger.warn("Unable to scan classes for annotation {}", dir);
                                 }
                             }
                         }
