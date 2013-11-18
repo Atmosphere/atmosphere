@@ -143,9 +143,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 event = req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
                 if (event != null) {
                     Class.forName(org.jboss.servlet.http.HttpEvent.class.getName());
-                    if (event != null) {
-                        org.jboss.servlet.http.HttpEvent.class.cast(event).close();
-                    }
+                    org.jboss.servlet.http.HttpEvent.class.cast(event).close();
                 }
             } catch (Throwable e) {
                 logger.trace("", e);
