@@ -109,6 +109,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
 
         // Comet is not enabled.
         if (event == null) {
+            logger.error("HttpEvent is null, JBoss APR Not Properly installed");
             throw unableToDetectComet;
         }
 
