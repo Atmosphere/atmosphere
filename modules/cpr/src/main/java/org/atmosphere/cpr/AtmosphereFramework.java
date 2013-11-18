@@ -2193,7 +2193,7 @@ public class AtmosphereFramework implements ServletContextProvider {
         } catch (Throwable e) {
             logger.error("", e);
             return;
-        } finally {                                                     q
+        } finally {
             if (annotationProcessor != null) {
                 annotationProcessor.destroy();
             }
