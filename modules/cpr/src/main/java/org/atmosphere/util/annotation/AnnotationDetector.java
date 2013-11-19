@@ -44,6 +44,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Method;
 import java.net.JarURLConnection;
 import java.net.URL;
 import java.net.URLDecoder;
@@ -281,6 +282,8 @@ public final class AnnotationDetector {
 
         }
         final Set<File> files = new HashSet<File>();
+        final Set<InputStream> streams = new HashSet<InputStream>();
+
         for (final String packageName : pkgNameFilter) {
             final ClassLoader loader = Thread.currentThread().getContextClassLoader();
             final Enumeration<URL> resourceEnum = loader.getResources(packageName);
@@ -303,15 +306,17 @@ public final class AnnotationDetector {
                                 files.add(jarFile);
                                 if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
                             } else {
-                               try {
+                                try {
                                     List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
                                     for (org.jboss.vfs.VirtualFile f : vfs) {
                                         files.add(f.getPhysicalFile());
                                     }
                                 } catch (Throwable ex) {
-                                   logger.warn("Unable to scan classes for annotation {}", dir);
+                                    vfs(url, packageName, streams);
                                 }
                             }
+                        } else {
+                            vfs(url, packageName, streams);
                         }
                     }
                 } else {
@@ -329,6 +334,44 @@ public final class AnnotationDetector {
 
         if (!files.isEmpty()) {
             detect(new ClassFileIterator(files.toArray(new File[files.size()]), pkgNameFilter));
+        } else if (!streams.isEmpty()) {
+            detect(new ClassFileIterator(streams.toArray(new InputStream[streams.size()]), pkgNameFilter));
+        }
+    }
+
+    private void vfs(URL url, String packageName, Set<InputStream> streams) {
+//        org.jboss.virtual.VFS vfs = org.jboss.virtual.VFS.getVFS(url);
+//        org.jboss.virtual.VirtualFile root = vfs.getRoot();
+//        List<org.jboss.virtual.VirtualFile> children = root.getChildrenRecursively();
+//        ClassLoader c = Thread.currentThread().getContextClassLoader();
+//        for (org.jboss.virtual.VirtualFile f : children) {
+//            String clazz = f.getPathName();
+//            String classP = (packageName + clazz);
+//            if (clazz != null && clazz.endsWith(".class")) {
+//                streams.add(c.getResourceAsStream(classP));
+//            }
+//        }
+        ClassLoader c = Thread.currentThread().getContextClassLoader();
+
+        try {
+            Class<?> vfs = c.loadClass("org.jboss.virtual.VFS");
+            Method getVFS = vfs.getMethod("getVFS", new Class[]{URL.class});
+            Object vfsInstance = getVFS.invoke(null, url);
+            Method getRoot = vfs.getMethod("getRoot");
+
+            Object virtualFileInstance = getRoot.invoke(vfsInstance);
+            Method getChildrenRecursively = virtualFileInstance.getClass().getMethod("getChildrenRecursively");
+            List<Object> children = (List<Object>) getChildrenRecursively.invoke(virtualFileInstance);
+            Method getPathName = virtualFileInstance.getClass().getMethod("getPathName");
+            for (Object f : children) {
+                String clazz = (String) getPathName.invoke(f);
+                String classP = (packageName + clazz);
+                if (clazz != null && clazz.endsWith(".class")) {
+                    streams.add(c.getResourceAsStream(classP));
+                }
+            }
+        } catch (Throwable t) {
+            logger.warn("", t);
         }
     }
 
