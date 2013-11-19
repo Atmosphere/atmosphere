@@ -448,7 +448,8 @@ public class AtmosphereFramework {
         w.interceptors = l;
 
         addMapping(mapping, w);
-        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+        logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
+                new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
         if (l.size() > 0) {
             logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
         }
@@ -729,7 +730,7 @@ public class AtmosphereFramework {
 
         String s = config.getInitParameter(BROADCASTER_WAIT_TIME);
 
-        logger.info("Using Broadcaster: {}", broadcasterClassName);
+        logger.info("Default Broadcaster Class: {}", broadcasterClassName);
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
 
