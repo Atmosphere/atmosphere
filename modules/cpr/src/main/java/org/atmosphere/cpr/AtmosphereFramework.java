@@ -35,6 +35,7 @@ import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
+import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
@@ -223,6 +224,8 @@ public class AtmosphereFramework {
             JSONPAtmosphereInterceptor.class,
             // ADD Tracking ID Handshake
             JavaScriptProtocol.class,
+            // WebSocket and suspend
+            WebSocketMessageSuspendInterceptor.class,
             // OnDisconnect
             OnDisconnectInterceptor.class
     };

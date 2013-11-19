@@ -118,7 +118,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     @Override
     public boolean isSuspended() {
-        return resource == null ? false : resource.action().type() == Action.TYPE.SUSPEND;
+        return resource == null ? false : (resource.action().type() == Action.TYPE.SUSPEND || resource.action().type() == Action.TYPE.SUSPEND_MESSAGE);
     }
 
     @Override

@@ -58,6 +58,10 @@ public final class Action {
          */
         DESTROYED,
         /**
+         * Fake suspend for WebSocket Message
+         */
+        SUSPEND_MESSAGE,
+        /**
          * Skip the invocation of {@link AtmosphereHandler}, but invoke all {@link AtmosphereInterceptor}.
          */
         SKIP_ATMOSPHEREHANDLER

@@ -108,6 +108,15 @@ public class BroadcasterListenerTest {
     }
 
     @Test
+    public void testOnRemove() throws IOException, ServletException {
+        framework.addAtmosphereHandler("/*", new BAR()).init();
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(BAR.count.get(), 1);
+    }
+
+    @Test
     public void testLongPollingOnBroadcast() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
