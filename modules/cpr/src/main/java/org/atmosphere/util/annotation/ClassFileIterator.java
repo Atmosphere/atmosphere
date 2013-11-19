@@ -36,8 +36,6 @@
  */
 package org.atmosphere.util.annotation;
 
-import org.atmosphere.util.FileIterator;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -59,6 +57,7 @@ final class ClassFileIterator {
     private final String[] pkgNameFilter;
     private ZipFileIterator zipIterator;
     private boolean isFile;
+    private final InputStreamIterator inputStreamIterator;
 
     /**
      * Create a new {@code ClassFileIterator} returning all Java ClassFile files available
@@ -81,6 +80,23 @@ final class ClassFileIterator {
 
         this.fileIterator = new FileIterator(filesOrDirectories);
         this.pkgNameFilter = pkgNameFilter;
+        this.inputStreamIterator = null;
+    }
+
+    /**
+     * Create a new {@code ClassFileIterator} returning all Java ClassFile files available
+     * from the specified files and/or directories, including sub directories.
+     * <p>
+     * If the (optional) package filter is defined, only class files staring with one of the
+     * defined package names are returned.
+     * NOTE: package names must be defined in the native format (using '/' instead of '.').
+     */
+    ClassFileIterator(final InputStream[] filesOrDirectories, final String[] pkgNameFilter)
+        throws IOException {
+
+        this.fileIterator = null;
+        this.pkgNameFilter = pkgNameFilter;
+        this.inputStreamIterator = new InputStreamIterator(filesOrDirectories);
     }
 
     /**
@@ -110,27 +126,31 @@ final class ClassFileIterator {
      */
     public InputStream next() throws IOException {
         while (true) {
-            if (zipIterator == null) {
-                final File file = fileIterator.next();
-                if (file == null) {
-                    return null;
+            if (fileIterator != null) {
+                if (zipIterator == null) {
+                    final File file = fileIterator.next();
+                    if (file == null) {
+                        return null;
+                    } else {
+                        final String name = file.getName();
+                        if (name.endsWith(".class")) {
+                            isFile = true;
+                            return new FileInputStream(file);
+                        } else if (fileIterator.isRootFile() && endsWithIgnoreCase(name, ".jar")) {
+                            zipIterator = new ZipFileIterator(new ZipFile(file), pkgNameFilter);
+                        } // else just ignore
+                    }
                 } else {
-                    final String name = file.getName();
-                    if (name.endsWith(".class")) {
-                        isFile = true;
-                        return new FileInputStream(file);
-                    } else if (fileIterator.isRootFile() && endsWithIgnoreCase(name, ".jar")) {
-                        zipIterator = new ZipFileIterator(new ZipFile(file), pkgNameFilter);
-                    } // else just ignore
+                    final InputStream is = zipIterator.next();
+                    if (is == null) {
+                        zipIterator = null;
+                    } else {
+                        isFile = false;
+                        return is;
+                    }
                 }
             } else {
-                final InputStream is = zipIterator.next();
-                if (is == null) {
-                    zipIterator = null;
-                } else {
-                    isFile = false;
-                    return is;
-                }
+                return inputStreamIterator.next();
             }
         }
     }
