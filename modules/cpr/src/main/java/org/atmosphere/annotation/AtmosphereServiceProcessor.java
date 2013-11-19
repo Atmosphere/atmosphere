@@ -60,7 +60,7 @@ public class AtmosphereServiceProcessor implements Processor {
             }
 
             if (!a.servlet().isEmpty()) {
-                final ReflectorServletProcessor r = new ReflectorServletProcessor();
+                final ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class);
                 r.setServletClassName(a.servlet());
 
                 String mapping = a.path();

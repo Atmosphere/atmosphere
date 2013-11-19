@@ -300,6 +300,7 @@ public class AtmosphereFramework {
      */
     public AtmosphereFramework(ServletConfig sc) throws ServletException {
         this(false, true);
+        // TODO: What?
         init(sc);
     }
 
@@ -663,7 +664,7 @@ public class AtmosphereFramework {
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
             objectFactory = lookupDefaultObjectFactoryType();
-            asyncSupportListener(new AsyncSupportListenerAdapter());
+            asyncSupportListener(newClassInstance(AsyncSupportListenerAdapter.class));
 
             configureObjectFactory();
             configureAnnotationPackages();
@@ -1177,7 +1178,7 @@ public class AtmosphereFramework {
         // Jersey will itself handle the headers.
         //initParams.put(WRITE_HEADERS, "false");
 
-        ReflectorServletProcessor rsp = new ReflectorServletProcessor();
+        ReflectorServletProcessor rsp = newClassInstance(ReflectorServletProcessor.class);
         if (broadcasterClassNameTmp != null) broadcasterClassName = broadcasterClassNameTmp;
         rsp.setServletClassName(JERSEY_CONTAINER);
         sessionSupport(false);
@@ -1296,7 +1297,10 @@ public class AtmosphereFramework {
                     logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName);
                 } catch (Exception ex2) {
                     logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
-                    webSocketProtocol = new SimpleHttpProtocol();
+                    try {
+                        webSocketProtocol = newClassInstance(SimpleHttpProtocol.class);
+                    } catch (Exception e) {
+                    }
                 }
             }
         }
@@ -1367,7 +1371,7 @@ public class AtmosphereFramework {
                     if (!ReflectorServletProcessor.class.getName().equals(atmoHandler.getClassName())) {
                         handler = (AtmosphereHandler) newClassInstance(c.loadClass(atmoHandler.getClassName()));
                     } else {
-                        handler = new ReflectorServletProcessor();
+                        handler = newClassInstance(ReflectorServletProcessor.class);
                     }
                     logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, atmoHandler.getContextRoot());
                 }

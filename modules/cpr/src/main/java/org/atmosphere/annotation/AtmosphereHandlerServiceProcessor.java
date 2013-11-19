@@ -58,7 +58,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
             }
 
             if (a.path().contains("{")) {
-                framework.interceptors().add(new AtmosphereHandlerServiceInterceptor());
+                framework.interceptors().add(framework.newClassInstance(AtmosphereHandlerServiceInterceptor.class));
             }
 
             AtmosphereInterceptor aa = listeners(a.listeners(), framework);

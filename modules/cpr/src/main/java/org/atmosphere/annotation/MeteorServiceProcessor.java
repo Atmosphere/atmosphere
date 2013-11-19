@@ -41,7 +41,7 @@ public class MeteorServiceProcessor implements Processor {
     @Override
     public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
         try {
-            ReflectorServletProcessor r = new ReflectorServletProcessor();
+            ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class);
             r.setServletClassName(annotatedClass.getName());
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
@@ -69,7 +69,7 @@ public class MeteorServiceProcessor implements Processor {
             }
 
             if (m.path().contains("{")) {
-                framework.interceptors().add(new MeteorServiceInterceptor());
+                framework.interceptors().add(framework.newClassInstance(MeteorServiceInterceptor.class));
             }
             framework.addAtmosphereHandler(mapping, r, broadcaster(framework, m.broadcaster(), m.path()), l);
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
