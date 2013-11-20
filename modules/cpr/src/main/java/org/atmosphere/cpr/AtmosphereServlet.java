@@ -69,7 +69,10 @@ public class AtmosphereServlet extends HttpServlet {
 
     @Override
     public void destroy() {
-        if (framework != null) framework.destroy();
+        if (framework != null) {
+            framework.destroy();
+            framework = null;
+        }
     }
 
     @Override
