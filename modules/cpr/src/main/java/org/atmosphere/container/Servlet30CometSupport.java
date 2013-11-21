@@ -197,6 +197,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             try {
                 p.timedout((AtmosphereRequest) event.getAsyncContext().getRequest(),
                         (AtmosphereResponse) event.getAsyncContext().getResponse());
+                event.getAsyncContext().complete();
             } catch (ServletException ex) {
                 logger.warn("onTimeout(): failed timing out comet response: " + event.getAsyncContext().getResponse(), ex);
             }
