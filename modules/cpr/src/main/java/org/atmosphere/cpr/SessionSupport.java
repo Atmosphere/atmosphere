@@ -39,9 +39,8 @@ public class SessionSupport implements HttpSessionListener {
         logger.trace("Session destroyed");
         try {
             HttpSession s = se.getSession();
-            BroadcasterFactory factory = BroadcasterFactory.getDefault();
-            if (factory != null) {
-               for (Broadcaster b : factory.lookupAll()) {
+            if (BroadcasterFactory.getDefault() != null) {
+                for (Broadcaster b : BroadcasterFactory.getDefault().lookupAll()) {
                     for (AtmosphereResource r : b.getAtmosphereResources()) {
                         if (r.session() != null && r.session().getId().equals(s.getId())) {
                             AtmosphereResourceImpl.class.cast(r).session(null);
