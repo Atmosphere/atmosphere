@@ -1056,6 +1056,15 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
      *
      * @return
      */
+    public final static AtmosphereResponse newInstance(AtmosphereRequest request) {
+        return new AtmosphereResponse(null, request, request.isDestroyable());
+    }
+
+    /**
+     * Create a new instance to use with WebSocket.
+     *
+     * @return
+     */
     public final static AtmosphereResponse newInstance(AtmosphereConfig config, AtmosphereRequest request, WebSocket webSocket) {
         boolean destroyable;
         String s = config.getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
