@@ -52,7 +52,7 @@ public final class JerseyBroadcasterUtil {
         // or if ContainerResponse is associated with more than Broadcaster.
         cr = (ContainerResponse) request.getAttribute(FrameworkConfig.CONTAINER_RESPONSE);
 
-        if (cr == null || !r.isSuspended()) {
+        if (cr == null || !r.isSuspended() && !r.getAtmosphereResourceEvent().isResumedOnTimeout()) {
             if (cr == null) {
                 logger.warn("Unexpected state. ContainerResponse has been resumed. Caching message {} for {}",
                         e.getMessage(), r.uuid());

@@ -774,33 +774,44 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void queueWriteIO(AtmosphereResource r, Entry entry) throws InterruptedException {
-        // The onStateChange/onRequest may change the isResumed value, hence we need to make sure only one thread flip
-        // the switch to garantee the Entry will be cached in the order it was broadcasted.
-        // Without synchronizing we may end up with a out of order BroadcasterCache queue.
-        if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
-            if (r.isResumed() || r.isCancelled()) {
-                logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), entry.message);
-                return;
-            }
-        }
-
-        AsyncWriteToken w = new AsyncWriteToken(r, entry.message, entry.future, entry.originalMessage, entry.cache);
-        if (!outOfOrderBroadcastSupported.get()) {
-            WriteQueue writeQueue = writeQueues.get(r.uuid());
-            if (writeQueue == null) {
-                writeQueue = new WriteQueue(r.uuid());
-                writeQueues.put(r.uuid(), writeQueue);
-            }
-
-            writeQueue.queue.put(w);
-            synchronized (writeQueue) {
-                if (!writeQueue.monitored.getAndSet(true)) {
-                    logger.trace("Broadcaster {} is about to queueWriteIO for AtmosphereResource {}", name, r.uuid());
-                    bc.getAsyncWriteService().submit(getAsyncWriteHandler(writeQueue));
+        if (entry.async) {
+            // The onStateChange/onRequest may change the isResumed value, hence we need to make sure only one thread flip
+            // the switch to garantee the Entry will be cached in the order it was broadcasted.
+            // Without synchronizing we may end up with a out of order BroadcasterCache queue.
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
+                if (r.isResumed() || r.isCancelled()) {
+                    logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), entry.message);
+                    return;
                 }
             }
+
+            AsyncWriteToken w = new AsyncWriteToken(r, entry.message, entry.future, entry.originalMessage, entry.cache);
+            if (!outOfOrderBroadcastSupported.get()) {
+                WriteQueue writeQueue = writeQueues.get(r.uuid());
+                if (writeQueue == null) {
+                    writeQueue = new WriteQueue(r.uuid());
+                    writeQueues.put(r.uuid(), writeQueue);
+                }
+
+                writeQueue.queue.put(w);
+                synchronized (writeQueue) {
+                    if (!writeQueue.monitored.getAndSet(true)) {
+                        logger.trace("Broadcaster {} is about to queueWriteIO for AtmosphereResource {}", name, r.uuid());
+                        bc.getAsyncWriteService().submit(getAsyncWriteHandler(writeQueue));
+                    }
+                }
+            } else {
+                uniqueWriteQueue.queue.offer(w);
+            }
         } else {
-            uniqueWriteQueue.queue.offer(w);
+            executeBlockingWrite(r, entry);
+        }
+    }
+
+    protected void executeBlockingWrite(AtmosphereResource r, Entry entry) throws InterruptedException {
+        // We deliver using the calling thread.
+        synchronized (r) {
+            executeAsyncWrite(new AsyncWriteToken(r, entry.message, entry.future, entry.originalMessage, entry.cache));
         }
     }
 
@@ -904,7 +915,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     for (AtmosphereResourceEventListener e : listeners) {
                         e.onBroadcast(event);
                     }
-                } else {
+                // Listener wil be called later
+                } else if (!event.isResumedOnTimeout()) {
                     r.notifyListeners();
                 }
             }
@@ -1275,9 +1287,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void broadcastOnResume(AtmosphereResource r) {
-        Iterator<Entry> i = broadcastOnResume.iterator();
-        while (i.hasNext()) {
-            Entry e = i.next();
+        for (Entry e : broadcastOnResume) {
+            e.async = false;
             push(new Entry(r, e));
         }
 

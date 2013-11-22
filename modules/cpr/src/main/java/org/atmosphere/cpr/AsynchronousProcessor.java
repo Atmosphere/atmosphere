@@ -478,7 +478,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                             e.setCancelled(true);
                         } else {
                             e.setIsResumedOnTimeout(true);
-
                             Broadcaster b = r.getBroadcaster();
                             if (b instanceof DefaultBroadcaster) {
                                 ((DefaultBroadcaster) b).broadcastOnResume(r);

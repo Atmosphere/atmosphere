@@ -32,6 +32,7 @@ public class Entry {
     public final TYPE type;
     // https://github.com/Atmosphere/atmosphere/issues/864
     public CacheMessage cache;
+    public boolean async;
 
     public Entry(TYPE type,
                  Object originalMessage,
@@ -40,7 +41,9 @@ public class Entry {
                  BroadcasterFuture<?> future,
                  CacheMessage cache,
                  boolean writeLocally,
-                 Set<AtmosphereResource> resources) {
+                 Set<AtmosphereResource> resources,
+                 boolean async) {
+
         this.message = message;
         this.future = future;
         this.writeLocally = writeLocally;
@@ -50,27 +53,28 @@ public class Entry {
         this.resource = r;
         this.cache = cache;
         this.resources = resources;
+        this.async = async;
     }
 
 
     public Entry(Object message, AtmosphereResource r, BroadcasterFuture<?> future, Object originalMessage) {
-        this(TYPE.RESOURCE, originalMessage, message, r, future, null, true, null);
+        this(TYPE.RESOURCE, originalMessage, message, r, future, null, true, null, true);
     }
 
     public Entry(Object message, BroadcasterFuture<?> future, Object originalMessage) {
-        this(TYPE.ALL, originalMessage, message, null, future, null, true, null);
+        this(TYPE.ALL, originalMessage, message, null, future, null, true, null, true);
     }
 
     public Entry(AtmosphereResource r, Entry e) {
-        this(TYPE.RESOURCE, e.originalMessage, e.message, r, e.future, e.cache, e.writeLocally, null);
+        this(TYPE.RESOURCE, e.originalMessage, e.message, r, e.future, e.cache, e.writeLocally, null, e.async);
     }
 
     public Entry(Object message, Set<AtmosphereResource> resources, BroadcasterFuture<?> future, Object originalMessage) {
-        this(TYPE.SET, originalMessage, message, null, future, null, true, resources);
+        this(TYPE.SET, originalMessage, message, null, future, null, true, resources, true);
     }
 
     public Entry(Object message, BroadcasterFuture<?> future, boolean writeLocally) {
-        this(TYPE.ALL, message, message, null, future, null, writeLocally, null);
+        this(TYPE.ALL, message, message, null, future, null, writeLocally, null, true);
     }
 
     @Override
