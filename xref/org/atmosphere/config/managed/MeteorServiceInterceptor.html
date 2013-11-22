@@ -125,29 +125,31 @@
 <a class="jxr_linenumber" name="115" href="#115">115</a>                             <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="116" href="#116">116</a>                                 <strong class="jxr_keyword">boolean</strong> singleton = s.getClass().getAnnotation(Singleton.<strong class="jxr_keyword">class</strong>) != <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="117" href="#117">117</a>                                 <strong class="jxr_keyword">if</strong> (!singleton) {
-<a class="jxr_linenumber" name="118" href="#118">118</a>                                     <a href="../../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a> r = <strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a>();
-<a class="jxr_linenumber" name="119" href="#119">119</a>                                     r.setServlet(s.getClass().newInstance());
-<a class="jxr_linenumber" name="120" href="#120">120</a>                                     r.init(config.getServletConfig());
-<a class="jxr_linenumber" name="121" href="#121">121</a>                                     config.framework().addAtmosphereHandler(path, r, w.interceptors);
-<a class="jxr_linenumber" name="122" href="#122">122</a>                                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="123" href="#123">123</a>                                     config.framework().addAtmosphereHandler(path, w.atmosphereHandler, w.interceptors);
-<a class="jxr_linenumber" name="124" href="#124">124</a>                                 }
-<a class="jxr_linenumber" name="125" href="#125">125</a>                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, <span class="jxr_string">"true"</span>);
-<a class="jxr_linenumber" name="126" href="#126">126</a>                             } <strong class="jxr_keyword">catch</strong> (Throwable e) {
-<a class="jxr_linenumber" name="127" href="#127">127</a>                                 logger.warn(<span class="jxr_string">"Unable to create AtmosphereHandler"</span>, e);
-<a class="jxr_linenumber" name="128" href="#128">128</a>                             }
-<a class="jxr_linenumber" name="129" href="#129">129</a>                         }
-<a class="jxr_linenumber" name="130" href="#130">130</a>                     }
-<a class="jxr_linenumber" name="131" href="#131">131</a>                 }
-<a class="jxr_linenumber" name="132" href="#132">132</a>             }
-<a class="jxr_linenumber" name="133" href="#133">133</a>         }
-<a class="jxr_linenumber" name="134" href="#134">134</a>     }
-<a class="jxr_linenumber" name="135" href="#135">135</a> 
-<a class="jxr_linenumber" name="136" href="#136">136</a>     @Override
-<a class="jxr_linenumber" name="137" href="#137">137</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/interceptor/InvokationOrder.html">PRIORITY</a> priority() {
-<a class="jxr_linenumber" name="138" href="#138">138</a>         <strong class="jxr_keyword">return</strong> InvokationOrder.BEFORE_DEFAULT;
-<a class="jxr_linenumber" name="139" href="#139">139</a>     }
-<a class="jxr_linenumber" name="140" href="#140">140</a> }
+<a class="jxr_linenumber" name="118" href="#118">118</a>                                     <a href="../../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a> r = config.framework().newClassInstance(ReflectorServletProcessor.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="119" href="#119">119</a>                                     r.setServlet(config.framework().newClassInstance(s.getClass()));
+<a class="jxr_linenumber" name="120" href="#120">120</a>                                     r.init(config);
+<a class="jxr_linenumber" name="121" href="#121">121</a>                                     config.framework().addAtmosphereHandler(path, r,
+<a class="jxr_linenumber" name="122" href="#122">122</a>                                             config.getBroadcasterFactory().lookup(m.broadcaster(), path, <strong class="jxr_keyword">true</strong>), w.interceptors);
+<a class="jxr_linenumber" name="123" href="#123">123</a>                                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="124" href="#124">124</a>                                     config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
+<a class="jxr_linenumber" name="125" href="#125">125</a>                                             config.getBroadcasterFactory().lookup(m.broadcaster(), path, <strong class="jxr_keyword">true</strong>), w.interceptors);
+<a class="jxr_linenumber" name="126" href="#126">126</a>                                 }
+<a class="jxr_linenumber" name="127" href="#127">127</a>                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, <span class="jxr_string">"true"</span>);
+<a class="jxr_linenumber" name="128" href="#128">128</a>                             } <strong class="jxr_keyword">catch</strong> (Throwable e) {
+<a class="jxr_linenumber" name="129" href="#129">129</a>                                 logger.warn(<span class="jxr_string">"Unable to create AtmosphereHandler"</span>, e);
+<a class="jxr_linenumber" name="130" href="#130">130</a>                             }
+<a class="jxr_linenumber" name="131" href="#131">131</a>                         }
+<a class="jxr_linenumber" name="132" href="#132">132</a>                     }
+<a class="jxr_linenumber" name="133" href="#133">133</a>                 }
+<a class="jxr_linenumber" name="134" href="#134">134</a>             }
+<a class="jxr_linenumber" name="135" href="#135">135</a>         }
+<a class="jxr_linenumber" name="136" href="#136">136</a>     }
+<a class="jxr_linenumber" name="137" href="#137">137</a> 
+<a class="jxr_linenumber" name="138" href="#138">138</a>     @Override
+<a class="jxr_linenumber" name="139" href="#139">139</a>     <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/interceptor/InvokationOrder.html">PRIORITY</a> priority() {
+<a class="jxr_linenumber" name="140" href="#140">140</a>         <strong class="jxr_keyword">return</strong> InvokationOrder.BEFORE_DEFAULT;
+<a class="jxr_linenumber" name="141" href="#141">141</a>     }
+<a class="jxr_linenumber" name="142" href="#142">142</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

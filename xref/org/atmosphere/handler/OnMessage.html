@@ -63,19 +63,19 @@
 <a class="jxr_linenumber" name="53" href="#53">53</a>          <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response = ((AtmosphereResourceImpl) event.getResource()).getResponse(false);
 <a class="jxr_linenumber" name="54" href="#54">54</a>  
 <a class="jxr_linenumber" name="55" href="#55">55</a>          logger.trace(<span class="jxr_string">"{} with event {}"</span>, event.getResource().uuid(), event);
-<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">if</strong> (event.getMessage() != <strong class="jxr_keyword">null</strong> &amp;&amp; List.<strong class="jxr_keyword">class</strong>.isAssignableFrom(event.getMessage().getClass())) {
-<a class="jxr_linenumber" name="57" href="#57">57</a>              List&lt;T&gt; messages = List.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(event.getMessage());
-<a class="jxr_linenumber" name="58" href="#58">58</a>              <strong class="jxr_keyword">for</strong> (T t : messages) {
-<a class="jxr_linenumber" name="59" href="#59">59</a>                  onMessage(response, t);
-<a class="jxr_linenumber" name="60" href="#60">60</a>              }
-<a class="jxr_linenumber" name="61" href="#61">61</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (event.isSuspended()) {
-<a class="jxr_linenumber" name="62" href="#62">62</a>              onMessage(response, (T) event.getMessage());
+<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">if</strong> (event.isCancelled() || event.isClosedByApplication() || event.isClosedByClient()) {
+<a class="jxr_linenumber" name="57" href="#57">57</a>              onDisconnect(response);
+<a class="jxr_linenumber" name="58" href="#58">58</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (event.getMessage() != <strong class="jxr_keyword">null</strong> &amp;&amp; List.<strong class="jxr_keyword">class</strong>.isAssignableFrom(event.getMessage().getClass())) {
+<a class="jxr_linenumber" name="59" href="#59">59</a>              List&lt;T&gt; messages = List.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(event.getMessage());
+<a class="jxr_linenumber" name="60" href="#60">60</a>              <strong class="jxr_keyword">for</strong> (T t : messages) {
+<a class="jxr_linenumber" name="61" href="#61">61</a>                  onMessage(response, t);
+<a class="jxr_linenumber" name="62" href="#62">62</a>              }
 <a class="jxr_linenumber" name="63" href="#63">63</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (event.isResuming()) {
 <a class="jxr_linenumber" name="64" href="#64">64</a>              onResume(response);
 <a class="jxr_linenumber" name="65" href="#65">65</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (event.isResumedOnTimeout()) {
 <a class="jxr_linenumber" name="66" href="#66">66</a>              onTimeout(response);
-<a class="jxr_linenumber" name="67" href="#67">67</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (event.isCancelled()) {
-<a class="jxr_linenumber" name="68" href="#68">68</a>              onDisconnect(response);
+<a class="jxr_linenumber" name="67" href="#67">67</a>          } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (event.isSuspended()) {
+<a class="jxr_linenumber" name="68" href="#68">68</a>              onMessage(response, (T) event.getMessage());
 <a class="jxr_linenumber" name="69" href="#69">69</a>          }
 <a class="jxr_linenumber" name="70" href="#70">70</a>          postStateChange(event);
 <a class="jxr_linenumber" name="71" href="#71">71</a>      }

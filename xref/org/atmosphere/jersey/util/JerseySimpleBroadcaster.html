@@ -63,27 +63,22 @@
 <a class="jxr_linenumber" name="53" href="#53">53</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.jersey.util;
 <a class="jxr_linenumber" name="54" href="#54">54</a>  
 <a class="jxr_linenumber" name="55" href="#55">55</a>  
-<a class="jxr_linenumber" name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
-<a class="jxr_linenumber" name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
-<a class="jxr_linenumber" name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEvent;
-<a class="jxr_linenumber" name="59" href="#59">59</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.SimpleBroadcaster;
-<a class="jxr_linenumber" name="60" href="#60">60</a>  
-<a class="jxr_linenumber" name="61" href="#61">61</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="62" href="#62">62</a>  <em class="jxr_javadoccomment"> * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.</em>
-<a class="jxr_linenumber" name="63" href="#63">63</a>  <em class="jxr_javadoccomment"> *</em>
-<a class="jxr_linenumber" name="64" href="#64">64</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
-<a class="jxr_linenumber" name="65" href="#65">65</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="66" href="#66">66</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/jersey/util/JerseySimpleBroadcaster.html">JerseySimpleBroadcaster</a> <strong class="jxr_keyword">extends</strong> <a href="../../../../org/atmosphere/util/SimpleBroadcaster.html">SimpleBroadcaster</a> {
-<a class="jxr_linenumber" name="67" href="#67">67</a>  
-<a class="jxr_linenumber" name="68" href="#68">68</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/jersey/util/JerseySimpleBroadcaster.html">JerseySimpleBroadcaster</a>(String id, <a href="../../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
-<a class="jxr_linenumber" name="69" href="#69">69</a>          <strong class="jxr_keyword">super</strong>(id, config);
+<a class="jxr_linenumber" name="56" href="#56">56</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
+<a class="jxr_linenumber" name="57" href="#57">57</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEvent;
+<a class="jxr_linenumber" name="58" href="#58">58</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.SimpleBroadcaster;
+<a class="jxr_linenumber" name="59" href="#59">59</a>  
+<a class="jxr_linenumber" name="60" href="#60">60</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="61" href="#61">61</a>  <em class="jxr_javadoccomment"> * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.</em>
+<a class="jxr_linenumber" name="62" href="#62">62</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="63" href="#63">63</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="64" href="#64">64</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="65" href="#65">65</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/jersey/util/JerseySimpleBroadcaster.html">JerseySimpleBroadcaster</a> <strong class="jxr_keyword">extends</strong> <a href="../../../../org/atmosphere/util/SimpleBroadcaster.html">SimpleBroadcaster</a> {
+<a class="jxr_linenumber" name="66" href="#66">66</a>  
+<a class="jxr_linenumber" name="67" href="#67">67</a>      @Override
+<a class="jxr_linenumber" name="68" href="#68">68</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> invokeOnStateChange(<strong class="jxr_keyword">final</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, <strong class="jxr_keyword">final</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> e) {
+<a class="jxr_linenumber" name="69" href="#69">69</a>          JerseyBroadcasterUtil.broadcast(r, e, <strong class="jxr_keyword">this</strong>);
 <a class="jxr_linenumber" name="70" href="#70">70</a>      }
-<a class="jxr_linenumber" name="71" href="#71">71</a>  
-<a class="jxr_linenumber" name="72" href="#72">72</a>      @Override
-<a class="jxr_linenumber" name="73" href="#73">73</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> invokeOnStateChange(<strong class="jxr_keyword">final</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, <strong class="jxr_keyword">final</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> e) {
-<a class="jxr_linenumber" name="74" href="#74">74</a>          JerseyBroadcasterUtil.broadcast(r, e, <strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="75" href="#75">75</a>      }
-<a class="jxr_linenumber" name="76" href="#76">76</a>  }
+<a class="jxr_linenumber" name="71" href="#71">71</a>  }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

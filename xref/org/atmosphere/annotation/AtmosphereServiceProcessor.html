@@ -27,17 +27,17 @@
 <a class="jxr_linenumber" name="17" href="#17">17</a>  
 <a class="jxr_linenumber" name="18" href="#18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.AtmosphereAnnotation;
 <a class="jxr_linenumber" name="19" href="#19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.AtmosphereService;
-<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
-<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereHandler;
-<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereInterceptor;
-<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
-<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEvent;
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereServletProcessor;
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.handler.ReflectorServletProcessor;
-<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
-<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
-<a class="jxr_linenumber" name="29" href="#29">29</a>  
-<a class="jxr_linenumber" name="30" href="#30">30</a>  <strong class="jxr_keyword">import</strong> javax.servlet.ServletConfig;
+<a class="jxr_linenumber" name="20" href="#20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
+<a class="jxr_linenumber" name="21" href="#21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
+<a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereHandler;
+<a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereInterceptor;
+<a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEvent;
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereServletProcessor;
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.handler.ReflectorServletProcessor;
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="30" href="#30">30</a>  
 <a class="jxr_linenumber" name="31" href="#31">31</a>  <strong class="jxr_keyword">import</strong> javax.servlet.ServletException;
 <a class="jxr_linenumber" name="32" href="#32">32</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
 <a class="jxr_linenumber" name="33" href="#33">33</a>  <strong class="jxr_keyword">import</strong> java.util.LinkedList;
@@ -70,7 +70,7 @@
 <a class="jxr_linenumber" name="60" href="#60">60</a>              }
 <a class="jxr_linenumber" name="61" href="#61">61</a>  
 <a class="jxr_linenumber" name="62" href="#62">62</a>              <strong class="jxr_keyword">if</strong> (!a.servlet().isEmpty()) {
-<a class="jxr_linenumber" name="63" href="#63">63</a>                  <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a> r = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a>();
+<a class="jxr_linenumber" name="63" href="#63">63</a>                  <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/handler/ReflectorServletProcessor.html">ReflectorServletProcessor</a> r = framework.newClassInstance(ReflectorServletProcessor.<strong class="jxr_keyword">class</strong>);
 <a class="jxr_linenumber" name="64" href="#64">64</a>                  r.setServletClassName(a.servlet());
 <a class="jxr_linenumber" name="65" href="#65">65</a>  
 <a class="jxr_linenumber" name="66" href="#66">66</a>                  String mapping = a.path();
@@ -78,7 +78,7 @@
 <a class="jxr_linenumber" name="68" href="#68">68</a>                  Class&lt;?&gt;[] interceptors = a.interceptors();
 <a class="jxr_linenumber" name="69" href="#69">69</a>                  <strong class="jxr_keyword">for</strong> (Class i : interceptors) {
 <a class="jxr_linenumber" name="70" href="#70">70</a>                      <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="71" href="#71">71</a>                          <a href="../../../org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a> ai = (AtmosphereInterceptor) i.newInstance();
+<a class="jxr_linenumber" name="71" href="#71">71</a>                          <a href="../../../org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a> ai = (AtmosphereInterceptor) framework.newClassInstance(i);
 <a class="jxr_linenumber" name="72" href="#72">72</a>                          l.add(ai);
 <a class="jxr_linenumber" name="73" href="#73">73</a>                      } <strong class="jxr_keyword">catch</strong> (Throwable e) {
 <a class="jxr_linenumber" name="74" href="#74">74</a>                          logger.warn(<span class="jxr_string">""</span>, e);
@@ -108,12 +108,12 @@
 <a class="jxr_linenumber" name="98" href="#98">98</a>                          }
 <a class="jxr_linenumber" name="99" href="#99">99</a>  
 <a class="jxr_linenumber" name="100" href="#100">100</a>                         @Override
-<a class="jxr_linenumber" name="101" href="#101">101</a>                         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> init(ServletConfig sc) <strong class="jxr_keyword">throws</strong> ServletException {
-<a class="jxr_linenumber" name="102" href="#102">102</a>                             String s = sc.getInitParameter(ATMOSPHERERESOURCE_INTERCEPTOR_METHOD);
+<a class="jxr_linenumber" name="101" href="#101">101</a>                         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> init(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) <strong class="jxr_keyword">throws</strong> ServletException {
+<a class="jxr_linenumber" name="102" href="#102">102</a>                             String s = config.getInitParameter(ATMOSPHERERESOURCE_INTERCEPTOR_METHOD);
 <a class="jxr_linenumber" name="103" href="#103">103</a>                             <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="104" href="#104">104</a>                                 method = s;
 <a class="jxr_linenumber" name="105" href="#105">105</a>                             }
-<a class="jxr_linenumber" name="106" href="#106">106</a>                             r.init(sc);
+<a class="jxr_linenumber" name="106" href="#106">106</a>                             r.init(config);
 <a class="jxr_linenumber" name="107" href="#107">107</a>                         }
 <a class="jxr_linenumber" name="108" href="#108">108</a>                     };
 <a class="jxr_linenumber" name="109" href="#109">109</a>                     framework.addAtmosphereHandler(mapping, proxy, l);

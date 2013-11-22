@@ -110,7 +110,7 @@
 <a class="jxr_linenumber" name="100" href="#100">100</a>     }
 <a class="jxr_linenumber" name="101" href="#101">101</a> 
 <a class="jxr_linenumber" name="102" href="#102">102</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cache/CacheMessage.html">CacheMessage</a> put(<a href="../../../org/atmosphere/cache/BroadcastMessage.html">BroadcastMessage</a> message, Long now) {
-<a class="jxr_linenumber" name="103" href="#103">103</a>         <strong class="jxr_keyword">if</strong> (message == <strong class="jxr_keyword">null</strong> || !inspect(message)) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="103" href="#103">103</a>         <strong class="jxr_keyword">if</strong> (!inspect(message)) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="104" href="#104">104</a> 
 <a class="jxr_linenumber" name="105" href="#105">105</a>         logger.trace(<span class="jxr_string">"Caching message {} for Broadcaster {}"</span>, message.message);
 <a class="jxr_linenumber" name="106" href="#106">106</a> 

@@ -62,8 +62,8 @@
 <a class="jxr_linenumber" name="52" href="#52">52</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> inspect(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
 <a class="jxr_linenumber" name="53" href="#53">53</a>          <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).getRequest(false);
 <a class="jxr_linenumber" name="54" href="#54">54</a>          String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-<a class="jxr_linenumber" name="55" href="#55">55</a>          String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">if</strong> (p != <strong class="jxr_keyword">null</strong> &amp;&amp; s != <strong class="jxr_keyword">null</strong> &amp;&amp; uuid != <strong class="jxr_keyword">null</strong> &amp;&amp; s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
+<a class="jxr_linenumber" name="55" href="#55">55</a>          String uuid = r.uuid();
+<a class="jxr_linenumber" name="56" href="#56">56</a>          <strong class="jxr_keyword">if</strong> (p != <strong class="jxr_keyword">null</strong> &amp;&amp; s != <strong class="jxr_keyword">null</strong> &amp;&amp; s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
 <a class="jxr_linenumber" name="57" href="#57">57</a>              logger.trace(<span class="jxr_string">"AtmosphereResource {} disconnected"</span>, uuid);
 <a class="jxr_linenumber" name="58" href="#58">58</a>              <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> ss = AtmosphereResourceFactory.getDefault().find(uuid);
 <a class="jxr_linenumber" name="59" href="#59">59</a>              <strong class="jxr_keyword">if</strong> (ss != <strong class="jxr_keyword">null</strong>) {

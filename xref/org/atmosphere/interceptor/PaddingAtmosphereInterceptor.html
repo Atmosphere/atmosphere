@@ -71,7 +71,7 @@
 <a class="jxr_linenumber" name="61" href="#61">61</a>          <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = response.request();
 <a class="jxr_linenumber" name="62" href="#62">62</a>          <strong class="jxr_keyword">if</strong> (request != <strong class="jxr_keyword">null</strong> &amp;&amp; request.getAttribute(<span class="jxr_string">"paddingWritten"</span>) != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="63" href="#63">63</a>  
-<a class="jxr_linenumber" name="64" href="#64">64</a>          <strong class="jxr_keyword">if</strong> (response.resource().transport().equals(TRANSPORT.STREAMING)) {
+<a class="jxr_linenumber" name="64" href="#64">64</a>          <strong class="jxr_keyword">if</strong> (response.resource() != <strong class="jxr_keyword">null</strong> &amp;&amp; response.resource().transport().equals(TRANSPORT.STREAMING)) {
 <a class="jxr_linenumber" name="65" href="#65">65</a>              request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
 <a class="jxr_linenumber" name="66" href="#66">66</a>              response.setContentType(<span class="jxr_string">"text/plain"</span>);
 <a class="jxr_linenumber" name="67" href="#67">67</a>          }
