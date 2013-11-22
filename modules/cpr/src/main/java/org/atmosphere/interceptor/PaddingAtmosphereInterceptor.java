@@ -61,7 +61,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereRequest request = response.request();
         if (request != null && request.getAttribute("paddingWritten") != null) return;
 
-        if (response.resource().transport().equals(TRANSPORT.STREAMING)) {
+        if (response.resource() != null && response.resource().transport().equals(TRANSPORT.STREAMING)) {
             request.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.STREAMING_TRANSPORT);
             response.setContentType("text/plain");
         }
