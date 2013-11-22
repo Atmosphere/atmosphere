@@ -243,7 +243,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public AtmosphereResource resume() {
 
         if (!isSuspended()) {
-            logger.warn("AtmosphereResource {} not suspend, cannot resume it.", uuid());
+            logger.trace("AtmosphereResource {} not suspended {}, cannot resume it.", uuid(), action);
             return this;
         }
 
