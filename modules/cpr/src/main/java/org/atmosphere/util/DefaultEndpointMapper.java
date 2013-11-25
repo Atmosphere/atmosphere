@@ -16,6 +16,7 @@
 package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -104,6 +105,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
                 }
             }
         }
+        req.setAttribute(FrameworkConfig.MAPPED_PATH, path);
         return handler;
     }
 

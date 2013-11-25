@@ -120,7 +120,7 @@ public interface FrameworkConfig {
     /**
      * Current transport used.
      */
-    String TRANSPORT_IN_USE = AtmosphereConfig.class.getName() + ".transportUsed";
+    String TRANSPORT_IN_USE = FrameworkConfig.class.getName() + ".transportUsed";
     /**
      * Callback hook for framework implementing Atmosphere support.
      */
@@ -166,5 +166,10 @@ public interface FrameworkConfig {
      * CDI Injector
      */
     String CDI_INJECTOR = "org.atmosphere.cdi.CDIObjectFactory";
+    /**
+     * The path that mapped the {@link AtmosphereHandler}
+     */
+    String MAPPED_PATH = AtmosphereHandler.class.getName() + ".mappedBy";
+
 
 }
