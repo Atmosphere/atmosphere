@@ -464,6 +464,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return b.headers;
     }
 
+    public Map<String, String[]> queryStringsMap() {
+        return b.queryStrings;
+    }
+
     public AtmosphereRequest method(String m) {
         b.method(m);
         return this;
