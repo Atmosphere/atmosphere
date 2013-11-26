@@ -171,5 +171,4 @@ public interface FrameworkConfig {
      */
     String MAPPED_PATH = AtmosphereHandler.class.getName() + ".mappedBy";
 
-
 }

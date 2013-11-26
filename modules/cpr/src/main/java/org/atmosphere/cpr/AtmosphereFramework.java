@@ -718,6 +718,7 @@ public class AtmosphereFramework {
 
     private void info() {
 
+        logger.info("Using EndpointMapper {}", endpointMapper.getClass());
         for (String i : broadcasterFilters) {
             logger.info("Using BroadcastFilter: {}", i);
         }
@@ -1319,6 +1320,7 @@ public class AtmosphereFramework {
                 logger.error("Cannot load the EndpointMapper {}", s, ex);
             }
         }
+        endpointMapper.configure(config);
     }
 
     public AtmosphereFramework destroy() {

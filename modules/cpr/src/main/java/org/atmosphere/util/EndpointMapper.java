@@ -15,6 +15,7 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 
 import java.util.Map;
@@ -27,6 +28,8 @@ import java.util.Map;
  * @Jeanfrancois Arcand
  */
 public interface EndpointMapper<U> {
+
+    public void configure(AtmosphereConfig config);
 
     /**
      * Mape the request to its associated endpoint.

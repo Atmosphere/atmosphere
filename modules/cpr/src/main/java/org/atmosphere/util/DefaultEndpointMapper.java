@@ -15,6 +15,7 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.uri.UriTemplate;
@@ -74,6 +75,10 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
             path = "/";
         }
         return path;
+    }
+
+    @Override
+    public void configure(AtmosphereConfig config) {
     }
 
     @Override
