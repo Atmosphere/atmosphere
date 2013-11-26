@@ -81,6 +81,7 @@
                             org.apache.coyote*;resolution:=optional,
                             org.mortbay.util.ajax*;resolution:=optional,
                             org.atmosphere.jboss;resolution:=optional,
+                            javax.servlet*;version="${servlet-version-range}",
                             *,
                         </Import-Package>
                         <Export-Package>

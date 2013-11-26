@@ -28,7 +28,10 @@
                 <extensions>true</extensions>
                 <configuration>
                     <instructions>
-                        <Import-Package>*</Import-Package>
+                        <Import-Package>
+                            javax.servlet*;version="${servlet-version-range}",
+                            *
+                        </Import-Package>
                         <Export-Package>
                             org.atmosphere.jersey.*
                         </Export-Package>
