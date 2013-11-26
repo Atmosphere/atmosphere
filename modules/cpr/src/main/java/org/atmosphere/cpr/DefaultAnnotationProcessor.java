@@ -149,7 +149,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             }
 
             // Now look for application defined annotation
-            String path = f.getHandlersPath();
+            String path = f.getServletContext().getRealPath(f.getHandlersPath());
             if (path != null) {
                 detector.detect(new File(path));
             }
@@ -274,17 +274,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         }
 
         private void scanForCustomAnnotation(Set<Class<?>> atmosphereAnnotatedClasses) throws IOException {
-
             BytecodeBasedAnnotationProcessor b = new BytecodeBasedAnnotationProcessor(handler);
             b.configure(framework);
-            List<String> packages = framework.packages();
-            if (packages.size() > 0) {
-                for (String p : packages) {
-                    logger.trace("Package {} scanned for @AtmosphereAnnotation", p);
-                    b.scan(p);
-                }
-            }
-            b.destroy();
+            String path = framework.getServletContext().getRealPath(framework.getHandlersPath());
+            b.scan(new File(path)).destroy();
         }
 
         @Override

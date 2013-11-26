@@ -2198,8 +2198,6 @@ public class AtmosphereFramework {
     }
 
     protected void autoConfigureService(ServletContext sc) throws IOException {
-        final ClassLoader cl = Thread.currentThread().getContextClassLoader();
-
         String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : sc.getRealPath(handlersPath);
         try {
             annotationProcessor = (AnnotationProcessor) newClassInstance(getClass().getClassLoader().loadClass(annotationProcessorClassName));
