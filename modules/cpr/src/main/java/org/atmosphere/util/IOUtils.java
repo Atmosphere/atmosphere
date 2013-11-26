@@ -15,15 +15,19 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.Servlet;
+import javax.servlet.ServletRegistration;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.util.Map;
 
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
@@ -67,4 +71,29 @@ public class IOUtils {
         }
         return stringBuilder;
     }
+
+    public static String guestServletPath(AtmosphereFramework framework, Class<? extends Servlet> clazz, Class<?> callee) {
+        String servletPath = "";
+        try {
+            Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
+            for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
+                if (clazz.isAssignableFrom(loadClass(callee, e.getValue().getClassName()))) {
+                    servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
+                    break;
+                }
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
+        return servletPath;
+    }
+
+    public static Class<?> loadClass(Class thisClass, String className) throws Exception {
+        try {
+            return Thread.currentThread().getContextClassLoader().loadClass(className);
+        } catch (Throwable t) {
+            return thisClass.getClassLoader().loadClass(className);
+        }
+    }
+
 }

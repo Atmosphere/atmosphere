@@ -21,13 +21,13 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletRegistration;
 import javax.servlet.http.HttpSession;
 import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
@@ -86,17 +86,7 @@ public class JSR356Endpoint extends Endpoint {
             maxTextBufferSize = -1;
         }
 
-        try {
-            Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
-            for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
-                if (AtmosphereServlet.class.isAssignableFrom(loadClass(e.getValue().getClassName()))) {
-                    // TODO: This is a hack and won't work with several Servlet
-                    servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
-                }
-            }
-        } catch (Exception ex) {
-            logger.trace("", ex);
-        }
+        servletPath = IOUtils.guestServletPath(framework, AtmosphereServlet.class, getClass());
     }
 
     public JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
@@ -221,13 +211,5 @@ public class JSR356Endpoint extends Endpoint {
         logger.error("", t);
         webSocketProcessor.notifyListener(webSocket,
                 new WebSocketEventListener.WebSocketEvent<Throwable>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
-    }
-
-    protected Class<?> loadClass(String className) throws Exception {
-        try {
-            return Thread.currentThread().getContextClassLoader().loadClass(className);
-        } catch (Throwable t) {
-            return getClass().getClassLoader().loadClass(className);
-        }
     }
 }
