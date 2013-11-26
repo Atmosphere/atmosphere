@@ -473,6 +473,7 @@
         <junit-version>3.8.1</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version>3.0-b74b</servlet-version>
+        <servlet-version-range>[2.5,4)</servlet-version-range>
         <grizzly-version>1.9.57</grizzly-version>
         <grizzly2-version>2.3.1</grizzly2-version>
         <jboss-version>2.1.1.GA</jboss-version>
