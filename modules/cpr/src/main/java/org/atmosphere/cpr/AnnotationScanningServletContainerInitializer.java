@@ -12,7 +12,7 @@ import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.config.service.BroadcasterFilterService;
 import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
-import org.atmosphere.config.service.EndpoinMapperService;
+import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
@@ -54,7 +54,7 @@ import java.util.Set;
         BroadcasterCacheInspectorService.class,
         ManagedService.class,
         AtmosphereService.class,
-        EndpoinMapperService.class,
+        EndpointMapperService.class,
         AtmosphereAnnotation.class
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {

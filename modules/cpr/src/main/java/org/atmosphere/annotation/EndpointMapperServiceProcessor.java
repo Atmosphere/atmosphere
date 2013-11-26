@@ -16,13 +16,13 @@
 package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
-import org.atmosphere.config.service.EndpoinMapperService;
+import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.util.EndpointMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-@AtmosphereAnnotation(EndpoinMapperService.class)
+@AtmosphereAnnotation(EndpointMapperService.class)
 public class EndpointMapperServiceProcessor implements Processor {
 
     private static final Logger logger = LoggerFactory.getLogger(EndpointMapperServiceProcessor.class);
