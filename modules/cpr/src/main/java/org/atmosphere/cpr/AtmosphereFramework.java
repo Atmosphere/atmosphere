@@ -2374,6 +2374,10 @@ public class AtmosphereFramework {
         return this;
     }
 
+    public List<String> packages() {
+        return packages;
+    }
+
     /**
      * Return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}.
      *

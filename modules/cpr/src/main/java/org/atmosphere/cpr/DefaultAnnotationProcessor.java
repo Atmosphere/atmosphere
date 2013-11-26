@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
@@ -267,7 +266,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             }
 
             // If larger, a custom annotation has been defined.
-            if (atmosphereAnnotatedClasses != null && atmosphereAnnotatedClasses.size() > AnnotationScanningServletContainerInitializer.class.getAnnotation(HandlesTypes.class).value().length) {
+            if (atmosphereAnnotatedClasses != null && atmosphereAnnotatedClasses.size() >=
+                    AnnotationScanningServletContainerInitializer.class.getAnnotation(HandlesTypes.class).value().length) {
                 scanForCustomizedAnnotation = true;
             }
             return scanForCustomizedAnnotation;
@@ -277,9 +277,11 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
             BytecodeBasedAnnotationProcessor b = new BytecodeBasedAnnotationProcessor(handler);
             b.configure(framework);
-            for (Class<?> clazz : atmosphereAnnotatedClasses) {
-                if (clazz.getPackage().getName().startsWith(Processor.class.getName())) {
-                    b.scan(clazz.getPackage().getName());
+            List<String> packages = framework.packages();
+            if (packages.size() > 0) {
+                for (String p : packages) {
+                    logger.trace("Package {} scanned for @AtmosphereAnnotation", p);
+                    b.scan(p);
                 }
             }
             b.destroy();
