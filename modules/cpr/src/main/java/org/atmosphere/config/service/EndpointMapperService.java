@@ -29,5 +29,5 @@ import java.lang.annotation.Target;
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
-public @interface EndpoinMapperService {
+public @interface EndpointMapperService {
 }

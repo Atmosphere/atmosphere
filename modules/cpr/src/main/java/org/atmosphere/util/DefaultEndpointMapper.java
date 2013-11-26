@@ -55,8 +55,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         return handler;
     }
 
-    @Override
-    public U map(AtmosphereRequest req, Map<String, U> handlers) {
+    public String computePath(AtmosphereRequest req) {
         String path;
         String pathInfo = null;
         try {
@@ -74,6 +73,12 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         if (path == null || path.isEmpty()) {
             path = "/";
         }
+        return path;
+    }
+
+    @Override
+    public U map(AtmosphereRequest req, Map<String, U> handlers) {
+        String path = computePath(req);
 
         U handler = map(path + (path.endsWith("/") ? "all" : "/all"), handlers);
         if (handler == null) {
