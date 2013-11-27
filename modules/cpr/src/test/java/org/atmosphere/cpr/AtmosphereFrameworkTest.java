@@ -21,9 +21,6 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.Enumeration;
 
@@ -42,34 +39,7 @@ public class AtmosphereFrameworkTest {
     @Test
     public void testServletContextFactory() throws ServletException {
         AtmosphereFramework f = new AtmosphereFramework();
-        f.init(new ServletConfig() {
-            @Override
-            public String getServletName() {
-                return null;
-            }
-
-            @Override
-            public ServletContext getServletContext() {
-                return (ServletContext)
-                        Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ServletContext.class},
-                                new InvocationHandler() {
-                                    @Override
-                                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                                        return null;
-                                    }
-                                });
-            }
-
-            @Override
-            public String getInitParameter(String name) {
-                return null;
-            }
-
-            @Override
-            public Enumeration<String> getInitParameterNames() {
-                return null;
-            }
-        });
+        f.init();
         assertNotNull(ServletContextFactory.getDefault().getServletContext());
 
     }

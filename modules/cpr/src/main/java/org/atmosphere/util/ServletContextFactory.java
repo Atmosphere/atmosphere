@@ -16,8 +16,6 @@
 package org.atmosphere.util;
 
 import javax.servlet.ServletContext;
-import java.lang.ref.WeakReference;
-import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * A simple Factory to get access to the {@linl ServletContext}. This factory won't work if more than one Servlet is deployed inside the same war.
@@ -26,26 +24,24 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class ServletContextFactory {
 
-    private AtomicReference<WeakReference<ServletContext>> servletContext = new AtomicReference<WeakReference<ServletContext>>();
+    private ServletContext servletContext = null;
     private static ServletContextFactory servletContextFactory;
 
-    private ServletContextFactory(){}
+    private ServletContextFactory() {
+    }
 
     /**
      * Set the ServletContext
-     * @param ctx ServletContext
+     *
+     * @param servletContext ServletContext
      */
-    public void init(ServletContext ctx) {
-        servletContext.set(new WeakReference<ServletContext>(ctx));
+    public void init(ServletContext servletContext) {
+        this.servletContext = servletContext;
     }
 
     public ServletContext getServletContext() {
-        WeakReference<ServletContext> ref = servletContext.get();
-        if (ref != null) {
-            ServletContext ctx = ref.get();
-            if (ctx != null) {
-                return ctx;
-            }
+        if (servletContext != null) {
+            return servletContext;
         }
         return null;
     }
