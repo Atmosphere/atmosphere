@@ -39,6 +39,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.Reader;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
@@ -59,7 +61,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
-    private List<Method> onRuntimeMethod;
+    private List<MethodInfo> onRuntimeMethod;
     private Method onDisconnectMethod;
     private Method onTimeoutMethod;
     private Method onGetMethod;
@@ -88,6 +90,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onReadyMethod = populate(c, Ready.class);
         this.onResumeMethod = populate(c, Resume.class);
         this.config = config;
+
+        scanForReaderOrInputStream();
 
         if (onRuntimeMethod.size() > 0) {
             populateEncoders();
@@ -124,24 +128,17 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
         } else if (method.equalsIgnoreCase("post")) {
-            String body = IOUtils.readEntirely(resource).toString();
-            resource.getRequest().body(body);
-            invoke(onPostMethod, resource);
-
-            if (!body.isEmpty()) {
-                Object o = null;
-                try {
-                    o = invoke(resource, body);
-                } catch (IOException e) {
-                    logger.error("", e);
-                }
-                if (o != null) {
-                    resource.getBroadcaster().broadcast(o);
-                }
-            } else {
-                logger.warn("{} received an empty body", ManagedServiceInterceptor.class.getSimpleName());
+            String body = null;
+            if (onPostMethod != null) {
+                body = IOUtils.readEntirely(resource).toString();
+                resource.getRequest().body(body);
+                invoke(onPostMethod, resource);
             }
 
+            Object o = message(resource, body);
+            if (o != null) {
+                resource.getBroadcaster().broadcast(o);
+            }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
         } else if (method.equalsIgnoreCase("put")) {
@@ -181,8 +178,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             // This makes application development more simpler.
             // Chaining of encoder is not supported.
             // TODO: This could be problematic with String + method
-            for (Method m : onRuntimeMethod) {
-                o = Invoker.encode(encoders.get(m), msg);
+            for (MethodInfo m : onRuntimeMethod) {
+                o = Invoker.encode(encoders.get(m.method), msg);
                 if (o != null) {
                     event.setMessage(o);
                     break;
@@ -197,10 +194,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
-    public Object invoke(AtmosphereResource resource, Object msg) throws IOException {
-        return message(resource, msg);
-    }
-
     private Method populate(Object c, Class<? extends Annotation> annotation) {
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(annotation)) {
@@ -210,27 +203,40 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
-    private List<Method> populateMessage(Object c, Class<? extends Annotation> annotation) {
-        ArrayList<Method> methods = new ArrayList<Method>();
+    private List<MethodInfo> populateMessage(Object c, Class<? extends Annotation> annotation) {
+        ArrayList<MethodInfo> methods = new ArrayList<MethodInfo>();
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(annotation)) {
-                methods.add(m);
+                methods.add(new MethodInfo(m));
             }
         }
         return methods;
     }
 
+    private void scanForReaderOrInputStream() {
+        for (MethodInfo m : onRuntimeMethod) {
+            Class<?>[] classes = m.method.getParameterTypes();
+            for (Class<?> c : classes) {
+                if (InputStream.class.isAssignableFrom(c)) {
+                    m.useStream = true;
+                } else if (Reader.class.isAssignableFrom(c)) {
+                    m.useReader = true;
+                }
+            }
+        }
+    }
+
     private void populateEncoders() {
-        for (Method m : onRuntimeMethod) {
+        for (MethodInfo m : onRuntimeMethod) {
             List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
-            for (Class<? extends Encoder> s : m.getAnnotation(Message.class).encoders()) {
+            for (Class<? extends Encoder> s : m.method.getAnnotation(Message.class).encoders()) {
                 try {
                     l.add(config.framework().newClassInstance(s));
                 } catch (Exception e) {
                     logger.error("Unable to load encoder {}", s);
                 }
             }
-            encoders.put(m, l);
+            encoders.put(m.method, l);
         }
 
         if (onReadyMethod != null) {
@@ -247,16 +253,16 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     private void populateDecoders() {
-        for (Method m : onRuntimeMethod) {
+        for (MethodInfo m : onRuntimeMethod) {
             List<Decoder<?, ?>> l = new CopyOnWriteArrayList<Decoder<?, ?>>();
-            for (Class<? extends Decoder> s : m.getAnnotation(Message.class).decoders()) {
+            for (Class<? extends Decoder> s : m.method.getAnnotation(Message.class).decoders()) {
                 try {
                     l.add(config.framework().newClassInstance(s));
                 } catch (Exception e) {
                     logger.error("Unable to load encoder {}", s);
                 }
             }
-            decoders.put(m, l);
+            decoders.put(m.method, l);
         }
     }
 
@@ -276,19 +282,37 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private Object message(AtmosphereResource resource, Object o) {
         try {
-            for (Method m : onRuntimeMethod) {
-                Object decoded = Invoker.decode(decoders.get(m), o);
+            for (MethodInfo m : onRuntimeMethod) {
+
+                if (m.useReader) {
+                    o = resource.getRequest().getReader();
+                } else if (m.useStream) {
+                    o = resource.getRequest().getInputStream();
+                } else if (o == null) {
+                    o = IOUtils.readEntirely(resource).toString();
+                    if (String.class.cast(o).isEmpty()) {
+                        logger.warn("{} received an empty body", ManagedServiceInterceptor.class.getSimpleName());
+                        return null;
+                    }
+                }
+
+                Object decoded = Invoker.decode(decoders.get(m.method), o);
                 if (decoded == null) {
                     decoded = o;
                 }
                 Object objectToEncode = null;
-                if (m.getParameterTypes().length == 2) {
-                    objectToEncode = Invoker.invokeMethod(m, proxiedInstance, resource, decoded);
+
+                if (m.method.getParameterTypes().length > 2) {
+                    logger.warn("Injection of more than 2 parameters not supported {}", m);
+                }
+
+                if (m.method.getParameterTypes().length == 2) {
+                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
                 } else {
-                    objectToEncode = Invoker.invokeMethod(m, proxiedInstance, decoded);
+                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
                 }
                 if (objectToEncode != null) {
-                    return Invoker.encode(encoders.get(m), objectToEncode);
+                    return Invoker.encode(encoders.get(m.method), objectToEncode);
                 }
             }
         } catch (Throwable t) {
@@ -337,5 +361,16 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     @Override
     public String toString() {
         return "ManagedAtmosphereHandler proxy for " + proxiedInstance.getClass().getName();
+    }
+
+    public final static class MethodInfo {
+
+        final Method method;
+        boolean useStream;
+        boolean useReader;
+
+        public MethodInfo(Method method) {
+            this.method = method;
+        }
     }
 }

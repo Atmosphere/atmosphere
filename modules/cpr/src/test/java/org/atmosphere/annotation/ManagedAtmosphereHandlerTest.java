@@ -42,7 +42,11 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -342,6 +346,94 @@ public class ManagedAtmosphereHandlerTest {
 
         assertNotNull(r.get());
         assertEquals(r.get().getBroadcaster().getClass().getName(), SimpleBroadcaster.class.getName());
+
+    }
+
+    @ManagedService(path = "/readerInjection")
+    public final static class ReaderInjection {
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(resource);
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/readerInjection").method("POST").body("message").build();
+
+                    try {
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ServletException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).suspend();
+
+        }
+
+        @Message
+        public void message(Reader reader) {
+            try {
+                message.set(new BufferedReader(reader).readLine());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Test
+    public void testReaderMessage() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/readerInjection").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+        assertNotNull(message.get());
+        assertEquals(message.get(), "message");
+
+    }
+
+    @ManagedService(path = "/inputStreamInjection")
+    public final static class InputStreamInjection {
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(resource);
+            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inputStreamInjection").method("POST").body("message").build();
+
+                    try {
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ServletException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).suspend();
+
+        }
+
+        @Message
+        public void message(InputStream reader) {
+            try {
+                message.set(new BufferedReader(new InputStreamReader(reader)).readLine());
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+    }
+
+    @Test
+    public void testInputStreamMessage() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inputStreamInjection").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+        assertNotNull(message.get());
+        assertEquals(message.get(), "message");
 
     }
 }
