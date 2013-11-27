@@ -92,7 +92,11 @@ public class AnnotationUtil {
 
     public static Class<? extends Broadcaster> broadcasterClass(AtmosphereFramework framework, Class<? extends Broadcaster> broadcaster) throws Exception {
         if (framework.isBroadcasterSpecified()) {
-            broadcaster = (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader().loadClass(framework.getDefaultBroadcasterClassName());
+            try {
+                broadcaster = (Class<? extends Broadcaster>) framework.getClass().getClassLoader().loadClass(framework.getDefaultBroadcasterClassName());
+            } catch (ClassNotFoundException ex) {
+                broadcaster = (Class<? extends Broadcaster>) Thread.currentThread().getContextClassLoader().loadClass(framework.getDefaultBroadcasterClassName());
+            }
         }
         return broadcaster;
     }
