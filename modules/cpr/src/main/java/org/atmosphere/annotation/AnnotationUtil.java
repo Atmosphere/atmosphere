@@ -51,6 +51,7 @@ public class AnnotationUtil {
         for (String s : m) {
             String[] nv = s.split("=");
             framework.addInitParameter(nv[0], nv[1]);
+            framework.reconfigureInitParams(true);
         }
     }
 

@@ -211,6 +211,7 @@ public class AtmosphereFramework {
     protected boolean isDestroyed = false;
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
+    protected boolean reconfigureInitParams = false;
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Default Interceptor
@@ -717,6 +718,14 @@ public class AtmosphereFramework {
         isInit = true;
         return this;
     }
+
+    public void reconfigureInitParams(boolean reconfigureInitParams) {
+        if (reconfigureInitParams) {
+            doInitParams(servletConfig);
+            doInitParamsForWebSocket(servletConfig);
+        }
+    }
+
 
     private void info() {
 
@@ -1233,7 +1242,7 @@ public class AtmosphereFramework {
         for (String b : objectFactoryType) {
             try {
                 Class<?> c = Class.forName(b);
-                return (AtmosphereObjectFactory)c.newInstance();
+                return (AtmosphereObjectFactory) c.newInstance();
             } catch (Exception e) {
                 logger.trace("", e);
             }
@@ -1666,7 +1675,7 @@ public class AtmosphereFramework {
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
-        req.setAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST, ""+config.isThrowExceptionOnCloned());
+        req.setAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST, "" + config.isThrowExceptionOnCloned());
         boolean skip = true;
         String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
         if (s != null) {
@@ -2424,6 +2433,7 @@ public class AtmosphereFramework {
 
     /**
      * If set to true, the task of finishing the request/response lifecycle will not be handled by this class.
+     *
      * @param externalizeDestroy
      * @return this
      */
@@ -2434,6 +2444,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link AnnotationProcessor}
+     *
      * @return the {@link AnnotationProcessor}
      */
     public AnnotationProcessor annotationProcessor() {
@@ -2442,6 +2453,7 @@ public class AtmosphereFramework {
 
     /**
      * Was a {@link Broadcaster} defined in web.xml or programmatically added.
+     *
      * @return true is defined.
      */
     public boolean isBroadcasterSpecified() {
