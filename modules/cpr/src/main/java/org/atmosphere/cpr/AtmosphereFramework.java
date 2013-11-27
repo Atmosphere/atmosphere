@@ -40,6 +40,7 @@ import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.IntrospectionUtils;
+import org.atmosphere.util.ServletContextFactory;
 import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.analytics.FocusPoint;
@@ -659,6 +660,7 @@ public class AtmosphereFramework {
                 scFacade = sc;
             }
             this.servletConfig = scFacade;
+            ServletContextFactory.getDefault().init(sc.getServletContext());
 
             preventOOM();
             doInitParams(scFacade);
