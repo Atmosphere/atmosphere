@@ -74,7 +74,10 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
     @Override
     public void destroy() {
-        framework.destroy();
+        if (framework != null) {
+            framework.destroy();
+            framework = null;
+        }
     }
 
     public void init(final ServletConfig sc) throws ServletException {
