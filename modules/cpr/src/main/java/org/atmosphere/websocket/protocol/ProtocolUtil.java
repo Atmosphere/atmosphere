@@ -19,8 +19,8 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.FrameworkConfig;
 
-import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtocolUtil {
 
@@ -48,7 +48,7 @@ public class ProtocolUtil {
     }
 
     private static Map<String, Object> attributes(AtmosphereRequest request) {
-        Map<String, Object> m = new HashMap<String, Object>();
+        Map<String, Object> m = new ConcurrentHashMap<String, Object>();
         m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
         m.putAll(request.attributes());
         return m;
