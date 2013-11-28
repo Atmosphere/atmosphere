@@ -346,11 +346,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private void handleException(Exception ex, WebSocket webSocket, WebSocketHandler webSocketHandler) {
         logger.error("", ex);
         AtmosphereResource r = webSocket.resource();
-        webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                new AtmosphereResponse.Builder()
-                        .request(r != null ? AtmosphereResourceImpl.class.cast(r).getRequest(false) : null)
-                        .status(500)
-                        .statusMessage("Server Error").build()));
+        if (r != null) {
+            webSocketHandler.onError(webSocket, new WebSocketException(ex,
+                    new AtmosphereResponse.Builder()
+                            .request(r != null ? AtmosphereResourceImpl.class.cast(r).getRequest(false) : null)
+                            .status(500)
+                            .statusMessage("Server Error").build()));
+        }
     }
 
     @Override
