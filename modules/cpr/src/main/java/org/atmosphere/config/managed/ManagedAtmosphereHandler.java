@@ -104,8 +104,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     public void onRequest(final AtmosphereResource resource) throws IOException {
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
+        boolean polling = resource.transport().equals(AtmosphereResource.TRANSPORT.POLLING);
 
-        if (onReadyMethod != null) {
+        if (onReadyMethod != null && !polling) {
             resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
@@ -115,7 +116,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             });
         }
 
-        if (onResumeMethod != null) {
+        if (onResumeMethod != null && !polling) {
             resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onResume(AtmosphereResourceEvent event) {
