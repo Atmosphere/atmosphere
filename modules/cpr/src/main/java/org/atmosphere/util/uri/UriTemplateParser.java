@@ -76,7 +76,7 @@ public class UriTemplateParser {
     private static Set<Character> RESERVED_REGEX_CHARACTERS = createReserved();
 
     private static Set<Character> createReserved() {
-        // TODO need to escape all regex characters present
+        /* TODO need to escape all regex characters present */
         char[] reserved = {
             '.',
             '?',
@@ -170,6 +170,17 @@ public class UriTemplateParser {
                     ex);            
         }
     }
+
+    public UriTemplateParser destroy() {
+        names.clear();
+        groupCounts.clear();
+        nameToPattern.clear();
+        regex.setLength(0);
+        normalizedTemplate.setLength(0);
+        literalCharactersBuffer.setLength(0);
+        return this;
+    }
+
 
     /**
      * Get the template.

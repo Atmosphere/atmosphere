@@ -44,12 +44,17 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         if (handler == null) {
             final Map<String, String> m = new HashMap<String, String>();
             for (Map.Entry<String, U> e : handlers.entrySet()) {
-                UriTemplate t = new UriTemplate(e.getKey());
-                logger.trace("Trying to map {} to {}", t, path);
-                if (t.match(path, m)) {
-                    handler = e.getValue();
-                    logger.trace("Mapped {} to {}", t, e.getValue());
-                    break;
+                UriTemplate t = null;
+                try {
+                    t = new UriTemplate(e.getKey());
+                    logger.trace("Trying to map {} to {}", t, path);
+                    if (t.match(path, m)) {
+                        handler = e.getValue();
+                        logger.trace("Mapped {} to {}", t, e.getValue());
+                        break;
+                    }
+                } finally {
+                    if (t != null) t.destroy();
                 }
             }
         }

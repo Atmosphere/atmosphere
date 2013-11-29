@@ -74,13 +74,18 @@ public class MetaBroadcaster {
             final Map<String, String> m = new HashMap<String, String>();
             List<Broadcaster> l = new ArrayList<Broadcaster>();
             logger.trace("Map {}", path);
-            UriTemplate t = new UriTemplate(path);
-            for (Broadcaster b : c) {
-                logger.trace("Trying to map {} to {}", t, b.getID());
-                if (t.match(b.getID(), m)) {
-                    l.add(b);
+            UriTemplate t = null;
+            try {
+                t = new UriTemplate(path);
+                for (Broadcaster b : c) {
+                    logger.trace("Trying to map {} to {}", t, b.getID());
+                    if (t.match(b.getID(), m)) {
+                        l.add(b);
+                    }
+                    m.clear();
                 }
-                m.clear();
+            } finally {
+               if (t != null) t.destroy();
             }
 
             if (l.isEmpty()) {

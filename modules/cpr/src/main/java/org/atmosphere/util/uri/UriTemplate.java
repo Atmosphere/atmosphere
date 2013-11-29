@@ -232,7 +232,14 @@ public class UriTemplate {
 
         this.endsWithSlash = template.charAt(template.length() - 1) == '/';
 
-        this.templateVariables = Collections.unmodifiableList(templateParser.getNames());
+        this.templateVariables = templateParser.getNames();
+
+        templateParser.destroy();
+    }
+
+    public UriTemplate destroy() {
+        templateVariables.clear();
+        return this;
     }
 
     /**
