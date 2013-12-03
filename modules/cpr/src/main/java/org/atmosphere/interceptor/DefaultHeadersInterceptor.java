@@ -24,8 +24,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
 
-import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_CREDENTIALS;
-import static org.atmosphere.cpr.HeaderConfig.ACCESS_CONTROL_ALLOW_ORIGIN;
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
 import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
 import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
@@ -39,16 +37,12 @@ import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
 public class DefaultHeadersInterceptor extends AtmosphereInterceptorAdapter {
 
     private boolean injectCacheHeaders;
-    private boolean enableAccessControl;
     private boolean writeHeaders;
 
     @Override
     public void configure(AtmosphereConfig config) {
         String nocache = config.getInitParameter(ApplicationConfig.NO_CACHE_HEADERS);
         injectCacheHeaders = nocache != null ? false : true;
-
-        String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
-        enableAccessControl = ac != null ? !Boolean.parseBoolean(ac) : true;
 
         String wh = config.getInitParameter(FrameworkConfig.WRITE_HEADERS);
         writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
@@ -61,7 +55,6 @@ public class DefaultHeadersInterceptor extends AtmosphereInterceptorAdapter {
 
         // For extension that aren't supporting this interceptor (like Jersey)
         request.setAttribute(ApplicationConfig.NO_CACHE_HEADERS, injectCacheHeaders);
-        request.setAttribute(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER, enableAccessControl);
 
         if (writeHeaders && injectCacheHeaders) {
             // Set to expire far in the past.
@@ -70,12 +63,6 @@ public class DefaultHeadersInterceptor extends AtmosphereInterceptorAdapter {
             response.setHeader(CACHE_CONTROL, "no-store, no-cache, must-revalidate");
             // Set standard HTTP/1.0 no-cache header.
             response.setHeader(PRAGMA, "no-cache");
-        }
-
-        if (writeHeaders && enableAccessControl) {
-            response.setHeader(ACCESS_CONTROL_ALLOW_ORIGIN,
-                    request.getHeader("Origin") == null ? "*" : request.getHeader("Origin"));
-            response.setHeader(ACCESS_CONTROL_ALLOW_CREDENTIALS, "true");
         }
         return Action.CONTINUE;
     }
