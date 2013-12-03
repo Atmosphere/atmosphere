@@ -749,8 +749,9 @@ public class AtmosphereFramework {
 
         BroadcasterConfig bc = broadcasterFactory.lookup("/*", true).getBroadcasterConfig();
         if (bc.getAsyncWriteService() != null) {
+            long max = ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize();
             logger.info("Messaging Thread Pool Size: {}",
-                    ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize());
+                    ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize() == 2147483647 ? "Unlimited": max);
             logger.info("Async I/O Thread Pool Size: {}",
                     ThreadPoolExecutor.class.cast(bc.getAsyncWriteService()).getMaximumPoolSize());
         }
