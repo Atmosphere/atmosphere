@@ -870,7 +870,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             AtmosphereResourceImpl.class.cast(r).notifyListeners(
                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
         }
-        logger.debug("", ex);
+        logger.trace("", ex);
     }
 
     /**
