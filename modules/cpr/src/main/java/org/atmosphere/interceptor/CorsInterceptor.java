@@ -34,7 +34,7 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereRequest req = resource.getRequest();
         AtmosphereResponse res = resource.getResponse();
 
-        if (req.getHeader("Origin") != null) {
+        if (req.getHeader("Origin") != null && res.getHeader("Access-Control-Allow-Origin") == null) {
             res.addHeader("Access-Control-Allow-Origin", req.getHeader("Origin"));
             res.addHeader("Access-Control-Expose-Headers", "X-Cache-Date, X-Atmosphere-tracking-id");
             res.setHeader("Access-Control-Allow-Credentials", "true");
