@@ -45,6 +45,7 @@ public class AtmosphereConfig {
     private final AtmosphereFramework framework;
     private final Map<String, Object> properties = new HashMap<String, Object>();
     protected final List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
+    protected final List<StartupHook> startUpHook = new ArrayList<StartupHook>();
 
     public AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
@@ -191,6 +192,19 @@ public class AtmosphereConfig {
     }
 
     /**
+     * Invoke {@link ShutdownHook}s.
+     */
+    protected void initComplete() {
+        for (StartupHook h : startUpHook) {
+            try {
+                h.started(framework);
+            } catch (Exception ex) {
+                logger.warn("", ex);
+            }
+        }
+    }
+
+    /**
      * Add a {@link ShutdownHook}.
      *
      * @param s a {@link ShutdownHook}
@@ -202,11 +216,31 @@ public class AtmosphereConfig {
     }
 
     /**
+     * Add a {@link StartupHook}.
+     *
+     * @param s a {@link StartupHook}
+     * @return this
+     */
+    public AtmosphereConfig startupHook(StartupHook s) {
+        startUpHook.add(s);
+        return this;
+    }
+
+    /**
      * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An
      * Application can register one of more hooks.
      */
     public static interface ShutdownHook {
 
         void shutdown();
+    }
+
+    /**
+     * A Startup hook that will be called when the {@link AtmosphereFramework#init} method complete. An
+     * Application can register one of more hooks.
+     */
+    public static interface StartupHook {
+
+        void started(AtmosphereFramework framework);
     }
 }

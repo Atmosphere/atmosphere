@@ -718,6 +718,8 @@ public class AtmosphereFramework {
             throw new ServletException(t);
         }
         isInit = true;
+        config.initComplete();
+
         return this;
     }
 
