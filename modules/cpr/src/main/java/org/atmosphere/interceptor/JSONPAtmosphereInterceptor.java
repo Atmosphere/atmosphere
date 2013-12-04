@@ -18,12 +18,14 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.util.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -39,12 +41,18 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger logger = LoggerFactory.getLogger(JSONPAtmosphereInterceptor.class);
     private static final String END_CHUNK = "\"});";
     private static final Object START_CHUNK = "({\"message\" : \"";
+    private AtmosphereConfig config;
+
+    @Override
+    public void configure(AtmosphereConfig config) {
+        this.config = config;
+    }
 
     @Override
     public Action inspect(AtmosphereResource r) {
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP)) {
+        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || request.getRequestURI().indexOf("jsonp") != -1) {
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
@@ -52,7 +60,15 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     String callbackName() {
-                        return request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
+                        String callback =  request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
+                        if (callback == null) {
+                            // Look for extension
+                            String jsonp = (String) config.properties().get(HeaderConfig.JSONP_CALLBACK_NAME);
+                            if (jsonp != null) {
+                                callback = request.getParameter(jsonp);
+                            }
+                        }
+                        return callback;
                     }
 
                     @Override
@@ -64,12 +80,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
                         String charEncoding = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
-                        // TODO: TOTALLY INEFFICIENT. We MUST uses binary replacement instead.
-                        String s = new String(responseDraft, charEncoding);
-                        return s.replaceAll("(['\"\\/])", "\\\\$1")
-                                .replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
-                                .replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
-                                .replaceAll("\r", "\\\\r").getBytes(charEncoding);
+                        return escapeForJavaScript(new String(responseDraft, charEncoding)).getBytes(charEncoding);
                     }
 
                     @Override
@@ -82,6 +93,16 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             }
         }
         return Action.CONTINUE;
+    }
+
+    protected String escapeForJavaScript(String str) {
+        try {
+            str = StringEscapeUtils.escapeJavaScript(str);
+        } catch (Exception e) {
+            logger.error("Failed to escape", e);
+            str = null;
+        }
+        return str;
     }
 
     @Override

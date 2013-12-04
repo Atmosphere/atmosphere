@@ -34,7 +34,7 @@ import static org.atmosphere.cpr.HeaderConfig.PRAGMA;
  *
  * @author Jeanfrancois Arcand
  */
-public class DefaultHeadersInterceptor extends AtmosphereInterceptorAdapter {
+public class CacheHeadersInterceptor extends AtmosphereInterceptorAdapter {
 
     private boolean injectCacheHeaders;
     private boolean writeHeaders;
