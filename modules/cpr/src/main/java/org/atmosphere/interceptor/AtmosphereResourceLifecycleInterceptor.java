@@ -101,8 +101,9 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED)) return;
 
-        if (!AtmosphereResourceImpl.class.cast(r).action().equals(Action.CANCELLED)
-                && r.getRequest().getMethod().equalsIgnoreCase(method)) {
+        AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
+        if (!impl.action().equals(Action.CANCELLED) && impl.isInScope()
+                && impl.getRequest(false).getMethod().equalsIgnoreCase(method)) {
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
