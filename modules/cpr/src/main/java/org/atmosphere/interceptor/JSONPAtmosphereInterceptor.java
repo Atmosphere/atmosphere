@@ -52,7 +52,10 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(AtmosphereResource r) {
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || request.getRequestURI().indexOf("jsonp") != -1) {
+        // Shield from Broken server
+        String uri = request.getRequestURI() == null ? "" : request.getRequestURI();
+
+        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || uri.indexOf("jsonp") != -1) {
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
