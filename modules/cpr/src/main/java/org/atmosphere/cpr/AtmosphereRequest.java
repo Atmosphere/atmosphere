@@ -193,12 +193,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public String getRequestURI() {
-        return b.requestURI != null ? b.requestURI : (isNotNoOps() ? b.request.getRequestURI() : null);
+        return b.requestURI != null ? b.requestURI : (isNotNoOps() ? b.request.getRequestURI() : "");
     }
 
     @Override
     public StringBuffer getRequestURL() {
-        return b.requestURL != null ? new StringBuffer(b.requestURL) : (isNotNoOps() ? b.request.getRequestURL() : null);
+        return b.requestURL != null ? new StringBuffer(b.requestURL) : (isNotNoOps() ? b.request.getRequestURL() : new StringBuffer());
     }
 
     @Override
