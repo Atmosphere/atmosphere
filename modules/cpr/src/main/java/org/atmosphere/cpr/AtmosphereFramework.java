@@ -28,7 +28,8 @@ import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
-import org.atmosphere.interceptor.DefaultHeadersInterceptor;
+import org.atmosphere.interceptor.CacheHeadersInterceptor;
+import org.atmosphere.interceptor.CorsInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
@@ -211,11 +212,12 @@ public class AtmosphereFramework {
     protected boolean isDestroyed = false;
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
-    protected boolean reconfigureInitParams = false;
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
+            // Add CORS support
+            CorsInterceptor.class,
             // Default Interceptor
-            DefaultHeadersInterceptor.class,
+            CacheHeadersInterceptor.class,
             // WebKit & IE Padding
             PaddingAtmosphereInterceptor.class,
             // Android 2.3.x streaming support
@@ -229,7 +231,7 @@ public class AtmosphereFramework {
             // WebSocket and suspend
             WebSocketMessageSuspendInterceptor.class,
             // OnDisconnect
-            OnDisconnectInterceptor.class
+            OnDisconnectInterceptor.class,
     };
 
     /**
