@@ -16,6 +16,8 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -28,8 +30,20 @@ import org.atmosphere.cpr.AtmosphereResponse;
  */
 public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
+     private boolean enableAccessControl = true;
+
+     @Override
+     public void configure(AtmosphereConfig config) {
+         String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
+         if (ac != null) {
+            enableAccessControl = Boolean.parseBoolean(ac);
+         }
+     }
+
     @Override
     public Action inspect(AtmosphereResource resource) {
+
+        if (!enableAccessControl) return Action.CONTINUE;
 
         AtmosphereRequest req = resource.getRequest();
         AtmosphereResponse res = resource.getResponse();
