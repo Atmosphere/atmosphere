@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
@@ -48,7 +49,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final byte[] padding;
     private static final String paddingText;
-    private static final byte[] END = "\n\n".getBytes();
+    private static final byte[] END = "\r\n\r\n".getBytes();
     private String contentType = "text/event-stream";
 
     static {
@@ -121,8 +122,10 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
         final AtmosphereResponse response = r.getResponse();
+        final AtmosphereRequest request = r.getRequest();
+        String accept = request.getHeader("Accept") == null ? "text/plain" : request.getHeader("Accept").trim();
 
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE)) {
+        if (r.transport().equals(AtmosphereResource.TRANSPORT.SSE) || contentType.equalsIgnoreCase(accept)) {
             super.inspect(r);
 
             r.addEventListener(new P(response));
