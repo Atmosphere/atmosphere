@@ -39,8 +39,8 @@ import java.io.IOException;
 public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(JSONPAtmosphereInterceptor.class);
-    private static final String END_CHUNK = "\"});";
-    private static final Object START_CHUNK = "({\"message\" : \"";
+    private String endChunk = "\"});";
+    private String startChunk = "({\"message\" : \"";
     private AtmosphereConfig config;
 
     @Override
@@ -57,6 +57,11 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
         if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || uri.indexOf("jsonp") != -1) {
             super.inspect(r);
+
+            if (uri.indexOf("jsonp") != -1) {
+                startChunk = "(\"";
+                endChunk = "\");\r\n\r\n";
+            }
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
@@ -77,7 +82,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         String callbackName = callbackName();
-                        response.write(callbackName + START_CHUNK);
+                        response.write(callbackName + startChunk);
                     }
 
                     @Override
@@ -88,7 +93,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write(END_CHUNK, true);
+                        response.write(endChunk, true);
                     }
                 });
             } else {
