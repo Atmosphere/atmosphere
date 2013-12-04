@@ -48,16 +48,27 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
-    private static final String paddingText;
-    private int heartbeatFrequencyInSeconds = 30;
+    private static String paddingText;
+    private int heartbeatFrequencyInSeconds = 5;
+    private boolean force = false;
 
     static {
         StringBuffer whitespace = new StringBuffer();
-        for (int i = 0; i < 8192; i++) {
+        for (int i = 0; i < 1024; i++) {
             whitespace.append(" ");
         }
         whitespace.append("\n");
         paddingText = whitespace.toString();
+    }
+
+    public HeartbeatInterceptor paddingText(String paddingText) {
+        this.paddingText = paddingText;
+        return this;
+    }
+
+    public HeartbeatInterceptor force(boolean force) {
+        this.force = force;
+        return this;
     }
 
     @Override
@@ -73,7 +84,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(final AtmosphereResource r) {
 
         final AtmosphereResponse response = r.getResponse();
-        if (r.transport().equals(TRANSPORT.STREAMING)
+        if (force || r.transport().equals(TRANSPORT.STREAMING)
                 || r.transport().equals(TRANSPORT.SSE)
                 || r.transport().equals(TRANSPORT.WEBSOCKET)) {
 
@@ -103,7 +114,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                 logger.trace("Writing heartbeat for {}", r.uuid());
                                 if (r.isSuspended()) {
                                     try {
-                                        response.write(paddingText, false);
+                                        response.write(paddingText, false).flushBuffer();
                                     } catch (Throwable t) {
                                         logger.trace("{}", r.uuid(), t);
                                         try {
