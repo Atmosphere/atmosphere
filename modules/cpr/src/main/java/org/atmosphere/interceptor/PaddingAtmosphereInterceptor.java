@@ -48,7 +48,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private final String paddingText;
 
     public PaddingAtmosphereInterceptor(){
-        paddingText = confPadding(1024);
+        paddingText = confPadding(2048);
         padding = paddingText.getBytes();
     }
 
