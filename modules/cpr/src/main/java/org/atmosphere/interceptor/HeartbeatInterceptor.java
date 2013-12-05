@@ -50,7 +50,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
     private static String paddingText;
-    private int heartbeatFrequencyInSeconds = 5;
+    private int heartbeatFrequencyInSeconds = 30;
 
     static {
         StringBuffer whitespace = new StringBuffer();
