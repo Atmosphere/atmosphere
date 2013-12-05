@@ -24,10 +24,12 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
-import org.atmosphere.cpr.AtmosphereResourceEventImpl;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -49,20 +51,17 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
-    private static String paddingText;
-    private int heartbeatFrequencyInSeconds = 30;
+    private byte[] paddingBytes = " ".getBytes();
+    private int heartbeatFrequencyInSeconds = 60;
 
-    static {
-        StringBuffer whitespace = new StringBuffer();
-        for (int i = 0; i < 1024; i++) {
-            whitespace.append(" ");
-        }
-        whitespace.append("\n");
-        paddingText = whitespace.toString();
+
+    public HeartbeatInterceptor paddingText(byte[] paddingBytes) {
+        this.paddingBytes = paddingBytes;
+        return this;
     }
 
-    public HeartbeatInterceptor paddingText(String paddingText) {
-        this.paddingText = paddingText;
+    public HeartbeatInterceptor heartbeatFrequencyInSeconds(int heartbeatFrequencyInSeconds) {
+        this.heartbeatFrequencyInSeconds = heartbeatFrequencyInSeconds;
         return this;
     }
 
@@ -75,17 +74,35 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         heartBeat = ExecutorsFactory.getScheduler(config);
     }
 
+    private static class Clock extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
+        public Clock() {
+        }
+    }
+
     @Override
     public Action inspect(final AtmosphereResource r) {
+        super.inspect(r);
 
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
 
 
-        super.inspect(r);
+        if (!r.transport().equals(TRANSPORT.POLLING)) {
+            r.addEventListener(new Clock() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    clock(r, request, response);
+                }
 
+                @Override
+                public void onResume(AtmosphereResourceEvent event) {
+                    cancelF(request);
+                }
+            });
+        }
         AsyncIOWriter writer = response.getAsyncIOWriter();
-        if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass()) && r.getRequest().getAttribute(INTERCEPTOR_ADDED) == null) {
+
+        if (!Utils.resumableTransport(r.transport()) && AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass()) && r.getRequest().getAttribute(INTERCEPTOR_ADDED) == null) {
             AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                 @Override
@@ -97,7 +114,6 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 @Override
                 public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
                     logger.trace("Scheduling heartbeat for {}", r.uuid());
-
                     clock(r, request, response);
                 }
             });
@@ -116,24 +132,17 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         request.setAttribute("heartbeat.future", heartBeat.schedule(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
-                logger.trace("Writing heartbeat for {}", r.uuid());
-                if (r.isSuspended()) {
+                if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
                     try {
-                        response.write(paddingText, false);
-                        if (r.transport().equals(TRANSPORT.LONG_POLLING) || r.transport().equals(TRANSPORT.JSONP)) {
+                        logger.trace("Heartbeat for Resource {}", r);
+                        response.write(paddingBytes, false);
+                        if (Utils.resumableTransport(r.transport())) {
                             r.resume();
                         } else {
                             response.flushBuffer();
                         }
                     } catch (Throwable t) {
                         logger.trace("{}", r.uuid(), t);
-                        try {
-                            AtmosphereResourceImpl.class.cast(r).cancel();
-                            r.notifyListeners(new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
-                        } catch (IOException e) {
-                            logger.trace("{}", e);
-                        }
-                        ;
                         cancelF(request);
                     }
                 } else {

@@ -39,7 +39,6 @@ import java.lang.annotation.Target;
  *     <li>The {@link org.atmosphere.cache.UUIDBroadcasterCache}for caching message. </li>
  *     <li>The {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor} for managing the connection lifecycle</li>
  *     <li>The {@link org.atmosphere.client.TrackMessageSizeInterceptor} for making sure messages are delivered entirely</li>
- *     <li>The {@link org.atmosphere.interceptor.HeartbeatInterceptor} for keeping the connection active</li>
  * </ul>
  *
  * Annotating your {@link org.atmosphere.cpr.AtmosphereHandler} is the same as doing:
@@ -50,7 +49,6 @@ import java.lang.annotation.Target;
         interceptors = {
             AtmosphereResourceLifecycleInterceptor.class,
             TrackMessageSizeInterceptor.class,
-            HeartbeatInterceptor.class,
             SuspendTrackerInterceptor.class,
             AnnotationServiceInterceptor.class})
  * </blockquote></pre>
@@ -89,7 +87,6 @@ public @interface ManagedService {
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             AtmosphereResourceLifecycleInterceptor.class,
             TrackMessageSizeInterceptor.class,
-            HeartbeatInterceptor.class,
             SuspendTrackerInterceptor.class
     };
 

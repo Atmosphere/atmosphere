@@ -53,6 +53,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.interceptor.AllowInterceptor;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -351,7 +352,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
         }
 
-        if (transport().equals(TRANSPORT.JSONP) || transport().equals(TRANSPORT.LONG_POLLING)) {
+        if (Utils.resumableTransport(transport())) {
             resumeOnBroadcast.set(true);
         }
 
@@ -409,8 +410,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
 
             broadcaster.addAtmosphereResource(this);
-            if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && (
-                    transport().equals(TRANSPORT.LONG_POLLING) || transport().equals(TRANSPORT.JSONP))) {
+            if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && Utils.resumableTransport(transport())) {
                 action.type(Action.TYPE.CONTINUE);
                 // Do nothing because we have found cached message which was written already, and the handler resumed.
                 logger.debug("Cached message found, not suspending {}", uuid());

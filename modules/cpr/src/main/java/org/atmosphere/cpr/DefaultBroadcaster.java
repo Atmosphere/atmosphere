@@ -55,6 +55,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -679,7 +680,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 case ALL:
                     synchronized (resources) {
                         for (AtmosphereResource r : resources) {
-                            if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING))
+                            if (Utils.resumableTransport(r.transport()))
                                 try {
                                     r.resume();
                                 } catch (Throwable t) {
@@ -870,7 +871,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         final AtmosphereResourceEventImpl event = (AtmosphereResourceEventImpl) token.resource.getAtmosphereResourceEvent();
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(token.resource);
-        final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
+        final boolean willBeResumed = Utils.resumableTransport(r.transport());
         List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
         try {
             final AtmosphereRequest request = r.getRequest(false);
@@ -976,7 +977,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             e.setMessage(filteredMessage);
 
-            final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
+            final boolean willBeResumed = Utils.resumableTransport(r.transport());
 
             if (willBeResumed) {
                 filteredMessageClone = (LinkedList<Object>) filteredMessage.clone();

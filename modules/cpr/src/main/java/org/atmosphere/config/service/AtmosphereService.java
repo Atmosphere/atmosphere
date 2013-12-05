@@ -67,8 +67,7 @@ public @interface AtmosphereService {
      * {@link org.atmosphere.client.TrackMessageSizeInterceptor} and {@link org.atmosphere.interceptor.HeartbeatInterceptor}
      */
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
-            TrackMessageSizeInterceptor.class,
-            HeartbeatInterceptor.class
+            TrackMessageSizeInterceptor.class
     };
 
     /**

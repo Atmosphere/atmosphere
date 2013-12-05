@@ -30,6 +30,7 @@ import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
 import org.atmosphere.interceptor.CacheHeadersInterceptor;
 import org.atmosphere.interceptor.CorsInterceptor;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
@@ -224,6 +225,8 @@ public class AtmosphereFramework {
             JSONPAtmosphereInterceptor.class,
             // Add SSE support
             SSEAtmosphereInterceptor.class,
+            // Heartbeat
+            HeartbeatInterceptor.class,
             // Android 2.3.x streaming support
             AndroidAtmosphereInterceptor.class,
             // WebKit & IE Padding
@@ -231,7 +234,7 @@ public class AtmosphereFramework {
             // Default Interceptor
             CacheHeadersInterceptor.class,
             // Add CORS support
-            CorsInterceptor.class
+            CorsInterceptor.class,
     };
 
     /**
@@ -755,7 +758,7 @@ public class AtmosphereFramework {
         if (bc.getAsyncWriteService() != null) {
             long max = ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize();
             logger.info("Messaging Thread Pool Size: {}",
-                    ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize() == 2147483647 ? "Unlimited": max);
+                    ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize() == 2147483647 ? "Unlimited" : max);
             logger.info("Async I/O Thread Pool Size: {}",
                     ThreadPoolExecutor.class.cast(bc.getAsyncWriteService()).getMaximumPoolSize());
         }
