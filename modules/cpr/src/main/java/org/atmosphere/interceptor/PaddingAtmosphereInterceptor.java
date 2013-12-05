@@ -44,17 +44,26 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(PaddingAtmosphereInterceptor.class);
 
-    private static final byte[] padding;
-    private static final String paddingText;
+    private final byte[] padding;
+    private final String paddingText;
 
-    static {
+    public PaddingAtmosphereInterceptor(){
+        paddingText = confPadding(1024);
+        padding = paddingText.getBytes();
+    }
+
+    public PaddingAtmosphereInterceptor(int size){
+        paddingText = confPadding(size);
+        padding = paddingText.getBytes();
+    }
+
+    protected final static String confPadding(int size) {
         StringBuilder whitespace = new StringBuilder();
-        for (int i = 0; i < 8192; i++) {
+        for (int i = 0; i < size; i++) {
             whitespace.append(" ");
         }
         whitespace.append("\n");
-        paddingText = whitespace.toString();
-        padding = paddingText.getBytes();
+        return whitespace.toString();
     }
 
     private void writePadding(AtmosphereResponse response) {
