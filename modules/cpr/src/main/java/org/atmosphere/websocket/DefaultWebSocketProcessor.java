@@ -452,7 +452,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
 
         if (resource == null) {
-            logger.warn("Unable to retrieve AtmosphereResource for {}", webSocket);
+            logger.debug("Already closed {}", webSocket);
         } else {
             logger.trace("About to close AtmosphereResource for {}", resource.uuid());
             AtmosphereRequest r = resource.getRequest(false);
