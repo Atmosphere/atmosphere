@@ -62,6 +62,15 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     private String method = "GET";
     private Integer timeoutInSeconds = -1;
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceLifecycleInterceptor.class);
+    private final boolean force;
+
+    public AtmosphereResourceLifecycleInterceptor(){
+        this(false);
+    }
+
+    public AtmosphereResourceLifecycleInterceptor(boolean force){
+        this.force = force;
+    }
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -102,8 +111,10 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         if (r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED)) return;
 
         AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
-        if (!impl.action().equals(Action.CANCELLED) && impl.isInScope()
-                && impl.getRequest(false).getMethod().equalsIgnoreCase(method)) {
+        if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))
+            && !impl.action().equals(Action.CANCELLED)
+            && impl.isInScope()) {
+
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
