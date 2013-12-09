@@ -140,6 +140,12 @@ public class JettyWebSocketUtil {
         logger.debug("WebSocket maxBinaryBufferSize {}", maxBinaryBufferSize);
         webSocketFactory.setMaxBinaryMessageSize(maxBinaryBufferSize);
 
+        if (config.getInitParameter(ApplicationConfig.JETTY_WEBSOCKET_MIN_VERSION) != null) {
+            int minVersion = Integer.valueOf(config.getInitParameter(ApplicationConfig.JETTY_WEBSOCKET_MIN_VERSION));
+            webSocketFactory.setMinVersion(minVersion);
+            logger.debug("WebSocket Jetty minVersion {}", minVersion);
+        }
+
         return webSocketFactory;
     }
 }

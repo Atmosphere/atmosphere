@@ -234,6 +234,15 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_REQUIRE_SAME_ORIGIN = "org.atmosphere.websocket.requireSameOrigin";
     /**
+     * Set the minimum WebSocket version that Jetty should accept. If not set, Jetty defaults to version 13 (RFC6455).
+     * <p>
+     * Jetty 7 and 8 is able to support buggy pre-draft versions of WebSocket. Set to 0 or -1 to let Jetty support all accept all supported versions.
+     * <p>
+     * Default: [nothing]<br>
+     * Value: org.atmosphere.websocket.jetty.minVersion
+     */
+    String JETTY_WEBSOCKET_MIN_VERSION = "org.atmosphere.websocket.jetty.minVersion";
+    /**
      * The {@link AtmosphereResource}.
      * <p>
      * Default: org.atmosphere.cpr.AtmosphereResourceImpl<br>
