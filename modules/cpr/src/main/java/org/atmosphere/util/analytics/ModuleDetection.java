@@ -33,6 +33,10 @@ public class ModuleDetection {
         modules.put("sockjs", "org.atmosphere.sockjs.SockJsAtmosphereInterceptor");
         modules.put("primefaces", "org.primefaces.push.PushServlet");
         modules.put("vaadin", "com.vaadin.server.VaadinServlet");
+        modules.put("wicket", "org.apache.wicket.atmosphere.EventBus");
+        modules.put("scalatra", "org.scalatra.ScalatraServlet");
+        modules.put("eventPush", "org.grails.plugin.platform.events.push.EventsPushHandler");
+
     }
 
     public final static String detect() {
