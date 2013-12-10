@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.uri.UriTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -51,12 +53,11 @@ import java.util.concurrent.TimeoutException;
  * starts with '/'. For example, with Jersey:
  * <blockquote><pre>
  *
+ * @author Jeanfrancois Arcand
  * @Path(RestConstants.STREAMING + "/workspace{wid:/[0-9A-Z]+}")
  * public class JerseyPubSub {
  * @PathParam("wid") private Broadcaster topic;
  * </pre></blockquote>
- *
- * @author Jeanfrancois Arcand
  */
 public class MetaBroadcaster {
 
@@ -66,8 +67,9 @@ public class MetaBroadcaster {
     private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
     private final static ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
     private final static MetaBroadcasterFuture E = new MetaBroadcasterFuture(Collections.<Broadcaster>emptyList());
+    private MetaBroadcasterCache cache = new NoCache();
 
-    protected MetaBroadcasterFuture broadcast(final String path, Object message, int time, TimeUnit unit, boolean delay) {
+    protected MetaBroadcasterFuture broadcast(final String path, Object message, int time, TimeUnit unit, boolean delay, boolean cacheMessage) {
         if (BroadcasterFactory.getDefault() != null) {
             Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
 
@@ -85,11 +87,16 @@ public class MetaBroadcaster {
                     m.clear();
                 }
             } finally {
-               if (t != null) t.destroy();
+                if (t != null) t.destroy();
             }
 
-            if (l.isEmpty()) {
-                logger.warn("No Broadcaster matches {}. Message {} WILL BE LOST. Make sure you cache it or make sure the Broadcaster exists before.", path, message);
+            if (l.isEmpty() && cacheMessage) {
+                if (NoCache.class.isAssignableFrom(cache.getClass())) {
+                    logger.warn("No Broadcaster matches {}. Message {} WILL BE LOST. " +
+                            "Make sure you cache it or make sure the Broadcaster exists before.", path, message);
+                } else {
+                    cache.cache(path, message);
+                }
                 return E;
             }
 
@@ -112,7 +119,7 @@ public class MetaBroadcaster {
         }
     }
 
-    protected MetaBroadcasterFuture map(String path, Object message, int time, TimeUnit unit, boolean delay) {
+    protected MetaBroadcasterFuture map(String path, Object message, int time, TimeUnit unit, boolean delay, boolean cacheMessage) {
 
         if (path == null || path.isEmpty()) {
             throw new NullPointerException();
@@ -130,7 +137,7 @@ public class MetaBroadcaster {
             path += MAPPING_REGEX;
         }
 
-        return broadcast(path, message, time, unit, delay);
+        return broadcast(path, message, time, unit, delay, cacheMessage);
     }
 
     /**
@@ -141,7 +148,16 @@ public class MetaBroadcaster {
      * @return a Future
      */
     public Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message) {
-        return map(broadcasterID, message, -1, null, false);
+        return map(broadcasterID, message, -1, null, false, true);
+    }
+
+    /**
+     * Flush the cached messages.
+     * @return this
+     */
+    private MetaBroadcaster flushCache() {
+        if (cache != null) cache.flushCache();
+        return this;
     }
 
     /**
@@ -155,7 +171,7 @@ public class MetaBroadcaster {
      * @return a Future
      */
     public Future<List<Broadcaster>> scheduleTo(String broadcasterID, Object message, int time, TimeUnit unit) {
-        return map(broadcasterID, message, time, unit, false);
+        return map(broadcasterID, message, time, unit, false, true);
     }
 
     /**
@@ -169,7 +185,7 @@ public class MetaBroadcaster {
      * @return a Future
      */
     public Future<List<Broadcaster>> delayTo(String broadcasterID, Object message, int time, TimeUnit unit) {
-        return map(broadcasterID, message, time, unit, true);
+        return map(broadcasterID, message, time, unit, true, true);
     }
 
     public final static MetaBroadcaster getDefault() {
@@ -286,4 +302,83 @@ public class MetaBroadcaster {
         broadcasterListeners.remove(b);
         return this;
     }
+
+    /**
+     * Set the {@link MetaBroadcasterCache}. Default is {@link NoCache}.
+     * @param cache
+     * @return
+     */
+    public MetaBroadcaster cache(MetaBroadcasterCache cache) {
+        this.cache = cache;
+        return this;
+    }
+
+    /**
+     * Cache message if no {@link Broadcaster} maps the {@link #broadcastTo(String, Object)}
+     */
+    public static interface MetaBroadcasterCache {
+
+        /**
+         * Cache the Broadcaster ID and message
+         * @param path the value passed to {@link #broadcastTo(String, Object)}
+         * @param message the value passed to {@link #broadcastTo(String, Object)}
+         * @return this
+         */
+        public MetaBroadcasterCache cache(String path, Object message);
+
+        /**
+         * Flush the Cache.
+         * @return this
+         */
+        public MetaBroadcasterCache flushCache();
+
+    }
+
+    public final static class NoCache implements MetaBroadcasterCache {
+
+        @Override
+        public MetaBroadcasterCache cache(String path, Object o) {
+            return this;
+        }
+
+        @Override
+        public MetaBroadcasterCache flushCache() {
+            return this;
+        }
+    }
+
+    /**
+     * Flush the cache every 30 seconds.
+     */
+    public final static class ThirtySecondsCache implements MetaBroadcasterCache, Runnable {
+
+        private final MetaBroadcaster metaBroadcaster;
+        private final ConcurrentHashMap<String, Object> cache = new ConcurrentHashMap<String, Object>();
+
+        public ThirtySecondsCache(MetaBroadcaster metaBroadcaster, AtmosphereConfig config) {
+            this.metaBroadcaster = metaBroadcaster;
+            ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(this, 0, 30, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public MetaBroadcasterCache cache(String path, Object o) {
+            cache.put(path, o);
+            return this;
+        }
+
+        @Override
+        public MetaBroadcasterCache flushCache() {
+            for (Map.Entry<String, Object> e : cache.entrySet()) {
+                metaBroadcaster.map(e.getKey(), e.getValue(), -1, null, false, false);
+            }
+            return this;
+        }
+
+        @Override
+        public void run() {
+            flushCache();
+            cache.clear();
+        }
+    }
+
 }
