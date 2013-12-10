@@ -29,6 +29,10 @@ public class ModuleDetection {
         modules.put("cometd", "org.atmosphere.cometd.CometdServlet");
         modules.put("socketio", "org.atmosphere.socketio.cpr.SocketIOAtmosphereHandler");
         modules.put("weblogic", "org.atmosphere.weblogic.AtmosphereWebLogicServlet");
+        modules.put("portal", "com.github.flowersinthesand.portal.atmosphere.AtmosphereModule");
+        modules.put("sockjs", "org.atmosphere.sockjs.SockJsAtmosphereInterceptor");
+        modules.put("primefaces", "org.primefaces.push.PushServlet");
+        modules.put("vaadin", "com.vaadin.server.VaadinServlet");
     }
 
     public final static String detect() {
