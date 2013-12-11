@@ -200,6 +200,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
                 }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
             }
+
+            if (!webSocket.resource().isSuspended()) {
+                webSocket.resource().suspend();
+            }
         } else {
             logger.warn("AtmosphereResource was null");
         }
