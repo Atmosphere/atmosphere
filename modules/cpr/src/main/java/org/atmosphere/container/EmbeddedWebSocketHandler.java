@@ -47,10 +47,11 @@ public class EmbeddedWebSocketHandler {
     private boolean on;
     private WebSocketProcessor processor;
     private final ConcurrentHashMap<InputStream, WebSocket> webSockets = new ConcurrentHashMap<InputStream, WebSocket>();
+    private String requestURI = "/";
 
     public EmbeddedWebSocketHandler(AtmosphereFramework framework) {
         this.framework = framework;
-        framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()){
+        framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()) {
             public boolean supportWebSocket() {
                 return true;
             }
@@ -100,10 +101,19 @@ public class EmbeddedWebSocketHandler {
             AtmosphereRequest request = AtmosphereRequest.newInstance()
                     .header("Connection", "Upgrade")
                     .header("Upgrade", "websocket")
-                    .pathInfo("/");
-            processor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+                    .pathInfo(requestURI);
+            try {
+                processor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+            } catch (Exception ex) {
+                ex.printStackTrace();
+            }
         }
         return webSocket;
+    }
+
+    public EmbeddedWebSocketHandler requestURI(String requestURI) {
+        this.requestURI = requestURI;
+        return this;
     }
 
     private final class ArrayBaseWebSocket extends WebSocket {
@@ -134,11 +144,11 @@ public class EmbeddedWebSocketHandler {
         }
     }
 
-    public final static void main(String... args) throws IOException {
+    public static void main(String... args) throws IOException {
         new EmbeddedWebSocketHandler(new AtmosphereFramework()).on().serve(System.in);
     }
 
-    public final static AtmosphereHandler ECHO_ATMOSPHEREHANDLER = new AbstractReflectorAtmosphereHandler() {
+    public static AtmosphereHandler ECHO_ATMOSPHEREHANDLER = new AbstractReflectorAtmosphereHandler() {
         @Override
         public void onRequest(AtmosphereResource resource) throws IOException {
             String body = IOUtils.readEntirely(resource).toString();
