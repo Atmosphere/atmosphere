@@ -49,8 +49,7 @@ import java.lang.annotation.Target;
         interceptors = {
             AtmosphereResourceLifecycleInterceptor.class,
             TrackMessageSizeInterceptor.class,
-            SuspendTrackerInterceptor.class,
-            AnnotationServiceInterceptor.class})
+            SuspendTrackerInterceptor.class})
  * </blockquote></pre>
  *
  * This annotation can be used with @Get, @Post, @Delete, @Ready, @Singleton and @Resume
