@@ -1235,11 +1235,19 @@ public class AtmosphereFramework {
     }
 
     protected String lookupDefaultBroadcasterType(String defaultB) {
-        for (String b : broadcasterTypes) {
-            try {
-                Class.forName(b);
-                return b;
-            } catch (ClassNotFoundException e) {
+
+        String drop = servletConfig.getInitParameter(ApplicationConfig.AUTODETECT_BROADCASTER);
+        if (drop == null || !Boolean.parseBoolean(drop)) {
+            for (String b : broadcasterTypes) {
+                try {
+                    Class.forName(b);
+                    logger.info("Detected a Broadcaster {} on the classpath. " +
+                            "This broadcaster will be used by default and will override any annotated resources. " +
+                            "Set {} to false to change the behavior", b, ApplicationConfig.AUTODETECT_BROADCASTER);
+                    isBroadcasterSpecified = true;
+                    return b;
+                } catch (ClassNotFoundException e) {
+                }
             }
         }
 

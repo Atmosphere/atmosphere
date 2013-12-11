@@ -653,5 +653,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.webSocketBufferingMaxSize
      */
     String IN_MEMORY_STREAMING_BUFFER_SIZE = DefaultWebSocketProcessor.class.getPackage().getName() + ".webSocketBufferingMaxSize";
+    /**
+     * Scan the classpath to find {@link Broadcaster}
+     * <p>
+     * Default: true)<br>
+     * Value: org.atmosphere.cpr.Broadcaster.scanClassPath
+     */
+    String AUTODETECT_BROADCASTER = Broadcaster.class.getName() + ".scanClassPath";
 }
 
