@@ -280,8 +280,7 @@ public interface ApplicationConfig {
      */
     String DISABLE_ONSTATE_EVENT = "org.atmosphere.disableOnStateEvent";
     /**
-     * The maximum time, in milliseconds, a connection gets idle. This property can be used with Jetty and BlockingIOCometSupport.
-     * Other WebServers support detection of idle connection (idle or remotely closed)
+     * The maximum time, in milliseconds, a connection gets idle or when the WIFI disconnection wasn't detected by the underlying container.
      * <p>
      * Default: -1 (disabled)<br>
      * Value: org.atmosphere.cpr.CometSupport.maxInactiveActivity
