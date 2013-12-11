@@ -196,7 +196,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
         logger.trace("WebSocket.write()");
         boolean transform = filters.size() > 0 && r.getStatus() < 400;
-        if (binaryWrite || r.resource().forceBinaryWrite()) {
+        if (binaryWrite || resource().forceBinaryWrite()) {
             if (transform) {
                 b = transform(b, offset, length);
             }
