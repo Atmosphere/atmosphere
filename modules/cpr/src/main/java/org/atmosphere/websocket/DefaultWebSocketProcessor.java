@@ -200,10 +200,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
                 }, action.timeout(), action.timeout(), TimeUnit.MILLISECONDS));
             }
-
-            if (!webSocket.resource().isSuspended()) {
-                webSocket.resource().suspend();
-            }
         } else {
             logger.warn("AtmosphereResource was null");
         }
@@ -443,7 +439,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void close(WebSocket webSocket, int closeCode) {
-        logger.trace("WebSocket closed with {}", closeCode);
+        logger.trace("WebSocket {} closed with {}", webSocket.resource(), closeCode);
 
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
         // A message might be in the process of being processed and the websocket gets closed. In that corner
