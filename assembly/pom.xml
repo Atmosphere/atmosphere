@@ -17,5 +17,6 @@
     <modules>
         <module>cpr</module>
         <module>jersey</module>
+        <module>websocketd</module>
     </modules>
 </project>
