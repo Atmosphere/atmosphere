@@ -48,6 +48,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     public final static String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
     public final static String INTERCEPTOR_ADDED = HeartbeatInterceptor.class.getName();
+    public final static String HEARTBEAT_FUTURE = "heartbeat.future";
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
@@ -123,13 +124,13 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     void cancelF(AtmosphereRequest request) {
-        Future<?> f = (Future<?>) request.getAttribute("heartbeat.future");
+        Future<?> f = (Future<?>) request.getAttribute(HEARTBEAT_FUTURE);
         if (f != null) f.cancel(false);
-        request.removeAttribute("heartbeat.future");
+        request.removeAttribute(HEARTBEAT_FUTURE);
     }
 
     public HeartbeatInterceptor clock(final AtmosphereResource r, final AtmosphereRequest request, final AtmosphereResponse response) {
-        request.setAttribute("heartbeat.future", heartBeat.schedule(new Callable<Object>() {
+        request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
                 if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {

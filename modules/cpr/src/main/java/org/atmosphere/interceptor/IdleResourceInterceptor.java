@@ -82,6 +82,8 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                         req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
 
                         Object o = req.getAttribute(ASYNCHRONOUS_HOOK);
+                        req.setAttribute(ASYNCHRONOUS_HOOK, null);
+
                         AsynchronousProcessor.AsynchronousProcessorHook h;
                         if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
                             h = (AsynchronousProcessor.AsynchronousProcessorHook) o;

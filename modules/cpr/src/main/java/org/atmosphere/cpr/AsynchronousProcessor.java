@@ -63,13 +63,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
-import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
@@ -85,10 +80,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
     protected static final Action cancelledAction = new Action(Action.TYPE.CANCELLED);
     protected final AtmosphereConfig config;
-    protected final ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>
-            aliveRequests = new ConcurrentHashMap<AtmosphereRequest, AtmosphereResource>();
-    private boolean trackActiveRequest = false;
-    private final ScheduledExecutorService closedDetector = Executors.newScheduledThreadPool(1);
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
@@ -98,40 +89,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
     @Override
     public void init(ServletConfig sc) throws ServletException {
-
-        String maxInactive = sc.getInitParameter(MAX_INACTIVE) != null ? sc.getInitParameter(MAX_INACTIVE) :
-                config.getInitParameter(MAX_INACTIVE);
-
-        if (maxInactive != null) {
-            trackActiveRequest = true;
-            final long maxInactiveTime = Long.parseLong(maxInactive);
-            if (maxInactiveTime <= 0) return;
-
-            closedDetector.scheduleAtFixedRate(new Runnable() {
-                public void run() {
-                    for (AtmosphereRequest req : aliveRequests.keySet()) {
-                        long l = (Long) req.getAttribute(MAX_INACTIVE);
-                        if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
-                            try {
-                                if (logger.isTraceEnabled()) {
-                                    logger.trace("Close detector disconnecting {}. Current size {}", req.resource(), aliveRequests.size());
-                                }
-                                AtmosphereResourceImpl r = (AtmosphereResourceImpl) aliveRequests.remove(req);
-                                cancelled(req, r.getResponse(false));
-                            } catch (Throwable e) {
-                                logger.warn("closedDetector", e);
-                            } finally {
-                                try {
-                                    req.setAttribute(MAX_INACTIVE, (long) -1);
-                                } catch (Throwable t) {
-                                    logger.trace("closedDetector", t);
-                                }
-                            }
-                        }
-                    }
-                }
-            }, 0, 1, TimeUnit.SECONDS);
-        }
     }
 
     /**
@@ -155,7 +112,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * The returned value, of type {@link Action}, tells the proprietary Comet {@link Servlet} to suspended or not the
      * current {@link AtmosphereResponse}.
      *
-     * @param request the {@link AtmosphereRequest}
+     * @param request  the {@link AtmosphereRequest}
      * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
@@ -199,7 +156,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
-        
+
         AtmosphereHandlerWrapper handlerWrapper = map(req);
         if (config.getBroadcasterFactory() == null) {
             logger.error("Atmosphere is misconfigured and will not work. BroadcasterFactory is null");
@@ -250,11 +207,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         postInterceptors(handlerWrapper.interceptors, resource);
         postInterceptors(config.framework().interceptors(), resource);
-
-        if (trackActiveRequest && resource.isSuspended() && req.getAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION) == null) {
-            req.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
-            aliveRequests.put(req, resource);
-        }
 
         Action action = skipAtmosphereHandler ? Action.CANCELLED : resource.action();
         if (supportSession() && action.type().equals(Action.TYPE.SUSPEND)) {
@@ -313,6 +265,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return resource;
     }
 
+    protected void shutdown() {
+    }
+
+    @Override
+    public void action(AtmosphereResourceImpl r) {
+    }
+
     private String path(AtmosphereRequest request) {
         String path;
         String pathInfo = null;
@@ -363,13 +322,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
     }
 
-    @Override
-    public void action(AtmosphereResourceImpl r) {
-        if (trackActiveRequest) {
-            aliveRequests.remove(r.getRequest(false));
-        }
-    }
-
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
@@ -393,7 +345,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * decide to resume the {@link AtmosphereResponse}. The returned value, of type {@link Action}, tells the
      * proprietary Comet {@link Servlet} to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param request the {@link AtmosphereRequest}
+     * @param request  the {@link AtmosphereRequest}
      * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
@@ -433,36 +385,16 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throws IOException, ServletException {
 
         logger.trace("Timing out {}", req);
-        if (trackActiveRequest(req) && completeLifecycle(req.resource(), false)) {
+        if (completeLifecycle(req.resource(), false)) {
             config.framework().notify(Action.TYPE.TIMEOUT, req, res);
         }
         return timedoutAction;
     }
 
-    protected boolean trackActiveRequest(AtmosphereRequest req) {
-        if (trackActiveRequest) {
-            try {
-                long l = (Long) req.getAttribute(MAX_INACTIVE);
-                if (l == -1) {
-                    // The closedDetector closed the connection.
-                    return false;
-                }
-                req.setAttribute(MAX_INACTIVE, (long) -1);
-                // GlassFish
-            } catch (Throwable ex) {
-                logger.trace("Request already recycled", req);
-                // Request is no longer active, return
-                return false;
-
-            }
-        }
-        return true;
-    }
-
     /**
      * Cancel or times out an {@link AtmosphereResource} by invoking it's associated {@link AtmosphereHandler#onStateChange(AtmosphereResourceEvent)}
      *
-     * @param r an {@link AtmosphereResource}
+     * @param r         an {@link AtmosphereResource}
      * @param cancelled true if cancelled, false if timedout
      * @return true if the operation was executed.
      */
@@ -576,22 +508,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throws IOException, ServletException {
 
         logger.trace("Cancelling {}", req);
-        if (trackActiveRequest(req) && completeLifecycle(req.resource(), true)) {
+        if (completeLifecycle(req.resource(), true)) {
             config.framework().notify(Action.TYPE.CANCELLED, req, res);
         }
         return cancelledAction;
-    }
-
-    protected void shutdown() {
-        closedDetector.shutdownNow();
-        for (AtmosphereResource resource : aliveRequests.values()) {
-            try {
-                resource.resume();
-            } catch (Throwable t) {
-                // Something wrong happenned, ignore the exception
-                logger.debug("failed on resume: " + resource, t);
-            }
-        }
     }
 
     @Override
