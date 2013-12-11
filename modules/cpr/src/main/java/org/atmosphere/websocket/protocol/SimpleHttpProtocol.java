@@ -27,6 +27,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
@@ -85,7 +86,10 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             logger.trace("The WebSocket has been closed before the message was processed.");
             return null;
         }
-        AtmosphereRequest request = resource.getRequest();
+        AtmosphereRequest request = resource.getRequest(false);
+
+        if (!resource.isInScope()) return Collections.emptyList();
+
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
 
@@ -115,7 +119,10 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             return null;
         }
 
-        AtmosphereRequest request = resource.getRequest();
+        AtmosphereRequest request = resource.getRequest(false);
+
+        if (!resource.isInScope()) return Collections.emptyList();
+
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
         list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType, destroyable).body(d, offset, length).build());
 
