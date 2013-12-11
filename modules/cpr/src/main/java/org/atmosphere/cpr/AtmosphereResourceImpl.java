@@ -400,7 +400,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             // Null means SCOPE=REQUEST set by a Meteor
             if (!skipCreation && (broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
-                String id = broadcaster != null ? broadcaster.getID() : getClass().getName();
+                String id = broadcaster != null ? broadcaster.getID() : "/*";
                 Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
 
                 broadcaster = config.getBroadcasterFactory().lookup(clazz, id, false);
