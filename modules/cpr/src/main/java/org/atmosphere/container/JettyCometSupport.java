@@ -132,19 +132,16 @@ public class JettyCometSupport extends AsynchronousProcessor {
         if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
             Continuation c = ContinuationSupport.getContinuation(r.getRequest(), null);
             resumed.offer(c);
-            if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
-                    || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
 
-                if (!c.isNew()) {
-                    c.resume();
-                } else {
-                    r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
-                }
+            if (!c.isNew()) {
+                c.resume();
             } else {
-                try {
-                    r.getResponse().flushBuffer();
-                } catch (IOException e) {
-                }
+                r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+            }
+        } else {
+            try {
+                r.getResponse().flushBuffer();
+            } catch (IOException e) {
             }
         }
     }

@@ -84,7 +84,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
 
     public TomcatCometSupport(AtmosphereConfig config) {
         super(config);
-        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
+        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM);
         closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
         try {
             Class.forName(CometEvent.class.getName());
@@ -150,7 +150,8 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 event.close();
             } catch (IllegalStateException ex) {
                 logger.trace("event.close", ex);
-            }        } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
+            }
+        } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
 
             action = timedout(req, res);
             try {
@@ -189,14 +190,10 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
                 if (event == null) return;
 
-                // Resume without closing the underlying suspended connection.
-                if (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
-                        || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false")) {
-                    try {
-                        event.close();
-                    } catch (IllegalStateException ex) {
-                        logger.trace("event.close", ex);
-                    }
+                try {
+                    event.close();
+                } catch (IllegalStateException ex) {
+                    logger.trace("event.close", ex);
                 }
             } catch (IOException ex) {
                 logger.debug("action failed", ex);

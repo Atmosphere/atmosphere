@@ -16,17 +16,16 @@
 
 package org.atmosphere.container;
 
-import org.glassfish.grizzly.comet.CometContext;
-import org.glassfish.grizzly.comet.CometEngine;
-import org.glassfish.grizzly.comet.CometEvent;
-import org.glassfish.grizzly.comet.CometHandler;
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.glassfish.grizzly.comet.CometContext;
+import org.glassfish.grizzly.comet.CometEngine;
+import org.glassfish.grizzly.comet.CometEvent;
+import org.glassfish.grizzly.comet.CometHandler;
 import org.glassfish.grizzly.http.server.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -130,8 +129,7 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
             req.getSession().removeAttribute(ATMOSPHERE);
         }
 
-        if (handler != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
-                || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+        if (handler != null) {
             try {
                 ctx.resumeCometHandler(handler);
             } catch (IOException e) {

@@ -207,9 +207,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 if (event == null) return;
 
                 // Resume without closing the underlying suspended connection.
-                if (!resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) &&
-                        (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
-                        || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+                if (!resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
                     bz51881(event);
                 }
             } catch (IOException ex) {

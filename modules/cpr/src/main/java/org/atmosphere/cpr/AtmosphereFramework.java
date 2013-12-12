@@ -114,7 +114,6 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
-import static org.atmosphere.cpr.ApplicationConfig.RESUME_AND_KEEPALIVE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
@@ -1096,10 +1095,6 @@ public class AtmosphereFramework {
             initParams.put(DISABLE_ONSTATE_EVENT, s);
         } else {
             initParams.put(DISABLE_ONSTATE_EVENT, "false");
-        }
-        s = sc.getInitParameter(RESUME_AND_KEEPALIVE);
-        if (s != null) {
-            initParams.put(RESUME_AND_KEEPALIVE, s);
         }
         s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
         if (s != null) {

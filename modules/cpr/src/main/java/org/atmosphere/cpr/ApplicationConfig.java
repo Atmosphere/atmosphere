@@ -258,13 +258,6 @@ public interface ApplicationConfig {
      */
     String BROADCAST_FILTER_CLASSES = ApplicationConfig.class.getPackage().getName() + ".broadcastFilterClasses";
     /**
-     * A request attribute used to tell {@link AsyncSupport} implementation to keep alive the connection or not. Default is to delegate the talk to the underlying WebServer.
-     * <p>
-     * Default: false (to delegate the talk to the underlying WebServer)<br>
-     * Value: org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive
-     */
-    String RESUME_AND_KEEPALIVE = "org.atmosphere.cpr.AtmosphereServlet.resumeAndKeepAlive";
-    /**
      * A request attribute telling a {@link AsyncSupport} if the AtmosphereResource was resumed on timeout or by an application.
      * This attribute is for WebServer that doesn't support time-outs (like Jetty 6)
      * <p>
