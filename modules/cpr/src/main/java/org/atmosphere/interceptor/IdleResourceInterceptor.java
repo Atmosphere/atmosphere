@@ -61,7 +61,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
             public void run() {
                 idleResources();
             }
-        }, 0, 1, TimeUnit.SECONDS);
+        }, 0, 2, TimeUnit.SECONDS);
     }
 
     protected void idleResources() {

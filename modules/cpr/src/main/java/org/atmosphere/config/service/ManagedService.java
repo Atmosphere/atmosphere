@@ -25,6 +25,7 @@ import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
+import org.atmosphere.interceptor.IdleResourceInterceptor;
 import org.atmosphere.interceptor.SuspendTrackerInterceptor;
 
 import java.lang.annotation.Documented;
@@ -49,6 +50,7 @@ import java.lang.annotation.Target;
         interceptors = {
             AtmosphereResourceLifecycleInterceptor.class,
             TrackMessageSizeInterceptor.class,
+            IdleResourceInterceptor.class
             SuspendTrackerInterceptor.class})
  * </blockquote></pre>
  *
@@ -86,6 +88,7 @@ public @interface ManagedService {
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             AtmosphereResourceLifecycleInterceptor.class,
             TrackMessageSizeInterceptor.class,
+            IdleResourceInterceptor.class,
             SuspendTrackerInterceptor.class
     };
 
