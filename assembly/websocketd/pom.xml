@@ -10,7 +10,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-websocketd</artifactId>
-    <name>Atmosphere for Websocketd</name>
+    <name>atmosphere-websocketd</name>
     <version>2.1.0-SNAPSHOT</version>
     <packaging>jar</packaging>
     <dependencies>
