@@ -562,7 +562,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             } else {
                 switch (event.type()) {
-                    case DISCONNECT:
                     case CLOSE:
                         boolean isClosedByClient = r.getAtmosphereResourceEvent().isClosedByClient();
                         l.onDisconnect(new AtmosphereResourceEventImpl(r, !isClosedByClient, false, isClosedByClient, null));

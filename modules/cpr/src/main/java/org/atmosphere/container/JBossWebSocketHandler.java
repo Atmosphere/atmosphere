@@ -76,7 +76,7 @@ public class JBossWebSocketHandler extends WebSocketServlet {
     @Override
     protected void onSocketClosed(WebSocket socket) throws IOException {
         logger.trace("WebSocket.onSocketClosed.");
-        webSocketProcessor.close(webSocket, 1000);
+        webSocketProcessor.close(webSocket, 1005);
     }
 
     @Override
@@ -95,7 +95,7 @@ public class JBossWebSocketHandler extends WebSocketServlet {
             } else if (frame instanceof CloseFrame) {
                 // TODO shall we call this here?
                 logger.trace("WebSocket.onReceivedFrame (CloseFrame)");
-                webSocketProcessor.close(webSocket, 1000);
+                webSocketProcessor.close(webSocket, 1005);
             } else {
                 logger.trace("WebSocket.onReceivedFrame skipping: " + frame);
             }
