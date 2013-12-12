@@ -53,7 +53,6 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -69,6 +68,8 @@ import javax.servlet.AsyncEvent;
 import javax.servlet.AsyncListener;
 import javax.servlet.ServletException;
 import java.io.IOException;
+
+import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
  * This class is used when the {@link org.atmosphere.cpr.AtmosphereFramework} detect the container
@@ -146,8 +147,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             AsyncContext asyncContext =
                     (AsyncContext) actionEvent.getRequest().getAttribute(FrameworkConfig.ASYNC_CONTEXT);
 
-            if (asyncContext != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
-                    || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+            if (asyncContext != null) {
                 try {
                     asyncContext.complete();
                 } catch (IllegalStateException ex) {
@@ -158,6 +158,24 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         } else if (!actionEvent.isInScope()) {
             logger.trace("Already resumed or cancelled: event: {}", actionEvent);
         }
+    }
+
+    @Override
+    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res)
+            throws IOException, ServletException {
+
+        Action action = super.cancelled(req, res);
+        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+            try {
+                AsyncContext asyncContext =
+                        (AsyncContext) req.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+                asyncContext.complete();
+            } catch (IllegalStateException ex) {
+                // Alresady completed.
+                logger.trace("Already resumed!", ex);
+            }
+        }
+        return action;
     }
 
     /**
@@ -199,7 +217,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                         (AtmosphereResponse) event.getAsyncContext().getResponse());
             } catch (ServletException ex) {
                 logger.warn("onTimeout(): failed timing out comet response: " + event.getAsyncContext().getResponse(), ex);
-            }  finally {
+            } finally {
                 event.getAsyncContext().complete();
             }
         }

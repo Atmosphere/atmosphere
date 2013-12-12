@@ -43,7 +43,7 @@ import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(IdleResourceInterceptor.class);
-    private long maxInactiveTime = 5 * 60 * 1000; // 5 minutes
+    private long maxInactiveTime =  5 * 60 * 1000; // 5 minutes
     private AtmosphereConfig config;
 
     public void configure(AtmosphereConfig config) {
@@ -71,6 +71,8 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                 try {
                     long l = (Long) req.getAttribute(MAX_INACTIVE);
                     if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
+                        req.setAttribute(MAX_INACTIVE, (long) -1);
+
                         logger.debug("IdleResourceInterceptor disconnecting {}", r);
 
                         if (!AtmosphereResourceImpl.class.cast(r).isSuspended() || !AtmosphereResourceImpl.class.cast(r).isInScope()) {
@@ -89,15 +91,10 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                             h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
                             h.closed();
                         }
+
                     }
                 } catch (Throwable e) {
                     logger.warn("IdleResourceInterceptor", e);
-                } finally {
-                    try {
-                        req.setAttribute(MAX_INACTIVE, (long) -1);
-                    } catch (Throwable t) {
-                        logger.trace("IdleResourceInterceptor", t);
-                    }
                 }
             }
         }
@@ -107,6 +104,11 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     public Action inspect(AtmosphereResource r) {
         AtmosphereResourceImpl.class.cast(r).getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis());
         return Action.CONTINUE;
+    }
+
+    @Override
+    public PRIORITY priority() {
+        return InvokationOrder.BEFORE_DEFAULT;
     }
 
 }

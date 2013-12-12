@@ -66,6 +66,7 @@ import java.util.List;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
@@ -262,6 +263,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER, handlerWrapper);
         req.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
+        req.setAttribute(ASYNCHRONOUS_HOOK, new AsynchronousProcessorHook(resource));
+
         return resource;
     }
 

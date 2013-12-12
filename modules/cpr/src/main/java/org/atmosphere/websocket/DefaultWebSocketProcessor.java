@@ -19,7 +19,6 @@ import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
@@ -63,6 +62,7 @@ import static org.atmosphere.cpr.ApplicationConfig.IN_MEMORY_STREAMING_BUFFER_SI
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION;
+import static org.atmosphere.cpr.AsynchronousProcessor.AsynchronousProcessorHook;
 import static org.atmosphere.cpr.AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
@@ -182,10 +182,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
 
         if (webSocket.resource() != null) {
-            final AsynchronousProcessor.AsynchronousProcessorHook hook =
-                    new AsynchronousProcessor.AsynchronousProcessorHook((AtmosphereResourceImpl) webSocket.resource());
-            request.setAttribute(ASYNCHRONOUS_HOOK, hook);
-
+            final AsynchronousProcessorHook hook = (AsynchronousProcessorHook) request.getAttribute(ASYNCHRONOUS_HOOK);
             final Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
             if (action.timeout() != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
                 final AtomicReference<Future<?>> f = new AtomicReference();
@@ -467,9 +464,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
 
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
-                    AsynchronousProcessor.AsynchronousProcessorHook h;
-                    if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                        h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
+                    AsynchronousProcessorHook h;
+                    if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
+                        h = (AsynchronousProcessorHook) o;
                         if (!resource.isCancelled()) {
                             if (closeCode == 1005) {
                                 h.closed();
@@ -478,14 +475,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             }
                         }
                     }
-
-                    resource.setIsInScope(false);
-                    try {
-                        resource.cancel();
-                    } catch (IOException e) {
-                        logger.trace("", e);
-                    }
-                    AtmosphereResourceImpl.class.cast(resource)._destroy();
                 }
 
             } finally {

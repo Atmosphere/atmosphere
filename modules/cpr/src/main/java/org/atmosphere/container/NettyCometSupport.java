@@ -30,7 +30,6 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
-import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
  * Netty's Framework {@link org.atmosphere.cpr.AsyncSupport} and framework running on top of it, like vert.x and Play!
@@ -51,11 +50,10 @@ public class NettyCometSupport extends AsynchronousProcessor {
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        Action action = null;
+        Action action;
         action = suspended(req, res);
         if (action.type() == Action.TYPE.SUSPEND) {
             req.setAttribute(SUSPEND, action);
-            req.setAttribute(ASYNCHRONOUS_HOOK, new AsynchronousProcessorHook( (AtmosphereResourceImpl)req.getAttribute(ATMOSPHERE_RESOURCE)));
         } else if (action.type() == Action.TYPE.RESUME) {
             req.setAttribute(SUSPEND, action);
 
