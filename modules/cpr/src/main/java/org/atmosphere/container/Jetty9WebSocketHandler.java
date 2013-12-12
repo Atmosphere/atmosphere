@@ -5,7 +5,6 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
@@ -69,8 +68,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     @Override
     public void onWebSocketError(Throwable e) {
         logger.error("", e);
-        webSocketProcessor.notifyListener(webSocket,
-                new WebSocketEventListener.WebSocketEvent(e, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
+        onWebSocketClose(1006, e.getCause().getMessage());
     }
 
     @Override
