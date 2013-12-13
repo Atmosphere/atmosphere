@@ -25,7 +25,7 @@ import org.slf4j.LoggerFactory;
  */
 public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourceEventListener {
 
-    private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceEventListener.class);
+    private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceEventListenerAdapter.class);
 
     @Override
     public void onPreSuspend(AtmosphereResourceEvent event) {
