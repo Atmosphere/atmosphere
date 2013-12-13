@@ -187,6 +187,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     public void destroy(boolean force) {
         if (!force) return;
+        logger.trace("{} destroyed", this.hashCode());
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
@@ -453,7 +454,10 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     private void validAsyncIOWriter() throws IOException {
-        if (asyncIOWriter == null) throw new IOException("AtmosphereResource Cancelled: " + uuid);
+        if (asyncIOWriter == null) {
+            logger.trace("{} invalid state", this.hashCode());
+            throw new IOException("AtmosphereResource Cancelled: " + uuid);
+        }
     }
 
     private boolean validFlushOrClose() {
