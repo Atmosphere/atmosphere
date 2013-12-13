@@ -169,7 +169,9 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             try {
                 AsyncContext asyncContext =
                         (AsyncContext) req.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
-                asyncContext.complete();
+                if (asyncContext != null) {
+                    asyncContext.complete();
+                }
             } catch (IllegalStateException ex) {
                 // Alresady completed.
                 logger.trace("Already resumed!", ex);
