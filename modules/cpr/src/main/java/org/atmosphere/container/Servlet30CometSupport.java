@@ -155,8 +155,6 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                     logger.trace("Already resumed!", ex);
                 }
             }
-        } else if (!actionEvent.isInScope()) {
-            logger.trace("Already resumed or cancelled: event: {}", actionEvent);
         }
     }
 
