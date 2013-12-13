@@ -717,6 +717,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (!isCancelled.getAndSet(true)) {
             logger.trace("Cancelling {}", uuid);
+
+            if (config.getBroadcasterFactory().getDefault() != null) {
+                config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+                String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+                AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
+                if (p != null) {
+                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(p);
+                }
+            }
+
             SessionTimeoutSupport.restoreTimeout(req);
             action.type(Action.TYPE.CANCELLED);
             if (asyncSupport != null) asyncSupport.action(this);
@@ -728,10 +738,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
                 AtmosphereRequest.class.cast(req).destroy();
-            }
-
-            if (config.getBroadcasterFactory().getDefault() != null) {
-                config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
             }
             req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
             event.destroy();
