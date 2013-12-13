@@ -153,11 +153,13 @@ public class WebSocketProcessorTest {
     }
 
     @Test
-    public void basicBackwardCompatbileWorkflow() throws IOException, ServletException, ExecutionException, InterruptedException {
+    public void basicBackwardCompatbileWorkflow() throws Throwable {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
+
+        framework.getBroadcasterFactory().remove("/*");
 
         framework.addInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR, "true")
                 .addAtmosphereHandler("/*", new AtmosphereHandler() {
