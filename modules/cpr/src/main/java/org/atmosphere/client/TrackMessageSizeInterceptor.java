@@ -131,7 +131,6 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                 String s = cb.toString();
 
                 if (s.trim().length() == 0 || s.indexOf(endString) != -1) {
-                    logger.trace("Already filtered {}", s);
                     return responseDraft;
                 }
 
