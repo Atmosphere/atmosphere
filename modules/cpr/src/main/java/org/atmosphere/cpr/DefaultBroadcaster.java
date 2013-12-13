@@ -148,6 +148,8 @@ public class DefaultBroadcaster implements Broadcaster {
     protected int writeTimeoutInSecond = -1;
     protected AtmosphereResource noOpsResource;
     protected int waitTime = POLLING_DEFAULT;
+    private boolean backwardCompatible = false;
+
 
     public DefaultBroadcaster(){
     }
@@ -181,6 +183,7 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
         }
         initialized.set(true);
+        backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
         return this;
     }
 
@@ -1406,13 +1409,14 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
 
             String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-            Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
             if (!backwardCompatible && parentUUID != null) {
                 AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
                 if (p != null && !resources.contains(p)) {
                     notifyAndAdd(p);
                 } else if (p == null) {
                     notifyAndAdd(r);
+                } else {
+                    logger.trace("Unable to add AtmosphereResource {}", r.uuid());
                 }
             } else {
                 notifyAndAdd(r);
