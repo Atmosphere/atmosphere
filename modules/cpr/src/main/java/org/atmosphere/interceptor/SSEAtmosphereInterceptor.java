@@ -25,7 +25,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -35,6 +34,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnPreSuspend;
 import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 import static org.atmosphere.cpr.FrameworkConfig.CONTAINER_RESPONSE;
 
@@ -105,7 +105,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         return true;
     }
 
-    private final class P extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
+    private final class P extends OnPreSuspend implements AllowInterceptor {
 
         private final AtmosphereResponse response;
 

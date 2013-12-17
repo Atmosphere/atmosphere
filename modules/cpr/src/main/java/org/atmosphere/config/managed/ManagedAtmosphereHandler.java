@@ -29,7 +29,6 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -50,6 +49,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 
 /**
  * An internal implementation of {@link AtmosphereHandler} that implement support for Atmosphere 2.0 annotations.
@@ -107,7 +109,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         boolean polling = resource.transport().equals(AtmosphereResource.TRANSPORT.POLLING);
 
         if (onReadyMethod != null && !polling) {
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     processReady(event.getResource());
@@ -117,7 +119,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
 
         if (onResumeMethod != null && !polling) {
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnResume() {
                 @Override
                 public void onResume(AtmosphereResourceEvent event) {
                     invoke(onResumeMethod, event.getResource());

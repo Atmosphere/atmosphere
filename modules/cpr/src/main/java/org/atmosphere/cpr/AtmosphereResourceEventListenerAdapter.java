@@ -61,4 +61,60 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
     public void onClose(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
+
+    /**
+     * On Suspend's Listener
+     */
+    abstract static public class OnSuspend extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onSuspend(AtmosphereResourceEvent event);
+    }
+
+    /**
+     * On PreSuspend's Listener
+     */
+    abstract static public class OnPreSuspend extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onPreSuspend(AtmosphereResourceEvent event);
+    }
+
+    /**
+     * On Resume's Listener
+     */
+    abstract static public class OnResume extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onResume(AtmosphereResourceEvent event);
+    }
+
+    /**
+     * On Disconnect's Listener
+     */
+    abstract static public class OnDisconnect extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onDisconnect(AtmosphereResourceEvent event);
+    }
+
+    /**
+     * On Broadcast's Listener
+     */
+    abstract static public class OnBroadcast extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onBroadcast(AtmosphereResourceEvent event);
+    }
+
+    /**
+     * On Throwable's Listener
+     */
+    abstract static public class OnThrowable extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onThrowable(AtmosphereResourceEvent event);
+    }
+
+    /**
+     * On Close's Listener
+     */
+    abstract static public class OnClose extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onClose(AtmosphereResourceEvent event);
+    }
 }

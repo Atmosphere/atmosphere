@@ -28,7 +28,6 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.SimpleBroadcaster;
@@ -45,6 +44,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.*;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -112,7 +112,7 @@ public class EncoderDecoderTest {
         @Get
         public void get(AtmosphereResource resource) {
             r.set(resource);
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/f").method("POST").body("message").build();
@@ -140,7 +140,7 @@ public class EncoderDecoderTest {
         @Get
         public void get(AtmosphereResource resource) {
             r.set(resource);
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/g").method("POST").body("message").build();
@@ -168,12 +168,12 @@ public class EncoderDecoderTest {
         @Get
         public void get(AtmosphereResource resource) {
             r.set(resource);
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/h").method("POST").body("message").build();
                     try {
-                        event.getResource().addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                        event.getResource().addEventListener(new OnBroadcast() {
                             @Override
                             public void onBroadcast(AtmosphereResourceEvent event) {
                                 latch.get().countDown();

@@ -22,7 +22,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.Utils;
@@ -32,6 +31,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 
 /**
@@ -82,7 +82,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             }
 
             if (!Utils.resumableTransport(r.transport())) {
-                AtmosphereResourceEventListenerAdapter a = new AtmosphereResourceEventListenerAdapter() {
+                OnSuspend a = new OnSuspend() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
                         r.getResponse().write(protocolMessage.get());

@@ -58,7 +58,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
@@ -69,6 +68,8 @@ import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume;
 
 /**
  * This class is used when the {@link org.atmosphere.cpr.AtmosphereFramework} fails to autodetect
@@ -169,7 +170,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         boolean ok = true;
         try {
             AtmosphereResource resource = req.resource();
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnResume() {
                 @Override
                 public void onResume(AtmosphereResourceEvent event) {
                     latch.countDown();

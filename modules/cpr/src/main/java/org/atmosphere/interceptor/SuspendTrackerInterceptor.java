@@ -19,7 +19,6 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,9 +27,11 @@ import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnDisconnect;
+
 /**
- * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of {@link AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
- * and {@link AtmosphereResourceEventListenerAdapter#onPreSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
+ * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
+ * and {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onPreSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
  * </p>
  * When used, the onSuspend will be only called ONCE for every transport, when the first request is made.
  *
@@ -49,7 +50,7 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
                 logger.trace("Blocking {} from suspend", r.uuid());
                 AtmosphereResourceImpl.class.cast(r).disableSuspendEvent(true);
             }
-            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            r.addEventListener(new OnDisconnect() {
                 @Override
                 public void onDisconnect(AtmosphereResourceEvent event) {
                     logger.trace("Untracking {}", r.uuid());

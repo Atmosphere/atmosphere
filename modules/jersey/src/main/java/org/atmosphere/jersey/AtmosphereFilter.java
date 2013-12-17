@@ -112,6 +112,7 @@ import static org.atmosphere.cpr.ApplicationConfig.JERSEY_CONTAINER_RESPONSE_WRI
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_ON_BROADCAST;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_LOCATION_HEADER;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 import static org.atmosphere.cpr.HeaderConfig.JSONP_TRANSPORT;
@@ -338,7 +339,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         }
                         final Object entity = response.getEntity();
 
-                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                        r.addEventListener(new OnSuspend() {
                             @Override
                             public void onSuspend(AtmosphereResourceEvent event) {
                                 try {

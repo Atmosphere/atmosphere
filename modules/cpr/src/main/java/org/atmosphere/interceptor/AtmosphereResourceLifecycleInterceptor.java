@@ -20,7 +20,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnBroadcast;
 
 /**
  * <p>This {@link AtmosphereInterceptor} implementation automatically suspends the intercepted
@@ -116,7 +116,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
             && impl.isInScope()) {
 
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());
-            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            r.addEventListener(new OnBroadcast() {
                 @Override
                 public void onBroadcast(AtmosphereResourceEvent event) {
                     switch (r.transport()) {

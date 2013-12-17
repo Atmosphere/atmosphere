@@ -29,7 +29,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.interceptor.InvokationOrder;
@@ -50,6 +49,7 @@ import java.io.Reader;
 import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.*;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -190,7 +190,7 @@ public class ManagedAtmosphereHandlerTest {
         @Get
         public void get(AtmosphereResource resource) {
             r.set(resource);
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/e").method("POST").body("message").build();
@@ -231,7 +231,7 @@ public class ManagedAtmosphereHandlerTest {
         @Get
         public void get(AtmosphereResource resource) {
             r.set(resource);
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("POST").body("message").build();
@@ -354,7 +354,7 @@ public class ManagedAtmosphereHandlerTest {
         @Get
         public void get(AtmosphereResource resource) {
             r.set(resource);
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/readerInjection").method("POST").body("message").build();
@@ -398,7 +398,7 @@ public class ManagedAtmosphereHandlerTest {
         @Get
         public void get(AtmosphereResource resource) {
             r.set(resource);
-            resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inputStreamInjection").method("POST").body("message").build();

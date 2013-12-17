@@ -21,7 +21,6 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
-import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
@@ -42,6 +41,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.STATE_RECOVERY_TIMEOUT;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.*;
 
 /**
  * This interceptor associates a {@link AtmosphereResource} to all {@link Broadcaster} the resource was added before
@@ -104,7 +104,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 writeCache(r, cachedMessages);
                 return Action.CANCELLED;
             } else {
-                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                r.addEventListener(new OnSuspend() {
                     public void onSuspend(AtmosphereResourceEvent event) {
                         logger.trace("onSuspend first");
                         final AtomicBoolean doNotSuspend = new AtomicBoolean(false);
@@ -113,7 +113,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                          * suspend the connection. This code is needed to prevent the connection being suspended
                          * with messages already written.
                          */
-                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                        r.addEventListener(new OnBroadcast() {
                             @Override
                             public void onBroadcast(AtmosphereResourceEvent event) {
                                 r.removeEventListener(this);
