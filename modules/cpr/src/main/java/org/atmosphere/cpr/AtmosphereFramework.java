@@ -1875,8 +1875,14 @@ public class AtmosphereFramework implements ServletContextProvider {
         } catch (Exception ex) {
             logger.error("Unable to parse query string", ex);
         }
-        if (q.length() > 0) q.deleteCharAt(q.length() - 1);
-        request.queryString(q.toString());
+        String disallowModifyQueryString = config.getInitParameter(ApplicationConfig.DISALLOW_MODIFY_QUERYSTRING);
+        if (disallowModifyQueryString == null ||
+                disallowModifyQueryString.length() == 0 || "false".equalsIgnoreCase(disallowModifyQueryString)) {
+            if (q.length() > 0) {
+                q.deleteCharAt(q.length() - 1);
+            }
+            request.queryString(q.toString());
+        }
 
         logger.trace("Query String translated to headers {}", headers);
         return headers;

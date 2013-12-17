@@ -294,6 +294,17 @@ public interface ApplicationConfig {
      */
     String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
     /**
+     * Disallow Atmosphere to modify the query string of incoming connections.
+     * <p>
+     * In some cases the Atmosphere javascript client attaches request headers as query string parameters. The default Atmosphere
+     * behaviour is to parse the query string and remove the Atmosphere parameters from the query string. This behaviour breaks
+     * at least WebSocket draft-00 / hixie-76, but by setting this value to true the query string is never modified by Atmosphere.
+     * <p>
+     * Default: false<br>
+     * Value: org.atmosphere.cpr.disallowModifyQueryString
+     */
+    String DISALLOW_MODIFY_QUERYSTRING = ApplicationConfig.class.getPackage().getName() + ".disallowModifyQueryString";
+    /**
      * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} among them.
      * <p>
      * Default: true<br>
