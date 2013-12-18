@@ -750,7 +750,8 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                         String inputLine;
                         String newVersion = Version.getRawVersion();
-                        String clientVersion = "2.0.3";
+                        String clientVersion = "2.0.9";
+                        String nextMajorRelease = "2.1.0-RC2";
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
                                 if (inputLine.startsWith("ATMO_VERSION=")) {
@@ -758,12 +759,19 @@ public class AtmosphereFramework implements ServletContextProvider {
                                 } else if (inputLine.startsWith("CLIENT_VERSION=")) {
                                     clientVersion = inputLine.substring("CLIENT_VERSION=".length());
                                     break;
+                                } else if (inputLine.startsWith("ATMO21_VERSION=")) {
+                                    nextMajorRelease = inputLine.substring("ATMO21_VERSION=".length());
                                 }
                             }
                         } finally {
                             logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
                             if (newVersion.compareTo(Version.getRawVersion()) != 0) {
-                                logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
+
+                                String msg = "\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}";
+                                if (nextMajorRelease.toLowerCase().indexOf("rc") == -1 && nextMajorRelease.toLowerCase().indexOf("beta") == -1) {
+                                    msg = "\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}";
+                                }
+                                logger.info(msg, newVersion, nextMajorRelease);
                             }
                             try {
                                 in.close();
