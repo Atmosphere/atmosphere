@@ -809,7 +809,7 @@ public class AtmosphereFramework {
 
                         String inputLine;
                         String newVersion = Version.getRawVersion();
-                        String clientVersion = "2.1.0-SNAPSHOT";
+                        String clientVersion = "2.1.2";
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
                                 if (inputLine.startsWith("ATMO21_VERSION=")) {
