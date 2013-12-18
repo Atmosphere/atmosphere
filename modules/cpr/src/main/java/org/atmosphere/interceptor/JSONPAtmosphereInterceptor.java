@@ -18,17 +18,18 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.util.StringEscapeUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.util.Arrays;
 
 /**
  * JSONP Transport Support.
@@ -38,47 +39,61 @@ import java.util.Arrays;
 public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(JSONPAtmosphereInterceptor.class);
-    private static final String END_CHUNK = "\"});";
-    private static final Object START_CHUNK = "({\"message\" : \"";
+    private String endChunk = "\"});";
+    private String startChunk = "({\"message\" : \"";
+    private AtmosphereConfig config;
+
+    @Override
+    public void configure(AtmosphereConfig config) {
+        this.config = config;
+    }
 
     @Override
     public Action inspect(AtmosphereResource r) {
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP)) {
+        // Shield from Broken server
+        String uri = request.getRequestURI() == null ? "" : request.getRequestURI();
+
+        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || uri.indexOf("jsonp") != -1) {
             super.inspect(r);
+
+            if (uri.indexOf("jsonp") != -1) {
+                startChunk = "(\"";
+                endChunk = "\");\r\n\r\n";
+            }
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     String callbackName() {
-                        return request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
+                        String callback =  request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
+                        if (callback == null) {
+                            // Look for extension
+                            String jsonp = (String) config.properties().get(HeaderConfig.JSONP_CALLBACK_NAME);
+                            if (jsonp != null) {
+                                callback = request.getParameter(jsonp);
+                            }
+                        }
+                        return callback;
                     }
 
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {
                         String callbackName = callbackName();
-                        response.write(callbackName + START_CHUNK);
+                        response.write(callbackName + startChunk);
                     }
 
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-                        if (Arrays.binarySearch(responseDraft, (byte) 0x22) != -1) {
-                            String charEncoding = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
-                            // TODO: TOTALLY INEFFICIENT. We MUST uses binary replacement instead.
-                            String s = new String(responseDraft, charEncoding);
-                            return s.replaceAll("(['\"\\/])", "\\\\$1")
-                                    .replaceAll("\b", "\\\\b").replaceAll("\n", "\\\\n")
-                                    .replaceAll("\t", "\\\\t").replaceAll("\f", "\\\\f")
-                                    .replaceAll("\r", "\\\\r").getBytes(charEncoding);
-                        }
-                        return responseDraft;
+                        String charEncoding = response.getCharacterEncoding() == null ? "UTF-8" : response.getCharacterEncoding();
+                        return escapeForJavaScript(new String(responseDraft, charEncoding)).getBytes(charEncoding);
                     }
 
                     @Override
                     public void postPayload(AtmosphereResponse response, byte[] data, int offset, int length) {
-                        response.write(END_CHUNK, true);
+                        response.write(endChunk, true);
                     }
                 });
             } else {
@@ -86,6 +101,16 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             }
         }
         return Action.CONTINUE;
+    }
+
+    protected String escapeForJavaScript(String str) {
+        try {
+            str = StringEscapeUtils.escapeJavaScript(str);
+        } catch (Exception e) {
+            logger.error("Failed to escape", e);
+            str = null;
+        }
+        return str;
     }
 
     @Override
