@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.JSR356AsyncSupport;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,7 +80,7 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                 @Override
                 public void requestInitialized(ServletRequestEvent sre) {
                     HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
-                    if (framework.getAtmosphereConfig().isSupportSession() && r.getHeader("Upgrade") != null) {
+                    if (framework.getAtmosphereConfig().isSupportSession() && Utils.webSocketEnabled(r)) {
                         r.getSession(true);
                     }
                 }
