@@ -69,6 +69,8 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
             for (AtmosphereResource r : b.getAtmosphereResources()) {
                 AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
                 try {
+                    if (req.getAttribute(MAX_INACTIVE) == null) return;
+
                     long l = (Long) req.getAttribute(MAX_INACTIVE);
                     if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
                         req.setAttribute(MAX_INACTIVE, (long) -1);
