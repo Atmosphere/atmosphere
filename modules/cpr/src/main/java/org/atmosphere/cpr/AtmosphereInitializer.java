@@ -72,19 +72,19 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
             }
 
             try {
-            c.addListener(new ServletRequestListener() {
-                @Override
-                public void requestDestroyed(ServletRequestEvent sre) {
-                }
-
-                @Override
-                public void requestInitialized(ServletRequestEvent sre) {
-                    HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
-                    if (framework.getAtmosphereConfig().isSupportSession() && Utils.webSocketEnabled(r)) {
-                        r.getSession(true);
+                c.addListener(new ServletRequestListener() {
+                    @Override
+                    public void requestDestroyed(ServletRequestEvent sre) {
                     }
-                }
-            });
+
+                    @Override
+                    public void requestInitialized(ServletRequestEvent sre) {
+                        HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
+                        if (framework.getAtmosphereConfig().isSupportSession() && Utils.webSocketEnabled(r)) {
+                            r.getSession(true);
+                        }
+                    }
+                });
             } catch (Throwable t) {
                 logger.trace("Unable to install WebSocket Session Creator", t);
             }
