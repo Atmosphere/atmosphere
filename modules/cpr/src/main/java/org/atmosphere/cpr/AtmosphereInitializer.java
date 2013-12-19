@@ -19,10 +19,19 @@ import org.atmosphere.container.JSR356AsyncSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.Filter;
+import javax.servlet.FilterChain;
+import javax.servlet.FilterConfig;
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
+import javax.servlet.ServletRequestEvent;
+import javax.servlet.ServletRequestListener;
+import javax.servlet.ServletResponse;
 import javax.servlet.annotation.HandlesTypes;
+import javax.servlet.http.HttpServletRequest;
+import java.io.IOException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
@@ -59,6 +68,24 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                         return c.getInitParameterNames();
                     }
                 }));
+            }
+
+            try {
+            c.addListener(new ServletRequestListener() {
+                @Override
+                public void requestDestroyed(ServletRequestEvent sre) {
+                }
+
+                @Override
+                public void requestInitialized(ServletRequestEvent sre) {
+                    HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
+                    if (framework.getAtmosphereConfig().isSupportSession() && r.getHeader("Upgrade") != null) {
+                        r.getSession(true);
+                    }
+                }
+            });
+            } catch (Throwable t) {
+                logger.trace("Unable to install WebSocket Session Creator", t);
             }
 
             c.setAttribute(AtmosphereFramework.class.getName(), framework);
