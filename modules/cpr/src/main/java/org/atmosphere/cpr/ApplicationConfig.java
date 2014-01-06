@@ -606,7 +606,7 @@ public interface ApplicationConfig {
      * Default: 5
      * Value: MUST be set using System's properties: org.atmosphere.cpr.jsr356.pathMappingLength"
      */
-    String JSR356_PATH_MAPPING_LENGTH = ApplicationConfig.class.getName() + ".jsr356.pathMappingLength";
+    String JSR356_PATH_MAPPING_LENGTH = ApplicationConfig.class.getPackage().getName()+ ".jsr356.pathMappingLength";
     /**
      * Default Server Side Event content type.
      * Default: text/event-stream
@@ -626,21 +626,21 @@ public interface ApplicationConfig {
      * Default: true<br>
      * Value: org.atmosphere.cpr.scanClassPath
      */
-    String SCAN_CLASSPATH = ApplicationConfig.class.getName() + ".scanClassPath";
+    String SCAN_CLASSPATH = ApplicationConfig.class.getPackage().getName()+ ".scanClassPath";
     /**
      * Use a build in {@link javax.servlet.http.HttpSession} when using native WebSocket implementation.
      * <p>
      * Default: false<br>
      * Value: org.atmosphere.cpr.useBuildInSession
      */
-    String BUILT_IN_SESSION = ApplicationConfig.class.getName() + ".useBuildInSession";
+    String BUILT_IN_SESSION = ApplicationConfig.class.getPackage().getName()+ ".useBuildInSession";
     /**
      * The default {@link AtmosphereObjectFactory} class.
      * <p>
      * Default: DefaultAtmosphereObjectFactory (calls newInstance() on class)<br>
      * Value: org.atmosphere.cpr.objectFactory
      */
-    String OBJECT_FACTORY = ApplicationConfig.class.getName() + ".objectFactory";
+    String OBJECT_FACTORY = ApplicationConfig.class.getPackage().getName()+ ".objectFactory";
     /**
      * The maximum number of time, in seconds, thread will be stay alive when created with {@link org.atmosphere.util.ExecutorsFactory}. Those {@link java.util.concurrent.Executor}.
      * are used by the {@link DefaultBroadcaster}'s Thread Pool. See also {@link #BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE} and {@link #BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE}
