@@ -32,6 +32,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -60,10 +61,10 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     public final static class ClientQueue {
 
-        private final LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
+        private final ConcurrentLinkedQueue<CacheMessage> queue = new ConcurrentLinkedQueue<CacheMessage>();
         private final Set<String> ids = new HashSet<String>();
 
-        public LinkedList<CacheMessage> getQueue() {
+        public ConcurrentLinkedQueue<CacheMessage> getQueue() {
             return queue;
         }
 
@@ -154,15 +155,13 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         ClientQueue clientQueue;
         activeClients.put(clientId, now);
         clientQueue = messages.remove(clientId);
-        List<CacheMessage> clientMessages;
-        if (clientQueue == null) {
-            clientMessages = Collections.emptyList();
-        } else {
+        ConcurrentLinkedQueue<CacheMessage> clientMessages;
+        if (clientQueue != null) {
             clientMessages = clientQueue.getQueue();
-        }
 
-        for (CacheMessage cacheMessage : clientMessages) {
-            result.add(cacheMessage.getMessage());
+            for (CacheMessage cacheMessage : clientMessages) {
+                result.add(cacheMessage.getMessage());
+            }
         }
 
         if (logger.isTraceEnabled()) {
@@ -214,7 +213,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             clientQueue = new ClientQueue();
             messages.put(clientId, clientQueue);
         }
-        clientQueue.getQueue().addLast(message);
+        clientQueue.getQueue().offer(message);
         clientQueue.getIds().add(message.getId());
     }
 
