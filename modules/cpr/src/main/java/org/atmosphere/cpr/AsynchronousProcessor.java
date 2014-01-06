@@ -299,7 +299,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
         Action a = Action.CONTINUE;
         for (AtmosphereInterceptor arc : c) {
-            a = arc.inspect(r);
+            try {
+                a = arc.inspect(r);
+            } catch (Exception ex) {
+                logger.error("Interceptor {} crashed. Processing will continue with other interceptor.", arc, ex);
+                continue;
+            }
+
             if (a == null) {
                 logger.trace("Action was null for {}", arc);
                 a = Action.CANCELLED;
@@ -320,8 +326,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
     private void postInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
+        AtmosphereInterceptor arc = null;
         for (int i = c.size() - 1; i > -1; i--) {
-            c.get(i).postInspect(r);
+            try {
+                arc = c.get(i);
+                arc.postInspect(r);
+            } catch (Exception ex) {
+                logger.error("Interceptor {} crashed. Processing will continue with other interceptor.", arc, ex);
+                continue;
+            }
         }
     }
 
