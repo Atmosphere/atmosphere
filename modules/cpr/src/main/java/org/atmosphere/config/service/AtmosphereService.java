@@ -23,7 +23,6 @@ import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.interceptor.HeartbeatInterceptor;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
