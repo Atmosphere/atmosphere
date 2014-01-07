@@ -41,6 +41,8 @@
                             org.glassfish.grizzly*;resolution:=optional,
                             org.apache.catalina*;resolution:=optional,
                             org.apache.tomcat*;resolution:=optional;version="0.0",
+                            org.eclipse.jetty.continuation;resolution:=optional;version="[7.6,9)",
+                            org.eclipse.jetty.websocket;resolution:=optional;version="[7.6,9)",
                             org.eclipse.jetty*;resolution:=optional,
                             org.jboss.servlet*;resolution:=optional,
                             org.apache.coyote*;resolution:=optional,
