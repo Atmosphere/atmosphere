@@ -58,7 +58,7 @@ Atmosphere 2.0.5 is our official release, and our work in progress version is 2.
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.1.0-RC1</version>
+         <version>2.1.0-RC2</version>
       </dependency>
 ```
 
