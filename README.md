@@ -2,9 +2,9 @@
   <img src="http://atmosphere.github.io/atmosphere/images/atmosphere.png" alt="LOGO"/>
 </p>
 ### Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
-The Atmosphere Framework contains client and server side components for building Asynchronous Web Application. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all majors [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers)
+The Atmosphere Framework contains client and server side components for building Asynchronous Web Application. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all majors [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers).
 
-<center>Follow us on [Twitter](http://www.twitter.com/atmo_framework)</center>
+<center>Follow us on [Twitter](http://www.twitter.com/atmo_framework)</center>.
 
 Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
@@ -13,11 +13,11 @@ The Atmosphere Framework Stack consists of:
 <p align="center">
   <img src="http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack"" alt="Atmosphere Stack"/>
 </p>
-The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/) [Play! Framework](http://atmosphere.github.io/atmosphere-play/)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx)
+The Atmosphere Framework Stack works on all Servlet based server including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx).
 
-Our Java/Scala Client is called [wasync](https://github.com/Atmosphere/wasync)
+Our Java/Scala Client is called [wasync](https://github.com/Atmosphere/wasync).
 
-Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/)
+Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/).
 
 ### Commercial support now available!
 Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on donate button!
@@ -27,7 +27,7 @@ Commercial Support is now available via [Async-IO.org](http://async-io.org) Want
 Get started using this step by step [tutorial](http://async-io.org/tutorial.html)
 
 ### Official Documentation
-Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started as well as [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions). You can also browse the framework's [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-atmosphere.js-API) for Client Components
+Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started as well as [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions). You can also browse the framework's [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/jQuery.atmosphere.js-atmosphere.js-API) for Client Components.
 
 ### Quick Start
 
