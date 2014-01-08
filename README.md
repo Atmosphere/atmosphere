@@ -75,7 +75,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 [Top](#Top)
 
 ## Build Status
-Powered by [Cloudbees](https://jfarcabd.ci.cloudbees.com/)
+[![Build Status](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/badge/icon)](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/)
 
 [![githalytics.com alpha](https://cruel-carlota.pagodabox.com/451c0e9dd7bfaa28ea12114ceb11695b "githalytics.com")](http://githalytics.com/Atmosphere/atmosphere)
 
