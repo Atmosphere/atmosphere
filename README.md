@@ -11,11 +11,11 @@ Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Pol
 The Atmosphere Framework Stack consists of: 
 
 <p align="center">
-  <img src="http://atmosphere.github.io/atmosphere/images/stack.png "Atmosphere Framework Stack"" alt="Atmosphere Stack"/>
+  <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack" alt="Atmosphere Stack"/>
 </p>
 The Atmosphere Framework Stack works on all Servlet based servers including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx).
 
-Our Java/Scala Client is called [wasync](https://github.com/Atmosphere/wasync).
+Atmosphere's Java/Scala Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
 Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/).
 
