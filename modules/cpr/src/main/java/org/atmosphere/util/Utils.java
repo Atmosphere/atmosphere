@@ -54,9 +54,23 @@ public final class Utils {
     }
 
     public final static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
-        if (t.equals(AtmosphereResource.TRANSPORT.JSONP) || t.equals(AtmosphereResource.TRANSPORT.LONG_POLLING)) {
-            return true;
+        switch (t) {
+            case JSONP:
+            case LONG_POLLING:
+                return true;
+            default:
+                return false;
         }
-        return false;
+    }
+
+    public final static boolean pollableTransport(AtmosphereResource.TRANSPORT t) {
+        switch (t) {
+            case POLLING:
+            case UNDEFINED:
+            case AJAX:
+                return true;
+            default:
+                return false;
+        }
     }
 }

@@ -49,7 +49,9 @@ import java.io.Reader;
 import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.*;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
+import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
@@ -283,6 +285,7 @@ public class ManagedAtmosphereHandlerTest {
     public void testSuspend() throws IOException, ServletException {
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/j").method("GET").build();
+        request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertNotNull(r.get());
     }
@@ -317,6 +320,7 @@ public class ManagedAtmosphereHandlerTest {
     public void testPriority() throws IOException, ServletException {
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/priority").method("GET").build();
+        request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertEquals(framework.interceptors().getFirst().toString(), "XXX");
 
@@ -342,6 +346,7 @@ public class ManagedAtmosphereHandlerTest {
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/override").method("GET").build();
+        request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         assertNotNull(r.get());

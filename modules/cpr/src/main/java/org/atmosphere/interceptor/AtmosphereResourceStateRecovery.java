@@ -27,6 +27,7 @@ import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -93,8 +94,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (!r.transport().equals(AtmosphereResource.TRANSPORT.POLLING)
-                && !r.transport().equals(AtmosphereResource.TRANSPORT.AJAX)) {
+        if (!Utils.pollableTransport(r.transport())){
 
             final BroadcasterTracker tracker = track(r).tick();
 

@@ -34,6 +34,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.util.IOUtils;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -106,7 +107,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     public void onRequest(final AtmosphereResource resource) throws IOException {
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
-        boolean polling = resource.transport().equals(AtmosphereResource.TRANSPORT.POLLING);
+        boolean polling = Utils.pollableTransport(resource.transport());
 
         if (onReadyMethod != null && !polling) {
             resource.addEventListener(new OnSuspend() {

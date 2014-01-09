@@ -82,13 +82,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        super.inspect(r);
-
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
 
-
-        if (!r.transport().equals(TRANSPORT.POLLING)) {
+        if (!Utils.pollableTransport(r.transport())){
+            super.inspect(r);
             r.addEventListener(new Clock() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
@@ -100,6 +98,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     cancelF(request);
                 }
             });
+        } else {
+            return Action.CONTINUE;
         }
         AsyncIOWriter writer = response.getAsyncIOWriter();
 
