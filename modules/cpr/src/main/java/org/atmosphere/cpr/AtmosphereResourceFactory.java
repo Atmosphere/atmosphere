@@ -75,7 +75,7 @@ public final class AtmosphereResourceFactory {
                                            AsyncSupport<?> a) {
         AtmosphereResource r = null;
         try {
-            r = config.framework().newClassInstance(AtmosphereResourceImpl.class);
+            r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
             r.initialize(config, null, request, response, a, voidAtmosphereHandler);
         } catch (Exception e) {
             logger.error("", e);
@@ -101,7 +101,7 @@ public final class AtmosphereResourceFactory {
                                            AtmosphereHandler handler) {
         AtmosphereResource r = null;
         try {
-            r = config.framework().newClassInstance(AtmosphereResourceImpl.class);
+            r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
             r.initialize(config, broadcaster, request, response, a, handler);
         } catch (Exception e) {
             logger.error("", e);
@@ -140,7 +140,7 @@ public final class AtmosphereResourceFactory {
                                            AsyncSupport<?> a) {
         AtmosphereResource r = null;
         try {
-            r = config.framework().newClassInstance(AtmosphereResourceImpl.class);
+            r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
             r.initialize(config, null, response.request(), response, a, voidAtmosphereHandler);
         } catch (Exception e) {
             logger.error("", e);

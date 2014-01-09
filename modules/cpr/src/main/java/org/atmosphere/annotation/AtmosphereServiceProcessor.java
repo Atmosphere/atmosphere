@@ -39,12 +39,12 @@ import static org.atmosphere.annotation.AnnotationUtil.listeners;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 
 @AtmosphereAnnotation(AtmosphereService.class)
-public class AtmosphereServiceProcessor implements Processor {
+public class AtmosphereServiceProcessor implements Processor<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
         try {
             Class<?> aClass = annotatedClass;
             AtmosphereService a = aClass.getAnnotation(AtmosphereService.class);
@@ -60,15 +60,15 @@ public class AtmosphereServiceProcessor implements Processor {
             }
 
             if (!a.servlet().isEmpty()) {
-                final ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class);
+                final ReflectorServletProcessor r = framework.newClassInstance(AtmosphereHandler.class, ReflectorServletProcessor.class);
                 r.setServletClassName(a.servlet());
 
                 String mapping = a.path();
 
-                Class<?>[] interceptors = a.interceptors();
+                Class<? extends AtmosphereInterceptor>[] interceptors = a.interceptors();
                 for (Class i : interceptors) {
                     try {
-                        AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(i);
+                        AtmosphereInterceptor ai = framework.newClassInstance(AtmosphereInterceptor.class, i);
                         l.add(ai);
                     } catch (Throwable e) {
                         logger.warn("", e);

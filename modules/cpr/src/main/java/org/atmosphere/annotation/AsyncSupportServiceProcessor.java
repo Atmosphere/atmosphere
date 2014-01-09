@@ -17,18 +17,19 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AsyncSupportService;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.DefaultAsyncSupportResolver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AtmosphereAnnotation(AsyncSupportService.class)
-public class AsyncSupportServiceProcessor implements Processor {
+public class AsyncSupportServiceProcessor implements Processor<AsyncSupport> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsyncSupportServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<AsyncSupport> annotatedClass) {
         try {
             framework.setAsyncSupport(new DefaultAsyncSupportResolver(framework.getAtmosphereConfig()).newCometSupport(annotatedClass.getName()));
         } catch (Throwable e) {

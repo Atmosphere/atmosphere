@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProcessor;
 
@@ -68,18 +69,12 @@ public class WebSocketProcessorFactory {
 
         String webSocketProcessorName = framework
                 .getWebSocketProcessorClassName();
-        if (!webSocketProcessorName
-                .equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
+        if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
             try {
-                processor = (WebSocketProcessor) framework.newClassInstance(Thread.currentThread()
-                        .getContextClassLoader()
-                        .loadClass(webSocketProcessorName));
+                processor =  framework.newClassInstance(WebSocketProcessor.class,
+                        (Class<WebSocketProcessor>) IOUtils.loadClass(getClass(), webSocketProcessorName));
             } catch (Exception ex) {
-                try {
-                    processor = (WebSocketProcessor) framework.newClassInstance(getClass()
-                            .getClassLoader().loadClass(webSocketProcessorName));
-                } catch (Exception ex2) {
-                }
+                processor = new DefaultWebSocketProcessor(framework);
             }
         }
 

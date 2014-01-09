@@ -20,6 +20,7 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -109,14 +110,15 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
                 if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
                     Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
                     MeteorService m = s.getClass().getAnnotation(MeteorService.class);
-                    if (m!= null) {
+                    if (m != null) {
                         String targetPath = m.path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
                                 boolean singleton = s.getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
-                                    ReflectorServletProcessor r = config.framework().newClassInstance(ReflectorServletProcessor.class);
-                                    r.setServlet(config.framework().newClassInstance(s.getClass()));
+                                    ReflectorServletProcessor r =
+                                            config.framework().newClassInstance(AtmosphereHandler.class, ReflectorServletProcessor.class);
+                                    r.setServlet(config.framework().newClassInstance(Servlet.class, s.getClass()));
                                     r.init(config);
                                     config.framework().addAtmosphereHandler(path, r,
                                             config.getBroadcasterFactory().lookup(m.broadcaster(), path, true), w.interceptors);

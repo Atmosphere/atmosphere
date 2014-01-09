@@ -18,16 +18,17 @@ package org.atmosphere.annotation;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AtmosphereAnnotation(WebSocketProcessorService.class)
-public class WebSocketProcessorServiceProcessor implements Processor {
+public class WebSocketProcessorServiceProcessor implements Processor<WebSocketProcessor> {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessorServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<WebSocketProcessor> annotatedClass) {
         try {
             framework.setWebsocketProcessorClassName(annotatedClass.getName());
         } catch (Throwable e) {

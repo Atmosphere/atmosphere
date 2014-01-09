@@ -18,12 +18,13 @@ package org.atmosphere.annotation;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.WebSocketProtocolService;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.websocket.WebSocketProtocol;
 
 @AtmosphereAnnotation(WebSocketProtocolService.class)
-public class WebSocketProtocolServiceProcessor implements Processor {
+public class WebSocketProtocolServiceProcessor implements Processor<WebSocketProtocol> {
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<WebSocketProtocol> annotatedClass) {
         framework.setWebSocketProtocolClassName(annotatedClass.getName());
     }
 }

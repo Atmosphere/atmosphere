@@ -34,12 +34,12 @@ import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(AtmosphereHandlerService.class)
-public class AtmosphereHandlerServiceProcessor implements Processor {
+public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHandler> {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<AtmosphereHandler> annotatedClass) {
         try {
             AtmosphereHandlerService a = annotatedClass.getAnnotation(AtmosphereHandlerService.class);
 
@@ -50,7 +50,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
             for (Class i : interceptors) {
                 try {
-                    AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(i);
+                    AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.class, i);
                     l.add(ai);
                 } catch (Throwable e) {
                     logger.warn("", e);
@@ -58,7 +58,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
             }
 
             if (a.path().contains("{")) {
-                framework.interceptors().add(framework.newClassInstance(AtmosphereHandlerServiceInterceptor.class));
+                framework.interceptors().add(framework.newClassInstance(AtmosphereInterceptor.class, AtmosphereHandlerServiceInterceptor.class));
             }
 
             AtmosphereInterceptor aa = listeners(a.listeners(), framework);
@@ -68,7 +68,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor {
 
             framework.sessionSupport(a.supportSession());
 
-            AtmosphereHandler handler = (AtmosphereHandler) framework.newClassInstance(annotatedClass);
+            AtmosphereHandler handler = framework.newClassInstance(AtmosphereHandler.class, annotatedClass);
             for (String s : a.properties()) {
                 String[] nv = s.split("=");
                 IntrospectionUtils.setProperty(handler, nv[0], nv[1]);

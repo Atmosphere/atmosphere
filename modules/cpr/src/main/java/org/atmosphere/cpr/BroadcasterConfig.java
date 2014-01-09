@@ -55,6 +55,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -154,13 +155,8 @@ public class BroadcasterConfig {
         try {
             String className = config.framework().getBroadcasterCacheClassName();
             if (className != null) {
-                try {
-                    broadcasterCache = (BroadcasterCache) config.framework().newClassInstance(Thread.currentThread().getContextClassLoader()
-                            .loadClass(className));
-                } catch (ClassNotFoundException ex) {
-                    broadcasterCache = (BroadcasterCache) config.framework().newClassInstance(getClass().getClassLoader()
-                            .loadClass(className));
-                }
+                broadcasterCache = config.framework().newClassInstance(BroadcasterCache.class,
+                        (Class<BroadcasterCache>) IOUtils.loadClass(getClass(), className));
                 configureSharedCacheExecutor();
                 broadcasterCache.configure(this);
             }
@@ -168,11 +164,7 @@ public class BroadcasterConfig {
             for (BroadcasterCacheInspector b : config.framework().inspectors()) {
                 broadcasterCache.inspector(b);
             }
-        } catch (InstantiationException e) {
-            throw new RuntimeException(e);
-        } catch (IllegalAccessException e) {
-            throw new RuntimeException(e);
-        } catch (ClassNotFoundException e) {
+        } catch (Exception e) {
             throw new RuntimeException(e);
         }
     }
@@ -574,21 +566,9 @@ public class BroadcasterConfig {
         for (String broadcastFilter : list) {
             BroadcastFilter bf = null;
             try {
-                bf = BroadcastFilter.class
-                        .cast(config.framework().newClassInstance(Thread.currentThread().getContextClassLoader().loadClass(broadcastFilter)));
-            } catch (InstantiationException e) {
+                bf = config.framework().newClassInstance(BroadcastFilter.class, (Class<BroadcastFilter>) IOUtils.loadClass(getClass(), broadcastFilter));
+            } catch (Exception e) {
                 logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
-            } catch (IllegalAccessException e) {
-                logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
-            } catch (ClassNotFoundException e) {
-                try {
-                    bf = BroadcastFilter.class
-                            .cast(config.framework().newClassInstance(BroadcastFilter.class.getClassLoader().loadClass(broadcastFilter)));
-                } catch (InstantiationException e1) {
-                } catch (IllegalAccessException e1) {
-                } catch (ClassNotFoundException e1) {
-                    logger.warn("Error trying to instantiate BroadcastFilter: {}", broadcastFilter, e);
-                }
             }
             if (bf != null) {
                 addFilter(bf);

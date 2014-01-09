@@ -20,6 +20,7 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -96,7 +97,7 @@ public class AtmosphereHandlerServiceInterceptor extends AtmosphereInterceptorAd
                     try {
                         boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
                         if (!singleton) {
-                            config.framework().addAtmosphereHandler(path, config.framework().newClassInstance(w.atmosphereHandler.getClass()),
+                            config.framework().addAtmosphereHandler(path, config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass()),
                                     config.getBroadcasterFactory().lookup(m.broadcaster(), path, true), w.interceptors);
                         } else {
                             config.framework().addAtmosphereHandler(path, w.atmosphereHandler,

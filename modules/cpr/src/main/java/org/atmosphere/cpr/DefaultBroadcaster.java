@@ -269,7 +269,7 @@ public class DefaultBroadcaster implements Broadcaster {
                      * REQUEST_SCOPE means one BroadcasterCache per Broadcaster,
                      */
                     if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
-                        BroadcasterCache cache = config.framework().newClassInstance(bc.getBroadcasterCache().getClass());
+                        BroadcasterCache cache = config.framework().newClassInstance(BroadcasterCache.class, bc.getBroadcasterCache().getClass());
                         b.getBroadcasterConfig().setBroadcasterCache(cache);
                     }
 

@@ -23,14 +23,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AtmosphereAnnotation(AtmosphereInterceptorService.class)
-public class AtmosphereInterceptorServiceProcessor implements Processor {
+public class AtmosphereInterceptorServiceProcessor implements Processor<AtmosphereInterceptor> {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereInterceptorServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<AtmosphereInterceptor> annotatedClass) {
         try {
-            AtmosphereInterceptor a = (AtmosphereInterceptor) framework.newClassInstance(annotatedClass);
+            AtmosphereInterceptor a = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereInterceptor.class, annotatedClass);
             framework.interceptor(a);
         } catch (Throwable e) {
             logger.warn("", e);

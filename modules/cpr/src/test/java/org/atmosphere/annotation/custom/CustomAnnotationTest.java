@@ -102,13 +102,13 @@ public class CustomAnnotationTest {
     }
 
     @AtmosphereAnnotation(MyAnnotation.class)
-    public final static class MyAnnotationProcessor implements Processor {
+    public final static class MyAnnotationProcessor implements Processor<Object> {
 
         @Override
-        public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+        public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
             MyAnnotation a = annotatedClass.getAnnotation(MyAnnotation.class);
             try {
-                framework.addAtmosphereHandler(a.value(), (AtmosphereHandler) framework.newClassInstance(annotatedClass));
+                framework.addAtmosphereHandler(a.value(), (AtmosphereHandler) framework.newClassInstance(Object.class, annotatedClass));
             } catch (InstantiationException e) {
                 e.printStackTrace();
             } catch (IllegalAccessException e) {

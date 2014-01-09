@@ -19,6 +19,7 @@ import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.managed.MeteorServiceInterceptor;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
@@ -34,19 +35,18 @@ import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(MeteorService.class)
-public class MeteorServiceProcessor implements Processor {
+public class MeteorServiceProcessor implements Processor<Servlet> {
 
     private static final Logger logger = LoggerFactory.getLogger(MeteorServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<Servlet> annotatedClass) {
         try {
-            ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class);
+            ReflectorServletProcessor r = framework.newClassInstance(AtmosphereHandler.class, ReflectorServletProcessor.class);
             r.setServletClassName(annotatedClass.getName());
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
-            Class<Servlet> s = (Class<Servlet>) annotatedClass;
-            MeteorService m = s.getAnnotation(MeteorService.class);
+            MeteorService m = annotatedClass.getAnnotation(MeteorService.class);
 
             String mapping = m.path();
 
@@ -58,10 +58,10 @@ public class MeteorServiceProcessor implements Processor {
                 l.add(aa);
             }
 
-            Class<?>[] interceptors = m.interceptors();
+            Class<? extends AtmosphereInterceptor>[] interceptors = m.interceptors();
             for (Class i : interceptors) {
                 try {
-                    AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(i);
+                    AtmosphereInterceptor ai = framework.newClassInstance(AtmosphereInterceptor.class, i);
                     l.add(ai);
                 } catch (Throwable e) {
                     logger.warn("", e);
@@ -69,7 +69,7 @@ public class MeteorServiceProcessor implements Processor {
             }
 
             if (m.path().contains("{")) {
-                framework.interceptors().add(framework.newClassInstance(MeteorServiceInterceptor.class));
+                framework.interceptors().add(framework.newClassInstance(AtmosphereInterceptor.class, MeteorServiceInterceptor.class));
             }
             framework.addAtmosphereHandler(mapping, r, broadcaster(framework, m.broadcaster(), m.path()), l);
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
@@ -77,4 +77,5 @@ public class MeteorServiceProcessor implements Processor {
             logger.warn("", e);
         }
     }
+
 }

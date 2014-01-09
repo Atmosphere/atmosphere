@@ -34,12 +34,12 @@ import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(ManagedService.class)
-public class ManagedServiceProcessor implements Processor {
+public class ManagedServiceProcessor implements Processor<Object> {
 
     private static final Logger logger = LoggerFactory.getLogger(ManagedServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
         try {
             Class<?> aClass = annotatedClass;
             ManagedService a = aClass.getAnnotation(ManagedService.class);
@@ -53,15 +53,16 @@ public class ManagedServiceProcessor implements Processor {
                 l.add(aa);
             }
 
-            Object c = framework.newClassInstance(aClass);
-            AtmosphereHandler handler = framework.newClassInstance(ManagedAtmosphereHandler.class).configure(framework.getAtmosphereConfig(), c);
+            Object c = framework.newClassInstance(Object.class, aClass);
+            AtmosphereHandler handler = framework.newClassInstance(AtmosphereHandler.class,
+                    ManagedAtmosphereHandler.class).configure(framework.getAtmosphereConfig(), c);
             // MUST BE ADDED FIRST, ALWAYS!
-            l.add(framework.newClassInstance(ManagedServiceInterceptor.class));
+            l.add(framework.newClassInstance(AtmosphereInterceptor.class, ManagedServiceInterceptor.class));
 
-            Class<?>[] interceptors = a.interceptors();
+            Class<? extends AtmosphereInterceptor>[] interceptors = a.interceptors();
             for (Class i : interceptors) {
                 try {
-                    l.add((AtmosphereInterceptor) framework.newClassInstance(i));
+                    l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
                 } catch (Throwable e) {
                     logger.warn("", e);
                 }

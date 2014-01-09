@@ -22,7 +22,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
  * when the {@link org.atmosphere.cpr.AtmosphereFramework#init()} executes. Classes implementing this interface will
  * have a chance to process annotated classes and take the appropriate action.
  */
-public interface Processor {
+public interface Processor<T> {
 
     /**
      * Invoked by the {@link org.atmosphere.cpr.AnnotationHandler} when an annotation is detected.
@@ -30,6 +30,6 @@ public interface Processor {
      * @param framework      the {@link org.atmosphere.cpr.AtmosphereFramework}
      * @param annotatedClass the annotated classes.
      */
-    public void handle(final AtmosphereFramework framework, final Class<?> annotatedClass);
+    public void handle(final AtmosphereFramework framework, final Class<T> annotatedClass);
 
 }

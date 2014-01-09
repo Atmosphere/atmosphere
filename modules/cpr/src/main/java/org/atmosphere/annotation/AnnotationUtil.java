@@ -34,7 +34,7 @@ public class AnnotationUtil {
     public static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
         for (Class i : interceptors) {
             try {
-                framework.interceptor((AtmosphereInterceptor) framework.newClassInstance(i));
+                framework.interceptor((AtmosphereInterceptor) framework.newClassInstance(AtmosphereInterceptor.class, i));
             } catch (Throwable e) {
                 logger.warn("", e);
             }
@@ -43,7 +43,7 @@ public class AnnotationUtil {
 
     public static void filters(Class<? extends BroadcastFilter>[] bf, AtmosphereFramework framework) throws IllegalAccessException, InstantiationException {
         for (Class<? extends BroadcastFilter> b : bf) {
-            framework.broadcasterFilters(framework.newClassInstance(b));
+            framework.broadcasterFilters(framework.newClassInstance(BroadcastFilter.class, b));
         }
     }
 
@@ -65,7 +65,7 @@ public class AnnotationUtil {
                         if (!r.isSuspended()) {
                             for (Class<? extends AtmosphereResourceEventListener> l : listeners) {
                                 try {
-                                    r.addEventListener(framework.newClassInstance(l));
+                                    r.addEventListener(framework.newClassInstance(AtmosphereResourceEventListener.class, l));
                                 } catch (Throwable e) {
                                     logger.warn("", e);
                                 }

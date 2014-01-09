@@ -160,7 +160,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     private <T extends Broadcaster> T createBroadcaster(Class<T> c, Object id) throws BroadcasterCreationException {
         try {
             //T b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
-            T b = config.framework().newClassInstance(c);
+            T b = config.framework().newClassInstance(Broadcaster.class, c);
             b.initialize(id.toString(), legacyBroadcasterURI, config);
             b.setSuspendPolicy(defaultPolicyInteger, defaultPolicy);
 

@@ -19,18 +19,19 @@ import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.BroadcasterCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AtmosphereAnnotation(BroadcasterCacheInspectorService.class)
-public class BroadcasterCacheInspectorServiceProcessor implements Processor {
+public class BroadcasterCacheInspectorServiceProcessor implements Processor<BroadcasterCache> {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterCacheInspectorServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<BroadcasterCache> annotatedClass) {
         try {
-            framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) framework.newClassInstance(annotatedClass));
+            framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) framework.newClassInstance(BroadcasterCache.class, annotatedClass));
         } catch (Throwable e) {
             logger.warn("", e);
         }

@@ -116,8 +116,8 @@ public class ManagedServiceInterceptor extends AtmosphereInterceptorAdapter {
                             try {
                                 boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
-                                    ManagedAtmosphereHandler h = config.framework().newClassInstance(ManagedAtmosphereHandler.class);
-                                    h.configure(config, config.framework().newClassInstance(ap.target().getClass()));
+                                    ManagedAtmosphereHandler h = config.framework().newClassInstance(AtmosphereHandler.class, ManagedAtmosphereHandler.class);
+                                    h.configure(config, config.framework().newClassInstance(Object.class, ap.target().getClass()));
                                     config.framework().addAtmosphereHandler(path, h,
                                             config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
                                 } else {

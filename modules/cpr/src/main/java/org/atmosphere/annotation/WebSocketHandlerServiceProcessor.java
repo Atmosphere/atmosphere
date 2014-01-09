@@ -32,15 +32,14 @@ import static org.atmosphere.annotation.AnnotationUtil.interceptors;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(WebSocketHandlerService.class)
-public class WebSocketHandlerServiceProcessor implements Processor {
+public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHandler> {
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketHandlerServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<WebSocketHandler> annotatedClass) {
         try {
-            Class<WebSocketHandler> s = (Class<WebSocketHandler>) annotatedClass;
-            WebSocketHandlerService m = s.getAnnotation(WebSocketHandlerService.class);
+            WebSocketHandlerService m = annotatedClass.getAnnotation(WebSocketHandlerService.class);
 
             atmosphereConfig(m.atmosphereConfig(), framework);
             framework.addAtmosphereHandler(m.path(), AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER).initWebSocket();
@@ -57,7 +56,7 @@ public class WebSocketHandlerServiceProcessor implements Processor {
 
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
             p.registerWebSocketHandler(m.path(), new WebSocketProcessor.WebSocketHandlerProxy( broadcasterClass(framework, m.broadcaster()),
-                    framework.newClassInstance(s)));
+                    framework.newClassInstance(WebSocketHandler.class, annotatedClass)));
         } catch (Throwable e) {
             logger.warn("", e);
         }

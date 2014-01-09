@@ -23,14 +23,14 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AtmosphereAnnotation(BroadcasterFilterService.class)
-public class BroadcastFilterServiceProcessor implements Processor {
+public class BroadcastFilterServiceProcessor implements Processor<BroadcastFilter> {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcastFilterServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<?> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<BroadcastFilter> annotatedClass) {
         try {
-            framework.broadcasterFilters((BroadcastFilter) framework.newClassInstance(annotatedClass));
+            framework.broadcasterFilters((BroadcastFilter) framework.newClassInstance(BroadcastFilter.class, annotatedClass));
         } catch (Exception e) {
             logger.warn("", e);
         }

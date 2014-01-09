@@ -58,6 +58,7 @@ import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -72,7 +73,6 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
-import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Enumeration;
@@ -110,8 +110,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         this.servlet = servlet;
     }
 
-    void loadWebApplication(ServletConfig sc) throws MalformedURLException,
-            InstantiationException, IllegalAccessException, ClassNotFoundException {
+    void loadWebApplication(ServletConfig sc) throws Exception {
 
         URL url = sc.getServletContext().getResource("/WEB-INF/lib/");
         URLClassLoader urlC = new URLClassLoader(new URL[]{url},
@@ -125,15 +124,14 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         }
     }
 
-    private void loadServlet(ServletConfig sc, URLClassLoader urlC)
-            throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+    private void loadServlet(ServletConfig sc, URLClassLoader urlC) throws Exception {
         if (servletClassName != null && servlet == null) {
             try {
-                servlet = (Servlet) config.framework().newClassInstance(urlC.loadClass(servletClassName));
+                servlet = config.framework().newClassInstance(Servlet.class, (Class<Servlet>) urlC.loadClass(servletClassName));
             } catch (NullPointerException ex) {
                 // We failed to load the servlet, let's try directly.
-                servlet = (Servlet) config.framework().newClassInstance(Thread.currentThread().getContextClassLoader()
-                        .loadClass(servletClassName));
+                servlet = config.framework().newClassInstance(Servlet.class,
+                        (Class<Servlet>) IOUtils.loadClass(getClass(), servletClassName));
 
             }
         }
@@ -142,8 +140,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         filterChain.setServlet(sc, servlet);
     }
 
-    private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC)
-            throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+    private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC) throws Exception {
 
         for (Map.Entry<String, String> fClassAndName : filtersClassAndNames.entrySet()) {
             String fClass = fClassAndName.getKey();
@@ -164,15 +161,13 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         }
     }
 
-    private Filter loadFilter(URLClassLoader urlC, String fClass)
-            throws InstantiationException, IllegalAccessException, ClassNotFoundException {
+    private Filter loadFilter(URLClassLoader urlC, String fClass) throws Exception {
         Filter f;
         try {
-            f = (Filter) config.framework().newClassInstance(urlC.loadClass(fClass));
+            f = config.framework().newClassInstance(Filter.class, (Class<Filter>) urlC.loadClass(fClass));
         } catch (NullPointerException ex) {
             // We failed to load the Filter, let's try directly.
-            f = (Filter) config.framework().newClassInstance(Thread.currentThread().getContextClassLoader()
-                    .loadClass(fClass));
+            f = config.framework().newClassInstance(Filter.class, (Class<Filter>) IOUtils.loadClass(getClass(), fClass));
         }
         return f;
     }

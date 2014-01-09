@@ -11,12 +11,12 @@ public interface AtmosphereObjectFactory {
     /**
      * Delegate the creation of Object to the underlying object provider like Spring, Guice, etc.
      *
-     * @param framework {@link AtmosphereFramework}
-     * @param classToInstantiate a class to be created
-     * @param <T> The Class
-     * @return  an instance of T
+     *
+     * @param framework {@link org.atmosphere.cpr.AtmosphereFramework}
+     * @param classType The class' type to be created
+     * @param defaultImplementation a class to be created  @return  an instance of T
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-	public <T> T newClassInstance(AtmosphereFramework framework, Class<T> classToInstantiate) throws InstantiationException, IllegalAccessException;
+	public <T, U extends T> U newClassInstance(AtmosphereFramework framework, Class<T> classType, Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException;
 }
