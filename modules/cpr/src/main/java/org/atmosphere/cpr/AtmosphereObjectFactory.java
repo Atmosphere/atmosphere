@@ -14,9 +14,9 @@ public interface AtmosphereObjectFactory {
      *
      * @param framework {@link org.atmosphere.cpr.AtmosphereFramework}
      * @param classType The class' type to be created
-     * @param defaultImplementation a class to be created  @return  an instance of T
+     * @param defaultType a class to be created  @return  an instance of T
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-	public <T, U extends T> T newClassInstance(AtmosphereFramework framework, Class<T> classType, Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException;
+	public <T, U extends T> T newClassInstance(AtmosphereFramework framework, Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException;
 }

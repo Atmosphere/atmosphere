@@ -292,8 +292,8 @@ public class AtmosphereFramework {
         @Override
         public <T, U extends T> U newClassInstance(AtmosphereFramework framework,
                                                    Class<T> classType,
-                                                   Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException {
-            return defaultImplementation.newInstance();
+                                                   Class<U> defaultType) throws InstantiationException, IllegalAccessException {
+            return defaultType.newInstance();
         }
     }
 
@@ -2435,13 +2435,13 @@ public class AtmosphereFramework {
      * Instantiate a class
      *
      * @param classType The Required Class's Type
-     * @param defaultImplementation The default implementation of the Class's Type.
-     * @return the an instance of defaultImplementation
+     * @param defaultType The default implementation of the Class's Type.
+     * @return the an instance of defaultType
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-    public <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException {
-        return objectFactory.newClassInstance(this, classType, defaultImplementation);
+    public <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException {
+        return objectFactory.newClassInstance(this, classType, defaultType);
     }
 
     /**
