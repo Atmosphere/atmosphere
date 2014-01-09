@@ -878,7 +878,7 @@ public class AtmosphereFramework {
             }
 
             for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
-                if (!s.contains(a.getName())) {
+                if (!disables.contains(a.getName())) {
                     interceptors.addFirst(newAInterceptor(a));
                 } else {
                     logger.info("Dropping Interceptor {}", a.getName());
