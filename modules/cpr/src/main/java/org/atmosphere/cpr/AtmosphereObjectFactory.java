@@ -18,5 +18,5 @@ public interface AtmosphereObjectFactory {
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-	public <T, U extends T> U newClassInstance(AtmosphereFramework framework, Class<T> classType, Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException;
+	public <T, U extends T> T newClassInstance(AtmosphereFramework framework, Class<T> classType, Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException;
 }

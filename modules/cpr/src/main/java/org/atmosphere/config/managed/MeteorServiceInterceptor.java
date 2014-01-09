@@ -20,7 +20,6 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
-import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -117,7 +116,7 @@ public class MeteorServiceInterceptor extends AtmosphereInterceptorAdapter {
                                 boolean singleton = s.getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
                                     ReflectorServletProcessor r =
-                                            config.framework().newClassInstance(AtmosphereHandler.class, ReflectorServletProcessor.class);
+                                            config.framework().newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
                                     r.setServlet(config.framework().newClassInstance(Servlet.class, s.getClass()));
                                     r.init(config);
                                     config.framework().addAtmosphereHandler(path, r,

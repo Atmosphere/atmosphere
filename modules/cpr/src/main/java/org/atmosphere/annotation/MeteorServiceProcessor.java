@@ -19,7 +19,6 @@ import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.managed.MeteorServiceInterceptor;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.cpr.AtmosphereFramework;
-import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
@@ -42,7 +41,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
     @Override
     public void handle(AtmosphereFramework framework, Class<Servlet> annotatedClass) {
         try {
-            ReflectorServletProcessor r = framework.newClassInstance(AtmosphereHandler.class, ReflectorServletProcessor.class);
+            ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
             r.setServletClassName(annotatedClass.getName());
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 

@@ -1202,7 +1202,7 @@ public class AtmosphereFramework {
         // Jersey will itself handle the headers.
         //initParams.put(WRITE_HEADERS, "false");
 
-        ReflectorServletProcessor rsp = newClassInstance(AtmosphereHandler.class, ReflectorServletProcessor.class);
+        ReflectorServletProcessor rsp = newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
         if (broadcasterClassNameTmp != null) broadcasterClassName = broadcasterClassNameTmp;
         rsp.setServletClassName(JERSEY_CONTAINER);
         sessionSupport(false);
@@ -2440,7 +2440,7 @@ public class AtmosphereFramework {
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-    public <T, U extends T> U newClassInstance(Class<T> classType, Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException {
+    public <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultImplementation) throws InstantiationException, IllegalAccessException {
         return objectFactory.newClassInstance(this, classType, defaultImplementation);
     }
 

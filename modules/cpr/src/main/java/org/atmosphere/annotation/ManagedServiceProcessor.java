@@ -54,7 +54,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
             }
 
             Object c = framework.newClassInstance(Object.class, aClass);
-            AtmosphereHandler handler = framework.newClassInstance(AtmosphereHandler.class,
+            AtmosphereHandler handler = framework.newClassInstance(ManagedAtmosphereHandler.class,
                     ManagedAtmosphereHandler.class).configure(framework.getAtmosphereConfig(), c);
             // MUST BE ADDED FIRST, ALWAYS!
             l.add(framework.newClassInstance(AtmosphereInterceptor.class, ManagedServiceInterceptor.class));
