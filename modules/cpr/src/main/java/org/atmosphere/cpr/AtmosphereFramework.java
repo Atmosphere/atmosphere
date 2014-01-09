@@ -874,7 +874,7 @@ public class AtmosphereFramework {
             s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
             List<String> disables = new ArrayList<String>();
             if (s != null) {
-                disables.addAll(Arrays.asList(s.split(",")));
+                disables.addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
             }
 
             for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
