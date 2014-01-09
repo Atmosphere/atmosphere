@@ -870,8 +870,19 @@ public class AtmosphereFramework {
         logger.info("Installing Default AtmosphereInterceptor");
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         if (s == null) {
+
+            s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
+            List<String> disables = new ArrayList<String>();
+            if (s != null) {
+                disables.addAll(Arrays.asList(s.split(",")));
+            }
+
             for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
-                interceptors.addFirst(newAInterceptor(a));
+                if (!s.contains(a.getName())) {
+                    interceptors.addFirst(newAInterceptor(a));
+                } else {
+                    logger.info("Dropping Interceptor {}", a.getName());
+                }
             }
             logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR, interceptors);
         }

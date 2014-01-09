@@ -663,5 +663,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.Broadcaster.scanClassPath
      */
     String AUTODETECT_BROADCASTER = Broadcaster.class.getName() + ".scanClassPath";
+    /**
+     * Disables the list of {@link AtmosphereInterceptor}s.
+     * <p>
+     * Default: false<br>
+     * Value: org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults
+     */
+    String DISABLE_ATMOSPHEREINTERCEPTORS = AtmosphereInterceptor.class.getName() + ".disable";
 }
 
