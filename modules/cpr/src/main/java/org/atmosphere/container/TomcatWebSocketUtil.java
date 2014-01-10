@@ -81,7 +81,7 @@ public class TomcatWebSocketUtil {
         // First, handshake
         if (req.getAttribute(WebSocket.WEBSOCKET_SUSPEND) == null) {
 
-            boolean useBuildInSession = true;
+            boolean useBuildInSession = config.isSupportSession();
             // Override the value.
             String s = config.getInitParameter(ApplicationConfig.BUILT_IN_SESSION);
             if (s != null) {

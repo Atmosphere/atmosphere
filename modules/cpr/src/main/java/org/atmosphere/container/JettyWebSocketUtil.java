@@ -79,7 +79,7 @@ public class JettyWebSocketUtil {
 
     public final static WebSocketFactory getFactory(final AtmosphereConfig config, final WebSocketProcessor webSocketProcessor) {
 
-        final AtomicBoolean useBuildInSession = new AtomicBoolean(false);
+        final AtomicBoolean useBuildInSession = new AtomicBoolean(config.isSupportSession());
         // Override the value.
         String s = config.getInitParameter(ApplicationConfig.BUILT_IN_SESSION);
         if (s != null) {
