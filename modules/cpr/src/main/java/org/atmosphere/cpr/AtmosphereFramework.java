@@ -212,6 +212,7 @@ public class AtmosphereFramework {
     protected boolean isDestroyed = false;
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
+    protected final List<String> excludedInterceptors = new ArrayList<String>();
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // OnDisconnect
@@ -872,13 +873,12 @@ public class AtmosphereFramework {
         if (s == null) {
 
             s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
-            List<String> disables = new ArrayList<String>();
             if (s != null) {
-                disables.addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
+                excludedInterceptors.addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
             }
 
             for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
-                if (!disables.contains(a.getName())) {
+                if (!excludedInterceptors.contains(a.getName())) {
                     interceptors.addFirst(newAInterceptor(a));
                 } else {
                     logger.info("Dropping Interceptor {}", a.getName());
@@ -2501,5 +2501,17 @@ public class AtmosphereFramework {
                 logger.warn("Unable to load AtmosphereClassInstantiator instance", ex);
             }
         }
+    }
+
+    /**
+     * Exclude an {@link AtmosphereInterceptor} from being added, at startup, by Atmosphere. The default's {@link #defaultInterceptors}
+     * are candidates for being excluded.
+     *
+     * @param interceptor an {@link AtmosphereInterceptor} class name
+     * @return this
+     */
+    public AtmosphereFramework excludeInterceptor(String interceptor) {
+        excludedInterceptors.add(interceptor);
+        return this;
     }
 }
