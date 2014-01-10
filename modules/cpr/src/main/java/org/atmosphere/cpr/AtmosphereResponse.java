@@ -1090,6 +1090,14 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return new Builder().response(response).build();
     }
 
+    /**
+     * Return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()} used by this object.
+     * @return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()} used by this object.
+     */
+    public String uuid() {
+        return uuid;
+    }
+
     @Override
     public String toString() {
         return "AtmosphereResponse{" +
