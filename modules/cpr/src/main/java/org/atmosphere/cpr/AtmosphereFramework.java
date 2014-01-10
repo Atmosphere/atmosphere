@@ -459,8 +459,14 @@ public class AtmosphereFramework {
         w.interceptors = l;
 
         addMapping(mapping, w);
-        logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
-                new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+        if (!isInit) {
+            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
+                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+        }  else {
+            logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
+                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+        }
+
         if (l.size() > 0) {
             logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
         }
