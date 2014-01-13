@@ -863,7 +863,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final boolean willBeResumed = r.transport().equals(AtmosphereResource.TRANSPORT.LONG_POLLING) || r.transport().equals(AtmosphereResource.TRANSPORT.JSONP);
         List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
         try {
-            final AtmosphereRequest request = r.getRequest();
+            final AtmosphereRequest request = r.getRequest(false);
 
             event.setMessage(token.msg);
 
@@ -981,7 +981,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // Must make sure execute only one thread
             synchronized (r) {
                 try {
-                    r.getRequest().setAttribute(CACHED, "true");
+                    rImpl.getRequest().setAttribute(CACHED, "true");
                     prepareInvokeOnStateChange(r, e);
                 } catch (Throwable t) {
                     // An exception occurred
@@ -1394,7 +1394,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (!wasResumed && isAtmosphereResourceValid(r)) {
             logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
 
-            String parentUUID = (String) r.getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+            String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
             Boolean backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
             if (!backwardCompatible && parentUUID != null) {
                 AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
