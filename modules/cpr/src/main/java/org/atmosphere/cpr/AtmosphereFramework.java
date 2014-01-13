@@ -1937,7 +1937,7 @@ public class AtmosphereFramework {
                 String[] params = qs.split("&");
                 String[] s;
                 for (String p : params) {
-                    s = p.split("=");
+                    s = p.split("=", 2);;
                     if (s[0].equalsIgnoreCase("Content-Type")) {
                         // Use the one set by the user first.
                         if (request.getContentType() == null ||
