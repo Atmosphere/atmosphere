@@ -39,7 +39,7 @@ public class AsyncIOInterceptorAdapter implements AsyncIOInterceptor {
 
     @Override
     public byte[] error(AtmosphereResponse response, int statusCode, String reasonPhrase) {
-        return null;
+        return ("ERROR: " + statusCode + ":" + reasonPhrase).getBytes();
     }
 
     @Override
