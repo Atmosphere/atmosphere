@@ -211,7 +211,14 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         ClientQueue clientQueue = messages.get(clientId);
         if (clientQueue == null) {
             clientQueue = new ClientQueue();
-            messages.put(clientId, clientQueue);
+            // Make sure the client is not in the process of being invalidated
+            if (activeClients.get(clientId) != null) {
+                messages.put(clientId, clientQueue);
+            } else {
+                // The entry has been invalidated
+                logger.debug("Client is no longer active. Not caching message {}}", clientId, message);
+                return;
+            }
         }
         clientQueue.getQueue().offer(message);
         clientQueue.getIds().add(message.getId());
@@ -263,6 +270,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             messages.remove(clientId);
         }
 
+        for (String msg : messages().keySet()) {
+            if (!activeClients().containsKey(msg)) {
+                messages().remove(msg);
+            }
+        }
     }
 
     @Override
