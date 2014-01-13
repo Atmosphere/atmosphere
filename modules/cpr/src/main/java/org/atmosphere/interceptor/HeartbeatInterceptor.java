@@ -23,6 +23,8 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.ExecutorsFactory;
@@ -118,6 +120,15 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                 return null;
                             }
                         }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS);
+
+                        r.addEventListener(new AtmosphereResourceEventListenerAdapter(){
+                            @Override
+                            public void onDisconnect(AtmosphereResourceEvent event) {
+                                if (writeFuture != null) {
+                                    writeFuture.cancel(false);
+                                }
+                            }
+                        });
                     }
                 });
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
