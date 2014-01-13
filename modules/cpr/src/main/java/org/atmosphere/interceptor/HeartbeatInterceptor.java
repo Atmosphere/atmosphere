@@ -101,6 +101,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 public void onDisconnect(AtmosphereResourceEvent event) {
                     cancelF(request);
                 }
+
+                @Override
+                public void onClose(AtmosphereResourceEvent event) {
+                    cancelF(request);
+                }
             });
         } else {
             return Action.CONTINUE;
