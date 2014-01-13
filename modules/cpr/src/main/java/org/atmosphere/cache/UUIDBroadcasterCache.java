@@ -216,7 +216,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                 messages.put(clientId, clientQueue);
             } else {
                 // The entry has been invalidated
-                logger.debug("Client is no longer active. Not caching message {}}", clientId, message);
+                logger.debug("Client {} is no longer active. Not caching message {}}", clientId, message);
                 return;
             }
         }
