@@ -23,7 +23,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -95,6 +94,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
                 @Override
                 public void onResume(AtmosphereResourceEvent event) {
+                    cancelF(request);
+                }
+
+                @Override
+                public void onDisconnect(AtmosphereResourceEvent event) {
                     cancelF(request);
                 }
             });
