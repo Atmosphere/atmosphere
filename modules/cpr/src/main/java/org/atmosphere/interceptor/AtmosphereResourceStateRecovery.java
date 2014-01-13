@@ -192,6 +192,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             // We track cancelled and resumed connection only.
             BroadcasterTracker t = states.get(r.uuid());
             AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
+            logger.debug("onRemoveAtmosphereResource {}", e);
             if (e.isClosedByClient() || !r.isResumed() && !e.isResumedOnTimeout()) {
                 logger.trace("Deleting the state of {} with broadcaster {}", r.uuid(), b.getID());
                 if (t != null) {
