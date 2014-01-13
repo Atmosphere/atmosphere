@@ -86,6 +86,12 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
                     Future<?> writeFuture;
 
+                    private void cancelF() {
+                        if (writeFuture != null) {
+                            writeFuture.cancel(false);
+                        }
+                    }
+
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
                         if (writeFuture != null) {
@@ -111,23 +117,31 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                             AtmosphereResourceImpl.class.cast(r).close();
                                         } catch (IOException e) {
                                         }
-                                        ;
-                                        writeFuture.cancel(false);
+                                        cancelF();
                                     }
                                 } else {
-                                    writeFuture.cancel(false);
+                                    cancelF();
                                 }
                                 return null;
                             }
                         }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS);
 
-                        r.addEventListener(new AtmosphereResourceEventListenerAdapter(){
+                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                             @Override
                             public void onDisconnect(AtmosphereResourceEvent event) {
-                                if (writeFuture != null) {
-                                    writeFuture.cancel(false);
-                                }
+                                cancelF();
                             }
+
+                            @Override
+                            public void onResume(AtmosphereResourceEvent event) {
+                                cancelF();
+                            }
+
+                            @Override
+                            public void onClose(AtmosphereResourceEvent event) {
+                                cancelF();
+                            }
+
                         });
                     }
                 });
