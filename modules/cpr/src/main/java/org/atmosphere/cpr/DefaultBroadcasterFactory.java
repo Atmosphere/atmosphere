@@ -220,7 +220,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     }
 
     public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
-        synchronized (id) {
+        synchronized (store) {
             logger.trace("About to create {}", id);
             if (unique && store.get(id) != null) {
                 throw new IllegalStateException("Broadcaster already exists " + id + ". Use BroadcasterFactory.lookup instead");
