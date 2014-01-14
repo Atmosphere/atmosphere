@@ -79,76 +79,82 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 || r.transport().equals(TRANSPORT.WEBSOCKET)) {
 
             super.inspect(r);
-
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass()) && r.getRequest().getAttribute(INTERCEPTOR_ADDED) == null) {
-                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
-
-                    Future<?> writeFuture;
-
-                    private void cancelF() {
-                        if (writeFuture != null) {
-                            writeFuture.cancel(false);
-                        }
+                final Adapter adapter = new Adapter(r);
+                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                    @Override
+                    public void onDisconnect(AtmosphereResourceEvent event) {
+                        adapter.cancelF();
                     }
 
                     @Override
-                    public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-                        if (writeFuture != null) {
-                            writeFuture.cancel(false);
-                        }
-                        return responseDraft;
+                    public void onResume(AtmosphereResourceEvent event) {
+                        adapter.cancelF();
                     }
 
                     @Override
-                    public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
-                        logger.trace("Scheduling heartbeat for {}", r.uuid());
-
-                        writeFuture = heartBeat.schedule(new Callable<Object>() {
-                            @Override
-                            public Object call() throws Exception {
-                                logger.trace("Writing heartbeat for {}", r.uuid());
-                                if (r.isSuspended()) {
-                                    try {
-                                        response.write(paddingText, false);
-                                    } catch (Throwable t) {
-                                        logger.trace("{}", r.uuid(), t);
-                                        try {
-                                            AtmosphereResourceImpl.class.cast(r).close();
-                                        } catch (IOException e) {
-                                        }
-                                        cancelF();
-                                    }
-                                } else {
-                                    cancelF();
-                                }
-                                return null;
-                            }
-                        }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS);
-
-                        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-                            @Override
-                            public void onDisconnect(AtmosphereResourceEvent event) {
-                                cancelF();
-                            }
-
-                            @Override
-                            public void onResume(AtmosphereResourceEvent event) {
-                                cancelF();
-                            }
-
-                            @Override
-                            public void onClose(AtmosphereResourceEvent event) {
-                                cancelF();
-                            }
-
-                        });
+                    public void onClose(AtmosphereResourceEvent event) {
+                        adapter.cancelF();
                     }
+
                 });
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(adapter);
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
             }
         }
         return Action.CONTINUE;
+    }
+
+    public final class Adapter extends AsyncIOInterceptorAdapter {
+
+        private final AtmosphereResource r;
+        Future<?> writeFuture;
+
+        public Adapter(AtmosphereResource r) {
+            this.r = r;
+        }
+
+        public void cancelF() {
+            if (writeFuture != null) {
+                writeFuture.cancel(false);
+            }
+        }
+
+        @Override
+        public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
+            if (writeFuture != null) {
+                writeFuture.cancel(false);
+            }
+            return responseDraft;
+        }
+
+        @Override
+        public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
+            logger.trace("Scheduling heartbeat for {}", r.uuid());
+
+            writeFuture = heartBeat.schedule(new Callable<Object>() {
+                @Override
+                public Object call() throws Exception {
+                    logger.trace("Writing heartbeat for {}", r.uuid());
+                    if (r.isSuspended()) {
+                        try {
+                            response.write(paddingText, false);
+                        } catch (Throwable t) {
+                            logger.trace("{}", r.uuid(), t);
+                            try {
+                                AtmosphereResourceImpl.class.cast(r).close();
+                            } catch (IOException e) {
+                            }
+                            cancelF();
+                        }
+                    } else {
+                        cancelF();
+                    }
+                    return null;
+                }
+            }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS);
+        }
     }
 
     @Override
