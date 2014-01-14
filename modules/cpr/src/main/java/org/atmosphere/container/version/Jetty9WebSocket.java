@@ -18,19 +18,17 @@ package org.atmosphere.container.version;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.eclipse.jetty.websocket.api.Session;
-import org.eclipse.jetty.websocket.api.io.WebSocketBlockingConnection;
 
 import java.io.IOException;
+import java.nio.ByteBuffer;
 
 public class Jetty9WebSocket extends WebSocket {
 
     private final Session webSocketConnection;
-    private final WebSocketBlockingConnection blockingConnection;
 
     public Jetty9WebSocket(Session webSocketConnection, AtmosphereConfig config) {
         super(config);
         this.webSocketConnection = webSocketConnection;
-        blockingConnection = new WebSocketBlockingConnection(webSocketConnection);
     }
 
     @Override
@@ -40,13 +38,13 @@ public class Jetty9WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
-        if (isOpen()) blockingConnection.write(s);
+        if (isOpen()) webSocketConnection.getRemote().sendString(s);
         return this;
     }
 
     @Override
     public WebSocket write(byte[] b, int offset, int length) throws IOException {
-        if (isOpen()) blockingConnection.write(b, offset, length);
+        if (isOpen()) webSocketConnection.getRemote().sendBytes(ByteBuffer.wrap(b, offset, length));
         return this;
     }
 
@@ -56,7 +54,7 @@ public class Jetty9WebSocket extends WebSocket {
         logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {
             webSocketConnection.close();
-        // 9.0 -> 9.1 change } catch (IOException e) {
+            // 9.0 -> 9.1 change } catch (IOException e) {
         } catch (Throwable e) {
             logger.trace("Close error", e);
         }
