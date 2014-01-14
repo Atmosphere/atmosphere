@@ -59,8 +59,6 @@ import org.slf4j.LoggerFactory;
 import java.net.URI;
 import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Future;
-import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY_TIMEOUT;
