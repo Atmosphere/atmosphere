@@ -667,7 +667,7 @@ public interface ApplicationConfig {
      * Disables the list of {@link AtmosphereInterceptor}s.
      * <p>
      * Default: false<br>
-     * Value: org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults
+     * Value: org.atmosphere.cpr.AtmosphereInterceptor.disable
      */
     String DISABLE_ATMOSPHEREINTERCEPTORS = AtmosphereInterceptor.class.getName() + ".disable";
 }
