@@ -105,4 +105,20 @@ public class AtmosphereResourceFactoryTest {
         assertEquals(AtmosphereResourceFactory.getDefault().remove(r.uuid()), r);
         assertNull(AtmosphereResourceFactory.getDefault().find(r.uuid()));
     }
+
+    @Test
+    public void broadcastersTest() {
+        Broadcaster b1 = BroadcasterFactory.getDefault().get("b1");
+        Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
+                mock(AsyncSupport.class), mock(AtmosphereHandler.class));
+        r.suspend();
+        assertNotNull(r);
+
+        b2.addAtmosphereResource(r);
+
+        assertNotNull(AtmosphereResourceFactory.getDefault().find(r.uuid()));
+        assertEquals(2, AtmosphereResourceFactory.getDefault().broadcasters(r.uuid()).size());
+
+    }
 }

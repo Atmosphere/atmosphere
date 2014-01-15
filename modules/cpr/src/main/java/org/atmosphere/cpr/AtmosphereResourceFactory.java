@@ -24,6 +24,8 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collection;
+import java.util.HashSet;
+import java.util.Set;
 
 /**
  * A Factory used to manage {@link AtmosphereResource} instances. You can use this factory to create, remove and find
@@ -196,6 +198,27 @@ public final class AtmosphereResourceFactory {
             }
         }
         return null;
+    }
+
+    /**
+     * Return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}, e.g for which
+     * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} has been called. Note that this
+     * method is not synchronized and may not return all the {@link Broadcaster} in case
+     * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} is being called concurrently.
+     *
+     * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
+     * @return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}
+     */
+    public final Set<Broadcaster> broadcasters(String uuid) {
+        Collection<Broadcaster> l = BroadcasterFactory.getDefault().lookupAll();
+        Set<Broadcaster> h = new HashSet<Broadcaster>();        for (Broadcaster b : l) {
+            for (AtmosphereResource r : b.getAtmosphereResources()) {
+                if (r.uuid().equalsIgnoreCase(uuid)) {
+                    h.add(b);
+                }
+            }
+        }
+        return h;
     }
 
     public final static AtmosphereResourceFactory getDefault() {
