@@ -215,26 +215,26 @@ public class AtmosphereFramework {
     protected final List<String> excludedInterceptors = new ArrayList<String>();
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
-            // OnDisconnect
-            OnDisconnectInterceptor.class,
-            // WebSocket and suspend
-            WebSocketMessageSuspendInterceptor.class,
-            // ADD Tracking ID Handshake
-            JavaScriptProtocol.class,
-            // ADD JSONP support
-            JSONPAtmosphereInterceptor.class,
-            // Add SSE support
-            SSEAtmosphereInterceptor.class,
-            // Heartbeat
-            HeartbeatInterceptor.class,
-            // Android 2.3.x streaming support
-            AndroidAtmosphereInterceptor.class,
-            // WebKit & IE Padding
-            PaddingAtmosphereInterceptor.class,
-            // Default Interceptor
-            CacheHeadersInterceptor.class,
             // Add CORS support
             CorsInterceptor.class,
+            // Default Interceptor
+            CacheHeadersInterceptor.class,
+            // WebKit & IE Padding
+            PaddingAtmosphereInterceptor.class,
+            // Android 2.3.x streaming support
+            AndroidAtmosphereInterceptor.class,
+            // Heartbeat
+            HeartbeatInterceptor.class,
+            // Add SSE support
+            SSEAtmosphereInterceptor.class,
+            // ADD JSONP support
+            JSONPAtmosphereInterceptor.class,
+            // ADD Tracking ID Handshake
+            JavaScriptProtocol.class,
+            // WebSocket and suspend
+            WebSocketMessageSuspendInterceptor.class,
+            // OnDisconnect
+            OnDisconnectInterceptor.class
     };
 
     /**
@@ -885,7 +885,7 @@ public class AtmosphereFramework {
 
             for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
                 if (!excludedInterceptors.contains(a.getName())) {
-                    interceptors.addFirst(newAInterceptor(a));
+                    interceptors.add(newAInterceptor(a));
                 } else {
                     logger.info("Dropping Interceptor {}", a.getName());
                 }
