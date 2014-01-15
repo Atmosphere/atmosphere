@@ -101,7 +101,7 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
     }
 
     /**
-     * Add an {@link AsyncIOInterceptor} that will be invoked in the order it was added.
+     * Add an {@link AsyncIOInterceptor} that will be invoked in the reverse order it was added.
      *
      * @param filter {@link AsyncIOInterceptor
      * @return this
