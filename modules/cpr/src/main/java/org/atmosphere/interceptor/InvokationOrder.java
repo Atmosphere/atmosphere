@@ -27,11 +27,11 @@ public interface InvokationOrder {
 
     enum PRIORITY {
         /**
-         * The AtmosphereInterceptor must be executed before the default set of AtmosphereInterceptor
+         * The AtmosphereInterceptor must be executed after the default set of AtmosphereInterceptor
          */
         AFTER_DEFAULT,
         /**
-         * The AtmosphereInterceptor must be executed after the default set of AtmosphereInterceptor
+         * The AtmosphereInterceptor must be executed before the default set of AtmosphereInterceptor
          */
         BEFORE_DEFAULT,
         /**
