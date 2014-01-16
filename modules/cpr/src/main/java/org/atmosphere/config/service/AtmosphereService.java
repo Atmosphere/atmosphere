@@ -30,7 +30,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation which acts exactly as a {@link org.atmosphere.config.service.ManagedService} annotated resource, but
+ * An annotation which acts like the {@link org.atmosphere.config.service.ManagedService} annotated resource, but
  * that can be used with frameworks like Jersey, Wicket or any framework running the Atmosphere Framework. The annotation
  * allow configuring Atmosphere's components like {@link Broadcaster}, {@link AtmosphereInterceptor}, etc.
  *
@@ -40,6 +40,8 @@ import java.lang.annotation.Target;
  * {@link org.atmosphere.handler.ReflectorServletProcessor} that will dispatch requests to the {@link javax.servlet.Servlet}.
  * You can customize the request dispatch by setting the {@link #dispatch()} to false. When set to false, the
  * {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)} will never be invoked.
+ *
+ * By default, only the {@link org.atmosphere.client.TrackMessageSizeInterceptor} is installed.
  */
 @Target({ElementType.TYPE})
 @Retention(RetentionPolicy.RUNTIME)
