@@ -52,14 +52,12 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.SimpleBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.URI;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY;
@@ -220,40 +218,48 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     }
 
     public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
-        synchronized (id) {
+
+        Broadcaster dummyBroadcaster = new DummyBroadcaster<T>(c);
+        Broadcaster actual;
+        for (;;) {
+            store.putIfAbsent(id, dummyBroadcaster);
+            actual = store.get(id);
+            if (actual == dummyBroadcaster) {
+                break;
+            }
+            if (actual != null) {
+                break;
+            }
+
+        }
+
+        if (actual != dummyBroadcaster) {
             logger.trace("About to create {}", id);
-            if (unique && store.get(id) != null) {
+            if (unique) {
                 throw new IllegalStateException("Broadcaster already exists " + id + ". Use BroadcasterFactory.lookup instead");
             }
 
-            T b = (T) store.get(id);
-            logger.trace("Looking in the store using {} returned {}", id, b);
-            if (b != null && !c.isAssignableFrom(b.getClass())) {
-                String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
+            logger.trace("Looking in the store using {} returned {}", id, actual);
+
+            Class broadcastClass = actual.getClass();
+            if (actual instanceof DummyBroadcaster) {
+                broadcastClass = ((DummyBroadcaster) actual).getActualClass();
+            }
+            if (!c.isAssignableFrom(broadcastClass)) {
+                String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + broadcastClass.getName();
                 logger.debug(msg);
                 throw new IllegalStateException(msg);
             }
-
-            if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
-                if (b != null) {
-                    logger.trace("Removing destroyed Broadcaster {}", b.getID());
-                    store.remove(b.getID(), b);
-                }
-
-                Broadcaster nb = store.get(id);
-                if (nb == null) {
-                    nb = createBroadcaster(c, id);
-                    store.put(id, nb);
-                }
-
-                if (nb == null && logger.isTraceEnabled()) {
-                    logger.trace("Added Broadcaster {} . Factory size: {}", id, store.size());
-                }
-
-                b = (T) nb;
+        } else { // replace the dummy
+            if (createIfNull) {
+                actual = createBroadcaster(c, id);
+                store.put(id, actual);
+            } else {
+                store.remove(id);
+                actual = null;
             }
-            return b;
         }
+        return (T) actual;
     }
 
     @Override
@@ -367,5 +373,15 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             b.removeBroadcasterListener(l);
         }
         return this;
+    }
+
+    public static class DummyBroadcaster<T> extends SimpleBroadcaster {
+        protected Class<T> clazz;
+        public DummyBroadcaster(Class<T> clazz) {
+            this.clazz = clazz;
+        }
+        public Class<T> getActualClass() {
+          return clazz;
+        }
     }
 }
