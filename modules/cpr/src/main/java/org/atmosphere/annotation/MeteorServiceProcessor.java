@@ -46,6 +46,7 @@ public class MeteorServiceProcessor implements Processor {
 
             Class<Servlet> s = (Class<Servlet>) annotatedClass;
             MeteorService m = s.getAnnotation(MeteorService.class);
+            framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
 
             String mapping = m.path();
 
@@ -72,7 +73,6 @@ public class MeteorServiceProcessor implements Processor {
                 framework.interceptors().add(new MeteorServiceInterceptor());
             }
             framework.addAtmosphereHandler(mapping, r, l);
-            framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);
         }
