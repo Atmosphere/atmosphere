@@ -22,6 +22,8 @@ package org.atmosphere.cpr;
  */
 public abstract class AtmosphereResourceSessionFactory {
     // TODO: support IOC
+    // TO Make this Happend, we gonna need to pass an AtmosphereFramework's instance to the constructor and
+    // use the newInstance method, or add support for some sort of @Inject.
     private static final AtmosphereResourceSessionFactory DEFAULT = new DefaultAtmosphereResourceSessionFactory();
 
     /**
