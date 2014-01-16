@@ -140,23 +140,36 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
-        super.action(actionEvent);
-        if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
-            AsyncContext asyncContext =
-                    (AsyncContext) actionEvent.getRequest().getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res)
+            throws IOException, ServletException {
+        Action a = super.cancelled(req,res);
 
-            if (asyncContext != null && (config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
-                    || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
-                try {
-                    asyncContext.complete();
-                } catch (IllegalStateException ex) {
-                    // Alresady completed.
-                    logger.trace("Already resumed!", ex);
-                }
+        endAsyncContext(req);
+        return a;
+    }
+
+    protected void endAsyncContext(AtmosphereRequest request){
+        AsyncContext asyncContext = (AsyncContext) request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+        if (asyncContext != null) {
+            try {
+                asyncContext.complete();
+            } catch (IllegalStateException ex) {
+                // Alresady completed.
+                logger.trace("Already resumed!", ex);
             }
-        } else if (!actionEvent.isInScope()) {
-            logger.trace("Already resumed or cancelled: event: {}", actionEvent);
+        }
+    }
+
+    @Override
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
+            if ((config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE) == null
+                    || config.getInitParameter(ApplicationConfig.RESUME_AND_KEEPALIVE).equalsIgnoreCase("false"))) {
+                endAsyncContext(r.getRequest(false));
+            }
+        } else if (!r.isInScope()) {
+            logger.trace("Already resumed or cancelled: event: {}", r);
         }
     }
 
