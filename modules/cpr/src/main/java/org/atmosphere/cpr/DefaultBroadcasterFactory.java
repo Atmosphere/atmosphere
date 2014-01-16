@@ -159,7 +159,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private <T extends Broadcaster> T createBroadcaster(Class<T> c, Object id) throws BroadcasterCreationException {
         try {
-            //T b = c.getConstructor(String.class, AtmosphereConfig.class).newInstance(id.toString(), config);
             T b = config.framework().newClassInstance(c, c);
             b.initialize(id.toString(), legacyBroadcasterURI, config);
             b.setSuspendPolicy(defaultPolicyInteger, defaultPolicy);
@@ -220,7 +219,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     }
 
     public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
-        synchronized (id) {
+        synchronized (c) {
             logger.trace("About to create {}", id);
             if (unique && store.get(id) != null) {
                 throw new IllegalStateException("Broadcaster already exists " + id + ". Use BroadcasterFactory.lookup instead");
