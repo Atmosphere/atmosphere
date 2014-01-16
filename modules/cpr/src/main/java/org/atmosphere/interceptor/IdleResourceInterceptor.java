@@ -43,7 +43,7 @@ import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(IdleResourceInterceptor.class);
-    private long maxInactiveTime =  5 * 60 * 1000; // 5 minutes
+    private long maxInactiveTime =  -1;
     private AtmosphereConfig config;
 
     public void configure(AtmosphereConfig config) {
@@ -102,7 +102,9 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
-        AtmosphereResourceImpl.class.cast(r).getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+        if (maxInactiveTime > 0) {
+            AtmosphereResourceImpl.class.cast(r).getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+        }
         return Action.CONTINUE;
     }
 

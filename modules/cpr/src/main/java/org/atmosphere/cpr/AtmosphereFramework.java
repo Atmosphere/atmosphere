@@ -31,6 +31,7 @@ import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
 import org.atmosphere.interceptor.CacheHeadersInterceptor;
 import org.atmosphere.interceptor.CorsInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
+import org.atmosphere.interceptor.IdleResourceInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
@@ -234,7 +235,9 @@ public class AtmosphereFramework {
             // WebSocket and suspend
             WebSocketMessageSuspendInterceptor.class,
             // OnDisconnect
-            OnDisconnectInterceptor.class
+            OnDisconnectInterceptor.class,
+            // Idle connection
+            IdleResourceInterceptor.class
     };
 
     /**

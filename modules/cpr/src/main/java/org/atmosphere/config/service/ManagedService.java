@@ -88,7 +88,6 @@ public @interface ManagedService {
     Class<? extends AtmosphereInterceptor>[] interceptors() default {
             AtmosphereResourceLifecycleInterceptor.class,
             TrackMessageSizeInterceptor.class,
-            IdleResourceInterceptor.class,
             SuspendTrackerInterceptor.class
     };
 
