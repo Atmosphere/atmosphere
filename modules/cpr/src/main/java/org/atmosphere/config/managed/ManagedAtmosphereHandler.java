@@ -141,7 +141,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
             Object o = message(resource, body);
             if (o != null) {
-                resource.getBroadcaster().broadcast(o);
+                resource.getBroadcaster().broadcast(new Managed(o));
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
@@ -178,15 +178,26 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else {
             Object msg = event.getMessage();
             Object o;
-            // No method matched. Give a last chance by trying to decode the proxiedInstance.
-            // This makes application development more simpler.
-            // Chaining of encoder is not supported.
-            // TODO: This could be problematic with String + method
-            for (MethodInfo m : onRuntimeMethod) {
-                o = Invoker.encode(encoders.get(m.method), msg);
-                if (o != null) {
-                    event.setMessage(o);
-                    break;
+            if (msg != null) {
+                if (Managed.class.isAssignableFrom(msg.getClass())) {
+                    Object newMsg = Managed.class.cast(msg).o;
+                    event.setMessage(newMsg);
+                    // No method matched. Give a last chance by trying to decode the proxiedInstance.
+                    // This makes application development more simpler.
+                    // Chaining of encoder is not supported.
+                    // TODO: This could be problematic with String + method
+                    for (MethodInfo m : onRuntimeMethod) {
+                        o = Invoker.encode(encoders.get(m.method), newMsg);
+                        if (o != null) {
+                            event.setMessage(o);
+                            break;
+                        }
+                    }
+                } else {
+                    o = message(r, msg);
+                    if (o != null) {
+                        event.setMessage(o);
+                    }
                 }
             }
 
@@ -375,6 +386,14 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
         public MethodInfo(Method method) {
             this.method = method;
+        }
+    }
+
+    public final static class Managed {
+        final Object o;
+
+        public Managed(Object o) {
+            this.o = o;
         }
     }
 }
