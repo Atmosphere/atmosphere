@@ -263,7 +263,7 @@
             </build>
         </profile>
         <profile>
-            <id>deploy-sourcee</id>
+            <id>deploy-source</id>
             <properties>
                 <skipTests>true</skipTests>
             </properties>
