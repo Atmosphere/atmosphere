@@ -22,42 +22,42 @@ import java.util.concurrent.ConcurrentMap;
  * @author uklance (https://github.com/uklance)
  */
 public class DefaultAtmosphereResourceSessionFactory extends AtmosphereResourceSessionFactory {
-	private final ConcurrentMap<String, AtmosphereResourceSession> sessions = new ConcurrentHashMap<String, AtmosphereResourceSession>();
+    private final ConcurrentMap<String, AtmosphereResourceSession> sessions = new ConcurrentHashMap<String, AtmosphereResourceSession>();
 
-	private final AtmosphereResourceEventListener disconnectListener = new AtmosphereResourceEventListenerAdapter() {
-		public void onDisconnect(AtmosphereResourceEvent event) {
-			String uuid = event.getResource().uuid();
-			AtmosphereResourceSession session = sessions.remove(uuid);
-			if (session != null) {
-				session.invalidate();
-			}
-		}
+    private final AtmosphereResourceEventListener disconnectListener = new AtmosphereResourceEventListenerAdapter() {
+        public void onDisconnect(AtmosphereResourceEvent event) {
+            String uuid = event.getResource().uuid();
+            AtmosphereResourceSession session = sessions.remove(uuid);
+            if (session != null) {
+                session.invalidate();
+            }
+        }
 
-		public String toString() {
-			return "DefaultAtmosphereResourceSessionFactory.disconnectListener";
-		};
-	};
+        public String toString() {
+            return "DefaultAtmosphereResourceSessionFactory.disconnectListener";
+        }
+    };
 
-	@Override
-	public AtmosphereResourceSession getSession(AtmosphereResource r, boolean create) {
-		AtmosphereResourceSession session = sessions.get(r.uuid());
-		if (create && session == null) {
-			r.addEventListener(getDisconnectListener());
-			session = new DefaultAtmosphereResourceSession();
+    @Override
+    public AtmosphereResourceSession getSession(AtmosphereResource r, boolean create) {
+        AtmosphereResourceSession session = sessions.get(r.uuid());
+        if (create && session == null) {
+            r.addEventListener(getDisconnectListener());
+            session = new DefaultAtmosphereResourceSession();
 
-			AtmosphereResourceSession existing = sessions.putIfAbsent(r.uuid(), session);
+            AtmosphereResourceSession existing = sessions.putIfAbsent(r.uuid(), session);
 
-			if (existing != null) {
-				session = existing;
-			}
-		}
-		return session;
-	}
+            if (existing != null) {
+                session = existing;
+            }
+        }
+        return session;
+    }
 
-	/**
-	 * Used in testing
-	 */
-	protected AtmosphereResourceEventListener getDisconnectListener() {
-		return disconnectListener;
-	}
+    /**
+     * Used in testing
+     */
+    protected AtmosphereResourceEventListener getDisconnectListener() {
+        return disconnectListener;
+    }
 }

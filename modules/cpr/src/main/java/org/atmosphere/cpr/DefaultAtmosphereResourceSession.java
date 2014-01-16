@@ -24,42 +24,42 @@ import java.util.concurrent.ConcurrentMap;
  * @author uklance (https://github.com/uklance)
  */
 public class DefaultAtmosphereResourceSession implements AtmosphereResourceSession {
-	private final ConcurrentMap<String, Object> attributes = new ConcurrentHashMap<String, Object>();
-	private volatile boolean valid = true;
+    private final ConcurrentMap<String, Object> attributes = new ConcurrentHashMap<String, Object>();
+    private volatile boolean valid = true;
 
-	@Override
-	public Object setAttribute(String name, Object value) {
-		checkValid();
-		return attributes.put(name, value);
-	}
+    @Override
+    public Object setAttribute(String name, Object value) {
+        checkValid();
+        return attributes.put(name, value);
+    }
 
-	@Override
-	public Object getAttribute(String name) {
-		checkValid();
-		return attributes.get(name);
-	}
+    @Override
+    public Object getAttribute(String name) {
+        checkValid();
+        return attributes.get(name);
+    }
 
-	@Override
-	public <T> T getAttribute(String name, Class<T> type) {
-		return type.cast(getAttribute(name));
-	}
+    @Override
+    public <T> T getAttribute(String name, Class<T> type) {
+        return type.cast(getAttribute(name));
+    }
 
-	@Override
-	public Collection<String> getAttributeNames() {
-		checkValid();
-		return Collections.unmodifiableSet(attributes.keySet());
-	}
+    @Override
+    public Collection<String> getAttributeNames() {
+        checkValid();
+        return Collections.unmodifiableSet(attributes.keySet());
+    }
 
-	@Override
-	public void invalidate() {
-		checkValid();
-		valid = false;
-		attributes.clear();
-	}
+    @Override
+    public void invalidate() {
+        checkValid();
+        valid = false;
+        attributes.clear();
+    }
 
-	protected void checkValid() {
-		if (!valid) {
-			throw new IllegalStateException("Session is invalid");
-		}
-	}
+    protected void checkValid() {
+        if (!valid) {
+            throw new IllegalStateException("Session is invalid");
+        }
+    }
 }

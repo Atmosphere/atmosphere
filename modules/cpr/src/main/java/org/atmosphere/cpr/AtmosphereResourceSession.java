@@ -25,66 +25,56 @@ import java.util.Collection;
  * It allows serverside values to be stored against an
  * {@link AtmosphereResource} and lives for the lifetime of the
  * {@link AtmosphereResource}
- * 
+ *
  * @author uklance (https://github.com/uklance)
  */
 public interface AtmosphereResourceSession {
-	/**
-	 * Binds an object to this session, using the name specified
-	 * 
-	 * @param name
-	 *            Attribute name
-	 * @param value
-	 *            Attribute value
-	 * @return the previous value associated with <tt>name</tt>, or
-	 *         <tt>null</tt> if there was no mapping for <tt>name</tt>
-	 * @throws IllegalStateException
-	 *             if this method is called on an invalidated session
-	 */
-	Object setAttribute(String name, Object value);
+    /**
+     * Binds an object to this session, using the name specified
+     *
+     * @param name  Attribute name
+     * @param value Attribute value
+     * @return the previous value associated with <tt>name</tt>, or
+     * <tt>null</tt> if there was no mapping for <tt>name</tt>
+     * @throws IllegalStateException if this method is called on an invalidated session
+     */
+    Object setAttribute(String name, Object value);
 
-	/**
-	 * Returns the object bound with the specified name in this session, or null
-	 * if no object is bound under the name
-	 * 
-	 * @param name
-	 *            Attribute name
-	 * @return the object with the specified name
-	 * @throws IllegalStateException
-	 *             if this method is called on an invalidated session
-	 */
-	Object getAttribute(String name);
+    /**
+     * Returns the object bound with the specified name in this session, or null
+     * if no object is bound under the name
+     *
+     * @param name Attribute name
+     * @return the object with the specified name
+     * @throws IllegalStateException if this method is called on an invalidated session
+     */
+    Object getAttribute(String name);
 
-	/**
-	 * Returns the object bound with the specified name in this session, or null
-	 * if no object is bound under the name
-	 * 
-	 * @param name
-	 *            Attribute name
-	 * @param type
-	 *            Attribute type
-	 * @return the object with the specified name
-	 * @throws IllegalStateException
-	 *             if this method is called on an invalidated session
-	 */
-	<T> T getAttribute(String name, Class<T> type);
+    /**
+     * Returns the object bound with the specified name in this session, or null
+     * if no object is bound under the name
+     *
+     * @param name Attribute name
+     * @param type Attribute type
+     * @return the object with the specified name
+     * @throws IllegalStateException if this method is called on an invalidated session
+     */
+    <T> T getAttribute(String name, Class<T> type);
 
-	/**
-	 * Returns a Collection of Strings containing the names of all the objects
-	 * bound to this session.
-	 * 
-	 * @return a Collection of Strings containing the names of all the objects
-	 *         bound to this session
-	 * @throws IllegalStateException
-	 *             if this method is called on an invalidated session
-	 */
-	Collection<String> getAttributeNames();
+    /**
+     * Returns a Collection of Strings containing the names of all the objects
+     * bound to this session.
+     *
+     * @return a Collection of Strings containing the names of all the objects
+     * bound to this session
+     * @throws IllegalStateException if this method is called on an invalidated session
+     */
+    Collection<String> getAttributeNames();
 
-	/**
-	 * Invalidates this session then unbinds any objects bound to it.
-	 * 
-	 * @throws IllegalStateException
-	 *             if this method is called on an invalidated session
-	 */
-	void invalidate();
+    /**
+     * Invalidates this session then unbinds any objects bound to it.
+     *
+     * @throws IllegalStateException if this method is called on an invalidated session
+     */
+    void invalidate();
 }

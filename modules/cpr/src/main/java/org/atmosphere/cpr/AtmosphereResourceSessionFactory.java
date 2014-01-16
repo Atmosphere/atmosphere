@@ -17,51 +17,48 @@ package org.atmosphere.cpr;
 
 /**
  * Factory for {@link AtmosphereResourceSession} instances
- * 
+ *
  * @author uklance (https://github.com/uklance)
  */
 public abstract class AtmosphereResourceSessionFactory {
-	// TODO: support IOC
-	private static final AtmosphereResourceSessionFactory DEFAULT = new DefaultAtmosphereResourceSessionFactory();
+    // TODO: support IOC
+    private static final AtmosphereResourceSessionFactory DEFAULT = new DefaultAtmosphereResourceSessionFactory();
 
-	/**
-	 * Return the default {@link AtmosphereResourceSessionFactory}
-	 * 
-	 * @return the default {@link AtmosphereResourceSessionFactory}
-	 */
-	public static AtmosphereResourceSessionFactory getDefault() {
-		return DEFAULT;
-	}
+    /**
+     * Return the default {@link AtmosphereResourceSessionFactory}
+     *
+     * @return the default {@link AtmosphereResourceSessionFactory}
+     */
+    public static AtmosphereResourceSessionFactory getDefault() {
+        return DEFAULT;
+    }
 
-	/**
-	 * Returns the current session associated with the
-	 * {@link AtmosphereResource} or, if there is no current session and create
-	 * is true, returns a new session.
-	 * 
-	 * If create is false and the request has no valid HttpSession, this method
-	 * returns null.
-	 * 
-	 * @param resource
-	 *            An {@link AtmosphereResource}
-	 * @param create
-	 *            true to create a new session if necessary; false to return
-	 *            null if there's no current session
-	 * @return the session associated with this request or null if create is
-	 *         false and the resource has no valid session
-	 */
-	public abstract AtmosphereResourceSession getSession(AtmosphereResource resource, boolean create);
+    /**
+     * Returns the current session associated with the
+     * {@link AtmosphereResource} or, if there is no current session and create
+     * is true, returns a new session.
+     * <p/>
+     * If create is false and the request has no valid HttpSession, this method
+     * returns null.
+     *
+     * @param resource An {@link AtmosphereResource}
+     * @param create   true to create a new session if necessary; false to return
+     *                 null if there's no current session
+     * @return the session associated with this request or null if create is
+     * false and the resource has no valid session
+     */
+    public abstract AtmosphereResourceSession getSession(AtmosphereResource resource, boolean create);
 
-	/**
-	 * Returns the current session associated with the
-	 * {@link AtmosphereResource}, or creates one if it does not yet exist.
-	 * 
-	 * @param resource
-	 *            An {@link AtmosphereResource}
-	 * @return the current session associated with the
-	 *         {@link AtmosphereResource}, or creates one if it does not yet
-	 *         exist.
-	 */
-	public AtmosphereResourceSession getSession(AtmosphereResource resource) {
-		return getSession(resource, true);
-	}
+    /**
+     * Returns the current session associated with the
+     * {@link AtmosphereResource}, or creates one if it does not yet exist.
+     *
+     * @param resource An {@link AtmosphereResource}
+     * @return the current session associated with the
+     * {@link AtmosphereResource}, or creates one if it does not yet
+     * exist.
+     */
+    public AtmosphereResourceSession getSession(AtmosphereResource resource) {
+        return getSession(resource, true);
+    }
 }
