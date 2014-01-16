@@ -100,9 +100,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     @Override
     public void init(ServletConfig sc) throws ServletException {
 
-        String maxInactive = sc.getInitParameter(MAX_INACTIVE) != null ? sc.getInitParameter(MAX_INACTIVE) :
-                config.getInitParameter(MAX_INACTIVE);
-
+        String maxInactive = sc.getInitParameter(MAX_INACTIVE);
         if (maxInactive != null) {
             trackActiveRequest = true;
             final long maxInactiveTime = Long.parseLong(maxInactive);
