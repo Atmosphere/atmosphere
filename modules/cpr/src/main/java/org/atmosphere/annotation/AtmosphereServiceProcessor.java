@@ -48,6 +48,7 @@ public class AtmosphereServiceProcessor implements Processor<Object> {
         try {
             Class<?> aClass = annotatedClass;
             AtmosphereService a = aClass.getAnnotation(AtmosphereService.class);
+            framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
 
             atmosphereConfig(a.atmosphereConfig(), framework);
             framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
@@ -113,8 +114,6 @@ public class AtmosphereServiceProcessor implements Processor<Object> {
             } else {
                 interceptors(a.interceptors(), framework);
             }
-
-            framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);
         }

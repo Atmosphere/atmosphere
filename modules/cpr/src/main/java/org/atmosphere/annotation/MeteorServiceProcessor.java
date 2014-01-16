@@ -46,6 +46,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
             MeteorService m = annotatedClass.getAnnotation(MeteorService.class);
+            framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
 
             String mapping = m.path();
 
@@ -71,7 +72,6 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
                 framework.interceptors().add(framework.newClassInstance(AtmosphereInterceptor.class, MeteorServiceInterceptor.class));
             }
             framework.addAtmosphereHandler(mapping, r, broadcaster(framework, m.broadcaster(), m.path()), l);
-            framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);
         }

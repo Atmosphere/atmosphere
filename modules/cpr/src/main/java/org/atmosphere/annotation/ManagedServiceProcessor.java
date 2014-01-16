@@ -43,6 +43,8 @@ public class ManagedServiceProcessor implements Processor<Object> {
         try {
             Class<?> aClass = annotatedClass;
             ManagedService a = aClass.getAnnotation(ManagedService.class);
+            framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
+
             List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
             atmosphereConfig(a.atmosphereConfig(), framework);
@@ -68,7 +70,6 @@ public class ManagedServiceProcessor implements Processor<Object> {
                 }
             }
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
-            framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
         } catch (Throwable e) {
             logger.warn("", e);
         }
