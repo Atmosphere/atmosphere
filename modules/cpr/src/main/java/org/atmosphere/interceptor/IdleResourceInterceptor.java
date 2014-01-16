@@ -49,9 +49,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     public void configure(AtmosphereConfig config) {
         this.config = config;
 
-        String maxInactive = config.getInitParameter(MAX_INACTIVE) != null ? config.getInitParameter(MAX_INACTIVE) :
-                config.getInitParameter(MAX_INACTIVE);
-
+        String maxInactive = config.getInitParameter(MAX_INACTIVE);
         if (maxInactive != null) {
             maxInactiveTime = Long.parseLong(maxInactive);
             if (maxInactiveTime <= 0) return;
