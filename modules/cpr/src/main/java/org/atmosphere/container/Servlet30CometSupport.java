@@ -141,19 +141,21 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
-        super.action(actionEvent);
-        if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
-            AsyncContext asyncContext =
-                    (AsyncContext) actionEvent.getRequest().getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
+            endAsyncContext(r.getRequest(false));
+        }
+    }
 
-            if (asyncContext != null) {
-                try {
-                    asyncContext.complete();
-                } catch (IllegalStateException ex) {
-                    // Alresady completed.
-                    logger.trace("Already resumed!", ex);
-                }
+    protected void endAsyncContext(AtmosphereRequest request){
+        AsyncContext asyncContext = (AsyncContext) request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+        if (asyncContext != null) {
+            try {
+                asyncContext.complete();
+            } catch (IllegalStateException ex) {
+                // Alresady completed.
+                logger.trace("Already resumed!", ex);
             }
         }
     }
@@ -164,16 +166,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         Action action = super.cancelled(req, res);
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
-            try {
-                AsyncContext asyncContext =
-                        (AsyncContext) req.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
-                if (asyncContext != null) {
-                    asyncContext.complete();
-                }
-            } catch (IllegalStateException ex) {
-                // Alresady completed.
-                logger.trace("Already resumed!", ex);
-            }
+            endAsyncContext(req);
         }
         return action;
     }
