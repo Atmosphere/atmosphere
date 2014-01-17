@@ -15,12 +15,17 @@
  */
 package org.atmosphere.container.version;
 
+import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.websocket.SendHandler;
+import javax.websocket.SendResult;
 import javax.websocket.Session;
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -48,7 +53,7 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public WebSocket write(String s) throws IOException {
         try {
-            session.getAsyncRemote().sendText(s);
+            session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
         } catch (NullPointerException e) {
             patchGlassFish(e);
         }
@@ -58,7 +63,9 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public WebSocket write(byte[] data, int offset, int length) throws IOException {
         try {
-            session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length));
+            ByteBuffer b = ByteBuffer.wrap(data, offset, length);
+            session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
+                    new WriteResult(resource(), b.array()));
         } catch (NullPointerException e) {
             patchGlassFish(e);
         }
@@ -79,6 +86,25 @@ public class JSR356WebSocket extends WebSocket {
         // Tomcat may throw  https://gist.github.com/jfarcand/6702738
         } catch (Exception e) {
             logger.trace("", e);
+        }
+    }
+
+    private final class WriteResult implements SendHandler {
+
+        private final AtmosphereResource r;
+        private final Object message;
+
+        private WriteResult(AtmosphereResource r, Object message) {
+            this.r = r;
+            this.message = message;
+        }
+
+        @Override
+        public void onResult(SendResult result) {
+            if (!result.isOK() || result.getException() != null) {
+                Broadcaster b = r.getBroadcaster();
+                b.getBroadcasterConfig().getBroadcasterCache().addToCache(b.getID(), r, new BroadcastMessage(message));
+            }
         }
     }
 }
