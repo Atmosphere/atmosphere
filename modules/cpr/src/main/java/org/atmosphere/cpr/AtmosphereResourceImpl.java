@@ -720,10 +720,12 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             if (config.getBroadcasterFactory().getDefault() != null) {
                 config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
-                String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
-                if (p != null) {
-                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(p);
+                if (transport.equals(TRANSPORT.WEBSOCKET)) {
+                    String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+                    AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
+                    if (p != null) {
+                        config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(p);
+                    }
                 }
             }
 
