@@ -138,8 +138,8 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     }
 
     private void bz51881(CometEvent event) throws IOException {
-        String[] tomcatVersion =  config.getServletContext().getServerInfo().substring(14).split("\\.");
         try {
+            String[] tomcatVersion =  config.getServletContext().getServerInfo().substring(14).split("\\.");
             String minorVersion = tomcatVersion[2];
             if (minorVersion.indexOf("-") != -1) {
                 minorVersion = minorVersion.substring(0, minorVersion.indexOf("-"));
