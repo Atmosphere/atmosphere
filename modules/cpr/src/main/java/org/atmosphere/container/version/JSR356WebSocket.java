@@ -16,6 +16,7 @@
 package org.atmosphere.container.version;
 
 import org.atmosphere.cache.BroadcastMessage;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
@@ -29,20 +30,27 @@ import javax.websocket.SendResult;
 import javax.websocket.Session;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.concurrent.Semaphore;
 
 /**
- * TODO: Add async support,
- *       Add binary support for text.
+ * Asynchronous based {@link Session} websocket
+ *
+ * @author Jeanfrancois Arcand
  */
 public class JSR356WebSocket extends WebSocket {
 
     private final Logger logger = LoggerFactory.getLogger(JSR356WebSocket.class);
-
     private final Session session;
+    private final Semaphore semaphore = new Semaphore(1);
 
     public JSR356WebSocket(Session session, AtmosphereConfig config) {
         super(config);
         this.session = session;
+        // https://issues.apache.org/bugzilla/show_bug.cgi?id=56026
+        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
+        if (s != null) {
+            session.getAsyncRemote().setSendTimeout(Integer.valueOf(s));
+        }
     }
 
     @Override
@@ -53,7 +61,13 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public WebSocket write(String s) throws IOException {
         try {
-            session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
+            try {
+                semaphore.acquireUninterruptibly();
+                session.getAsyncRemote().sendText(s, new WriteResult(resource(), s, semaphore));
+            } catch (IllegalStateException e) {
+                semaphore.release();
+                throw e;
+            }
         } catch (NullPointerException e) {
             patchGlassFish(e);
         }
@@ -63,11 +77,16 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public WebSocket write(byte[] data, int offset, int length) throws IOException {
         try {
+            semaphore.acquireUninterruptibly();
             ByteBuffer b = ByteBuffer.wrap(data, offset, length);
             session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
-                    new WriteResult(resource(), b.array()));
+                    new WriteResult(resource(), b.array(), semaphore));
         } catch (NullPointerException e) {
             patchGlassFish(e);
+            semaphore.release();
+        } catch (IllegalStateException e) {
+            semaphore.release();
+            throw e;
         }
         return this;
     }
@@ -83,7 +102,7 @@ public class JSR356WebSocket extends WebSocket {
         logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {
             session.close();
-        // Tomcat may throw  https://gist.github.com/jfarcand/6702738
+            // Tomcat may throw  https://gist.github.com/jfarcand/6702738
         } catch (Exception e) {
             logger.trace("", e);
         }
@@ -93,14 +112,17 @@ public class JSR356WebSocket extends WebSocket {
 
         private final AtmosphereResource r;
         private final Object message;
+        private final Semaphore semaphore;
 
-        private WriteResult(AtmosphereResource r, Object message) {
+        private WriteResult(AtmosphereResource r, Object message, Semaphore semaphore) {
             this.r = r;
             this.message = message;
+            this.semaphore = semaphore;
         }
 
         @Override
         public void onResult(SendResult result) {
+            semaphore.release();
             if (!result.isOK() || result.getException() != null) {
                 logger.trace("WebSocket {} failed to write {}", r, message);
                 Broadcaster b = r.getBroadcaster();
