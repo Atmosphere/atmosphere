@@ -41,7 +41,7 @@ public class JSR356WebSocket extends WebSocket {
 
     private final Logger logger = LoggerFactory.getLogger(JSR356WebSocket.class);
     private final Session session;
-    private final Semaphore semaphore = new Semaphore(1);
+    private final Semaphore semaphore = new Semaphore(1, true);
 
     public JSR356WebSocket(Session session, AtmosphereConfig config) {
         super(config);
