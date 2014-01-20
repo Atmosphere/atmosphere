@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>2.0.7</version>
+        <version>2.0.8-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
     <packaging>bundle</packaging>
-    <version>2.0.7</version>
+    <version>2.0.8-SNAPSHOT</version>
     <name>atmosphere-runtime</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>

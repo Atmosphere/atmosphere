@@ -11,7 +11,7 @@
     <artifactId>atmosphere-project</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
-    <version>2.0.7</version>
+    <version>2.0.8-SNAPSHOT</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
