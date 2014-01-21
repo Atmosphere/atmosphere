@@ -43,7 +43,7 @@ import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(IdleResourceInterceptor.class);
-    private long maxInactiveTime =  -1;
+    private long maxInactiveTime = -1;
     private AtmosphereConfig config;
 
     public void configure(AtmosphereConfig config) {
@@ -52,14 +52,15 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
         String maxInactive = config.getInitParameter(MAX_INACTIVE);
         if (maxInactive != null) {
             maxInactiveTime = Long.parseLong(maxInactive);
-            if (maxInactiveTime <= 0) return;
         }
 
-        ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(new Runnable() {
-            public void run() {
-                idleResources();
-            }
-        }, 0, 2, TimeUnit.SECONDS);
+        if (maxInactiveTime > 0) {
+            ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(new Runnable() {
+                public void run() {
+                    idleResources();
+                }
+            }, 0, 2, TimeUnit.SECONDS);
+        }
     }
 
     protected void idleResources() {
