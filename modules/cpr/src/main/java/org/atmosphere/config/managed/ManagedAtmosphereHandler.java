@@ -396,5 +396,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         public Managed(Object o) {
             this.o = o;
         }
+
+        public String toString() {
+            return o.toString();
+        }
     }
 }
