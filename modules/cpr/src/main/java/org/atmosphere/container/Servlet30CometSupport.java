@@ -148,7 +148,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         return a;
     }
 
-    protected void endAsyncContext(AtmosphereRequest request){
+    public static void endAsyncContext(AtmosphereRequest request){
         AsyncContext asyncContext = (AsyncContext) request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
         if (asyncContext != null) {
             try {
