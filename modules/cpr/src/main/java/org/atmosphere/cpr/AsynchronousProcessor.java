@@ -502,15 +502,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 } finally {
                     try {
                         impl.notifyListeners();
-                        impl.setIsInScope(false);
                         try {
-                            impl.getResponse().getOutputStream().close();
+                            impl.getResponse(false).getOutputStream().close();
                         } catch (Throwable t) {
                             try {
-                                impl.getResponse().getWriter().close();
+                                impl.getResponse(false).getWriter().close();
                             } catch (Throwable t2) {
                             }
                         }
+                        impl.setIsInScope(false);
                         impl.cancel();
                     } catch (Throwable t) {
                         logger.trace("completeLifecycle", t);
