@@ -16,6 +16,7 @@
 package org.atmosphere.util;
 
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -27,46 +28,57 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.io.UnsupportedEncodingException;
 import java.util.Map;
 
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
 
     public static StringBuilder readEntirely(AtmosphereResource r) {
-        StringBuilder stringBuilder = new StringBuilder();
-        BufferedReader bufferedReader = null;
-        try {
+        final StringBuilder stringBuilder = new StringBuilder();
+        AtmosphereRequest request = r.getRequest();
+        if (request.body().isEmpty()) {
+            BufferedReader bufferedReader = null;
             try {
-                InputStream inputStream = r.getRequest().getInputStream();
-                if (inputStream != null) {
-                    bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
-                }
-            } catch (IllegalStateException ex) {
-                logger.trace("", ex);
-                Reader reader = r.getRequest().getReader();
-                if (reader != null) {
-                    bufferedReader = new BufferedReader(reader);
-                }
-            }
-
-            if (bufferedReader != null) {
-                char[] charBuffer = new char[8192];
-                int bytesRead = -1;
-                while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
-                    stringBuilder.append(charBuffer, 0, bytesRead);
-                }
-            } else {
-                stringBuilder.append("");
-            }
-        } catch (IOException ex) {
-            logger.warn("", ex);
-        } finally {
-            if (bufferedReader != null) {
                 try {
-                    bufferedReader.close();
-                } catch (IOException ex) {
-                    logger.warn("", ex);
+                    InputStream inputStream = request.getInputStream();
+                    if (inputStream != null) {
+                        bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                    }
+                } catch (IllegalStateException ex) {
+                    logger.trace("", ex);
+                    Reader reader = request.getReader();
+                    if (reader != null) {
+                        bufferedReader = new BufferedReader(reader);
+                    }
                 }
+
+                if (bufferedReader != null) {
+                    char[] charBuffer = new char[8192];
+                    int bytesRead = -1;
+                    while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
+                        stringBuilder.append(charBuffer, 0, bytesRead);
+                    }
+                } else {
+                    stringBuilder.append("");
+                }
+            } catch (IOException ex) {
+                logger.warn("", ex);
+            } finally {
+                if (bufferedReader != null) {
+                    try {
+                        bufferedReader.close();
+                    } catch (IOException ex) {
+                        logger.warn("", ex);
+                    }
+                }
+            }
+        } else {
+            AtmosphereRequest.Body body = request.body();
+            try {
+                stringBuilder.append(body.hasString() ? body.asString() : new String(body.asBytes(), body.byteOffset(), body.byteLength(), request.getCharacterEncoding()));
+            } catch (UnsupportedEncodingException e) {
+                logger.error("", e);
             }
         }
         return stringBuilder;
