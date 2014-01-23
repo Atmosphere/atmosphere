@@ -82,38 +82,53 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private boolean cookieComputed = false;
     private final BufferedReader voidReader = new BufferedReader(new StringReader(""));
     private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
+    private AtomicBoolean streamSet = new AtomicBoolean();
+    private AtomicBoolean readerSet = new AtomicBoolean();
 
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
-        if (b.inputStream == null && b.reader == null) {
-            if (b.dataBytes != null) {
-                configureStream(b.dataBytes, b.offset, b.length, b.encoding);
-            } else if (b.data != null) {
-                try {
-                    byte[] bytes = b.data.getBytes("UTF-8");
-                    bis = new ByteInputStream(bytes, 0, bytes.length);
-                } catch (UnsupportedEncodingException e) {
-                    logger.trace("", e);
-                }
-                br = new BufferedReader(new StringReader(b.data));
-            }
-        } else {
-            bis = b.inputStream == null ? new IS(new ReaderInputStream(b.reader)) : new IS(b.inputStream);
-            br = b.reader == null ? new BufferedReader(new InputStreamReader(b.inputStream)) : new BufferedReader(b.reader);
-        }
-
         if (b.request == null) b.request(new NoOpsRequest());
 
         this.b = b;
     }
 
-    private void configureStream(byte[] bytes, int offset, int length, String encoding) {
-        bis = new ByteInputStream(bytes, offset, length);
-        try {
-            br = new BufferedReader(new StringReader(new String(bytes, offset, length, encoding)));
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
+    private ServletInputStream configureStream() {
+        if (bis == null && !streamSet.getAndSet(true)) {
+            if (b.inputStream == null) {
+                if (b.body.dataBytes != null) {
+                    bis = new ByteInputStream(b.body.dataBytes, b.body.offset, b.body.length);
+                } else if (b.body.data != null) {
+                    try {
+                        byte[] bytes = b.body.data.getBytes("UTF-8");
+                        bis = new ByteInputStream(bytes, 0, bytes.length);
+                    } catch (UnsupportedEncodingException e) {
+                        logger.trace("", e);
+                    }
+                }
+            } else {
+                bis = b.inputStream == null ? new IS(new ReaderInputStream(b.reader)) : new IS(b.inputStream);
+            }
         }
+        return bis;
+    }
+
+    private BufferedReader configureReader() {
+        if (br == null && !readerSet.getAndSet(false)) {
+            if (b.reader == null) {
+                try {
+                    if (b.body.dataBytes != null) {
+                        br = new BufferedReader(new StringReader(new String(b.body.dataBytes, b.body.offset, b.body.length, b.encoding)));
+                    } else if (b.body.data != null) {
+                        br = new BufferedReader(new StringReader(b.body.data));
+                    }
+                } catch (UnsupportedEncodingException e) {
+                    throw new RuntimeException(e);
+                }
+            } else {
+                br = b.reader == null ? new BufferedReader(new InputStreamReader(b.inputStream)) : new BufferedReader(b.reader);
+            }
+        }
+        return br;
     }
 
     public boolean destroyed() {
@@ -127,7 +142,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public String getPathInfo() {
-        return b.pathInfo != "" ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
+        return !b.pathInfo.isEmpty() ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
     }
 
     @Override
@@ -401,12 +416,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == null ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
+        return bis == configureStream() ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
     }
 
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == null ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
+        return br == configureReader() ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
     }
 
     @Override
@@ -479,23 +494,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public AtmosphereRequest body(String body) {
-        try {
-            byte[] bytes = body.getBytes("UTF-8");
-            bis = new ByteInputStream(bytes, 0, bytes.length);
-        } catch (UnsupportedEncodingException e) {
-            logger.trace("", e);
-        }
-        br = new BufferedReader(new StringReader(body));
+        b.body = new Body(body, null, 0, 0);
         return this;
     }
 
     public AtmosphereRequest body(byte[] bytes) {
-        bis = new ByteInputStream(bytes, 0, bytes.length);
-        try {
-            br = new BufferedReader(new StringReader(new String(bytes, "UTF-8")));
-        } catch (UnsupportedEncodingException e) {
-            logger.trace("", e);
-        }
+        b.body = new Body(null, bytes, 0, bytes.length);
         return this;
     }
 
@@ -503,6 +507,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         bis = new IS(body);
         br = new BufferedReader(new InputStreamReader(body));
         return this;
+    }
+
+    /**
+     * Return the request's body. This method will return an empty Body if the underlying container or framework is using
+     * InputStream or Reader.
+     *
+     * @return the request body;
+     */
+    public Body body() {
+        return b.body;
     }
 
     public AtmosphereRequest servletPath(String servletPath) {
@@ -839,16 +853,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     public final static class Builder {
+        private final static Body NULL_BODY = new Body(null, null, 0, 0);
         private HttpServletRequest request;
         private String pathInfo = "";
-        private byte[] dataBytes;
-        private int offset;
-        private int length;
         private String encoding = "UTF-8";
         private String methodType;
         private String contentType;
         private Long contentLength;
-        private String data;
         private Map<String, String> headers = Collections.synchronizedMap(new HashMap<String, String>());
         private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<String, String[]>());
         private String servletPath = "";
@@ -878,6 +889,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         // Callable to lazily execute.
         private LazyComputation lazyRemote = null;
         private LazyComputation lazyLocal = null;
+        public Body body;
 
         public Builder() {
         }
@@ -977,10 +989,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
+        public Builder body(byte[] dataBytes) {
+            return body(dataBytes, 0, dataBytes.length);
+        }
+
         public Builder body(byte[] dataBytes, int offset, int length) {
-            this.dataBytes = dataBytes;
-            this.offset = offset;
-            this.length = length;
+            this.body = new Body(null, dataBytes, offset, length);
             return this;
         }
 
@@ -1005,7 +1019,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         public Builder body(String data) {
-            this.data = data;
+            this.body = new Body(data, null, 0, 0);
             return this;
         }
 
@@ -1020,6 +1034,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         public AtmosphereRequest build() {
+            if (body == null) {
+                body = NULL_BODY;
+            }
             return new AtmosphereRequest(this);
         }
 
@@ -1079,6 +1096,56 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public Builder userPrincipal(Principal userPrincipal) {
             this.principal = userPrincipal;
             return this;
+        }
+    }
+
+    public final static class Body {
+        private final String data;
+        private final byte[] dataBytes;
+        private final int offset;
+        private final int length;
+
+        public Body(String data, byte[] dataBytes, int offset, int length) {
+            this.data = data;
+            this.dataBytes = dataBytes;
+            this.offset = offset;
+            this.length = length;
+        }
+
+        /**
+         * Return the request body as a String. If the body was a byte array, this method will return null.
+         *
+         * @return the request body as a String. If the body was a byte array, this method will return null.
+         */
+        public String asString() {
+            return data;
+        }
+
+        /**
+         * Return the request body as a byte array. If the body was String, this method will return null.
+         *
+         * @return the request body as a byte array. If the body was String, this method will return null.
+         */
+        public byte[] asBytes() {
+            return dataBytes;
+        }
+
+        /**
+         * The {@link #asBytes()} offset
+         *
+         * @return The {@link #asBytes()} offset
+         */
+        public int byteOffset() {
+            return offset;
+        }
+
+        /**
+         * The {@link #asBytes()} length
+         *
+         * @return The {@link #asBytes()} length
+         */
+        public int byteLength() {
+            return length;
         }
     }
 
