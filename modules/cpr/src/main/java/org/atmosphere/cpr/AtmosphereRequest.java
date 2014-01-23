@@ -145,7 +145,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getPathInfo() {
-        return !b.pathInfo.isEmpty() ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
+        return b.pathInfo != "" ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
     }
 
     /**
