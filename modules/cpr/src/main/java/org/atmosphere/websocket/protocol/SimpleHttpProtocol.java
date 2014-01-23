@@ -80,7 +80,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     }
 
     @Override
-    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String d) {
+    public List<AtmosphereRequest> onMessage(WebSocket webSocket, String message) {
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
         if (resource == null) {
             logger.trace("The WebSocket has been closed before the message was processed.");
@@ -93,18 +93,18 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
 
-        if (d.startsWith(delimiter)) {
+        if (message.startsWith(delimiter)) {
             int delimiterLength = delimiter.length();
-            int bodyBeginIndex = d.indexOf(delimiter, delimiterLength);
+            int bodyBeginIndex = message.indexOf(delimiter, delimiterLength);
             if (bodyBeginIndex != -1) {
-                pathInfo = d.substring(delimiterLength, bodyBeginIndex);
+                pathInfo = message.substring(delimiterLength, bodyBeginIndex);
                 requestURI += pathInfo;
-                d = d.substring(bodyBeginIndex + delimiterLength);
+                message = message.substring(bodyBeginIndex + delimiterLength);
             }
         }
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, pathInfo, requestURI, methodType, contentType, destroyable).body(d).build());
+        list.add(constructRequest(resource, pathInfo, requestURI, methodType, contentType, destroyable).body(message).build());
 
         return list;
     }
