@@ -31,6 +31,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 public class AtmosphereRequestTest {
     private AtmosphereFramework framework;
@@ -240,5 +243,53 @@ public class AtmosphereRequestTest {
         framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
 
         assertEquals(e.get().getCharacterEncoding(), "utf-8");
+    }
+
+    @Test
+    public void testRequestBodyString() throws IOException, ServletException {
+        final AtomicReference<AtmosphereRequest.Body> e = new AtomicReference<AtmosphereRequest.Body>();
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                e.set(resource.getRequest().body());
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").body("test").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
+
+        assertNotNull(e.get());
+        assertTrue(e.get().hasString());
+        assertFalse(e.get().hasBytes());
+        assertEquals(e.get().asString(), "test");
+
+    }
+
+    @Test
+    public void testRequestBodyBytes() throws IOException, ServletException {
+        final AtomicReference<AtmosphereRequest.Body> e = new AtomicReference<AtmosphereRequest.Body>();
+        framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                e.set(resource.getRequest().body());
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").body("test".getBytes()).build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
+
+        assertNotNull(e.get());
+        assertTrue(e.get().hasBytes());
+        assertFalse(e.get().hasString());
+        assertEquals(new String(e.get().asBytes()), "test");
+
     }
 }
