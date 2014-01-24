@@ -56,7 +56,6 @@
                                     </includes>
                                     <excludes>
                                         <exclude>org/atmosphere/cpr/AtmosphereServlet.java</exclude>
-                                        <exclude>org/atmosphere/container/JSR356ServerApplicationConfig.java</exclude>
                                     </excludes>
                                 </filter>
                             </filters>

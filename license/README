@@ -1,2 +1,3 @@
-Before Atmosphere 0.4, the CDDL license was used and hence some part of the code are CDDL. After 0.4 Atmosphere has
-been relicensed using the APACHE 2 license. The majority of code has been written after 0.4.
+org.atmosphere.util.uri.* classes are under the CDDL license and comes from the Jersey Project.
+
+All other classes are released under the Apache 2 Licence.
