@@ -41,6 +41,7 @@ public class AtmosphereConfig {
     private final List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession;
+    private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
     private final AtmosphereFramework framework;
     private final Map<String, Object> properties = new HashMap<String, Object>();
@@ -140,6 +141,24 @@ public class AtmosphereConfig {
      */
     public void setSupportSession(boolean supportSession) {
         this.supportSession = supportSession;
+    }
+    
+    /**
+     * Allow HTTP session timeout removal when session support is active
+     *
+     * @return HTTP session timeout removal allowed.
+     */
+    public boolean isSessionTimeoutRemovalAllowed() {
+        return sessionTimeoutRemovalAllowed;
+    }
+
+    /**
+     * Enable/Disable {@link javax.servlet.http.HttpSession} timeout removal when a connection exists.
+     *
+     * @param sessionTimeoutRemovalAllowed true to enable, false to disable
+     */
+    public void setSessionTimeoutRemovalAllowed(boolean sessionTimeoutRemovalAllowed) {
+        this.sessionTimeoutRemovalAllowed = sessionTimeoutRemovalAllowed;
     }
 
     /**

@@ -113,6 +113,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_COMET_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
@@ -1104,6 +1105,10 @@ public class AtmosphereFramework {
                 logger.debug("Make sure you define {} as a listener in web.xml", SessionSupport.class.getName());
             }
             isSessionSupportSpecified = true;
+        }
+        s = sc.getInitParameter(PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL);
+        if (s != null) {
+            config.setSessionTimeoutRemovalAllowed(Boolean.valueOf(s));
         }
         s = sc.getInitParameter(PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST);
         if (s != null) {
