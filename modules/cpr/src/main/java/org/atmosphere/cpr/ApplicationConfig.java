@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import javax.servlet.http.HttpSession;
+
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
@@ -121,6 +123,13 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.sessionSupport
      */
     String PROPERTY_SESSION_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".sessionSupport";
+    /**
+     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link HttpSession#setMaxInactiveInterval(int)}
+     * <p>
+     * Default: true<br>
+     * Value: org.atmosphere.cpr.removeSessionTimeout
+     */
+    String PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL = ApplicationConfig.class.getPackage().getName() + ".removeSessionTimeout";
     /**
      * Force Atmosphere to invoke {@link AtmosphereResource#resume()} after the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} invocation.
      * <p>

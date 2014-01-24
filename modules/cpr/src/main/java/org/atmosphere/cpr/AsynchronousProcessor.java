@@ -100,6 +100,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected boolean supportSession() {
         return config.isSupportSession();
     }
+    
+    /**
+     * Is {@link HttpSession} timeout removal supported
+     *
+     * @return true if supported
+     */
+    protected boolean allowSessionTimeoutRemoval() {
+        return config.isSessionTimeoutRemovalAllowed();
+    }
 
     /**
      * Return the container's name.
@@ -210,7 +219,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         postInterceptors(config.framework().interceptors(), resource);
 
         Action action = skipAtmosphereHandler ? Action.CANCELLED : resource.action();
-        if (supportSession() && action.type().equals(Action.TYPE.SUSPEND)) {
+        if (supportSession() && allowSessionTimeoutRemoval() && action.type().equals(Action.TYPE.SUSPEND)) {
             // Do not allow times out.
             SessionTimeoutSupport.setupTimeout(req.getSession());
         }
