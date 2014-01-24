@@ -39,7 +39,6 @@ public class NettyCometSupport extends AsynchronousProcessor {
 
     public final static String SUSPEND = NettyCometSupport.class.getName() + ".suspend";
     public final static String RESUME = NettyCometSupport.class.getName() + ".resume";
-    public final static String CHANNEL = NettyCometSupport.class.getName() + ".channel";
 
     private static final Logger logger = LoggerFactory.getLogger(NettyCometSupport.class);
 
@@ -88,10 +87,8 @@ public class NettyCometSupport extends AsynchronousProcessor {
 
     @Override
     public AsyncSupport complete(AtmosphereResourceImpl r) {
-        if (r.getRequest(false).getAttribute(CHANNEL) == null) return this;
-
         try {
-            ((AsyncIOWriter)r.getRequest(false).getAttribute(CHANNEL)).close(r.getResponse(false));
+            r.getResponse().getAsyncIOWriter().close(r.getResponse(false));
         } catch (IOException e) {
             logger.trace("", e);
         }
