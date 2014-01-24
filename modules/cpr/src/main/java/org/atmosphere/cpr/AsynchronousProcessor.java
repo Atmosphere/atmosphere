@@ -530,7 +530,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         public void closed() {
             try {
-                ((AsynchronousProcessor) r.asyncSupport).cancelled(r.getRequest(false), r.getResponse(false));
+                if (r.isSuspended()) {
+                    ((AsynchronousProcessor) r.asyncSupport).cancelled(r.getRequest(false), r.getResponse(false));
+                }
             } catch (IOException e) {
                 logger.debug("", e);
             } catch (ServletException e) {
