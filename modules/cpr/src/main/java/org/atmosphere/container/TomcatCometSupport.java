@@ -56,6 +56,7 @@ import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometEvent.EventType;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -183,22 +184,28 @@ public class TomcatCometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public void action(AtmosphereResourceImpl resource) {
-        super.action(resource);
-        if (resource.action().type() == Action.TYPE.RESUME && resource.isInScope()) {
-            try {
-                CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
-                if (event == null) return;
-
-                try {
-                    event.close();
-                } catch (IllegalStateException ex) {
-                    logger.trace("event.close", ex);
-                }
-            } catch (IOException ex) {
-                logger.debug("action failed", ex);
-            }
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
+            complete(r);
         }
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        try {
+            CometEvent event = (CometEvent) r.getRequest(false).getAttribute(COMET_EVENT);
+            if (event == null) return this;
+
+            try {
+                event.close();
+            } catch (IllegalStateException ex) {
+                logger.trace("event.close", ex);
+            }
+        } catch (IOException ex) {
+            logger.debug("action failed", ex);
+        }
+        return this;
     }
 
     @Override

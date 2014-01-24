@@ -284,6 +284,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     public void action(AtmosphereResourceImpl r) {
     }
 
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        return this;
+    }
+
     private String path(AtmosphereRequest request) {
         String path;
         String pathInfo = null;
@@ -584,4 +589,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             ((AsynchronousProcessor) r.asyncSupport).action(r);
         }
     }
+
+
 }

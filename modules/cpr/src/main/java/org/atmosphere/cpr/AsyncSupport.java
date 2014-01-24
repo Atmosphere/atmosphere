@@ -114,4 +114,11 @@ public interface AsyncSupport<E extends AtmosphereResource> {
      * @return true if supported
      */
     public boolean supportWebSocket();
+
+    /**
+     * Complete and close the connection associated with an implementation of {@link org.atmosphere.cpr.AtmosphereResource}
+     * @param r {@link org.atmosphere.cpr.AtmosphereResource}
+     * @return this
+     */
+    public AsyncSupport complete(E r);
 }

@@ -54,9 +54,9 @@ package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -171,7 +171,11 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     @Override
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
+        complete(r);
+    }
 
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
         ServletRequest request = r.getRequest(false);
         while (request != null) {
             Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
@@ -186,10 +190,11 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                     r.getRequest(false).setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                 }
                 request.removeAttribute(Continuation.class.getName());
-                return;
+                return this;
             } else {
-                return;
+                return this;
             }
         }
+        return this;
     }
 }

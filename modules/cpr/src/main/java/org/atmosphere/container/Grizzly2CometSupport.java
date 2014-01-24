@@ -17,6 +17,7 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -101,12 +102,6 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
         ctx.addCometHandler(c);
         req.setAttribute(ATMOSPHERE, c.hashCode());
         ctx.addAttribute("Time", System.currentTimeMillis());
-
-        if (supportSession()) {
-            // Store as well in the session in case the resume operation
-            // happens outside the AtmosphereHandler.onStateChange scope.
-            req.getSession().setAttribute(ATMOSPHERE, c.hashCode());
-        }
     }
 
     /**
@@ -123,12 +118,6 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
 
         CometHandler handler = getCometHandler(ctx, (Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
-
-        if (handler == null && supportSession() && req.getSession(false) != null) {
-            handler = getCometHandler(ctx, (Integer) req.getSession(false).getAttribute(ATMOSPHERE));
-            req.getSession().removeAttribute(ATMOSPHERE);
-        }
-
         if (handler != null) {
             try {
                 ctx.resumeCometHandler(handler);
@@ -142,9 +131,15 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
         if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
-            CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
-            resume(r.getRequest(), ctx);
+            complete(r);
         }
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
+        resume(r.getRequest(false), ctx);
+        return this;
     }
 
     @Override

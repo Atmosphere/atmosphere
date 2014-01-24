@@ -18,6 +18,7 @@ package org.atmosphere.container;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -76,17 +77,24 @@ public class NettyCometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
         if (r.isResumed() && r.getRequest(false).getAttribute(ASYNCHRONOUS_HOOK) != null) {
-            if (r.getRequest(false).getAttribute(CHANNEL) == null) return;
-            try {
-                ((AsyncIOWriter)r.getRequest(false).getAttribute(CHANNEL)).close(r.getResponse(false));
-            } catch (IOException e) {
-                logger.trace("", e);
-            }
+            complete(r);
         }
     }
 
     @Override
     public boolean supportWebSocket() {
         return true;
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        if (r.getRequest(false).getAttribute(CHANNEL) == null) return this;
+
+        try {
+            ((AsyncIOWriter)r.getRequest(false).getAttribute(CHANNEL)).close(r.getResponse(false));
+        } catch (IOException e) {
+            logger.trace("", e);
+        }
+        return this;
     }
 }

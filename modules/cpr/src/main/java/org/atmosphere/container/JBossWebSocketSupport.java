@@ -16,9 +16,11 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
@@ -71,6 +73,12 @@ public class JBossWebSocketSupport extends AsynchronousProcessor {
     @Override
     public boolean supportWebSocket() {
         return true;
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        // TODO: How can this be fixed.
+        return this;
     }
 
     /**

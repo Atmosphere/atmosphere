@@ -24,6 +24,7 @@ import org.apache.catalina.connector.ResponseFacade;
 import org.apache.tomcat.util.http.mapper.MappingData;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -57,7 +58,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
 
     public Tomcat7CometSupport(AtmosphereConfig config) {
         super(config);
-        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
+        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM);
         closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
         try {
             Class.forName(CometEvent.class.getName());
@@ -139,7 +140,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
 
     private void bz51881(CometEvent event) throws IOException {
         try {
-            String[] tomcatVersion =  config.getServletContext().getServerInfo().substring(14).split("\\.");
+            String[] tomcatVersion = config.getServletContext().getServerInfo().substring(14).split("\\.");
             String minorVersion = tomcatVersion[2];
             if (minorVersion.indexOf("-") != -1) {
                 minorVersion = minorVersion.substring(0, minorVersion.indexOf("-"));
@@ -199,21 +200,27 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public void action(AtmosphereResourceImpl resource) {
-        super.action(resource);
-        if (resource.action().type() == Action.TYPE.RESUME && resource.isInScope()) {
-            try {
-                CometEvent event = (CometEvent) resource.getRequest().getAttribute(COMET_EVENT);
-                if (event == null) return;
-
-                // Resume without closing the underlying suspended connection.
-                if (!resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
-                    bz51881(event);
-                }
-            } catch (IOException ex) {
-                logger.debug("action failed", ex);
-            }
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
+            complete(r);
         }
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        try {
+            CometEvent event = (CometEvent) r.getRequest(false).getAttribute(COMET_EVENT);
+            if (event == null) return this;
+
+            // Resume without closing the underlying suspended connection.
+            if (!r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
+                bz51881(event);
+            }
+        } catch (IOException ex) {
+            logger.debug("action failed", ex);
+        }
+        return this;
     }
 
     @Override

@@ -53,6 +53,7 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -211,21 +212,27 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         try {
             super.action(r);
             if (r.action().type() == Action.TYPE.RESUME) {
-                AtmosphereRequest req = r.getRequest(false);
-                CountDownLatch latch = null;
-
-                if (req.getAttribute(LATCH) != null) {
-                    latch = (CountDownLatch) req.getAttribute(LATCH);
-                }
-
-                if (latch != null) {
-                    latch.countDown();
-                } else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
-                    logger.trace("Unable to resume the suspended connection");
-                }
+                complete(r);
             }
         } catch (Exception ex) {
             logger.error("", ex);
         }
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        AtmosphereRequest req = r.getRequest(false);
+        CountDownLatch latch = null;
+
+        if (req.getAttribute(LATCH) != null) {
+            latch = (CountDownLatch) req.getAttribute(LATCH);
+        }
+
+        if (latch != null) {
+            latch.countDown();
+        } else if (req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
+            logger.trace("Unable to resume the suspended connection");
+        }
+        return this;
     }
 }

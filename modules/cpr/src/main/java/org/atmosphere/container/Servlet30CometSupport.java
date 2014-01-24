@@ -53,6 +53,7 @@
 package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -148,7 +149,13 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         }
     }
 
-    public static void endAsyncContext(AtmosphereRequest request){
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        endAsyncContext(r.getRequest(false));
+        return null;
+    }
+
+    public void endAsyncContext(AtmosphereRequest request){
         AsyncContext asyncContext = (AsyncContext) request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
         if (asyncContext != null) {
             try {

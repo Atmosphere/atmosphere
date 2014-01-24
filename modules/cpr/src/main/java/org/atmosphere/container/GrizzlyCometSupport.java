@@ -57,6 +57,7 @@ import com.sun.grizzly.comet.CometEngine;
 import com.sun.grizzly.comet.CometEvent;
 import com.sun.grizzly.comet.CometHandler;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -180,9 +181,15 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
         if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
-            CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
-            resume(r.getRequest(), ctx);
+            complete(r);
         }
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
+        resume(r.getRequest(false), ctx);
+        return this;
     }
 
     @Override

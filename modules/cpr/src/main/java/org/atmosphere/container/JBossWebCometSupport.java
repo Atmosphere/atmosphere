@@ -54,6 +54,7 @@ package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -174,17 +175,23 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
-        super.action(actionEvent);
-        if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
-            try {
-                HttpEvent event = (HttpEvent) actionEvent.getRequest().getAttribute(HTTP_EVENT);
-                // Resume without closing the underlying suspended connection.
-                event.close();
-            } catch (IOException ex) {
-                logger.debug("", ex);
-            }
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
+            complete(r);
         }
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        try {
+            HttpEvent event = (HttpEvent) r.getRequest().getAttribute(HTTP_EVENT);
+            // Resume without closing the underlying suspended connection.
+            event.close();
+        } catch (IOException ex) {
+            logger.debug("", ex);
+        }
+        return this;
     }
 
     /**

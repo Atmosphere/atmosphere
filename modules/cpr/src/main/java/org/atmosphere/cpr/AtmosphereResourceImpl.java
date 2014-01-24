@@ -52,7 +52,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.interceptor.AllowInterceptor;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -730,7 +729,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            Servlet30CometSupport.endAsyncContext(req);
+            asyncSupport.complete(this);
 
             SessionTimeoutSupport.restoreTimeout(req);
             action.type(Action.TYPE.CANCELLED);

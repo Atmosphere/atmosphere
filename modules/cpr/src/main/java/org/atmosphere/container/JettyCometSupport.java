@@ -53,6 +53,7 @@ package org.atmosphere.container;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -130,20 +131,26 @@ public class JettyCometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
         if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
-            Continuation c = ContinuationSupport.getContinuation(r.getRequest(), null);
+            Continuation c = ContinuationSupport.getContinuation(r.getRequest(false), null);
             resumed.offer(c);
-
-            if (!c.isNew()) {
-                c.resume();
-            } else {
-                r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
-            }
+            complete(r);
         } else {
             try {
                 r.getResponse().flushBuffer();
             } catch (IOException e) {
             }
         }
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        Continuation c = ContinuationSupport.getContinuation(r.getRequest(false), null);
+        if (!c.isNew()) {
+            c.resume();
+        } else {
+            r.getRequest().setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
+        }
+        return this;
     }
 
     @Override

@@ -57,6 +57,7 @@ import com.sun.enterprise.web.connector.grizzly.comet.CometEngine;
 import com.sun.enterprise.web.connector.grizzly.comet.CometEvent;
 import com.sun.enterprise.web.connector.grizzly.comet.CometHandler;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -138,12 +139,6 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
         ctx.addCometHandler(c);
         ctx.addAttribute("Time", System.currentTimeMillis());
         req.setAttribute(ATMOSPHERE, c.hashCode());
-
-        if (supportSession()) {
-            // Store as well in the session in case the resume operation
-            // happens outside the AtmosphereHandler.onStateChange scope.
-            req.getSession().setAttribute(ATMOSPHERE, c.hashCode());
-        }
     }
 
     /**
@@ -160,24 +155,23 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
 
         CometHandler handler = ctx.getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
-
-        if (handler == null && supportSession() && req.getSession(false) != null) {
-            handler = ctx.getCometHandler((Integer) req.getSession(false).getAttribute(ATMOSPHERE));
-            req.getSession().removeAttribute(ATMOSPHERE);
-        }
-
         if (handler != null) {
             ctx.resumeCometHandler(handler);
         }
     }
 
     @Override
-    public void action(AtmosphereResourceImpl actionEvent) {
-        super.action(actionEvent);
-        if (actionEvent.action().type() == Action.TYPE.RESUME && actionEvent.isInScope()) {
-            CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
-            resume(actionEvent.getRequest(), ctx);
+    public void action(AtmosphereResourceImpl r) {
+        super.action(r);
+        if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
+            complete(r);
         }
+    }
+
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
+        resume(r.getRequest(false), ctx);
+        return this;
     }
 
     @Override
