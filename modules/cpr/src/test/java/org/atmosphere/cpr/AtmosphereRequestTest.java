@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -63,6 +64,11 @@ public class AtmosphereRequestTest {
                 return null;
             }
         });
+    }
+
+    @AfterMethod
+    public void stop() {
+        framework.destroy();
     }
 
     @Test
