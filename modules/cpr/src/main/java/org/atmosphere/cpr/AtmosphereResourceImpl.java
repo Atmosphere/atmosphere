@@ -74,7 +74,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private TRANSPORT transport;
     private boolean forceBinaryWrite;
 
-    public AtmosphereResourceImpl(){
+    public AtmosphereResourceImpl() {
     }
 
     @Deprecated
@@ -97,8 +97,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     @Override
     public AtmosphereResource initialize(AtmosphereConfig config, Broadcaster broadcaster,
-                                  AtmosphereRequest req, AtmosphereResponse response,
-                                  AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
+                                         AtmosphereRequest req, AtmosphereResponse response,
+                                         AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
         this.req = req;
         this.response = response;
         this.broadcaster = broadcaster;
@@ -262,15 +262,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
                 } catch (Exception ex) {
                     logger.debug("Resume exception: Cannot resume an already resumed/cancelled request", ex);
-                } finally {
-                    try {
-                        Meteor m = (Meteor) req.getAttribute(METEOR);
-                        if (m != null) {
-                            m.destroy();
-                        }
-                    } catch (Exception ex) {
-                        logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
-                    }
                 }
 
                 if (req.getAttribute(PRE_SUSPEND) == null) {
@@ -282,6 +273,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
+        } finally {
+            try {
+                Meteor m = (Meteor) req.getAttribute(METEOR);
+                if (m != null) {
+                    m.destroy();
+                }
+            } catch (Exception ex) {
+                logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
+            }
         }
         listeners.clear();
         return this;

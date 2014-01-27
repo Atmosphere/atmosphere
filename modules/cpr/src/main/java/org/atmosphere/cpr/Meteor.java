@@ -14,7 +14,6 @@
  * the License.
  */
 
-
 package org.atmosphere.cpr;
 
 import org.slf4j.Logger;
@@ -24,10 +23,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.AtmosphereResourceImpl.METEOR;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
@@ -48,8 +47,6 @@ public class Meteor {
 
     private static final Logger logger = LoggerFactory.getLogger(Meteor.class);
 
-    protected final static ConcurrentHashMap<AtmosphereResource, Meteor> cache =
-            new ConcurrentHashMap<AtmosphereResource, Meteor>();
     private final AtmosphereResource r;
     private Object o;
     private AtomicBoolean isDestroyed = new AtomicBoolean(false);
@@ -64,7 +61,6 @@ public class Meteor {
                 this.r.getBroadcaster().getBroadcasterConfig().addFilter(f);
             }
         }
-        cache.put(this.r, this);
     }
 
     /**
@@ -74,9 +70,8 @@ public class Meteor {
      * @return a {@link Meteor} or null if not found
      */
     public static Meteor lookup(HttpServletRequest r) {
-        return cache.get(r.getAttribute(ATMOSPHERE_RESOURCE));
+        return (Meteor) r.getAttribute(METEOR);
     }
-
 
     /**
      * Create a {@link Meteor} using the {@link HttpServletRequest}.
@@ -134,7 +129,6 @@ public class Meteor {
         if (r == null) throw new IllegalStateException("MeteorServlet not defined in web.xml");
 
         Broadcaster b = null;
-
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
                 BroadcasterFactory f = r.getAtmosphereConfig().getBroadcasterFactory();
@@ -148,7 +142,7 @@ public class Meteor {
         }
 
         Meteor m = new Meteor(r, l, s);
-        req.setAttribute(AtmosphereResourceImpl.METEOR, m);
+        req.setAttribute(METEOR, m);
         return m;
     }
 
@@ -210,7 +204,6 @@ public class Meteor {
     public Meteor resume() {
         if (destroyed()) return null;
         r.resume();
-        cache.remove(r);
         return this;
     }
 
@@ -323,7 +316,6 @@ public class Meteor {
      */
     public void destroy() {
         isDestroyed.set(true);
-        cache.remove(r);
     }
 
     private boolean destroyed() {

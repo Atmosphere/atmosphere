@@ -126,6 +126,5 @@ public class MeteorServlet extends AtmosphereServlet {
     @Override
     public void destroy() {
         super.destroy();
-        Meteor.cache.clear();
     }
 }

@@ -102,7 +102,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         }
 
         logger.info("Installing Servlet {}", servletClassName);
-        filterChain.setServlet(sc, servlet);
     }
 
     private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC) throws Exception {
@@ -176,6 +175,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         } catch (Exception ex) {
             throw new ServletException(ex);
         }
+        filterChain.setServlet(config.getServletConfig(), servlet);
         wrapper.init(config.getServletConfig());
     }
 
