@@ -694,6 +694,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             asyncSupport.complete(this);
 
+            try {
+                Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                if (m != null) {
+                    m.destroy();
+                }
+            } catch (Exception ex) {
+                logger.trace("Meteor exception {}", ex);
+            }
+
             SessionTimeoutSupport.restoreTimeout(req);
             action.type(Action.TYPE.CANCELLED);
             if (asyncSupport != null) asyncSupport.action(this);
