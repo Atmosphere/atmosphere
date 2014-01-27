@@ -328,6 +328,13 @@ public class AtmosphereFramework implements ServletContextProvider {
         addMapping(mapping, w);
 
         if (isInit) {
+            try {
+                if (h instanceof AtmosphereServletProcessor) {
+                    ((AtmosphereServletProcessor) h).init(config.getServletConfig());
+                }
+            } catch (ServletException e) {
+                throw new RuntimeException(e);
+            }
             initHandlerInterceptors(w);
         } else {
             logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);

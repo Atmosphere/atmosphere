@@ -109,7 +109,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     protected HttpSession session;
     private boolean disableSuspendEvent;
     private TRANSPORT transport;
-
     /**
      * Create an {@link AtmosphereResource}.
      *
@@ -285,15 +284,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     req.setAttribute(ApplicationConfig.RESUMED_ON_TIMEOUT, Boolean.FALSE);
                 } catch (Exception ex) {
                     logger.debug("Resume exception: Cannot resume an already resumed/cancelled request", ex);
-                } finally {
-                    try {
-                        Meteor m = (Meteor) req.getAttribute(METEOR);
-                        if (m != null) {
-                            m.destroy();
-                        }
-                    } catch (Exception ex) {
-                        logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
-                    }
                 }
 
                 if (req.getAttribute(PRE_SUSPEND) == null) {
@@ -305,6 +295,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
+        } finally {
+            try {
+                Meteor m = (Meteor) req.getAttribute(METEOR);
+                if (m != null) {
+                    m.destroy();
+                }
+            } catch (Exception ex) {
+                logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
+            }
         }
         listeners.clear();
         return this;

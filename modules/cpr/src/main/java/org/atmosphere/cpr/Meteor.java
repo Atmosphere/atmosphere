@@ -13,43 +13,6 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-/*
- *
- * DO NOT ALTER OR REMOVE COPYRIGHT NOTICES OR THIS HEADER.
- *
- * Copyright 2007-2008 Sun Microsystems, Inc. All rights reserved.
- *
- * The contents of this file are subject to the terms of either the GNU
- * General Public License Version 2 only ("GPL") or the Common Development
- * and Distribution License("CDDL") (collectively, the "License").  You
- * may not use this file except in compliance with the License. You can obtain
- * a copy of the License at https://glassfish.dev.java.net/public/CDDL+GPL.html
- * or glassfish/bootstrap/legal/LICENSE.txt.  See the License for the specific
- * language governing permissions and limitations under the License.
- *
- * When distributing the software, include this License Header Notice in each
- * file and include the License file at glassfish/bootstrap/legal/LICENSE.txt.
- * Sun designates this particular file as subject to the "Classpath" exception
- * as provided by Sun in the GPL Version 2 section of the License file that
- * accompanied this code.  If applicable, add the following below the License
- * Header, with the fields enclosed by brackets [] replaced by your own
- * identifying information: "Portions Copyrighted [year]
- * [name of copyright owner]"
- *
- * Contributor(s):
- *
- * If you wish your version of this file to be governed by only the CDDL or
- * only the GPL Version 2, indicate your decision by adding "[Contributor]
- * elects to include this software in this distribution under the [CDDL or GPL
- * Version 2] license."  If you don't indicate a single choice of license, a
- * recipient has the option to distribute your version of this file under
- * either the CDDL, the GPL Version 2 or to extend the choice of license to
- * its licensees as provided above.  However, if you add GPL Version 2 code
- * and therefore, elected the GPL Version 2 license, then the option applies
- * only if the new code is made subject to such option by the copyright
- * holder.
- *
- */
 
 package org.atmosphere.cpr;
 
@@ -60,10 +23,10 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.AtmosphereResourceImpl.METEOR;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
@@ -84,8 +47,6 @@ public class Meteor {
 
     private static final Logger logger = LoggerFactory.getLogger(Meteor.class);
 
-    protected final static ConcurrentHashMap<AtmosphereResource, Meteor> cache =
-            new ConcurrentHashMap<AtmosphereResource, Meteor>();
     private final AtmosphereResource r;
     private Object o;
     private AtomicBoolean isDestroyed = new AtomicBoolean(false);
@@ -100,7 +61,6 @@ public class Meteor {
                 this.r.getBroadcaster().getBroadcasterConfig().addFilter(f);
             }
         }
-        cache.put(this.r, this);
     }
 
     /**
@@ -110,9 +70,8 @@ public class Meteor {
      * @return a {@link Meteor} or null if not found
      */
     public static Meteor lookup(HttpServletRequest r) {
-        return cache.get(r.getAttribute(ATMOSPHERE_RESOURCE));
+        return (Meteor) r.getAttribute(METEOR);
     }
-
 
     /**
      * Create a {@link Meteor} using the {@link HttpServletRequest}.
@@ -170,7 +129,6 @@ public class Meteor {
         if (r == null) throw new IllegalStateException("MeteorServlet not defined in web.xml");
 
         Broadcaster b = null;
-
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
                 BroadcasterFactory f = r.getAtmosphereConfig().getBroadcasterFactory();
@@ -184,7 +142,7 @@ public class Meteor {
         }
 
         Meteor m = new Meteor(r, l, s);
-        req.setAttribute(AtmosphereResourceImpl.METEOR, m);
+        req.setAttribute(METEOR, m);
         return m;
     }
 
@@ -246,7 +204,6 @@ public class Meteor {
     public Meteor resume() {
         if (destroyed()) return null;
         r.resume();
-        cache.remove(r);
         return this;
     }
 
@@ -359,7 +316,6 @@ public class Meteor {
      */
     public void destroy() {
         isDestroyed.set(true);
-        cache.remove(r);
     }
 
     private boolean destroyed() {

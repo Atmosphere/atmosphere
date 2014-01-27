@@ -533,34 +533,34 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @throws IOException
      */
     protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
-        if (!r.isInScope()) {
-            logger.trace("AtmosphereResource out of scope {}", r.uuid());
-            return;
-        }
-
         AtmosphereRequest req = r.getRequest(false);
-        String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
-        r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
         try {
-            if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
-                AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
+            if (r.isInScope()) {
+                String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
+                r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
+                try {
+                    if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
+                        AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
-                if (atmosphereHandler != null) {
-                    try {
-                        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-                    } finally {
-                        Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                        if (m != null) {
-                            m.destroy();
+                        if (atmosphereHandler != null) {
+                            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
                         }
                     }
+                } catch (IOException ex) {
+                    try {
+                        r.onThrowable(ex);
+                    } catch (Throwable t) {
+                        logger.warn("failed calling onThrowable()", ex);
+                    }
                 }
+            } else {
+                logger.trace("AtmosphereResource out of scope {}", r.uuid());
+                return;
             }
-        } catch (IOException ex) {
-            try {
-                r.onThrowable(ex);
-            } catch (Throwable t) {
-                logger.warn("failed calling onThrowable()", ex);
+        } finally {
+            Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+            if (m != null) {
+                m.destroy();
             }
         }
     }
