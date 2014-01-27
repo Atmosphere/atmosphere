@@ -1001,7 +1001,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getCharacterEncoding() {
-        return b.request.getCharacterEncoding();
+        return b.request.getCharacterEncoding() == null ? b.encoding : b.request.getCharacterEncoding();
     }
 
     /**
