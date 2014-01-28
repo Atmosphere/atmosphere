@@ -1787,9 +1787,7 @@ public class AtmosphereFramework {
                             ex.getMessage());
                 }
                 logger.error("If you have more than one Connector enabled, make sure they both use the same protocol, " +
-                        "e.g NIO/APR or HTTP for all. If not, {} will be used and cannot be changed.", BlockingIOCometSupport.class.getName());
-
-                logger.trace(ex.getMessage(), ex);
+                        "e.g NIO/APR or HTTP for all. If not, {} will be used and cannot be changed.", BlockingIOCometSupport.class.getName(), ex);
 
                 AsyncSupport current = asyncSupport;
                 asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
