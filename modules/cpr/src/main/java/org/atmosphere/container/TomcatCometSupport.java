@@ -54,6 +54,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         try {
             Class.forName(CometEvent.class.getName());
         } catch (Throwable e) {
+            logger.error("Unable to load class {}. Please make sure you have properly installed Atmosphere http://goo.gl/KEi8pc", e);
             throw new IllegalStateException(unableToDetectComet());
         }
     }
