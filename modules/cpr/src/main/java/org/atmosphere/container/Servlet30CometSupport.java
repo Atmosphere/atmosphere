@@ -126,7 +126,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         if (!req.isAsyncStarted() && !Utils.webSocketEnabled(req)) {
             AsyncContext asyncContext = req.startAsync(req, res);
-            asyncContext.addListener(new CometListener(this));
+            asyncContext.addListener(new CometListener(this, res.uuid()));
             // Do nothing except setting the times out
             if (action.timeout() != -1) {
                 asyncContext.setTimeout(action.timeout());
@@ -179,23 +179,22 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     private final static class CometListener implements AsyncListener {
 
         private final AsynchronousProcessor p;
+        private final String uuid;
 
         // For JBoss 7 https://github.com/Atmosphere/atmosphere/issues/240
         public CometListener() {
+            this.uuid = "-1";
             p = null;
         }
 
-        public CometListener(AsynchronousProcessor processor) {
+        public CometListener(AsynchronousProcessor processor, String uuid) {
             this.p = processor;
+            this.uuid = uuid;
         }
 
         @Override
         public void onComplete(AsyncEvent event) throws IOException {
-            // Jetty 9.0.3 error: https://gist.github.com/jfarcand/5628129
-            try {
-                logger.trace("Resumed (completed): event: {}", event.getAsyncContext().getRequest());
-            } catch (NullPointerException ex) {
-            }
+            logger.trace("Resumed (completed): event: {}", uuid);
         }
 
         @Override
