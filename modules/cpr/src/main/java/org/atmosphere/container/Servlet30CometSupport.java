@@ -57,6 +57,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -126,7 +127,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
 
         if (!req.isAsyncStarted() && !Utils.webSocketEnabled(req)) {
             AsyncContext asyncContext = req.startAsync(req, res);
-            asyncContext.addListener(new CometListener(this, res.uuid()));
+            AtmosphereResource r = req.resource();
+            asyncContext.addListener(new CometListener(this, r == null ? "-1" : r.uuid()));
             // Do nothing except setting the times out
             if (action.timeout() != -1) {
                 asyncContext.setTimeout(action.timeout());
