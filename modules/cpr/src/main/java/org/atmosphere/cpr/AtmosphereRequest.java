@@ -94,7 +94,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private ServletInputStream configureStream() {
         if (bis == null && !streamSet.getAndSet(true)) {
-            if (b.inputStream == null) {
+            if (b.reader == null) {
                 if (b.body.dataBytes != null) {
                     bis = new ByteInputStream(b.body.dataBytes, b.body.offset, b.body.length);
                 } else if (b.body.data != null) {
@@ -114,7 +114,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private BufferedReader configureReader() {
         if (br == null && !readerSet.getAndSet(false)) {
-            if (b.reader == null) {
+            if (b.inputStream == null) {
                 try {
                     if (b.body.dataBytes != null) {
                         br = new BufferedReader(new StringReader(new String(b.body.dataBytes, b.body.offset, b.body.length, b.encoding)));
@@ -500,7 +500,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        return bis == configureStream() ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
+        configureStream();
+        return bis == null ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
     }
 
     /**
@@ -508,7 +509,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public BufferedReader getReader() throws IOException {
-        return br == configureReader() ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
+        configureReader();
+        return br == null ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
     }
 
     /**
