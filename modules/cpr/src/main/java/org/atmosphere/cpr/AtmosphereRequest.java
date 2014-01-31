@@ -94,7 +94,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private ServletInputStream configureStream() {
         if (bis == null && !streamSet.getAndSet(true)) {
-            if (b.reader == null) {
+            if (b.inputStream != null) {
+                bis = new IS(b.inputStream);
+            } else if (b.reader == null) {
                 if (b.body.dataBytes != null) {
                     bis = new ByteInputStream(b.body.dataBytes, b.body.offset, b.body.length);
                 } else if (b.body.data != null) {
@@ -106,7 +108,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     }
                 }
             } else {
-                bis = b.inputStream == null ? new IS(new ReaderInputStream(b.reader)) : new IS(b.inputStream);
+                bis = new IS(new ReaderInputStream(b.reader));
             }
         }
         return bis;
@@ -114,7 +116,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private BufferedReader configureReader() {
         if (br == null && !readerSet.getAndSet(false)) {
-            if (b.inputStream == null) {
+            if (b.reader != null) {
+                br = new BufferedReader(b.reader);
+            } else if (b.inputStream == null) {
                 try {
                     if (b.body.dataBytes != null) {
                         br = new BufferedReader(new StringReader(new String(b.body.dataBytes, b.body.offset, b.body.length, b.encoding)));
@@ -125,7 +129,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     throw new RuntimeException(e);
                 }
             } else {
-                br = b.reader == null ? new BufferedReader(new InputStreamReader(b.inputStream)) : new BufferedReader(b.reader);
+                br = new BufferedReader(b.reader);
             }
         }
         return br;
@@ -1373,6 +1377,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         /**
          * True if this object is empty
+         *
          * @return True if this object is empty
          */
         public boolean isEmpty() {
