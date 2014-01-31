@@ -129,7 +129,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     throw new RuntimeException(e);
                 }
             } else {
-                br = new BufferedReader(b.reader);
+                br = new BufferedReader(new InputStreamReader(b.inputStream));
             }
         }
         return br;
