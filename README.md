@@ -38,7 +38,7 @@ The Atmosphere's Framework ships with many examples describing how to implement 
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.0.7</version>
+         <version>2.1.0</version>
       </dependency>
 ```
       
@@ -50,23 +50,13 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samp
 
 [Top](#Top)
 
-#### RoadMap
-
-Atmosphere 2.0.7 is our official release, and our work in progress version is 2.1, targeted for end of November 2013. Want to help? Try
-
-```xml
-     <dependency>
-         <groupId>org.atmosphere</groupId>
-         <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.1.0-RC2</version>
-      </dependency>
-```
-
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info! We also have IRC channel on irc.freenode.net under #atmosphere-comet.
 
 [Top](#Top)
 
 #### Changelogs
+
+2.1 release: [2.1.0](https://github.com/Atmosphere/atmosphere/issues?labels=2.1&page=1&state=closed)
 
 2.0 release: [2.0.7](http://goo.gl/nefkn7) [2.0.6](http://goo.gl/MvFSR1) [2.0.5](http://goo.gl/jFLDZc) [2.0.4](http://goo.gl/zTbcgC) [2.0.3](https://github.com/Atmosphere/atmosphere/issues?labels=2.0.3&page=1&state=closed) [2.0.2] (http://goo.gl/44qnsU) [2.0.1](https://github.com/Atmosphere/atmosphere/issues?labels=2.0.1&page=1&state=closed)
 
