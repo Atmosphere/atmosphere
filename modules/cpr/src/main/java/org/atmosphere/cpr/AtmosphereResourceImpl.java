@@ -403,15 +403,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 return this;
             }
             req.removeAttribute(PRE_SUSPEND);
-            try {
-                notifyListeners();
-            } catch (Exception ex) {
-                logger.warn("Exception during suspend() operation {}", ex);
-                broadcaster.removeAtmosphereResource(this);
-                if (config.getBroadcasterFactory().getDefault() != null) {
-                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
-                }
-            }
+            notifyListeners();
         }
         return this;
     }
@@ -626,8 +618,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 action().type(Action.TYPE.CREATED);
             }
         } catch (Throwable t) {
-            logger.debug("Listener error {}", t);
             AtmosphereResourceEventImpl.class.cast(event).setThrowable(t);
+            if (event.isSuspended()) {
+                logger.warn("Exception during suspend() operation {}", t);
+                broadcaster.removeAtmosphereResource(this);
+                if (config.getBroadcasterFactory().getDefault() != null) {
+                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+                }
+            }  else {
+                logger.debug("Listener error {}", t);
+            }
+
             try {
                 onThrowable(event);
             } catch (Throwable t2) {
