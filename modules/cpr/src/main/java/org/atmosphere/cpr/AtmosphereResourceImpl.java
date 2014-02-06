@@ -380,7 +380,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 return this;
             }
             req.removeAttribute(PRE_SUSPEND);
-            notifyListeners();
+            try {
+                notifyListeners();
+            } catch (Exception ex) {
+                logger.warn("Exception during suspend() operation {}", ex);
+                broadcaster.removeAtmosphereResource(this);
+                if (config.getBroadcasterFactory().getDefault() != null) {
+                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+                }
+            }
         }
         return this;
     }
@@ -724,11 +732,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         try {
             removeEventListeners();
             if (!isCancelled.get()) {
-                try {
-                    getBroadcaster(false).removeAtmosphereResource(this);
-                } catch (IllegalStateException ex) {
-                    logger.trace(ex.getMessage(), ex);
-                }
+                if (broadcaster != null) broadcaster.removeAtmosphereResource(this);
+
                 if (config.getBroadcasterFactory().getDefault() != null) {
                     config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
                 }
