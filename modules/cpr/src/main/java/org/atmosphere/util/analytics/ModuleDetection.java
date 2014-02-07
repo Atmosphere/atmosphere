@@ -36,6 +36,7 @@ public class ModuleDetection {
         modules.put("wicket", "org.apache.wicket.atmosphere.EventBus");
         modules.put("scalatra", "org.scalatra.ScalatraServlet");
         modules.put("eventPush", "org.grails.plugin.platform.events.push.EventsPushHandler");
+        modules.put("nettosphere", "org.atmosphere.nettosphere.BridgeRuntime");
 
     }
 
