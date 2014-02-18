@@ -48,6 +48,7 @@ import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -419,7 +420,11 @@ public final class AnnotationDetector {
         try {
             return new File(url.toURI());
         } catch (URISyntaxException ex) {
-            throw new MalformedURLException(ex.getMessage());
+            try {
+                return new File(URLDecoder.decode(url.getFile(), "UTF-8"));
+            } catch (Exception ex2) {
+                throw new MalformedURLException(ex.getMessage());
+            }
         }
     }
 
