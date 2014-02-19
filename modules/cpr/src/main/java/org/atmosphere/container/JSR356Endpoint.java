@@ -20,14 +20,12 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletRegistration;
 import javax.servlet.http.HttpSession;
 import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
@@ -54,12 +52,13 @@ public class JSR356Endpoint extends Endpoint {
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
-    private String servletPath = "";
+    private final String servletPath;
     private HandshakeRequest handshakeRequest;
 
-    public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
+    public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor, String servletPath) {
         this.framework = framework;
         this.webSocketProcessor = webSocketProcessor;
+        this.servletPath = servletPath;
 
         if (framework.isUseNativeImplementation()) {
             throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
@@ -84,18 +83,6 @@ public class JSR356Endpoint extends Endpoint {
             maxTextBufferSize = Integer.valueOf(s);
         } else {
             maxTextBufferSize = -1;
-        }
-
-        try {
-            Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
-            for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
-                if (AtmosphereServlet.class.isAssignableFrom(loadClass(e.getValue().getClassName()))) {
-                    // TODO: This is a hack and won't work with serveral Servlet
-                    servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
-                }
-            }
-        } catch (Exception ex) {
-            logger.trace("", ex);
         }
     }
 

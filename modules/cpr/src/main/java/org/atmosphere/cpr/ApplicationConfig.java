@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.client.TrackMessageSizeInterceptor;
+import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
@@ -641,5 +642,13 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.useBuildInSession
      */
     String BUILT_IN_SESSION = ApplicationConfig.class.getName() + ".useBuildInSession";
+    /**
+     * The JSR 356 WebSocket root path. Use this property if more than one AtmosphereServlet gets deployed inside
+     * the same application, and the guessed mapping path is not the one expected.
+     * <p>
+     * Default: ""<br>
+     * Value: org.atmosphere.container.JSR356AsyncSupport.mappingPath
+     */
+    String JSR356_MAPPING_PATH = JSR356AsyncSupport.class.getName() + ".mappingPath";
 }
 

@@ -15,18 +15,39 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.MeteorServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletRegistration;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
+import java.lang.reflect.Field;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
+
+    private final static List<String> knownClasses;
+
+    static {
+        knownClasses = new ArrayList<String>() {
+            {
+                add(AtmosphereServlet.class.getName());
+                add(MeteorServlet.class.getName());
+                add("com.vaadin.server.VaadinServlet");
+                add("org.primefaces.push.PushServlet");
+            }
+        };
+    }
 
     public static StringBuilder readEntirely(AtmosphereResource r) {
         StringBuilder stringBuilder = new StringBuilder();
@@ -66,5 +87,67 @@ public class IOUtils {
             }
         }
         return stringBuilder;
+    }
+
+    public static String guestServletPath(AtmosphereFramework framework, String exclude) {
+        String servletPath = "";
+        try {
+            Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
+            for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
+                Class<?> classToScan = loadClass(framework.getClass(), e.getValue().getClassName());
+
+                if (scanForAtmosphereFramework(classToScan)) {
+                    servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
+                    // We already found one.
+                    if (!servletPath.equalsIgnoreCase(exclude)) {
+                        break;
+                    } else {
+                        logger.trace("Already guessed {}", exclude);
+                    }
+                }
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
+        return servletPath;
+    }
+
+    public static String guestServletPath(AtmosphereFramework framework) {
+        return guestServletPath(framework, "");
+    }
+
+    private static boolean scanForAtmosphereFramework(Class<?> classToScan) {
+        if (classToScan == null) return false;
+
+        logger.trace("Scanning {}", classToScan.getName());
+
+        // Before doing the Siberian traversal, look locally
+        if (knownClasses.contains(classToScan.getName())) {
+            return true;
+        }
+
+        try {
+            Field[] fields = classToScan.getDeclaredFields();
+            for (Field f : fields) {
+                f.setAccessible(true);
+                if (AtmosphereFramework.class.isAssignableFrom(f.getType())) {
+                    return true;
+                }
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
+
+        // Now try with parent
+        if (scanForAtmosphereFramework(classToScan.getSuperclass())) return true;
+        return false;
+    }
+
+    public static Class<?> loadClass(Class thisClass, String className) throws Exception {
+        try {
+            return Thread.currentThread().getContextClassLoader().loadClass(className);
+        } catch (Throwable t) {
+            return thisClass.getClassLoader().loadClass(className);
+        }
     }
 }
