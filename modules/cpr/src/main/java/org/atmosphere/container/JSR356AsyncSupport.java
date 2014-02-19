@@ -19,6 +19,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -42,23 +43,35 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             throw new IllegalStateException("ServerContainer is null");
         }
 
-        configurator = new AtmosphereConfigurator(config.framework());
-
         int pathLength = 5;
         String s = config.getInitParameter(ApplicationConfig.JSR356_PATH_MAPPING_LENGTH);
         if (s != null) {
             pathLength = Integer.valueOf(s);
         }
         logger.trace("JSR356 Path mapping Size {}", pathLength);
-        StringBuilder b = new StringBuilder(PATH).append("}");
+
+        String servletPath = config.getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
+        if (servletPath == null) {
+            servletPath = IOUtils.guestServletPath(config.framework());
+        }
+        configurator = new AtmosphereConfigurator(config.framework(), servletPath);
+
+        StringBuilder b = new StringBuilder(servletPath);
         for (int i = 0; i < pathLength; i++) {
             try {
                 container.addEndpoint(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString()).configurator(configurator).build());
             } catch (DeploymentException e) {
-                throw new RuntimeException(e);
+                logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message", servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
+                logger.trace("", e);
+                servletPath = IOUtils.guestServletPath(config.framework(), servletPath);
+                logger.warn("Duplicate guess {}", servletPath, e);
+                b.setLength(0);
+                b.append(servletPath);
+                configurator.guessedServletPath = servletPath;
             }
             b.append(PATH).append(i).append("}");
         }
+        logger.info("JSR 356 Mapping path {}", servletPath);
     }
 
     public boolean supportWebSocket() {
@@ -73,6 +86,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
     public final static class AtmosphereConfigurator extends ServerEndpointConfig.Configurator {
 
         private final AtmosphereFramework framework;
+        private String guessedServletPath;
         /**
          * TODO: UGLY!
          * GlassFish/Jetty call modifyHandshake BEFORE getEndpointInstance() where other jsr356 do the reverse.
@@ -80,13 +94,14 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<JSR356Endpoint>();
         final ThreadLocal<HandshakeRequest> hRequest = new ThreadLocal<HandshakeRequest>();
 
-        public AtmosphereConfigurator(AtmosphereFramework framework) {
+        public AtmosphereConfigurator(AtmosphereFramework framework, String guessedServletPath) {
             this.framework = framework;
+            this.guessedServletPath = guessedServletPath;
         }
 
         public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
             if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
-                JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework));
+                JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework), guessedServletPath);
                 if (hRequest.get() != null) {
                     e.handshakeRequest(hRequest.get());
                     hRequest.set(null);

@@ -20,8 +20,6 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereServlet;
-import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -54,12 +52,13 @@ public class JSR356Endpoint extends Endpoint {
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
-    private String servletPath = "";
+    private final String servletPath;
     private HandshakeRequest handshakeRequest;
 
-    public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
+    public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor, String servletPath) {
         this.framework = framework;
         this.webSocketProcessor = webSocketProcessor;
+        this.servletPath = servletPath;
 
         if (framework.isUseNativeImplementation()) {
             throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
@@ -85,8 +84,6 @@ public class JSR356Endpoint extends Endpoint {
         } else {
             maxTextBufferSize = -1;
         }
-
-        servletPath = IOUtils.guestServletPath(framework, AtmosphereServlet.class, getClass());
     }
 
     public JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
