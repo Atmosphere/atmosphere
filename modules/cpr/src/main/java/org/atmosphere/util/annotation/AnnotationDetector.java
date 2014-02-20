@@ -413,15 +413,16 @@ public final class AnnotationDetector {
     }
 
     // private
-
     private File toFile(final URL url) throws MalformedURLException {
         // only correct way to convert the URL to a File object, also see issue #16
         // Do not use URLDecoder
         try {
             return new File(url.toURI());
         } catch (URISyntaxException ex) {
+                throw new MalformedURLException(ex.getMessage());
+        } catch (IllegalArgumentException ex) {
             try {
-                return new File(URLDecoder.decode(url.getFile(), "UTF-8"));
+               return new File(URLDecoder.decode(url.getFile(), "UTF-8"));
             } catch (Exception ex2) {
                 throw new MalformedURLException(ex.getMessage());
             }
