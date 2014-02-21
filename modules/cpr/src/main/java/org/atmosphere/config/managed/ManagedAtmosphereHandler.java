@@ -308,10 +308,14 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         switch (onReadyMethod.getAnnotation(Ready.class).value()) {
             case RESOURCE:
                 if (o != null) {
+                    try {
                     if (String.class.isAssignableFrom(o.getClass())) {
-                        r.write(o.toString());
+                        r.write(o.toString()).getResponse().flushBuffer();
                     } else if (byte[].class.isAssignableFrom(o.getClass())) {
-                        r.write((byte[]) o);
+                        r.write((byte[]) o).getResponse().flushBuffer();
+                    }
+                    } catch (Exception ex) {
+                        logger.warn("", ex);
                     }
                 }
                 break;
