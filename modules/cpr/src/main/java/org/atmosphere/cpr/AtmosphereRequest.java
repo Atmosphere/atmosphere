@@ -1083,8 +1083,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
-        private Set<Cookie> cookies = new HashSet<Cookie>();
-        private Set<Locale> locales = new HashSet<Locale>();
+        private Set<Cookie> cookies =  Collections.synchronizedSet(new HashSet<Cookie>());
+        private final Set<Locale> locales = Collections.synchronizedSet(new HashSet<Locale>());
         private Principal principal = null;
         private String authType = null;
         private String contextPath = "";
@@ -1835,7 +1835,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         HttpServletRequest r;
 
         Cookie[] cs = request.getCookies();
-        Set<Cookie> hs = new HashSet();
+        Set<Cookie> hs = Collections.synchronizedSet(new HashSet());
         if (cs != null) {
             for (Cookie c : cs) {
                 hs.add(c);
