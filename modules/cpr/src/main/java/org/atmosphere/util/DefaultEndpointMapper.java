@@ -90,10 +90,10 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
     public U map(AtmosphereRequest req, Map<String, U> handlers) {
         String path = computePath(req);
 
-        U handler = map(path + (path.endsWith("/") ? "all" : "/all"), handlers);
+        U handler = map(path, handlers);
         if (handler == null) {
             // (2) First, try exact match
-            handler = map(path, handlers);
+            handler = map(path + (path.endsWith("/") ? "all" : "/all"), handlers);
 
             if (handler == null) {
                 // (3) Wildcard
@@ -131,10 +131,10 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
             path = "/";
         }
 
-        U handler = match(path + (path.endsWith("/") ? "all" : "/all"), handlers);
+        U handler = match(path, handlers);
         if (handler == null) {
             // (2) First, try exact match
-            handler = match(path, handlers);
+            handler = match(path + (path.endsWith("/") ? "all" : "/all"), handlers);
 
             if (handler == null) {
                 // (3) Wildcard

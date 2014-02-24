@@ -15,6 +15,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.DefaultEndpointMapper;
+import org.atmosphere.util.EndpointMapper;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -23,6 +26,8 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertNotNull;
@@ -68,6 +73,18 @@ public class UrlMappingTest {
                 return new Action(Action.TYPE.CREATED);
             }
         };
+    }
+
+    @Test
+    public void mathTest() throws ServletException {
+        EndpointMapper<String> mapper = new DefaultEndpointMapper<String>();
+
+        Map<String,String> mappingPoints = new HashMap<String, String>();
+
+        mappingPoints.put("/c", "/c");
+        mappingPoints.put("/{a}/{b}", "/{a}/{b}");
+
+        Assert.assertEquals("/c", mapper.map("/c", mappingPoints));
     }
 
     @Test
@@ -207,7 +224,7 @@ public class UrlMappingTest {
         assertEquals(processor.map(r).atmosphereHandler.toString(), "red");
 
         r = new AtmosphereRequest.Builder().pathInfo("/red/red").build();
-        assertEquals(processor.map(r).atmosphereHandler.toString(), "redred");
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "red");
 
         r = new AtmosphereRequest.Builder().pathInfo("/red/red/1").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "redred");
@@ -219,9 +236,12 @@ public class UrlMappingTest {
         assertEquals(processor.map(r).atmosphereHandler.toString(), "redblue");
 
         r = new AtmosphereRequest.Builder().pathInfo("/blue").build();
-        assertEquals(processor.map(r).atmosphereHandler.toString(), "blue");
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "/");
 
         r = new AtmosphereRequest.Builder().pathInfo("/blue/blue").build();
+        assertEquals(processor.map(r).atmosphereHandler.toString(), "blue");
+
+        r = new AtmosphereRequest.Builder().pathInfo("/blue/blue/white").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "blueblue");
 
         r = new AtmosphereRequest.Builder().pathInfo("/green").build();
