@@ -130,7 +130,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                 CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
                 String s = cb.toString();
 
-                if (s.trim().length() == 0 || s.indexOf(endString) != -1) {
+                if (s.trim().length() == 0) {
                     return responseDraft;
                 }
 
