@@ -47,23 +47,22 @@ public final class Utils {
     }
 
     public static boolean isWebSocketProxied(HttpServletRequest request) {
-        boolean proxied = false;
         Enumeration<String> connection = request.getHeaders("Connection");
         if (connection == null || !connection.hasMoreElements()) {
             connection = request.getHeaders("connection");
         }
 
+        boolean isOK = false;
         boolean isWebSocket = (request.getHeader("sec-websocket-version") != null || request.getHeader("Sec-WebSocket-Draft") != null);
         if (connection != null && connection.hasMoreElements()) {
             String[] e = connection.nextElement().toString().split(",");
             for (String upgrade : e) {
-                if (upgrade.trim().equalsIgnoreCase("keep-Alive") && isWebSocket) {
-                    proxied = true;
-                    break;
+                if (upgrade.trim().equalsIgnoreCase("upgrade") ) {
+                    isOK = true;
                 }
             }
         }
-        return proxied;
+        return isOK && isWebSocket;
     }
 
 }
