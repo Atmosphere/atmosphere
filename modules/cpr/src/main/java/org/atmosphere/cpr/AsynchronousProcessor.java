@@ -178,7 +178,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      */
     Action action(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
-        if (!Utils.webSocketProtocol(req) || (Utils.webSocketEnabled(req) && !supportWebSocket())) {
+        if (!Utils.properProtocol(req) || (Utils.webSocketEnabled(req) && !supportWebSocket())) {
             res.setStatus(501);
             res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
             res.flushBuffer();

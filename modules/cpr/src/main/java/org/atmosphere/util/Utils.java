@@ -46,7 +46,7 @@ public final class Utils {
         return webSocketEnabled;
     }
 
-    public static boolean webSocketProtocol(HttpServletRequest request) {
+    public static boolean properProtocol(HttpServletRequest request) {
         Enumeration<String> connection = request.getHeaders("Connection");
         if (connection == null || !connection.hasMoreElements()) {
             connection = request.getHeaders("connection");
@@ -62,7 +62,7 @@ public final class Utils {
                 }
             }
         }
-        return isOK && isWebSocket;
+        return isWebSocket ? isOK : true;
     }
 
 }
