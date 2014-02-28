@@ -85,7 +85,7 @@ public final class Utils {
         if (connection != null && connection.hasMoreElements()) {
             String[] e = connection.nextElement().toString().split(",");
             for (String upgrade : e) {
-                if (upgrade.trim().equalsIgnoreCase("keep-Alive") && isWebSocket) {
+                if (e.length == 1 && upgrade.trim().equalsIgnoreCase("keep-Alive") && isWebSocket) {
                     proxied = true;
                     break;
                 }
