@@ -132,27 +132,27 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
         req.setAttribute(LATCH, latch);
 
         boolean ok = true;
-        try {
-            AtmosphereResource resource = req.resource();
-            resource.addEventListener(new OnResume() {
-                @Override
-                public void onResume(AtmosphereResourceEvent event) {
-                    latch.countDown();
+        AtmosphereResource resource = req.resource();
+        if (resource != null) {
+            try {
+                resource.addEventListener(new OnResume() {
+                    @Override
+                    public void onResume(AtmosphereResourceEvent event) {
+                        latch.countDown();
+                    }
+                });
+                if (action.timeout() != -1) {
+                    ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
+                } else {
+                    latch.await();
                 }
-            });
-            if (action.timeout() != -1) {
-                ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
-            } else {
-                latch.await();
-            }
-        } catch (InterruptedException ex) {
-            logger.trace("", ex);
-        } finally {
-            if (!ok) {
-                timedout(req, res);
-            } else {
-                if (req.resource() != null) {
-                    AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+            } catch (InterruptedException ex) {
+                logger.trace("", ex);
+            } finally {
+                if (!ok) {
+                    timedout(req, res);
+                } else {
+                    AtmosphereResourceImpl.class.cast(resource).cancel();
                 }
             }
         }
