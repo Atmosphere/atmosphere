@@ -46,7 +46,7 @@ public final class Utils {
         return webSocketEnabled;
     }
 
-    public static boolean isWebSocketProxied(HttpServletRequest request) {
+    public static boolean webSocketProtocol(HttpServletRequest request) {
         Enumeration<String> connection = request.getHeaders("Connection");
         if (connection == null || !connection.hasMoreElements()) {
             connection = request.getHeaders("connection");
