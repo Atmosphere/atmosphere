@@ -38,13 +38,13 @@ public class Jetty9WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
-        if (isOpen()) webSocketConnection.getRemote().sendString(s);
+        if (isOpen()) webSocketConnection.getRemote().sendStringByFuture(s);
         return this;
     }
 
     @Override
     public WebSocket write(byte[] b, int offset, int length) throws IOException {
-        if (isOpen()) webSocketConnection.getRemote().sendBytes(ByteBuffer.wrap(b, offset, length));
+        if (isOpen()) webSocketConnection.getRemote().sendBytesByFuture(ByteBuffer.wrap(b, offset, length));
         return this;
     }
 
