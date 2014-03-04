@@ -70,7 +70,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
             req = handler.getRequest();
         } catch (IOException ex) {
         }
-        if (!webSocketProcessor.handshake(null)) {
+        if (!webSocketProcessor.handshake(req)) {
             protocolHandler.close(0x00, "");
             throw new IllegalStateException();
         }
