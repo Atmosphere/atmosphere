@@ -64,6 +64,12 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
 
     @Override
     public WebSocket createWebSocket(ProtocolHandler protocolHandler, final WebSocketListener... listeners) {
+        ServerNetworkHandler handler = (ServerNetworkHandler)protocolHandler.getNetworkHandler();
+        HttpServletRequest req = null;
+        try {
+            req = handler.getRequest();
+        } catch (IOException ex) {
+        }
         if (!webSocketProcessor.handshake(null)) {
             protocolHandler.close(0x00, "");
             throw new IllegalStateException();
