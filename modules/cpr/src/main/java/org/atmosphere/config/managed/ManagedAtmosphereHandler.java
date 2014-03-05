@@ -98,10 +98,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
         scanForReaderOrInputStream();
 
-        if (onRuntimeMethod.size() > 0) {
-            populateEncoders();
-            populateDecoders();
-        }
+        populateEncoders();
+        populateDecoders();
         return this;
     }
 
