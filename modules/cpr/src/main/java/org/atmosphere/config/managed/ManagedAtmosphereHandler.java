@@ -99,7 +99,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     processReady(event.getResource());
-                    event.getResource().removeEventListener(this);
+                    resource.removeEventListener(this);
                 }
             });
         }
@@ -113,6 +113,13 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
             });
         }
+
+        resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+            @Override
+            public void onClose(AtmosphereResourceEvent event) {
+                invoke(onDisconnectMethod, event);
+            }
+        });
 
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
