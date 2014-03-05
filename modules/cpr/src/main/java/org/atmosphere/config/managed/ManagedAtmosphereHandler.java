@@ -52,6 +52,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnClose;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 
@@ -115,7 +116,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
                     processReady(event.getResource());
-                    event.getResource().removeEventListener(this);
+                    resource.removeEventListener(this);
                 }
             });
         }
@@ -129,6 +130,13 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
             });
         }
+
+        resource.addEventListener(new OnClose() {
+            @Override
+            public void onClose(AtmosphereResourceEvent event) {
+                invoke(onDisconnectMethod, event);
+            }
+        });
 
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);

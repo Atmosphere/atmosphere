@@ -780,9 +780,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public void close() throws IOException {
-        cancel();
         event.setCloseByApplication(true);
         notifyListeners();
+        cancel();
     }
 
     @Override
