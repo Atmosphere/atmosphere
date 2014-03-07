@@ -175,8 +175,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         dispatch(webSocket, request, response);
 
         if (proxy != null) {
-            proxy.onOpen(webSocket);
             webSocket.webSocketHandler(proxy).resource().suspend(-1);
+            proxy.onOpen(webSocket);
         }
 
         request.removeAttribute(INJECTED_ATMOSPHERE_RESOURCE);
