@@ -66,6 +66,7 @@ public class WebSocketHandlerServiceProcessor implements Processor {
                 framework.interceptor(aa);
             }
 
+            framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
             p.registerWebSocketHandler(m.path(), s.newInstance());
         } catch (Throwable e) {
