@@ -35,12 +35,12 @@ public final class SessionTimeoutSupport {
     /**
      * Disable HTTP session timeout.
      */
-    public static void setupTimeout(HttpSession session) {
+    public static void setupTimeout(AtmosphereConfig config, HttpSession session) {
         if (session == null)
             return;
 
         try {
-            SessionTimeoutRestorer restorer = getOrCreate(session);
+            SessionTimeoutRestorer restorer = getOrCreate(config, session);
 
             restorer.setup(session);
         } catch (Exception e) {
@@ -76,10 +76,10 @@ public final class SessionTimeoutSupport {
     // NOT 100% thread-safe. The Servlet API does not provide an atomic getAndSet operation. In theory we could use
     // double-checked locking, but the Servlet spec doesn't guarantee that the session object is always the same
     // instance, so we have no lock to synchronize with reliably.
-    private static SessionTimeoutRestorer getOrCreate(HttpSession s) {
+    private static SessionTimeoutRestorer getOrCreate(AtmosphereConfig config, HttpSession s) {
         SessionTimeoutRestorer restorer = (SessionTimeoutRestorer) s.getAttribute(KEY);
         if (restorer == null) {
-            restorer = new SessionTimeoutRestorer(s.getMaxInactiveInterval());
+            restorer = new SessionTimeoutRestorer(config, s.getMaxInactiveInterval());
             s.setAttribute(KEY, restorer);
         }
         return restorer;

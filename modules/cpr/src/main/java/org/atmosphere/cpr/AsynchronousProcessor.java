@@ -184,7 +184,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         Action action = skipAtmosphereHandler ? Action.CANCELLED : resource.action();
         if (supportSession() && allowSessionTimeoutRemoval() && action.type().equals(Action.TYPE.SUSPEND)) {
             // Do not allow times out.
-            SessionTimeoutSupport.setupTimeout(req.getSession());
+            SessionTimeoutSupport.setupTimeout(config, req.getSession());
         }
         logger.trace("Action for {} was {} with transport " + req.getHeader(X_ATMOSPHERE_TRANSPORT), req.resource() != null ? req.resource().uuid() : "null", action);
         return action;

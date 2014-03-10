@@ -38,9 +38,16 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
     private final int timeout;
 
     private final AtomicInteger requestCount = new AtomicInteger(0);
+    private final int internalSessionTimeout;
 
-    public SessionTimeoutRestorer(int timeout) {
+    public SessionTimeoutRestorer(AtmosphereConfig config, int timeout) {
         this.timeout = timeout;
+        String s = config.getInitParameter(ApplicationConfig.SESSION_MAX_INACTIVE_INTERVAL);
+        if (s != null) {
+            internalSessionTimeout = Integer.valueOf(s);
+        } else {
+            internalSessionTimeout = -1;
+        }
     }
 
     public void setup(HttpSession session) {
@@ -63,7 +70,7 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
     // precisely what the timeout should be.
     private synchronized void refreshTimeout(HttpSession session) {
         if (requestCount.get() > 0)
-            session.setMaxInactiveInterval(-1);
+            session.setMaxInactiveInterval(internalSessionTimeout);
         else
             session.setMaxInactiveInterval(timeout);
     }

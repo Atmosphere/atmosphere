@@ -15,8 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpSession;
-
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
@@ -26,6 +24,8 @@ import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
+
+import javax.servlet.http.HttpSession;
 
 /**
  * Web.xml init-param configuration supported by Atmosphere.
@@ -689,5 +689,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.container.JSR356AsyncSupport.mappingPath
      */
     String JSR356_MAPPING_PATH = JSR356AsyncSupport.class.getName() + ".mappingPath";
+    /**
+     * The default {@link HttpSession#setMaxInactiveInterval(int)}
+     * <p>
+     * Default: -1<br>
+     * Value: org.atmosphere.cpr.session.maxInactiveInterval
+     */
+    String SESSION_MAX_INACTIVE_INTERVAL= ApplicationConfig.class.getPackage().getName() + ".session.maxInactiveInterval";
 }
 
