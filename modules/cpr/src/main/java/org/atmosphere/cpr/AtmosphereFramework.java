@@ -1099,17 +1099,17 @@ public class AtmosphereFramework {
         if (s != null) {
             broadcasterCacheClassName = s;
         }
+
         s = sc.getInitParameter(PROPERTY_SESSION_SUPPORT);
-        if (s != null) {
-            config.setSupportSession(Boolean.valueOf(s));
-            if (sc.getServletContext().getMajorVersion() >= 3) {
-                try {
-                    sc.getServletContext().addListener(SessionSupport.class);
-                } catch (Throwable t) {
-                    logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName(), t);
-                }
-            } else {
-                logger.debug("Make sure you define {} as a listener in web.xml", SessionSupport.class.getName());
+        if (s == null) {
+            s = sc.getServletContext().getInitParameter(PROPERTY_SESSION_SUPPORT);
+        }
+
+        if (s != null || SessionSupport.initializationHint) {
+            boolean sessionSupport = Boolean.valueOf(s) || SessionSupport.initializationHint;
+            config.setSupportSession(sessionSupport);
+            if (sessionSupport && (sc.getServletContext().getMajorVersion() < 3 || !SessionSupport.initializationHint)) {
+                logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName());
             }
             isSessionSupportSpecified = true;
         }

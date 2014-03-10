@@ -20,22 +20,18 @@ import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
 import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
-import javax.servlet.ServletResponse;
 import javax.servlet.annotation.HandlesTypes;
 import javax.servlet.http.HttpServletRequest;
-import java.io.IOException;
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Set;
+
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 
 @HandlesTypes({})
 public class AtmosphereInitializer implements ServletContainerInitializer {
@@ -87,6 +83,19 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                 });
             } catch (Throwable t) {
                 logger.trace("Unable to install WebSocket Session Creator", t);
+            }
+
+            try {
+                String s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
+                if (s != null) {
+                    boolean sessionSupport = Boolean.valueOf(s);
+                    if (sessionSupport && c.getMajorVersion() > 2) {
+                        c.addListener(SessionSupport.class);
+                        logger.debug("Installed {}", SessionSupport.class);
+                    }
+                }
+            } catch (Throwable t) {
+                logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName(), t);
             }
 
             c.setAttribute(AtmosphereFramework.class.getName(), framework);
