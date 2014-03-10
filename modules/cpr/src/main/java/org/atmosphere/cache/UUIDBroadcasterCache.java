@@ -203,7 +203,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         if (!hasMessage(clientId, message.getId())) {
             addMessage(clientId, message);
         } else {
-            logger.debug("Duplicate message {} for client {}", clientId, message);
+            logger.debug("Duplicate message {} for client {}", message, clientId);
         }
     }
 
@@ -216,7 +216,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                 messages.put(clientId, clientQueue);
             } else {
                 // The entry has been invalidated
-                logger.debug("Client is no longer active. Not caching message {}}", clientId, message);
+                logger.debug("Client {} is no longer active. Not caching message {}}", clientId, message);
                 return;
             }
         }
