@@ -133,9 +133,13 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     void cancelF(AtmosphereRequest request) {
-        Future<?> f = (Future<?>) request.getAttribute(HEARTBEAT_FUTURE);
-        if (f != null) f.cancel(false);
-        request.removeAttribute(HEARTBEAT_FUTURE);
+        try {
+            Future<?> f = (Future<?>) request.getAttribute(HEARTBEAT_FUTURE);
+            if (f != null) f.cancel(false);
+            request.removeAttribute(HEARTBEAT_FUTURE);
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
     }
 
     public HeartbeatInterceptor clock(final AtmosphereResource r, final AtmosphereRequest request, final AtmosphereResponse response) {
