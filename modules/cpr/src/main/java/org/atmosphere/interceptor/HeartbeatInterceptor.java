@@ -138,6 +138,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
             if (f != null) f.cancel(false);
             request.removeAttribute(HEARTBEAT_FUTURE);
         } catch (Exception ex) {
+            // https://github.com/Atmosphere/atmosphere/issues/1503
             logger.trace("", ex);
         }
     }
