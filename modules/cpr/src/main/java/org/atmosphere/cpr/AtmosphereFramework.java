@@ -1196,8 +1196,10 @@ public class AtmosphereFramework {
 
         String broadcasterClassNameTmp = null;
 
+        boolean isJersey = false;
         try {
             IOUtils.loadClass(getClass(), JERSEY_CONTAINER);
+            isJersey = true;
 
             if (!isBroadcasterSpecified) {
                 broadcasterClassNameTmp = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
@@ -1225,7 +1227,7 @@ public class AtmosphereFramework {
 
         ReflectorServletProcessor rsp = newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
         if (broadcasterClassNameTmp != null) broadcasterClassName = broadcasterClassNameTmp;
-        rsp.setServletClassName(JERSEY_CONTAINER);
+        configureDetectedFramework(rsp, isJersey);
         sessionSupport(false);
         initParams.put(DISABLE_ONSTATE_EVENT, "true");
 
@@ -1257,6 +1259,10 @@ public class AtmosphereFramework {
 
         addAtmosphereHandler(mapping, rsp, b);
         return true;
+    }
+
+    protected void configureDetectedFramework(ReflectorServletProcessor rsp, boolean isJersey) {
+        rsp.setServletClassName(JERSEY_CONTAINER);
     }
 
     protected String lookupDefaultBroadcasterType(String defaultB) {
