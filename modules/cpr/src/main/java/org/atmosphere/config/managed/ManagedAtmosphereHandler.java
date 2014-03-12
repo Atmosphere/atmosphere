@@ -200,7 +200,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                             break;
                         }
                     }
-                } else {
+                // To allow annotated methods to use BroadcasterFactory . This is clearly a hack.
+                } else if (onRuntimeMethod.size() > 1) {
+                    logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
                     o = message(r, msg);
                     if (o != null) {
                         event.setMessage(o);
