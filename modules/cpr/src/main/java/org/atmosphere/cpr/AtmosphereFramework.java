@@ -1284,6 +1284,8 @@ public class AtmosphereFramework {
             try {
                 Class<?> c = Class.forName(b);
                 return (AtmosphereObjectFactory) c.newInstance();
+            } catch (ClassNotFoundException e) {
+                logger.trace(e.getMessage() + " not found");
             } catch (Exception e) {
                 logger.trace("", e);
             }
