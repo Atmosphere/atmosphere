@@ -944,7 +944,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Locale getLocale() {
-        return isNotNoOps() ? b.request.getLocale() : b.locales.iterator().next();
+        return isNotNoOps() ? b.request.getLocale() : b.locales.iterator().hasNext() ? b.locales.iterator().next() : Locale.getDefault();
     }
 
     /**
