@@ -63,7 +63,7 @@ public class JSR356WebSocket extends WebSocket {
         try {
             try {
                 semaphore.acquireUninterruptibly();
-                session.getAsyncRemote().sendText(s, new WriteResult(resource(), s, semaphore));
+                session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
             } catch (IllegalStateException e) {
                 semaphore.release();
                 throw e;
@@ -80,7 +80,7 @@ public class JSR356WebSocket extends WebSocket {
             semaphore.acquireUninterruptibly();
             ByteBuffer b = ByteBuffer.wrap(data, offset, length);
             session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
-                    new WriteResult(resource(), b.array(), semaphore));
+                    new WriteResult(resource(), b.array()));
         } catch (NullPointerException e) {
             patchGlassFish(e);
             semaphore.release();
@@ -112,12 +112,10 @@ public class JSR356WebSocket extends WebSocket {
 
         private final AtmosphereResource r;
         private final Object message;
-        private final Semaphore semaphore;
 
-        private WriteResult(AtmosphereResource r, Object message, Semaphore semaphore) {
+        private WriteResult(AtmosphereResource r, Object message) {
             this.r = r;
             this.message = message;
-            this.semaphore = semaphore;
         }
 
         @Override
