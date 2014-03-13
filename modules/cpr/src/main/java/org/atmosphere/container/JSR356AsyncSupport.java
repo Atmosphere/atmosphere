@@ -53,6 +53,9 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         String servletPath = config.getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
         if (servletPath == null) {
             servletPath = IOUtils.guestServletPath(config.framework());
+            if (servletPath.equals("/")) {
+                servletPath = PATH +"}";
+            }
         }
         configurator = new AtmosphereConfigurator(config.framework(), servletPath);
 
