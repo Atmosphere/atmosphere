@@ -20,8 +20,11 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.Utils;
@@ -55,12 +58,15 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     }
 
     @Override
-    public Action inspect(final AtmosphereResource r) {
+    public Action inspect(final AtmosphereResource ar) {
+        final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
+        final AtmosphereRequest request = r.getRequest(false);
+        final AtmosphereResponse response = r.getResponse(false);
 
-        String uuid = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        String handshakeUUID = r.getRequest().getHeader(HeaderConfig.X_ATMO_PROTOCOL);
+        String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+        String handshakeUUID = request.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
-            r.getRequest().header(HeaderConfig.X_ATMO_PROTOCOL, null);
+            request.header(HeaderConfig.X_ATMO_PROTOCOL, null);
             // Since 1.0.10
 
             final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter).append(System.currentTimeMillis());
@@ -85,19 +91,19 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 OnSuspend a = new OnSuspend() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
-                        r.getResponse().write(protocolMessage.get());
+                        response.write(protocolMessage.get());
                         try {
-                            r.getResponse().flushBuffer();
+                            response.flushBuffer();
                         } catch (IOException e) {
                             logger.trace("", e);
                         }
                     }
                 };
                 // Pass the information to Servlet Based Framework
-                r.getRequest().setAttribute(CALLBACK_JAVASCRIPT_PROTOCOL, a);
+                request.setAttribute(CALLBACK_JAVASCRIPT_PROTOCOL, a);
                 r.addEventListener(a);
             } else {
-                r.getResponse().write(protocolMessage.get());
+                response.write(protocolMessage.get());
             }
 
             // We don't need to reconnect here
