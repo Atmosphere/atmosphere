@@ -35,7 +35,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.cpr.Entry;
+import org.atmosphere.cpr.Deliver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +84,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
         }
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, sub.size());
-        dispatchMessages(new Entry(newMsg, sub, f, msg));
+        dispatchMessages(new Deliver(newMsg, sub, f, msg));
         return f;
     }
 
@@ -111,7 +111,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
         }
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size());
-        dispatchMessages(new Entry(newMsg, subset, f, msg));
+        dispatchMessages(new Deliver(newMsg, subset, f, msg));
         return f;
     }
 
@@ -143,7 +143,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
         }
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size());
-        dispatchMessages(new Entry(newMsg, subset, f, msg));
+        dispatchMessages(new Deliver(newMsg, subset, f, msg));
         return f;
     }
 
@@ -177,7 +177,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
         }
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, subset.size());
-        dispatchMessages(new Entry(newMsg, subset, f, msg));
+        dispatchMessages(new Deliver(newMsg, subset, f, msg));
         return f;
     }
 }

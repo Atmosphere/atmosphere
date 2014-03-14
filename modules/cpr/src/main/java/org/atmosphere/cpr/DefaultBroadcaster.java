@@ -79,7 +79,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentLinkedQueue<AtmosphereResource> resources =
             new ConcurrentLinkedQueue<AtmosphereResource>();
     protected BroadcasterConfig bc;
-    protected final BlockingQueue<Entry> messages = new LinkedBlockingQueue<Entry>();
+    protected final BlockingQueue<Deliver> messages = new LinkedBlockingQueue<Deliver>();
     protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     protected final AtomicBoolean started = new AtomicBoolean(false);
@@ -88,8 +88,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected SCOPE scope = SCOPE.APPLICATION;
     protected String name = DefaultBroadcaster.class.getSimpleName();
-    protected final ConcurrentLinkedQueue<Entry> delayedBroadcast = new ConcurrentLinkedQueue<Entry>();
-    protected final ConcurrentLinkedQueue<Entry> broadcastOnResume = new ConcurrentLinkedQueue<Entry>();
+    protected final ConcurrentLinkedQueue<Deliver> delayedBroadcast = new ConcurrentLinkedQueue<Deliver>();
+    protected final ConcurrentLinkedQueue<Deliver> broadcastOnResume = new ConcurrentLinkedQueue<Deliver>();
     protected final ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners = new ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener>();
     protected final ConcurrentHashMap<String, WriteQueue> writeQueues = new ConcurrentHashMap<String, WriteQueue>();
     protected final WriteQueue uniqueWriteQueue = new WriteQueue("-1");
@@ -446,7 +446,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return new Runnable() {
             public void run() {
                 while (!isDestroyed()) {
-                    Entry msg = null;
+                    Deliver msg = null;
                     try {
                         msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
                         if (msg == null) {
@@ -602,28 +602,28 @@ public class DefaultBroadcaster implements Broadcaster {
         return Runtime.getRuntime().availableProcessors() * 2;
     }
 
-    protected void push(Entry entry) {
+    protected void push(Deliver deliver) {
         if (destroyed.get()) {
             return;
         }
 
-        deliverPush(entry, true);
+        deliverPush(deliver, true);
     }
 
-    protected void deliverPush(Entry entry, boolean rec) {
+    protected void deliverPush(Deliver deliver, boolean rec) {
         recentActivity.set(true);
 
-        String prevMessage = entry.message.toString();
+        String prevMessage = deliver.message.toString();
         if (rec && !delayedBroadcast.isEmpty()) {
-            Iterator<Entry> i = delayedBroadcast.iterator();
+            Iterator<Deliver> i = delayedBroadcast.iterator();
             StringBuilder b = new StringBuilder();
             while (i.hasNext()) {
-                Entry e = i.next();
+                Deliver e = i.next();
                 e.future.cancel(true);
                 try {
                     // Append so we do a single flush
                     if (e.message instanceof String
-                            && entry.message instanceof String) {
+                            && deliver.message instanceof String) {
                         b.append(e.message);
                     } else {
                         deliverPush(e, false);
@@ -634,16 +634,16 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             if (b.length() > 0) {
-                entry.message = b.append(entry.message).toString();
+                deliver.message = b.append(deliver.message).toString();
             }
         }
 
-        Object finalMsg = callable(entry.message);
+        Object finalMsg = callable(deliver.message);
         if (finalMsg == null) {
             logger.error("Callable exception. Please catch all exceptions from your callable. Message {} will be lost and all AtmosphereResource " +
-                    "associated with this Broadcaster resumed.", entry.message);
-            entryDone(entry.future);
-            switch (entry.type) {
+                    "associated with this Broadcaster resumed.", deliver.message);
+            entryDone(deliver.future);
+            switch (deliver.type) {
                 case ALL:
                     synchronized (resources) {
                         for (AtmosphereResource r : resources) {
@@ -657,10 +657,10 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                     break;
                 case RESOURCE:
-                    entry.resource.resume();
+                    deliver.resource.resume();
                     break;
                 case SET:
-                    for (AtmosphereResource r : entry.resources) {
+                    for (AtmosphereResource r : deliver.resources) {
                         r.resume();
                     }
                     break;
@@ -668,102 +668,103 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
-        Object prevM = entry.originalMessage;
-        entry.originalMessage = (entry.originalMessage != entry.message ? callable(entry.originalMessage) : finalMsg);
+        Object prevM = deliver.originalMessage;
+        deliver.originalMessage = (deliver.originalMessage != deliver.message ? callable(deliver.originalMessage) : finalMsg);
 
-        if (entry.originalMessage == null) {
+        if (deliver.originalMessage == null) {
             logger.trace("Broadcasted message was null {}", prevM);
-            entryDone(entry.future);
+            entryDone(deliver.future);
             return;
         }
 
-        entry.message = finalMsg;
+        deliver.message = finalMsg;
 
         // We cache first, and if the broadcast succeed, we will remove it.
-        AtmosphereResource cache = entry.type != Entry.TYPE.RESOURCE ? null : entry.resource;
-        entry.cache = bc.getBroadcasterCache().addToCache(getID(), cache, new BroadcastMessage(entry.originalMessage));
+        AtmosphereResource cache = deliver.type != Deliver.TYPE.RESOURCE ? null : deliver.resource;
+        deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache, new BroadcastMessage(deliver.originalMessage));
+        notifyOnMessage(deliver);
 
         if (resources.isEmpty()) {
-            entryDone(entry.future);
+            entryDone(deliver.future);
             return;
         }
 
         try {
             if (logger.isTraceEnabled()) {
                 for (AtmosphereResource r : resources) {
-                    logger.trace("AtmosphereResource {} available for {}", r.uuid(), entry.message);
+                    logger.trace("AtmosphereResource {} available for {}", r.uuid(), deliver.message);
                 }
             }
 
             boolean hasFilters = bc.hasPerRequestFilters();
-            Object beforeProcessingMessage = entry.message;
-            switch (entry.type) {
+            Object beforeProcessingMessage = deliver.message;
+            switch (deliver.type) {
                 case ALL:
                     for (AtmosphereResource r : resources) {
-                        entry.message = beforeProcessingMessage;
-                        boolean deliverMessage = perRequestFilter(r, entry);
+                        deliver.message = beforeProcessingMessage;
+                        boolean deliverMessage = perRequestFilter(r, deliver);
 
-                        if (!deliverMessage || entry.message == null) {
-                            logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
-                            bc.getBroadcasterCache().clearCache(getID(), r, entry.cache);
+                        if (!deliverMessage || deliver.message == null) {
+                            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, r.uuid());
+                            bc.getBroadcasterCache().clearCache(getID(), r, deliver.cache);
                             continue;
                         }
 
-                        if (entry.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Entry(r, entry) : entry);
+                        if (deliver.writeLocally) {
+                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver);
                         }
                     }
                     break;
                 case RESOURCE:
-                    boolean deliverMessage = perRequestFilter(entry.resource, entry);
+                    boolean deliverMessage = perRequestFilter(deliver.resource, deliver);
 
-                    if (!deliverMessage || entry.message == null) {
-                        logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, entry.resource.uuid());
-                        bc.getBroadcasterCache().clearCache(getID(), entry.resource, entry.cache);
+                    if (!deliverMessage || deliver.message == null) {
+                        logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource.uuid());
+                        bc.getBroadcasterCache().clearCache(getID(), deliver.resource, deliver.cache);
                         return;
                     }
 
-                    if (entry.writeLocally) {
-                        queueWriteIO(entry.resource, entry);
+                    if (deliver.writeLocally) {
+                        queueWriteIO(deliver.resource, deliver);
                     }
                     break;
                 case SET:
-                    for (AtmosphereResource r : entry.resources) {
-                        entry.message = beforeProcessingMessage;
-                        deliverMessage = perRequestFilter(r, entry);
+                    for (AtmosphereResource r : deliver.resources) {
+                        deliver.message = beforeProcessingMessage;
+                        deliverMessage = perRequestFilter(r, deliver);
 
-                        if (!deliverMessage || entry.message == null) {
-                            logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
-                            bc.getBroadcasterCache().clearCache(getID(), r, entry.cache);
+                        if (!deliverMessage || deliver.message == null) {
+                            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, r.uuid());
+                            bc.getBroadcasterCache().clearCache(getID(), r, deliver.cache);
                             continue;
                         }
 
-                        if (entry.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Entry(r, entry) : entry);
+                        if (deliver.writeLocally) {
+                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver);
                         }
                     }
                     break;
             }
 
-            entry.message = prevMessage;
+            deliver.message = prevMessage;
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
     }
 
-    protected void queueWriteIO(AtmosphereResource r, Entry entry) throws InterruptedException {
-        if (entry.async) {
+    protected void queueWriteIO(AtmosphereResource r, Deliver deliver) throws InterruptedException {
+        if (deliver.async) {
             // The onStateChange/onRequest may change the isResumed value, hence we need to make sure only one thread flip
             // the switch to garantee the Entry will be cached in the order it was broadcasted.
             // Without synchronizing we may end up with a out of order BroadcasterCache queue.
             if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
                 if (r.isResumed() || r.isCancelled()) {
-                    logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), entry.message);
+                    logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), deliver.message);
                     return;
                 }
             }
 
-            AsyncWriteToken w = new AsyncWriteToken(r, entry.message, entry.future, entry.originalMessage, entry.cache);
+            AsyncWriteToken w = new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache);
             if (!outOfOrderBroadcastSupported.get()) {
                 WriteQueue writeQueue = writeQueues.get(r.uuid());
                 if (writeQueue == null) {
@@ -782,14 +783,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 uniqueWriteQueue.queue.offer(w);
             }
         } else {
-            executeBlockingWrite(r, entry);
+            executeBlockingWrite(r, deliver);
         }
     }
 
-    protected void executeBlockingWrite(AtmosphereResource r, Entry entry) throws InterruptedException {
+    protected void executeBlockingWrite(AtmosphereResource r, Deliver deliver) throws InterruptedException {
         // We deliver using the calling thread.
         synchronized (r) {
-            executeAsyncWrite(new AsyncWriteToken(r, entry.message, entry.future, entry.originalMessage, entry.cache));
+            executeAsyncWrite(new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache));
         }
     }
 
@@ -803,7 +804,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected boolean perRequestFilter(AtmosphereResource r, Entry msg) {
+    protected boolean perRequestFilter(AtmosphereResource r, Deliver msg) {
         // A broadcaster#broadcast(msg,Set) may contains null value.
         if (r == null) {
             logger.trace("Null AtmosphereResource passed inside a Set");
@@ -920,7 +921,7 @@ public class DefaultBroadcaster implements Broadcaster {
             BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(e.getMessage(), 1);
             LinkedList<Object> filteredMessage = new LinkedList<Object>();
             LinkedList<Object> filteredMessageClone = null;
-            Entry entry;
+            Deliver deliver;
             Object newMessage;
             for (Object o : cacheMessages) {
                 newMessage = filter(o);
@@ -928,14 +929,14 @@ public class DefaultBroadcaster implements Broadcaster {
                     continue;
                 }
 
-                entry = new Entry(newMessage, r, f, o);
+                deliver = new Deliver(newMessage, r, f, o);
                 // Can be aborted by a Filter
-                if (!perRequestFilter(r, entry)) {
+                if (!perRequestFilter(r, deliver)) {
                     continue;
                 }
 
-                if (entry.message != null) {
-                    filteredMessage.addLast(entry.message);
+                if (deliver.message != null) {
+                    filteredMessage.addLast(deliver.message);
                 }
             }
 
@@ -1198,7 +1199,7 @@ public class DefaultBroadcaster implements Broadcaster {
         int callee = resources.size() == 0 ? 1 : resources.size();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, callee);
-        dispatchMessages(new Entry(newMsg, f, msg));
+        dispatchMessages(new Deliver(newMsg, f, msg));
         return f;
     }
 
@@ -1207,7 +1208,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return (new BroadcasterFuture<Object>(msg)).done();
     }
 
-    protected void dispatchMessages(Entry e) {
+    protected void dispatchMessages(Deliver e) {
         messages.offer(e);
 
         if (dispatchThread.get() == 0) {
@@ -1243,7 +1244,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return futureDone(msg);
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, 1);
-        dispatchMessages(new Entry(newMsg, r, f, msg));
+        dispatchMessages(new Deliver(newMsg, r, f, msg));
         return f;
     }
 
@@ -1260,14 +1261,14 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return futureDone(msg);
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, resources.size());
-        broadcastOnResume.offer(new Entry(newMsg, f, msg));
+        broadcastOnResume.offer(new Deliver(newMsg, f, msg));
         return f;
     }
 
     protected void broadcastOnResume(AtmosphereResource r) {
-        for (Entry e : broadcastOnResume) {
+        for (Deliver e : broadcastOnResume) {
             e.async = false;
-            push(new Entry(r, e));
+            push(new Deliver(r, e));
         }
 
         if (resources.isEmpty()) {
@@ -1288,7 +1289,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (newMsg == null) return futureDone(msg);
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(null, newMsg, subset.size());
-        dispatchMessages(new Entry(newMsg, subset, f, msg));
+        dispatchMessages(new Deliver(newMsg, subset, f, msg));
         return f;
     }
 
@@ -1436,6 +1437,16 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
+    protected void notifyOnMessage(Deliver deliver) {
+        for (BroadcasterListener b : broadcasterListeners) {
+            try {
+                b.onMessage(this, deliver);
+            } catch (Exception ex) {
+                logger.warn("", ex);
+            }
+        }
+    }
+
     @Override
     public Broadcaster removeAtmosphereResource(AtmosphereResource r) {
         return removeAtmosphereResource(r, true);
@@ -1532,7 +1543,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (msg == null) return null;
 
         final BroadcasterFuture<Object> future = new BroadcasterFuture<Object>(msg);
-        final Entry e = new Entry(msg, future, o);
+        final Deliver e = new Deliver(msg, future, o);
         Future<Object> f;
         if (delay > 0) {
             f = bc.getScheduledExecutorService().schedule(new Callable<Object>() {
@@ -1544,8 +1555,8 @@ public class DefaultBroadcaster implements Broadcaster {
                             Object r = Callable.class.cast(o).call();
                             final Object msg = filter(r);
                             if (msg != null) {
-                                Entry entry = new Entry(msg, future, r);
-                                push(entry);
+                                Deliver deliver = new Deliver(msg, future, r);
+                                push(deliver);
                             }
                             return msg;
                         } catch (Exception e1) {
@@ -1554,7 +1565,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
 
                     final Object msg = filter(o);
-                    final Entry e = new Entry(msg, future, o);
+                    final Deliver e = new Deliver(msg, future, o);
                     push(e);
                     return msg;
                 }
@@ -1596,8 +1607,8 @@ public class DefaultBroadcaster implements Broadcaster {
                         Object r = Callable.class.cast(o).call();
                         final Object msg = filter(r);
                         if (msg != null) {
-                            Entry entry = new Entry(msg, f, r);
-                            push(entry);
+                            Deliver deliver = new Deliver(msg, f, r);
+                            push(deliver);
                         }
                         return;
                     } catch (Exception e) {
@@ -1605,7 +1616,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
                 final Object msg = filter(o);
-                final Entry e = new Entry(msg, f, o);
+                final Deliver e = new Deliver(msg, f, o);
                 push(e);
             }
         }, waitFor, period, t);

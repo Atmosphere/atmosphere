@@ -19,7 +19,13 @@ import org.atmosphere.cache.CacheMessage;
 
 import java.util.Set;
 
-public class Entry {
+/**
+ * A Deliver is an {@link Broadcaster}'s internal token that is created before the message gets Broadcaster. A Deliver gives information about
+ * what will be delivered, to whow, etc.
+ *
+ * @author Jeanfrancois Arcand
+ */
+public class Deliver {
 
     public enum TYPE {RESOURCE, SET, ALL}
 
@@ -34,15 +40,15 @@ public class Entry {
     public CacheMessage cache;
     public boolean async;
 
-    public Entry(TYPE type,
-                 Object originalMessage,
-                 Object message,
-                 AtmosphereResource r,
-                 BroadcasterFuture<?> future,
-                 CacheMessage cache,
-                 boolean writeLocally,
-                 Set<AtmosphereResource> resources,
-                 boolean async) {
+    public Deliver(TYPE type,
+                   Object originalMessage,
+                   Object message,
+                   AtmosphereResource r,
+                   BroadcasterFuture<?> future,
+                   CacheMessage cache,
+                   boolean writeLocally,
+                   Set<AtmosphereResource> resources,
+                   boolean async) {
 
         this.message = message;
         this.future = future;
@@ -57,23 +63,23 @@ public class Entry {
     }
 
 
-    public Entry(Object message, AtmosphereResource r, BroadcasterFuture<?> future, Object originalMessage) {
+    public Deliver(Object message, AtmosphereResource r, BroadcasterFuture<?> future, Object originalMessage) {
         this(TYPE.RESOURCE, originalMessage, message, r, future, null, true, null, true);
     }
 
-    public Entry(Object message, BroadcasterFuture<?> future, Object originalMessage) {
+    public Deliver(Object message, BroadcasterFuture<?> future, Object originalMessage) {
         this(TYPE.ALL, originalMessage, message, null, future, null, true, null, true);
     }
 
-    public Entry(AtmosphereResource r, Entry e) {
+    public Deliver(AtmosphereResource r, Deliver e) {
         this(TYPE.RESOURCE, e.originalMessage, e.message, r, e.future, e.cache, e.writeLocally, null, e.async);
     }
 
-    public Entry(Object message, Set<AtmosphereResource> resources, BroadcasterFuture<?> future, Object originalMessage) {
+    public Deliver(Object message, Set<AtmosphereResource> resources, BroadcasterFuture<?> future, Object originalMessage) {
         this(TYPE.SET, originalMessage, message, null, future, null, true, resources, true);
     }
 
-    public Entry(Object message, BroadcasterFuture<?> future, boolean writeLocally) {
+    public Deliver(Object message, BroadcasterFuture<?> future, boolean writeLocally) {
         this(TYPE.ALL, message, message, null, future, null, writeLocally, null, true);
     }
 

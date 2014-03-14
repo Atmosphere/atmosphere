@@ -30,7 +30,7 @@ public interface BroadcasterListener {
     void onPostCreate(Broadcaster b);
 
     /**
-     * Invoked when the Broadcast operation completes.
+     * Invoked when the Broadcast operation completes for all {@link org.atmosphere.cpr.AtmosphereResource}.
      *
      * @param b a Broadcaster
      */
@@ -58,6 +58,13 @@ public interface BroadcasterListener {
      * @param r an AtmosphereResource
      */
     void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r);
+
+    /**
+     * Invoked when a {@link Broadcaster#broadcast(Object)} is called.
+     * @param b a Broadcaster
+     * @param deliver the {@link Deliver}
+     */
+    void onMessage(Broadcaster b, Deliver deliver);
 
     /**
      * Throw this exception to interrupt the {@link org.atmosphere.cpr.Broadcaster#destroy()} operation.

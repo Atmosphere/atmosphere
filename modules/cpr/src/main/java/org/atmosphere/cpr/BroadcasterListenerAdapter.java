@@ -27,28 +27,52 @@ public class BroadcasterListenerAdapter implements BroadcasterListener {
 
     private final Logger logger = LoggerFactory.getLogger(BroadcasterListenerAdapter.class);
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onPostCreate(Broadcaster b) {
-        logger.trace("", b);
+        logger.trace("onPostCreate {}", b.getID());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onComplete(Broadcaster b) {
-        logger.trace("", b);
+        logger.trace("onComplete {}", b.getID());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onPreDestroy(Broadcaster b) {
-        logger.trace("", b);
+        logger.trace("onPreDestroy {}", b.getID());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
-        logger.trace("", b);
+        logger.trace("onAddAtmosphereResource {}", b.getID());
     }
 
+    /**
+     * {@inheritDoc}
+     */
     @Override
     public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
-        logger.trace("", b);
+        logger.trace("onRemoveAtmosphereResource {}", b.getID());
     }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void onMessage(Broadcaster b, Deliver deliver) {
+        logger.trace("onMessage for broadcaster {} for {}", b.getID(), deliver);
+    }
+
 }

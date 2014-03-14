@@ -38,7 +38,9 @@ public class BroadcasterListenerTest {
     private AtmosphereFramework framework;
     private static final AtomicBoolean completed = new AtomicBoolean();
     private static final AtomicBoolean postCreated = new AtomicBoolean();
-    private static final AtomicBoolean preDssrtoyed = new AtomicBoolean();
+    private static final AtomicBoolean preDestroyed = new AtomicBoolean();
+    private static final AtomicBoolean onMessage = new AtomicBoolean();
+
 
     @BeforeMethod
     public void create() throws Throwable {
@@ -83,7 +85,12 @@ public class BroadcasterListenerTest {
 
         @Override
         public void onPreDestroy(Broadcaster b) {
-            preDssrtoyed.set(true);
+            preDestroyed.set(true);
+        }
+
+        @Override
+        public void onMessage(Broadcaster b, Deliver d) {
+            onMessage.set(true);
         }
     }
 
@@ -94,7 +101,8 @@ public class BroadcasterListenerTest {
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertTrue(completed.get());
         assertTrue(postCreated.get());
-        assertTrue(preDssrtoyed.get());
+        assertTrue(preDestroyed.get());
+        assertTrue(onMessage.get());
     }
 
 
@@ -125,6 +133,7 @@ public class BroadcasterListenerTest {
         AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertEquals(BAR.count.get(), 1);
+        assertTrue(onMessage.get());
     }
 
     @Test

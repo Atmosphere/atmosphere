@@ -23,7 +23,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.cpr.BroadcasterFuture;
 import org.atmosphere.cpr.DefaultBroadcaster;
-import org.atmosphere.cpr.Entry;
+import org.atmosphere.cpr.Deliver;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -84,7 +84,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
-        push(new Entry(newMsg, f, msg));
+        push(new Deliver(newMsg, f, msg));
         return f;
     }
 
@@ -101,7 +101,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return null;
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
-        push(new Entry(newMsg, r, f, msg));
+        push(new Deliver(newMsg, r, f, msg));
         return f;
     }
 
@@ -119,7 +119,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
         if (newMsg == null) return null;
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg);
-        push(new Entry(newMsg, subset, f, msg));
+        push(new Deliver(newMsg, subset, f, msg));
         return f;
     }
 
@@ -132,7 +132,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     }
 
     @Override
-    protected void queueWriteIO(AtmosphereResource r, Entry entry) throws InterruptedException {
-        executeBlockingWrite(r, entry);
+    protected void queueWriteIO(AtmosphereResource r, Deliver deliver) throws InterruptedException {
+        executeBlockingWrite(r, deliver);
     }
 }
