@@ -26,7 +26,6 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Set;
@@ -41,10 +40,16 @@ import java.util.concurrent.Future;
 public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterProxy.class);
+    private final Method jerseyBroadcast;
 
-    private Method jerseyBroadcast;
-
-    public AbstractBroadcasterProxy() {}
+    public AbstractBroadcasterProxy() {
+        try {
+            Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
+            jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", new Class[]{AtmosphereResource.class, AtmosphereResourceEvent.class});
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public Broadcaster initialize(String id, URI uri, AtmosphereConfig config) {
         return super.initialize(id, uri, config);
@@ -88,20 +93,14 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     @Override
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
-        if (r.getRequest() instanceof HttpServletRequest) {
-            if (r.getRequest().getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
-                try {
-                    if (jerseyBroadcast == null) {
-                        Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
-                        jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", new Class[]{AtmosphereResource.class, AtmosphereResourceEvent.class});
-                    }
-                    jerseyBroadcast.invoke(null, new Object[]{r, e});
-                } catch (Throwable t) {
-                    super.invokeOnStateChange(r, e);
-                }
-            } else {
+        if (r.getRequest().getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
+            try {
+                jerseyBroadcast.invoke(null, new Object[]{r, e});
+            } catch (Throwable t) {
                 super.invokeOnStateChange(r, e);
             }
+        } else {
+            super.invokeOnStateChange(r, e);
         }
     }
 
@@ -119,6 +118,10 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg) {
+        return b(msg);
+    }
+
+    protected Future<Object> b(Object msg) {
         if (destroyed.get()) {
             logger.warn("This Broadcaster has been destroyed and cannot be used {}", getID());
             return null;
@@ -137,37 +140,13 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     @Override
     public Future<Object> broadcast(Object msg, AtmosphereResource r) {
-        if (destroyed.get()) {
-            logger.warn("This Broadcaster has been destroyed and cannot be used {}", getID());
-            return null;
-        }
-
-        start();
-
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
-        try {
-            outgoingBroadcast(msg);
-        } finally {
-            futureDone(f);
-        }
-        return f;
+        logger.warn("This feature is not supported with {}", r.getBroadcaster().getClass().getName());
+        return b(msg);
     }
 
     @Override
     public Future<Object> broadcast(Object msg, Set<AtmosphereResource> subset) {
-        if (destroyed.get()) {
-            logger.warn("This Broadcaster has been destroyed and cannot be used {}", getID());
-            return null;
-        }
-
-        start();
-
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
-        try {
-            outgoingBroadcast(msg);
-        } finally {
-            futureDone(f);
-        }
-        return f;
+        logger.warn("This feature is not supported with {}", subset.iterator().next().getBroadcaster().getClass().getName());
+        return b(msg);
     }
 }
