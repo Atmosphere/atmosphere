@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cache.CacheMessage;
 
+import java.io.Serializable;
 import java.util.Set;
 
 /**
@@ -25,20 +26,20 @@ import java.util.Set;
  *
  * @author Jeanfrancois Arcand
  */
-public class Deliver {
+public class Deliver implements Serializable {
 
-    public enum TYPE {RESOURCE, SET, ALL}
+    protected enum TYPE {RESOURCE, SET, ALL}
 
-    public Object message;
-    public BroadcasterFuture<?> future;
-    public boolean writeLocally;
-    public Object originalMessage;
-    public final AtmosphereResource resource;
-    public final Set<AtmosphereResource> resources;
-    public final TYPE type;
+    protected Object message;
+    protected BroadcasterFuture<?> future;
+    protected boolean writeLocally;
+    protected Object originalMessage;
+    protected final AtmosphereResource resource;
+    protected final Set<AtmosphereResource> resources;
+    protected final TYPE type;
     // https://github.com/Atmosphere/atmosphere/issues/864
-    public CacheMessage cache;
-    public boolean async;
+    protected CacheMessage cache;
+    protected boolean async;
 
     public Deliver(TYPE type,
                    Object originalMessage,
@@ -90,5 +91,65 @@ public class Deliver {
                 ", type=" + type +
                 ", future=" + future +
                 '}';
+    }
+
+    public Object getMessage() {
+        return message;
+    }
+
+    public void setMessage(Object message) {
+        this.message = message;
+    }
+
+    public BroadcasterFuture<?> getFuture() {
+        return future;
+    }
+
+    public void setFuture(BroadcasterFuture<?> future) {
+        this.future = future;
+    }
+
+    public boolean isWriteLocally() {
+        return writeLocally;
+    }
+
+    public void setWriteLocally(boolean writeLocally) {
+        this.writeLocally = writeLocally;
+    }
+
+    public Object getOriginalMessage() {
+        return originalMessage;
+    }
+
+    public void setOriginalMessage(Object originalMessage) {
+        this.originalMessage = originalMessage;
+    }
+
+    public AtmosphereResource getResource() {
+        return resource;
+    }
+
+    public Set<AtmosphereResource> getResources() {
+        return resources;
+    }
+
+    public TYPE getType() {
+        return type;
+    }
+
+    public CacheMessage getCache() {
+        return cache;
+    }
+
+    public void setCache(CacheMessage cache) {
+        this.cache = cache;
+    }
+
+    public boolean isAsync() {
+        return async;
+    }
+
+    public void setAsync(boolean async) {
+        this.async = async;
     }
 }

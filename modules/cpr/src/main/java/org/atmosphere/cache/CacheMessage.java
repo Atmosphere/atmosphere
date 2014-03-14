@@ -15,7 +15,9 @@
  */
 package org.atmosphere.cache;
 
-public class CacheMessage {
+import java.io.Serializable;
+
+public class CacheMessage implements Serializable {
 
     private final Object message;
 
