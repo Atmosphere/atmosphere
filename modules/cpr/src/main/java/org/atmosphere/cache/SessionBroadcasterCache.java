@@ -30,6 +30,7 @@ import java.util.List;
  * messages.
  *
  * @author Jeanfrancois Arcand
+ *
  */
 public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 

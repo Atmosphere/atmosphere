@@ -53,7 +53,7 @@ import java.util.List;
  *     will be invoked every time {@link #addToCache(String, AtmosphereResource, org.atmosphere.cache.BroadcastMessage)} is executed.
  *     8. An application may decide that, at one point in time, stop caching message for a particular {@link AtmosphereResource} by invoking
  *     {@link #excludeFromCache(String, AtmosphereResource)}
- *
+ * <p/>
  * </pre></blockquote>
  * <p/>
  * Implementations of this interface must be thread-safe.
@@ -116,7 +116,7 @@ public interface BroadcasterCache {
      * @param r             an {@link AtmosphereResource}
      * @param cache         the {@link CacheMessage}
      */
-    void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache);
+    BroadcasterCache clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache);
 
     /**
      * Allow an application to exclude, or block, an {@link AtmosphereResource} to received cached message.
@@ -124,8 +124,19 @@ public interface BroadcasterCache {
      *
      * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
      * @param r             an {@link AtmosphereResource}
+     * @return this
      */
-    void excludeFromCache(String broadcasterId, AtmosphereResource r);
+    BroadcasterCache excludeFromCache(String broadcasterId, AtmosphereResource r);
+
+    /**
+     * Add a {@link org.atmosphere.cpr.AtmosphereResource#uuid()} to the list of active {@link org.atmosphere.cpr.AtmosphereResource}
+     * Message will be cached for the resource associated with the uuid.
+     *
+     * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param uuid          an {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
+     * @return this
+     */
+    BroadcasterCache cacheCandidate(String broadcasterId, String uuid);
 
     /**
      * Add a {@link BroadcasterCacheInspector} that will be invoked before a message gets added to the cache.

@@ -55,12 +55,18 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache) {
-
+    public BroadcasterCache clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache) {
+        return this;
     }
 
     @Override
-    public void excludeFromCache(String broadcasterId, AtmosphereResource r) {
+    public BroadcasterCache excludeFromCache(String broadcasterId, AtmosphereResource r) {
+        return this;
+    }
+
+    @Override
+    public BroadcasterCache cacheCandidate(String broadcasterId, String uuid) {
+        return this;
     }
 
     @Override

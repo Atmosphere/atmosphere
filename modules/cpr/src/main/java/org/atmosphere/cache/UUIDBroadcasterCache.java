@@ -128,7 +128,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             logger.trace("Active clients {}", activeClients());
         }
 
-        long now = System.currentTimeMillis();
         String messageId = UUID.randomUUID().toString();
         CacheMessage cacheMessage = new CacheMessage(messageId, e);
         if (r == null) {
@@ -138,8 +137,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             }
         } else {
             String clientId = uuid(r);
-
-            activeClients.put(clientId, now);
+            cacheCandidate(broadcasterId, clientId);
             addMessageIfNotExists(clientId, cacheMessage);
         }
         return cacheMessage;
@@ -148,12 +146,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
         String clientId = uuid(r);
-        long now = System.currentTimeMillis();
 
         List<Object> result = new ArrayList<Object>();
 
         ClientQueue clientQueue;
-        activeClients.put(clientId, now);
+        cacheCandidate(broadcasterId, clientId);
         clientQueue = messages.remove(clientId);
         ConcurrentLinkedQueue<CacheMessage> clientMessages;
         if (clientQueue != null) {
@@ -173,11 +170,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void clearCache(String broadcasterId, AtmosphereResource r, CacheMessage message) {
+    public BroadcasterCache clearCache(String broadcasterId, AtmosphereResource r, CacheMessage message) {
         if (message == null) {
             AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
             logger.trace("Cached message is null for {}, but event was {}", r.uuid(), e == null ? "null" : e.getMessage());
-            return;
+            return this;
         }
 
         String clientId = uuid(r);
@@ -187,6 +184,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
             clientQueue.getQueue().remove(message);
         }
+        return this;
     }
 
     @Override
@@ -278,8 +276,16 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void excludeFromCache(String broadcasterId, AtmosphereResource r) {
+    public BroadcasterCache excludeFromCache(String broadcasterId, AtmosphereResource r) {
         activeClients.remove(r.uuid());
+        return this;
+    }
+
+    @Override
+    public BroadcasterCache cacheCandidate(String broadcasterId, String uuid) {
+        long now = System.currentTimeMillis();
+        activeClients.put(uuid, now);
+        return this;
     }
 
     @Override
