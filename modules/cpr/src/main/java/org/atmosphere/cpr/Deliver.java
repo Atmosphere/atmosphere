@@ -27,6 +27,7 @@ import java.util.Set;
  * @author Jeanfrancois Arcand
  */
 public class Deliver implements Serializable {
+    private static final long serialVersionUID = -126253550299206646L;
 
     public enum TYPE {RESOURCE, SET, ALL}
 

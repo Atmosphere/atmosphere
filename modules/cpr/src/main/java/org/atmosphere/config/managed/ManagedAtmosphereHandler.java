@@ -405,6 +405,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     public final static class Managed implements Serializable {
+        private static final long serialVersionUID = -126253550299206646L;
+
         final Object o;
 
         public Managed(Object o) {

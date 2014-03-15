@@ -18,6 +18,7 @@ package org.atmosphere.cache;
 import java.io.Serializable;
 
 public class CacheMessage implements Serializable {
+    private static final long serialVersionUID = -126253550299206646L;
 
     private final Object message;
 
