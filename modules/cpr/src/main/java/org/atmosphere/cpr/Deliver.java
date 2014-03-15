@@ -28,7 +28,7 @@ import java.util.Set;
  */
 public class Deliver implements Serializable {
 
-    protected enum TYPE {RESOURCE, SET, ALL}
+    public enum TYPE {RESOURCE, SET, ALL}
 
     protected Object message;
     protected BroadcasterFuture<?> future;
