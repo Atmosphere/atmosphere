@@ -668,6 +668,7 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
+        notifyOnMessage(deliver);
         Object prevM = deliver.originalMessage;
         deliver.originalMessage = (deliver.originalMessage != deliver.message ? callable(deliver.originalMessage) : finalMsg);
 
@@ -682,7 +683,6 @@ public class DefaultBroadcaster implements Broadcaster {
         // We cache first, and if the broadcast succeed, we will remove it.
         AtmosphereResource cache = deliver.type != Deliver.TYPE.RESOURCE ? null : deliver.resource;
         deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache, new BroadcastMessage(deliver.originalMessage));
-        notifyOnMessage(deliver);
 
         if (resources.isEmpty()) {
             entryDone(deliver.future);
