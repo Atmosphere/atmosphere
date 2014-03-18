@@ -18,9 +18,12 @@ package org.atmosphere.annotation;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.Collection;
 
 @AtmosphereAnnotation(BroadcasterListenerService.class)
 public class BroadcasterListenerServiceProcessor implements Processor<BroadcasterListener> {
@@ -30,7 +33,13 @@ public class BroadcasterListenerServiceProcessor implements Processor<Broadcaste
     @Override
     public void handle(AtmosphereFramework framework, Class<BroadcasterListener> annotatedClass) {
         try {
-            framework.addBroadcasterListener((BroadcasterListener) framework.newClassInstance(BroadcasterListener.class, annotatedClass));
+            BroadcasterListener l = framework.newClassInstance(BroadcasterListener.class, annotatedClass);
+            framework.addBroadcasterListener(l);
+            // We must reconfigure all existing Broadcaster
+            Collection<Broadcaster> c = framework.getBroadcasterFactory().lookupAll();
+            for (Broadcaster b : c) {
+                l.onPostCreate(b);
+            }
         } catch (Throwable e) {
             logger.warn("", e);
         }

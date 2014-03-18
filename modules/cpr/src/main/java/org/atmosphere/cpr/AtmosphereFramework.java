@@ -1024,7 +1024,8 @@ public class AtmosphereFramework {
                 if (w.broadcaster == null) {
                     w.broadcaster = broadcasterFactory.get(w.mapping);
                 } else {
-                    if (broadcasterCacheClassName != null) {
+                    if (broadcasterCacheClassName != null
+                            && w.broadcaster.getBroadcasterConfig().getBroadcasterCache().getClass().getName().equals(DefaultBroadcasterCache.class.getName())) {
                         BroadcasterCache cache = newClassInstance(BroadcasterCache.class,
                                 (Class<BroadcasterCache>) IOUtils.loadClass(getClass(), broadcasterCacheClassName));
                         w.broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
