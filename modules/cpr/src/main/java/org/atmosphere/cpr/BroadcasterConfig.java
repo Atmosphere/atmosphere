@@ -129,6 +129,11 @@ public class BroadcasterConfig {
             for (BroadcasterCacheInspector b : config.framework().inspectors()) {
                 broadcasterCache.inspector(b);
             }
+
+            for (BroadcasterCacheListener l: config.framework().broadcasterCacheListeners()) {
+                broadcasterCache.addBroadcasterCacheListener(l);
+            }
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         }

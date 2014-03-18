@@ -215,6 +215,7 @@ public class AtmosphereFramework {
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
     protected final List<String> excludedInterceptors = new ArrayList<String>();
+    protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<BroadcasterCacheListener>();
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
@@ -2171,6 +2172,18 @@ public class AtmosphereFramework {
         broadcasterFactory.addBroadcasterListener(b);
         broadcasterListeners.add(b);
         return this;
+    }
+
+    /**
+     * Add {@link BroadcasterCacheListener} to the {@link BroadcasterCache}.
+     */
+    public AtmosphereFramework addBroadcasterCacheListener(BroadcasterCacheListener b) {
+        broadcasterCacheListeners.add(b);
+        return this;
+    }
+
+    public List<BroadcasterCacheListener> broadcasterCacheListeners() {
+        return  broadcasterCacheListeners;
     }
 
     /**
