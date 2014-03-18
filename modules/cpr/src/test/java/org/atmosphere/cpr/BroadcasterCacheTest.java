@@ -75,7 +75,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime());
+                CacheMessage c = put(e, System.nanoTime(), r);
                 cachedMessage.set(messages);
                 return c;
             }
@@ -100,7 +100,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime());
+                CacheMessage c = put(e, System.nanoTime(), r);
                 cachedMessage.set(messages);
                 return c;
             }
@@ -126,7 +126,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime());
+                CacheMessage c = put(e, System.nanoTime(), r);
                 cachedMessage.set(messages);
                 latch.countDown();
                 return c;
@@ -154,7 +154,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime());
+                CacheMessage c = put(e, System.nanoTime(), r);
                 cachedMessage.set(messages);
                 latch.countDown();
                 return c;

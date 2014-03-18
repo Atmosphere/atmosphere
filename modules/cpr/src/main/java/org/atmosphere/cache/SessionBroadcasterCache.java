@@ -44,7 +44,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
     @Override
     public CacheMessage addToCache(String broadcasterId, String uuid, BroadcastMessage message) {
         long now = System.nanoTime();
-        CacheMessage cacheMessage = put(message, now);
+        CacheMessage cacheMessage = put(message, now, uuid);
 
         if (uuid.equals(NULL)) return cacheMessage;
 

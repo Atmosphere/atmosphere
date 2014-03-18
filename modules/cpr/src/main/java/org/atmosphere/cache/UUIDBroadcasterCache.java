@@ -129,7 +129,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
 
         String messageId = UUID.randomUUID().toString();
-        CacheMessage cacheMessage = new CacheMessage(messageId, e);
+        CacheMessage cacheMessage = new CacheMessage(messageId, e, clientId);
         if (clientId.equals("null")) {
             //no clients are connected right now, caching message for all active clients
             for (Map.Entry<String, Long> entry : activeClients.entrySet()) {

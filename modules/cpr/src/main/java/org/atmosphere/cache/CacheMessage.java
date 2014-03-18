@@ -23,18 +23,21 @@ public class CacheMessage implements Serializable {
     private final Object message;
 
     private final String id;
-    private long createTime;
+    private final long createTime;
+    private final String uuid;
 
-    public CacheMessage(String id, Object message) {
+    public CacheMessage(String id, Object message, String uuid) {
         this.id = id;
         this.message = message;
         this.createTime = System.nanoTime();
+        this.uuid = uuid;
     }
 
-    public CacheMessage(String id, Long now, Object message) {
+    public CacheMessage(String id, Long now, Object message, String uuid) {
         this.id = id;
         this.message = message;
         this.createTime = now;
+        this.uuid = uuid;
     }
 
     public Object getMessage() {
@@ -51,5 +54,13 @@ public class CacheMessage implements Serializable {
 
     public long getCreateTime() {
         return createTime;
+    }
+
+    /**
+     * Return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
+     * @return {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
+     */
+    public String uuid(){
+        return uuid;
     }
 }
