@@ -34,10 +34,13 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
     private final static List<String> knownClasses;
+    private final static  Pattern SERVLET_PATH_PATTERN = Pattern.compile("([\\/]?[\\w-[.]]+|[\\/]\\*\\*)+");
 
     static {
         knownClasses = new ArrayList<String>() {
@@ -109,7 +112,9 @@ public class IOUtils {
                 Class<?> classToScan = loadClass(framework.getClass(), e.getValue().getClassName());
 
                 if (scanForAtmosphereFramework(classToScan)) {
-                    servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
+                    servletPath = e.getValue().getMappings().iterator().next();
+                    servletPath = getCleanedServletPath(servletPath);
+
                     // We already found one.
                     if (!servletPath.equalsIgnoreCase(exclude)) {
                         break;
@@ -126,6 +131,28 @@ public class IOUtils {
 
     public static String guestServletPath(AtmosphereFramework framework) {
         return guestServletPath(framework, "");
+    }
+
+    /**
+     * Used to remove trailing slash and wildcard from a servlet path.<br/><br/>
+     * Examples :<br/>
+     *  - "/foo/" becomes "/foo"<br/>
+     *  - "foo/bar" becomes "/foo/bar"<br/>
+     * @param fullServletPath : Servlet mapping
+     * @return Servlet mapping without trailing slash and wildcard
+     */
+    public static String getCleanedServletPath(String fullServletPath) {
+        Matcher matcher = SERVLET_PATH_PATTERN.matcher(fullServletPath);
+
+        // It should not happen if the servlet path is valid
+        if (!matcher.find()) return fullServletPath;
+
+        String servletPath = matcher.group(0);
+        if (!servletPath.startsWith("/")) {
+            servletPath = "/" + servletPath;
+        }
+
+        return servletPath;
     }
 
     private static boolean scanForAtmosphereFramework(Class<?> classToScan) {
