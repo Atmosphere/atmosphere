@@ -17,6 +17,7 @@ package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterCacheListener;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
@@ -55,6 +56,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected boolean isShared = false;
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     protected final List<Object> emptyList = Collections.<Object>emptyList();
+    protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
 
     @Override
     public void start() {
@@ -205,6 +207,18 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     @Override
     public BroadcasterCache cacheCandidate(String broadcasterId, String uuid) {
         logger.trace("Not supported");
+        return this;
+    }
+
+    @Override
+    public BroadcasterCache addBroadcasterCacheListener(BroadcasterCacheListener l) {
+        listeners.add(l);
+        return this;
+    }
+
+    @Override
+    public BroadcasterCache removeBroadcasterCacheListener(BroadcasterCacheListener l) {
+        listeners.remove(l);
         return this;
     }
 }

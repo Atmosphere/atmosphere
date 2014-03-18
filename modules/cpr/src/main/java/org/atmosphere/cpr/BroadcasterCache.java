@@ -145,4 +145,14 @@ public interface BroadcasterCache {
      * @return this
      */
     BroadcasterCache inspector(BroadcasterCacheInspector interceptor);
+
+    /**
+     *  Add a {@link BroadcasterCacheListener}
+     */
+    BroadcasterCache addBroadcasterCacheListener(BroadcasterCacheListener l);
+
+    /**
+     *  Add a {@link BroadcasterCacheListener}
+     */
+    BroadcasterCache removeBroadcasterCacheListener(BroadcasterCacheListener l);
 }

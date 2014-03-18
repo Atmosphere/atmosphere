@@ -17,6 +17,7 @@ package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterCacheListener;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -72,5 +73,15 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     @Override
     public BroadcasterCache inspector(BroadcasterCacheInspector interceptor) {
         return this;
+    }
+
+    @Override
+    public BroadcasterCache addBroadcasterCacheListener(BroadcasterCacheListener l) {
+        return null;
+    }
+
+    @Override
+    public BroadcasterCache removeBroadcasterCacheListener(BroadcasterCacheListener l) {
+        return null;
     }
 }

@@ -18,6 +18,7 @@ package org.atmosphere.cache;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterCache;
+import org.atmosphere.cpr.BroadcasterCacheListener;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
@@ -58,6 +59,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private long invalidateCacheInterval = TimeUnit.SECONDS.toMillis(30); // 30 seconds
     private boolean shared = true;
     protected final List<Object> emptyList = Collections.<Object>emptyList();
+    protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
 
     public final static class ClientQueue {
 
@@ -133,12 +135,12 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         if (r == null) {
             //no clients are connected right now, caching message for all active clients
             for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
-                addMessageIfNotExists(entry.getKey(), cacheMessage);
+                addMessageIfNotExists(broadcasterId, entry.getKey(), cacheMessage);
             }
         } else {
             String clientId = uuid(r);
             cacheCandidate(broadcasterId, clientId);
-            addMessageIfNotExists(clientId, cacheMessage);
+            addMessageIfNotExists(broadcasterId, clientId, cacheMessage);
         }
         return cacheMessage;
     }
@@ -182,6 +184,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         clientQueue = messages.get(clientId);
         if (clientQueue != null) {
             logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
+            notifyRemoveCache(broadcasterId, message);
             clientQueue.getQueue().remove(message);
         }
         return this;
@@ -193,19 +196,31 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return this;
     }
 
+    @Override
+    public BroadcasterCache addBroadcasterCacheListener(BroadcasterCacheListener l) {
+        listeners.add(l);
+        return this;
+    }
+
+    @Override
+    public BroadcasterCache removeBroadcasterCacheListener(BroadcasterCacheListener l) {
+        listeners.remove(l);
+        return this;
+    }
+
     protected String uuid(AtmosphereResource r) {
         return r.uuid();
     }
 
-    private void addMessageIfNotExists(String clientId, CacheMessage message) {
+    private void addMessageIfNotExists(String broadcasterId, String clientId, CacheMessage message) {
         if (!hasMessage(clientId, message.getId())) {
-            addMessage(clientId, message);
+            addMessage(broadcasterId, clientId, message);
         } else {
             logger.debug("Duplicate message {} for client {}", message, clientId);
         }
     }
 
-    private void addMessage(String clientId, CacheMessage message) {
+    private void addMessage(String broadcasterId, String clientId, CacheMessage message) {
         ClientQueue clientQueue = messages.get(clientId);
         if (clientQueue == null) {
             clientQueue = new ClientQueue();
@@ -218,8 +233,29 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                 return;
             }
         }
+        notifyAddCache(broadcasterId, message);
         clientQueue.getQueue().offer(message);
         clientQueue.getIds().add(message.getId());
+    }
+
+    private void notifyAddCache(String broadcasterId, CacheMessage message) {
+        for (BroadcasterCacheListener l : listeners) {
+            try {
+                l.onAddCache(broadcasterId, message);
+            } catch (Exception ex) {
+                logger.warn("Listener exception", ex);
+            }
+        }
+    }
+
+    private void notifyRemoveCache(String broadcasterId, CacheMessage message) {
+        for (BroadcasterCacheListener l : listeners) {
+            try {
+                l.onRemoveCache(broadcasterId, message);
+            } catch (Exception ex) {
+                logger.warn("Listener exception", ex);
+            }
+        }
     }
 
     private boolean hasMessage(String clientId, String messageId) {
