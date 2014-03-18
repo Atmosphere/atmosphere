@@ -40,30 +40,38 @@ public class AtmosphereSession {
     private final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
     private String uuid;
     private final Semaphore latch = new Semaphore(1);
+    private BroadcasterListenerAdapter broadcasterListener;
+    private Broadcaster[] relatedBroadcasters;
 
     public AtmosphereSession(final AtmosphereResource r, Broadcaster... broadcasters) {
         this.uuid = r.uuid();
+        this.relatedBroadcasters = broadcasters;
         resource.set(r);
-        for (Broadcaster b : broadcasters) {
-            b.addBroadcasterListener(new BroadcasterListenerAdapter() {
-                @Override
-                public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
-                    logger.trace("", b);
-                    boolean found = false;
-                    if (r.uuid().equalsIgnoreCase(uuid)) {
-                        resource.set(r);
-                        found = true;
-                    }
-                    if (found && latch.availablePermits() == 0) latch.release();
-                }
 
-                @Override
-                public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
-                    logger.trace("", b);
+        broadcasterListener = new BroadcasterListenerAdapter() {
+            @Override
+            public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
+                boolean found = false;
+                if (r.uuid().equalsIgnoreCase(uuid)) {
+                    logger.trace("AtmosphereSession tracking :  AtmosphereResource {} added", uuid);
+                    resource.set(r);
+                    found = true;
+                }
+                if (found && latch.availablePermits() == 0) latch.release();
+            }
+
+            @Override
+            public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
+                if (r.uuid().equalsIgnoreCase(uuid)) {
+                    logger.trace("AtmosphereSession tracking :  AtmosphereResource {} removed", uuid);
                     resource.set(null);
                     latch.tryAcquire();
                 }
-            });
+            }
+        };
+
+        for (Broadcaster b : broadcasters) {
+            b.addBroadcasterListener(broadcasterListener);
         }
     }
 
@@ -109,5 +117,15 @@ public class AtmosphereSession {
             latch.tryAcquire(timeInSecond, TimeUnit.SECONDS);
         }
         return resource.get();
+    }
+
+    public void close() {
+        for(Broadcaster br : relatedBroadcasters) {
+            br.removeBroadcasterListener(broadcasterListener);
+        }
+    }
+
+    public String uuid() {
+        return uuid;
     }
 }
