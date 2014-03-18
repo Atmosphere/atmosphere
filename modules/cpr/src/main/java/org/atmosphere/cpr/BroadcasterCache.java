@@ -42,7 +42,7 @@ import java.util.List;
  *     3. When {@link Broadcaster} starts, {@link #start()} will be invoked.
  *     4. Every time a {@link Broadcaster#broadcast(Object)} invocation occurs, the {@link #addToCache(String, AtmosphereResource, org.atmosphere.cache.BroadcastMessage)}
  *     method will be invoked, allowing the instance to cache the object.
- *     5. If the write operation succeeds, the {@link #clearCache(String, AtmosphereResource, org.atmosphere.cache.CacheMessage)} method will
+ *     5. If the write operation succeeds, the {@link #clearCache(String, String, org.atmosphere.cache.CacheMessage)} method will
  *     be invoked. If the write operation fail the cache won't be cleared, and the message will be available next time the
  *     client reconnects. An application that write a BroadcasterCache must make sure cached message aren't staying in the
  *     cache forever to prevent memory leaks.
@@ -50,7 +50,7 @@ import java.util.List;
  *     If messages are available, a {@link List} will be returned and written back to the client.
  *     7. When messages are added to the cache, an application can always customize the messages by creating {@link BroadcasterCacheInspector}
  *     and add them using {@link #inspector(org.atmosphere.cache.BroadcasterCacheInspector)}. BroadcasterCacheInspector
- *     will be invoked every time {@link #addToCache(String, AtmosphereResource, org.atmosphere.cache.BroadcastMessage)} is executed.
+ *     will be invoked every time {@link #addToCache(String, String, org.atmosphere.cache.BroadcastMessage)} is executed.
  *     8. An application may decide that, at one point in time, stop caching message for a particular {@link AtmosphereResource} by invoking
  *     {@link #excludeFromCache(String, AtmosphereResource)}
  * <p/>
@@ -64,6 +64,7 @@ import java.util.List;
  * @author Jeanfrancois Arcand
  */
 public interface BroadcasterCache {
+    public static final String NULL = "null";
 
     BroadcasterCache DEFAULT = new DefaultBroadcasterCache();
 
@@ -94,11 +95,11 @@ public interface BroadcasterCache {
      * Start tracking messages associated with {@link AtmosphereResource} from the cache.
      *
      * @param broadcasterId The associated {@link Broadcaster#addAtmosphereResource(AtmosphereResource).getID}
-     * @param r             {@link AtmosphereResource}
-     * @param e             {@link BroadcastMessage}.
+     * @param clientId      {@link AtmosphereResource#uuid}
+     * @param message       {@link BroadcastMessage}.
      * @return The {@link CacheMessage}
      */
-    CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e);
+    CacheMessage addToCache(String broadcasterId, String clientId, BroadcastMessage message);
 
     /**
      * Retrieve messages associated with {@link AtmosphereResource}.
@@ -113,10 +114,10 @@ public interface BroadcasterCache {
      * Remove the previously cached message.
      *
      * @param broadcasterId The {@link org.atmosphere.cpr.Broadcaster#getID()}
-     * @param r             an {@link AtmosphereResource}
+     * @param clientId      an {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @param cache         the {@link CacheMessage}
      */
-    BroadcasterCache clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache);
+    BroadcasterCache clearCache(String broadcasterId, String clientId, CacheMessage cache);
 
     /**
      * Allow an application to exclude, or block, an {@link AtmosphereResource} to received cached message.
@@ -148,6 +149,7 @@ public interface BroadcasterCache {
 
     /**
      * Add a {@link BroadcasterCacheListener}
+     *
      * @param l a {@link BroadcasterCacheListener}
      * @return this
      */
@@ -155,6 +157,7 @@ public interface BroadcasterCache {
 
     /**
      * Remove a {@link BroadcasterCacheListener}
+     *
      * @param l a {@link BroadcasterCacheListener}
      * @return this
      */

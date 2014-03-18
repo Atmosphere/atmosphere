@@ -77,7 +77,7 @@ public class DefaultBroadcasterTest {
 
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
                 CacheMessage c = put(e, System.nanoTime());
                 cache.put(id, e);
                 return c;

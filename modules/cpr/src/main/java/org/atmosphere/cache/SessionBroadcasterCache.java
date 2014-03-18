@@ -17,6 +17,7 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -41,14 +42,14 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
     }
 
     @Override
-    public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
+    public CacheMessage addToCache(String broadcasterId, String uuid, BroadcastMessage message) {
         long now = System.nanoTime();
         CacheMessage cacheMessage = put(message, now);
 
-        if (r == null) return cacheMessage;
+        if (uuid.equals(NULL)) return cacheMessage;
 
         try {
-            HttpSession session = r.session();
+            HttpSession session = AtmosphereResourceFactory.getDefault().find(uuid).session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return cacheMessage;

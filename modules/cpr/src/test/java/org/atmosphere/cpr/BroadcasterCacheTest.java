@@ -74,7 +74,7 @@ public class BroadcasterCacheTest {
     public void testRejectedCache() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
                 CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
                 return c;
@@ -99,7 +99,7 @@ public class BroadcasterCacheTest {
     public void testCache() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
                 CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
                 return c;
@@ -125,7 +125,7 @@ public class BroadcasterCacheTest {
         final CountDownLatch latch = new CountDownLatch(1);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
                 CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
                 latch.countDown();
@@ -153,7 +153,7 @@ public class BroadcasterCacheTest {
         final CountDownLatch latch = new CountDownLatch(1);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, AtmosphereResource r, BroadcastMessage e) {
+            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
                 CacheMessage c = put(e, System.nanoTime());
                 cachedMessage.set(messages);
                 latch.countDown();

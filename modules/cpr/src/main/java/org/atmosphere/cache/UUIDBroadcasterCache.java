@@ -16,7 +16,6 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
 import org.atmosphere.cpr.BroadcasterConfig;
@@ -122,23 +121,21 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage message) {
-
+    public CacheMessage addToCache(String broadcasterId, String clientId, BroadcastMessage message) {
         Object e = message.message;
         if (logger.isTraceEnabled()) {
-            logger.trace("Adding for AtmosphereResource {} cached messages {}", r != null ? r.uuid() : "null", e);
+            logger.trace("Adding for AtmosphereResource {} cached messages {}", clientId, e);
             logger.trace("Active clients {}", activeClients());
         }
 
         String messageId = UUID.randomUUID().toString();
         CacheMessage cacheMessage = new CacheMessage(messageId, e);
-        if (r == null) {
+        if (clientId.equals("null")) {
             //no clients are connected right now, caching message for all active clients
             for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
                 addMessageIfNotExists(broadcasterId, entry.getKey(), cacheMessage);
             }
         } else {
-            String clientId = uuid(r);
             cacheCandidate(broadcasterId, clientId);
             addMessageIfNotExists(broadcasterId, clientId, cacheMessage);
         }
@@ -172,18 +169,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public BroadcasterCache clearCache(String broadcasterId, AtmosphereResource r, CacheMessage message) {
-        if (message == null) {
-            AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
-            logger.trace("Cached message is null for {}, but event was {}", r.uuid(), e == null ? "null" : e.getMessage());
-            return this;
-        }
-
-        String clientId = uuid(r);
+    public BroadcasterCache clearCache(String broadcasterId, String clientId, CacheMessage message) {
         ClientQueue clientQueue;
         clientQueue = messages.get(clientId);
         if (clientQueue != null) {
-            logger.trace("Removing for AtmosphereResource {} cached message {}", r.uuid(), message.getMessage());
+            logger.trace("Removing for AtmosphereResource {} cached message {}", clientId, message.getMessage());
             notifyRemoveCache(broadcasterId, message);
             clientQueue.getQueue().remove(message);
         }

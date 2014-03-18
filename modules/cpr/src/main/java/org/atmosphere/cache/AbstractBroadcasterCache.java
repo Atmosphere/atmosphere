@@ -189,7 +189,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public BroadcasterCache clearCache(String broadcasterId, AtmosphereResource r, CacheMessage cache) {
+    public BroadcasterCache clearCache(String broadcasterId, String uuid, CacheMessage cache) {
         if (cache != null) {
             messages.remove(cache);
             messagesIds.remove(cache.getId());
@@ -199,26 +199,26 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
 
     @Override
     public BroadcasterCache excludeFromCache(String broadcasterId, AtmosphereResource r) {
-        logger.trace("Not supported");
+        logger.warn("Not supported");
         return this;
     }
 
 
     @Override
     public BroadcasterCache cacheCandidate(String broadcasterId, String uuid) {
-        logger.trace("Not supported");
+        logger.warn("Not supported");
         return this;
     }
 
     @Override
     public BroadcasterCache addBroadcasterCacheListener(BroadcasterCacheListener l) {
-        listeners.add(l);
+        logger.warn("Not supported");
         return this;
     }
 
     @Override
     public BroadcasterCache removeBroadcasterCacheListener(BroadcasterCacheListener l) {
-        listeners.remove(l);
+        logger.warn("Not supported");
         return this;
     }
 }

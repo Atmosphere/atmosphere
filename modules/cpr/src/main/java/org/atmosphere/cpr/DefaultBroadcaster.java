@@ -115,7 +115,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private boolean backwardCompatible = false;
 
 
-    public DefaultBroadcaster(){
+    public DefaultBroadcaster() {
     }
 
     public Broadcaster initialize(String name, URI uri, AtmosphereConfig config) {
@@ -682,7 +682,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         // We cache first, and if the broadcast succeed, we will remove it.
         AtmosphereResource cache = deliver.type != Deliver.TYPE.RESOURCE ? null : deliver.resource;
-        deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache, new BroadcastMessage(deliver.originalMessage));
+        deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache != null ? cache.uuid() : BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
 
         if (resources.isEmpty()) {
             entryDone(deliver.future);
@@ -706,7 +706,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         if (!deliverMessage || deliver.message == null) {
                             logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, r.uuid());
-                            bc.getBroadcasterCache().clearCache(getID(), r, deliver.cache);
+                            bc.getBroadcasterCache().clearCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, deliver.cache);
                             continue;
                         }
 
@@ -720,7 +720,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                     if (!deliverMessage || deliver.message == null) {
                         logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource.uuid());
-                        bc.getBroadcasterCache().clearCache(getID(), deliver.resource, deliver.cache);
+                        bc.getBroadcasterCache().clearCache(getID(), deliver.resource != null ? deliver.resource.uuid() : BroadcasterCache.NULL, deliver.cache);
                         return;
                     }
 
@@ -735,7 +735,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                         if (!deliverMessage || deliver.message == null) {
                             logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, r.uuid());
-                            bc.getBroadcasterCache().clearCache(getID(), r, deliver.cache);
+                            bc.getBroadcasterCache().clearCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, deliver.cache);
                             continue;
                         }
 
@@ -853,7 +853,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 return;
             }
 
-            bc.getBroadcasterCache().clearCache(getID(), r, token.cache);
+            bc.getBroadcasterCache().clearCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, token.cache);
             try {
                 request.setAttribute(getID(), token.future);
                 request.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
@@ -894,7 +894,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     for (AtmosphereResourceEventListener e : listeners) {
                         e.onBroadcast(event);
                     }
-                // Listener wil be called later
+                    // Listener wil be called later
                 } else if (!event.isResumedOnTimeout()) {
                     r.notifyListeners();
                 }
@@ -967,7 +967,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     logger.error("Unable to write cached message {} for {}", e.getMessage(), r.uuid());
                     logger.error("", t);
                     for (Object o : cacheMessages) {
-                        bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(o));
+                        bc.getBroadcasterCache().addToCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, new BroadcastMessage(o));
                     }
                     return true;
                 }
@@ -1166,7 +1166,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
         try {
             if (token != null && token.originalMessage != null) {
-                bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(String.valueOf(token.future.hashCode()), token.originalMessage));
+                bc.getBroadcasterCache().addToCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL,
+                        new BroadcastMessage(String.valueOf(token.future.hashCode()), token.originalMessage));
                 logger.trace("Lost message cached {}", token.originalMessage);
             }
         } catch (Throwable t2) {

@@ -17,6 +17,7 @@ package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,12 +38,12 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
     private final Logger logger = LoggerFactory.getLogger(HeaderBroadcasterCache.class);
 
     @Override
-    public CacheMessage addToCache(String broadcasterId, AtmosphereResource r, BroadcastMessage e) {
+    public CacheMessage addToCache(String broadcasterId, String uuid, BroadcastMessage e) {
         long now = System.nanoTime();
         CacheMessage cacheMessage = put(e, now);
 
-        if (r != null) {
-            r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
+        if (uuid.equals(NULL)) {
+            AtmosphereResourceFactory.getDefault().find(uuid).getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
         }
         return cacheMessage;
     }
