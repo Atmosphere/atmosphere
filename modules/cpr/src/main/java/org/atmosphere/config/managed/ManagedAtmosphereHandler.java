@@ -108,33 +108,36 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         AtmosphereRequest request = resource.getRequest();
         String method = request.getMethod();
         boolean polling = Utils.pollableTransport(resource.transport());
+        boolean webSocketMessage = Utils.webSocketMessage(resource);
 
-        if (onReadyMethod != null && !polling) {
-            resource.addEventListener(new OnSuspend() {
-                @Override
-                public void onSuspend(AtmosphereResourceEvent event) {
-                    processReady(event.getResource());
-                    resource.removeEventListener(this);
-                }
-            });
-        }
-
-        if (onResumeMethod != null && !polling) {
-            resource.addEventListener(new OnResume() {
-                @Override
-                public void onResume(AtmosphereResourceEvent event) {
-                    invoke(onResumeMethod, event.getResource());
-                    resource.removeEventListener(this);
-                }
-            });
-        }
-
-        resource.addEventListener(new OnClose() {
-            @Override
-            public void onClose(AtmosphereResourceEvent event) {
-                invoke(onDisconnectMethod, event);
+        if (!webSocketMessage) {
+            if (onReadyMethod != null && !polling) {
+                resource.addEventListener(new OnSuspend() {
+                    @Override
+                    public void onSuspend(AtmosphereResourceEvent event) {
+                        processReady(event.getResource());
+                        resource.removeEventListener(this);
+                    }
+                });
             }
-        });
+
+            if (onResumeMethod != null && !polling) {
+                resource.addEventListener(new OnResume() {
+                    @Override
+                    public void onResume(AtmosphereResourceEvent event) {
+                        invoke(onResumeMethod, event.getResource());
+                        resource.removeEventListener(this);
+                    }
+                });
+            }
+
+            resource.addEventListener(new OnClose() {
+                @Override
+                public void onClose(AtmosphereResourceEvent event) {
+                    invoke(onDisconnectMethod, event);
+                }
+            });
+        }
 
         if (method.equalsIgnoreCase("get")) {
             invoke(onGetMethod, resource);
@@ -200,7 +203,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                             break;
                         }
                     }
-                // To allow annotated methods to use BroadcasterFactory . This is clearly a hack.
+                    // To allow annotated methods to use BroadcasterFactory . This is clearly a hack.
                 } else if (onRuntimeMethod.size() > 1) {
                     logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
                     o = message(r, msg);
