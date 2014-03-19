@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
@@ -363,7 +364,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             // Null means SCOPE=REQUEST set by a Meteor
             if (!skipCreation && (broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
-                String id = broadcaster != null ? broadcaster.getID() : "/*";
+                String id = broadcaster != null ? broadcaster.getID() : ROOT_MASTER;
                 Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
 
                 broadcaster = config.getBroadcasterFactory().lookup(clazz, id, false);

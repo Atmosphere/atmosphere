@@ -64,6 +64,7 @@ import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL_EXECUTION;
 import static org.atmosphere.cpr.AsynchronousProcessor.AsynchronousProcessorHook;
 import static org.atmosphere.cpr.AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER;
+import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
@@ -147,7 +148,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public final void open(final WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse response) throws IOException {
         // TODO: Fix this. Instead add an Interceptor.
         if (framework.getAtmosphereConfig().handlers().size() == 0) {
-            framework.addAtmosphereHandler("/*", REFLECTOR_ATMOSPHEREHANDLER);
+            framework.addAtmosphereHandler(ROOT_MASTER, REFLECTOR_ATMOSPHEREHANDLER);
         }
 
         request.headers(configureHeader(request)).setAttribute(WebSocket.WEBSOCKET_SUSPEND, true);

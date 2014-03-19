@@ -47,6 +47,8 @@ import java.util.concurrent.TimeUnit;
  */
 public interface Broadcaster {
 
+    public final static String ROOT_MASTER = "/*";
+
     enum SCOPE {
         REQUEST, APPLICATION, VM
     }

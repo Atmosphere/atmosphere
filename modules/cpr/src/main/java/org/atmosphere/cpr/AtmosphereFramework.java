@@ -120,6 +120,7 @@ import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
+import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
@@ -156,7 +157,6 @@ public class AtmosphereFramework {
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
     public static final String DEFAULT_HANDLER_PATH = "/WEB-INF/classes/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*_~=@;\\?]+";
-    public static final String ROOT = "/*";
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
@@ -211,7 +211,7 @@ public class AtmosphereFramework {
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
     protected AtmosphereObjectFactory objectFactory = new DefaultAtmosphereObjectFactory();
-    protected boolean isDestroyed = false;
+    protected final AtomicBoolean isDestroyed = new AtomicBoolean();
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
     protected final List<String> excludedInterceptors = new ArrayList<String>();
@@ -775,7 +775,7 @@ public class AtmosphereFramework {
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
 
-        BroadcasterConfig bc = broadcasterFactory.lookup("/*", true).getBroadcasterConfig();
+        BroadcasterConfig bc = broadcasterFactory.lookup(Broadcaster.ROOT_MASTER, true).getBroadcasterConfig();
         if (bc.getAsyncWriteService() != null) {
             long max = ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize();
             logger.info("Messaging Thread Pool Size: {}",
@@ -964,7 +964,7 @@ public class AtmosphereFramework {
 
                 String mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
                 if (mapping == null) {
-                    mapping = ROOT;
+                    mapping = Broadcaster.ROOT_MASTER;
                 }
                 addAtmosphereHandler(mapping, newClassInstance(AtmosphereHandler.class,
                         (Class<AtmosphereHandler>) IOUtils.loadClass(getClass(), s)));
@@ -1237,7 +1237,7 @@ public class AtmosphereFramework {
         if (mapping == null) {
             mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
             if (mapping == null) {
-                mapping = ROOT;
+                mapping = Broadcaster.ROOT_MASTER;
             }
         }
         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) IOUtils.loadClass(getClass(), broadcasterClassName);
@@ -1329,7 +1329,7 @@ public class AtmosphereFramework {
 
         if (atmosphereHandlers.size() == 0 && !SimpleHttpProtocol.class.isAssignableFrom(webSocketProtocol.getClass())) {
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
-            addAtmosphereHandler(ROOT, new AbstractReflectorAtmosphereHandler() {
+            addAtmosphereHandler(Broadcaster.ROOT_MASTER, new AbstractReflectorAtmosphereHandler() {
                 @Override
                 public void onRequest(AtmosphereResource r) throws IOException {
                     logger.debug("No AtmosphereHandler defined.");
@@ -1380,8 +1380,10 @@ public class AtmosphereFramework {
 
     public AtmosphereFramework destroy() {
 
-        if (isDestroyed) return this;
-        isDestroyed = true;
+        if (isDestroyed.getAndSet(true)) return this;
+
+        // Invoke ShutdownHook.
+        config.destroy();
 
         if (asyncSupport != null && AsynchronousProcessor.class.isAssignableFrom(asyncSupport.getClass())) {
             ((AsynchronousProcessor) asyncSupport).shutdown();
@@ -1392,9 +1394,6 @@ public class AtmosphereFramework {
             AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
             handlerWrapper.atmosphereHandler.destroy();
         }
-
-        // Invoke ShutdownHook.
-        config.destroy();
 
         BroadcasterFactory factory = broadcasterFactory;
         if (factory != null) {
@@ -2392,7 +2391,7 @@ public class AtmosphereFramework {
      * return this
      */
     public AtmosphereFramework addWebSocketHandler(WebSocketHandler handler) {
-        addWebSocketHandler("/*", handler);
+        addWebSocketHandler(ROOT_MASTER, handler);
         return this;
     }
 

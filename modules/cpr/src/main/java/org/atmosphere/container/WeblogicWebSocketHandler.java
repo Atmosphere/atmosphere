@@ -36,6 +36,8 @@ import weblogic.websocket.WebSocketListener;
 
 import java.io.IOException;
 
+import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
+
 @weblogic.websocket.annotation.WebSocket(pathPatterns = "/ws/*", timeout = -1, maxMessageSize=8192)
 public class WeblogicWebSocketHandler implements WebSocketListener {
 
@@ -149,7 +151,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
 
     private void configure() {
         synchronized(this) {
-            config = BroadcasterFactory.getDefault().lookup("/*").getBroadcasterConfig().getAtmosphereConfig();
+            config = BroadcasterFactory.getDefault().lookup(ROOT_MASTER).getBroadcasterConfig().getAtmosphereConfig();
             webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
             String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);

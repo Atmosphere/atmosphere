@@ -32,6 +32,7 @@ import static org.atmosphere.cpr.ApplicationConfig.FILTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.FILTER_NAME;
 import static org.atmosphere.cpr.ApplicationConfig.MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.SERVLET_CLASS;
+import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 
 /**
  * Simple Servlet to use when Atmosphere {@link Meteor} are used. This Servlet will look
@@ -104,7 +105,7 @@ public class MeteorServlet extends AtmosphereServlet {
         String filterName = framework().getAtmosphereConfig().getInitParameter(FILTER_NAME);
 
         if (servletClass != null) {
-            logger.info("Installed Servlet/Meteor {} mapped to {}", servletClass, mapping == null ? "/*" : mapping);
+            logger.info("Installed Servlet/Meteor {} mapped to {}", servletClass, mapping == null ? ROOT_MASTER : mapping);
         }
         if (filterClass != null) {
             logger.info("Installed Filter/Meteor {} mapped to /*", filterClass, mapping);
@@ -116,8 +117,8 @@ public class MeteorServlet extends AtmosphereServlet {
             r.setServletClassName(servletClass);
             r.addFilterClassName(filterClass, filterName);
             if (mapping == null) {
-                mapping = "/*";
-                framework.getBroadcasterFactory().remove("/*");
+                mapping = Broadcaster.ROOT_MASTER;
+                framework.getBroadcasterFactory().remove(Broadcaster.ROOT_MASTER);
             }
             framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
         }
