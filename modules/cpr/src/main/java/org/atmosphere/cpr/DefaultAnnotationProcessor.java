@@ -22,6 +22,7 @@ import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
+import org.atmosphere.config.service.BroadcasterCacheListenerService;
 import org.atmosphere.config.service.BroadcasterCacheService;
 import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.config.service.BroadcasterFilterService;
@@ -82,6 +83,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             ManagedService.class,
             AtmosphereService.class,
             EndpointMapperService.class,
+            BroadcasterCacheListenerService.class,
             AtmosphereAnnotation.class
     };
 
