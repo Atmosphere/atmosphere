@@ -2448,6 +2448,14 @@ public class AtmosphereFramework {
         return this;
     }
 
+    /**
+     * Return true if the {@link #init()} has been sucessfully executed.
+     * @return true if the {@link #init()} has been sucessfully executed.
+     */
+    public boolean initialized() {
+        return isInit;
+    }
+
     public List<String> packages() {
         return packages;
     }
