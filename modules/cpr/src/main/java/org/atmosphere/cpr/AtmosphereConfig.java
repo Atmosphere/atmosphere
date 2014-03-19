@@ -221,6 +221,7 @@ public class AtmosphereConfig {
                 logger.warn("", ex);
             }
         }
+        startUpHook.clear();
     }
 
     /**
