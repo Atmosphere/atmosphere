@@ -23,6 +23,7 @@ import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -60,7 +61,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
 
-    public final static class ClientQueue {
+    public final static class ClientQueue implements Serializable{
+        private static final long serialVersionUID = -126253550299206646L;
 
         private final ConcurrentLinkedQueue<CacheMessage> queue = new ConcurrentLinkedQueue<CacheMessage>();
         private final Set<String> ids = new HashSet<String>();
