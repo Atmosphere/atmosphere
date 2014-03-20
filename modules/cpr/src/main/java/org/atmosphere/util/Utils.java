@@ -54,6 +54,20 @@ public final class Utils {
         return webSocketEnabled;
     }
 
+    public final static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
+        switch (t) {
+            case JSONP:
+            case LONG_POLLING:
+            case STREAMING:
+            case SSE:
+            case POLLING:
+            case HTMLFILE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public final static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case JSONP:
