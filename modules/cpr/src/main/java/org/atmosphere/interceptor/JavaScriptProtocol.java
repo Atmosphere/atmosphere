@@ -110,7 +110,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                     || r.transport() == AtmosphereResource.TRANSPORT.SSE) {
                 return Action.CONTINUE;
             } else {
-                return Action.SKIP_ATMOSPHEREHANDLER;
+                return Action.CANCELLED;
             }
         }
         return Action.CONTINUE;
