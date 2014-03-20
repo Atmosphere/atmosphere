@@ -718,6 +718,7 @@ public class AtmosphereFramework {
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(scFacade);
             asyncSupport.init(scFacade);
+            configureAtmosphereResourceFactoryFindOps();
             initAtmosphereHandler(scFacade);
             configureAtmosphereInterceptor(scFacade);
             analytics();
@@ -961,6 +962,28 @@ public class AtmosphereFramework {
             }
 
         }
+    }
+
+    protected void configureAtmosphereResourceFactoryFindOps(){
+        addBroadcasterListener(new BroadcasterListenerAdapter(){
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
+                logger.trace("onAddAtmosphereResource {}", b.getID());
+                AtmosphereResourceFactory.getDefault().registerUuidForFindCandidate(r);
+            }
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
+                logger.trace("onRemoveAtmosphereResource {}", b.getID());
+                AtmosphereResourceFactory.getDefault().unRegisterUuidForFindCandidate(r);
+            }
+        });
     }
 
     protected void initInterceptors() {
@@ -1415,6 +1438,7 @@ public class AtmosphereFramework {
             BroadcasterFactory.factory = null;
         }
 
+        AtmosphereResourceFactory.getDefault().destroy();
         WebSocketProcessorFactory.getDefault().destroy();
         return this;
     }

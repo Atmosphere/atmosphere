@@ -26,6 +26,7 @@ import java.lang.reflect.Proxy;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * A Factory used to manage {@link AtmosphereResource} instances. You can use this factory to create, remove and find
@@ -62,6 +63,9 @@ public final class AtmosphereResourceFactory {
         public void destroy() {
         }
     };
+
+    private final ConcurrentHashMap<String, AtmosphereResource>
+            resources = new ConcurrentHashMap<String, AtmosphereResource>();
 
     /**
      * Create an {@link AtmosphereResourceImpl}
@@ -175,7 +179,7 @@ public final class AtmosphereResourceFactory {
      * @return the {@link AtmosphereResource}, or null if not found.
      */
     public final AtmosphereResource remove(String uuid) {
-        AtmosphereResource r = find(uuid);
+        AtmosphereResource r = resources.remove(uuid);
         if (r != null) {
             r.getAtmosphereConfig().getBroadcasterFactory().removeAllAtmosphereResource(r);
         }
@@ -189,15 +193,7 @@ public final class AtmosphereResourceFactory {
      * @return the {@link AtmosphereResource}, or null if not found.
      */
     public final AtmosphereResource find(String uuid) {
-        Collection<Broadcaster> l = BroadcasterFactory.getDefault().lookupAll();
-        for (Broadcaster b : l) {
-            for (AtmosphereResource r : b.getAtmosphereResources()) {
-                if (r.uuid().equalsIgnoreCase(uuid)) {
-                    return r;
-                }
-            }
-        }
-        return null;
+        return resources.get(uuid);
     }
 
     /**
@@ -223,5 +219,25 @@ public final class AtmosphereResourceFactory {
 
     public final static AtmosphereResourceFactory getDefault() {
         return factory;
+    }
+
+    /**
+     * Register an {@link AtmosphereResource} for being a candidate to {@link #find(String)} operation.
+     * @param r {@link AtmosphereResource}
+     */
+    public void registerUuidForFindCandidate(AtmosphereResource r) {
+        resources.put(r.uuid(), r);
+    }
+
+    /**
+     * Un register an {@link AtmosphereResource} for being a candidate to {@link #find(String)} operation.
+     * @param r {@link AtmosphereResource}
+     */
+    public void unRegisterUuidForFindCandidate(AtmosphereResource r) {
+        resources.remove(r.uuid());
+    }
+
+    public void destroy(){
+        resources.clear();
     }
 }
