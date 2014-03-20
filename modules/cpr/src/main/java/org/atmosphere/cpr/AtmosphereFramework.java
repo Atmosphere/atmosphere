@@ -974,15 +974,6 @@ public class AtmosphereFramework {
                 logger.trace("onAddAtmosphereResource {}", b.getID());
                 AtmosphereResourceFactory.getDefault().registerUuidForFindCandidate(r);
             }
-
-            /**
-             * {@inheritDoc}
-             */
-            @Override
-            public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
-                logger.trace("onRemoveAtmosphereResource {}", b.getID());
-                AtmosphereResourceFactory.getDefault().unRegisterUuidForFindCandidate(r);
-            }
         });
     }
 

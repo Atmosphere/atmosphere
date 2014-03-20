@@ -89,6 +89,16 @@ public final class Utils {
         }
     }
 
+    public final static boolean uuidTrackableTransport(AtmosphereResource.TRANSPORT t) {
+        switch (t) {
+            case POLLING:
+            case AJAX:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public final static boolean webSocketMessage(AtmosphereResource r) {
         if (r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) &&
                 r.getRequest().getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE) == null) {

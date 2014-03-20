@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.AtmosphereResourceFactory.getDefault;
 import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -603,7 +604,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 if (config.getBroadcasterFactory().getDefault() != null) {
                     config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
                 }
-            }  else {
+            } else {
                 logger.debug("Listener error {}", t);
             }
 
@@ -689,44 +690,58 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public void cancel() throws IOException {
 
         if (!isCancelled.getAndSet(true)) {
-            logger.trace("Cancelling {}", uuid);
+            try {
+                logger.trace("Cancelling {}", uuid);
 
-            if (config.getBroadcasterFactory().getDefault() != null) {
-                config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
-                if (transport.equals(TRANSPORT.WEBSOCKET)) {
-                    String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                    AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
-                    if (p != null) {
-                        config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(p);
+                if (config.getBroadcasterFactory().getDefault() != null) {
+                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+                    if (transport.equals(TRANSPORT.WEBSOCKET)) {
+                        String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+                        AtmosphereResource p = getDefault().find(parentUUID);
+                        if (p != null) {
+                            config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(p);
+                        }
                     }
                 }
-            }
 
-            asyncSupport.complete(this);
+                asyncSupport.complete(this);
 
-            try {
-                Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                if (m != null) {
-                    m.destroy();
+                try {
+                    Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                    if (m != null) {
+                        m.destroy();
+                    }
+                } catch (Exception ex) {
+                    logger.trace("Meteor exception {}", ex);
                 }
-            } catch (Exception ex) {
-                logger.trace("Meteor exception {}", ex);
-            }
 
-            SessionTimeoutSupport.restoreTimeout(req);
-            action.type(Action.TYPE.CANCELLED);
-            if (asyncSupport != null) asyncSupport.action(this);
-            // We must close the underlying WebSocket as well.
-            if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-                AtmosphereResponse.class.cast(response).close();
-                AtmosphereResponse.class.cast(response).destroy();
-            }
+                SessionTimeoutSupport.restoreTimeout(req);
+                action.type(Action.TYPE.CANCELLED);
+                if (asyncSupport != null) asyncSupport.action(this);
+                // We must close the underlying WebSocket as well.
+                if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
+                    AtmosphereResponse.class.cast(response).close();
+                    AtmosphereResponse.class.cast(response).destroy();
+                }
 
-            if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                AtmosphereRequest.class.cast(req).destroy();
+                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                    AtmosphereRequest.class.cast(req).destroy();
+                }
+                req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                event.destroy();
+
+                if (!Utils.pollableTransport(transport()) && !Utils.webSocketMessage(this)) {
+                    getDefault().unRegisterUuidForFindCandidate(this);
+                }
+            } finally {
+                unregister();
             }
-            req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            event.destroy();
+        }
+    }
+
+    private void unregister() {
+        if (!Utils.uuidTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
+            getDefault().unRegisterUuidForFindCandidate(this);
         }
     }
 
@@ -742,6 +757,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         } catch (Throwable t) {
             logger.trace("destroyResource", t);
+        } finally {
+            unregister();
         }
     }
 
