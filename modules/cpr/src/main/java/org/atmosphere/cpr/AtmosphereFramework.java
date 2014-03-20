@@ -894,6 +894,13 @@ public class AtmosphereFramework {
                 excludedInterceptors.addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
             }
 
+            // We must reposition
+            LinkedList<AtmosphereInterceptor> copy = null;
+            if (!interceptors.isEmpty()) {
+                copy = new LinkedList(interceptors);
+                interceptors.clear();
+            }
+
             for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
                 if (!excludedInterceptors.contains(a.getName())) {
                     interceptors.add(newAInterceptor(a));
@@ -901,6 +908,13 @@ public class AtmosphereFramework {
                     logger.info("Dropping Interceptor {}", a.getName());
                 }
             }
+
+            if (copy != null) {
+                for (AtmosphereInterceptor i : copy) {
+                    interceptor(i);
+                }
+            }
+
             logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR, interceptors);
         }
         initInterceptors();
