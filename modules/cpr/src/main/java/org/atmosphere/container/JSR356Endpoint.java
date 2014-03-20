@@ -135,11 +135,6 @@ public class JSR356Endpoint extends Endpoint {
             }
 
             pathInfo = p.toString();
-            if (!pathInfo.equals(servletPath) && pathInfo.length() > servletPath.length()) {
-                pathInfo = p.toString().substring(servletPath.length());
-            } else if (pathInfo.equals(servletPath)) {
-                pathInfo = null;
-            }
         } catch (Exception ex) {
             logger.warn("Unexpected path decoding", ex);
         }
