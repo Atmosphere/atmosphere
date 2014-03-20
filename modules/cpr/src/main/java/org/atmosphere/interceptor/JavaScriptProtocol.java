@@ -69,7 +69,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             request.header(HeaderConfig.X_ATMO_PROTOCOL, null);
             // Since 1.0.10
 
-            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter).append(System.currentTimeMillis());
+            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter).append(System.currentTimeMillis())
+                    .append(wsDelimiter);
 
             // https://github.com/Atmosphere/atmosphere/issues/993
             boolean track = false;
