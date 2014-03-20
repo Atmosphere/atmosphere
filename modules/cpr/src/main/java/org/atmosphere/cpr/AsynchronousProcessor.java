@@ -63,7 +63,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected boolean supportSession() {
         return config.isSupportSession();
     }
-    
+
     /**
      * Is {@link HttpSession} timeout removal supported
      *
@@ -144,14 +144,16 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         // Globally defined
         Action a = invokeInterceptors(config.framework().interceptors(), resource);
-        if (a.type() != Action.TYPE.CONTINUE) {
+        if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
             return a;
         }
 
-        // Per AtmosphereHandler
-        a = invokeInterceptors(handlerWrapper.interceptors, resource);
-        if (a.type() != Action.TYPE.CONTINUE) {
-            return a;
+        if (a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
+            // Per AtmosphereHandler
+            a = invokeInterceptors(handlerWrapper.interceptors, resource);
+            if (a.type() != Action.TYPE.CONTINUE) {
+                return a;
+            }
         }
 
         // Remap occured.
@@ -176,12 +178,12 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 resource.onThrowable(t);
                 throw t;
             }
+            postInterceptors(handlerWrapper.interceptors, resource);
         }
 
-        postInterceptors(handlerWrapper.interceptors, resource);
         postInterceptors(config.framework().interceptors(), resource);
 
-        Action action = skipAtmosphereHandler ? Action.CANCELLED : resource.action();
+        Action action = resource.action();
         if (supportSession() && allowSessionTimeoutRemoval() && action.type().equals(Action.TYPE.SUSPEND)) {
             // Do not allow times out.
             SessionTimeoutSupport.setupTimeout(config, req.getSession());
