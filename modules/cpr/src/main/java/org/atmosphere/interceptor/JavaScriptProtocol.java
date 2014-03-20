@@ -48,6 +48,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private final static Logger logger = LoggerFactory.getLogger(JavaScriptProtocol.class);
     private String wsDelimiter = "|";
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
+    private AtmosphereConfig config;
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -55,6 +56,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         if (s != null) {
             wsDelimiter = s;
         }
+        this.config = config;
     }
 
     @Override
@@ -73,19 +75,14 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                     .append(wsDelimiter);
 
             // https://github.com/Atmosphere/atmosphere/issues/993
-            boolean track = false;
+            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
             if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
                 for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
                     if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
-                        track = true;
+                        protocolMessage.set((String) f.filter(r, protocolMessage.get(), protocolMessage.get()).message());
                         break;
                     }
                 }
-            }
-
-            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
-            if (track) {
-                protocolMessage.set((String) f.filter(r, protocolMessage.get(), protocolMessage.get()).message());
             }
 
             if (!Utils.resumableTransport(r.transport())) {
