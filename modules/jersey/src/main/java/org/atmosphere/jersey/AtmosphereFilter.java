@@ -69,7 +69,6 @@ import org.atmosphere.annotation.Schedule;
 import org.atmosphere.annotation.Subscribe;
 import org.atmosphere.annotation.Suspend;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
@@ -255,8 +254,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 throw new WebApplicationException(new IllegalStateException(INSTALLATION_ERROR));
             }
 
-            AtmosphereFramework atmosphereFramework = config.framework();
-
             String p = config.getInitParameter(JERSEY_CONTAINER_RESPONSE_WRITER_CLASS);
             ContainerResponseWriter w;
             if (p != null) {
@@ -332,7 +329,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         if (listeners != null) {
                             for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                                 try {
-                                    AtmosphereResourceEventListener el = atmosphereFramework.newClassInstance(AtmosphereResourceEventListener.class, listener);
+                                    AtmosphereResourceEventListener el = listener.newInstance();
+                                    InjectorProvider.getInjector().inject(el);
                                     r.addEventListener(el);
                                 } catch (Throwable t) {
                                     throw new WebApplicationException(
@@ -422,12 +420,8 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                     if (listeners != null) {
                         for (Class<? extends AtmosphereResourceEventListener> listener : listeners) {
                             try {
-<<<<<<< HEAD
                                 AtmosphereResourceEventListener el = listener.newInstance();
                                 InjectorProvider.getInjector().inject(el);
-=======
-                                AtmosphereResourceEventListener el = atmosphereFramework.newClassInstance(AtmosphereResourceEventListener.class, listener);
->>>>>>> 8446061... jersey: Use AtmosphereObjectFactory when instantiating AtmosphereResourceEventListeners
                                 r.addEventListener(el);
                             } catch (Throwable t) {
                                 throw new WebApplicationException(
