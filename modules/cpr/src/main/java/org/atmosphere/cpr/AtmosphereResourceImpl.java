@@ -276,6 +276,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         } finally {
+            getDefault().unRegisterUuidForFindCandidate(this);
             try {
                 Meteor m = (Meteor) req.getAttribute(METEOR);
                 if (m != null) {
