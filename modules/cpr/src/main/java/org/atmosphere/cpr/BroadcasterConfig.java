@@ -168,6 +168,10 @@ public class BroadcasterConfig {
         }
     }
 
+    public boolean handleExecutors(){
+        return handleExecutors;
+    }
+
     protected synchronized void configExecutors() {
         if (shared) {
             handleExecutors = false;
