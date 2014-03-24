@@ -54,8 +54,8 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnClose;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
-import static org.atmosphere.util.IOUtils.readEntirelyAsByte;
-import static org.atmosphere.util.IOUtils.readEntirelyAsString;
+import static org.atmosphere.util.IOUtils.isBodyEmpty;
+import static org.atmosphere.util.IOUtils.readEntirely;
 
 /**
  * An internal implementation of {@link AtmosphereHandler} that implement support for Atmosphere 2.0 annotations.
@@ -145,11 +145,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else if (method.equalsIgnoreCase("post")) {
             Object body = null;
             if (onPostMethod != null) {
-                if (request.body().hasString()) {
-                    body = readEntirelyAsString(resource).toString();
+                body = readEntirely(resource);
+                if (body != null && String.class.isAssignableFrom(body.getClass())) {
                     resource.getRequest().body((String) body);
-                } else {
-                    body = readEntirelyAsByte(resource);
+                } else if (body != null) {
                     resource.getRequest().body((byte[]) body);
                 }
                 invoke(onPostMethod, resource);
@@ -316,7 +315,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Object message(AtmosphereResource resource, Object o) {
         try {
             AtmosphereRequest request = resource.getRequest();
-            AtmosphereRequest.Body body = request.body();
             for (MethodInfo m : onRuntimeMethod) {
 
                 if (m.useReader) {
@@ -324,18 +322,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 } else if (m.useStream) {
                     o = resource.getRequest().getInputStream();
                 } else if (o == null) {
-                    if (body.hasString()) {
-                        o = readEntirelyAsString(resource).toString();
-                        if (String.class.cast(o).isEmpty()) {
-                            logger.warn("{} received an empty body", ManagedServiceInterceptor.class.getSimpleName());
-                            return null;
-                        }
-                    } else {
-                        o = readEntirelyAsByte(resource);
-                        if (o == null || ((byte[])o).length == 0) {
-                            logger.warn("{} received an empty body", ManagedServiceInterceptor.class.getSimpleName());
-                            return null;
-                        }
+                    o = readEntirely(resource);
+                    if (isBodyEmpty(o)) {
+                        logger.warn("{} received an empty body", request);
+                        return null;
                     }
                 }
 
@@ -436,7 +426,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             return o.toString();
         }
 
-        public Object object(){
+        public Object object() {
             return o;
         }
     }

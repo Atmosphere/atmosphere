@@ -38,6 +38,9 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.atmosphere.cpr.HeaderConfig.FORCE_BINARY;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMO_BINARY;
+
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
     private final static List<String> knownClasses;
@@ -52,6 +55,25 @@ public class IOUtils {
                 add("org.primefaces.push.PushServlet");
             }
         };
+    }
+
+    public static Object readEntirely(AtmosphereResource r) {
+        AtmosphereRequest request = r.getRequest();
+        return isBodyBinary(request) ? readEntirelyAsByte(r) : readEntirelyAsString(r).toString();
+    }
+
+    public final static boolean isBodyBinary(AtmosphereRequest request) {
+        if (request.getHeader(FORCE_BINARY) != null || request.getHeader(X_ATMO_BINARY) != null) return true;
+        return false;
+    }
+
+    public final static boolean isBodyEmpty(Object o) {
+        if (o != null && (String.class.isAssignableFrom(o.getClass()) && String.class.cast(o).isEmpty())
+                || (Byte[].class.isAssignableFrom(o.getClass()) && Byte[].class.cast(o).length == 0)) {
+            return true;
+        } else {
+            return false;
+        }
     }
 
     public static StringBuilder readEntirelyAsString(AtmosphereResource r) {
@@ -107,14 +129,14 @@ public class IOUtils {
     public static byte[] readEntirelyAsByte(AtmosphereResource r) {
         AtmosphereRequest request = r.getRequest();
         AtmosphereRequest.Body body = request.body();
-        if (body.hasString()){
+        if (body.hasString()) {
             try {
                 return readEntirelyAsString(r).toString().getBytes(request.getCharacterEncoding());
             } catch (UnsupportedEncodingException e) {
                 logger.error("", e);
             }
-        } else if (body.hasBytes()){
-            return Arrays.copyOfRange(body.asBytes(),body.byteOffset(), body.byteLength());
+        } else if (body.hasBytes()) {
+            return Arrays.copyOfRange(body.asBytes(), body.byteOffset(), body.byteLength());
         }
         throw new IllegalStateException("No body " + r);
     }
@@ -209,10 +231,10 @@ public class IOUtils {
     public static boolean isAtmosphere(String className) {
         Class<? extends AtmosphereServlet> clazz;
         try {
-            clazz = (Class<? extends AtmosphereServlet> ) Thread.currentThread().getContextClassLoader().loadClass(className);
+            clazz = (Class<? extends AtmosphereServlet>) Thread.currentThread().getContextClassLoader().loadClass(className);
         } catch (Throwable t) {
             try {
-                clazz = (Class<? extends AtmosphereServlet> ) IOUtils.class.getClassLoader().loadClass(className);
+                clazz = (Class<? extends AtmosphereServlet>) IOUtils.class.getClassLoader().loadClass(className);
             } catch (Exception ex) {
                 return false;
             }
