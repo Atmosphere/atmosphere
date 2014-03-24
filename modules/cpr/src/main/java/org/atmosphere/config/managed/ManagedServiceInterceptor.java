@@ -17,17 +17,10 @@ package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Singleton;
-import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
-import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.AnnotatedProxy;
-import org.atmosphere.interceptor.InvokationOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,74 +29,11 @@ import org.slf4j.LoggerFactory;
  *
  * @author Jeanfrancois Arcand
  */
-public class ManagedServiceInterceptor extends AtmosphereInterceptorAdapter {
+public class ManagedServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
-    private AtmosphereConfig config;
-    private boolean wildcardMapping = false;
 
-    public ManagedServiceInterceptor() {
-    }
-
-    @Override
-    public void configure(AtmosphereConfig config) {
-        this.config = config;
-        optimizeMapping();
-    }
-
-    @Override
-    public Action inspect(AtmosphereResource r) {
-        if (!wildcardMapping) return Action.CONTINUE;
-
-        mapAnnotatedService(r.getRequest(), (AtmosphereHandlerWrapper)
-                r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER));
-
-        return Action.CONTINUE;
-    }
-
-    protected void optimizeMapping() {
-        for (String w : config.handlers().keySet()) {
-            if (w.contains("{") && w.contains("}")) {
-                wildcardMapping = true;
-                break;
-            }
-        }
-    }
-
-    /**
-     * Inspect the request and its mapped {@link AtmosphereHandler} to determine if the '{}' was used when defined the
-     * annotation's path value. It will create a new {@link AtmosphereHandler} in case {} is detected .
-     *
-     * @param request
-     * @param w
-     * @return
-     */
-    protected void mapAnnotatedService(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
-        Broadcaster b = w.broadcaster;
-
-        String path;
-        String pathInfo = null;
-        try {
-            pathInfo = request.getPathInfo();
-        } catch (IllegalStateException ex) {
-            // http://java.net/jira/browse/GRIZZLY-1301
-        }
-
-        if (pathInfo != null) {
-            path = request.getServletPath() + pathInfo;
-        } else {
-            path = request.getServletPath();
-        }
-
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
-
-        // Remove the Broadcaster with curly braces
-        if (b.getID().contains("{")) {
-            config.getBroadcasterFactory().remove(b.getID());
-        }
-
+    protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // ManagedService
@@ -131,13 +61,10 @@ public class ManagedServiceInterceptor extends AtmosphereInterceptorAdapter {
                         }
                     }
                 }
+            } else if (reMap) {
+                request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
             }
         }
-    }
-
-    @Override
-    public PRIORITY priority() {
-        return InvokationOrder.AFTER_DEFAULT;
     }
 
     @Override
