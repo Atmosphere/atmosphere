@@ -23,7 +23,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +87,7 @@ public class AnnotationUtil {
     }
 
     public static Broadcaster broadcaster(AtmosphereFramework framework, Class<? extends Broadcaster> broadcaster, String path) throws Exception {
-        return BroadcasterFactory.getDefault().lookup(broadcasterClass(framework, broadcaster), path, true);
+        return framework.getBroadcasterFactory().lookup(broadcasterClass(framework, broadcaster), path, true);
     }
 
     public static Class<? extends Broadcaster> broadcasterClass(AtmosphereFramework framework, Class<? extends Broadcaster> broadcaster) throws Exception {

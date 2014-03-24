@@ -93,7 +93,7 @@ public class MeteorServlet extends AtmosphereServlet {
             for (Filter f : filters) {
                 r.addFilter(f);
             }
-            BroadcasterFactory.getDefault().remove(delegateMapping);
+            framework().getBroadcasterFactory().remove(delegateMapping);
             framework.addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
         }
     }
