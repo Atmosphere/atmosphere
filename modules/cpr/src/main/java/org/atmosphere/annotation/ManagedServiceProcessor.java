@@ -22,6 +22,8 @@ import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptor;
+import org.atmosphere.cpr.BroadcastFilter;
+import org.atmosphere.cpr.BroadcasterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -60,6 +62,25 @@ public class ManagedServiceProcessor implements Processor<Object> {
                     ManagedAtmosphereHandler.class).configure(framework.getAtmosphereConfig(), c);
             // MUST BE ADDED FIRST, ALWAYS!
             l.add(framework.newClassInstance(AtmosphereInterceptor.class, ManagedServiceInterceptor.class));
+
+            framework.filterManipulator(new BroadcasterConfig.FilterManipulator() {
+                @Override
+                public Object unwrap(Object o) {
+                    if (ManagedAtmosphereHandler.Managed.class.isAssignableFrom(o.getClass())) {
+                        o = ManagedAtmosphereHandler.Managed.class.cast(o).object();
+                    }
+                    return o;
+                }
+
+                @Override
+                public BroadcastFilter.BroadcastAction wrap(BroadcastFilter.BroadcastAction a, boolean wasWrapped) {
+                    if (wasWrapped) {
+                        return new BroadcastFilter.BroadcastAction(a.action(), new ManagedAtmosphereHandler.Managed(a.message()));
+                    } else {
+                        return a;
+                    }
+                }
+            });
 
             Class<? extends AtmosphereInterceptor>[] interceptors = a.interceptors();
             for (Class i : interceptors) {

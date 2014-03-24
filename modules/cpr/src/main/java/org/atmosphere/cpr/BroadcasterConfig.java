@@ -59,6 +59,7 @@ public class BroadcasterConfig {
 
     /**
      * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
+     *
      * @param broadcastFilters
      * @param config
      * @param name
@@ -69,6 +70,7 @@ public class BroadcasterConfig {
 
     /**
      * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
+     *
      * @param broadcastFilters
      * @param config
      * @param handleExecutors
@@ -84,6 +86,7 @@ public class BroadcasterConfig {
 
     /**
      * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
+     *
      * @param executorService
      * @param asyncWriteService
      * @param scheduler
@@ -130,7 +133,7 @@ public class BroadcasterConfig {
                 broadcasterCache.inspector(b);
             }
 
-            for (BroadcasterCacheListener l: config.framework().broadcasterCacheListeners()) {
+            for (BroadcasterCacheListener l : config.framework().broadcasterCacheListeners()) {
                 broadcasterCache.addBroadcasterCacheListener(l);
             }
 
@@ -168,7 +171,7 @@ public class BroadcasterConfig {
         }
     }
 
-    public boolean handleExecutors(){
+    public boolean handleExecutors() {
         return handleExecutors;
     }
 
@@ -420,6 +423,14 @@ public class BroadcasterConfig {
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
     protected BroadcastAction filter(Object object) {
+
+        Object newO = unwrap(object);
+        boolean isManipulated = false;
+        if (!newO.equals(object)) {
+            isManipulated = true;
+            object = newO;
+        }
+
         BroadcastAction transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
             synchronized (mf) {
@@ -431,7 +442,7 @@ public class BroadcasterConfig {
                 }
             }
         }
-        return transformed;
+        return wrap(transformed, isManipulated);
     }
 
     /**
@@ -443,6 +454,14 @@ public class BroadcasterConfig {
      * @return BroadcastAction that tell Atmosphere to invoke the next filter or not.
      */
     protected BroadcastAction filter(AtmosphereResource r, Object message, Object originalMessage) {
+
+        Object newO = unwrap(message);
+        boolean isManipulated = false;
+        if (!newO.equals(message)) {
+            isManipulated = true;
+            message = newO;
+        }
+
         BroadcastAction transformed = new BroadcastAction(message);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
@@ -454,7 +473,7 @@ public class BroadcasterConfig {
                 }
             }
         }
-        return transformed;
+        return wrap(transformed, isManipulated);
     }
 
     /**
@@ -550,6 +569,21 @@ public class BroadcasterConfig {
         }
     }
 
+    protected Object unwrap(Object o) {
+        Object manipulated = o;
+        for (FilterManipulator f: config.framework().filterManipulators()) {
+            manipulated = f.unwrap(manipulated);
+        }
+        return manipulated;
+    }
+
+    protected BroadcastAction wrap(BroadcastAction a, boolean wasUnwraped) {
+        for (FilterManipulator f: config.framework().filterManipulators()) {
+            a = f.wrap(a, wasUnwraped);
+        }
+        return a;
+    }
+
     /**
      * Return the {@link AtmosphereConfig} value. This value might be null
      * if the associated {@link Broadcaster} has been created manually.
@@ -558,5 +592,15 @@ public class BroadcasterConfig {
      */
     public AtmosphereConfig getAtmosphereConfig() {
         return config;
+    }
+
+    /**
+     * Manipulate the message before and after they are getting filtered by {@link org.atmosphere.cpr.BroadcastFilter}
+     */
+    public static interface FilterManipulator {
+
+        Object unwrap(Object o);
+
+        BroadcastAction wrap(BroadcastAction a, boolean wasWrapped);
     }
 }
