@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.interceptor.InvokationOrder;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -122,6 +123,12 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     private final class Interceptor extends AsyncIOInterceptorAdapter {
         @Override
         public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
+
+            boolean writeAsBytes = IOUtils.isBodyBinary(response.request());
+            if (writeAsBytes) {
+                logger.warn("Cannot use TrackMessageSizeInterceptor with binary write. Writing the message as it is.");
+                return responseDraft;
+            }
 
             if (response.request().getAttribute(SKIP_INTERCEPTOR) == null
                     && (response.getContentType() == null
