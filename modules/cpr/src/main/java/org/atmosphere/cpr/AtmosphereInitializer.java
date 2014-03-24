@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.JSR356AsyncSupport;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -23,12 +24,14 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRegistration;
 import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
 import javax.servlet.annotation.HandlesTypes;
 import javax.servlet.http.HttpServletRequest;
 import java.util.Enumeration;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
@@ -38,67 +41,69 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
 
     private final Logger logger = LoggerFactory.getLogger(AtmosphereInitializer.class);
 
-    private AtmosphereFramework framework;
 
     @Override
     public void onStartup(Set<Class<?>> classes, final ServletContext c) throws ServletException {
         logger.trace("Initializing AtmosphereFramework");
 
-        framework = (AtmosphereFramework) c.getAttribute(AtmosphereFramework.class.getName());
-        if (framework == null) {
-            framework = new AtmosphereFramework(false, true);
-            // Hack to make jsr356 works. Pretty ugly.
-            DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
-            List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
 
-            if (l.size() == 0 && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
-                framework.setAsyncSupport(new JSR356AsyncSupport(new AtmosphereConfig(framework) {
-                    public ServletContext getServletContext() {
-                        return c;
-                    }
+        for (Map.Entry<String, ? extends ServletRegistration> reg : c.getServletRegistrations().entrySet()) {
+            if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName()))  {
 
-                    public String getInitParameter(String name) {
-                        return c.getInitParameter(name);
-                    }
+                final AtmosphereFramework framework = new AtmosphereFramework(false, true);
+                // Hack to make jsr356 works. Pretty ugly.
+                DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
+                List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
 
-                    public Enumeration<String> getInitParameterNames() {
-                        return c.getInitParameterNames();
-                    }
-                }));
-            }
+                if (l.size() == 0 && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
+                    framework.setAsyncSupport(new JSR356AsyncSupport(new AtmosphereConfig(framework) {
+                        public ServletContext getServletContext() {
+                            return c;
+                        }
 
-            try {
-                c.addListener(new ServletRequestListener() {
-                    @Override
-                    public void requestDestroyed(ServletRequestEvent sre) {
-                    }
+                        public String getInitParameter(String name) {
+                            return c.getInitParameter(name);
+                        }
 
-                    @Override
-                    public void requestInitialized(ServletRequestEvent sre) {
-                        HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
-                        if (framework.getAtmosphereConfig().isSupportSession() && Utils.webSocketEnabled(r)) {
-                            r.getSession(true);
+                        public Enumeration<String> getInitParameterNames() {
+                            return c.getInitParameterNames();
+                        }
+                    }));
+                }
+
+                try {
+                    c.addListener(new ServletRequestListener() {
+                        @Override
+                        public void requestDestroyed(ServletRequestEvent sre) {
+                        }
+
+                        @Override
+                        public void requestInitialized(ServletRequestEvent sre) {
+                            HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
+                            if (framework.getAtmosphereConfig().isSupportSession() && Utils.webSocketEnabled(r)) {
+                                r.getSession(true);
+                            }
+                        }
+                    });
+                } catch (Throwable t) {
+                    logger.trace("Unable to install WebSocket Session Creator", t);
+                }
+
+                try {
+                    String s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
+                    if (s != null) {
+                        boolean sessionSupport = Boolean.valueOf(s);
+                        if (sessionSupport && c.getMajorVersion() > 2) {
+                            c.addListener(SessionSupport.class);
+                            logger.debug("Installed {}", SessionSupport.class);
                         }
                     }
-                });
-            } catch (Throwable t) {
-                logger.trace("Unable to install WebSocket Session Creator", t);
-            }
-
-            try {
-                String s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
-                if (s != null) {
-                    boolean sessionSupport = Boolean.valueOf(s);
-                    if (sessionSupport && c.getMajorVersion() > 2) {
-                        c.addListener(SessionSupport.class);
-                        logger.debug("Installed {}", SessionSupport.class);
-                    }
+                } catch (Throwable t) {
+                    logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName(), t);
                 }
-            } catch (Throwable t) {
-                logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName(), t);
-            }
 
-            c.setAttribute(AtmosphereFramework.class.getName(), framework);
+                c.setAttribute(reg.getKey(), framework);
+            }
         }
     }
 }
