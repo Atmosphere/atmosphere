@@ -1715,7 +1715,7 @@ public class AtmosphereFramework {
      * @param req {@link AtmosphereRequest}
      */
     public AtmosphereFramework configureRequestResponse(AtmosphereRequest req, AtmosphereResponse res) throws UnsupportedEncodingException {
-        req.setAttribute(BROADCASTER_FACTORY, BroadcasterFactory.getDefault());
+        req.setAttribute(BROADCASTER_FACTORY, getBroadcasterFactory());
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);

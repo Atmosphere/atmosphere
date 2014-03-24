@@ -599,8 +599,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             if (event.isSuspended()) {
                 logger.warn("Exception during suspend() operation {}", t);
                 broadcaster.removeAtmosphereResource(this);
-                if (config.getBroadcasterFactory().getDefault() != null) {
-                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+                if (config.getBroadcasterFactory() != null) {
+                    config.getBroadcasterFactory().removeAllAtmosphereResource(this);
                 }
             }  else {
                 logger.debug("Listener error {}", t);
@@ -690,13 +690,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (!isCancelled.getAndSet(true)) {
             logger.trace("Cancelling {}", uuid);
 
-            if (config.getBroadcasterFactory().getDefault() != null) {
-                config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+            if (config.getBroadcasterFactory() != null) {
+                config.getBroadcasterFactory().removeAllAtmosphereResource(this);
                 if (transport.equals(TRANSPORT.WEBSOCKET)) {
                     String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
                     AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
                     if (p != null) {
-                        config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(p);
+                        config.getBroadcasterFactory().removeAllAtmosphereResource(p);
                     }
                 }
             }
@@ -735,8 +735,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             if (!isCancelled.get()) {
                 if (broadcaster != null) broadcaster.removeAtmosphereResource(this);
 
-                if (config.getBroadcasterFactory().getDefault() != null) {
-                    config.getBroadcasterFactory().getDefault().removeAllAtmosphereResource(this);
+                if (config.getBroadcasterFactory() != null) {
+                    config.getBroadcasterFactory().removeAllAtmosphereResource(this);
                 }
             }
         } catch (Throwable t) {

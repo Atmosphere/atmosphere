@@ -20,7 +20,6 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
@@ -149,7 +148,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
 
     private void configure() {
         synchronized(this) {
-            config = BroadcasterFactory.getDefault().lookup("/*").getBroadcasterConfig().getAtmosphereConfig();
+            config = config.getBroadcasterFactory().lookup("/*").getBroadcasterConfig().getAtmosphereConfig();
             webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
             String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
