@@ -15,6 +15,7 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -23,7 +24,6 @@ import org.atmosphere.cpr.MeteorServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletRegistration;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -34,7 +34,6 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -141,33 +140,16 @@ public class IOUtils {
         throw new IllegalStateException("No body " + r);
     }
 
-    public static String guestServletPath(AtmosphereFramework framework, String exclude) {
+    public static String guestServletPath(AtmosphereConfig config) {
         String servletPath = "";
         try {
-            Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
-            for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
-                Class<?> classToScan = loadClass(framework.getClass(), e.getValue().getClassName());
-
-                if (scanForAtmosphereFramework(classToScan)) {
-                    servletPath = e.getValue().getMappings().iterator().next();
-                    servletPath = getCleanedServletPath(servletPath);
-
-                    // We already found one.
-                    if (!servletPath.equalsIgnoreCase(exclude)) {
-                        break;
-                    } else {
-                        logger.trace("Already guessed {}", exclude);
-                    }
-                }
-            }
+            // TODO: pick up the first one, will fail if there are two
+            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
+            servletPath = getCleanedServletPath(servletPath);
         } catch (Exception ex) {
             logger.trace("", ex);
         }
         return servletPath;
-    }
-
-    public static String guestServletPath(AtmosphereFramework framework) {
-        return guestServletPath(framework, "");
     }
 
     /**
