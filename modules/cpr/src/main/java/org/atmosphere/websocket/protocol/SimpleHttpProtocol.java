@@ -46,7 +46,8 @@ import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
 public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
     private static final Logger logger = LoggerFactory.getLogger(SimpleHttpProtocol.class);
-    protected String contentType = "text/plain";
+    protected final static String TEXT = "text/plain";
+    protected String contentType = TEXT;
     protected String methodType = "POST";
     protected String delimiter = "@@";
     protected boolean destroyable;
@@ -104,7 +105,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, pathInfo, requestURI, methodType, contentType, destroyable).body(message).build());
+        list.add(constructRequest(resource, pathInfo, requestURI, methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(message).build());
 
         return list;
     }
@@ -124,7 +125,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         if (!resource.isInScope()) return Collections.emptyList();
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType, destroyable).body(d, offset, length).build());
+        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());
 
         return list;
     }

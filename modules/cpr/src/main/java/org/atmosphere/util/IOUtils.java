@@ -62,7 +62,8 @@ public class IOUtils {
     }
 
     public final static boolean isBodyBinary(AtmosphereRequest request) {
-        if (request.getHeader(FORCE_BINARY) != null || request.getHeader(X_ATMO_BINARY) != null) return true;
+        if (request.getContentType() != null
+                && request.getContentType().equalsIgnoreCase(FORCE_BINARY) || request.getHeader(X_ATMO_BINARY) != null) return true;
         return false;
     }
 

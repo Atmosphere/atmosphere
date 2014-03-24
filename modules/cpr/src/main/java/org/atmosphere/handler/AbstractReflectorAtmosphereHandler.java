@@ -19,11 +19,13 @@ package org.atmosphere.handler;
 
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +66,9 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
         Object message = event.getMessage();
         AtmosphereResource resource = event.getResource();
         AtmosphereResponse r = resource.getResponse();
+        AtmosphereRequest request = resource.getRequest();
 
+        boolean writeAsBytes = IOUtils.isBodyBinary(request);
         if (message == null) {
             logger.trace("Message was null for AtmosphereEvent {}", event);
             return;
@@ -96,6 +100,9 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                     r.getWriter();
                 } catch (IllegalStateException e) {
                     isUsingStream = true;
+                }
+                if (writeAsBytes) {
+                    throw new IllegalStateException("Cannot write bytes using PrintWriter");
                 }
             }
 
@@ -138,7 +145,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                 }
             } else {
                 if (isUsingStream) {
-                    r.getOutputStream().write(message.toString().getBytes(r.getCharacterEncoding()));
+                    r.getOutputStream().write(writeAsBytes ? (byte[])message : message.toString().getBytes(r.getCharacterEncoding()));
                     r.getOutputStream().flush();
                 } else {
                     r.getWriter().write(message.toString());

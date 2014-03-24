@@ -37,7 +37,7 @@ public class ProtocolUtil {
         AtmosphereRequest.Builder b = (new AtmosphereRequest.Builder()
                 .request(request)
                 .method(methodType)
-                .contentType(contentType)
+                .contentType(contentType == null ? request.getContentType() : contentType)
                 .attributes(m)
                 .pathInfo(pathInfo)
                 .requestURI(requestURI)

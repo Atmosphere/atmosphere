@@ -46,6 +46,7 @@ import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
 public class StreamingHttpProtocol implements WebSocketProtocolStream {
 
     private static final Logger logger = LoggerFactory.getLogger(StreamingHttpProtocol.class);
+    protected final static String TEXT = "text/plain";
     protected String contentType = "text/plain";
     protected String methodType = "POST";
     protected String delimiter = "@@";
@@ -95,7 +96,7 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
 
         AtmosphereRequest request = resource.getRequest();
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType, destroyable).reader(r).build());
+        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).reader(r).build());
 
         return list;
     }
@@ -111,7 +112,7 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
 
         AtmosphereRequest request = resource.getRequest();
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType, destroyable).inputStream(stream).build());
+        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).inputStream(stream).build());
 
         return list;
     }
