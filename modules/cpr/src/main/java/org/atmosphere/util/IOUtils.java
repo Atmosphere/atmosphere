@@ -32,6 +32,7 @@ import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -53,7 +54,7 @@ public class IOUtils {
         };
     }
 
-    public static StringBuilder readEntirely(AtmosphereResource r) {
+    public static StringBuilder readEntirelyAsString(AtmosphereResource r) {
         final StringBuilder stringBuilder = new StringBuilder();
         AtmosphereRequest request = r.getRequest();
         if (request.body().isEmpty()) {
@@ -103,6 +104,20 @@ public class IOUtils {
         return stringBuilder;
     }
 
+    public static byte[] readEntirelyAsByte(AtmosphereResource r) {
+        AtmosphereRequest request = r.getRequest();
+        AtmosphereRequest.Body body = request.body();
+        if (body.hasString()){
+            try {
+                return readEntirelyAsString(r).toString().getBytes(request.getCharacterEncoding());
+            } catch (UnsupportedEncodingException e) {
+                logger.error("", e);
+            }
+        } else if (body.hasBytes()){
+            return Arrays.copyOfRange(body.asBytes(),body.byteOffset(), body.byteLength());
+        }
+        throw new IllegalStateException("No body " + r);
+    }
 
     public static String guestServletPath(AtmosphereFramework framework, String exclude) {
         String servletPath = "";

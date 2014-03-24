@@ -17,10 +17,13 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.atmosphere.util.IOUtils.readEntirelyAsByte;
+import static org.atmosphere.util.IOUtils.readEntirelyAsString;
 
 /**
  * This read the request's body and invoke the associated {@link org.atmosphere.cpr.Broadcaster} of an {@link AtmosphereResource}.
@@ -41,11 +44,22 @@ public class BroadcastOnPostAtmosphereInterceptor extends AtmosphereInterceptorA
     @Override
     public void postInspect(AtmosphereResource r) {
         if (r.getRequest().getMethod().equalsIgnoreCase("POST")) {
-            StringBuilder b = IOUtils.readEntirely(r);
-            if (b.length() > 0) {
-                r.getBroadcaster().broadcast(b.toString());
+            AtmosphereRequest request = r.getRequest();
+            AtmosphereRequest.Body body = request.body();
+            if (body.hasString()) {
+                StringBuilder b = readEntirelyAsString(r);
+                if (b.length() > 0) {
+                    r.getBroadcaster().broadcast(b.toString());
+                } else {
+                    logger.warn("{} received an empty body", BroadcastOnPostAtmosphereInterceptor.class.getSimpleName());
+                }
             } else {
-                logger.warn("{} received an empty body", BroadcastOnPostAtmosphereInterceptor.class.getSimpleName());
+                byte[] b = readEntirelyAsByte(r);
+                if (b.length > 0) {
+                    r.getBroadcaster().broadcast(b);
+                } else {
+                    logger.warn("{} received an empty body", BroadcastOnPostAtmosphereInterceptor.class.getSimpleName());
+                }
             }
         }
     }

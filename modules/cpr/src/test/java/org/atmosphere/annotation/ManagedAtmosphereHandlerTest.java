@@ -56,6 +56,8 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
+import static org.testng.FileAssert.fail;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
@@ -141,9 +143,31 @@ public class ManagedAtmosphereHandlerTest {
     }
 
     @Test
+    public void testEmptyPost() throws IOException, ServletException {
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/b").method("POST").build();
+        try {
+            framework.doCometSupport(request, AtmosphereResponse.newInstance());
+            fail();
+        } catch (IllegalStateException ex) {
+            assertTrue(ex.getMessage().startsWith("No body"));
+        }
+
+    }
+
+    @Test
     public void testPost() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/b").method("POST").build();
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/b").method("POST").body("test").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+
+    }
+
+    @Test
+    public void testBinaryPost() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/b").method("POST").body("test".getBytes()).build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertNotNull(r.get());
         r.get().resume();

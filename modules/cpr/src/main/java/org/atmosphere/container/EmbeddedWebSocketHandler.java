@@ -151,7 +151,7 @@ public class EmbeddedWebSocketHandler {
     public static AtmosphereHandler ECHO_ATMOSPHEREHANDLER = new AbstractReflectorAtmosphereHandler() {
         @Override
         public void onRequest(AtmosphereResource resource) throws IOException {
-            String body = IOUtils.readEntirely(resource).toString();
+            String body = IOUtils.readEntirelyAsString(resource).toString();
             if (!body.isEmpty()) {
                 resource.getBroadcaster().broadcast(body);
             }
