@@ -83,7 +83,11 @@ public class AtmosphereServlet extends HttpServlet {
 
     protected AtmosphereServlet configureFramework(ServletConfig sc) throws ServletException {
         if (framework == null) {
-            framework = (AtmosphereFramework) sc.getServletContext().getAttribute(sc.getServletContext().getServletRegistration(sc.getServletName()).getName());
+            if (sc.getServletContext().getMajorVersion() > 2) {
+                framework = (AtmosphereFramework) sc.getServletContext()
+                        .getAttribute(sc.getServletContext().getServletRegistration(sc.getServletName()).getName());
+            }
+
             if (framework == null) {
                 framework = newAtmosphereFramework();
             }
