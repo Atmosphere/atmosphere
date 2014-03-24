@@ -40,7 +40,7 @@ import java.util.regex.Pattern;
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
     private final static List<String> knownClasses;
-    private final static  Pattern SERVLET_PATH_PATTERN = Pattern.compile("([\\/]?[\\w-[.]]+|[\\/]\\*\\*)+");
+    private final static Pattern SERVLET_PATH_PATTERN = Pattern.compile("([\\/]?[\\w-[.]]+|[\\/]\\*\\*)+");
 
     static {
         knownClasses = new ArrayList<String>() {
@@ -136,8 +136,9 @@ public class IOUtils {
     /**
      * Used to remove trailing slash and wildcard from a servlet path.<br/><br/>
      * Examples :<br/>
-     *  - "/foo/" becomes "/foo"<br/>
-     *  - "foo/bar" becomes "/foo/bar"<br/>
+     * - "/foo/" becomes "/foo"<br/>
+     * - "foo/bar" becomes "/foo/bar"<br/>
+     *
      * @param fullServletPath : Servlet mapping
      * @return Servlet mapping without trailing slash and wildcard
      */
@@ -188,6 +189,20 @@ public class IOUtils {
         } catch (Throwable t) {
             return thisClass.getClassLoader().loadClass(className);
         }
+    }
+
+    public static boolean isAtmosphere(String className) {
+        Class<? extends AtmosphereServlet> clazz;
+        try {
+            clazz = (Class<? extends AtmosphereServlet> ) Thread.currentThread().getContextClassLoader().loadClass(className);
+        } catch (Throwable t) {
+            try {
+                clazz = (Class<? extends AtmosphereServlet> ) IOUtils.class.getClassLoader().loadClass(className);
+            } catch (Exception ex) {
+                return false;
+            }
+        }
+        return AtmosphereServlet.class.isAssignableFrom(clazz);
     }
 
 }
