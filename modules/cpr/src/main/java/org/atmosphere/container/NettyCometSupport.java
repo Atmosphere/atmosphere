@@ -88,7 +88,7 @@ public class NettyCometSupport extends AsynchronousProcessor {
     @Override
     public AsyncSupport complete(AtmosphereResourceImpl r) {
         try {
-            r.getResponse().getAsyncIOWriter().close(r.getResponse(false));
+            r.getResponse(false).getAsyncIOWriter().close(r.getResponse(false));
         } catch (IOException e) {
             logger.trace("", e);
         }
