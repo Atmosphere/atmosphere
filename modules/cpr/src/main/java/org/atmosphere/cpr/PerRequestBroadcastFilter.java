@@ -26,10 +26,12 @@ public interface PerRequestBroadcastFilter extends BroadcastFilter {
      * Transform or filter a message per {@link AtmosphereResource}. Be careful when setting headers on the
      * {@link AtmosphereResponse} as the headers may have been already sent back to the browser.
      *
-     * @param r
+     *
+     * @param broadcasterId the {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param r the {@link org.atmosphere.cpr.AtmosphereResource}
+     * @param originalMessage The original message used when calling {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
      * @param message         a message
-     * @param originalMessage The original message used when calling {@link Broadcaster#broadcast(Object)}
      * @return a {@link BroadcastAction}
      */
-    BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message);
+    BroadcastAction filter(String broadcasterId, AtmosphereResource r, Object originalMessage, Object message);
 }

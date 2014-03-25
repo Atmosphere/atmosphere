@@ -23,12 +23,12 @@ package org.atmosphere.cpr;
 public class BroadcastFilterAdapter implements PerRequestBroadcastFilter {
 
     @Override
-    public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
+    public BroadcastAction filter(String broadcasterId, AtmosphereResource r, Object originalMessage, Object message) {
         return new BroadcastAction(message);
     }
 
     @Override
-    public BroadcastAction filter(Object originalMessage, Object message) {
+    public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
         return new BroadcastAction(message);
     }
 }

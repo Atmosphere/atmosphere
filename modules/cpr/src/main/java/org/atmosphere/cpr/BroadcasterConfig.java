@@ -53,7 +53,7 @@ public class BroadcasterConfig {
     private boolean isExecutorShared = false;
     private boolean isAsyncExecutorShared = false;
     private final boolean shared;
-    private String name;
+    private String broadcasterId;
     private boolean handleExecutors;
     private List<String> filterList;
 
@@ -62,10 +62,10 @@ public class BroadcasterConfig {
      *
      * @param broadcastFilters
      * @param config
-     * @param name
+     * @param broadcasterId
      */
-    public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, String name) {
-        this(broadcastFilters, config, true, name);
+    public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, String broadcasterId) {
+        this(broadcastFilters, config, true, broadcasterId);
     }
 
     /**
@@ -74,11 +74,11 @@ public class BroadcasterConfig {
      * @param broadcastFilters
      * @param config
      * @param handleExecutors
-     * @param name
+     * @param broadcasterId
      */
-    public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, boolean handleExecutors, String name) {
+    public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, boolean handleExecutors, String broadcasterId) {
         this.config = config;
-        this.name = name;
+        this.broadcasterId = broadcasterId;
         this.shared = config.framework().isShareExecutorServices();
         this.handleExecutors = handleExecutors;
         this.filterList = broadcastFilters;
@@ -99,7 +99,7 @@ public class BroadcasterConfig {
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
         this.config = config;
-        this.name = name;
+        this.broadcasterId = broadcasterId;
         this.handleExecutors = true;
         this.shared = config.framework().isShareExecutorServices();
     }
@@ -149,7 +149,7 @@ public class BroadcasterConfig {
     }
 
     protected BroadcasterConfig broadcasterID(String name) {
-        this.name = name;
+        this.broadcasterId = broadcasterId;
         initClusterExtension();
         return this;
     }
@@ -158,7 +158,7 @@ public class BroadcasterConfig {
         for (BroadcastFilter mf : filters) {
             if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
                 try {
-                    Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
+                    Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
                     if (b != null) {
                         synchronized (mf) {
                             ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
@@ -182,8 +182,8 @@ public class BroadcasterConfig {
             isAsyncExecutorShared = true;
         }
 
-        executorService = ExecutorsFactory.getMessageDispatcher(config, name);
-        asyncWriteService = ExecutorsFactory.getAsyncOperationExecutor(config, name);
+        executorService = ExecutorsFactory.getMessageDispatcher(config, broadcasterId);
+        asyncWriteService = ExecutorsFactory.getAsyncOperationExecutor(config, broadcasterId);
         scheduler = ExecutorsFactory.getScheduler(config);
     }
 
@@ -292,7 +292,7 @@ public class BroadcasterConfig {
         }
 
         if (init && ClusterBroadcastFilter.class.isAssignableFrom(e.getClass())) {
-            Broadcaster b = config.getBroadcasterFactory().lookup(name, false);
+            Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
             if (b != null) {
                 synchronized (e) {
                     ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
@@ -434,7 +434,7 @@ public class BroadcasterConfig {
         BroadcastAction transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
             synchronized (mf) {
-                transformed = mf.filter(object, transformed.message());
+                transformed = mf.filter(broadcasterId, object, transformed.message());
                 if (transformed == null
                         || transformed.action() == BroadcastAction.ACTION.ABORT
                         || transformed.action() == BroadcastAction.ACTION.SKIP) {
@@ -465,7 +465,7 @@ public class BroadcasterConfig {
         BroadcastAction transformed = new BroadcastAction(message);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             synchronized (mf) {
-                transformed = mf.filter(r, originalMessage, transformed.message());
+                transformed = mf.filter(broadcasterId, r, originalMessage, transformed.message());
                 if (transformed == null
                         || transformed.action() == BroadcastAction.ACTION.ABORT
                         || transformed.action() == BroadcastAction.ACTION.SKIP) {

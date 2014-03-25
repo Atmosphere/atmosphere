@@ -88,11 +88,12 @@ public interface BroadcastFilter {
      * Transform or filter a message. Return BroadcastAction(ACTION.ABORT, message)
      * {@link Broadcaster} to discard the message, eg. to not broadcast it.
      *
+     * @param broadcasterId the {@link org.atmosphere.cpr.Broadcaster#getID()} calling this object
      * @param originalMessage The original message which was {@link Broadcaster#broadcast(Object)};
      * @param message         The transformed or not message.
      * @return a transformed message.
      */
-    BroadcastAction filter(Object originalMessage, Object message);
+    BroadcastAction filter(String broadcasterId, Object originalMessage, Object message);
 
 }
 

@@ -282,12 +282,12 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
         }
 
         @Override
-        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
         }
     }
@@ -301,12 +301,12 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
         }
 
         @Override
-        public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, AtmosphereResource r, Object originalMessage, Object message) {
             if (r.uuid().equals(VOID_ATMOSPHERE_RESOURCE_UUID)) {
                 return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, originalMessage);
             } else {
@@ -324,12 +324,12 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
             return new BroadcastAction(perRequest ? BroadcastAction.ACTION.ABORT : BroadcastAction.ACTION.CONTINUE, message);
         }
 
         @Override
-        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(perRequest ? BroadcastAction.ACTION.ABORT : BroadcastAction.ACTION.CONTINUE, message);
         }
     }
@@ -343,12 +343,12 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
             return new BroadcastAction(perRequest ? BroadcastAction.ACTION.SKIP : BroadcastAction.ACTION.CONTINUE, message + "-filter");
         }
 
         @Override
-        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(perRequest ? BroadcastAction.ACTION.SKIP : BroadcastAction.ACTION.CONTINUE, message + "-perFilter");
         }
     }
@@ -362,12 +362,12 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
         }
 
         @Override
-        public BroadcastAction filter(AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
         }
     }
@@ -385,7 +385,7 @@ public class BroadcastFilterTest {
         }
 
         @Override
-        public BroadcastAction filter(Object originalMessage, Object message) {
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
             return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message + msg);
         }
     }

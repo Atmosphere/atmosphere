@@ -26,20 +26,20 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE;
  * A {@link PerRequestBroadcastFilter} implementation that add the expected length of the message. This is
  * useful when used with the atmosphere.js library as the library will read the expected size and wait for the
  * entire messages to be received before invoking its associated callback.
- *
+ * <p/>
  * NOTE: The broadcasted message MUST BE a String. If your application is broadcasting another object, you need to
  * write your own Filter.
- *
+ * <p/>
  * If you aren't using atmosphere.js, you need to add the {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRACKMESSAGESIZE} header in order to
  * enable that Filter. The delimiter character used is '|'.
- *
+ * <p/>
  * For example, broadcasting String 'helloword' will be received by the client as '9|helloword' but delivered as 'helloword'
  * to the Javascript function/callback.
  */
 public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
 
     @Override
-    public BroadcastAction filter(AtmosphereResource r, Object originalMessage, Object message) {
+    public BroadcastAction filter(String broadcasterId, AtmosphereResource r, Object originalMessage, Object message) {
 
         AtmosphereRequest request = r.getRequest();
         if (r.uuid().equals(BroadcastFilter.VOID_ATMOSPHERE_RESOURCE_UUID) || "true".equalsIgnoreCase(request.getHeader(X_ATMOSPHERE_TRACKMESSAGESIZE))
@@ -54,7 +54,7 @@ public class TrackMessageSizeFilter implements PerRequestBroadcastFilter {
     }
 
     @Override
-    public BroadcastAction filter(Object originalMessage, Object message) {
+    public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
         return new BroadcastAction(message);
     }
 }

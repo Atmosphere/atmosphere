@@ -41,7 +41,7 @@ public class StringFilterAggregator implements BroadcastFilter {
         this.maxBufferedString = maxBufferedString;
     }
 
-    public BroadcastAction filter(Object originalMessage, Object message) {
+    public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
         if (message instanceof String) {
             bufferedMessage.get().append(message);
             if (bufferedMessage.get().length() < maxBufferedString) {

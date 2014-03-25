@@ -79,7 +79,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
                 for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
                     if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
-                        protocolMessage.set((String) f.filter(r, protocolMessage.get(), protocolMessage.get()).message());
+                        protocolMessage.set((String) f.filter(r.getBroadcaster().getID(), r, protocolMessage.get(), protocolMessage.get()).message());
                         break;
                     }
                 }
