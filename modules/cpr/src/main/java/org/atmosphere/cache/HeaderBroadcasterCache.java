@@ -42,7 +42,7 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
         long now = System.nanoTime();
         CacheMessage cacheMessage = put(e, now, uuid);
 
-        if (uuid.equals(NULL)) {
+        if (!uuid.equals(NULL)) {
             AtmosphereResourceFactory.getDefault().find(uuid).getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
         }
         return cacheMessage;
