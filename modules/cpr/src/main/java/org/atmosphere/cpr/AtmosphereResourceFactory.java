@@ -239,7 +239,7 @@ public final class AtmosphereResourceFactory {
      * @param r {@link AtmosphereResource}
      */
     public void unRegisterUuidForFindCandidate(AtmosphereResource r) {
-        logger.debug("Removing: {}", r);
+        logger.trace("Removing: {}", r);
         resources.remove(r.uuid());
     }
 
