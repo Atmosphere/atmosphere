@@ -33,6 +33,7 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.Utils;
 import org.atmosphere.util.VoidExecutorService;
 import org.atmosphere.websocket.protocol.StreamingHttpProtocol;
 import org.slf4j.Logger;
@@ -51,6 +52,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -159,6 +161,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         request.setAttribute(INJECTED_ATMOSPHERE_RESOURCE, r);
         request.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, r.uuid());
+
+        if (Utils.firefoxWebSocketEnabled(request)) {
+            request.setAttribute("firefox", "true");
+        }
 
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
@@ -464,12 +470,21 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
                 if (resource != null && resource.isInScope()) {
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
-                    AsynchronousProcessorHook h;
                     if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                        h = (AsynchronousProcessorHook) o;
+                        final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
                         if (!resource.isCancelled() && !resource.getAtmosphereResourceEvent().isClosedByClient()) {
                             if (closeCode == 1005 || closeCode == 1001) {
-                                h.closed();
+                                if (r.getAttribute("firefox") != null) {
+                                    resource.getBroadcaster().getBroadcasterConfig().getScheduledExecutorService().schedule(new Callable<Object>() {
+                                        @Override
+                                        public Object call() throws Exception {
+                                            h.closed();
+                                            return null;
+                                        }
+                                    }, 500, TimeUnit.MILLISECONDS);
+                                } else {
+                                    h.closed();
+                                }
                             } else {
                                 h.timedOut();
                             }
