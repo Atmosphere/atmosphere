@@ -467,8 +467,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     AsynchronousProcessorHook h;
                     if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
                         h = (AsynchronousProcessorHook) o;
-                        if (!resource.isCancelled()) {
-                            if (closeCode == 1005) {
+                        if (!resource.isCancelled() && !resource.getAtmosphereResourceEvent().isClosedByClient()) {
+                            if (closeCode == 1005 || closeCode == 1001) {
                                 h.closed();
                             } else {
                                 h.timedOut();
