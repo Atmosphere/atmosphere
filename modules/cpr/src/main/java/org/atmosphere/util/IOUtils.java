@@ -15,6 +15,7 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -23,7 +24,6 @@ import org.atmosphere.cpr.MeteorServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletRegistration;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -33,11 +33,13 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
     private final static List<String> knownClasses;
+    private final static Pattern SERVLET_PATH_PATTERN = Pattern.compile("([\\/]?[\\w-[.]]+|[\\/]\\*\\*)+");
 
     static {
         knownClasses = new ArrayList<String>() {
@@ -100,32 +102,39 @@ public class IOUtils {
         return stringBuilder;
     }
 
-
-    public static String guestServletPath(AtmosphereFramework framework, String exclude) {
+    public static String guestServletPath(AtmosphereConfig config) {
         String servletPath = "";
         try {
-            Map<String, ? extends ServletRegistration> m = framework.getServletContext().getServletRegistrations();
-            for (Map.Entry<String, ? extends ServletRegistration> e : m.entrySet()) {
-                Class<?> classToScan = loadClass(framework.getClass(), e.getValue().getClassName());
-
-                if (scanForAtmosphereFramework(classToScan)) {
-                    servletPath = "/" + e.getValue().getMappings().iterator().next().replace("/", "").replace("*", "");
-                    // We already found one.
-                    if (!servletPath.equalsIgnoreCase(exclude)) {
-                        break;
-                    } else {
-                        logger.trace("Already guessed {}", exclude);
-                    }
-                }
-            }
+            // TODO: pick up the first one, will fail if there are two
+            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
+            servletPath = getCleanedServletPath(servletPath);
         } catch (Exception ex) {
             logger.trace("", ex);
         }
         return servletPath;
     }
 
-    public static String guestServletPath(AtmosphereFramework framework) {
-        return guestServletPath(framework, "");
+    /**
+     * Used to remove trailing slash and wildcard from a servlet path.<br/><br/>
+     * Examples :<br/>
+     * - "/foo/" becomes "/foo"<br/>
+     * - "foo/bar" becomes "/foo/bar"<br/>
+     *
+     * @param fullServletPath : Servlet mapping
+     * @return Servlet mapping without trailing slash and wildcard
+     */
+    public static String getCleanedServletPath(String fullServletPath) {
+        Matcher matcher = SERVLET_PATH_PATTERN.matcher(fullServletPath);
+
+        // It should not happen if the servlet path is valid
+        if (!matcher.find()) return fullServletPath;
+
+        String servletPath = matcher.group(0);
+        if (!servletPath.startsWith("/")) {
+            servletPath = "/" + servletPath;
+        }
+
+        return servletPath;
     }
 
     private static boolean scanForAtmosphereFramework(Class<?> classToScan) {

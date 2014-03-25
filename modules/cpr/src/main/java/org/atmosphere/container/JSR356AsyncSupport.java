@@ -52,8 +52,12 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
         String servletPath = config.getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
         if (servletPath == null) {
-            servletPath = IOUtils.guestServletPath(config.framework());
+            servletPath = IOUtils.guestServletPath(config);
+            if (servletPath.equals("/")) {
+                servletPath = PATH +"}";
+            }
         }
+        logger.info("JSR 356 Mapping path {}", servletPath);
         configurator = new AtmosphereConfigurator(config.framework(), servletPath);
 
         StringBuilder b = new StringBuilder(servletPath);
@@ -63,7 +67,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             } catch (DeploymentException e) {
                 logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message", servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
                 logger.trace("", e);
-                servletPath = IOUtils.guestServletPath(config.framework(), servletPath);
+                servletPath = IOUtils.guestServletPath(config);
                 logger.warn("Duplicate guess {}", servletPath, e);
                 b.setLength(0);
                 b.append(servletPath);
@@ -71,7 +75,6 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             }
             b.append(PATH).append(i).append("}");
         }
-        logger.info("JSR 356 Mapping path {}", servletPath);
     }
 
     public boolean supportWebSocket() {
