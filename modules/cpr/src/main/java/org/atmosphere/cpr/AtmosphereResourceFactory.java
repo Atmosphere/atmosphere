@@ -179,6 +179,7 @@ public final class AtmosphereResourceFactory {
      * @return the {@link AtmosphereResource}, or null if not found.
      */
     public final AtmosphereResource remove(String uuid) {
+        logger.trace("Removing: {}", uuid);
         AtmosphereResource r = resources.remove(uuid);
         if (r != null) {
             r.getAtmosphereConfig().getBroadcasterFactory().removeAllAtmosphereResource(r);
@@ -207,7 +208,8 @@ public final class AtmosphereResourceFactory {
      */
     public final Set<Broadcaster> broadcasters(String uuid) {
         Collection<Broadcaster> l = BroadcasterFactory.getDefault().lookupAll();
-        Set<Broadcaster> h = new HashSet<Broadcaster>();        for (Broadcaster b : l) {
+        Set<Broadcaster> h = new HashSet<Broadcaster>();
+        for (Broadcaster b : l) {
             for (AtmosphereResource r : b.getAtmosphereResources()) {
                 if (r.uuid().equalsIgnoreCase(uuid)) {
                     h.add(b);
@@ -223,21 +225,25 @@ public final class AtmosphereResourceFactory {
 
     /**
      * Register an {@link AtmosphereResource} for being a candidate to {@link #find(String)} operation.
+     *
      * @param r {@link AtmosphereResource}
      */
     public void registerUuidForFindCandidate(AtmosphereResource r) {
+        logger.trace("Adding: {}", r);
         resources.put(r.uuid(), r);
     }
 
     /**
      * Un register an {@link AtmosphereResource} for being a candidate to {@link #find(String)} operation.
+     *
      * @param r {@link AtmosphereResource}
      */
     public void unRegisterUuidForFindCandidate(AtmosphereResource r) {
+        logger.debug("Removing: {}", r);
         resources.remove(r.uuid());
     }
 
-    public void destroy(){
+    public void destroy() {
         resources.clear();
     }
 }

@@ -62,6 +62,8 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
                 AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
                 p.completeLifecycle(ss, false);
+            } else {
+                logger.debug("Was unable to execute onDisconnect on {}", r.uuid());
             }
             return Action.CANCELLED;
         }
