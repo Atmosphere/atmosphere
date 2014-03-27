@@ -835,6 +835,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
+    public ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners(){
+        return listeners;
+    }
 
     /**
      * Disable invocation of {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and
