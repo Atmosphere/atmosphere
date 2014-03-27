@@ -696,5 +696,13 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.session.maxInactiveInterval
      */
     String SESSION_MAX_INACTIVE_INTERVAL= ApplicationConfig.class.getPackage().getName() + ".session.maxInactiveInterval";
+    /**
+     * Wait X milliseconds before considering the {@link AtmosphereResource} closed. This is useful when {@link org.atmosphere.util.Utils.enableProtocol())}
+     * return true, and let the client send the {@link HeaderConfig#DISCONNECT} message.
+     * <p>
+     * Default: 500<br>
+     * Value: org.atmosphere.cpr.session.delayClosingTime
+     */
+    String CLOSED_ATMOSPHERE_THINK_TIME = ApplicationConfig.class.getPackage().getName() + ".delayClosingTime";
 }
 
