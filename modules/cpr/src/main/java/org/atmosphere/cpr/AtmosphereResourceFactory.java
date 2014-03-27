@@ -194,6 +194,7 @@ public final class AtmosphereResourceFactory {
      * @return the {@link AtmosphereResource}, or null if not found.
      */
     public final AtmosphereResource find(String uuid) {
+        if (uuid == null) return null;
         return resources.get(uuid);
     }
 
