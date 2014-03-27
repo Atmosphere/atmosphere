@@ -79,7 +79,7 @@ public interface AtmosphereResourceEvent {
     /**
      * Return true if the client closed the connection and send the Atmosphere close message. You must
      * use the {@link org.atmosphere.interceptor.OnDisconnectInterceptor} in order to receive the proper value,
-     * and enableProtocol must be set to true on the client side (enabledProtocol is true by default).
+     * and atmosphereProtocol must be set to true on the client side (enabledProtocol is true by default).
      *
      * @return
      */

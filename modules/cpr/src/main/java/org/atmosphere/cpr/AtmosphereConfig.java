@@ -246,6 +246,14 @@ public class AtmosphereConfig {
         return this;
     }
 
+    public String getInitParameter(String closedAtmosphereThinkTime, String defaultValue) {
+        String s = getInitParameter(closedAtmosphereThinkTime);
+        if (s == null) {
+            return defaultValue;
+        }
+        return s;
+    }
+
     /**
      * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An
      * Application can register one of more hooks.

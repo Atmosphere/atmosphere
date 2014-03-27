@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.EndpointMapper;
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -26,6 +27,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
@@ -45,10 +48,12 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected static final Action cancelledAction = new Action(Action.TYPE.CANCELLED);
     protected final AtmosphereConfig config;
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
+    private final long closingTime;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
         mapper = config.framework().endPointMapper();
+        closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
     }
 
     @Override
@@ -499,14 +504,32 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
-    public Action cancelled(AtmosphereRequest req, AtmosphereResponse res)
+    public Action cancelled(final AtmosphereRequest req, final AtmosphereResponse res)
             throws IOException, ServletException {
 
         logger.trace("Cancelling {}", req);
+        // Leave a chance to the client to send the disconnect message before processing the connection
+        if (closingTime > 0) {
+            ExecutorsFactory.getScheduler(config).schedule(new Callable<Object>(){
+
+                @Override
+                public Object call() throws Exception {
+                    endRequest(req, res);
+                    return null;
+                }
+            }, closingTime, TimeUnit.MILLISECONDS);
+        } else {
+            if (completeLifecycle(req.resource(), true)) {
+                config.framework().notify(Action.TYPE.CANCELLED, req, res);
+            }
+        }
+        return cancelledAction;
+    }
+
+    protected void endRequest(AtmosphereRequest req, AtmosphereResponse res){
         if (completeLifecycle(req.resource(), true)) {
             config.framework().notify(Action.TYPE.CANCELLED, req, res);
         }
-        return cancelledAction;
     }
 
     @Override

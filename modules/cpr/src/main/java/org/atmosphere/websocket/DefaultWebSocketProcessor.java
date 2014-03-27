@@ -19,6 +19,7 @@ import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
@@ -96,6 +97,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;
+    private final long closingTime;
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -130,6 +132,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         scheduler = ExecutorsFactory.getScheduler(config);
         optimizeMapping();
+
+        closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
     }
 
     @Override
@@ -474,14 +478,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
                         if (!resource.isCancelled() && !resource.getAtmosphereResourceEvent().isClosedByClient()) {
                             if (closeCode == 1005 || closeCode == 1001) {
-                                if (r.getAttribute("firefox") != null) {
+                                boolean ff = r.getAttribute("firefox") != null;
+                                if (ff || closingTime > 0) {
                                     resource.getBroadcaster().getBroadcasterConfig().getScheduledExecutorService().schedule(new Callable<Object>() {
                                         @Override
                                         public Object call() throws Exception {
                                             h.closed();
                                             return null;
                                         }
-                                    }, 500, TimeUnit.MILLISECONDS);
+                                    }, ff ? closingTime == 0 ? 500 : closingTime : closingTime, TimeUnit.MILLISECONDS);
                                 } else {
                                     h.closed();
                                 }
