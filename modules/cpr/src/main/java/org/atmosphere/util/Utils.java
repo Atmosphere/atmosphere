@@ -15,6 +15,7 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -106,6 +107,14 @@ public final class Utils {
             default:
                 return false;
         }
+    }
+
+    public final static boolean atmosphereProtocol(AtmosphereRequest r) {
+        String p = r.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
+        if (p != null && Boolean.valueOf(p)) {
+            return true;
+        }
+        return false;
     }
 
     public final static boolean webSocketMessage(AtmosphereResource r) {
