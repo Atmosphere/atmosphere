@@ -266,7 +266,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             if (b != null && (force || !b.getID().equalsIgnoreCase(r.getBroadcaster().getID()))) {
                 // We cannot add the resource now. we need to first make sure there is no cached message.
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
-                List<Object> t = cache.retrieveFromCache(b.getID(), r);
+                List<Object> t = cache.retrieveFromCache(b.getID(), r.uuid());
 
                 cachedMessages = b.getBroadcasterConfig().applyFilters(r, t);
                 if (t.size() > 0) {
