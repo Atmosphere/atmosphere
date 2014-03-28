@@ -45,18 +45,18 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public CacheMessage addToCache(String broadcasterId, String clientId, BroadcastMessage message) {
+    public CacheMessage addToCache(String broadcasterId, String uuid, BroadcastMessage message) {
         logger.trace("Message {} might be lost! Please install a proper BroadcasterCache", message.message);
         return null;
     }
 
     @Override
-    public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+    public List<Object> retrieveFromCache(String id, String uuid) {
         return Collections.<Object>emptyList();
     }
 
     @Override
-    public BroadcasterCache clearCache(String broadcasterId, String clientId, CacheMessage cache) {
+    public BroadcasterCache clearCache(String broadcasterId, String uuid, CacheMessage cache) {
         return this;
     }
 

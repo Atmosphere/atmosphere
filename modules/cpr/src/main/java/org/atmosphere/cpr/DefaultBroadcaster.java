@@ -794,13 +794,21 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    private final static class WriteQueue {
+    public final static class WriteQueue {
         final BlockingQueue<AsyncWriteToken> queue = new LinkedBlockingQueue<AsyncWriteToken>();
         final AtomicBoolean monitored = new AtomicBoolean();
         final String uuid;
 
         private WriteQueue(String uuid) {
             this.uuid = uuid;
+        }
+
+        public List<String> asString(){
+            List<String> l = new ArrayList<String>();
+            for (AsyncWriteToken w: queue) {
+                l.add(w.toString());
+            }
+            return l;
         }
     }
 
@@ -1005,7 +1013,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected boolean retrieveTrackedBroadcast(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         logger.trace("Checking cached message for {}", r.uuid());
-        List<?> missedMsg = bc.getBroadcasterCache().retrieveFromCache(getID(), r);
+        List<?> missedMsg = bc.getBroadcasterCache().retrieveFromCache(getID(), r.uuid());
         if (missedMsg != null && !missedMsg.isEmpty()) {
             e.setMessage(missedMsg);
             return true;
@@ -1706,5 +1714,33 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         }
         return false;
+    }
+
+    public ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners(){
+        return broadcasterListeners;
+    }
+
+    public BroadcasterLifeCyclePolicy lifeCyclePolicy(){
+        return lifeCyclePolicy;
+    }
+
+    public ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners(){
+        return lifeCycleListeners;
+    }
+
+    public BlockingQueue<Deliver> messages(){
+        return messages;
+    }
+
+    public ConcurrentHashMap<String, WriteQueue> writeQueues(){
+        return writeQueues;
+    }
+
+    public POLICY policy(){
+        return policy;
+    }
+
+    public boolean outOfOrderBroadcastSupported(){
+        return  outOfOrderBroadcastSupported.get();
     }
 }

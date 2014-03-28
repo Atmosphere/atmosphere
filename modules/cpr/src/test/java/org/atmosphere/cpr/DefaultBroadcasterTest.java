@@ -77,14 +77,14 @@ public class DefaultBroadcasterTest {
 
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), r);
+            public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime(), uuid);
                 cache.put(id, e);
                 return c;
             }
 
             @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+            public List<Object> retrieveFromCache(String id, String uuid) {
                 ArrayList<Object> cacheContents = new ArrayList<Object>();
                 if (!cache.isEmpty()) {
                     cacheContents.add(cache.get(id).message);

@@ -49,11 +49,12 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
     }
 
     @Override
-    public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
-        if (r == null) {
+    public List<Object> retrieveFromCache(String broadcasterId, String uuid) {
+        if (uuid == null) {
             throw new IllegalArgumentException("AtmosphereResource can't be null");
         }
 
+        AtmosphereResource r = AtmosphereResourceFactory.getDefault().find(uuid);
         AtmosphereRequest request = r.getRequest();
         String cacheHeader = request.getHeader(X_CACHE_DATE);
         r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(System.nanoTime()));

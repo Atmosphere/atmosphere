@@ -74,14 +74,14 @@ public class BroadcasterCacheTest {
     public void testRejectedCache() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), r);
+            public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime(), uuid);
                 cachedMessage.set(messages);
                 return c;
             }
 
             @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+            public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
@@ -99,14 +99,14 @@ public class BroadcasterCacheTest {
     public void testCache() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), r);
+            public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime(), uuid);
                 cachedMessage.set(messages);
                 return c;
             }
 
             @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+            public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
@@ -125,15 +125,15 @@ public class BroadcasterCacheTest {
         final CountDownLatch latch = new CountDownLatch(1);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), r);
+            public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime(), uuid);
                 cachedMessage.set(messages);
                 latch.countDown();
                 return c;
             }
 
             @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+            public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
@@ -153,15 +153,15 @@ public class BroadcasterCacheTest {
         final CountDownLatch latch = new CountDownLatch(1);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
-            public CacheMessage addToCache(String id, String r, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), r);
+            public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
+                CacheMessage c = put(e, System.nanoTime(), uuid);
                 cachedMessage.set(messages);
                 latch.countDown();
                 return c;
             }
 
             @Override
-            public List<Object> retrieveFromCache(String id, AtmosphereResource r) {
+            public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {

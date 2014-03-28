@@ -16,7 +16,6 @@
 
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,14 +63,14 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
     }
 
     @Override
-    public List<Object> retrieveFromCache(String broadcasterId, AtmosphereResource r) {
-        if (r == null) {
+    public List<Object> retrieveFromCache(String broadcasterId, String uuid) {
+        if (uuid == null) {
             throw new IllegalArgumentException("AtmosphereResource can't be null");
         }
 
         List<Object> result = new ArrayList<Object>();
         try {
-            HttpSession session = r.session();
+            HttpSession session = AtmosphereResourceFactory.getDefault().find(uuid).session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return result;
