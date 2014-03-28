@@ -203,7 +203,7 @@ public class BroadcasterCacheTest {
         broadcaster.removeAtmosphereResource(r);
         broadcaster.broadcast("foo").get();
 
-        List<Object> l = cache.retrieveFromCache(broadcaster.getID(), ar);
+        List<Object> l = cache.retrieveFromCache(broadcaster.getID(), ar.uuid());
         assertNotNull(l);
         assertEquals(l.isEmpty(), true);
     }
@@ -219,7 +219,7 @@ public class BroadcasterCacheTest {
         broadcaster.removeAtmosphereResource(r);
         broadcaster.broadcast("foo").get();
 
-        List<Object> l = cache.retrieveFromCache(broadcaster.getID(), r);
+        List<Object> l = cache.retrieveFromCache(broadcaster.getID(), r.uuid());
         assertNotNull(l);
         assertEquals(l.isEmpty(), false);
     }
@@ -241,7 +241,7 @@ public class BroadcasterCacheTest {
         b.broadcast("raide").get();
 
         assertEquals(cache.messages().isEmpty(), false);
-        List<Object> l = cache.retrieveFromCache(b.getID(), ar);
+        List<Object> l = cache.retrieveFromCache(b.getID(), ar.uuid());
         assertNotNull(l);
         assertEquals(l.isEmpty(), false);
     }
