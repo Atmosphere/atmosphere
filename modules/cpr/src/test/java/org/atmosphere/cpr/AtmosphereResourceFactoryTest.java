@@ -61,7 +61,7 @@ public class AtmosphereResourceFactoryTest {
     @Test
     public void createTest() {
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(), mock(Broadcaster.class), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
-                mock(AsyncSupport.class), mock(AtmosphereHandler.class));
+                mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         assertNotNull(r);
     }
 
@@ -70,7 +70,7 @@ public class AtmosphereResourceFactoryTest {
         Broadcaster b1 = BroadcasterFactory.getDefault().get("b1");
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
-                mock(AsyncSupport.class), mock(AtmosphereHandler.class));
+                mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         assertNotNull(r);
 
         b2.addAtmosphereResource(r);
@@ -97,7 +97,7 @@ public class AtmosphereResourceFactoryTest {
         }
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.config, BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
-                mock(AsyncSupport.class), mock(AtmosphereHandler.class));
+                mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         assertNotNull(r);
         b2.addAtmosphereResource(r);
 
@@ -111,7 +111,7 @@ public class AtmosphereResourceFactoryTest {
         Broadcaster b1 = BroadcasterFactory.getDefault().get("b1");
         Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(framework.getAtmosphereConfig(), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
-                mock(AsyncSupport.class), mock(AtmosphereHandler.class));
+                mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         r.suspend();
         assertNotNull(r);
 

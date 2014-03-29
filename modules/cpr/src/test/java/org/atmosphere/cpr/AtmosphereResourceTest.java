@@ -115,8 +115,7 @@ public class AtmosphereResourceTest {
             }
         });
 
-        final AtmosphereRequest parentRequest = new AtmosphereRequest.Builder().pathInfo("/a").build();
-
+        final AtmosphereRequest parentRequest = new AtmosphereRequest.Builder().pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         final CountDownLatch suspended = new CountDownLatch(1);
 
         framework.interceptor(new AtmosphereInterceptor() {
@@ -142,7 +141,7 @@ public class AtmosphereResourceTest {
         new Thread() {
             public void run() {
                 try {
-                    framework.doCometSupport(parentRequest, AtmosphereResponse.newInstance());
+                    framework.doCometSupport(parentRequest, AtmosphereResponse.newInstance().request(parentRequest));
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ServletException e) {
@@ -155,8 +154,10 @@ public class AtmosphereResourceTest {
         Map<String, Object> m = new HashMap<String, Object>();
         m.put(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, parentRequest.resource().uuid());
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().attributes(m).pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequest.Builder().attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
+        request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
+
+        framework.doCometSupport(request, AtmosphereResponse.newInstance().request(request));
 
         AtmosphereResource r = parentRequest.resource();
         Broadcaster b = r.getBroadcaster();

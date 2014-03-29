@@ -62,7 +62,7 @@ public final class Utils {
                 && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL) != null
                 && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL).equals("true")
                 && request.getHeader("User-Agent") != null
-                    && request.getHeader("User-Agent").toLowerCase().indexOf("Firefox") != -1;
+                && request.getHeader("User-Agent").toLowerCase().indexOf("Firefox") != -1;
     }
 
     public final static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
@@ -105,6 +105,7 @@ public final class Utils {
         switch (t) {
             case POLLING:
             case CLOSE:
+            case UNDEFINED:
             case AJAX:
                 return true;
             default:
@@ -139,7 +140,7 @@ public final class Utils {
         if (connection != null && connection.hasMoreElements()) {
             String[] e = connection.nextElement().toString().split(",");
             for (String upgrade : e) {
-                if (upgrade.trim().equalsIgnoreCase("upgrade") ) {
+                if (upgrade.trim().equalsIgnoreCase("upgrade")) {
                     isOK = true;
                 }
             }

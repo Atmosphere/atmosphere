@@ -44,7 +44,9 @@ public interface HeaderConfig {
 
     String SSE_TRANSPORT = "sse";
 
-    String DISCONNECT = "close";
+    String DISCONNECT_TRANSPORT_MESSAGE = "close";
+
+    String WEBSOCKET_X_ATMOSPHERE_TRANSPORT= X_ATMOSPHERE_TRANSPORT + "=" + WEBSOCKET_TRANSPORT;
 
     /**
      * When a unexpected error occurs.

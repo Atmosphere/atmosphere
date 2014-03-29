@@ -1390,7 +1390,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 } else if (p == null) {
                     notifyAndAdd(r);
                 } else {
-                    logger.trace("Unable to add AtmosphereResource {}", r.uuid());
+                    logger.trace("AtmosphereResource {} was already mapped to {}", r.uuid(), parentUUID);
                 }
             } else {
                 notifyAndAdd(r);

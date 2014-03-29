@@ -28,6 +28,8 @@ import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+
 /**
  * A Factory used to manage {@link AtmosphereResource} instances. You can use this factory to create, remove and find
  * {@link AtmosphereResource} instances that are associated with one or several {@link Broadcaster}s.
@@ -105,9 +107,34 @@ public final class AtmosphereResourceFactory {
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a,
                                            AtmosphereHandler handler) {
+        return create(config, broadcaster, request, response, a, handler, AtmosphereResource.TRANSPORT.UNDEFINED);
+    }
+
+    /**
+     * Create an {@link AtmosphereResourceImpl}.
+     *
+     * @param config      an {@link AtmosphereConfig}
+     * @param broadcaster a {@link Broadcaster}
+     * @param response    an {@link AtmosphereResponse}
+     * @param a           {@link AsyncSupport}
+     * @param handler     an {@link AtmosphereHandler}
+     * @param t           an {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}
+     * @return an {@link AtmosphereResourceImpl}
+     */
+    public final AtmosphereResource create(AtmosphereConfig config,
+                                           Broadcaster broadcaster,
+                                           AtmosphereRequest request,
+                                           AtmosphereResponse response,
+                                           AsyncSupport<?> a,
+                                           AtmosphereHandler handler,
+                                           AtmosphereResource.TRANSPORT T) {
         AtmosphereResource r = null;
         try {
             r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
+
+            if (request.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
+                request.header(X_ATMOSPHERE_TRANSPORT, T.name());
+            }
             r.initialize(config, broadcaster, request, response, a, handler);
         } catch (Exception e) {
             logger.error("", e);
@@ -131,6 +158,15 @@ public final class AtmosphereResourceFactory {
                                            AsyncSupport<?> a,
                                            AtmosphereHandler handler) {
         return create(config, broadcaster, response.request(), response, a, handler);
+    }
+
+    public final AtmosphereResource create(AtmosphereConfig config,
+                                           Broadcaster broadcaster,
+                                           AtmosphereResponse response,
+                                           AsyncSupport<?> a,
+                                           AtmosphereHandler handler,
+                                           AtmosphereResource.TRANSPORT t) {
+        return create(config, broadcaster, response.request(), response, a, handler, t);
     }
 
     /**
@@ -247,4 +283,5 @@ public final class AtmosphereResourceFactory {
     public void destroy() {
         resources.clear();
     }
+
 }
