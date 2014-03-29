@@ -480,7 +480,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             if (closeCode == 1005 || closeCode == 1001) {
                                 boolean ff = r.getAttribute("firefox") != null;
                                 if (ff || closingTime > 0) {
-                                    resource.getBroadcaster().getBroadcasterConfig().getScheduledExecutorService().schedule(new Callable<Object>() {
+                                    ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
                                         @Override
                                         public Object call() throws Exception {
                                             h.closed();

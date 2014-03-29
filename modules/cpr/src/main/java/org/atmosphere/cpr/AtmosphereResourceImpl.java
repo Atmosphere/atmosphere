@@ -125,7 +125,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         }
         transport = configureTransport();
+        register();
         return this;
+    }
+
+
+    protected void register() {
+        if (!Utils.unTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
+            AtmosphereResourceFactory.getDefault().registerUuidForFindCandidate(this);
+        }
     }
 
     private TRANSPORT configureTransport() {
@@ -741,7 +749,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private void unregister() {
-        if (!Utils.uuidTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
+        if (!Utils.unTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
             getDefault().unRegisterUuidForFindCandidate(this);
         }
     }
@@ -835,7 +843,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    public ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners(){
+    public ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners() {
         return listeners;
     }
 
