@@ -157,6 +157,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return TRANSPORT.SSE;
         } else if (TRANSPORT.AJAX.name().equals(s)) {
             return TRANSPORT.AJAX;
+        } else if (TRANSPORT.CLOSE.name().equals(s)) {
+            return TRANSPORT.CLOSE;
         } else {
             return TRANSPORT.UNDEFINED;
         }

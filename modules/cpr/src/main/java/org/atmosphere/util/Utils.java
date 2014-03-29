@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.websocket.WebSocket;
 
 import javax.servlet.http.HttpServletRequest;
 import java.util.Enumeration;
@@ -92,6 +93,7 @@ public final class Utils {
         switch (t) {
             case POLLING:
             case UNDEFINED:
+            case CLOSE:
             case AJAX:
                 return true;
             default:
@@ -102,6 +104,7 @@ public final class Utils {
     public final static boolean unTrackableTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case POLLING:
+            case CLOSE:
             case AJAX:
                 return true;
             default:
@@ -118,8 +121,8 @@ public final class Utils {
     }
 
     public final static boolean webSocketMessage(AtmosphereResource r) {
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) &&
-                AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE) == null) {
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        if (request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
             return true;
         }
         return false;

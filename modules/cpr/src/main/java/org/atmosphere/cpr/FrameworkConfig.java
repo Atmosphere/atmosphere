@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereRequest.NoOpsRequest;
 import org.atmosphere.interceptor.JavaScriptProtocol;
+import org.atmosphere.websocket.WebSocketProcessor;
 
 /**
  * Request attribute a framework integrator can use to lookup Atmosphere internal objects.
@@ -170,5 +171,10 @@ public interface FrameworkConfig {
      * The path that mapped the {@link AtmosphereHandler}
      */
     String MAPPED_PATH = AtmosphereHandler.class.getName() + ".mappedBy";
+    /**
+     * Tag for WebSocket's Message
+     */
+    String WEBSOCKET_MESSAGE = WebSocketProcessor.class.getName() + "websocket.message";
+
 
 }

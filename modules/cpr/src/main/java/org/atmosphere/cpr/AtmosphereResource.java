@@ -28,7 +28,7 @@ import java.util.concurrent.TimeUnit;
  */
 public interface AtmosphereResource {
 
-    enum TRANSPORT {POLLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED, SSE, AJAX, HTMLFILE}
+    enum TRANSPORT {POLLING, LONG_POLLING, STREAMING, WEBSOCKET, JSONP, UNDEFINED, SSE, AJAX, HTMLFILE, CLOSE}
 
     /**
      * Return the current {@link TRANSPORT}. The transport value is retrieved using the {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT}
