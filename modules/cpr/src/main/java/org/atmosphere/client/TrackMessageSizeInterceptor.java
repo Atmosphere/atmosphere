@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.interceptor.InvokationOrder;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -153,5 +154,11 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                 return responseDraft;
             }
         }
+    }
+
+
+    @Override
+    public PRIORITY priority() {
+        return InvokationOrder.BEFORE_DEFAULT;
     }
 }
