@@ -516,8 +516,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     public void executeClose(AsynchronousProcessorHook h, WebSocket webSocket, int closeCode){
+        boolean isClosedByClient = webSocket.resource() == null ? true : webSocket.resource().getAtmosphereResourceEvent().isClosedByClient();
         h.closed();
-        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(closeCode, CLOSE, webSocket));
+        if (!isClosedByClient) {
+            notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(closeCode, CLOSE, webSocket));
+        }
     }
 
     @Override
