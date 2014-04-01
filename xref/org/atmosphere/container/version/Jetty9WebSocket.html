@@ -48,13 +48,13 @@
 <a class="jxr_linenumber" name="38" href="#38">38</a>  
 <a class="jxr_linenumber" name="39" href="#39">39</a>      @Override
 <a class="jxr_linenumber" name="40" href="#40">40</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> write(String s) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="41" href="#41">41</a>          <strong class="jxr_keyword">if</strong> (isOpen()) webSocketConnection.getRemote().sendString(s);
+<a class="jxr_linenumber" name="41" href="#41">41</a>          <strong class="jxr_keyword">if</strong> (isOpen()) webSocketConnection.getRemote().sendStringByFuture(s);
 <a class="jxr_linenumber" name="42" href="#42">42</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="43" href="#43">43</a>      }
 <a class="jxr_linenumber" name="44" href="#44">44</a>  
 <a class="jxr_linenumber" name="45" href="#45">45</a>      @Override
 <a class="jxr_linenumber" name="46" href="#46">46</a>      <strong class="jxr_keyword">public</strong> <a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> write(byte[] b, <strong class="jxr_keyword">int</strong> offset, <strong class="jxr_keyword">int</strong> length) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="47" href="#47">47</a>          <strong class="jxr_keyword">if</strong> (isOpen()) webSocketConnection.getRemote().sendBytes(ByteBuffer.wrap(b, offset, length));
+<a class="jxr_linenumber" name="47" href="#47">47</a>          <strong class="jxr_keyword">if</strong> (isOpen()) webSocketConnection.getRemote().sendBytesByFuture(ByteBuffer.wrap(b, offset, length));
 <a class="jxr_linenumber" name="48" href="#48">48</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="49" href="#49">49</a>      }
 <a class="jxr_linenumber" name="50" href="#50">50</a>  

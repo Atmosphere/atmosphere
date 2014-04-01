@@ -116,7 +116,7 @@
 <a class="jxr_linenumber" name="106" href="#106">106</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="107" href="#107">107</a>     <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res) <strong class="jxr_keyword">throws</strong> IOException, ServletException {
 <a class="jxr_linenumber" name="108" href="#108">108</a> 
-<a class="jxr_linenumber" name="109" href="#109">109</a>         <strong class="jxr_keyword">if</strong> (Utils.webSocketEnabled(req) &amp;&amp; !supportWebSocket()) {
+<a class="jxr_linenumber" name="109" href="#109">109</a>         <strong class="jxr_keyword">if</strong> (!Utils.properProtocol(req) || (Utils.webSocketEnabled(req) &amp;&amp; !supportWebSocket())) {
 <a class="jxr_linenumber" name="110" href="#110">110</a>             res.setStatus(501);
 <a class="jxr_linenumber" name="111" href="#111">111</a>             res.addHeader(X_ATMOSPHERE_ERROR, <span class="jxr_string">"Websocket protocol not supported"</span>);
 <a class="jxr_linenumber" name="112" href="#112">112</a>             res.flushBuffer();
@@ -194,7 +194,7 @@
 <a class="jxr_linenumber" name="184" href="#184">184</a>         <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = skipAtmosphereHandler ? Action.CANCELLED : resource.action();
 <a class="jxr_linenumber" name="185" href="#185">185</a>         <strong class="jxr_keyword">if</strong> (supportSession() &amp;&amp; allowSessionTimeoutRemoval() &amp;&amp; action.type().equals(Action.TYPE.SUSPEND)) {
 <a class="jxr_linenumber" name="186" href="#186">186</a>             <em class="jxr_comment">// Do not allow times out.</em>
-<a class="jxr_linenumber" name="187" href="#187">187</a>             SessionTimeoutSupport.setupTimeout(req.getSession());
+<a class="jxr_linenumber" name="187" href="#187">187</a>             SessionTimeoutSupport.setupTimeout(config, req.getSession());
 <a class="jxr_linenumber" name="188" href="#188">188</a>         }
 <a class="jxr_linenumber" name="189" href="#189">189</a>         logger.trace(<span class="jxr_string">"Action for {} was {} with transport "</span> + req.getHeader(X_ATMOSPHERE_TRANSPORT), req.resource() != <strong class="jxr_keyword">null</strong> ? req.resource().uuid() : <span class="jxr_string">"null"</span>, action);
 <a class="jxr_linenumber" name="190" href="#190">190</a>         <strong class="jxr_keyword">return</strong> action;

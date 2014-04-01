@@ -142,27 +142,27 @@
 <a class="jxr_linenumber" name="132" href="#132">132</a>         req.setAttribute(LATCH, latch);
 <a class="jxr_linenumber" name="133" href="#133">133</a> 
 <a class="jxr_linenumber" name="134" href="#134">134</a>         <strong class="jxr_keyword">boolean</strong> ok = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="135" href="#135">135</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="136" href="#136">136</a>             <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource = req.resource();
-<a class="jxr_linenumber" name="137" href="#137">137</a>             resource.addEventListener(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListenerAdapter.html">OnResume</a>() {
-<a class="jxr_linenumber" name="138" href="#138">138</a>                 @Override
-<a class="jxr_linenumber" name="139" href="#139">139</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onResume(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
-<a class="jxr_linenumber" name="140" href="#140">140</a>                     latch.countDown();
-<a class="jxr_linenumber" name="141" href="#141">141</a>                 }
-<a class="jxr_linenumber" name="142" href="#142">142</a>             });
-<a class="jxr_linenumber" name="143" href="#143">143</a>             <strong class="jxr_keyword">if</strong> (action.timeout() != -1) {
-<a class="jxr_linenumber" name="144" href="#144">144</a>                 ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
-<a class="jxr_linenumber" name="145" href="#145">145</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="146" href="#146">146</a>                 latch.await();
-<a class="jxr_linenumber" name="147" href="#147">147</a>             }
-<a class="jxr_linenumber" name="148" href="#148">148</a>         } <strong class="jxr_keyword">catch</strong> (InterruptedException ex) {
-<a class="jxr_linenumber" name="149" href="#149">149</a>             logger.trace(<span class="jxr_string">""</span>, ex);
-<a class="jxr_linenumber" name="150" href="#150">150</a>         } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="151" href="#151">151</a>             <strong class="jxr_keyword">if</strong> (!ok) {
-<a class="jxr_linenumber" name="152" href="#152">152</a>                 timedout(req, res);
-<a class="jxr_linenumber" name="153" href="#153">153</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="154" href="#154">154</a>                 <strong class="jxr_keyword">if</strong> (req.resource() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="155" href="#155">155</a>                     AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(req.resource()).cancel();
+<a class="jxr_linenumber" name="135" href="#135">135</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource = req.resource();
+<a class="jxr_linenumber" name="136" href="#136">136</a>         <strong class="jxr_keyword">if</strong> (resource != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="137" href="#137">137</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="138" href="#138">138</a>                 resource.addEventListener(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListenerAdapter.html">OnResume</a>() {
+<a class="jxr_linenumber" name="139" href="#139">139</a>                     @Override
+<a class="jxr_linenumber" name="140" href="#140">140</a>                     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onResume(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
+<a class="jxr_linenumber" name="141" href="#141">141</a>                         latch.countDown();
+<a class="jxr_linenumber" name="142" href="#142">142</a>                     }
+<a class="jxr_linenumber" name="143" href="#143">143</a>                 });
+<a class="jxr_linenumber" name="144" href="#144">144</a>                 <strong class="jxr_keyword">if</strong> (action.timeout() != -1) {
+<a class="jxr_linenumber" name="145" href="#145">145</a>                     ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
+<a class="jxr_linenumber" name="146" href="#146">146</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="147" href="#147">147</a>                     latch.await();
+<a class="jxr_linenumber" name="148" href="#148">148</a>                 }
+<a class="jxr_linenumber" name="149" href="#149">149</a>             } <strong class="jxr_keyword">catch</strong> (InterruptedException ex) {
+<a class="jxr_linenumber" name="150" href="#150">150</a>                 logger.trace(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="151" href="#151">151</a>             } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="152" href="#152">152</a>                 <strong class="jxr_keyword">if</strong> (!ok) {
+<a class="jxr_linenumber" name="153" href="#153">153</a>                     timedout(req, res);
+<a class="jxr_linenumber" name="154" href="#154">154</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="155" href="#155">155</a>                     AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(resource).cancel();
 <a class="jxr_linenumber" name="156" href="#156">156</a>                 }
 <a class="jxr_linenumber" name="157" href="#157">157</a>             }
 <a class="jxr_linenumber" name="158" href="#158">158</a>         }

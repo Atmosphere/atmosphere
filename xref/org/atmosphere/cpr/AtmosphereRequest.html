@@ -954,7 +954,7 @@
 <a class="jxr_linenumber" name="944" href="#944">944</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="945" href="#945">945</a>     @Override
 <a class="jxr_linenumber" name="946" href="#946">946</a>     <strong class="jxr_keyword">public</strong> Locale getLocale() {
-<a class="jxr_linenumber" name="947" href="#947">947</a>         <strong class="jxr_keyword">return</strong> isNotNoOps() ? b.request.getLocale() : b.locales.iterator().next();
+<a class="jxr_linenumber" name="947" href="#947">947</a>         <strong class="jxr_keyword">return</strong> isNotNoOps() ? b.request.getLocale() : b.locales.iterator().hasNext() ? b.locales.iterator().next() : Locale.getDefault();
 <a class="jxr_linenumber" name="948" href="#948">948</a>     }
 <a class="jxr_linenumber" name="949" href="#949">949</a> 
 <a class="jxr_linenumber" name="950" href="#950">950</a>     <em class="jxr_javadoccomment">/**</em>
@@ -1093,8 +1093,8 @@
 <a class="jxr_linenumber" name="1083" href="#1083">1083</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> localPort = 0;
 <a class="jxr_linenumber" name="1084" href="#1084">1084</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> dispatchRequestAsynchronously;
 <a class="jxr_linenumber" name="1085" href="#1085">1085</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> destroyable = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="1086" href="#1086">1086</a>         <strong class="jxr_keyword">private</strong> Set&lt;Cookie&gt; cookies = <strong class="jxr_keyword">new</strong> HashSet&lt;Cookie&gt;();
-<a class="jxr_linenumber" name="1087" href="#1087">1087</a>         <strong class="jxr_keyword">private</strong> Set&lt;Locale&gt; locales = <strong class="jxr_keyword">new</strong> HashSet&lt;Locale&gt;();
+<a class="jxr_linenumber" name="1086" href="#1086">1086</a>         <strong class="jxr_keyword">private</strong> Set&lt;Cookie&gt; cookies =  Collections.synchronizedSet(<strong class="jxr_keyword">new</strong> HashSet&lt;Cookie&gt;());
+<a class="jxr_linenumber" name="1087" href="#1087">1087</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Set&lt;Locale&gt; locales = Collections.synchronizedSet(<strong class="jxr_keyword">new</strong> HashSet&lt;Locale&gt;());
 <a class="jxr_linenumber" name="1088" href="#1088">1088</a>         <strong class="jxr_keyword">private</strong> Principal principal = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="1089" href="#1089">1089</a>         <strong class="jxr_keyword">private</strong> String authType = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="1090" href="#1090">1090</a>         <strong class="jxr_keyword">private</strong> String contextPath = <span class="jxr_string">""</span>;
@@ -1845,7 +1845,7 @@
 <a class="jxr_linenumber" name="1835" href="#1835">1835</a>         HttpServletRequest r;
 <a class="jxr_linenumber" name="1836" href="#1836">1836</a> 
 <a class="jxr_linenumber" name="1837" href="#1837">1837</a>         Cookie[] cs = request.getCookies();
-<a class="jxr_linenumber" name="1838" href="#1838">1838</a>         Set&lt;Cookie&gt; hs = <strong class="jxr_keyword">new</strong> HashSet();
+<a class="jxr_linenumber" name="1838" href="#1838">1838</a>         Set&lt;Cookie&gt; hs = Collections.synchronizedSet(<strong class="jxr_keyword">new</strong> HashSet());
 <a class="jxr_linenumber" name="1839" href="#1839">1839</a>         <strong class="jxr_keyword">if</strong> (cs != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="1840" href="#1840">1840</a>             <strong class="jxr_keyword">for</strong> (Cookie c : cs) {
 <a class="jxr_linenumber" name="1841" href="#1841">1841</a>                 hs.add(c);

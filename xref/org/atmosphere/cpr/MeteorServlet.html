@@ -102,7 +102,7 @@
 <a class="jxr_linenumber" name="92" href="#92">92</a>              <strong class="jxr_keyword">for</strong> (Filter f : filters) {
 <a class="jxr_linenumber" name="93" href="#93">93</a>                  r.addFilter(f);
 <a class="jxr_linenumber" name="94" href="#94">94</a>              }
-<a class="jxr_linenumber" name="95" href="#95">95</a>              BroadcasterFactory.getDefault().remove(delegateMapping);
+<a class="jxr_linenumber" name="95" href="#95">95</a>              framework().getBroadcasterFactory().remove(delegateMapping);
 <a class="jxr_linenumber" name="96" href="#96">96</a>              framework.addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
 <a class="jxr_linenumber" name="97" href="#97">97</a>          }
 <a class="jxr_linenumber" name="98" href="#98">98</a>      }

@@ -143,43 +143,48 @@
 <a class="jxr_linenumber" name="133" href="#133">133</a>     }
 <a class="jxr_linenumber" name="134" href="#134">134</a> 
 <a class="jxr_linenumber" name="135" href="#135">135</a>     <strong class="jxr_keyword">void</strong> cancelF(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request) {
-<a class="jxr_linenumber" name="136" href="#136">136</a>         Future&lt;?&gt; f = (Future&lt;?&gt;) request.getAttribute(HEARTBEAT_FUTURE);
-<a class="jxr_linenumber" name="137" href="#137">137</a>         <strong class="jxr_keyword">if</strong> (f != <strong class="jxr_keyword">null</strong>) f.cancel(false);
-<a class="jxr_linenumber" name="138" href="#138">138</a>         request.removeAttribute(HEARTBEAT_FUTURE);
-<a class="jxr_linenumber" name="139" href="#139">139</a>     }
-<a class="jxr_linenumber" name="140" href="#140">140</a> 
-<a class="jxr_linenumber" name="141" href="#141">141</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/HeartbeatInterceptor.html">HeartbeatInterceptor</a> clock(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response) {
-<a class="jxr_linenumber" name="142" href="#142">142</a>         request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(<strong class="jxr_keyword">new</strong> Callable&lt;Object&gt;() {
-<a class="jxr_linenumber" name="143" href="#143">143</a>             @Override
-<a class="jxr_linenumber" name="144" href="#144">144</a>             <strong class="jxr_keyword">public</strong> Object call() <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="145" href="#145">145</a>                 <strong class="jxr_keyword">if</strong> (AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).isInScope() &amp;&amp; r.isSuspended()) {
-<a class="jxr_linenumber" name="146" href="#146">146</a>                     <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="147" href="#147">147</a>                         logger.trace(<span class="jxr_string">"Heartbeat for Resource {}"</span>, r);
-<a class="jxr_linenumber" name="148" href="#148">148</a>                         response.write(paddingBytes, false);
-<a class="jxr_linenumber" name="149" href="#149">149</a>                         <strong class="jxr_keyword">if</strong> (Utils.resumableTransport(r.transport())) {
-<a class="jxr_linenumber" name="150" href="#150">150</a>                             r.resume();
-<a class="jxr_linenumber" name="151" href="#151">151</a>                         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="152" href="#152">152</a>                             response.flushBuffer();
-<a class="jxr_linenumber" name="153" href="#153">153</a>                         }
-<a class="jxr_linenumber" name="154" href="#154">154</a>                     } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="155" href="#155">155</a>                         logger.trace(<span class="jxr_string">"{}"</span>, r.uuid(), t);
-<a class="jxr_linenumber" name="156" href="#156">156</a>                         cancelF(request);
-<a class="jxr_linenumber" name="157" href="#157">157</a>                     }
-<a class="jxr_linenumber" name="158" href="#158">158</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="159" href="#159">159</a>                     cancelF(request);
-<a class="jxr_linenumber" name="160" href="#160">160</a>                 }
-<a class="jxr_linenumber" name="161" href="#161">161</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="162" href="#162">162</a>             }
-<a class="jxr_linenumber" name="163" href="#163">163</a>         }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS));
-<a class="jxr_linenumber" name="164" href="#164">164</a> 
-<a class="jxr_linenumber" name="165" href="#165">165</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="166" href="#166">166</a>     }
-<a class="jxr_linenumber" name="167" href="#167">167</a> 
-<a class="jxr_linenumber" name="168" href="#168">168</a>     @Override
-<a class="jxr_linenumber" name="169" href="#169">169</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="170" href="#170">170</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"Heartbeat Interceptor Support"</span>;
+<a class="jxr_linenumber" name="136" href="#136">136</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="137" href="#137">137</a>             Future&lt;?&gt; f = (Future&lt;?&gt;) request.getAttribute(HEARTBEAT_FUTURE);
+<a class="jxr_linenumber" name="138" href="#138">138</a>             <strong class="jxr_keyword">if</strong> (f != <strong class="jxr_keyword">null</strong>) f.cancel(false);
+<a class="jxr_linenumber" name="139" href="#139">139</a>             request.removeAttribute(HEARTBEAT_FUTURE);
+<a class="jxr_linenumber" name="140" href="#140">140</a>         } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="141" href="#141">141</a>             <em class="jxr_comment">// https://github.com/Atmosphere/atmosphere/issues/1503</em>
+<a class="jxr_linenumber" name="142" href="#142">142</a>             logger.trace(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="143" href="#143">143</a>         }
+<a class="jxr_linenumber" name="144" href="#144">144</a>     }
+<a class="jxr_linenumber" name="145" href="#145">145</a> 
+<a class="jxr_linenumber" name="146" href="#146">146</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/HeartbeatInterceptor.html">HeartbeatInterceptor</a> clock(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response) {
+<a class="jxr_linenumber" name="147" href="#147">147</a>         request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(<strong class="jxr_keyword">new</strong> Callable&lt;Object&gt;() {
+<a class="jxr_linenumber" name="148" href="#148">148</a>             @Override
+<a class="jxr_linenumber" name="149" href="#149">149</a>             <strong class="jxr_keyword">public</strong> Object call() <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="150" href="#150">150</a>                 <strong class="jxr_keyword">if</strong> (AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).isInScope() &amp;&amp; r.isSuspended()) {
+<a class="jxr_linenumber" name="151" href="#151">151</a>                     <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="152" href="#152">152</a>                         logger.trace(<span class="jxr_string">"Heartbeat for Resource {}"</span>, r);
+<a class="jxr_linenumber" name="153" href="#153">153</a>                         response.write(paddingBytes, false);
+<a class="jxr_linenumber" name="154" href="#154">154</a>                         <strong class="jxr_keyword">if</strong> (Utils.resumableTransport(r.transport())) {
+<a class="jxr_linenumber" name="155" href="#155">155</a>                             r.resume();
+<a class="jxr_linenumber" name="156" href="#156">156</a>                         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="157" href="#157">157</a>                             response.flushBuffer();
+<a class="jxr_linenumber" name="158" href="#158">158</a>                         }
+<a class="jxr_linenumber" name="159" href="#159">159</a>                     } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="160" href="#160">160</a>                         logger.trace(<span class="jxr_string">"{}"</span>, r.uuid(), t);
+<a class="jxr_linenumber" name="161" href="#161">161</a>                         cancelF(request);
+<a class="jxr_linenumber" name="162" href="#162">162</a>                     }
+<a class="jxr_linenumber" name="163" href="#163">163</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="164" href="#164">164</a>                     cancelF(request);
+<a class="jxr_linenumber" name="165" href="#165">165</a>                 }
+<a class="jxr_linenumber" name="166" href="#166">166</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="167" href="#167">167</a>             }
+<a class="jxr_linenumber" name="168" href="#168">168</a>         }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS));
+<a class="jxr_linenumber" name="169" href="#169">169</a> 
+<a class="jxr_linenumber" name="170" href="#170">170</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="171" href="#171">171</a>     }
-<a class="jxr_linenumber" name="172" href="#172">172</a> }
+<a class="jxr_linenumber" name="172" href="#172">172</a> 
+<a class="jxr_linenumber" name="173" href="#173">173</a>     @Override
+<a class="jxr_linenumber" name="174" href="#174">174</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="175" href="#175">175</a>         <strong class="jxr_keyword">return</strong> <span class="jxr_string">"Heartbeat Interceptor Support"</span>;
+<a class="jxr_linenumber" name="176" href="#176">176</a>     }
+<a class="jxr_linenumber" name="177" href="#177">177</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

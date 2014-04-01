@@ -213,7 +213,7 @@
 <a class="jxr_linenumber" name="203" href="#203">203</a>         <strong class="jxr_keyword">if</strong> (!hasMessage(clientId, message.getId())) {
 <a class="jxr_linenumber" name="204" href="#204">204</a>             addMessage(clientId, message);
 <a class="jxr_linenumber" name="205" href="#205">205</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="206" href="#206">206</a>             logger.debug(<span class="jxr_string">"Duplicate message {} for client {}"</span>, clientId, message);
+<a class="jxr_linenumber" name="206" href="#206">206</a>             logger.debug(<span class="jxr_string">"Duplicate message {} for client {}"</span>, message, clientId);
 <a class="jxr_linenumber" name="207" href="#207">207</a>         }
 <a class="jxr_linenumber" name="208" href="#208">208</a>     }
 <a class="jxr_linenumber" name="209" href="#209">209</a> 
@@ -226,7 +226,7 @@
 <a class="jxr_linenumber" name="216" href="#216">216</a>                 messages.put(clientId, clientQueue);
 <a class="jxr_linenumber" name="217" href="#217">217</a>             } <strong class="jxr_keyword">else</strong> {
 <a class="jxr_linenumber" name="218" href="#218">218</a>                 <em class="jxr_comment">// The entry has been invalidated</em>
-<a class="jxr_linenumber" name="219" href="#219">219</a>                 logger.debug(<span class="jxr_string">"Client is no longer active. Not caching message {}}"</span>, clientId, message);
+<a class="jxr_linenumber" name="219" href="#219">219</a>                 logger.debug(<span class="jxr_string">"Client {} is no longer active. Not caching message {}}"</span>, clientId, message);
 <a class="jxr_linenumber" name="220" href="#220">220</a>                 <strong class="jxr_keyword">return</strong>;
 <a class="jxr_linenumber" name="221" href="#221">221</a>             }
 <a class="jxr_linenumber" name="222" href="#222">222</a>         }
