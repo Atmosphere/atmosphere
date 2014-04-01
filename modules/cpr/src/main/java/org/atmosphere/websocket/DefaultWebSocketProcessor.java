@@ -19,6 +19,7 @@ import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
@@ -51,6 +52,7 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
@@ -93,6 +95,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;
+    private final long closingTime;
 
     public DefaultWebSocketProcessor(AtmosphereFramework framework) {
         this.framework = framework;
@@ -127,6 +130,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         scheduler = ExecutorsFactory.getScheduler(config);
         optimizeMapping();
+
+        closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
+
     }
 
     @Override
@@ -435,7 +441,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     @Override
-    public void close(WebSocket webSocket, int closeCode) {
+    public void close(final WebSocket webSocket, int closeCode) {
         logger.trace("WebSocket {} closed with {}", webSocket.resource(), closeCode);
 
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
@@ -444,9 +450,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         // We could potentially synchronize on webSocket but since it is a rare case, it is better to not synchronize.
         // synchronized (webSocket) {
 
-        closeCode = closeCode(closeCode);
-        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(closeCode, CLOSE, webSocket));
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
+        closeCode = closeCode(closeCode);
 
         if (resource == null) {
             logger.debug("Already closed {}", webSocket);
@@ -466,10 +471,21 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
                     AsynchronousProcessorHook h;
                     if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                        h = (AsynchronousProcessorHook) o;
-                        if (!resource.isCancelled()) {
-                            if (closeCode == 1005) {
-                                h.closed();
+                        final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
+                        if (!resource.isCancelled() && !resource.getAtmosphereResourceEvent().isClosedByClient()) {
+                            if (closeCode == 1005 || closeCode == 1001) {
+                                boolean ff = r.getAttribute("firefox") != null;
+                                if (ff || closingTime > 0) {
+                                    ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
+                                        @Override
+                                        public Object call() throws Exception {
+                                            executeClose(h, webSocket, 1005);
+                                            return null;
+                                        }
+                                    }, ff ? closingTime == 0 ? 500 : closingTime : closingTime, TimeUnit.MILLISECONDS);
+                                } else {
+                                    executeClose(h, webSocket, closeCode);
+                                }
                             } else {
                                 h.timedOut();
                             }
@@ -501,6 +517,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
+    public void executeClose(AsynchronousProcessorHook h, WebSocket webSocket, int closeCode){
+        h.closed();
+        notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(closeCode, CLOSE, webSocket));
+    }
+
     @Override
     public void destroy() {
         boolean shared = framework.isShareExecutorServices();
@@ -520,7 +541,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
         return closeCode;
     }
-
 
     @Override
     public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent event) {

@@ -54,6 +54,28 @@ public final class Utils {
         return webSocketEnabled;
     }
 
+    public final static boolean firefoxWebSocketEnabled(HttpServletRequest request) {
+        return webSocketEnabled(request)
+                && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL) != null
+                && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL).equals("true")
+                && request.getHeader("User-Agent") != null
+                && request.getHeader("User-Agent").toLowerCase().indexOf("firefox") != -1;
+    }
+
+    public final static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
+        switch (t) {
+            case JSONP:
+            case LONG_POLLING:
+            case STREAMING:
+            case SSE:
+            case POLLING:
+            case HTMLFILE:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public final static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case JSONP:

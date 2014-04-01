@@ -116,6 +116,14 @@ public class AtmosphereConfig {
         }
     }
 
+    public String getInitParameter(String closedAtmosphereThinkTime, String defaultValue) {
+        String s = getInitParameter(closedAtmosphereThinkTime);
+        if (s == null) {
+            return defaultValue;
+        }
+        return s;
+    }
+
     /**
      * Return all init param.
      *
