@@ -469,7 +469,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     }
 
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
-                    AsynchronousProcessorHook h;
                     if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
                         final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
                         if (!resource.isCancelled() && !resource.getAtmosphereResourceEvent().isClosedByClient()) {
