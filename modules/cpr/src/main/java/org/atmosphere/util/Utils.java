@@ -62,7 +62,7 @@ public final class Utils {
                 && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL) != null
                 && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL).equals("true")
                 && request.getHeader("User-Agent") != null
-                && request.getHeader("User-Agent").toLowerCase().indexOf("Firefox") != -1;
+                && request.getHeader("User-Agent").toLowerCase().indexOf("firefox") != -1;
     }
 
     public final static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
