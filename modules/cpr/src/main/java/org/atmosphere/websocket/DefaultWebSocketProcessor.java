@@ -34,6 +34,7 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.Utils;
 import org.atmosphere.util.VoidExecutorService;
 import org.atmosphere.websocket.protocol.StreamingHttpProtocol;
 import org.slf4j.Logger;
@@ -164,6 +165,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         request.setAttribute(INJECTED_ATMOSPHERE_RESOURCE, r);
         request.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, r.uuid());
+
+        if (Utils.firefoxWebSocketEnabled(request)) {
+            request.setAttribute("firefox", "true");
+        }
 
         webSocket.resource(r);
         webSocketProtocol.onOpen(webSocket);
