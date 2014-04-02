@@ -114,6 +114,6 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
     }
 
     public LinkedList<AsyncIOInterceptor> filters(){
-        return filters();
+        return filters;
     }
 }
