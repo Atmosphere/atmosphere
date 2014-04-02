@@ -43,7 +43,10 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
         CacheMessage cacheMessage = put(e, now, uuid);
 
         if (!uuid.equals(NULL)) {
-            AtmosphereResourceFactory.getDefault().find(uuid).getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
+            AtmosphereResource r = AtmosphereResourceFactory.getDefault().find(uuid);
+            if (r != null) {
+                r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(now));
+            }
         }
         return cacheMessage;
     }
@@ -55,6 +58,8 @@ public class HeaderBroadcasterCache extends AbstractBroadcasterCache {
         }
 
         AtmosphereResource r = AtmosphereResourceFactory.getDefault().find(uuid);
+        if (r == null) return Collections.emptyList();
+
         AtmosphereRequest request = r.getRequest();
         String cacheHeader = request.getHeader(X_CACHE_DATE);
         r.getResponse().setHeader(X_CACHE_DATE, String.valueOf(System.nanoTime()));
