@@ -218,7 +218,6 @@ public class AtmosphereFramework {
     protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<BroadcasterCacheListener>();
     protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<BroadcasterConfig.FilterManipulator>();
     protected final AtmosphereResourceFactory arFactory = new AtmosphereResourceFactory();
-
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
             CorsInterceptor.class,
@@ -1890,6 +1889,10 @@ public class AtmosphereFramework {
         return useStreamForFlushingComments;
     }
 
+    public boolean isUseServlet30() {
+        return useServlet30;
+    }
+
     /**
      * Set to <tt>true</tt> so Atmosphere uses {@link AtmosphereResponse#getOutputStream()}
      * by default for write operation. Default is false.
@@ -1951,6 +1954,10 @@ public class AtmosphereFramework {
     public AtmosphereFramework addBroadcasterType(String broadcasterTypeString) {
         broadcasterTypes.add(broadcasterTypeString);
         return this;
+    }
+
+    public ConcurrentLinkedQueue<String> broadcasterTypes(){
+        return broadcasterTypes;
     }
 
     public String getWebSocketProtocolClassName() {
@@ -2220,7 +2227,7 @@ public class AtmosphereFramework {
      *
      * @return the list of {@link BroadcasterCacheInspector}s
      */
-    protected ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors() {
+    public ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors() {
         return inspectors;
     }
 
@@ -2588,5 +2595,53 @@ public class AtmosphereFramework {
 
     public List<BroadcasterConfig.FilterManipulator> filterManipulators(){
         return filterManipulators;
+    }
+
+    public boolean isAServletFilter() {
+        return isFilter;
+    }
+
+    public ConcurrentLinkedQueue<String> objectFactoryType(){
+        return objectFactoryType;
+    }
+
+    public String mappingRegex(){
+        return mappingRegex;
+    }
+
+    public boolean webSocketEnabled(){
+        return webSocketEnabled;
+    }
+
+    public String broadcasterLifeCyclePolicy(){
+        return broadcasterLifeCyclePolicy;
+    }
+
+    public List<BroadcasterListener> broadcasterListeners(){
+        return broadcasterListeners;
+    }
+
+    public boolean sharedThreadPools(){
+        return sharedThreadPools;
+    }
+
+    public boolean allowAllClassesScan(){
+        return allowAllClassesScan;
+    }
+
+    public AtmosphereObjectFactory objectFactory(){
+        return objectFactory;
+    }
+
+    public boolean externalizeDestroy(){
+        return externalizeDestroy;
+    }
+
+    public List<String> excludedInterceptors(){
+        return excludedInterceptors;
+    }
+
+    public Class<? extends AtmosphereInterceptor>[] defaultInterceptors(){
+        return defaultInterceptors;
     }
 }
