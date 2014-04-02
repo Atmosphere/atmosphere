@@ -48,6 +48,8 @@ public interface HeaderConfig {
 
     String WEBSOCKET_X_ATMOSPHERE_TRANSPORT= X_ATMOSPHERE_TRANSPORT + "=" + WEBSOCKET_TRANSPORT;
 
+    String X_FIRST_REQUEST= "X-Atmosphere-first-request";
+
     /**
      * When a unexpected error occurs.
      */
