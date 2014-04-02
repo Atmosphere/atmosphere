@@ -52,8 +52,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
     private byte[] paddingBytes = " ".getBytes();
-    private int heartbeatFrequencyInSeconds = 60;
 
+    private int heartbeatFrequencyInSeconds = 60;
 
     public HeartbeatInterceptor paddingText(byte[] paddingBytes) {
         this.paddingBytes = paddingBytes;
@@ -63,6 +63,10 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     public HeartbeatInterceptor heartbeatFrequencyInSeconds(int heartbeatFrequencyInSeconds) {
         this.heartbeatFrequencyInSeconds = heartbeatFrequencyInSeconds;
         return this;
+    }
+
+    public int heartbeatFrequencyInSeconds() {
+        return heartbeatFrequencyInSeconds;
     }
 
     @Override

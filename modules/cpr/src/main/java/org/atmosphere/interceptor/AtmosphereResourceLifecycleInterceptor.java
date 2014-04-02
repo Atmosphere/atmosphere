@@ -85,6 +85,24 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         }
     }
 
+    public String method() {
+        return method;
+    }
+
+    public int timeoutInSeconds(){
+        return timeoutInSeconds;
+    }
+
+    public AtmosphereResourceLifecycleInterceptor method(String method){
+        this.method = method;
+        return this;
+    }
+
+    public AtmosphereResourceLifecycleInterceptor timeoutInSeconds(int timeoutInSeconds) {
+        this.timeoutInSeconds = timeoutInSeconds;
+        return this;
+    }
+
     /**
      * Automatically suspend the {@link AtmosphereResource} based on {@link AtmosphereResource.TRANSPORT} value.
      *

@@ -61,6 +61,10 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
         return Action.CONTINUE;
     }
 
+    public Set<String> trackedUUID(){
+        return trackedUUID;
+    }
+
     @Override
     public String toString() {
         return "UUID Tracking Interceptor";
