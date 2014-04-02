@@ -246,12 +246,22 @@ public class AtmosphereConfig {
         return this;
     }
 
+    /**
+     * Return an init-param, or its default value.
+     * @param closedAtmosphereThinkTime
+     * @param defaultValue
+     * @return
+     */
     public String getInitParameter(String closedAtmosphereThinkTime, String defaultValue) {
         String s = getInitParameter(closedAtmosphereThinkTime);
         if (s == null) {
             return defaultValue;
         }
         return s;
+    }
+
+    public AtmosphereResourceFactory resourcesFactory(){
+        return framework.arFactory;
     }
 
     /**

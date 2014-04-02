@@ -217,6 +217,7 @@ public class AtmosphereFramework {
     protected final List<String> excludedInterceptors = new ArrayList<String>();
     protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<BroadcasterCacheListener>();
     protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<BroadcasterConfig.FilterManipulator>();
+    protected final AtmosphereResourceFactory arFactory = new AtmosphereResourceFactory();
 
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
@@ -1416,6 +1417,7 @@ public class AtmosphereFramework {
             BroadcasterFactory.factory = null;
         }
 
+        arFactory.destroy();
         AtmosphereResourceFactory.getDefault().destroy();
         WebSocketProcessorFactory.getDefault().destroy();
         return this;

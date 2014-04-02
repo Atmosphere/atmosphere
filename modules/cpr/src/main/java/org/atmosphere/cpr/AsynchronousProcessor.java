@@ -227,7 +227,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         if (resource == null) {
             // TODO: cast is dangerous
             resource = (AtmosphereResourceImpl)
-                    AtmosphereResourceFactory.getDefault().create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
+                    config.resourcesFactory().create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
         } else {
             // TODO: REDESIGN, UGLY.
             try {

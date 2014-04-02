@@ -45,10 +45,11 @@ public class BroadcasterCacheTest {
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
     private final AtomicReference<List<CacheMessage>> cachedMessage = new AtomicReference<List<CacheMessage>>();
+    private AtmosphereConfig config;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+        config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         config.framework().setBroadcasterFactory(factory);
@@ -195,7 +196,7 @@ public class BroadcasterCacheTest {
     @Test
     public void testBasicExcludeCache() throws ExecutionException, InterruptedException, ServletException {
         BroadcasterCache cache = new UUIDBroadcasterCache();
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
+        AtmosphereResource r = config.resourcesFactory().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
         cache.excludeFromCache(broadcaster.getID(), r);
 
@@ -211,7 +212,7 @@ public class BroadcasterCacheTest {
     @Test
     public void testExcludeCache() throws ExecutionException, InterruptedException, ServletException {
         BroadcasterCache cache = new UUIDBroadcasterCache();
-        AtmosphereResource r = AtmosphereResourceFactory.getDefault().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
+        AtmosphereResource r = config.resourcesFactory().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
         broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
         broadcaster.addAtmosphereResource(r);

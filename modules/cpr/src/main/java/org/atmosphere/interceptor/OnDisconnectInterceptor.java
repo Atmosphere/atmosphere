@@ -22,7 +22,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
-import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
@@ -40,12 +39,14 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(OnDisconnectInterceptor.class);
     private AsynchronousProcessor p;
+    private AtmosphereConfig config;
 
     @Override
     public void configure(AtmosphereConfig config) {
         if (AsynchronousProcessor.class.isAssignableFrom(config.framework().getAsyncSupport().getClass())) {
             p = AsynchronousProcessor.class.cast(config.framework().getAsyncSupport());
         }
+        this.config = config;
     }
 
     @Override
@@ -55,7 +56,7 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
         String uuid = r.uuid();
         if (p != null && s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE)) {
             logger.trace("AtmosphereResource {} disconnected", uuid);
-            AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
+            AtmosphereResource ss = config.resourcesFactory().find(uuid);
             if (ss != null) {
                 // Block websocket closing detection
                 AtmosphereResourceImpl.class.cast(ss).getRequest(false).setAttribute(ASYNCHRONOUS_HOOK, null);

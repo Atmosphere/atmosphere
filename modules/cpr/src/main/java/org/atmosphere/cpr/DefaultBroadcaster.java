@@ -142,7 +142,7 @@ public class DefaultBroadcaster implements Broadcaster {
         if (s != null) {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
-        noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
+        noOpsResource = config.resourcesFactory().create(config, "-1");
         if (outOfOrderBroadcastSupported.get()) {
             logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
         }
@@ -1384,7 +1384,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
             if (!backwardCompatible && parentUUID != null) {
-                AtmosphereResource p = AtmosphereResourceFactory.getDefault().find(parentUUID);
+                AtmosphereResource p = config.resourcesFactory().find(parentUUID);
                 if (p != null && !resources.contains(p)) {
                     notifyAndAdd(p);
                 } else if (p == null) {

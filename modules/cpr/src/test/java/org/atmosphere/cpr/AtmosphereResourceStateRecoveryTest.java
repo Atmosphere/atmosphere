@@ -48,7 +48,7 @@ public class AtmosphereResourceStateRecoveryTest {
         framework.setAsyncSupport(mock(AsyncSupport.class));
         framework.init();
         config = framework.getAtmosphereConfig();
-        r = AtmosphereResourceFactory.getDefault().create(config, "1234567");
+        r = config.resourcesFactory().create(config, "1234567");
         r.setBroadcaster(config.getBroadcasterFactory().lookup("/*", true));
     }
 
@@ -150,7 +150,7 @@ public class AtmosphereResourceStateRecoveryTest {
     @Test(enabled = false)
     public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
         final AtomicReference<Object> ref = new AtomicReference<Object>();
-        AtmosphereResourceImpl r = (AtmosphereResourceImpl) AtmosphereResourceFactory.getDefault().create(config, "1234567");
+        AtmosphereResourceImpl r = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
         r.setBroadcaster(config.getBroadcasterFactory().lookup("/1", true));
 
         recovery.configure(config);
@@ -171,7 +171,7 @@ public class AtmosphereResourceStateRecoveryTest {
         MetaBroadcaster.getDefault().broadcastTo("/1", "Initialize Cache").get();
         r.close();
 
-        AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) AtmosphereResourceFactory.getDefault().create(config, "1234567");
+        AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
         // Set a different one to hit caching.
         r2.setBroadcaster(config.getBroadcasterFactory().lookup("/*", true));
 

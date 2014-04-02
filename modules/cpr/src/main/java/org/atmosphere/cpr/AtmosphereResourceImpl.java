@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
-import static org.atmosphere.cpr.AtmosphereResourceFactory.getDefault;
 import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -132,7 +131,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     protected void register() {
         if (!Utils.unTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
-            AtmosphereResourceFactory.getDefault().registerUuidForFindCandidate(this);
+            config.resourcesFactory().registerUuidForFindCandidate(this);
         }
     }
 
@@ -286,7 +285,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         } finally {
-            getDefault().unRegisterUuidForFindCandidate(this);
+            config.resourcesFactory().unRegisterUuidForFindCandidate(this);
             try {
                 Meteor m = (Meteor) req.getAttribute(METEOR);
                 if (m != null) {
@@ -708,7 +707,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     config.getBroadcasterFactory().removeAllAtmosphereResource(this);
                     if (transport.equals(TRANSPORT.WEBSOCKET)) {
                         String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                        AtmosphereResource p = getDefault().find(parentUUID);
+                        AtmosphereResource p = config.resourcesFactory().find(parentUUID);
                         if (p != null) {
                             config.getBroadcasterFactory().removeAllAtmosphereResource(p);
                         }
@@ -742,7 +741,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 event.destroy();
 
                 if (!Utils.pollableTransport(transport()) && !Utils.webSocketMessage(this)) {
-                    getDefault().unRegisterUuidForFindCandidate(this);
+                    config.resourcesFactory().unRegisterUuidForFindCandidate(this);
                 }
             } finally {
                 unregister();
@@ -752,7 +751,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     private void unregister() {
         if (!Utils.unTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
-            getDefault().unRegisterUuidForFindCandidate(this);
+            config.resourcesFactory().unRegisterUuidForFindCandidate(this);
         }
     }
 
