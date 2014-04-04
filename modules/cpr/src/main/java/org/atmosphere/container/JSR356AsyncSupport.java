@@ -55,6 +55,8 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             servletPath = IOUtils.guestServletPath(config);
             if (servletPath.equals("/")) {
                 servletPath = PATH +"}";
+            } else if (servletPath.equals("/*")) {
+                servletPath = "";
             }
         }
         logger.info("JSR 356 Mapping path {}", servletPath);
