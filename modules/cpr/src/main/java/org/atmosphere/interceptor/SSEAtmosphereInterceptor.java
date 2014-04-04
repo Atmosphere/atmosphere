@@ -77,29 +77,25 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         response.setCharacterEncoding("utf-8");
         boolean isUsingStream = (Boolean) response.request().getAttribute(PROPERTY_USE_STREAM);
         if (isUsingStream) {
-            OutputStream stream = null;
             try {
-                stream = response.getResponse().getOutputStream();
+                OutputStream stream = response.getResponse().getOutputStream();
+                try {
+                    stream.write(padding);
+                    stream.flush();
+                } catch (IOException ex) {
+                    logger.warn("SSE may not work", ex);
+                }
             } catch (IOException e) {
                 logger.trace("", e);
-            }
-
-            try {
-                stream.write(padding);
-                stream.flush();
-            } catch (IOException ex) {
-                logger.warn("SSE may not work", ex);
             }
         } else {
-            PrintWriter w = null;
             try {
-                w = response.getResponse().getWriter();
+                PrintWriter w = response.getResponse().getWriter();
+                w.println(paddingText);
+                w.flush();
             } catch (IOException e) {
                 logger.trace("", e);
             }
-
-            w.println(paddingText);
-            w.flush();
         }
         response.resource().getRequest().setAttribute("paddingWritten", "true");
         return true;
