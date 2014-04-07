@@ -53,14 +53,12 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         String servletPath = config.getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
         if (servletPath == null) {
             servletPath = IOUtils.guestServletPath(config);
-            if (servletPath.equals("/")) {
+            if (servletPath.equals("/") || servletPath.equals("/*")) {
                 servletPath = PATH +"}";
-            } else if (servletPath.equals("/*")) {
-                servletPath = "";
             }
         }
         logger.info("JSR 356 Mapping path {}", servletPath);
-        configurator = new AtmosphereConfigurator(config.framework(), servletPath);
+        configurator = new AtmosphereConfigurator(config.framework());
 
         StringBuilder b = new StringBuilder(servletPath);
         for (int i = 0; i < pathLength; i++) {
@@ -73,7 +71,6 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
                 logger.warn("Duplicate guess {}", servletPath, e);
                 b.setLength(0);
                 b.append(servletPath);
-                configurator.guessedServletPath = servletPath;
             }
             b.append(PATH).append(i).append("}");
         }
@@ -91,7 +88,6 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
     public final static class AtmosphereConfigurator extends ServerEndpointConfig.Configurator {
 
         private final AtmosphereFramework framework;
-        private String guessedServletPath;
         /**
          * TODO: UGLY!
          * GlassFish/Jetty call modifyHandshake BEFORE getEndpointInstance() where other jsr356 do the reverse.
@@ -99,14 +95,13 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<JSR356Endpoint>();
         final ThreadLocal<HandshakeRequest> hRequest = new ThreadLocal<HandshakeRequest>();
 
-        public AtmosphereConfigurator(AtmosphereFramework framework, String guessedServletPath) {
+        public AtmosphereConfigurator(AtmosphereFramework framework) {
             this.framework = framework;
-            this.guessedServletPath = guessedServletPath;
         }
 
         public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
             if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
-                JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework), guessedServletPath);
+                JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework));
                 if (hRequest.get() != null) {
                     e.handshakeRequest(hRequest.get());
                     hRequest.set(null);

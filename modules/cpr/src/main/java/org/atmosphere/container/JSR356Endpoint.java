@@ -34,6 +34,7 @@ import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 import javax.websocket.server.HandshakeRequest;
 import java.io.IOException;
+import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
@@ -52,13 +53,11 @@ public class JSR356Endpoint extends Endpoint {
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
-    private final String servletPath;
     private HandshakeRequest handshakeRequest;
 
-    public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor, String servletPath) {
+    public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
         this.webSocketProcessor = webSocketProcessor;
-        this.servletPath = servletPath;
 
         if (framework.isUseNativeImplementation()) {
             throw new IllegalStateException("You cannot use WebSocket native implementation with JSR356. Please set " + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + " to false");
@@ -114,34 +113,27 @@ public class JSR356Endpoint extends Endpoint {
             headers.put(e.getKey(), e.getValue().size() > 0 ? e.getValue().get(0) : "");
         }
 
-        String pathInfo = "";
-        StringBuffer p = new StringBuffer("/");
-        try {
-            boolean append = true;
-            for (Map.Entry<String, String> e : session.getPathParameters().entrySet()) {
-                // Glasfish return reverse path!!!
-                if (append && !e.getKey().equalsIgnoreCase("{path}")) {
-                    append = false;
-                }
+        String servletPath = "";
 
-                if (append) {
-                    p.append(e.getValue()).append("/");
-                } else {
-                    p.insert(0, e.getValue()).insert(0, "/");
-                }
-            }
-            if (p.length() > 1) {
-                p.deleteCharAt(p.length() - 1);
-            }
+        URI uri = session.getRequestURI();
+        String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
 
-            pathInfo = p.toString();
-            if (!pathInfo.equals(servletPath) && pathInfo.length() > servletPath.length()) {
-                pathInfo = p.toString().substring(servletPath.length());
-            } else if (pathInfo.equals(servletPath)) {
-                pathInfo = null;
+        // /contextPath/servletPath/pathInfo
+        StringBuffer b = new StringBuffer("/");
+        for (int i = 0; i < paths.length; i++) {
+            if (i == 2) servletPath += "/" + paths[i];
+            if (i >= 3) {
+                b.append(paths[i]).append("/");
             }
-        } catch (Exception ex) {
-            logger.warn("Unexpected path decoding", ex);
+        }
+
+        if (b.length() > 1) {
+            b.deleteCharAt(b.length() - 1);
+        }
+
+        String pathInfo = b.toString();
+        if (pathInfo.equals("/")) {
+            pathInfo = null;
         }
 
         try {
