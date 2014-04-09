@@ -15,12 +15,7 @@
  */
 package org.atmosphere.annotation;
 
-import org.atmosphere.config.service.AtmosphereHandlerService;
-import org.atmosphere.config.service.Get;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.MeteorService;
-import org.atmosphere.config.service.Singleton;
-import org.atmosphere.config.service.WebSocketHandlerService;
+import org.atmosphere.config.service.*;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -393,5 +388,37 @@ public class PathTest {
         assertEquals(instanceCount, 0);
         assertNotNull(r.get());
         assertEquals(r.get(), "/singleton/ws/bar");
+    }
+
+    @ManagedService(path = "/pathVar/{a}/pathTest/{b}")
+    public final static class PathVar {
+
+
+        public PathVar() {
+            ++instanceCount;
+        }
+
+        @PathVariable
+        private String a;
+
+        @PathVariable("b")
+        private String b1;
+
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(a+"#"+b1);
+        }
+    }
+
+    @Test
+    public void testPathVar() throws IOException, ServletException {
+        instanceCount = 0;
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/pathVar/aaa/pathTest/b123").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(instanceCount, 1);
+        assertNotNull(r.get());
+        assertEquals(r.get(), "aaa#b123");
+
     }
 }
