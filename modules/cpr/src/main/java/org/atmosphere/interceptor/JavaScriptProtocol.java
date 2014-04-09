@@ -48,7 +48,6 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private final static Logger logger = LoggerFactory.getLogger(JavaScriptProtocol.class);
     private String wsDelimiter = "|";
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
-    private AtmosphereConfig config;
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -56,7 +55,6 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         if (s != null) {
             wsDelimiter = s;
         }
-        this.config = config;
     }
 
     @Override
@@ -114,6 +112,15 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             }
         }
         return Action.CONTINUE;
+    }
+
+    public String wsDelimiter(){
+        return wsDelimiter;
+    }
+
+    public JavaScriptProtocol wsDelimiter(String wsDelimiter) {
+        this.wsDelimiter = wsDelimiter;
+        return this;
     }
 
     @Override

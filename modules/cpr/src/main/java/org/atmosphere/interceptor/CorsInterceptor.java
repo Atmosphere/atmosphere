@@ -30,15 +30,15 @@ import org.atmosphere.cpr.AtmosphereResponse;
  */
 public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
-     private boolean enableAccessControl = true;
+    private boolean enableAccessControl = true;
 
-     @Override
-     public void configure(AtmosphereConfig config) {
-         String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
-         if (ac != null) {
+    @Override
+    public void configure(AtmosphereConfig config) {
+        String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
+        if (ac != null) {
             enableAccessControl = Boolean.parseBoolean(ac);
-         }
-     }
+        }
+    }
 
     @Override
     public Action inspect(AtmosphereResource resource) {
@@ -64,6 +64,15 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         return Action.CONTINUE;
+    }
+
+    public boolean enableAccessControl() {
+        return enableAccessControl;
+    }
+
+    public CorsInterceptor enableAccessControl(boolean enableAccessControl) {
+        this.enableAccessControl = enableAccessControl;
+        return this;
     }
 
     @Override

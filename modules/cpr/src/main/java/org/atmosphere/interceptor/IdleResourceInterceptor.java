@@ -101,6 +101,15 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
         }
     }
 
+    public long maxInactiveTime() {
+        return maxInactiveTime;
+    }
+
+    public IdleResourceInterceptor maxInactiveTime(long maxInactiveTime) {
+        this.maxInactiveTime = maxInactiveTime;
+        return this;
+    }
+
     @Override
     public Action inspect(AtmosphereResource r) {
         if (maxInactiveTime > 0) {

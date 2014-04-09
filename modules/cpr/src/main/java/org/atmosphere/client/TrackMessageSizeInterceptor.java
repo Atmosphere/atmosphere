@@ -97,6 +97,10 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         return this;
     }
 
+    public HashSet<String> excludedContentTypes(){
+        return excludedContentTypes;
+    }
+
     @Override
     public Action inspect(final AtmosphereResource r) {
         if (AtmosphereResource.TRANSPORT.UNDEFINED == r.transport())

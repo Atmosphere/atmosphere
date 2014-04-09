@@ -67,6 +67,24 @@ public class CacheHeadersInterceptor extends AtmosphereInterceptorAdapter {
         return Action.CONTINUE;
     }
 
+    public boolean injectCacheHeaders() {
+        return injectCacheHeaders;
+    }
+
+    public boolean writeHeaders() {
+        return writeHeaders;
+    }
+
+    public CacheHeadersInterceptor injectCacheHeaders(boolean injectCacheHeaders) {
+        this.injectCacheHeaders = injectCacheHeaders;
+        return this;
+    }
+
+    public CacheHeadersInterceptor writeHeaders(boolean writeHeaders) {
+        this.writeHeaders = writeHeaders;
+        return this;
+    }
+
     @Override
     public String toString() {
         return "Default Response's Headers Interceptor";
