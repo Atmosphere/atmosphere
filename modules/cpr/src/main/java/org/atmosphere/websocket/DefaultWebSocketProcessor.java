@@ -620,7 +620,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             while (read > -1) {
                 bb.position(bb.position() + read);
                 if (bb.remaining() == 0) {
-                    resizeByteBuffer(webSocket);
+                    bb = resizeByteBuffer(webSocket);
                 }
                 read = is.read(bb.array(), bb.position(), bb.remaining());
             }
@@ -639,7 +639,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             while (read > -1) {
                 cb.position(cb.position() + read);
                 if (cb.remaining() == 0) {
-                    resizeCharBuffer(webSocket);
+                    cb = resizeCharBuffer(webSocket);
                 }
                 read = r.read(cb.array(), cb.position(), cb.remaining());
             }
@@ -650,7 +650,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
-    private void resizeByteBuffer(WebSocket webSocket) throws IOException {
+    private ByteBuffer resizeByteBuffer(WebSocket webSocket) throws IOException {
         int maxSize = getByteBufferMaxSize();
         ByteBuffer bb = webSocket.bb;
         if (bb.limit() >= maxSize) {
@@ -667,9 +667,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         bb.rewind();
         newBuffer.put(bb);
         webSocket.bb = newBuffer;
+        return newBuffer;
     }
 
-    private void resizeCharBuffer(WebSocket webSocket) throws IOException {
+    private CharBuffer resizeCharBuffer(WebSocket webSocket) throws IOException {
         int maxSize = getCharBufferMaxSize();
         CharBuffer cb = webSocket.cb;
         if (cb.limit() >= maxSize) {
@@ -686,6 +687,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         cb.rewind();
         newBuffer.put(cb);
         webSocket.cb = newBuffer;
+        return newBuffer;
     }
 
     /**
