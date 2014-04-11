@@ -114,8 +114,9 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         for (int i = 0; i < len; i++) {
             String s = outParts[i];
             if (s.startsWith("{") && s.endsWith("}")) {
-                                            /* we remove braces from string and put it to our map */
-                annotatedPathVars.put(s.substring(1, s.length() - 1), inParts[i]);
+                /* we remove braces from string and put it to our map and also path that regex like room: [a-zA-Z][a-zA-Z_0-9]* */
+                int end = s.contains(":") ? s.indexOf(":"): s.length() - 1;
+                annotatedPathVars.put(s.substring(1, end), inParts[i]);
                 logger.debug("Putting PathVar pair: {} -> {}", s.substring(1, s.length() - 1), inParts[i]);
             }
         }
