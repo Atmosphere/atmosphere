@@ -53,13 +53,13 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                             try {
                                 boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
-                                    ManagedAtmosphereHandler h = proxyHandler();
+                                    AnnotatedProxy h = proxyHandler();
 
                                     final Object o = config.framework().newClassInstance(Object.class, ap.target().getClass());
                                     h.configure(config, o);
 
                                     if (h.pathParams()) {
-                                        injectPathParams(path, targetPath, o);
+                                        prepareForPathInjection(path, targetPath, o);
                                     }
 
                                     config.framework().addAtmosphereHandler(path, h,
@@ -81,8 +81,8 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         }
     }
 
-    protected ManagedAtmosphereHandler proxyHandler() throws IllegalAccessException, InstantiationException {
-        return config.framework().newClassInstance(ManagedAtmosphereHandler.class, ManagedAtmosphereHandler.class);
+    protected AnnotatedProxy proxyHandler() throws IllegalAccessException, InstantiationException {
+        return config.framework().newClassInstance(AnnotatedProxy.class, ManagedAtmosphereHandler.class);
     }
 
     protected ManagedAnnotation managed(AnnotatedProxy ap, AtmosphereResource r){
@@ -102,8 +102,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         };
     }
 
-
-    protected void injectPathParams(String path, String targetPath, Object o) {
+    protected void prepareForPathInjection(String path, String targetPath, Object o) {
         /* begin @PathVariable annotations processing */
 
         /* first, split paths at slashes and map {{parameter names}} to values from path */
@@ -120,7 +119,10 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                 logger.debug("Putting PathVar pair: {} -> {}", s.substring(1, s.length() - 1), inParts[i]);
             }
         }
+        injectPathParams(o, annotatedPathVars);
+    }
 
+    protected void injectPathParams(Object o, Map<String, String> annotatedPathVars){
         /* now look for appropriate annotations and fill the variables accordingly */
         for (Field field : o.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(PathParam.class)) {

@@ -86,7 +86,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     public ManagedAtmosphereHandler() {
     }
 
-    public ManagedAtmosphereHandler configure(AtmosphereConfig config, Object c) {
+    @Override
+    public AnnotatedProxy configure(AtmosphereConfig config, Object c) {
         this.proxiedInstance = c;
         this.onRuntimeMethod = populateMessage(c, Message.class);
         this.onDisconnectMethod = populate(c, Disconnect.class);
@@ -225,11 +226,12 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
+    @Override
     public boolean pathParams(){
         return pathParams;
     }
 
-    private boolean pathParams(Object o){
+    protected boolean pathParams(Object o){
         for (Field field : o.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(PathParam.class)) {
                 return true;

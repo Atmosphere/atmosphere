@@ -15,18 +15,36 @@
  */
 package org.atmosphere.handler;
 
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereHandler;
+
 /**
  * Marker class for an {@link org.atmosphere.cpr.AtmosphereHandler} proxy of a POJO object.
  *
  * @author Jeanfrancois Arcand
  */
-public interface AnnotatedProxy {
+public interface AnnotatedProxy extends AtmosphereHandler {
 
     /**
      * The Object the {@link org.atmosphere.cpr.AtmosphereHandler} is proxying.
      *
      * @return
      */
-    public Object target();
+    Object target();
+
+    /**
+     * Return true if {@link org.atmosphere.config.service.PathParam} are supported.
+     *
+     * @return true if {@link org.atmosphere.config.service.PathParam} are supported.
+     */
+    boolean pathParams();
+
+    /**
+     * Configure the proxy.
+     * @param config
+     * @param c
+     * @return
+     */
+    AnnotatedProxy configure(AtmosphereConfig config, Object c);
 
 }
