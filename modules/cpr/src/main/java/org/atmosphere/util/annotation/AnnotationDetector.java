@@ -199,6 +199,9 @@ public final class AnnotationDetector {
     private static final int CP_REF_METHOD = 10;
     private static final int CP_REF_INTERFACE = 11;
     private static final int CP_NAME_AND_TYPE = 12;
+    private static final int CP_METHOD_HANDLE = 15;
+    private static final int CP_METHOD_TYPE = 16;
+    private static final int CP_INVOKE_DYNAMIC= 18;
 
     // AnnotationElementValue
     private static final int BYTE = 'B';
@@ -526,6 +529,15 @@ public final class AnnotationDetector {
             case CP_NAME_AND_TYPE:
                 di.skipBytes(4);  // readUnsignedShort() * 2
                 return false;
+            case CP_METHOD_HANDLE:
+                di.skipBytes(3);
+                return false;
+            case CP_METHOD_TYPE:
+                di.skipBytes(2);  // readUnsignedShort()
+                return false;
+            case CP_INVOKE_DYNAMIC:
+                di.skipBytes(4);  // readUnsignedShort() * 2
+           return false;
             default:
                 throw new ClassFormatError(
                         "Unkown tag value for constant pool entry: " + tag);
