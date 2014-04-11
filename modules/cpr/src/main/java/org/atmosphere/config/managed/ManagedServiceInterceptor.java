@@ -16,7 +16,7 @@
 package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.PathVariable;
+import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -25,7 +25,6 @@ import org.atmosphere.handler.AnnotatedProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -57,46 +56,9 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                     final Object o = config.framework().newClassInstance(Object.class, ap.target().getClass());
                                     h.configure(config, o);
 
-                                    /* begin @PathVariable annotations processing */
-
-                                    /* first, split paths at slashes and map {{parameter names}} to values from path */
-                                    logger.debug("Path: {}, targetPath: {}", path, targetPath);
-                                    String[] inParts = path.split("/");
-                                    String[] outParts = targetPath.split("/");
-                                    Map<String, String> annotatedPathVars = new HashMap<String, String>();
-                                    int len = Math.min(outParts.length, inParts.length);
-                                    for (int i = 0; i < len; i++) {
-                                        String s = outParts[i];
-                                        if (s.startsWith("{") && s.endsWith("}")) {
-                                            /* we remove braces from string and put it to our map */
-                                            annotatedPathVars.put(s.substring(1, s.length()-1), inParts[i]);
-                                            logger.debug("Putting PathVar pair: {} -> {}", s.substring(1, s.length()-1), inParts[i]);
-                                        }
+                                    if (h.pathParams()) {
+                                        injectPathParams(path, targetPath, o);
                                     }
-
-                                    /* now look for appropriate annotations and fill the variables accordingly */
-                                    for (Field field : o.getClass().getDeclaredFields()) {
-                                        if (field.isAnnotationPresent(PathVariable.class)) {
-                                            PathVariable annotation = field.getAnnotation(PathVariable.class);
-                                            String name = annotation.value();
-                                            if (name.isEmpty()) {
-                                                name = field.getName();
-                                            }
-                                            if (annotatedPathVars.containsKey(name)) {
-                                                try {
-                                                    logger.debug("Annotating field {}", name);
-                                                    field.setAccessible(true);
-                                                    field.set(o, annotatedPathVars.get(name));
-                                                } catch (Exception e) {
-                                                    logger.error("Error processing @PathVariable annotation", e);
-                                                }
-                                            } else {
-                                                logger.error("No path marker found for PathVariable {}, class {}", field.getName(), o.getClass());
-                                            }
-                                        }
-                                    }
-
-                                    /* end @PathVariable annotations processing */
 
                                     config.framework().addAtmosphereHandler(path, h,
                                             config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
@@ -115,6 +77,48 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
             }
         }
+    }
+
+    private void injectPathParams(String path, String targetPath, Object o) {
+        /* begin @PathVariable annotations processing */
+
+        /* first, split paths at slashes and map {{parameter names}} to values from path */
+        logger.debug("Path: {}, targetPath: {}", path, targetPath);
+        String[] inParts = path.split("/");
+        String[] outParts = targetPath.split("/");
+        Map<String, String> annotatedPathVars = new HashMap<String, String>();
+        int len = Math.min(outParts.length, inParts.length);
+        for (int i = 0; i < len; i++) {
+            String s = outParts[i];
+            if (s.startsWith("{") && s.endsWith("}")) {
+                                            /* we remove braces from string and put it to our map */
+                annotatedPathVars.put(s.substring(1, s.length() - 1), inParts[i]);
+                logger.debug("Putting PathVar pair: {} -> {}", s.substring(1, s.length() - 1), inParts[i]);
+            }
+        }
+
+        /* now look for appropriate annotations and fill the variables accordingly */
+        for (Field field : o.getClass().getDeclaredFields()) {
+            if (field.isAnnotationPresent(PathParam.class)) {
+                PathParam annotation = field.getAnnotation(PathParam.class);
+                String name = annotation.value();
+                if (name.isEmpty()) {
+                    name = field.getName();
+                }
+                if (annotatedPathVars.containsKey(name)) {
+                    try {
+                        logger.debug("Annotating field {}", name);
+                        field.setAccessible(true);
+                        field.set(o, annotatedPathVars.get(name));
+                    } catch (Exception e) {
+                        logger.error("Error processing @PathVariable annotation", e);
+                    }
+                } else {
+                    logger.error("No path marker found for PathVariable {}, class {}", field.getName(), o.getClass());
+                }
+            }
+        }
+        /* end @PathVariable annotations processing */
     }
 
     @Override

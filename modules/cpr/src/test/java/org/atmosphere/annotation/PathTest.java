@@ -398,10 +398,10 @@ public class PathTest {
             ++instanceCount;
         }
 
-        @PathVariable
+        @PathParam
         private String a;
 
-        @PathVariable("b")
+        @PathParam("b")
         private String b1;
 
         @Get

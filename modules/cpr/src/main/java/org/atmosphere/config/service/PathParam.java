@@ -27,7 +27,7 @@ import java.lang.annotation.*;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.FIELD)
 @Documented
-public @interface PathVariable {
+public @interface PathParam {
     /**
 	 * The URI template variable to bind to.
 	 */
