@@ -426,7 +426,7 @@ public class BroadcasterConfig {
 
         Object newO = unwrap(object);
         boolean isManipulated = false;
-        if (!newO.equals(object)) {
+        if (newO != null && !newO.equals(object)) {
             isManipulated = true;
             object = newO;
         }

@@ -66,7 +66,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
             framework.filterManipulator(new BroadcasterConfig.FilterManipulator() {
                 @Override
                 public Object unwrap(Object o) {
-                    if (ManagedAtmosphereHandler.Managed.class.isAssignableFrom(o.getClass())) {
+                    if (o != null && ManagedAtmosphereHandler.Managed.class.isAssignableFrom(o.getClass())) {
                         o = ManagedAtmosphereHandler.Managed.class.cast(o).object();
                     }
                     return o;
