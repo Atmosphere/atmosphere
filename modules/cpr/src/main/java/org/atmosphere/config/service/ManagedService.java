@@ -25,7 +25,6 @@ import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
-import org.atmosphere.interceptor.IdleResourceInterceptor;
 import org.atmosphere.interceptor.SuspendTrackerInterceptor;
 
 import java.lang.annotation.Documented;

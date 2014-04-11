@@ -19,6 +19,7 @@ import org.atmosphere.config.service.Delete;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.Message;
+import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
 import org.atmosphere.config.service.Ready;
@@ -43,6 +44,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
@@ -76,6 +78,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Method onReadyMethod;
     private Method onResumeMethod;
     private AtmosphereConfig config;
+    private boolean pathParams = false;
 
     final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
     final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
@@ -95,6 +98,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onReadyMethod = populate(c, Ready.class);
         this.onResumeMethod = populate(c, Resume.class);
         this.config = config;
+        this.pathParams = pathParams(c);
 
         scanForReaderOrInputStream();
 
@@ -219,6 +223,19 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         if (resumeOnBroadcast && r.isSuspended()) {
             r.resume();
         }
+    }
+
+    public boolean pathParams(){
+        return pathParams;
+    }
+
+    private boolean pathParams(Object o){
+        for (Field field : o.getClass().getDeclaredFields()) {
+            if (field.isAnnotationPresent(PathParam.class)) {
+                return true;
+            }
+        }
+        return false;
     }
 
     private Method populate(Object c, Class<? extends Annotation> annotation) {
