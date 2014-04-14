@@ -504,8 +504,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public ServletInputStream getInputStream() throws IOException {
-        configureStream();
-        return bis == null ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
+        if (b.body.isEmpty()) {
+            configureStream();
+            return bis == null ? (isNotNoOps() ? b.request.getInputStream() : voidStream) : bis;
+        } else if (b.body.hasString()) {
+            bis = new IS(new ByteArrayInputStream(b.body.asString().getBytes()));
+        } else if (b.body.hasBytes()) {
+            bis = new IS(new ByteArrayInputStream(b.body.asBytes(), b.body.offset, b.body.byteLength()));
+        }
+        return bis;
     }
 
     /**
@@ -513,8 +520,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public BufferedReader getReader() throws IOException {
-        configureReader();
-        return br == null ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
+        if (b.body.isEmpty()) {
+            configureReader();
+            return br == null ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
+        } else if (b.body.hasString()) {
+           br = new BufferedReader(new StringReader(body().asString()));
+        } else if (b.body.hasBytes()) {
+            br = new BufferedReader(new StringReader(new String(body().asBytes(), body().byteOffset(), body().length)));
+        }
+        return br;
     }
 
     /**
