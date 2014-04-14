@@ -38,7 +38,7 @@ The Atmosphere's Framework ships with many examples describing how to implement 
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.1.2</version>
+         <version>2.1.3</version>
       </dependency>
 ```
       
