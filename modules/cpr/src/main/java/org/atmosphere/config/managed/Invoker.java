@@ -51,7 +51,7 @@ public class Invoker {
         } catch (IllegalAccessException e) {
             logger.trace("", e);
         } catch (InvocationTargetException e) {
-            logger.trace("", e);
+            logger.error("", e);
         } catch (java.lang.IllegalArgumentException e) {
             logger.trace("", e);
         } catch (Throwable e) {
