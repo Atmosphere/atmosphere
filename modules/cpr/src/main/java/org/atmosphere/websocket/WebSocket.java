@@ -202,7 +202,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             }
 
             if (b != null) {
-                write(b, 0, length);
+                write(b, 0, b.length);
             }
         } else {
             String data = null;
