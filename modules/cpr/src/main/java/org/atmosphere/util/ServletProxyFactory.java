@@ -38,6 +38,12 @@ public class ServletProxyFactory {
         addMethodHandler("encodeURL", voidMethodHandler)
                 .addMethodHandler("encodeRedirectURL", voidMethodHandler)
                 .addMethodHandler("getCharacterEncoding", new UTF8Handler())
+                .addMethodHandler("getServerInfo", new MethodHandler(){
+                    @Override
+                    public Object handle(Object clazz, Method method, Object[] methodObjects) {
+                        return "Undefined";
+                    }
+                })
                 .addMethodHandler("getMajorVersion", new MethodHandler() {
                     @Override
                     public Object handle(Object clazz, Method method, Object[] methodObjects) {
