@@ -332,7 +332,7 @@ public class ManagedAtmosphereHandlerTest {
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/priority").method("GET").build();
         request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
-        assertEquals(framework.interceptors().getFirst().toString(), "XXX");
+        assertEquals(framework.getAtmosphereHandlers().get("/priority").interceptors.getFirst().toString(), "XXX");
 
         assertNotNull(r.get());
     }
