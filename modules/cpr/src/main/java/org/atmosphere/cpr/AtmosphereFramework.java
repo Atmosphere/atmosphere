@@ -261,7 +261,7 @@ public class AtmosphereFramework {
         public final AtmosphereHandler atmosphereHandler;
         public Broadcaster broadcaster;
         public String mapping;
-        public List<AtmosphereInterceptor> interceptors = Collections.emptyList();
+        public LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
         public boolean create;
 
         public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, AtmosphereHandler atmosphereHandler, String mapping) {
@@ -364,7 +364,7 @@ public class AtmosphereFramework {
             mapping = "/" + mapping;
         }
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
-        w.interceptors = l;
+        w.interceptors = LinkedList.class.isAssignableFrom(l.getClass()) ? LinkedList.class.cast(l) : new LinkedList<AtmosphereInterceptor>(l);
         addMapping(mapping, w);
 
         if (isInit) {
@@ -430,7 +430,8 @@ public class AtmosphereFramework {
 
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
         w.broadcaster.setID(broadcasterId);
-        w.interceptors = l;
+        w.interceptors = LinkedList.class.isAssignableFrom(l.getClass()) ? LinkedList.class.cast(l) : new LinkedList<AtmosphereInterceptor>(l);
+
         addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
         if (l.size() > 0) {
@@ -467,7 +468,7 @@ public class AtmosphereFramework {
         }
 
         AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, broadcaster);
-        w.interceptors = l;
+        w.interceptors = LinkedList.class.isAssignableFrom(l.getClass()) ? LinkedList.class.cast(l) : new LinkedList<AtmosphereInterceptor>(l);
 
         addMapping(mapping, w);
         if (!isInit) {
@@ -941,7 +942,8 @@ public class AtmosphereFramework {
     protected void initHandlerInterceptors(AtmosphereHandlerWrapper w) {
         List<AtmosphereInterceptor> remove = new ArrayList<AtmosphereInterceptor>();
         if (w.interceptors != null) {
-            for (AtmosphereInterceptor i : w.interceptors) {
+            LinkedList<AtmosphereInterceptor> d = new LinkedList<AtmosphereInterceptor>(w.interceptors);
+            for (AtmosphereInterceptor i : d) {
 
                 //
                 InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(i.getClass()) ?
@@ -949,16 +951,10 @@ public class AtmosphereFramework {
 
                 // We need to relocate the interceptor
                 if (!p.equals(InvokationOrder.AFTER_DEFAULT)) {
-                    positionInterceptor(p, i);
-                    remove.add(i);
+                    positionInterceptor(p, i, w.interceptors);
                 }
                 i.configure(config);
             }
-
-            for (AtmosphereInterceptor i : remove) {
-                w.interceptors.remove(i);
-            }
-
         }
     }
 
@@ -1511,7 +1507,7 @@ public class AtmosphereFramework {
                         broadcasterFilters.addAll(atmoHandler.getBroadcastFilterClasses());
                     }
 
-                    List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+                    LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
                     if (atmoHandler.getAtmosphereInterceptorClasses() != null) {
                         for (String a : atmoHandler.getAtmosphereInterceptorClasses()) {
                             try {
@@ -2113,30 +2109,44 @@ public class AtmosphereFramework {
 
         if (!found) {
             InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(c.getClass()) ? InvokationOrder.class.cast(c).priority() : InvokationOrder.AFTER_DEFAULT;
-            positionInterceptor(p, c);
+            positionInterceptor(p, c, interceptors);
 
             logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
         }
         return this;
     }
 
-    protected void positionInterceptor(InvokationOrder.PRIORITY p, AtmosphereInterceptor c) {
+    protected void positionInterceptor(InvokationOrder.PRIORITY p, AtmosphereInterceptor c, LinkedList<AtmosphereInterceptor> interceptors) {
         switch (p) {
             case AFTER_DEFAULT:
+                interceptors.remove(c);
                 interceptors.addLast(c);
                 break;
             case BEFORE_DEFAULT:
+
+                if (!checkDuplicate(c)) return;
+
+                interceptors.remove(c);
                 int pos = executeFirstSet ? 1 : 0;
-                interceptors.add(pos, c);
+                this.interceptors.add(pos, c);
                 break;
             case FIRST_BEFORE_DEFAULT:
                 if (executeFirstSet)
                     throw new IllegalStateException("Cannot set more than one AtmosphereInterceptor to be executed first");
                 logger.info("AtmosphereInterceptor {} will always be executed first", c);
+                interceptors.remove(c);
                 interceptors.addFirst(c);
                 executeFirstSet = true;
                 break;
         }
+    }
+
+    private boolean checkDuplicate(AtmosphereInterceptor c) {
+        for (AtmosphereInterceptor i: interceptors) {
+            if (i.getClass().equals(c.getClass()))
+                return false;
+        }
+        return true;
     }
 
     /**

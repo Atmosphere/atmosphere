@@ -31,7 +31,8 @@ public interface InvokationOrder {
          */
         AFTER_DEFAULT,
         /**
-         * The AtmosphereInterceptor must be executed before the default set of AtmosphereInterceptor
+         * The AtmosphereInterceptor must be executed before the default set of AtmosphereInterceptor. You can only
+         * add one instance per {@link org.atmosphere.cpr.AtmosphereInterceptor}
          */
         BEFORE_DEFAULT,
         /**
