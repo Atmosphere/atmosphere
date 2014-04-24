@@ -471,11 +471,11 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     webSocketHandler.onClose(webSocket);
                 }
 
-                if (resource != null && resource.isInScope()) {
+                if (resource != null && resource.isInScope() && !resource.getAtmosphereResourceEvent().isClosedByApplication()) {
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
                     if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
                         final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
-                        if (!resource.isCancelled() && !resource.getAtmosphereResourceEvent().isClosedByClient()) {
+                        if (!resource.isCancelled()) {
                             if (closeCode == 1005 || closeCode == 1001) {
                                 boolean ff = r.getAttribute("firefox") != null;
                                 if (ff || closingTime > 0) {
