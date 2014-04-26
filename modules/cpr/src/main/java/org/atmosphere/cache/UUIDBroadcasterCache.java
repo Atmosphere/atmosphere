@@ -177,6 +177,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             logger.trace("Removing for AtmosphereResource {} cached message {}", uuid, message.getMessage());
             notifyRemoveCache(broadcasterId, message);
             clientQueue.getQueue().remove(message);
+            clientQueue.getIds().remove(message.getId());
         }
         return this;
     }
