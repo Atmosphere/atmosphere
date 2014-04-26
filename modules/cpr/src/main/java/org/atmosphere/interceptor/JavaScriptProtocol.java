@@ -93,6 +93,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                         } catch (IOException e) {
                             logger.trace("", e);
                         }
+                        r.removeEventListener(this);
                     }
                 };
                 // Pass the information to Servlet Based Framework

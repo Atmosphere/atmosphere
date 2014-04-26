@@ -144,6 +144,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         @Override
         public void onPreSuspend(AtmosphereResourceEvent event) {
             writePadding(response);
+            event.getResource().removeEventListener(this);
         }
     }
 }
