@@ -704,6 +704,8 @@ public class AtmosphereFramework {
             configureScanningPackage(scFacade, ApplicationConfig.ANNOTATION_PACKAGE);
             configureScanningPackage(scFacade, FrameworkConfig.JERSEY2_SCANNING_PACKAGE);
             configureScanningPackage(scFacade, FrameworkConfig.JERSEY_SCANNING_PACKAGE);
+            // Force scanning of the packages defined.
+            defaultPackagesToScan();
 
             installAnnotationProcessor(scFacade);
 
@@ -993,6 +995,11 @@ public class AtmosphereFramework {
                 packages.add(a);
             }
         }
+    }
+
+    protected void defaultPackagesToScan(){
+        // Atmosphere HA/Pro
+        packages.add("io.async.control");
     }
 
     public void configureBroadcasterFactory() {
