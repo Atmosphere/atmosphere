@@ -208,6 +208,10 @@ public class AtmosphereConfig {
                 logger.warn("", ex);
             }
         }
+        properties.clear();
+        shutdownHooks.clear();
+        startUpHook.clear();
+        atmosphereHandlerConfig.clear();
     }
 
     /**

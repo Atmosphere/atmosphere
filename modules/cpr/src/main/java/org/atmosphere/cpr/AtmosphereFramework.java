@@ -42,6 +42,7 @@ import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.ServletContextFactory;
@@ -574,7 +575,7 @@ public class AtmosphereFramework {
      */
     public AtmosphereFramework init() {
         try {
-            init(new ServletConfig() {
+            init(servletConfig == null ? new ServletConfig() {
 
                 @Override
                 public String getServletName() {
@@ -589,7 +590,8 @@ public class AtmosphereFramework {
                                 public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
                                     return ServletProxyFactory.getDefault().proxy(proxy, method, args);
                                 }
-                            });
+                            }
+                    );
                 }
 
                 @Override
@@ -601,7 +603,7 @@ public class AtmosphereFramework {
                 public Enumeration<String> getInitParameterNames() {
                     return Collections.enumeration(initParams.values());
                 }
-            }, false);
+            } : servletConfig, false);
         } catch (ServletException e) {
             logger.error("", e);
         }
@@ -1417,12 +1419,39 @@ public class AtmosphereFramework {
         if (factory != null) {
             factory.destroy();
             BroadcasterFactory.factory = null;
+            BroadcasterFactory.config = null;
         }
 
         arFactory.destroy();
         AtmosphereResourceFactory.getDefault().destroy();
         WebSocketProcessorFactory.getDefault().destroy();
+
+        resetStates();
         return this;
+    }
+
+    public AtmosphereFramework resetStates(){
+        isInit = false;
+
+        broadcasterFilters.clear();
+        asyncSupportListeners.clear();
+        possibleComponentsCandidate.clear();
+        initParams.clear();
+        atmosphereHandlers.clear();
+        broadcasterTypes.clear();
+        objectFactoryType.clear();
+        inspectors.clear();
+        broadcasterListeners.clear();
+        packages.clear();
+        annotationPackages.clear();
+        excludedInterceptors.clear();
+        broadcasterCacheListeners.clear();
+        filterManipulators.clear();
+        interceptors.clear();
+
+        broadcasterFactory = null;
+        annotationFound = false;
+       return this;
     }
 
     /**
@@ -2628,12 +2657,31 @@ public class AtmosphereFramework {
         return mappingRegex;
     }
 
+    public AtmosphereFramework mappingRegex(String mappingRegex) {
+        this.mappingRegex = mappingRegex;
+        return this;
+    }
+
+    public void setUseServlet30(boolean useServlet30) {
+        this.useServlet30 = useServlet30;
+    }
+
     public boolean webSocketEnabled(){
         return webSocketEnabled;
     }
 
+    public AtmosphereFramework webSocketEnabled(boolean webSocketEnabled) {
+        this.webSocketEnabled = webSocketEnabled;
+        return this;
+    }
+
     public String broadcasterLifeCyclePolicy(){
         return broadcasterLifeCyclePolicy;
+    }
+
+    public AtmosphereFramework broadcasterLifeCyclePolicy(String broadcasterLifeCyclePolicy){
+        this.broadcasterLifeCyclePolicy = broadcasterLifeCyclePolicy;
+        return this;
     }
 
     public List<BroadcasterListener> broadcasterListeners(){
@@ -2644,8 +2692,18 @@ public class AtmosphereFramework {
         return sharedThreadPools;
     }
 
+    public AtmosphereFramework sharedThreadPools(boolean sharedThreadPools) {
+        this.sharedThreadPools = sharedThreadPools;
+        return this;
+    }
+
     public boolean allowAllClassesScan(){
         return allowAllClassesScan;
+    }
+
+    public AtmosphereFramework allowAllClassesScan(boolean b) {
+        this.allowAllClassesScan = allowAllClassesScan;
+        return this;
     }
 
     public AtmosphereObjectFactory objectFactory(){

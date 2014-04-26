@@ -45,6 +45,15 @@ public class AtmosphereFrameworkTest {
     }
 
     @Test
+    public void testReload() throws ServletException {
+        AtmosphereFramework f = new AtmosphereFramework();
+        f.init();
+        f.destroy();
+        f.init();
+        assertNotNull(f.getBroadcasterFactory());
+    }
+
+    @Test
     public void testAtmosphereServlet() throws ServletException {
         AtmosphereServlet s = new MyAtmosphereServlet();
         s.init(new ServletConfig() {
