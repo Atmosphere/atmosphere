@@ -61,11 +61,15 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
 
-    public final static class ClientQueue implements Serializable{
+    /**
+     * This class wraps all messages to be delivered to a client. The class is thread safe to be accessed in a
+     * concurrent context.
+     */
+    public final static class ClientQueue implements Serializable {
         private static final long serialVersionUID = -126253550299206646L;
 
         private final ConcurrentLinkedQueue<CacheMessage> queue = new ConcurrentLinkedQueue<CacheMessage>();
-        private final Set<String> ids = new HashSet<String>();
+        private final Set<String> ids = Collections.synchronizedSet(new HashSet<String>());
 
         public ConcurrentLinkedQueue<CacheMessage> getQueue() {
             return queue;
