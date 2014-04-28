@@ -42,7 +42,6 @@ import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
-import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.ServletContextFactory;
@@ -1432,6 +1431,7 @@ public class AtmosphereFramework {
 
     public AtmosphereFramework resetStates(){
         isInit = false;
+        executeFirstSet = false;
 
         broadcasterFilters.clear();
         asyncSupportListeners.clear();

@@ -43,6 +43,7 @@ import javax.servlet.annotation.HandlesTypes;
 import java.io.File;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -119,15 +120,17 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     public AnnotationProcessor configure(final AtmosphereFramework framework) {
         ServletContext sc = framework.getServletContext();
 
-        Map<Class<? extends Annotation>, Set<Class<?>>> annotations = (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
-        sc.removeAttribute(ANNOTATION_ATTRIBUTE);
+        Map<Class<? extends Annotation>, Set<Class<?>>>  annotations= (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
+        //sc.removeAttribute(ANNOTATION_ATTRIBUTE);
 
         boolean scanForAtmosphereAnnotation = false;
         if (annotations == null || annotations.isEmpty()) {
             delegate = new BytecodeBasedAnnotationProcessor(handler);
             scanForAtmosphereAnnotation = true;
         } else {
-            delegate = new ServletContainerInitializerAnnotationProcessor(handler, annotations, framework);
+            Map<Class<? extends Annotation>, Set<Class<?>>> clone = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
+            clone.putAll(annotations);
+            delegate = new ServletContainerInitializerAnnotationProcessor(handler, clone, framework);
         }
         logger.info("AnnotationProcessor {} being used", delegate.getClass());
 
