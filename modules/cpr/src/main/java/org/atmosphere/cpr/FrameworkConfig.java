@@ -174,7 +174,7 @@ public interface FrameworkConfig {
     /**
      * Tag for WebSocket's Message
      */
-    String WEBSOCKET_MESSAGE = WebSocketProcessor.class.getName() + "websocket.message";
+    String WEBSOCKET_MESSAGE = WebSocketProcessor.class.getName() + ".websocket.message";
 
 
 }
