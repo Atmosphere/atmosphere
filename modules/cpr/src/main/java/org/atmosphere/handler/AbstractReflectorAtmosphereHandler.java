@@ -187,4 +187,25 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
     @Override
     public void destroy() {
     }
+
+    /**
+     * <p>
+     * This default implementation does nothing when {@link #onRequest(org.atmosphere.cpr.AtmosphereResource)} is called.
+     * It could be used when all the installed {@link org.atmosphere.cpr.AtmosphereInterceptor interceptors} do the job
+     * and the framework requires us to install an handler.
+     * </p>
+     *
+     * @author Guillaume DROUET
+     * @version 1.0
+     * @since 2.2
+     */
+    public static final class Default extends AbstractReflectorAtmosphereHandler {
+
+        /**
+         * {@inheritDoc}
+         */
+        @Override
+        public void onRequest(final AtmosphereResource resource) throws IOException {
+        }
+    }
 }
