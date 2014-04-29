@@ -84,8 +84,13 @@ public class AtmosphereServlet extends HttpServlet {
     protected AtmosphereServlet configureFramework(ServletConfig sc) throws ServletException {
         if (framework == null) {
             if (sc.getServletContext().getMajorVersion() > 2) {
-                framework = (AtmosphereFramework) sc.getServletContext()
-                        .getAttribute(sc.getServletContext().getServletRegistration(sc.getServletName()).getName());
+                try {
+                    framework = (AtmosphereFramework) sc.getServletContext()
+                            .getAttribute(sc.getServletContext().getServletRegistration(sc.getServletName()).getName());
+                } catch (UnsupportedOperationException ex) {
+                    // WebLogic Crap => https://github.com/Atmosphere/atmosphere/issues/1569
+                    logger.trace("", ex);
+                }
             }
 
             if (framework == null) {
