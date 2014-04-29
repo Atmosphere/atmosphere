@@ -46,7 +46,6 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
     public void onStartup(Set<Class<?>> classes, final ServletContext c) throws ServletException {
         logger.trace("Initializing AtmosphereFramework");
 
-
         for (Map.Entry<String, ? extends ServletRegistration> reg : c.getServletRegistrations().entrySet()) {
             if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName()))  {
 
