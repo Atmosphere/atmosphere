@@ -30,6 +30,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
@@ -282,6 +283,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     public void run() {
                         AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
                         try {
+                            r.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
                             dispatch(webSocket, r, w);
                         } finally {
                             r.destroy();

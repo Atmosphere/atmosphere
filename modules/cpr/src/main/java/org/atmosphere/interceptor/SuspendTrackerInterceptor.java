@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,12 +45,12 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        if (!r.uuid().equals("0")) {
-
+        if (!r.uuid().equals("0") && !Utils.webSocketMessage(r) && !Utils.pollableTransport(r.transport())) {
             if (!trackedUUID.add(r.uuid())) {
                 logger.trace("Blocking {} from suspend", r.uuid());
                 AtmosphereResourceImpl.class.cast(r).disableSuspendEvent(true);
             }
+
             r.addEventListener(new OnDisconnect() {
                 @Override
                 public void onDisconnect(AtmosphereResourceEvent event) {

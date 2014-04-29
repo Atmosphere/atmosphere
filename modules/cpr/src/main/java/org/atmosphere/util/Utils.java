@@ -15,7 +15,9 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 
@@ -98,8 +100,8 @@ public final class Utils {
     }
 
     public final static boolean webSocketMessage(AtmosphereResource r) {
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) &&
-                r.getRequest().getAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE) == null) {
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        if (request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
             return true;
         }
         return false;
