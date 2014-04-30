@@ -57,6 +57,16 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
                     logger.trace("Untracking {}", r.uuid());
                     trackedUUID.remove(r.uuid());
                 }
+
+                @Override
+                public void onResume(AtmosphereResourceEvent event) {
+                    onDisconnect(event);
+                }
+
+                @Override
+                public void onClose(AtmosphereResourceEvent event) {
+                    onDisconnect(event);
+                }
             });
         }
         return Action.CONTINUE;
