@@ -59,11 +59,6 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
                 }
 
                 @Override
-                public void onResume(AtmosphereResourceEvent event) {
-                    onDisconnect(event);
-                }
-
-                @Override
                 public void onClose(AtmosphereResourceEvent event) {
                     onDisconnect(event);
                 }
