@@ -646,6 +646,7 @@ public class AtmosphereFramework {
         readSystemProperties();
         populateBroadcasterType();
         populateObjectFactoryType();
+        loadMetaService();
 
         try {
             ServletConfig scFacade;
@@ -1452,6 +1453,42 @@ public class AtmosphereFramework {
         broadcasterFactory = null;
         annotationFound = false;
        return this;
+    }
+
+    protected void loadMetaService() {
+        try {
+            List<String> config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+            for (String clazz : config) {
+                Class c = IOUtils.loadClass(AtmosphereFramework.class, clazz);
+                if (AtmosphereInterceptor.class.isAssignableFrom(c)) {
+                    interceptor(newClassInstance(AtmosphereInterceptor.class, c));
+                } else if (Broadcaster.class.isAssignableFrom(c)) {
+                    setDefaultBroadcasterClassName(c.getName());
+                } else if (BroadcasterListener.class.isAssignableFrom(c)) {
+                    addBroadcasterListener(newClassInstance(BroadcasterListener.class, c));
+                } else if (BroadcasterCache.class.isAssignableFrom(c)) {
+                    setBroadcasterCacheClassName(c.getName());
+                } else if (BroadcastFilter.class.isAssignableFrom(c)) {
+                    broadcasterFilters.add(c.getName());
+                } else if (BroadcasterCacheInspector.class.isAssignableFrom(c)) {
+                    inspectors.add(newClassInstance(BroadcasterCacheInspector.class, c));
+                } else if (AsyncSupportListener.class.isAssignableFrom(c)) {
+                    asyncSupportListeners.add(newClassInstance(AsyncSupportListener.class, c));
+                } else if (AsyncSupport.class.isAssignableFrom(c)) {
+                    setAsyncSupport(newClassInstance(AsyncSupport.class, c));
+                } else if (BroadcasterCacheListener.class.isAssignableFrom(c)) {
+                    broadcasterCacheListeners.add(newClassInstance(BroadcasterCacheListener.class, c));
+                } else if (BroadcasterConfig.FilterManipulator.class.isAssignableFrom(c)) {
+                    filterManipulators.add(newClassInstance(BroadcasterConfig.FilterManipulator.class, c));
+                } else if (WebSocketProtocol.class.isAssignableFrom(c)) {
+                    webSocketProtocolClassName = WebSocketProtocol.class.getName();
+                } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
+                    webSocketProcessorClassName = WebSocketProcessor.class.getName();
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("", ex);
+        }
     }
 
     /**

@@ -225,4 +225,36 @@ public class IOUtils {
         return AtmosphereServlet.class.isAssignableFrom(clazz);
     }
 
+    public static List<String> readServiceFile(String path) {
+        InputStream is = AtmosphereFramework.class.getClassLoader().getResourceAsStream("META-INF/services/" + path);
+
+        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+
+        List<String> b = new ArrayList<String>();
+        String line;
+        try {
+            while (true) {
+                line = reader.readLine();
+                if (line == null) {
+                    break;
+                }
+
+                if (line.isEmpty()) continue;
+                b.add(line);
+            }
+        } catch (IOException e) {
+            e.printStackTrace();
+        } finally {
+            try {
+                is.close();
+            } catch (IOException e) {
+            }
+            try {
+                reader.close();
+            } catch (IOException e) {
+            }
+        }
+        return b;
+    }
+
 }
