@@ -3,7 +3,7 @@
 </p>
 ### Please vote for us as the Most Innovative Java Technology
 The Atmosphere Framework has been nominated as the "Most Innovative Java Technology". Please vote for us!
-<a href="http://jax.de/awards2014/"
+<a href="http://jax.de/awards2014/">
 <p align="center">
   <img src="http://atmosphere.github.io/atmosphere/images/Button_JAX_2014_InnovationAwards_JT_24321_v3.gif" alt="VOTE"/>
 </p>
