@@ -40,6 +40,10 @@ public class WebSocketProcessorFactory {
         return factory;
     }
 
+    public Map<AtmosphereFramework, WebSocketProcessor> processors(){
+        return processors;
+    }
+
     /**
      * Return the {@link WebSocketProcessor}.
      *
