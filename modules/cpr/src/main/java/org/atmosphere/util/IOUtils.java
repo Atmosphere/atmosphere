@@ -226,11 +226,13 @@ public class IOUtils {
     }
 
     public static List<String> readServiceFile(String path) {
+        List<String> b = new ArrayList<String>();
         InputStream is = AtmosphereFramework.class.getClassLoader().getResourceAsStream("META-INF/services/" + path);
+
+        if (is == null) return b;
 
         BufferedReader reader = new BufferedReader(new InputStreamReader(is));
 
-        List<String> b = new ArrayList<String>();
         String line;
         try {
             while (true) {
