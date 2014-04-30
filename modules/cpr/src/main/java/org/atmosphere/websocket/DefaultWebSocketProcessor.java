@@ -651,7 +651,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     private ByteBuffer resizeByteBuffer(WebSocket webSocket) throws IOException {
-        int maxSize = getByteBufferMaxSize();
+        int maxSize = byteBufferMaxSize;
         ByteBuffer bb = webSocket.bb;
         if (bb.limit() >= maxSize) {
             throw new IOException("Message Buffer too small. Use " + StreamingHttpProtocol.class.getName() + " when streaming over websocket.");
@@ -671,7 +671,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     private CharBuffer resizeCharBuffer(WebSocket webSocket) throws IOException {
-        int maxSize = getCharBufferMaxSize();
+        int maxSize = charBufferMaxSize;
         CharBuffer cb = webSocket.cb;
         if (cb.limit() >= maxSize) {
             throw new IOException("Message Buffer too small. Use " + StreamingHttpProtocol.class.getName() + " when streaming over websocket.");
@@ -690,37 +690,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return newBuffer;
     }
 
-    /**
-     * Obtain the current maximum size (in bytes) of the buffer used for binary
-     * messages.
-     */
-    public final int getByteBufferMaxSize() {
-        return byteBufferMaxSize;
-    }
-
-    /**
-     * Set the maximum size (in bytes) of the buffer used for binary messages.
-     */
-    public final void setByteBufferMaxSize(int byteBufferMaxSize) {
-        this.byteBufferMaxSize = byteBufferMaxSize;
-    }
-
-    /**
-     * Obtain the current maximum size (in characters) of the buffer used for
-     * binary messages.
-     */
-    public final int getCharBufferMaxSize() {
-        return charBufferMaxSize;
-    }
-
-    /**
-     * Set the maximum size (in characters) of the buffer used for textual
-     * messages.
-     */
-    public final void setCharBufferMaxSize(int charBufferMaxSize) {
-        this.charBufferMaxSize = charBufferMaxSize;
-    }
-
     protected void optimizeMapping() {
         for (String w : framework.getAtmosphereConfig().handlers().keySet()) {
             if (w.contains("{") && w.contains("}")) {
@@ -731,6 +700,45 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     public boolean wildcardMapping() {
         return wildcardMapping;
+    }
+
+    public DefaultWebSocketProcessor wildcardMapping(boolean wildcardMapping) {
+        this.wildcardMapping = wildcardMapping;
+        return this;
+    }
+
+    public Map<String, WebSocketHandlerProxy> handlers(){
+        return handlers;
+    }
+
+    public boolean executeAsync(){
+        return executeAsync;
+    }
+
+    public boolean destroyable(){
+        return destroyable;
+    }
+
+    public int byteBufferMaxSize(){
+        return byteBufferMaxSize;
+    }
+
+    public DefaultWebSocketProcessor byteBufferMaxSize(int byteBufferMaxSize) {
+        this.byteBufferMaxSize = byteBufferMaxSize;
+        return this;
+    }
+
+    public int charBufferMaxSize(){
+        return charBufferMaxSize;
+    }
+
+    public DefaultWebSocketProcessor charBufferMaxSize(int charBufferMaxSize) {
+        this.charBufferMaxSize = charBufferMaxSize;
+        return this;
+    }
+
+    public long closingTime(){
+        return closingTime;
     }
 
 }
