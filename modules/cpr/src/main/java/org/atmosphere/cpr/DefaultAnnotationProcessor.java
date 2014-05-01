@@ -288,18 +288,21 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         @Override
         public AnnotationProcessor scan(final String packageName) throws IOException {
             Set<Class<?>> atmosphereAnnotatedClasses = annotations.get(AtmosphereAnnotation.class);
-            boolean handleAtmosphereAnnotation = handleAtmosphereAnnotation(atmosphereAnnotatedClasses);
 
-            for (Map.Entry<Class<? extends Annotation>, Set<Class<?>>> entry : annotations.entrySet()) {
-                for (Class<?> clazz : entry.getValue()) {
-                    if (packageName.equals("all") || clazz.getPackage().getName().startsWith(packageName)) {
-                        handler.handleAnnotation(framework, entry.getKey(), clazz);
+            if (packageName.equals("all") || getClass().getClassLoader().getResource(packageName.replace(".", "/")) != null) {
+                boolean handleAtmosphereAnnotation = handleAtmosphereAnnotation(atmosphereAnnotatedClasses);
+
+                for (Map.Entry<Class<? extends Annotation>, Set<Class<?>>> entry : annotations.entrySet()) {
+                    for (Class<?> clazz : entry.getValue()) {
+                        if (packageName.equals("all") || clazz.getPackage().getName().startsWith(packageName)) {
+                            handler.handleAnnotation(framework, entry.getKey(), clazz);
+                        }
                     }
                 }
-            }
 
-            if (handleAtmosphereAnnotation) {
-                scanForCustomAnnotation(atmosphereAnnotatedClasses);
+                if (handleAtmosphereAnnotation) {
+                    scanForCustomAnnotation(atmosphereAnnotatedClasses);
+                }
             }
 
             return this;
