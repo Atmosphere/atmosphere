@@ -21,11 +21,11 @@ The Atmosphere Framework Stack consists of:
 <p align="center">
   <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack" alt="Atmosphere Stack"/>
 </p>
-The Atmosphere Framework Stack works on all Servlet based servers including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/)  or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx).
+The Atmosphere Framework Stack works on all Servlet based servers including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of extension like [STOMP](https://github.com/Atmosphere/atmosphere-stomp/), [Redis](https://github.com/Atmosphere/atmosphere-extensions/redis), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/hazelcast), [JMS](https://github.com/Atmosphere/atmosphere-extensions/jmx), [JGroups](https://github.com/Atmosphere/atmosphere-extensions/jgroups) and [many more](https://github.com/Atmosphere/atmosphere-extensions/).
 
-Atmosphere's Java/Scala Client is called [wAsync](https://github.com/Atmosphere/wasync).
+Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/). 
 
-Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/).
+Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
 ### Commercial support now available!
 Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on the donate button!
