@@ -44,7 +44,14 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     private Method jerseyBroadcast;
 
-    public AbstractBroadcasterProxy() {}
+    public AbstractBroadcasterProxy() {
+        try {
+            Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
+            jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", new Class[]{AtmosphereResource.class, AtmosphereResourceEvent.class, Broadcaster.class});
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+    }
 
     public Broadcaster initialize(String id, URI uri, AtmosphereConfig config) {
         return super.initialize(id, uri, config);
@@ -88,18 +95,10 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     @Override
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
-        if (r.getRequest() instanceof HttpServletRequest) {
-            if (r.getRequest().getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
-                try {
-                    if (jerseyBroadcast == null) {
-                        Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
-                        jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", new Class[]{AtmosphereResource.class, AtmosphereResourceEvent.class});
-                    }
-                    jerseyBroadcast.invoke(null, new Object[]{r, e});
-                } catch (Throwable t) {
-                    super.invokeOnStateChange(r, e);
-                }
-            } else {
+        if (r.getRequest().getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
+            try {
+                jerseyBroadcast.invoke(null, new Object[]{r, e, r.getBroadcaster()});
+            } catch (Throwable t) {
                 super.invokeOnStateChange(r, e);
             }
         }
