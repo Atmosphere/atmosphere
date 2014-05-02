@@ -110,7 +110,6 @@ public class DefaultBroadcaster implements Broadcaster {
     private final Object[] awaitBarrier = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
-    protected AtmosphereResource noOpsResource;
     protected int waitTime = POLLING_DEFAULT;
     private boolean backwardCompatible = false;
 
@@ -142,7 +141,6 @@ public class DefaultBroadcaster implements Broadcaster {
         if (s != null) {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
-        noOpsResource = AtmosphereResourceFactory.getDefault().create(config, "-1");
         if (outOfOrderBroadcastSupported.get()) {
             logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
         }
