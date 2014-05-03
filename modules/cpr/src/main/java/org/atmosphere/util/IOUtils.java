@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
+import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -33,7 +34,9 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -225,38 +228,98 @@ public class IOUtils {
         return AtmosphereServlet.class.isAssignableFrom(clazz);
     }
 
-    public static List<String> readServiceFile(String path) {
-        List<String> b = new ArrayList<String>();
-        InputStream is = AtmosphereFramework.class.getClassLoader().getResourceAsStream("META-INF/services/" + path);
-
-        if (is == null) return b;
-
-        BufferedReader reader = new BufferedReader(new InputStreamReader(is));
+    /**
+     * <p>
+     * This method reads the given file stored under "META-INF/services" and accessed through the framework's class loader
+     * to specify a list of {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction actions} to be done on different
+     * service classes ({@link org.atmosphere.cpr.AtmosphereInterceptor}, {@link org.atmosphere.cpr.BroadcastFilter}, etc).
+     * </p>
+     *
+     * <p>
+     * The file content should follows the following format:
+     * <pre>
+     * INSTALL
+     * com.mycompany.MyInterceptor
+     * com.mycompany.MyFilter
+     * EXCLUDE
+     * org.atmosphere.interceptor.HeartbeatInterceptor
+     * </pre>
+     * </p>
+     *
+     * <p>
+     * If you don't specify any {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction} before a class, then
+     * default action will be {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction#INSTALL}.
+     * </p>
+     *
+     * <p>
+     * Important note: you must specify a class declared inside a package. Since creating classes in the source root is
+     * a bad practice, the method does not deal with it to improve its performances.
+     * </p>
+     *
+     * @param path the service file to read
+     * @return the map associating class to action
+     */
+    public static Map<String, AtmosphereFramework.MetaServiceAction> readServiceFile(final String path) {
+        final Map<String, AtmosphereFramework.MetaServiceAction> b = new HashMap<String, AtmosphereFramework.MetaServiceAction>();
 
         String line;
+        InputStream is = null;
+        BufferedReader reader = null;
+        AtmosphereFramework.MetaServiceAction action = AtmosphereFramework.MetaServiceAction.INSTALL;
+
         try {
+            is = AtmosphereFramework.class.getClassLoader().getResourceAsStream("META-INF/services/" + path);
+
+            if (is == null) {
+                logger.warn("META-INF/services/{} not found in class loader", path);
+                return b;
+            }
+
+            reader = new BufferedReader(new InputStreamReader(is));
+
             while (true) {
                 line = reader.readLine();
+
                 if (line == null) {
                     break;
+                } else if (line.isEmpty()) {
+                    continue;
+                } else if (line.indexOf('.') == -1) {
+                    action = AtmosphereFramework.MetaServiceAction.valueOf(line);
+                } else {
+                    b.put(line, action);
                 }
-
-                if (line.isEmpty()) continue;
-                b.add(line);
             }
         } catch (IOException e) {
-            e.printStackTrace();
+            logger.warn("Unable to read META-INF/services/{} from class loader", path, e);
         } finally {
-            try {
-                is.close();
-            } catch (IOException e) {
-            }
-            try {
-                reader.close();
-            } catch (IOException e) {
-            }
+            close(is, reader);
         }
+
         return b;
     }
 
+    /**
+     * <p>
+     * Tries to close the given objects and log the {@link IOException} at INFO level
+     * to make the code more readable when we assume that the {@link IOException} won't be managed.
+     * </p>
+     *
+     * <p>
+     * Also ignore {@code null} parameters.
+     * </p>
+     *
+     * @param closeableArray the objects to close
+     */
+    public static void close(final Closeable ... closeableArray) {
+        for (Closeable closeable : closeableArray) {
+            try {
+                if (closeable != null) {
+                    closeable.close();
+                }
+            } catch (IOException ioe) {
+                logger.info("Can't close the object", ioe);
+            }
+        }
+    }
 }

@@ -291,6 +291,151 @@ public class AtmosphereFramework {
         }
     }
 
+    /**
+     * <p>
+     * This enumeration represents all possible actions to specify in a meta service file.
+     * </p>
+     *
+     * @author Guillaume DROUET
+     * @since 2.2.0
+     * @version 1.0
+     */
+    public static enum MetaServiceAction {
+
+        /**
+         * Install service.
+         */
+        INSTALL(new InstallMetaServiceProcedure()),
+
+        /**
+         * Exclude service.
+         */
+        EXCLUDE(new ExcludeMetaServiceProcedure());
+
+        /**
+         * The procedure to apply.
+         */
+        private MetaServiceProcedure procedure;
+
+        /**
+         * <p>
+         * Builds a new instance.
+         * </p>
+         *
+         * @param p the enum procedure
+         */
+        private MetaServiceAction(final MetaServiceProcedure p) {
+            procedure = p;
+        }
+
+        /**
+         * <p>
+         * Applies this action to given class.
+         * </p>
+         *
+         * @param fwk the framework
+         * @param clazz the class
+         * @throws Exception if procedure fails
+         */
+        public void apply(final AtmosphereFramework fwk, final Class<?> clazz) throws Exception {
+            procedure.apply(fwk, clazz);
+
+        }
+
+        /**
+         * <p>
+         * This interface defined a method with a signature like a procedure to process an action.
+         * </p>
+         *
+         * @author Guillaume DROUET
+         * @since 2.2.0
+         * @version 1.0
+         */
+        private static interface MetaServiceProcedure {
+
+            /**
+             * <p>
+             * Processes an action.
+             * </p>
+             *
+             * @param fwk the framework
+             * @param clazz the class to use during processing
+             * @throws Exception if procedure fails
+             */
+            void apply(final AtmosphereFramework fwk, final Class<?> clazz) throws Exception;
+        }
+
+        /**
+         * <p>
+         * Install the classes.
+         * </p>
+         *
+         * @author Guillaume DROUET
+         * @since 2.2.0
+         * @version 1.0
+         */
+        private static class InstallMetaServiceProcedure implements MetaServiceProcedure {
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void apply(final AtmosphereFramework fwk, final Class c) throws Exception {
+                if (AtmosphereInterceptor.class.isAssignableFrom(c)) {
+                    fwk.interceptor(fwk.newClassInstance(AtmosphereInterceptor.class, c));
+                } else if (Broadcaster.class.isAssignableFrom(c)) {
+                    fwk.setDefaultBroadcasterClassName(c.getName());
+                } else if (BroadcasterListener.class.isAssignableFrom(c)) {
+                    fwk.addBroadcasterListener(fwk.newClassInstance(BroadcasterListener.class, c));
+                } else if (BroadcasterCache.class.isAssignableFrom(c)) {
+                    fwk.setBroadcasterCacheClassName(c.getName());
+                } else if (BroadcastFilter.class.isAssignableFrom(c)) {
+                    fwk.broadcasterFilters.add(c.getName());
+                } else if (BroadcasterCacheInspector.class.isAssignableFrom(c)) {
+                    fwk.inspectors.add(fwk.newClassInstance(BroadcasterCacheInspector.class, c));
+                } else if (AsyncSupportListener.class.isAssignableFrom(c)) {
+                    fwk.asyncSupportListeners.add(fwk.newClassInstance(AsyncSupportListener.class, c));
+                } else if (AsyncSupport.class.isAssignableFrom(c)) {
+                    fwk.setAsyncSupport(fwk.newClassInstance(AsyncSupport.class, c));
+                } else if (BroadcasterCacheListener.class.isAssignableFrom(c)) {
+                    fwk.broadcasterCacheListeners.add(fwk.newClassInstance(BroadcasterCacheListener.class, c));
+                } else if (BroadcasterConfig.FilterManipulator.class.isAssignableFrom(c)) {
+                    fwk.filterManipulators.add(fwk.newClassInstance(BroadcasterConfig.FilterManipulator.class, c));
+                } else if (WebSocketProtocol.class.isAssignableFrom(c)) {
+                    fwk.webSocketProtocolClassName = WebSocketProtocol.class.getName();
+                } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
+                    fwk.webSocketProcessorClassName = WebSocketProcessor.class.getName();
+                } else {
+                    logger.warn("{} is not a framework service that could be installed", c.getName());
+                }
+            }
+        }
+
+        /**
+         * <p>
+         * Exclude the services.
+         * </p>
+         *
+         * @author Guillaume DROUET
+         * @since 2.2.0
+         * @version 1.0
+         */
+        private static class ExcludeMetaServiceProcedure implements MetaServiceProcedure {
+
+            /**
+             * {@inheritDoc}
+             */
+            @Override
+            public void apply(final AtmosphereFramework fwk, final Class<?> c) {
+                if (AtmosphereInterceptor.class.isAssignableFrom(c)) {
+                    fwk.excludeInterceptor(c.getName());
+                } else {
+                    logger.warn("{} is not a framework service that could be excluded, pull request is welcome ;-)", c.getName());
+                }
+            }
+        }
+    }
+
     public static class DefaultAtmosphereObjectFactory implements AtmosphereObjectFactory {
         public String toString() {
             return "DefaultAtmosphereObjectFactory";
@@ -1457,34 +1602,10 @@ public class AtmosphereFramework {
 
     protected void loadMetaService() {
         try {
-            List<String> config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
-            for (String clazz : config) {
-                Class c = IOUtils.loadClass(AtmosphereFramework.class, clazz);
-                if (AtmosphereInterceptor.class.isAssignableFrom(c)) {
-                    interceptor(newClassInstance(AtmosphereInterceptor.class, c));
-                } else if (Broadcaster.class.isAssignableFrom(c)) {
-                    setDefaultBroadcasterClassName(c.getName());
-                } else if (BroadcasterListener.class.isAssignableFrom(c)) {
-                    addBroadcasterListener(newClassInstance(BroadcasterListener.class, c));
-                } else if (BroadcasterCache.class.isAssignableFrom(c)) {
-                    setBroadcasterCacheClassName(c.getName());
-                } else if (BroadcastFilter.class.isAssignableFrom(c)) {
-                    broadcasterFilters.add(c.getName());
-                } else if (BroadcasterCacheInspector.class.isAssignableFrom(c)) {
-                    inspectors.add(newClassInstance(BroadcasterCacheInspector.class, c));
-                } else if (AsyncSupportListener.class.isAssignableFrom(c)) {
-                    asyncSupportListeners.add(newClassInstance(AsyncSupportListener.class, c));
-                } else if (AsyncSupport.class.isAssignableFrom(c)) {
-                    setAsyncSupport(newClassInstance(AsyncSupport.class, c));
-                } else if (BroadcasterCacheListener.class.isAssignableFrom(c)) {
-                    broadcasterCacheListeners.add(newClassInstance(BroadcasterCacheListener.class, c));
-                } else if (BroadcasterConfig.FilterManipulator.class.isAssignableFrom(c)) {
-                    filterManipulators.add(newClassInstance(BroadcasterConfig.FilterManipulator.class, c));
-                } else if (WebSocketProtocol.class.isAssignableFrom(c)) {
-                    webSocketProtocolClassName = WebSocketProtocol.class.getName();
-                } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
-                    webSocketProcessorClassName = WebSocketProcessor.class.getName();
-                }
+            final Map<String, MetaServiceAction> config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+            for (final Map.Entry<String, MetaServiceAction> action : config.entrySet()) {
+                final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
+                action.getValue().apply(this, c);
             }
         } catch (Exception ex) {
             logger.error("", ex);
