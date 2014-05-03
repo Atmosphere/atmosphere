@@ -27,6 +27,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -39,7 +40,12 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
- * An interceptor that send whitespace every 30 seconds.
+ * <p>
+ * An interceptor that send whitespace every in 60 seconds by default. Another value could be specified with the
+ * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config. Moreover, any client can ask for a particular value
+ * with the {@link HeaderConfig#X_HEARTBEAT_SERVER} header set in request. This value will be taken in consideration if
+ * it is greater than the configured value. Client can also specify the value "0" to disable heartbeat.
+ * </p>
  *
  * @author Jeanfrancois Arcand
  */
@@ -88,51 +94,77 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
 
-        if (!Utils.pollableTransport(r.transport())){
-            super.inspect(r);
-            r.addEventListener(new Clock() {
-                @Override
-                public void onSuspend(AtmosphereResourceEvent event) {
-                    clock(r, request, response);
-                }
+        // Extract the desired heartbeat interval
+        // Won't be applied if lower config value
+        int interval = heartbeatFrequencyInSeconds;
+        final String s = request.getHeader(HeaderConfig.X_HEARTBEAT_SERVER);
 
-                @Override
-                public void onResume(AtmosphereResourceEvent event) {
-                    cancelF(request);
-                }
+        if (s != null) {
+            try {
+                interval = Integer.parseInt(s);
 
-                @Override
-                public void onDisconnect(AtmosphereResourceEvent event) {
-                    cancelF(request);
+                if (interval != 0 && interval < heartbeatFrequencyInSeconds) {
+                    interval = heartbeatFrequencyInSeconds;
                 }
-
-                @Override
-                public void onClose(AtmosphereResourceEvent event) {
-                    cancelF(request);
-                }
-            });
-        } else {
-            return Action.CONTINUE;
+            } catch (NumberFormatException nfe) {
+                logger.warn("{} header is not an integer", HeaderConfig.X_HEARTBEAT_SERVER, nfe);
+            }
         }
-        AsyncIOWriter writer = response.getAsyncIOWriter();
 
-        if (!Utils.resumableTransport(r.transport()) && AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass()) && r.getRequest().getAttribute(INTERCEPTOR_ADDED) == null) {
-            AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
+        if (interval != 0) {
+            // Access from anonymous class
+            final int finalInterval = interval;
 
-                @Override
-                public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
-                    cancelF(request);
-                    return responseDraft;
-                }
+            if (!Utils.pollableTransport(r.transport())){
+                super.inspect(r);
+                r.addEventListener(new Clock() {
+                    @Override
+                    public void onSuspend(AtmosphereResourceEvent event) {
+                        clock(finalInterval, r, request, response);
+                    }
 
-                @Override
-                public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
-                    logger.trace("Scheduling heartbeat for {}", r.uuid());
-                    clock(r, request, response);
-                }
-            });
-            r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
+                    @Override
+                    public void onResume(AtmosphereResourceEvent event) {
+                        cancelF(request);
+                    }
+
+                    @Override
+                    public void onDisconnect(AtmosphereResourceEvent event) {
+                        cancelF(request);
+                    }
+
+                    @Override
+                    public void onClose(AtmosphereResourceEvent event) {
+                        cancelF(request);
+                    }
+                });
+            } else {
+                return Action.CONTINUE;
+            }
+
+            AsyncIOWriter writer = response.getAsyncIOWriter();
+
+            if (!Utils.resumableTransport(r.transport())
+                    && AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())
+                    && r.getRequest().getAttribute(INTERCEPTOR_ADDED) == null) {
+                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
+
+                    @Override
+                    public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
+                        cancelF(request);
+                        return responseDraft;
+                    }
+
+                    @Override
+                    public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
+                        logger.trace("Scheduling heartbeat for {}", r.uuid());
+                        clock(finalInterval, r, request, response);
+                    }
+                });
+                r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
+            }
         }
+
         return Action.CONTINUE;
     }
 
@@ -147,7 +179,22 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         }
     }
 
-    public HeartbeatInterceptor clock(final AtmosphereResource r, final AtmosphereRequest request, final AtmosphereResponse response) {
+    /**
+     * <p>
+     * Configures the heartbeat sent by the server in an interval in seconds specified in parameter for the given
+     * resource.
+     * </p>
+     *
+     * @param interval the interval in seconds
+     * @param r the resource
+     * @param request the request response
+     * @param response the resource response
+     * @return this
+     */
+    public HeartbeatInterceptor clock(final int interval,
+                                      final AtmosphereResource r,
+                                      final AtmosphereRequest request,
+                                      final AtmosphereResponse response) {
         request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
@@ -169,7 +216,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 }
                 return null;
             }
-        }, heartbeatFrequencyInSeconds, TimeUnit.SECONDS));
+        }, interval, TimeUnit.SECONDS));
 
         return this;
     }
