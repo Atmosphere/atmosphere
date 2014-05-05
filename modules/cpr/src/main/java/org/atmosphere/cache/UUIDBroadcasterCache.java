@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cache;
 
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
@@ -97,6 +98,12 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         } else {
             taskScheduler = Executors.newSingleThreadScheduledExecutor();
         }
+
+        clientIdleTime = TimeUnit.SECONDS.toMillis(
+                Long.valueOf(config.getAtmosphereConfig().getInitParameter(ApplicationConfig.UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
+
+        invalidateCacheInterval = TimeUnit.SECONDS.toMillis(
+                Long.valueOf(config.getAtmosphereConfig().getInitParameter(ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
     }
 
     @Override

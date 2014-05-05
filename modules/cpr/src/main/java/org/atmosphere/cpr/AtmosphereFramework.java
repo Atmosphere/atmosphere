@@ -1147,6 +1147,7 @@ public class AtmosphereFramework {
     protected void defaultPackagesToScan(){
         // Atmosphere HA/Pro
         packages.add("io.async.control");
+        packages.add("io.async.satellite");
     }
 
     public void configureBroadcasterFactory() {
