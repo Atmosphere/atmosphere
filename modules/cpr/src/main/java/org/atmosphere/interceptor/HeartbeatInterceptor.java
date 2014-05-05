@@ -29,11 +29,13 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
@@ -42,9 +44,19 @@ import java.util.concurrent.TimeUnit;
 /**
  * <p>
  * An interceptor that send whitespace every in 60 seconds by default. Another value could be specified with the
- * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config. Moreover, any client can ask for a particular value
- * with the {@link HeaderConfig#X_HEARTBEAT_SERVER} header set in request. This value will be taken in consideration if
- * it is greater than the configured value. Client can also specify the value "0" to disable heartbeat.
+ * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config.
+ * </p>
+ *
+ * <p>
+ * Moreover, any client can ask for a particular value with the {@link HeaderConfig#X_HEARTBEAT_SERVER} header set in
+ * request. This value will be taken in consideration if it is greater than the configured value. Client can also
+ * specify the value "0" to disable heartbeat.
+ * </p>
+ *
+ * <p>
+ * Finally the server notifies thanks to the {@link JavaScriptProtocol} the desired heartbeat interval that the client
+ * should applies. This interceptor just manage the configured value and the {@link JavaScriptProtocol protocol} sends
+ * the value to the client.
  * </p>
  *
  * @author Jeanfrancois Arcand
@@ -52,6 +64,11 @@ import java.util.concurrent.TimeUnit;
 public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     public final static String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
+
+    /**
+     * Configuration key for client heartbeat.
+     */
+    public final static String CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".clientHeartbeatFrequencyInSeconds";
     public final static String INTERCEPTOR_ADDED = HeartbeatInterceptor.class.getName();
     public final static String HEARTBEAT_FUTURE = "heartbeat.future";
 
@@ -61,9 +78,25 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     private int heartbeatFrequencyInSeconds = 60;
 
+    /**
+     * Heartbeat from client disabled by default.
+     */
+    private int clientHeartbeatFrequencyInSeconds = 0;
+
     public HeartbeatInterceptor paddingText(byte[] paddingBytes) {
         this.paddingBytes = paddingBytes;
         return this;
+    }
+
+    /**
+     * <p>
+     * Gets the bytes to use when sending an heartbeat for both client and server.
+     * </p>
+     *
+     * @return the heartbeat value
+     */
+    public byte[] getPaddingBytes() {
+        return this.paddingBytes;
     }
 
     public HeartbeatInterceptor heartbeatFrequencyInSeconds(int heartbeatFrequencyInSeconds) {
@@ -75,12 +108,31 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         return heartbeatFrequencyInSeconds;
     }
 
+    /**
+     * <p>
+     * Gets the desired heartbeat frequency from client.
+     * </p>
+     *
+     * @return the frequency in seconds
+     */
+    public int getClientHeartbeatFrequencyInSeconds() {
+        return clientHeartbeatFrequencyInSeconds;
+    }
+
     @Override
-    public void configure(AtmosphereConfig config) {
+    public void configure(final AtmosphereConfig config) {
+        // Server
         String s = config.getInitParameter(HEARTBEAT_INTERVAL_IN_SECONDS);
         if (s != null) {
             heartbeatFrequencyInSeconds = Integer.valueOf(s);
         }
+
+        // Client
+        s = config.getInitParameter(CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS);
+        if (s != null) {
+            clientHeartbeatFrequencyInSeconds = Integer.valueOf(s);
+        }
+
         heartBeat = ExecutorsFactory.getScheduler(config);
     }
 
@@ -162,6 +214,12 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
+            } else {
+                // This is where we should dispatch an event to notify that an heartbeat has been intercepted
+                // See: https://github.com/Atmosphere/atmosphere/issues/1549
+                if (Arrays.equals(paddingBytes, IOUtils.readEntirelyAsByte(r))) {
+                    return Action.CANCELLED;
+                }
             }
         }
 
