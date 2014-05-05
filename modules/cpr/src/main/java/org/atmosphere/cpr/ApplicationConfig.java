@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
@@ -704,5 +705,19 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.session.delayClosingTime
      */
     String CLOSED_ATMOSPHERE_THINK_TIME = ApplicationConfig.class.getPackage().getName() + ".delayClosingTime";
+    /**
+     * The maximum time, in seconds, for a message to stay cached when using the {@link org.atmosphere.cache.UUIDBroadcasterCache}
+     * <p>
+     * Default: 60<br>
+     * Value: org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime
+     */
+    String UUIDBROADCASTERCACHE_CLIENT_IDLETIME = UUIDBroadcasterCache.class.getName() + ".clientIdleTime";
+    /**
+     * The frequency, in seconds, for the {@link org.atmosphere.cache.UUIDBroadcasterCache} is pruning cached messages.
+     * <p>
+     * Default: 30<br>
+     * Value: org.atmosphere.cache.UUIDBroadcasterCache.invalidateCacheInterval
+     */
+    String UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL = UUIDBroadcasterCache.class.getName() + ".invalidateCacheInterval";
 }
 
