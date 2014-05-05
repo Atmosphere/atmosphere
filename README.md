@@ -44,7 +44,7 @@ The Atmosphere's Framework ships with many examples describing how to implement 
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.1.3</version>
+         <version>2.1.4</version>
       </dependency>
 ```
       
@@ -62,7 +62,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 #### Changelogs
 
-2.1 release: [2.1.2](http://goo.gl/0BSpfj) [2.1.1](http://goo.gl/F9fr45) [2.1.0](https://github.com/Atmosphere/atmosphere/issues?labels=2.1&page=1&state=closed)
+2.1 release: [2.1.4](http://goo.gl/5HiZM7) [2.1.2](http://goo.gl/0BSpfj) [2.1.1](http://goo.gl/F9fr45) [2.1.0](https://github.com/Atmosphere/atmosphere/issues?labels=2.1&page=1&state=closed)
 
 2.0 release: [2.0.8](https://github.com/Atmosphere/atmosphere/issues?labels=2.0.8&page=1&state=closed) [2.0.7](http://goo.gl/nefkn7) [2.0.6](http://goo.gl/MvFSR1) [2.0.5](http://goo.gl/jFLDZc) [2.0.4](http://goo.gl/zTbcgC) [2.0.3](https://github.com/Atmosphere/atmosphere/issues?labels=2.0.3&page=1&state=closed) [2.0.2] (http://goo.gl/44qnsU) [2.0.1](https://github.com/Atmosphere/atmosphere/issues?labels=2.0.1&page=1&state=closed)
 
