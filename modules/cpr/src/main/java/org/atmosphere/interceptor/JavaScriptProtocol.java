@@ -19,6 +19,8 @@ import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -38,8 +40,16 @@ import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspen
 import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 
 /**
+ * <p>
  * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
  * and {@link HeaderConfig#X_CACHE_DATE}
+ * </p>
+ *
+ * <p>
+ * Moreover, if any {@link HeartbeatInterceptor} is installed, it provides the configured heartbeat interval in seconds
+ * and the value to be sent for each heartbeat by the client. If not interceptor is installed, then "0" is sent to tell
+ * he client to not send any heartbeat.
+ * </p>
  *
  * @author Jeanfrancois Arcand
  */
@@ -49,12 +59,19 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private String wsDelimiter = "|";
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
 
+    /**
+     * The framework that provides installed {@link HeartbeatInterceptor}.
+     */
+    private AtmosphereFramework framework;
+
     @Override
-    public void configure(AtmosphereConfig config) {
+    public void configure(final AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.MESSAGE_DELIMITER);
         if (s != null) {
             wsDelimiter = s;
         }
+
+        framework = config.framework();
     }
 
     @Override
@@ -67,9 +84,29 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         String handshakeUUID = request.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
             request.header(HeaderConfig.X_ATMO_PROTOCOL, null);
-            // Since 1.0.10
 
-            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter).append(System.currentTimeMillis())
+            // Extract heartbeat data
+            int heartbeatInterval = 0;
+            String heartbeatData = "";
+
+            for (final AtmosphereInterceptor interceptor : framework.interceptors()) {
+                if (HeartbeatInterceptor.class.isAssignableFrom(interceptor.getClass())) {
+                    final HeartbeatInterceptor heartbeatInterceptor = HeartbeatInterceptor.class.cast(interceptor);
+                    heartbeatInterval = heartbeatInterceptor.getClientHeartbeatFrequencyInSeconds();
+                    heartbeatData = new String(heartbeatInterceptor.getPaddingBytes());
+                    break;
+                }
+            }
+
+            // Since 1.0.10
+            final StringBuffer message = new StringBuffer(r.uuid())
+                    .append(wsDelimiter)
+                    .append(System.currentTimeMillis())
+                    .append(wsDelimiter)
+                    // since 2.2
+                    .append(heartbeatInterval)
+                    .append(wsDelimiter)
+                    .append(heartbeatData)
                     .append(wsDelimiter);
 
             // https://github.com/Atmosphere/atmosphere/issues/993
