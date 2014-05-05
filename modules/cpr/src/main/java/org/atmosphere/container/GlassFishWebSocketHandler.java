@@ -137,10 +137,14 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
 
     @Override
     public boolean isApplicationRequest(Request request) {
+        String path = request.requestURI().toString();
 
-        if (!request.requestURI().startsWith(config.getServletContext().getContextPath())) return false;
+        // remove contextpath from start of request, which may not happen if webapp is set as the default-web-module
+        String contextPath = config.getServletContext().getContextPath();
+        if (path.startsWith(contextPath)) {
+            path = path.substring(contextPath.length());
+        }
 
-        String path = request.requestURI().toString().substring(config.getServletContext().getContextPath().length());
         Boolean b = mapper.map(path, paths);
         return b == null? false: b;
     }
