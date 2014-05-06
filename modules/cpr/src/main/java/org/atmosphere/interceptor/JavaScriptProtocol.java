@@ -92,7 +92,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             for (final AtmosphereInterceptor interceptor : framework.interceptors()) {
                 if (HeartbeatInterceptor.class.isAssignableFrom(interceptor.getClass())) {
                     final HeartbeatInterceptor heartbeatInterceptor = HeartbeatInterceptor.class.cast(interceptor);
-                    heartbeatInterval = heartbeatInterceptor.getClientHeartbeatFrequencyInSeconds();
+                    heartbeatInterval = heartbeatInterceptor.clientHeartbeatFrequencyInSeconds();
                     heartbeatData = new String(heartbeatInterceptor.getPaddingBytes());
                     break;
                 }
