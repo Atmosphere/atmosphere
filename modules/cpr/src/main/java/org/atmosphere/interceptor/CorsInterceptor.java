@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.HeaderConfig;
 
 /**
  * CORS support.
@@ -29,6 +30,8 @@ import org.atmosphere.cpr.AtmosphereResponse;
  * @author Janusz Sobolewski
  */
 public class CorsInterceptor extends AtmosphereInterceptorAdapter {
+
+    private final String EXPOSE_HEADERS = "X-Cache-Date, X-Atmosphere-tracking-id, " + HeaderConfig.X_HEARTBEAT_SERVER;
 
     private boolean enableAccessControl = true;
 
@@ -50,14 +53,16 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
         if (req.getHeader("Origin") != null && res.getHeader("Access-Control-Allow-Origin") == null) {
             res.addHeader("Access-Control-Allow-Origin", req.getHeader("Origin"));
-            res.addHeader("Access-Control-Expose-Headers", "X-Cache-Date, X-Atmosphere-tracking-id");
+            res.addHeader("Access-Control-Expose-Headers", EXPOSE_HEADERS);
             res.setHeader("Access-Control-Allow-Credentials", "true");
         }
 
         if ("OPTIONS".equals(req.getMethod())) {
             res.setHeader("Access-Control-Allow-Methods", "OPTIONS, GET, POST");
             res.setHeader("Access-Control-Allow-Headers",
-                    "Origin, Content-Type, AuthToken, X-Atmosphere-Framework, X-Cache-Date, X-Atmosphere-tracking-id, X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
+                    "Origin, Content-Type, AuthToken, X-Atmosphere-Framework, "
+                            + EXPOSE_HEADERS
+                            + ", X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
             res.setHeader("Access-Control-Max-Age", "-1");
 
             return Action.SKIP_ATMOSPHEREHANDLER;

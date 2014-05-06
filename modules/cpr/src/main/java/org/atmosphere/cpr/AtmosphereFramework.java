@@ -2177,22 +2177,26 @@ public class AtmosphereFramework {
                 String[] params = qs.split("&");
                 String[] s;
                 for (String p : params) {
-                    s = p.split("=", 2);;
-                    if (s[0].equalsIgnoreCase("Content-Type")) {
+                    s = p.split("=", 2);
+                    final String header = s[0];
+                    final String value = s[1];
+
+                    if (header.equalsIgnoreCase("Content-Type")) {
                         // Use the one set by the user first.
                         if (request.getContentType() == null ||
-                                !request.getContentType().equalsIgnoreCase(s.length > 1 ? s[1] : "")) {
-                            request.contentType(s.length > 1 ? URLDecoder.decode(s[1], "UTF-8") : "");
+                                !request.getContentType().equalsIgnoreCase(s.length > 1 ? value : "")) {
+                            request.contentType(s.length > 1 ? URLDecoder.decode(value, "UTF-8") : "");
                         }
                     }
-                    if (!s[0].isEmpty()
-                            && !s[0].toLowerCase().startsWith("x-atmo")
-                            && !s[0].equalsIgnoreCase("x-cache-date")
-                            && !s[0].equalsIgnoreCase("Content-Type")
-                            && !s[0].equalsIgnoreCase("_")) {
-                        q.append(s[0]).append("=").append(s.length > 1 ? s[1] : "").append("&");
+                    if (!header.isEmpty()
+                            && !header.toLowerCase().startsWith("x-atmo")
+                            && !header.equalsIgnoreCase("x-cache-date")
+                            && !header.equalsIgnoreCase(HeaderConfig.X_HEARTBEAT_SERVER)
+                            && !header.equalsIgnoreCase("Content-Type")
+                            && !header.equalsIgnoreCase("_")) {
+                        q.append(header).append("=").append(s.length > 1 ? value : "").append("&");
                     }
-                    headers.put(s[0], s.length > 1 ? s[1] : "");
+                    headers.put(header, s.length > 1 ? value : "");
                 }
             }
         } catch (Exception ex) {
