@@ -24,7 +24,9 @@ import org.atmosphere.cpr.MeteorServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
 import java.io.InputStream;
@@ -132,7 +134,48 @@ public class IOUtils {
     public static byte[] readEntirelyAsByte(AtmosphereResource r) {
         AtmosphereRequest request = r.getRequest();
         AtmosphereRequest.Body body = request.body();
-        if (body.hasString()) {
+        if (request.body().isEmpty()) {
+            BufferedInputStream bufferedStream = null;
+            ByteArrayOutputStream bbIS = new ByteArrayOutputStream();
+            try {
+                try {
+                    InputStream inputStream = request.getInputStream();
+                    if (inputStream != null) {
+                        bufferedStream = new BufferedInputStream(inputStream);
+                    }
+                } catch (IllegalStateException ex) {
+                    logger.trace("", ex);
+                    Reader reader = request.getReader();
+                    if (reader != null) {
+                        bufferedStream = new BufferedInputStream(new ReaderInputStream(reader));
+                    }
+                }
+
+                if (bufferedStream != null) {
+                    byte[] bytes = new byte[8192];
+                    int bytesRead = 0;
+                    while (bytesRead != -1) {
+                        bytesRead = bufferedStream.read(bytes);
+                        if (bytesRead > 0)
+                            bbIS.write(bytes, 0, bytesRead);
+                    }
+
+                } else {
+                    bbIS.write("".getBytes());
+                }
+            } catch (IOException ex) {
+                logger.warn("", ex);
+            } finally {
+                if (bufferedStream != null) {
+                    try {
+                        bufferedStream.close();
+                    } catch (IOException ex) {
+                        logger.warn("", ex);
+                    }
+                }
+            }
+            return bbIS.toByteArray();
+        } else if (body.hasString()) {
             try {
                 return readEntirelyAsString(r).toString().getBytes(request.getCharacterEncoding());
             } catch (UnsupportedEncodingException e) {
@@ -143,6 +186,8 @@ public class IOUtils {
         }
         throw new IllegalStateException("No body " + r);
     }
+
+
 
     public static String guestServletPath(AtmosphereConfig config) {
         String servletPath = "";
