@@ -223,7 +223,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 // This is where we should dispatch an event to notify that an heartbeat has been intercepted
                 // See: https://github.com/Atmosphere/atmosphere/issues/1549
                 byte[] body = IOUtils.readEntirelyAsByte(r);
-                if (Arrays.equals(paddingBytes, body) {
+                if (Arrays.equals(paddingBytes, body)) {
                     return Action.CANCELLED;
                 }
                 request.body(body);

@@ -961,7 +961,7 @@ public class DefaultBroadcaster implements Broadcaster {
             AtmosphereResourceImpl rImpl = AtmosphereResourceImpl.class.cast(r);
             if (willBeResumed && !rImpl.atmosphereResourceEventListener().isEmpty()) {
                 listeners.addAll(rImpl.atmosphereResourceEventListener());
-            }                                                                                                                                     f
+            }
 
             // Must make sure execute only one thread
             synchronized (r) {
