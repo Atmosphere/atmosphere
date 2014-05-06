@@ -115,8 +115,13 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
      *
      * @return the frequency in seconds
      */
-    public int getClientHeartbeatFrequencyInSeconds() {
+    public int clientHeartbeatFrequencyInSeconds() {
         return clientHeartbeatFrequencyInSeconds;
+    }
+
+    public HeartbeatInterceptor clientHeartbeatFrequencyInSeconds(int clientHeartbeatFrequencyInSeconds) {
+        this.clientHeartbeatFrequencyInSeconds = clientHeartbeatFrequencyInSeconds;
+        return this;
     }
 
     @Override
