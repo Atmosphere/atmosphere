@@ -2344,7 +2344,7 @@ public class AtmosphereFramework {
                 break;
             case FIRST_BEFORE_DEFAULT:
                 if (executeFirstSet)
-                    throw new IllegalStateException("Cannot set more than one AtmosphereInterceptor to be executed first");
+                    throw new IllegalStateException("Cannot set more than one AtmosphereInterceptor to be executed first: " + c.getClass().getName());
                 logger.info("AtmosphereInterceptor {} will always be executed first", c);
                 interceptors.remove(c);
                 interceptors.addFirst(c);
