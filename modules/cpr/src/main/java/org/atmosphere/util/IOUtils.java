@@ -36,7 +36,7 @@ import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
@@ -305,7 +305,7 @@ public class IOUtils {
      * @return the map associating class to action
      */
     public static Map<String, AtmosphereFramework.MetaServiceAction> readServiceFile(final String path) {
-        final Map<String, AtmosphereFramework.MetaServiceAction> b = new HashMap<String, AtmosphereFramework.MetaServiceAction>();
+        final Map<String, AtmosphereFramework.MetaServiceAction> b = new LinkedHashMap<String, AtmosphereFramework.MetaServiceAction>();
 
         String line;
         InputStream is = null;
