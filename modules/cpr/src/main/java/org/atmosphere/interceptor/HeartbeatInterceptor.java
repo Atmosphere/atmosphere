@@ -44,7 +44,8 @@ import java.util.concurrent.TimeUnit;
 /**
  * <p>
  * An interceptor that send whitespace every in 60 seconds by default. Another value could be specified with the
- * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config.
+ * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config. The heartbeat will be scheduled as soon as the
+ * request is suspended.
  * </p>
  *
  * <p>
@@ -148,36 +149,30 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        final AtmosphereResponse response = r.getResponse();
-        final AtmosphereRequest request = r.getRequest();
-
-        // Extract the desired heartbeat interval
-        // Won't be applied if lower config value
-        int interval = heartbeatFrequencyInSeconds;
-        final String s = request.getHeader(HeaderConfig.X_HEARTBEAT_SERVER);
-
-        if (s != null) {
-            try {
-                interval = Integer.parseInt(s);
-
-                if (interval != 0 && interval < heartbeatFrequencyInSeconds) {
-                    interval = heartbeatFrequencyInSeconds;
-                }
-            } catch (NumberFormatException nfe) {
-                logger.warn("{} header is not an integer", HeaderConfig.X_HEARTBEAT_SERVER, nfe);
-            }
-        }
+        final int interval = extractHeartbeatInterval(r);
 
         if (interval != 0) {
-            // Access from anonymous class
-            final int finalInterval = interval;
+            final AtmosphereResponse response = r.getResponse();
+            final AtmosphereRequest request = r.getRequest();
 
             if (!Utils.pollableTransport(r.transport())){
                 super.inspect(r);
+                final boolean wasSuspended = r.isSuspended();
+
+                // Suspended? Ok can clock now
+                // Otherwise, the listener will do the job
+                if (wasSuspended) {
+                    clock(interval, r, request, response);
+                }
+
                 r.addEventListener(new Clock() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
-                        clock(finalInterval, r, request, response);
+
+                        // We did not clocked when this listener was added because connection was not already suspended
+                        if (!wasSuspended) {
+                            clock(interval, r, request, response);
+                        }
                     }
 
                     @Override
@@ -215,7 +210,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     @Override
                     public void postPayload(final AtmosphereResponse response, byte[] data, int offset, int length) {
                         logger.trace("Scheduling heartbeat for {}", r.uuid());
-                        clock(finalInterval, r, request, response);
+                        clock(interval, r, request, response);
                     }
                 });
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
@@ -231,6 +226,36 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         return Action.CONTINUE;
+    }
+
+    /**
+     * <p>
+     * Extracts the heartbeat interval as explained in class description. This method could be overridden to change the
+     * the configuration points.
+     * </p>
+     *
+     * @param resource the resource
+     * @return the interval, 0 won't trigger the heartbeat
+     */
+    protected int extractHeartbeatInterval(final AtmosphereResource resource) {
+        // Extract the desired heartbeat interval
+        // Won't be applied if lower config value
+        int interval = heartbeatFrequencyInSeconds;
+        final String s = resource.getRequest().getHeader(HeaderConfig.X_HEARTBEAT_SERVER);
+
+        if (s != null) {
+            try {
+                interval = Integer.parseInt(s);
+
+                if (interval != 0 && interval < heartbeatFrequencyInSeconds) {
+                    interval = heartbeatFrequencyInSeconds;
+                }
+            } catch (NumberFormatException nfe) {
+                logger.warn("{} header is not an integer", HeaderConfig.X_HEARTBEAT_SERVER, nfe);
+            }
+        }
+
+        return interval;
     }
 
     void cancelF(AtmosphereRequest request) {
