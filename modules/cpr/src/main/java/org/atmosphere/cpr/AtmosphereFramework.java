@@ -2179,7 +2179,7 @@ public class AtmosphereFramework {
                 for (String p : params) {
                     s = p.split("=", 2);
                     final String header = s[0];
-                    final String value = s[1];
+                    final String value = s.length > 1 ? s[1] : "";
 
                     if (header.equalsIgnoreCase("Content-Type")) {
                         // Use the one set by the user first.
