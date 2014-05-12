@@ -1781,7 +1781,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public boolean isAsyncSupported() {
-            return false;
+            return true;
         }
 
         @Override
