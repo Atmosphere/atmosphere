@@ -458,7 +458,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         // synchronized (webSocket) {
 
         AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
-        closeCode = closeCode(closeCode);
 
         if (resource == null) {
             logger.debug("Already closed {}", webSocket);
@@ -540,14 +539,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (scheduler != null && !shared) {
             scheduler.shutdown();
         }
-    }
-
-    private int closeCode(int closeCode) {
-        // Tomcat and Jetty differ, same with browser
-        if (closeCode == 1000 && framework.getAsyncSupport().getContainerName().contains("Tomcat")) {
-            closeCode = 1005;
-        }
-        return closeCode;
     }
 
     @Override
