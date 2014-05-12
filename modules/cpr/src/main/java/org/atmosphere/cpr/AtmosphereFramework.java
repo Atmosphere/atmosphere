@@ -900,7 +900,7 @@ public class AtmosphereFramework {
 
     public void reconfigureInitParams(boolean reconfigureInitParams) {
         if (reconfigureInitParams) {
-            doInitParams(servletConfig);
+            doInitParams(servletConfig, reconfigureInitParams);
             doInitParamsForWebSocket(servletConfig);
         }
     }
@@ -1239,6 +1239,15 @@ public class AtmosphereFramework {
      * @param sc {@link ServletConfig}
      */
     protected void doInitParams(ServletConfig sc) {
+        doInitParams(sc, false);
+    }
+
+    /**
+     * Read init params from web.xml and apply them.
+     *
+     * @param sc {@link ServletConfig}
+     */
+    protected void doInitParams(ServletConfig sc, boolean reconfigure) {
         String s = sc.getInitParameter(PROPERTY_NATIVE_COMETSUPPORT);
         if (s != null) {
             useNativeImplementation = Boolean.parseBoolean(s);
@@ -1254,7 +1263,7 @@ public class AtmosphereFramework {
             useStreamForFlushingComments = Boolean.parseBoolean(s);
         }
         s = sc.getInitParameter(PROPERTY_COMET_SUPPORT);
-        if (s != null) {
+        if (s != null && !reconfigure) {
             asyncSupport = new DefaultAsyncSupportResolver(config).newCometSupport(s);
             isCometSupportSpecified = true;
         }
