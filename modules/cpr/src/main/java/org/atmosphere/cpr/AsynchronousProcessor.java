@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
@@ -49,11 +50,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected final AtmosphereConfig config;
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
     private final long closingTime;
+    private final boolean isServlet30;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
         mapper = config.framework().endPointMapper();
         closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
+        isServlet30 = Servlet30CometSupport.class.isAssignableFrom(this.getClass());
     }
 
     @Override
@@ -112,8 +115,17 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     Action action(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
         if (!Utils.properProtocol(req) || (Utils.webSocketEnabled(req) && !supportWebSocket())) {
+            logger.error("Invalid request state. Websocket protocol not supported");
             res.setStatus(501);
             res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
+            res.flushBuffer();
+            return new Action();
+        }
+
+        if (isServlet30 && !req.isAsyncSupported()) {
+            logger.error("Invalid request state. AsyncContext#startAsync not supported. Make sure async-supported is set to true in web.xml");
+            res.setStatus(501);
+            res.addHeader(X_ATMOSPHERE_ERROR, "AsyncContext not enabled");
             res.flushBuffer();
             return new Action();
         }
