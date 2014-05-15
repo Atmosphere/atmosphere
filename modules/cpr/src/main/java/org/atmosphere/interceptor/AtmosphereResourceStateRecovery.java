@@ -74,6 +74,15 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         logger.trace("{} started.", AtmosphereResourceStateRecovery.class.getName());
     }
 
+    public AtmosphereResourceStateRecovery timeout(long timeout){
+        this.timeout = timeout;
+        return this;
+    }
+
+    public long timeout(){
+        return timeout;
+    }
+
     protected void clearStateTracker() {
         stateTracker.scheduleAtFixedRate(new Runnable() {
             @Override
