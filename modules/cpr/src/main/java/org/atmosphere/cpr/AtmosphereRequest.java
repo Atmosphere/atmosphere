@@ -80,7 +80,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
     private boolean cookieComputed = false;
-    private final BufferedReader voidReader = new BufferedReader(new StringReader(""));
+    private final BufferedReader voidReader = new BufferedReader(new StringReader(""), 5);
     private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
     private AtomicBoolean streamSet = new AtomicBoolean();
     private AtomicBoolean readerSet = new AtomicBoolean();
