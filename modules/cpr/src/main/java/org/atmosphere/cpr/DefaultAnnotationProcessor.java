@@ -265,7 +265,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 for (Class<?> clazz : atmosphereAnnotatedClasses) {
                     handler.handleProcessor(clazz);
                 }
-                annotations.remove(AtmosphereAnnotation.class);
             } else {
                 fallbackToManualAnnotatedClasses(getClass(),framework, handler);
             }
@@ -340,7 +339,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
                 @Override
                 public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
-                    logger.info("Found Annotation in {} being scanned: {}", className, annotation);
                     try {
                         final Class<?> discoveredClass = loadClass(getClass(), className);
                         handler.handleAnnotation(framework, annotation, discoveredClass);
