@@ -40,14 +40,14 @@ import java.util.concurrent.Future;
 public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterProxy.class);
-    private final Method jerseyBroadcast;
+    private Method jerseyBroadcast = null;
 
     public AbstractBroadcasterProxy() {
         try {
             Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
             jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", new Class[]{AtmosphereResource.class, AtmosphereResourceEvent.class, Broadcaster.class});
         } catch (Exception e) {
-            throw new RuntimeException(e);
+            logger.trace("", e);
         }
     }
 
