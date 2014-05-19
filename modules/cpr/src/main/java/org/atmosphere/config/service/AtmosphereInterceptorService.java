@@ -24,6 +24,9 @@ import java.lang.annotation.Target;
 /**
  * An annotation for telling Atmosphere which {@link org.atmosphere.cpr.AtmosphereInterceptor} class to use by default.
  *
+ * A class annotated with this annotation will be invoked during the {@link org.atmosphere.cpr.AtmosphereConfig#startupHook(org.atmosphere.cpr.AtmosphereConfig.StartupHook)}
+ * execution. Thus, do not invoke that method from an {@link org.atmosphere.cpr.AtmosphereInterceptor#configure(org.atmosphere.cpr.AtmosphereConfig)} to avoid unpredictable behaviors.
+ *
  * @author Jeanfrancois Arcand
  */
 @Target({ElementType.TYPE})
