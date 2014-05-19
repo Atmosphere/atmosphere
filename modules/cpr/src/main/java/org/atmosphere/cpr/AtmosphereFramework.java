@@ -1039,7 +1039,7 @@ public class AtmosphereFramework {
 
         logger.info("Installing Default AtmosphereInterceptor");
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
-        if (s == null) {
+        if (s == null || !"true".equalsIgnoreCase(s)) {
 
             s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
             if (s != null) {
