@@ -65,8 +65,10 @@ public final class AtmosphereResourceFactory {
         public void destroy() {
         }
     };
+    private final BroadcasterFactory broadcasterFactory;
 
-    public AtmosphereResourceFactory(){
+    public AtmosphereResourceFactory(BroadcasterFactory broadcasterFactory){
+        this.broadcasterFactory = broadcasterFactory;
         // This is quite ugly, but here for legacy reason.
         factory = this;
     }
@@ -131,13 +133,13 @@ public final class AtmosphereResourceFactory {
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a,
                                            AtmosphereHandler handler,
-                                           AtmosphereResource.TRANSPORT T) {
+                                           AtmosphereResource.TRANSPORT t) {
         AtmosphereResource r = null;
         try {
             r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
 
             if (request.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
-                request.header(X_ATMOSPHERE_TRANSPORT, T.name());
+                request.header(X_ATMOSPHERE_TRANSPORT, t.name());
             }
             r.initialize(config, broadcaster, request, response, a, handler);
         } catch (Exception e) {
@@ -248,7 +250,7 @@ public final class AtmosphereResourceFactory {
      * @return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}
      */
     public final Set<Broadcaster> broadcasters(String uuid) {
-        Collection<Broadcaster> l = BroadcasterFactory.getDefault().lookupAll();
+        Collection<Broadcaster> l = broadcasterFactory.lookupAll();
         Set<Broadcaster> h = new HashSet<Broadcaster>();
         for (Broadcaster b : l) {
             for (AtmosphereResource r : b.getAtmosphereResources()) {
@@ -262,13 +264,9 @@ public final class AtmosphereResourceFactory {
 
     /**
      * Use {@link AtmosphereConfig#resourcesFactory() instead}
-     * @deprecated
+     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#resourcesFactory()}
      */
     public final static AtmosphereResourceFactory getDefault() {
-        // Ugly, for legacy reason
-        if (factory == null) {
-            new AtmosphereResourceFactory();
-        }
         return factory;
     }
 

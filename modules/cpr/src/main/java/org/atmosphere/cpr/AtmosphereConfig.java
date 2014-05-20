@@ -265,7 +265,7 @@ public class AtmosphereConfig {
     }
 
     public AtmosphereResourceFactory resourcesFactory(){
-        return framework.arFactory;
+        return framework.atmosphereFactory();
     }
 
     /**

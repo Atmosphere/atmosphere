@@ -217,7 +217,7 @@ public class AtmosphereFramework {
     protected final List<String> excludedInterceptors = new ArrayList<String>();
     protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<BroadcasterCacheListener>();
     protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<BroadcasterConfig.FilterManipulator>();
-    protected final AtmosphereResourceFactory arFactory = new AtmosphereResourceFactory();
+    protected AtmosphereResourceFactory arFactory;
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
             CorsInterceptor.class,
@@ -297,8 +297,8 @@ public class AtmosphereFramework {
      * </p>
      *
      * @author Guillaume DROUET
-     * @since 2.2.0
      * @version 1.0
+     * @since 2.2.0
      */
     public static enum MetaServiceAction {
 
@@ -333,7 +333,7 @@ public class AtmosphereFramework {
          * Applies this action to given class.
          * </p>
          *
-         * @param fwk the framework
+         * @param fwk   the framework
          * @param clazz the class
          * @throws Exception if procedure fails
          */
@@ -348,8 +348,8 @@ public class AtmosphereFramework {
          * </p>
          *
          * @author Guillaume DROUET
-         * @since 2.2.0
          * @version 1.0
+         * @since 2.2.0
          */
         private static interface MetaServiceProcedure {
 
@@ -358,7 +358,7 @@ public class AtmosphereFramework {
              * Processes an action.
              * </p>
              *
-             * @param fwk the framework
+             * @param fwk   the framework
              * @param clazz the class to use during processing
              * @throws Exception if procedure fails
              */
@@ -371,8 +371,8 @@ public class AtmosphereFramework {
          * </p>
          *
          * @author Guillaume DROUET
-         * @since 2.2.0
          * @version 1.0
+         * @since 2.2.0
          */
         private static class InstallMetaServiceProcedure implements MetaServiceProcedure {
 
@@ -417,8 +417,8 @@ public class AtmosphereFramework {
          * </p>
          *
          * @author Guillaume DROUET
-         * @since 2.2.0
          * @version 1.0
+         * @since 2.2.0
          */
         private static class ExcludeMetaServiceProcedure implements MetaServiceProcedure {
 
@@ -621,7 +621,7 @@ public class AtmosphereFramework {
         if (!isInit) {
             logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
                     new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
-        }  else {
+        } else {
             logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
                     new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
         }
@@ -1144,7 +1144,7 @@ public class AtmosphereFramework {
         }
     }
 
-    protected void defaultPackagesToScan(){
+    protected void defaultPackagesToScan() {
         // Atmosphere HA/Pro
         packages.add("io.async.control");
         packages.add("io.async.satellite");
@@ -1173,6 +1173,7 @@ public class AtmosphereFramework {
             }
 
             BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
+            configureAtmosphereResourceFactory();
         } catch (Exception ex) {
             logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
         }
@@ -1578,14 +1579,13 @@ public class AtmosphereFramework {
         }
 
         arFactory.destroy();
-        AtmosphereResourceFactory.getDefault().destroy();
         WebSocketProcessorFactory.getDefault().destroy();
 
         resetStates();
         return this;
     }
 
-    public AtmosphereFramework resetStates(){
+    public AtmosphereFramework resetStates() {
         isInit = false;
         executeFirstSet = false;
 
@@ -1607,7 +1607,7 @@ public class AtmosphereFramework {
 
         broadcasterFactory = null;
         annotationFound = false;
-       return this;
+        return this;
     }
 
     protected void loadMetaService() {
@@ -2158,7 +2158,7 @@ public class AtmosphereFramework {
         return this;
     }
 
-    public ConcurrentLinkedQueue<String> broadcasterTypes(){
+    public ConcurrentLinkedQueue<String> broadcasterTypes() {
         return broadcasterTypes;
     }
 
@@ -2363,7 +2363,7 @@ public class AtmosphereFramework {
     }
 
     private boolean checkDuplicate(AtmosphereInterceptor c) {
-        for (AtmosphereInterceptor i: interceptors) {
+        for (AtmosphereInterceptor i : interceptors) {
             if (i.getClass().equals(c.getClass()))
                 return false;
         }
@@ -2428,7 +2428,7 @@ public class AtmosphereFramework {
     }
 
     public List<BroadcasterCacheListener> broadcasterCacheListeners() {
-        return  broadcasterCacheListeners;
+        return broadcasterCacheListeners;
     }
 
     /**
@@ -2694,6 +2694,7 @@ public class AtmosphereFramework {
 
     /**
      * Return true if the {@link #init()} has been sucessfully executed.
+     *
      * @return true if the {@link #init()} has been sucessfully executed.
      */
     public boolean initialized() {
@@ -2727,7 +2728,7 @@ public class AtmosphereFramework {
     /**
      * Instantiate a class
      *
-     * @param classType The Required Class's Type
+     * @param classType   The Required Class's Type
      * @param defaultType The default implementation of the Class's Type.
      * @return the an instance of defaultType
      * @throws InstantiationException
@@ -2813,7 +2814,7 @@ public class AtmosphereFramework {
         return this;
     }
 
-    public List<BroadcasterConfig.FilterManipulator> filterManipulators(){
+    public List<BroadcasterConfig.FilterManipulator> filterManipulators() {
         return filterManipulators;
     }
 
@@ -2821,11 +2822,11 @@ public class AtmosphereFramework {
         return isFilter;
     }
 
-    public ConcurrentLinkedQueue<String> objectFactoryType(){
+    public ConcurrentLinkedQueue<String> objectFactoryType() {
         return objectFactoryType;
     }
 
-    public String mappingRegex(){
+    public String mappingRegex() {
         return mappingRegex;
     }
 
@@ -2838,7 +2839,7 @@ public class AtmosphereFramework {
         this.useServlet30 = useServlet30;
     }
 
-    public boolean webSocketEnabled(){
+    public boolean webSocketEnabled() {
         return webSocketEnabled;
     }
 
@@ -2847,20 +2848,20 @@ public class AtmosphereFramework {
         return this;
     }
 
-    public String broadcasterLifeCyclePolicy(){
+    public String broadcasterLifeCyclePolicy() {
         return broadcasterLifeCyclePolicy;
     }
 
-    public AtmosphereFramework broadcasterLifeCyclePolicy(String broadcasterLifeCyclePolicy){
+    public AtmosphereFramework broadcasterLifeCyclePolicy(String broadcasterLifeCyclePolicy) {
         this.broadcasterLifeCyclePolicy = broadcasterLifeCyclePolicy;
         return this;
     }
 
-    public List<BroadcasterListener> broadcasterListeners(){
+    public List<BroadcasterListener> broadcasterListeners() {
         return broadcasterListeners;
     }
 
-    public boolean sharedThreadPools(){
+    public boolean sharedThreadPools() {
         return sharedThreadPools;
     }
 
@@ -2869,28 +2870,42 @@ public class AtmosphereFramework {
         return this;
     }
 
-    public boolean allowAllClassesScan(){
+    public boolean allowAllClassesScan() {
         return allowAllClassesScan;
     }
 
-    public AtmosphereFramework allowAllClassesScan(boolean b) {
+    public AtmosphereFramework allowAllClassesScan(boolean allowAllClassesScan) {
         this.allowAllClassesScan = allowAllClassesScan;
         return this;
     }
 
-    public AtmosphereObjectFactory objectFactory(){
+    public AtmosphereObjectFactory objectFactory() {
         return objectFactory;
     }
 
-    public boolean externalizeDestroy(){
+    public boolean externalizeDestroy() {
         return externalizeDestroy;
     }
 
-    public List<String> excludedInterceptors(){
+    public List<String> excludedInterceptors() {
         return excludedInterceptors;
     }
 
-    public Class<? extends AtmosphereInterceptor>[] defaultInterceptors(){
+    public Class<? extends AtmosphereInterceptor>[] defaultInterceptors() {
         return defaultInterceptors;
     }
+
+
+    public AtmosphereResourceFactory atmosphereFactory() {
+        if (arFactory == null) {
+            configureAtmosphereResourceFactory();
+        }
+        return arFactory;
+    }
+
+    private AtmosphereFramework configureAtmosphereResourceFactory() {
+        arFactory = new AtmosphereResourceFactory(broadcasterFactory);
+        return this;
+    }
+
 }
