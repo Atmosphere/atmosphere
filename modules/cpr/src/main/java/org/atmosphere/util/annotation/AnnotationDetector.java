@@ -35,9 +35,6 @@
   */
 package org.atmosphere.util.annotation;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.io.DataInput;
 import java.io.File;
 import java.io.IOException;
@@ -56,6 +53,11 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * {@code AnnotationDetector} reads Java Class File (".class") files and reports the
@@ -288,7 +290,7 @@ public final class AnnotationDetector {
         final Set<InputStream> streams = new HashSet<InputStream>();
 
         for (final String packageName : pkgNameFilter) {
-            final ClassLoader loader = Thread.currentThread().getContextClassLoader();
+        	final ClassLoader loader = Thread.currentThread().getContextClassLoader();
             final Enumeration<URL> resourceEnum = loader.getResources(packageName);
             while (resourceEnum.hasMoreElements()) {
                 final URL url = resourceEnum.nextElement();
@@ -326,7 +328,13 @@ public final class AnnotationDetector {
                             vfs(url, packageName, streams);
                         }
                     }
-                } else {
+                }else if(isRunningJavaWebStart()){
+                	try {
+                		webstart((JarURLConnection) url.openConnection(), packageName, streams);
+                	} catch (ClassCastException cce) {
+                		throw new AssertionError("Not a File: " + url.toExternalForm());
+                	}
+                }else {
                     // Resource in Jar File
                     File jarFile;
 
@@ -351,7 +359,7 @@ public final class AnnotationDetector {
                     if (jarFile.isFile()) {
                         files.add(jarFile);
                         if (DEBUG) print("Add jar file: '%s'", jarFile);
-                    } else {
+                    }else {
                         throw new AssertionError("Not a File: " + jarFile);
                     }
                 }
@@ -363,6 +371,30 @@ public final class AnnotationDetector {
         } else if (!streams.isEmpty()) {
             detect(new ClassFileIterator(streams.toArray(new InputStream[streams.size()]), pkgNameFilter));
         }
+    }
+    
+    private boolean isRunningJavaWebStart() {
+        boolean hasJNLP = false;
+        try {
+          Class.forName("javax.jnlp.ServiceManager");
+          hasJNLP = true;
+        } catch (ClassNotFoundException ex) {
+          hasJNLP = false;
+        }
+        return hasJNLP;
+    }
+    
+    private void webstart(JarURLConnection url, String packageName, Set<InputStream> streams) throws IOException{
+		// Using a JarURLConnection will load the JAR from the cache when using Webstart 1.6
+		// In Webstart 1.5, the URL will point to the cached JAR on the local filesystem
+		JarFile jarFile = url.getJarFile();
+		Enumeration<JarEntry> entries = jarFile.entries();
+		while(entries.hasMoreElements()){
+			JarEntry entry = entries.nextElement();
+			if(entry.getName().startsWith(packageName)){
+				streams.add(jarFile.getInputStream(entry));
+			}
+		}
     }
 
     private void vfs(URL url, String packageName, Set<InputStream> streams) {
@@ -420,7 +452,7 @@ public final class AnnotationDetector {
         // only correct way to convert the URL to a File object, also see issue #16
         // Do not use URLDecoder
         try {
-            return new File(url.toURI());
+        	return new File(url.toURI());
         } catch (URISyntaxException ex) {
                 throw new MalformedURLException(ex.getMessage());
         } catch (IllegalArgumentException ex) {
@@ -431,7 +463,7 @@ public final class AnnotationDetector {
             }
         }
     }
-
+    
     private void detect(final ClassFileIterator iterator) throws IOException {
         InputStream stream;
         while ((stream = iterator.next()) != null) {
