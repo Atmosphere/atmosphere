@@ -27,7 +27,6 @@ import java.util.Enumeration;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
-import static org.testng.AssertJUnit.fail;
 
 public class AtmosphereInterceptorTest {
 
@@ -240,11 +239,10 @@ public class AtmosphereInterceptorTest {
                     return "XXX";
                 }
             });
-            fail();
         } catch (Exception ex) {
             exception = ex;
         }
-        assertEquals(IllegalStateException.class, exception.getClass());
-
+        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequest.class), AtmosphereResponse.newInstance()));
+        assertEquals(framework.interceptors().getFirst().toString(), "XXX");
     }
 }
