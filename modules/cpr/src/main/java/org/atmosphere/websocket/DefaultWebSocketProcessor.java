@@ -475,7 +475,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
                         final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
                         if (!resource.isCancelled()) {
-                            if (closeCode == 1005 || closeCode == 1001) {
+                            // See https://github.com/Atmosphere/atmosphere/issues/1590
+                            // Better to call onDisconnect that onResume.
+                            if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
                                 boolean ff = r.getAttribute("firefox") != null;
                                 if (ff || closingTime > 0) {
                                     ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
