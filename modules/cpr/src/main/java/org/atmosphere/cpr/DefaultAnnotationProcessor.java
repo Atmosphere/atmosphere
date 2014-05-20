@@ -254,7 +254,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             }
 
             if (handleAtmosphereAnnotation) {
-                scanForCustomAnnotation(atmosphereAnnotatedClasses);
+                scanForCustomAnnotation();
             }
             return this;
         }
@@ -277,11 +277,16 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             return scanForCustomizedAnnotation;
         }
 
-        private void scanForCustomAnnotation(Set<Class<?>> atmosphereAnnotatedClasses) throws IOException {
+        private void scanForCustomAnnotation() throws IOException {
             BytecodeBasedAnnotationProcessor b = new BytecodeBasedAnnotationProcessor(handler);
             b.configure(framework);
             String path = framework.getServletContext().getRealPath(framework.getHandlersPath());
-            b.scan(new File(path)).destroy();
+            if (path != null) {
+                b.scan(new File(path)).destroy();
+            } else {
+                logger.warn("Unable to scan using File. Scanning classpath");
+                b.scanAll();
+            }
         }
 
         @Override
@@ -300,7 +305,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 }
 
                 if (handleAtmosphereAnnotation) {
-                    scanForCustomAnnotation(atmosphereAnnotatedClasses);
+                    scanForCustomAnnotation();
                 }
             }
 
