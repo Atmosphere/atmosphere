@@ -136,6 +136,7 @@ import static org.atmosphere.cpr.FrameworkConfig.SPRING_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
+import static org.atmosphere.util.IOUtils.realPath;
 import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 
 /**
@@ -1835,7 +1836,7 @@ public class AtmosphereFramework {
     public void loadAtmosphereHandlersFromPath(URLClassLoader classloader, String realPath) {
         File file = new File(realPath);
 
-        if (file.isDirectory()) {
+        if (file.exists() && file.isDirectory()) {
             getFiles(file);
             scanDone = true;
 
@@ -1873,23 +1874,13 @@ public class AtmosphereFramework {
         if (hasNewWebSocketProtocol) return;
 
         logger.info("Auto detecting WebSocketHandler in {}", handlersPath);
-
-        String realPath = servletContext.getRealPath(handlersPath);
-
-        // Weblogic bug
-        if (realPath == null) {
-            URL u = servletContext.getResource(handlersPath);
-            if (u == null) return;
-            realPath = u.getPath();
-        }
-
-        loadWebSocketFromPath(classloader, realPath);
+        loadWebSocketFromPath(classloader, realPath(servletContext, handlersPath));
     }
 
     protected void loadWebSocketFromPath(URLClassLoader classloader, String realPath) {
         File file = new File(realPath);
 
-        if (file.isDirectory()) {
+        if (file.exists() && file.isDirectory()) {
             getFiles(file);
             scanDone = true;
 
@@ -2525,7 +2516,7 @@ public class AtmosphereFramework {
     }
 
     protected void autoConfigureService(ServletContext sc) throws IOException {
-        String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : sc.getRealPath(handlersPath);
+        String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : realPath(sc, handlersPath);
         try {
             annotationProcessor = newClassInstance(AnnotationProcessor.class,
                     (Class<AnnotationProcessor>) IOUtils.loadClass(getClass(), annotationProcessorClassName));
@@ -2545,7 +2536,7 @@ public class AtmosphereFramework {
                     annotationProcessor.scan(new File(path));
                 }
 
-                String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : sc.getRealPath(DEFAULT_LIB_PATH);
+                String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : realPath(sc, DEFAULT_LIB_PATH);
                 if (pathLibs != null) {
                     File libFolder = new File(pathLibs);
                     File jars[] = libFolder.listFiles(new FilenameFilter() {

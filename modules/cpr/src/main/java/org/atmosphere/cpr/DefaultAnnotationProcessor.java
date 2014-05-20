@@ -34,6 +34,7 @@ import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.annotation.AnnotationDetector;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -154,7 +155,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             }
 
             // Now look for application defined annotation
-            String path = f.getServletContext().getRealPath(f.getHandlersPath());
+            String path = IOUtils.realPath(f.getServletContext(), f.getHandlersPath());
             if (path != null) {
                 detector.detect(new File(path));
             }

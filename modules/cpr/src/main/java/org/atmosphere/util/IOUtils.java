@@ -24,6 +24,7 @@ import org.atmosphere.cpr.MeteorServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletContext;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -34,6 +35,8 @@ import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.Field;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
@@ -68,7 +71,8 @@ public class IOUtils {
 
     public final static boolean isBodyBinary(AtmosphereRequest request) {
         if (request.getContentType() != null
-                && request.getContentType().equalsIgnoreCase(FORCE_BINARY) || request.getHeader(X_ATMO_BINARY) != null) return true;
+                && request.getContentType().equalsIgnoreCase(FORCE_BINARY) || request.getHeader(X_ATMO_BINARY) != null)
+            return true;
         return false;
     }
 
@@ -188,7 +192,6 @@ public class IOUtils {
     }
 
 
-
     public static String guestServletPath(AtmosphereConfig config) {
         String servletPath = "";
         try {
@@ -279,7 +282,7 @@ public class IOUtils {
      * to specify a list of {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction actions} to be done on different
      * service classes ({@link org.atmosphere.cpr.AtmosphereInterceptor}, {@link org.atmosphere.cpr.BroadcastFilter}, etc).
      * </p>
-     *
+     * <p/>
      * <p>
      * The file content should follows the following format:
      * <pre>
@@ -290,12 +293,12 @@ public class IOUtils {
      * org.atmosphere.interceptor.HeartbeatInterceptor
      * </pre>
      * </p>
-     *
+     * <p/>
      * <p>
      * If you don't specify any {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction} before a class, then
      * default action will be {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction#INSTALL}.
      * </p>
-     *
+     * <p/>
      * <p>
      * Important note: you must specify a class declared inside a package. Since creating classes in the source root is
      * a bad practice, the method does not deal with it to improve its performances.
@@ -349,14 +352,14 @@ public class IOUtils {
      * Tries to close the given objects and log the {@link IOException} at INFO level
      * to make the code more readable when we assume that the {@link IOException} won't be managed.
      * </p>
-     *
+     * <p/>
      * <p>
      * Also ignore {@code null} parameters.
      * </p>
      *
      * @param closeableArray the objects to close
      */
-    public static void close(final Closeable ... closeableArray) {
+    public static void close(final Closeable... closeableArray) {
         for (Closeable closeable : closeableArray) {
             try {
                 if (closeable != null) {
@@ -366,5 +369,18 @@ public class IOUtils {
                 logger.info("Can't close the object", ioe);
             }
         }
+    }
+
+    public static String realPath(ServletContext servletContext, String targetPath) throws MalformedURLException {
+        String realPath = servletContext.getRealPath(targetPath);
+        if (realPath == null) {
+            URL u = servletContext.getResource(targetPath);
+            if (u != null) {
+                realPath = u.getPath();
+            } else {
+                return "";
+            }
+        }
+        return realPath;
     }
 }
