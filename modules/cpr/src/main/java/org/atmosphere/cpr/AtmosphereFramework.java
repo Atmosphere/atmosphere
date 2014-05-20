@@ -1580,8 +1580,8 @@ public class AtmosphereFramework {
             BroadcasterFactory.config = null;
         }
 
-        metaBroadcaster.destroy();
-        arFactory.destroy();
+        if (metaBroadcaster != null) metaBroadcaster.destroy();
+        if (arFactory != null) arFactory.destroy();
         WebSocketProcessorFactory.getDefault().destroy();
 
         resetStates();
