@@ -56,6 +56,8 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.jar.JarEntry;
+import java.util.jar.JarFile;
 
 /**
  * {@code AnnotationDetector} reads Java Class File (".class") files and reports the
@@ -201,7 +203,7 @@ public final class AnnotationDetector {
     private static final int CP_NAME_AND_TYPE = 12;
     private static final int CP_METHOD_HANDLE = 15;
     private static final int CP_METHOD_TYPE = 16;
-    private static final int CP_INVOKE_DYNAMIC= 18;
+    private static final int CP_INVOKE_DYNAMIC = 18;
 
     // AnnotationElementValue
     private static final int BYTE = 'B';
@@ -326,6 +328,12 @@ public final class AnnotationDetector {
                             vfs(url, packageName, streams);
                         }
                     }
+                } else if (isRunningJavaWebStart()) {
+                    try {
+                        webstart((JarURLConnection) url.openConnection(), packageName, streams);
+                    } catch (ClassCastException cce) {
+                        throw new AssertionError("Not a File: " + url.toExternalForm());
+                    }
                 } else {
                     // Resource in Jar File
                     File jarFile;
@@ -365,6 +373,30 @@ public final class AnnotationDetector {
         }
     }
 
+    private boolean isRunningJavaWebStart() {
+        boolean hasJNLP = false;
+        try {
+            Class.forName("javax.jnlp.ServiceManager");
+            hasJNLP = true;
+        } catch (ClassNotFoundException ex) {
+            hasJNLP = false;
+        }
+        return hasJNLP;
+    }
+
+    private void webstart(JarURLConnection url, String packageName, Set<InputStream> streams) throws IOException {
+        // Using a JarURLConnection will load the JAR from the cache when using Webstart 1.6
+        // In Webstart 1.5, the URL will point to the cached JAR on the local filesystem
+        JarFile jarFile = url.getJarFile();
+        Enumeration<JarEntry> entries = jarFile.entries();
+        while (entries.hasMoreElements()) {
+            JarEntry entry = entries.nextElement();
+            if (entry.getName().startsWith(packageName)) {
+                streams.add(jarFile.getInputStream(entry));
+            }
+        }
+    }
+
     private void vfs(URL url, String packageName, Set<InputStream> streams) {
 //        org.jboss.virtual.VFS vfs = org.jboss.virtual.VFS.getVFS(url);
 //        org.jboss.virtual.VirtualFile root = vfs.getRoot();
@@ -397,7 +429,7 @@ public final class AnnotationDetector {
                 }
             }
         } catch (Throwable t) {
-            logger.warn("", t);
+            logger.trace("", t);
         }
     }
 
@@ -422,10 +454,10 @@ public final class AnnotationDetector {
         try {
             return new File(url.toURI());
         } catch (URISyntaxException ex) {
-                throw new MalformedURLException(ex.getMessage());
+            throw new MalformedURLException(ex.getMessage());
         } catch (IllegalArgumentException ex) {
             try {
-               return new File(URLDecoder.decode(url.getFile(), "UTF-8"));
+                return new File(URLDecoder.decode(url.getFile(), "UTF-8"));
             } catch (Exception ex2) {
                 throw new MalformedURLException(ex.getMessage());
             }
@@ -537,7 +569,7 @@ public final class AnnotationDetector {
                 return false;
             case CP_INVOKE_DYNAMIC:
                 di.skipBytes(4);  // readUnsignedShort() * 2
-           return false;
+                return false;
             default:
                 throw new ClassFormatError(
                         "Unkown tag value for constant pool entry: " + tag);
