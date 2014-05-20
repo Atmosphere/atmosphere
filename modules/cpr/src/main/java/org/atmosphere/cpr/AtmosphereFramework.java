@@ -1606,6 +1606,7 @@ public class AtmosphereFramework {
         interceptors.clear();
 
         broadcasterFactory = null;
+        arFactory = null;
         annotationFound = false;
         return this;
     }
