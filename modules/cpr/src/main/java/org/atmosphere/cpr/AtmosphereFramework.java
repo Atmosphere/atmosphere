@@ -940,7 +940,6 @@ public class AtmosphereFramework {
     }
 
     protected void initHandlerInterceptors(AtmosphereHandlerWrapper w) {
-        List<AtmosphereInterceptor> remove = new ArrayList<AtmosphereInterceptor>();
         if (w.interceptors != null) {
             LinkedList<AtmosphereInterceptor> d = new LinkedList<AtmosphereInterceptor>(w.interceptors);
             for (AtmosphereInterceptor i : d) {
@@ -2140,8 +2139,10 @@ public class AtmosphereFramework {
                 this.interceptors.add(pos, c);
                 break;
             case FIRST_BEFORE_DEFAULT:
-                if (executeFirstSet)
-                    throw new IllegalStateException("Cannot set more than one AtmosphereInterceptor to be executed first");
+                if (executeFirstSet) {
+                    logger.warn("More than one AtmosphereInterceptor are defined to execute before the defaults. {} will be added before {}", c, interceptors.get(0));
+                }
+
                 logger.info("AtmosphereInterceptor {} will always be executed first", c);
                 interceptors.remove(c);
                 interceptors.addFirst(c);
