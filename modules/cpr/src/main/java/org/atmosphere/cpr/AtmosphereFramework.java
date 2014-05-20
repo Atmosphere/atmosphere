@@ -218,6 +218,7 @@ public class AtmosphereFramework {
     protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<BroadcasterCacheListener>();
     protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<BroadcasterConfig.FilterManipulator>();
     protected AtmosphereResourceFactory arFactory;
+    protected MetaBroadcaster metaBroadcaster;
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
             CorsInterceptor.class,
@@ -860,6 +861,7 @@ public class AtmosphereFramework {
 
             // Reconfigure in case an annotation changed the default.
             configureBroadcasterFactory();
+            configureMetaBroadcaster();
             patchContainer();
             configureBroadcaster();
             loadConfiguration(scFacade);
@@ -1578,6 +1580,7 @@ public class AtmosphereFramework {
             BroadcasterFactory.config = null;
         }
 
+        metaBroadcaster.destroy();
         arFactory.destroy();
         WebSocketProcessorFactory.getDefault().destroy();
 
@@ -1607,6 +1610,7 @@ public class AtmosphereFramework {
 
         broadcasterFactory = null;
         arFactory = null;
+        metaBroadcaster = null;
         annotationFound = false;
         return this;
     }
@@ -1934,7 +1938,6 @@ public class AtmosphereFramework {
      * @param req {@link AtmosphereRequest}
      */
     public AtmosphereFramework configureRequestResponse(AtmosphereRequest req, AtmosphereResponse res) throws UnsupportedEncodingException {
-        req.setAttribute(BROADCASTER_FACTORY, getBroadcasterFactory());
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
@@ -2114,6 +2117,9 @@ public class AtmosphereFramework {
      * @return {@link BroadcasterFactory}
      */
     public BroadcasterFactory getBroadcasterFactory() {
+        if (broadcasterFactory == null) {
+            configureBroadcasterFactory();
+        }
         return broadcasterFactory;
     }
 
@@ -2896,7 +2902,6 @@ public class AtmosphereFramework {
         return defaultInterceptors;
     }
 
-
     public AtmosphereResourceFactory atmosphereFactory() {
         if (arFactory == null) {
             configureAtmosphereResourceFactory();
@@ -2906,6 +2911,20 @@ public class AtmosphereFramework {
 
     private AtmosphereFramework configureAtmosphereResourceFactory() {
         arFactory = new AtmosphereResourceFactory(broadcasterFactory);
+        return this;
+    }
+
+    public MetaBroadcaster metaBroadcaster() {
+        if (metaBroadcaster == null) {
+            configureMetaBroadcaster();
+        }
+        return metaBroadcaster;
+    }
+
+    private AtmosphereFramework configureMetaBroadcaster() {
+        if (metaBroadcaster == null) {
+            metaBroadcaster = new MetaBroadcaster(config);
+        }
         return this;
     }
 

@@ -19,7 +19,6 @@ import com.sun.jersey.spi.StringReader;
 import com.sun.jersey.spi.StringReaderProvider;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -31,9 +30,6 @@ import javax.ws.rs.WebApplicationException;
 import javax.ws.rs.core.Context;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
-
-import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
 
 /**
  * Placeholder for injection of Atmosphere object based on
@@ -70,8 +66,7 @@ public class AtmosphereProviders {
                     AtmosphereResource r =
                             (AtmosphereResource)
                                     req.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-                    BroadcasterFactory bp = (BroadcasterFactory)
-                            req.getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
+                    BroadcasterFactory bp = r.getAtmosphereConfig().getBroadcasterFactory();
 
                     Class<? extends Broadcaster> c;
                     try {

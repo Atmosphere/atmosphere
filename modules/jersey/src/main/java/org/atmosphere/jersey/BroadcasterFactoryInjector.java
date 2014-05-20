@@ -18,7 +18,6 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
@@ -84,7 +83,7 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
 
         class BroadcasterFactoryProxy extends BroadcasterFactory {
             BroadcasterFactory _get() {
-                return (BroadcasterFactory) req.getAttribute(ApplicationConfig.BROADCASTER_FACTORY);
+                return getAtmosphereResource(AtmosphereResource.class, true).getAtmosphereConfig().getBroadcasterFactory();
             }
 
             @Override

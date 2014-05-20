@@ -268,6 +268,10 @@ public class AtmosphereConfig {
         return framework.atmosphereFactory();
     }
 
+    public MetaBroadcaster metaBroadcaster(){
+        return framework.metaBroadcaster();
+    }
+
     /**
      * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An
      * Application can register one of more hooks.

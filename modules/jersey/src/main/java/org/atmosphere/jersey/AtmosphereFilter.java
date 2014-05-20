@@ -71,7 +71,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
 import static org.atmosphere.cpr.ApplicationConfig.DEFAULT_CONTENT_TYPE;
 import static org.atmosphere.cpr.ApplicationConfig.JERSEY_CONTAINER_RESPONSE_WRITER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_ON_BROADCAST;
@@ -657,8 +656,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 response.setStatus(200);
             }
 
-            BroadcasterFactory broadcasterFactory = (BroadcasterFactory) servletReq
-                    .getAttribute(BROADCASTER_FACTORY);
+            BroadcasterFactory broadcasterFactory = r.getAtmosphereConfig().getBroadcasterFactory();
 
             boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             URI location = null;

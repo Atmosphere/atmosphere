@@ -25,12 +25,15 @@ import static org.testng.Assert.assertEquals;
 
 public class MetaBroadcasterTest {
     private AtmosphereConfig config;
-    private DefaultBroadcasterFactory factory;
+    private BroadcasterFactory factory;
+    private MetaBroadcaster metaBroadcaster;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        config = new AtmosphereFramework().getAtmosphereConfig();
-        factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config = new AtmosphereFramework().init().getAtmosphereConfig();
+        factory = config.getBroadcasterFactory();
+        factory.remove(Broadcaster.ROOT_MASTER);
+        metaBroadcaster = config.metaBroadcaster();
     }
 
     @AfterMethod
@@ -44,13 +47,13 @@ public class MetaBroadcasterTest {
         factory.get("/b");
         factory.get("/c");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/*", "yo").get().size(), 3);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b", "yo").get().size(), 0);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().size(), 1);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/", "yo").get().size(), 3);
+        assertEquals(metaBroadcaster.broadcastTo("/*", "yo").get().size(), 3);
+        assertEquals(metaBroadcaster.broadcastTo("/a/b", "yo").get().size(), 0);
+        assertEquals(metaBroadcaster.broadcastTo("/a", "yo").get().size(), 1);
+        assertEquals(metaBroadcaster.broadcastTo("/", "yo").get().size(), 3);
 
         factory.get("/*");
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/", "yo").get().size(), 4);
+        assertEquals(metaBroadcaster.broadcastTo("/", "yo").get().size(), 4);
     }
 
     @Test
@@ -60,7 +63,7 @@ public class MetaBroadcasterTest {
         factory.get("/a/b");
         factory.get("/c");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().get(0).getID(), "/a");
+        assertEquals(metaBroadcaster.broadcastTo("/a", "yo").get().get(0).getID(), "/a");
     }
 
     @Test
@@ -69,7 +72,7 @@ public class MetaBroadcasterTest {
         factory.get("/a/b");
         factory.get("/b");
         factory.get("/c");
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b", "yo").get().size(), 1);
+        assertEquals(metaBroadcaster.broadcastTo("/a/b", "yo").get().size(), 1);
 
     }
 
@@ -79,10 +82,10 @@ public class MetaBroadcasterTest {
         factory.get("/b");
         factory.get("/c");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/*", "yo").get().size(), 3);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/b/c/d", "yo").get().size(), 1);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a", "yo").get().size(), 0);
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/b", "yo").get().size(), 1);
+        assertEquals(metaBroadcaster.broadcastTo("/*", "yo").get().size(), 3);
+        assertEquals(metaBroadcaster.broadcastTo("/a/b/c/d", "yo").get().size(), 1);
+        assertEquals(metaBroadcaster.broadcastTo("/a", "yo").get().size(), 0);
+        assertEquals(metaBroadcaster.broadcastTo("/b", "yo").get().size(), 1);
 
     }
 
@@ -92,7 +95,7 @@ public class MetaBroadcasterTest {
         factory.get("/a/chat2");
         factory.get("/a/chat3");
 
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/*", "yo").get().size(), 3);
+        assertEquals(metaBroadcaster.broadcastTo("/a/*", "yo").get().size(), 3);
 
     }
 
@@ -101,7 +104,7 @@ public class MetaBroadcasterTest {
         factory.get("/a/_b");
         factory.get("/b");
         factory.get("/c");
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/_b", "yo").get().size(), 1);
+        assertEquals(metaBroadcaster.broadcastTo("/a/_b", "yo").get().size(), 1);
 
     }
 
@@ -110,7 +113,7 @@ public class MetaBroadcasterTest {
         factory.get("/a/@b");
         factory.get("/b");
         factory.get("/c");
-        assertEquals(MetaBroadcaster.getDefault().broadcastTo("/a/@b", "yo").get().size(), 1);
+        assertEquals(metaBroadcaster.broadcastTo("/a/@b", "yo").get().size(), 1);
 
     }
 }

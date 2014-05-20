@@ -64,14 +64,26 @@ public class MetaBroadcaster {
     public static final String MAPPING_REGEX = "[/a-zA-Z0-9-&.*=@_;\\?]+";
 
     private final static Logger logger = LoggerFactory.getLogger(MetaBroadcaster.class);
-    private final static MetaBroadcaster metaBroadcaster = new MetaBroadcaster();
+    private static MetaBroadcaster metaBroadcaster;
     private final static ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
     private final static MetaBroadcasterFuture E = new MetaBroadcasterFuture(Collections.<Broadcaster>emptyList());
     private MetaBroadcasterCache cache = new NoCache();
+    private AtmosphereConfig config;
+
+    public MetaBroadcaster() {
+        // Ugly
+        metaBroadcaster = this;
+    }
+
+    public MetaBroadcaster(AtmosphereConfig config) {
+        this.config = config;
+        // Ugly
+        metaBroadcaster = this;
+    }
 
     protected MetaBroadcasterFuture broadcast(final String path, Object message, int time, TimeUnit unit, boolean delay, boolean cacheMessage) {
-        if (BroadcasterFactory.getDefault() != null) {
-            Collection<Broadcaster> c = BroadcasterFactory.getDefault().lookupAll();
+        if (config != null  || BroadcasterFactory.getDefault() != null) {
+            Collection<Broadcaster> c = config != null ? config.getBroadcasterFactory().lookupAll() : BroadcasterFactory.getDefault().lookupAll();
 
             final Map<String, String> m = new HashMap<String, String>();
             List<Broadcaster> l = new ArrayList<Broadcaster>();
@@ -155,7 +167,7 @@ public class MetaBroadcaster {
      * Flush the cached messages.
      * @return this
      */
-    private MetaBroadcaster flushCache() {
+    protected MetaBroadcaster flushCache() {
         if (cache != null) cache.flushCache();
         return this;
     }
@@ -188,7 +200,14 @@ public class MetaBroadcaster {
         return map(broadcasterID, message, time, unit, true, true);
     }
 
-    public final static MetaBroadcaster getDefault() {
+    /**
+     *
+     * @deprecated Use {@link AtmosphereConfig#metaBroadcaster()}
+     */
+    public synchronized final static MetaBroadcaster getDefault() {
+        if (metaBroadcaster == null) {
+            metaBroadcaster = new MetaBroadcaster();
+        }
         return metaBroadcaster;
     }
 
@@ -311,6 +330,11 @@ public class MetaBroadcaster {
     public MetaBroadcaster cache(MetaBroadcasterCache cache) {
         this.cache = cache;
         return this;
+    }
+
+    protected void destroy(){
+        broadcasterListeners.clear();
+        flushCache();
     }
 
     /**
