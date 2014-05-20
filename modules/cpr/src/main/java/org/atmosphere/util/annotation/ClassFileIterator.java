@@ -36,6 +36,9 @@
  */
 package org.atmosphere.util.annotation;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -52,6 +55,7 @@ import java.util.zip.ZipFile;
  * @since annotation-detector 3.0.0
  */
 final class ClassFileIterator {
+    private final Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
 
     private final FileIterator fileIterator;
     private final String[] pkgNameFilter;
@@ -125,33 +129,43 @@ final class ClassFileIterator {
      * NOTICE: Client code MUST close the returned {@code InputStream}!
      */
     public InputStream next() throws IOException {
-        while (true) {
-            if (fileIterator != null) {
-                if (zipIterator == null) {
-                    final File file = fileIterator.next();
-                    if (file == null) {
-                        return null;
+        try {
+            while (true) {
+                if (fileIterator != null) {
+                    if (zipIterator == null) {
+                        final File file = fileIterator.next();
+                        if (file == null) {
+                            return null;
+                        } else {
+                            final String name = file.getName();
+                            if (name.endsWith(".class")) {
+                                isFile = true;
+                                return new FileInputStream(file);
+                            } else if (fileIterator.isRootFile() && endsWithIgnoreCase(name, ".jar")) {
+                                try {
+                                    zipIterator = new ZipFileIterator(new ZipFile(file), pkgNameFilter);
+                                } catch (Exception ex) {
+                                    logger.debug("Unable to construct file {}", file);
+                                    return null;
+                                }
+                            } // else just ignore
+                        }
                     } else {
-                        final String name = file.getName();
-                        if (name.endsWith(".class")) {
-                            isFile = true;
-                            return new FileInputStream(file);
-                        } else if (fileIterator.isRootFile() && endsWithIgnoreCase(name, ".jar")) {
-                            zipIterator = new ZipFileIterator(new ZipFile(file), pkgNameFilter);
-                        } // else just ignore
+                        final InputStream is = zipIterator.next();
+                        if (is == null) {
+                            zipIterator = null;
+                        } else {
+                            isFile = false;
+                            return is;
+                        }
                     }
                 } else {
-                    final InputStream is = zipIterator.next();
-                    if (is == null) {
-                        zipIterator = null;
-                    } else {
-                        isFile = false;
-                        return is;
-                    }
+                    return inputStreamIterator.next();
                 }
-            } else {
-                return inputStreamIterator.next();
             }
+        } catch (Exception ex) {
+            logger.error("Unable to scan classes", ex);
+            return null;
         }
     }
 
