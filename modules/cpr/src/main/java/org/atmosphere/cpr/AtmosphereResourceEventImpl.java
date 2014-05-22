@@ -203,13 +203,12 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     @Override
     public String toString() {
         return "AtmosphereResourceEventImpl{" +
-                "\n\t message=" + message +
-                "\n\t isCancelled=" + isCancelled +
-                "\n\t isClosedByClient=" + isClosedByClient +
-                "\n\t isClosedByApplication=" + isClosedByApplication +
-                "\n\t isResumedOnTimeout=" + isResumedOnTimeout +
-                "\n\t throwable=" + throwable +
-                "\n\t resource=" + uuid +
+                " isCancelled=" + isCancelled +
+                " isClosedByClient=" + isClosedByClient +
+                " isClosedByApplication=" + isClosedByApplication +
+                " isResumedOnTimeout=" + isResumedOnTimeout +
+                " throwable=" + throwable +
+                " resource=" + uuid +
                 '}';
     }
 }
