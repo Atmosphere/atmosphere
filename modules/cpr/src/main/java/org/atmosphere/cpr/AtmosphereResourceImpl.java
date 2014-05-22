@@ -130,7 +130,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
 
     protected void register() {
-        if (!Utils.unTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
+        if (!Utils.pollableTransport(transport()) && !Utils.webSocketMessage(this)) {
             config.resourcesFactory().registerUuidForFindCandidate(this);
         }
     }
@@ -739,10 +739,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
                 req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                 event.destroy();
-
-                if (!Utils.pollableTransport(transport()) && !Utils.webSocketMessage(this)) {
-                    config.resourcesFactory().unRegisterUuidForFindCandidate(this);
-                }
             } finally {
                 unregister();
             }
@@ -750,14 +746,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private void unregister() {
-        if (!Utils.unTrackableTransport(transport()) && !Utils.webSocketMessage(this)) {
+        if (!Utils.pollableTransport(transport()) && !Utils.webSocketMessage(this)) {
             config.resourcesFactory().unRegisterUuidForFindCandidate(this);
         }
     }
 
     public void _destroy() {
         try {
-            removeEventListeners();
             if (!isCancelled.get()) {
                 if (broadcaster != null) broadcaster.removeAtmosphereResource(this);
 
@@ -765,6 +760,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     config.getBroadcasterFactory().removeAllAtmosphereResource(this);
                 }
             }
+            removeEventListeners();
         } catch (Throwable t) {
             logger.trace("destroyResource", t);
         } finally {
