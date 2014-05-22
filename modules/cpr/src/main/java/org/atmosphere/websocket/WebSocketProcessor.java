@@ -150,6 +150,10 @@ public interface WebSocketProcessor {
             return this;
         }
 
+        public WebSocketHandler proxied(){
+            return proxied;
+        }
+
         @Override
         public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException {
             proxied.onByteMessage(webSocket,data,offset,length);
