@@ -77,12 +77,12 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     @Override
     public boolean isResuming() {
-        return resource == null ? false : resource.action().type() == Action.TYPE.RESUME;
+        return resource.isResumed();
     }
 
     @Override
     public boolean isSuspended() {
-        return resource == null ? false : (resource.action().type() == Action.TYPE.SUSPEND || resource.action().type() == Action.TYPE.SUSPEND_MESSAGE);
+        return resource.isSuspended();
     }
 
     @Override

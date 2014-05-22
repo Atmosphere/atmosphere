@@ -717,7 +717,6 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                             boolean flushEntity) {
 
             servletReq.setAttribute(FrameworkConfig.CONTAINER_RESPONSE, response);
-            boolean sessionSupported = (Boolean) servletReq.getAttribute(FrameworkConfig.SUPPORT_SESSION);
             configureFilter(r.getBroadcaster());
             servletReq.setAttribute(SUSPENDED_RESOURCE, r);
 

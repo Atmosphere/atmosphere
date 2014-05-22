@@ -74,6 +74,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean disableSuspendEvent;
     private TRANSPORT transport;
     private boolean forceBinaryWrite;
+    private final AtomicBoolean suspended = new AtomicBoolean();
+
 
     public AtmosphereResourceImpl() {
     }
@@ -215,7 +217,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public boolean isSuspended() {
-        return event.isSuspended();
+        return suspended.get();
     }
 
     @Override
@@ -238,6 +240,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         try {
             if (!isResumed.getAndSet(true) && isInScope.get()) {
+                suspended.set(false);
                 logger.trace("AtmosphereResource {} is resuming", uuid());
 
                 action.type(Action.TYPE.RESUME);
@@ -337,6 +340,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (event.isSuspended() || disableSuspend) return this;
 
         if (!event.isResumedOnTimeout()) {
+            suspended.set(true);
 
             Enumeration<String> connection = req.getHeaders("Connection");
             if (connection == null) {
@@ -700,6 +704,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public void cancel() throws IOException {
 
         if (!isCancelled.getAndSet(true)) {
+            suspended.set(false);
+
             try {
                 logger.trace("Cancelling {}", uuid);
 
