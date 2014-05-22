@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,12 +95,17 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                         req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
 
                         Object o = req.getAttribute(ASYNCHRONOUS_HOOK);
-                        req.setAttribute(ASYNCHRONOUS_HOOK, null);
+                        WebSocket webSocket = AtmosphereResourceImpl.class.cast(r).webSocket();
 
-                        AsynchronousProcessor.AsynchronousProcessorHook h;
-                        if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                            h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
-                            h.closed();
+                        if (webSocket != null) {
+                            webSocket.close();
+                        } else {
+                            req.setAttribute(ASYNCHRONOUS_HOOK, null);
+                            AsynchronousProcessor.AsynchronousProcessorHook h;
+                            if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
+                                h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
+                                h.closed();
+                            }
                         }
                     } finally {
                         config.getBroadcasterFactory().removeAllAtmosphereResource(r);

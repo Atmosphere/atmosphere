@@ -41,7 +41,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
-import javax.xml.ws.Endpoint;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -176,6 +175,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 request.setAttribute("firefox", "true");
             }
 
+            AtmosphereResourceImpl.class.cast(r).webSocket(webSocket);
             webSocket.resource(r);
             webSocketProtocol.onOpen(webSocket);
             WebSocketHandler proxy = null;
@@ -494,7 +494,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     webSocketHandler.onClose(webSocket);
                 }
 
-                if (resource != null && resource.isInScope() && !resource.getAtmosphereResourceEvent().isClosedByApplication()) {
+                if (resource != null && !resource.getAtmosphereResourceEvent().isClosedByApplication()) {
                     Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
                     if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
                         final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;

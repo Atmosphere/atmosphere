@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.interceptor.AllowInterceptor;
 import org.atmosphere.util.Utils;
+import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,7 +76,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private TRANSPORT transport;
     private boolean forceBinaryWrite;
     private final AtomicBoolean suspended = new AtomicBoolean();
-
+    private WebSocket webSocket;
 
     public AtmosphereResourceImpl() {
     }
@@ -769,6 +770,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             logger.trace("destroyResource", t);
         } finally {
             unregister();
+            webSocket = null;
         }
     }
 
@@ -811,6 +813,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         event.setCloseByApplication(true);
         notifyListeners();
         cancel();
+        if (webSocket != null) {
+            webSocket.close();
+        }
     }
 
     @Override
@@ -872,5 +877,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      */
     public boolean disableSuspendEvent() {
         return disableSuspendEvent;
+    }
+
+    public WebSocket webSocket(){
+        return webSocket;
+    }
+
+    public AtmosphereResourceImpl webSocket(WebSocket webSocket) {
+        this.webSocket = webSocket;
+        return this;
     }
 }
