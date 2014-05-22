@@ -80,27 +80,30 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
                 long l = (Long) req.getAttribute(MAX_INACTIVE);
                 if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
-                    req.setAttribute(MAX_INACTIVE, (long) -1);
+                    try {
+                        req.setAttribute(MAX_INACTIVE, (long) -1);
 
-                    logger.debug("IdleResourceInterceptor disconnecting {}", r);
+                        logger.debug("IdleResourceInterceptor disconnecting {}", r);
 
-                    if (!AtmosphereResourceImpl.class.cast(r).isSuspended() || !AtmosphereResourceImpl.class.cast(r).isInScope()) {
-                        return;
+                        if (!AtmosphereResourceImpl.class.cast(r).isSuspended() || !AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                            return;
+                        }
+
+                        Future<?> f = (Future<?>) req.getAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
+                        if (f != null) f.cancel(false);
+                        req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
+
+                        Object o = req.getAttribute(ASYNCHRONOUS_HOOK);
+                        req.setAttribute(ASYNCHRONOUS_HOOK, null);
+
+                        AsynchronousProcessor.AsynchronousProcessorHook h;
+                        if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
+                            h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
+                            h.closed();
+                        }
+                    } finally {
+                        config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     }
-
-                    Future<?> f = (Future<?>) req.getAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
-                    if (f != null) f.cancel(false);
-                    req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
-
-                    Object o = req.getAttribute(ASYNCHRONOUS_HOOK);
-                    req.setAttribute(ASYNCHRONOUS_HOOK, null);
-
-                    AsynchronousProcessor.AsynchronousProcessorHook h;
-                    if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                        h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
-                        h.closed();
-                    }
-
                 }
             } catch (Throwable e) {
                 logger.warn("IdleResourceInterceptor", e);
