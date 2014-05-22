@@ -63,6 +63,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         if (maxInactiveTime > 0) {
+            logger.info("{} started with idle timeout set to {}", IdleResourceInterceptor.class.getSimpleName(), maxInactiveTime);
             future = ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(new Runnable() {
                 public void run() {
                     idleResources();

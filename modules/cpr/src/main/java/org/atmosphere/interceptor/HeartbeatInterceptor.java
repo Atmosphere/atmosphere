@@ -102,6 +102,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     public HeartbeatInterceptor heartbeatFrequencyInSeconds(int heartbeatFrequencyInSeconds) {
         this.heartbeatFrequencyInSeconds = heartbeatFrequencyInSeconds;
+
         return this;
     }
 
