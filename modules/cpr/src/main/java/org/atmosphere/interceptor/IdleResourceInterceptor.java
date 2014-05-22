@@ -85,11 +85,6 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                         req.setAttribute(MAX_INACTIVE, (long) -1);
 
                         logger.debug("IdleResourceInterceptor disconnecting {}", r);
-
-                        if (!AtmosphereResourceImpl.class.cast(r).isSuspended() || !AtmosphereResourceImpl.class.cast(r).isInScope()) {
-                            return;
-                        }
-
                         Future<?> f = (Future<?>) req.getAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
                         if (f != null) f.cancel(false);
                         req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
