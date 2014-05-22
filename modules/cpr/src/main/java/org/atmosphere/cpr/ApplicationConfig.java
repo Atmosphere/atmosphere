@@ -287,7 +287,7 @@ public interface ApplicationConfig {
      * The maximum time, in milliseconds, a connection gets idle or when the WIFI disconnection wasn't detected by the underlying container. This property works with the
      * {@link org.atmosphere.interceptor.IdleResourceInterceptor}, e.g you must install that interceptor in order to use the property.
      * <p>
-     * Default: 5 minutes<br>
+     * Default: -1 (not enabled)<br>
      * Value: org.atmosphere.cpr.CometSupport.maxInactiveActivity
      */
     String MAX_INACTIVE = "org.atmosphere.cpr.CometSupport.maxInactiveActivity";
