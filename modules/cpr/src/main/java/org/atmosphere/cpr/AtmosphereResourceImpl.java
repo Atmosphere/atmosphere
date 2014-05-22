@@ -751,9 +751,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private void unregister() {
-        if (!Utils.pollableTransport(transport()) && !Utils.webSocketMessage(this)) {
-            config.resourcesFactory().unRegisterUuidForFindCandidate(this);
-        }
+        config.resourcesFactory().unRegisterUuidForFindCandidate(this);
     }
 
     public void _destroy() {
