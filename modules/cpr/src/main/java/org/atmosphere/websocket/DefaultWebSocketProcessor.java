@@ -41,6 +41,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.xml.ws.Endpoint;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -763,6 +764,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     public long closingTime() {
         return closingTime;
+    }
+
+    public EndpointMapper<WebSocketHandlerProxy> mapper(){
+        return mapper;
     }
 
 }
