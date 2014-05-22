@@ -417,7 +417,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             synchronized (impl) {
                 try {
                     if (impl.isCancelled()) {
-                        logger.trace("{} is already cancelled", impl.uuid());
+                        logger.error("{} is already cancelled", impl.uuid());
                         return false;
                     }
 
