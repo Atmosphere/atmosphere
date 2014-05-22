@@ -102,6 +102,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                             h.closed();
                         }
                     } finally {
+                        config.getBroadcasterFactory().removeAllAtmosphereResource(r);
                         config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     }
                 }
