@@ -494,9 +494,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                 h.timedOut();
                             }
                         }
+                    } else {
+                        logger.debug("ASYNCHRONOUS_HOOK not available for {}", resource.uuid());
                     }
+                } else {
+                    logger.debug("Unable to properly complete {}", resource == null ? "null" : resource.uuid());
                 }
-
             } finally {
                 if (webSocket != null) {
                     try {
