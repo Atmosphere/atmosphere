@@ -22,7 +22,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -64,39 +63,37 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     protected void idleResources() {
-        for (Broadcaster b : config.getBroadcasterFactory().lookupAll()) {
-            for (AtmosphereResource r : b.getAtmosphereResources()) {
-                AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
-                try {
-                    if (req.getAttribute(MAX_INACTIVE) == null) return;
+        for (AtmosphereResource r : config.resourcesFactory().findAll()) {
+            AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+            try {
+                if (req.getAttribute(MAX_INACTIVE) == null) return;
 
-                    long l = (Long) req.getAttribute(MAX_INACTIVE);
-                    if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
-                        req.setAttribute(MAX_INACTIVE, (long) -1);
+                long l = (Long) req.getAttribute(MAX_INACTIVE);
+                if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime) {
+                    req.setAttribute(MAX_INACTIVE, (long) -1);
 
-                        logger.debug("IdleResourceInterceptor disconnecting {}", r);
+                    logger.debug("IdleResourceInterceptor disconnecting {}", r);
 
-                        if (!AtmosphereResourceImpl.class.cast(r).isSuspended() || !AtmosphereResourceImpl.class.cast(r).isInScope()) {
-                            return;
-                        }
-
-                        Future<?> f = (Future<?>) req.getAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
-                        if (f != null) f.cancel(false);
-                        req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
-
-                        Object o = req.getAttribute(ASYNCHRONOUS_HOOK);
-                        req.setAttribute(ASYNCHRONOUS_HOOK, null);
-
-                        AsynchronousProcessor.AsynchronousProcessorHook h;
-                        if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                            h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
-                            h.closed();
-                        }
-
+                    if (!AtmosphereResourceImpl.class.cast(r).isSuspended() || !AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                        return;
                     }
-                } catch (Throwable e) {
-                    logger.warn("IdleResourceInterceptor", e);
+
+                    Future<?> f = (Future<?>) req.getAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
+                    if (f != null) f.cancel(false);
+                    req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
+
+                    Object o = req.getAttribute(ASYNCHRONOUS_HOOK);
+                    req.setAttribute(ASYNCHRONOUS_HOOK, null);
+
+                    AsynchronousProcessor.AsynchronousProcessorHook h;
+                    if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
+                        h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
+                        h.closed();
+                    }
+
                 }
+            } catch (Throwable e) {
+                logger.warn("IdleResourceInterceptor", e);
             }
         }
     }

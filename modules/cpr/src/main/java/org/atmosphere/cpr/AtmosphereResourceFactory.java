@@ -298,4 +298,7 @@ public final class AtmosphereResourceFactory {
         return resources;
     }
 
+    public Collection<AtmosphereResource> findAll() {
+        return resources.values();
+    }
 }
