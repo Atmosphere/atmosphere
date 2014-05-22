@@ -397,9 +397,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throws IOException, ServletException {
 
         logger.trace("Timing out {}", req);
-        if (completeLifecycle(req.resource(), false)) {
-            config.framework().notify(Action.TYPE.TIMEOUT, req, res);
-        }
+        endRequest(AtmosphereResourceImpl.class.cast(req.resource()), false);
         return timedoutAction;
     }
 
@@ -417,7 +415,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             synchronized (impl) {
                 try {
                     if (impl.isCancelled()) {
-                        logger.error("{} is already cancelled", impl.uuid());
+                        logger.debug("{} is already cancelled", impl.uuid());
                         return false;
                     }
 
@@ -439,7 +437,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     invokeAtmosphereHandler(impl);
                 } catch (Throwable ex) {
                     // Something wrong happened, ignore the exception
-                    logger.trace("Failed to cancel resource: {}", impl.uuid(), ex);
+                    logger.error("Failed to cancel resource: {}", impl.uuid(), ex);
                 } finally {
                     try {
                         impl.notifyListeners();
@@ -454,7 +452,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         impl.setIsInScope(false);
                         impl.cancel();
                     } catch (Throwable t) {
-                        logger.trace("completeLifecycle", t);
+                        logger.debug("completeLifecycle", t);
                     } finally {
                         impl._destroy();
                     }
@@ -462,7 +460,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             }
             return true;
         } else {
-            logger.trace("AtmosphereResource {} was already cancelled or gc", r != null ? r.uuid() : "null");
+            logger.debug("AtmosphereResource {} was already cancelled or gc", r != null ? r.uuid() : "null");
             return false;
         }
     }
@@ -520,13 +518,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throws IOException, ServletException {
 
         logger.trace("Cancelling {}", req);
+        final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(req.resource());
         // Leave a chance to the client to send the disconnect message before processing the connection
         if (closingTime > 0) {
-            ExecutorsFactory.getScheduler(config).schedule(new Callable<Object>(){
+            ExecutorsFactory.getScheduler(config).schedule(new Callable<Object>() {
 
                 @Override
                 public Object call() throws Exception {
-                    endRequest(req, res);
+                    endRequest(r, true);
                     return null;
                 }
             }, closingTime, TimeUnit.MILLISECONDS);
@@ -538,9 +537,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return cancelledAction;
     }
 
-    protected void endRequest(AtmosphereRequest req, AtmosphereResponse res){
-        if (completeLifecycle(req.resource(), true)) {
-            config.framework().notify(Action.TYPE.CANCELLED, req, res);
+    protected void endRequest(AtmosphereResourceImpl r, boolean cancel) {
+        if (completeLifecycle(r, cancel)) {
+            config.framework().notify(Action.TYPE.CANCELLED, r.getRequest(false), r.getResponse(false));
         }
     }
 
@@ -566,25 +565,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         public void closed() {
-            try {
-                if (r.isSuspended()) {
-                    ((AsynchronousProcessor) r.asyncSupport).cancelled(r.getRequest(false), r.getResponse(false));
-                }
-            } catch (IOException e) {
-                logger.debug("", e);
-            } catch (ServletException e) {
-                logger.debug("", e);
+            if (r.isSuspended()) {
+                ((AsynchronousProcessor) r.asyncSupport).endRequest(r, true);
+            } else {
+                logger.debug("Not suspended {}, probably processed by the OnDisconnect interceptor.", r.uuid());
             }
         }
 
         public void timedOut() {
-            try {
-                ((AsynchronousProcessor) r.asyncSupport).timedout(r.getRequest(false), r.getResponse(false));
-            } catch (IOException e) {
-                logger.debug("", e);
-            } catch (ServletException e) {
-                logger.debug("", e);
-            }
+            ((AsynchronousProcessor) r.asyncSupport).endRequest(r, false);
         }
 
         public void resume() {
