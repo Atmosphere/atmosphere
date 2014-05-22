@@ -288,7 +288,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         } finally {
-            config.resourcesFactory().unRegisterUuidForFindCandidate(this);
+            unregister();
             try {
                 Meteor m = (Meteor) req.getAttribute(METEOR);
                 if (m != null) {
@@ -702,52 +702,51 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     public void cancel() throws IOException {
-
+        try {
         if (!isCancelled.getAndSet(true)) {
             suspended.set(false);
 
-            try {
-                logger.trace("Cancelling {}", uuid);
+            logger.trace("Cancelling {}", uuid);
 
-                if (config.getBroadcasterFactory() != null) {
-                    config.getBroadcasterFactory().removeAllAtmosphereResource(this);
-                    if (transport.equals(TRANSPORT.WEBSOCKET)) {
-                        String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                        AtmosphereResource p = config.resourcesFactory().find(parentUUID);
-                        if (p != null) {
-                            config.getBroadcasterFactory().removeAllAtmosphereResource(p);
-                        }
+            if (config.getBroadcasterFactory() != null) {
+                config.getBroadcasterFactory().removeAllAtmosphereResource(this);
+                if (transport.equals(TRANSPORT.WEBSOCKET)) {
+                    String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+                    AtmosphereResource p = config.resourcesFactory().find(parentUUID);
+                    if (p != null) {
+                        config.getBroadcasterFactory().removeAllAtmosphereResource(p);
                     }
                 }
-
-                asyncSupport.complete(this);
-
-                try {
-                    Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                    if (m != null) {
-                        m.destroy();
-                    }
-                } catch (Exception ex) {
-                    logger.trace("Meteor exception {}", ex);
-                }
-
-                SessionTimeoutSupport.restoreTimeout(req);
-                action.type(Action.TYPE.CANCELLED);
-                if (asyncSupport != null) asyncSupport.action(this);
-                // We must close the underlying WebSocket as well.
-                if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-                    AtmosphereResponse.class.cast(response).close();
-                    AtmosphereResponse.class.cast(response).destroy();
-                }
-
-                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                    AtmosphereRequest.class.cast(req).destroy();
-                }
-                req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-                event.destroy();
-            } finally {
-                unregister();
             }
+
+            asyncSupport.complete(this);
+
+            try {
+                Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                if (m != null) {
+                    m.destroy();
+                }
+            } catch (Exception ex) {
+                logger.trace("Meteor exception {}", ex);
+            }
+
+            SessionTimeoutSupport.restoreTimeout(req);
+            action.type(Action.TYPE.CANCELLED);
+            if (asyncSupport != null) asyncSupport.action(this);
+            // We must close the underlying WebSocket as well.
+            if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
+                AtmosphereResponse.class.cast(response).close();
+                AtmosphereResponse.class.cast(response).destroy();
+            }
+
+            if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                AtmosphereRequest.class.cast(req).destroy();
+            }
+            req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+            event.destroy();
+        }
+        } finally {
+            unregister();
         }
     }
 
@@ -766,6 +765,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     config.getBroadcasterFactory().removeAllAtmosphereResource(this);
                 }
             }
+            unregister();
             removeEventListeners();
         } catch (Throwable t) {
             logger.trace("destroyResource", t);
