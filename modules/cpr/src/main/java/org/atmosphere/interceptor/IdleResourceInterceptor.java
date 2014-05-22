@@ -44,6 +44,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     private final Logger logger = LoggerFactory.getLogger(IdleResourceInterceptor.class);
     private long maxInactiveTime = -1;
     private AtmosphereConfig config;
+    private Future<?> future;
 
     public void configure(AtmosphereConfig config) {
         this.config = config;
@@ -53,8 +54,16 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
             maxInactiveTime = Long.parseLong(maxInactive);
         }
 
+        start();
+    }
+
+    private void start() {
+        if (future != null) {
+            future.cancel(false);
+        }
+
         if (maxInactiveTime > 0) {
-            ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(new Runnable() {
+            future = ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(new Runnable() {
                 public void run() {
                     idleResources();
                 }
@@ -104,6 +113,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     public IdleResourceInterceptor maxInactiveTime(long maxInactiveTime) {
         this.maxInactiveTime = maxInactiveTime;
+        start();
         return this;
     }
 
