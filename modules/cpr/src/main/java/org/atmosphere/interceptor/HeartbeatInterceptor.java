@@ -15,6 +15,7 @@
  */
 package org.atmosphere.interceptor;
 
+import org.atmosphere.HeartbeatAtmosphereResourceEvent;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
@@ -24,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -36,7 +38,10 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Map;
+import java.util.Queue;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -78,6 +83,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private byte[] paddingBytes = " ".getBytes();
 
     private int heartbeatFrequencyInSeconds = 60;
+
+    private Map<String, AtmosphereResourceEventListener> onHeartbeatListeners = new ConcurrentHashMap<String, AtmosphereResourceEventListener>();
 
     /**
      * Heartbeat from client disabled by default.
@@ -145,6 +152,30 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     private static class Clock extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
         public Clock() {
+        }
+    }
+
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public void postInspect(final AtmosphereResource r) {
+        // We track any OnHeartbeat when added by the handler cause the framework don't keep it during resource lifecycle
+        if (!onHeartbeatListeners.containsKey(r.uuid())) {
+            // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
+            final Queue<AtmosphereResourceEventListener> listeners = AtmosphereResourceImpl.class.cast(r).listeners();
+
+            for (final AtmosphereResourceEventListener l : listeners) {
+                if (AtmosphereResourceEventListenerAdapter.OnHeartbeat.class.isAssignableFrom(l.getClass())) {
+                    r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnDisconnect() {
+                        public void onDisconnect(final AtmosphereResourceEvent event) {
+                            onHeartbeatListeners.remove(event.getResource().uuid());
+                        }
+                    });
+                    onHeartbeatListeners.put(r.uuid(), l);
+                    break;
+                }
+            }
         }
     }
 
@@ -216,10 +247,23 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 });
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
             } else {
-                // This is where we should dispatch an event to notify that an heartbeat has been intercepted
-                // See: https://github.com/Atmosphere/atmosphere/issues/1549
                 byte[] body = IOUtils.readEntirelyAsByte(r);
                 if (Arrays.equals(paddingBytes, body)) {
+                    // Dispatch an event to notify that a heartbeat has been intercepted
+                    // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
+                    final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent(AtmosphereResourceImpl.class.cast(r));
+
+
+                    // Check if a listener is defined
+                    final AtmosphereResourceEventListener kept = onHeartbeatListeners.get(r.uuid());
+
+                    if (kept != null) {
+                        kept.onHeartbeat(event);
+                    } else {
+                        // In case of listener is still bound to the resource
+                        r.notifyListeners(event);
+                    }
+
                     return Action.CANCELLED;
                 }
                 request.body(body);

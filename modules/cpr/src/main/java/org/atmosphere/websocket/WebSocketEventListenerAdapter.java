@@ -74,6 +74,11 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
     }
 
     @Override
+    public void onHeartbeat(AtmosphereResourceEvent event) {
+        logger.trace("{}", event);
+    }
+
+    @Override
     public void onDisconnect(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }

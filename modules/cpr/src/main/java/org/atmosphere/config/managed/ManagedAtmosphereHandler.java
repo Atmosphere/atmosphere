@@ -18,6 +18,7 @@ package org.atmosphere.config.managed;
 import org.atmosphere.config.service.Delete;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
+import org.atmosphere.config.service.Heartbeat;
 import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Post;
@@ -54,6 +55,7 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnClose;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnHeartbeat;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 import static org.atmosphere.util.IOUtils.isBodyEmpty;
@@ -70,6 +72,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
     private List<MethodInfo> onRuntimeMethod;
+    private Method onHeartbeatMethod;
     private Method onDisconnectMethod;
     private Method onTimeoutMethod;
     private Method onGetMethod;
@@ -91,6 +94,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     public AnnotatedProxy configure(AtmosphereConfig config, Object c) {
         this.proxiedInstance = c;
         this.onRuntimeMethod = populateMessage(c, Message.class);
+        this.onHeartbeatMethod = populate(c, Heartbeat.class);
         this.onDisconnectMethod = populate(c, Disconnect.class);
         this.onTimeoutMethod = populate(c, Resume.class);
         this.onGetMethod = populate(c, Get.class);
@@ -133,6 +137,15 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                     public void onResume(AtmosphereResourceEvent event) {
                         invoke(onResumeMethod, event.getResource());
                         resource.removeEventListener(this);
+                    }
+                });
+            }
+
+            if (onHeartbeatMethod != null && !polling) {
+                resource.addEventListener(new OnHeartbeat() {
+                    @Override
+                    public void onHeartbeat(AtmosphereResourceEvent event) {
+                        invoke(onHeartbeatMethod, event);
                     }
                 });
             }
