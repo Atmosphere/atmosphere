@@ -1150,6 +1150,7 @@ public class AtmosphereFramework {
         // Atmosphere HA/Pro
         packages.add("io.async.control");
         packages.add("io.async.satellite");
+        packages.add("io.async.postman");
     }
 
     public void configureBroadcasterFactory() {

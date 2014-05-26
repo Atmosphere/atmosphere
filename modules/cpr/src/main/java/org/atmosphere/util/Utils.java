@@ -100,6 +100,17 @@ public final class Utils {
         }
     }
 
+    public final static boolean pushMessage(AtmosphereResource.TRANSPORT t) {
+        switch (t) {
+            case POLLING:
+            case UNDEFINED:
+            case AJAX:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     public final static boolean atmosphereProtocol(AtmosphereRequest r) {
         String p = r.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (p != null && Boolean.valueOf(p)) {
