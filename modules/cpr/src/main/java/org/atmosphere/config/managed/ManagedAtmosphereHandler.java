@@ -55,7 +55,6 @@ import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnClose;
-import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnHeartbeat;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 import static org.atmosphere.util.IOUtils.isBodyEmpty;
@@ -137,15 +136,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                     public void onResume(AtmosphereResourceEvent event) {
                         invoke(onResumeMethod, event.getResource());
                         resource.removeEventListener(this);
-                    }
-                });
-            }
-
-            if (onHeartbeatMethod != null && !polling) {
-                resource.addEventListener(new OnHeartbeat() {
-                    @Override
-                    public void onHeartbeat(AtmosphereResourceEvent event) {
-                        invoke(onHeartbeatMethod, event);
                     }
                 });
             }
@@ -426,6 +416,19 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 break;
 
+        }
+    }
+
+    /**
+     * <p>
+     * Notifies the heartbeat for the given resource to the annotated method if exists.
+     * </p>
+     *
+     * @param event the event
+     */
+    public void onHeartbeat(final AtmosphereResourceEvent event) {
+        if (onHeartbeatMethod != null && !Utils.pollableTransport(event.getResource().transport())) {
+            invoke(onHeartbeatMethod, event);
         }
     }
 
