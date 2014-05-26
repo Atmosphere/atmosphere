@@ -128,7 +128,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         }
         transport = configureTransport();
-        register();
         return this;
     }
 
@@ -243,7 +242,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         try {
             if (!isResumed.getAndSet(true) && isInScope.get()) {
                 suspended.set(false);
-                logger.trace("AtmosphereResource {} is resuming", uuid());
+                logger.debug("AtmosphereResource {} is resuming", uuid());
 
                 action.type(Action.TYPE.RESUME);
 
@@ -398,6 +397,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 return this;
             }
             req.removeAttribute(PRE_SUSPEND);
+            register();
             notifyListeners();
         }
         return this;
@@ -585,11 +585,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
-        if (listeners.size() > 0) {
-            logger.trace("Invoking listener with {}", event);
-        } else {
+        if (listeners.isEmpty()) {
+            logger.trace("NO listener with {}", event);
             return this;
         }
+        logger.trace("Invoking listener with {}", event);
 
         Action oldAction = action;
         try {
@@ -720,48 +720,47 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public void cancel() throws IOException {
         try {
-        if (!isCancelled.getAndSet(true)) {
-            suspended.set(false);
+            if (!isCancelled.getAndSet(true)) {
+                suspended.set(false);
+                logger.info("Cancelling {}", uuid);
 
-            logger.trace("Cancelling {}", uuid);
-
-            if (config.getBroadcasterFactory() != null) {
-                config.getBroadcasterFactory().removeAllAtmosphereResource(this);
-                if (transport.equals(TRANSPORT.WEBSOCKET)) {
-                    String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                    AtmosphereResource p = config.resourcesFactory().find(parentUUID);
-                    if (p != null) {
-                        config.getBroadcasterFactory().removeAllAtmosphereResource(p);
+                if (config.getBroadcasterFactory() != null) {
+                    config.getBroadcasterFactory().removeAllAtmosphereResource(this);
+                    if (transport.equals(TRANSPORT.WEBSOCKET)) {
+                        String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+                        AtmosphereResource p = config.resourcesFactory().find(parentUUID);
+                        if (p != null) {
+                            config.getBroadcasterFactory().removeAllAtmosphereResource(p);
+                        }
                     }
                 }
-            }
 
-            asyncSupport.complete(this);
+                asyncSupport.complete(this);
 
-            try {
-                Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                if (m != null) {
-                    m.destroy();
+                try {
+                    Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
+                    if (m != null) {
+                        m.destroy();
+                    }
+                } catch (Exception ex) {
+                    logger.trace("Meteor exception {}", ex);
                 }
-            } catch (Exception ex) {
-                logger.trace("Meteor exception {}", ex);
-            }
 
-            SessionTimeoutSupport.restoreTimeout(req);
-            action.type(Action.TYPE.CANCELLED);
-            if (asyncSupport != null) asyncSupport.action(this);
-            // We must close the underlying WebSocket as well.
-            if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-                AtmosphereResponse.class.cast(response).close();
-                AtmosphereResponse.class.cast(response).destroy();
-            }
+                SessionTimeoutSupport.restoreTimeout(req);
+                action.type(Action.TYPE.CANCELLED);
+                if (asyncSupport != null) asyncSupport.action(this);
+                // We must close the underlying WebSocket as well.
+                if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
+                    AtmosphereResponse.class.cast(response).close();
+                    AtmosphereResponse.class.cast(response).destroy();
+                }
 
-            if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                AtmosphereRequest.class.cast(req).destroy();
+                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                    AtmosphereRequest.class.cast(req).destroy();
+                }
+                req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                event.destroy();
             }
-            req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            event.destroy();
-        }
         } finally {
             unregister();
         }
@@ -895,7 +894,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return disableSuspendEvent;
     }
 
-    public WebSocket webSocket(){
+    public WebSocket webSocket() {
         return webSocket;
     }
 
