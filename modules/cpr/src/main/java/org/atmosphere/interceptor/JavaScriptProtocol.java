@@ -38,13 +38,14 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * <p>
  * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
  * and {@link HeaderConfig#X_CACHE_DATE}
  * </p>
- *
+ * <p/>
  * <p>
  * Moreover, if any {@link HeartbeatInterceptor} is installed, it provides the configured heartbeat interval in seconds
  * and the value to be sent for each heartbeat by the client. If not interceptor is installed, then "0" is sent to tell
@@ -58,10 +59,6 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private final static Logger logger = LoggerFactory.getLogger(JavaScriptProtocol.class);
     private String wsDelimiter = "|";
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
-
-    /**
-     * The framework that provides installed {@link HeartbeatInterceptor}.
-     */
     private AtmosphereFramework framework;
 
     @Override
@@ -83,6 +80,19 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         String handshakeUUID = request.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
+
+            int version = Integer.valueOf(request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK).split("-")[0].replace(".", ""));
+            if (version < 221) {
+                logger.debug("Invalid Atmosphere Version");
+                response.setStatus(501);
+                response.addHeader(X_ATMOSPHERE_ERROR, "Atmosphere Protocol version not supported.");
+                try {
+                    response.flushBuffer();
+                } catch (IOException e) {
+                }
+                return Action.CANCELLED;
+            }
+
             request.header(HeaderConfig.X_ATMO_PROTOCOL, null);
 
             // Extract heartbeat data
@@ -152,7 +162,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         return Action.CONTINUE;
     }
 
-    public String wsDelimiter(){
+    public String wsDelimiter() {
         return wsDelimiter;
     }
 
