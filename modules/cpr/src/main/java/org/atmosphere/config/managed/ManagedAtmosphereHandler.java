@@ -18,6 +18,7 @@ package org.atmosphere.config.managed;
 import org.atmosphere.config.service.Delete;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
+import org.atmosphere.config.service.Heartbeat;
 import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Post;
@@ -70,6 +71,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
     private List<MethodInfo> onRuntimeMethod;
+    private Method onHeartbeatMethod;
     private Method onDisconnectMethod;
     private Method onTimeoutMethod;
     private Method onGetMethod;
@@ -91,6 +93,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     public AnnotatedProxy configure(AtmosphereConfig config, Object c) {
         this.proxiedInstance = c;
         this.onRuntimeMethod = populateMessage(c, Message.class);
+        this.onHeartbeatMethod = populate(c, Heartbeat.class);
         this.onDisconnectMethod = populate(c, Disconnect.class);
         this.onTimeoutMethod = populate(c, Resume.class);
         this.onGetMethod = populate(c, Get.class);
@@ -413,6 +416,19 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 break;
 
+        }
+    }
+
+    /**
+     * <p>
+     * Notifies the heartbeat for the given resource to the annotated method if exists.
+     * </p>
+     *
+     * @param event the event
+     */
+    public void onHeartbeat(final AtmosphereResourceEvent event) {
+        if (onHeartbeatMethod != null && !Utils.pollableTransport(event.getResource().transport())) {
+            invoke(onHeartbeatMethod, event);
         }
     }
 

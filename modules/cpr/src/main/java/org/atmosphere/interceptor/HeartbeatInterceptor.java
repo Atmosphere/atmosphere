@@ -15,6 +15,8 @@
  */
 package org.atmosphere.interceptor;
 
+import org.atmosphere.HeartbeatAtmosphereResourceEvent;
+import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
@@ -216,12 +218,29 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 });
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
             } else {
-                // This is where we should dispatch an event to notify that an heartbeat has been intercepted
-                // See: https://github.com/Atmosphere/atmosphere/issues/1549
                 byte[] body = IOUtils.readEntirelyAsByte(r);
+
                 if (Arrays.equals(paddingBytes, body)) {
+                    // Dispatch an event to notify that a heartbeat has been intercepted
+                    // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
+                    final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent(AtmosphereResourceImpl.class.cast(r));
+
+                    // Currently we fire heartbeat notification only for managed handler
+                    if (r.getAtmosphereHandler().getClass().isAssignableFrom(ManagedAtmosphereHandler.class)) {
+                        r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnHeartbeat() {
+                            @Override
+                            public void onHeartbeat(AtmosphereResourceEvent event) {
+                                ManagedAtmosphereHandler.class.cast(r.getAtmosphereHandler()).onHeartbeat(event);
+                            }
+                        });
+                    }
+
+                    // Fire event
+                    r.notifyListeners(event);
+
                     return Action.CANCELLED;
                 }
+
                 request.body(body);
             }
         }

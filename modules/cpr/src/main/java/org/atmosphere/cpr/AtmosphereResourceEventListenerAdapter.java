@@ -43,6 +43,11 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
     }
 
     @Override
+    public void onHeartbeat(AtmosphereResourceEvent event) {
+        logger.trace("{}", event);
+    }
+
+    @Override
     public void onDisconnect(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
     }
@@ -60,6 +65,14 @@ public class AtmosphereResourceEventListenerAdapter implements AtmosphereResourc
     @Override
     public void onClose(AtmosphereResourceEvent event) {
         logger.trace("{}", event);
+    }
+
+    /**
+     * On Heartbeat's Listener
+     */
+    abstract static public class OnHeartbeat extends AtmosphereResourceEventListenerAdapter {
+        @Override
+        abstract public void onHeartbeat(AtmosphereResourceEvent event);
     }
 
     /**

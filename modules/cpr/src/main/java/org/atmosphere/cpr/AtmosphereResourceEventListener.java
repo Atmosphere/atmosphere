@@ -49,6 +49,13 @@ public interface AtmosphereResourceEventListener {
     void onResume(AtmosphereResourceEvent event);
 
     /**
+     * Invoked when the remote connections send a heartbeat.
+     *
+     * @param event a {@link AtmosphereResourceEvent}
+     */
+    void onHeartbeat(AtmosphereResourceEvent event);
+
+    /**
      * Invoked when the remote connection gets closed.
      *
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}

@@ -99,6 +99,11 @@ public class AtmosphereResourceListenerTest {
             }
 
             @Override
+            public void onHeartbeat(AtmosphereResourceEvent event) {
+            }
+
+
+            @Override
             public void onDisconnect(AtmosphereResourceEvent event) {
                 disconnected.set(true);
             }

@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.HeartbeatAtmosphereResourceEvent;
 import org.atmosphere.interceptor.AllowInterceptor;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
@@ -592,7 +593,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         Action oldAction = action;
         try {
-            if (event.isClosedByApplication()) {
+            if (HeartbeatAtmosphereResourceEvent.class.isAssignableFrom(event.getClass())) {
+                onHeartbeat(event);
+            } else if (event.isClosedByApplication()) {
                 onClose(event);
             } else if (event.isCancelled() || event.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
@@ -644,6 +647,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onThrowable(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onThrowable(e);
+        }
+    }
+
+    /**
+     * <p>
+     * Notifies to all listeners that a heartbeat has been sent.
+     * </p>
+     *
+     * @param e the event
+     */
+    void onHeartbeat(AtmosphereResourceEvent e) {
+        for (AtmosphereResourceEventListener r : listeners) {
+            r.onHeartbeat(e);
         }
     }
 

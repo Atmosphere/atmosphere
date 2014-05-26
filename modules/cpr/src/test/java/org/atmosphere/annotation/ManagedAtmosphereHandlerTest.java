@@ -23,6 +23,9 @@ import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
@@ -31,6 +34,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.ExcludeSessionBroadcaster;
 import org.atmosphere.util.SimpleBroadcaster;
@@ -51,6 +56,7 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -442,13 +448,56 @@ public class ManagedAtmosphereHandlerTest {
 
     @Test
     public void testInputStreamMessage() throws IOException, ServletException {
-
         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inputStreamInjection").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
         assertEquals(message.get(), "message");
+    }
 
+    @ManagedService(path = "/heartbeat")
+    public final static class Heartbeat {
+        static final String paddingData = new String(new HeartbeatInterceptor().getPaddingBytes());
+
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(resource);
+        }
+
+        @org.atmosphere.config.service.Heartbeat
+        public void heartbeat(AtmosphereResourceEvent resource) {
+            message.set(paddingData);
+        }
+    }
+
+    @Test
+    public void testHeartbeat() throws IOException, ServletException {
+        // Open connection
+        AtmosphereRequest request = new AtmosphereRequest.Builder()
+                .pathInfo("/heartbeat")
+                .method("GET")
+                .build();
+
+        request.header(X_ATMOSPHERE_TRANSPORT, WEBSOCKET_TRANSPORT);
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+
+        // Check suspend
+        final AtmosphereResource res = r.get();
+        assertNotNull(res);
+
+        // Send heartbeat
+        request = new AtmosphereRequest.Builder()
+                .pathInfo("/heartbeat")
+                .method("GET")
+                .body(Heartbeat.paddingData)
+                .build();
+        request.header(X_ATMOSPHERE_TRANSPORT, WEBSOCKET_TRANSPORT);
+        request.setAttribute(HeartbeatInterceptor.INTERCEPTOR_ADDED, "");
+        res.initialize(res.getAtmosphereConfig(), res.getBroadcaster(), request, AtmosphereResponse.newInstance(), framework.getAsyncSupport(), res.getAtmosphereHandler());
+        request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, res);
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(message.get());
+        assertEquals(message.get(), Heartbeat.paddingData);
     }
 }
