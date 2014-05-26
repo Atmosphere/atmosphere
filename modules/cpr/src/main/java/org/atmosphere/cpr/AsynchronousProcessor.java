@@ -460,7 +460,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             }
             return true;
         } else {
-            logger.debug("AtmosphereResource {} was already cancelled or gc", r != null ? r.uuid() : "null");
+            logger.trace("AtmosphereResource {} was already cancelled or gc", r != null ? r.uuid() : "null");
             return false;
         }
     }
@@ -537,7 +537,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return cancelledAction;
     }
 
-    protected void endRequest(AtmosphereResourceImpl r, boolean cancel) {
+    public void endRequest(AtmosphereResourceImpl r, boolean cancel) {
         if (completeLifecycle(r, cancel)) {
             config.framework().notify(Action.TYPE.CANCELLED, r.getRequest(false), r.getResponse(false));
         }
