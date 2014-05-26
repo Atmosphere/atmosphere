@@ -1,11 +1,7 @@
 ### Please vote for us as the Most Innovative Java Technology
 The Atmosphere Framework has been nominated as the "Most Innovative Java Technology". [Please vote for us!](http://jax.de/awards2014/)
 <p align="center">
-<a href="http://jax.de/awards2014/">
-  <img src="http://atmosphere.github.io/atmosphere/images/atmosphere.png" alt="LOGO"/>
-  <img src="http://atmosphere.github.io/atmosphere/images/Button_JAX_2014_InnovationAwards_JT_24321_v3.gif" alt="VOTE"/>
-  <img src="http://atmosphere.github.io/atmosphere/images/atmosphere.png" alt="LOGO"/>
-</a>
+<img src="http://asyncio.org" alt="LOGO"/>
 </p>
 ### Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Applications. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all major [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers).
