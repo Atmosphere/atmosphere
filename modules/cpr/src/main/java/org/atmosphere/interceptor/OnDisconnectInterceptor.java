@@ -27,7 +27,6 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 
 /**
  * When the browser close the connection, the atmosphere.js will send an unsubscribe message to tell
@@ -59,7 +58,6 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
             AtmosphereResource ss = config.resourcesFactory().find(uuid);
             if (ss != null) {
                 // Block websocket closing detection
-                AtmosphereResourceImpl.class.cast(ss).getRequest(false).setAttribute(ASYNCHRONOUS_HOOK, null);
                 AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
                 p.completeLifecycle(ss, false);

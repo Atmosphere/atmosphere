@@ -33,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
-import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
@@ -254,7 +253,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
         req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER, handlerWrapper);
         req.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
-        req.setAttribute(ASYNCHRONOUS_HOOK, new AsynchronousProcessorHook(resource));
 
         return resource;
     }
@@ -547,39 +545,5 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     public boolean supportWebSocket() {
         return false;
     }
-
-    /**
-     * A callback class that can be used by Framework integrator to handle the close/timedout/resume life cycle
-     * of an {@link AtmosphereResource}. This class only supports {@link AsyncSupport} implementation that
-     * extends {@link AsynchronousProcessor}.
-     */
-    public final static class AsynchronousProcessorHook {
-
-        private final AtmosphereResourceImpl r;
-
-        public AsynchronousProcessorHook(AtmosphereResourceImpl r) {
-            this.r = r;
-            if (!AsynchronousProcessor.class.isAssignableFrom(r.asyncSupport.getClass())) {
-                throw new IllegalStateException("AsyncSupport must extends AsynchronousProcessor");
-            }
-        }
-
-        public void closed() {
-            if (r.isSuspended()) {
-                ((AsynchronousProcessor) r.asyncSupport).endRequest(r, true);
-            } else {
-                logger.debug("Not suspended {}, probably processed by the OnDisconnect interceptor.", r.uuid());
-            }
-        }
-
-        public void timedOut() {
-            ((AsynchronousProcessor) r.asyncSupport).endRequest(r, false);
-        }
-
-        public void resume() {
-            ((AsynchronousProcessor) r.asyncSupport).action(r);
-        }
-    }
-
 
 }

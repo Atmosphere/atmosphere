@@ -31,7 +31,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
 
 /**
  * An Interceptor that track idle {@link AtmosphereResource} and close it. This interceptor is useful for
@@ -89,18 +88,11 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                         if (f != null) f.cancel(false);
                         req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
 
-                        Object o = req.getAttribute(ASYNCHRONOUS_HOOK);
                         WebSocket webSocket = AtmosphereResourceImpl.class.cast(r).webSocket();
-
                         if (webSocket != null) {
                             webSocket.close();
                         } else {
-                            req.setAttribute(ASYNCHRONOUS_HOOK, null);
-                            AsynchronousProcessor.AsynchronousProcessorHook h;
-                            if (o != null && AsynchronousProcessor.AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                                h = (AsynchronousProcessor.AsynchronousProcessorHook) o;
-                                h.closed();
-                            }
+                            AsynchronousProcessor.class.cast(config.framework().getAsyncSupport()).endRequest(AtmosphereResourceImpl.class.cast(r), true);
                         }
                     } finally {
                         config.getBroadcasterFactory().removeAllAtmosphereResource(r);

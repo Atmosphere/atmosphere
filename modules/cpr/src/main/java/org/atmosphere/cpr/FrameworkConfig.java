@@ -123,10 +123,6 @@ public interface FrameworkConfig {
      */
     String TRANSPORT_IN_USE = FrameworkConfig.class.getName() + ".transportUsed";
     /**
-     * Callback hook for framework implementing Atmosphere support.
-     */
-    String ASYNCHRONOUS_HOOK = FrameworkConfig.class.getName() + ".asynchronousProcessorHook";
-    /**
      * The callback for handshaking the {@link org.atmosphere.interceptor.JavaScriptProtocol}.
      */
     String CALLBACK_JAVASCRIPT_PROTOCOL = JavaScriptProtocol.class.getName() + ".callback";
