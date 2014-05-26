@@ -126,7 +126,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
         return isCancelled.get();
     }
 
-    protected AtmosphereResourceEventImpl setCancelled(boolean isCancelled) {
+    public AtmosphereResourceEventImpl setCancelled(boolean isCancelled) {
         if (check()) {
             resource.action().type(Action.TYPE.CANCELLED);
             this.isCancelled.set(isCancelled);
