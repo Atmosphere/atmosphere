@@ -73,7 +73,7 @@ public class AtmosphereResourceFactoryTest {
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         assertNotNull(r);
 
-        b2.addAtmosphereResource(r);
+        b2.addAtmosphereResource(r.suspend());
 
         assertNotNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
 
@@ -99,7 +99,7 @@ public class AtmosphereResourceFactoryTest {
         AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.config, BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         assertNotNull(r);
-        b2.addAtmosphereResource(r);
+        b2.addAtmosphereResource(r.suspend());
 
         assertNotNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
         assertEquals(framework.getAtmosphereConfig().resourcesFactory().remove(r.uuid()), r);

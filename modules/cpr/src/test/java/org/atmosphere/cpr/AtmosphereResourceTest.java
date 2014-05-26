@@ -127,7 +127,12 @@ public class AtmosphereResourceTest {
             public Action inspect(AtmosphereResource r) {
                 try {
                     r.getBroadcaster().addAtmosphereResource(r);
-                    return suspended.getCount() == 1 ? Action.SUSPEND : Action.CONTINUE;
+                    if (suspended.getCount() == 1) {
+                        r.suspend();
+                        return Action.SUSPEND;
+                    } else {
+                        return Action.CONTINUE;
+                    }
                 } finally {
                     suspended.countDown();
                 }

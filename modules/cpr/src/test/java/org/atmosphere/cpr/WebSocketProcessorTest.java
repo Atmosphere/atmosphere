@@ -97,7 +97,7 @@ public class WebSocketProcessorTest {
 
             @Override
             public void onRequest(AtmosphereResource resource) throws IOException {
-                resource.getBroadcaster().addAtmosphereResource(resource);
+                resource.getBroadcaster().addAtmosphereResource(resource.suspend());
                 resource.getResponse().write(resource.getRequest().getReader().readLine());
             }
 
