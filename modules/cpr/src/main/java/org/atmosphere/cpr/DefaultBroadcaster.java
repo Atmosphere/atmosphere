@@ -1474,6 +1474,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     bc.getBroadcasterCache().excludeFromCache(getID(), r);
                 }
                 notifyOnRemoveAtmosphereResourceListener(r);
+            } else {
+                logger.trace("Unable to remove {} from{}", r.uuid(), getID());
             }
         }
 
