@@ -20,7 +20,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.AtmosphereFilterChain;
 import org.atmosphere.util.FilterConfigImpl;
 import org.atmosphere.util.IOUtils;
@@ -157,8 +156,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      */
     public void onRequest(AtmosphereResource r)
             throws IOException {
-        r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);
-        r.getRequest().setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER, this);
         try {
             wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {
