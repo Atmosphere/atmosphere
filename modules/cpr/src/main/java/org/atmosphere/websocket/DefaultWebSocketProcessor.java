@@ -20,6 +20,7 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
@@ -231,9 +232,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             cleanUpAfterDisconnect = true;
         } finally {
             if (cleanUpAfterDisconnect) {
-                Thread.dumpStack();
+                logger.warn("Problem opening websocket for {}", r.uuid());
                 framework.atmosphereFactory().remove(r.uuid());
-                AtmosphereResourceImpl.class.cast(r).cancel();
+
+                request.setAttribute(ASYNCHRONOUS_HOOK, null);
+                AtmosphereResourceEventImpl.class.cast(r.getAtmosphereResourceEvent()).setCancelled(true);
+                AsynchronousProcessor.class.cast(framework.getAsyncSupport()).completeLifecycle(r, true);
             }
         }
     }
