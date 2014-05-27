@@ -206,6 +206,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
                 }
                 proxy = postProcessMapping(webSocket, request, handler);
+                AtmosphereResourceImpl.class.cast(webSocket.resource()).action().type(asynchronousProcessor.invokeInterceptors(handler.interceptors(), webSocket.resource()).type());
             }
 
             // We must dispatch to execute AtmosphereInterceptor
