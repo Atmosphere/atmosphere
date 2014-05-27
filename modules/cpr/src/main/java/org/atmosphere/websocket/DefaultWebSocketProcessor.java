@@ -100,7 +100,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;
     private final long closingTime;
-    private final AsynchronousProcessor asynchronousProcessor;
+    private AsynchronousProcessor asynchronousProcessor;
     private final boolean invokeInterceptors;
 
     public DefaultWebSocketProcessor(final AtmosphereFramework framework) {
@@ -138,17 +138,22 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         optimizeMapping();
 
         closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
-        if (AsynchronousProcessor.class.isAssignableFrom(framework.getAsyncSupport().getClass())) {
-            asynchronousProcessor = AsynchronousProcessor.class.cast(framework.getAsyncSupport());
-        } else {
-            asynchronousProcessor = new AsynchronousProcessor(framework.getAtmosphereConfig()) {
-                @Override
-                public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-                    return framework.getAsyncSupport().service(req, res);
-                }
-            };
-        }
         invokeInterceptors = Boolean.valueOf(config.getInitParameter(INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE, "true"));
+        config.startupHook(new AtmosphereConfig.StartupHook() {
+            @Override
+            public void started(final AtmosphereFramework framework) {
+                if (AsynchronousProcessor.class.isAssignableFrom(framework.getAsyncSupport().getClass())) {
+                    asynchronousProcessor = AsynchronousProcessor.class.cast(framework.getAsyncSupport());
+                } else {
+                    asynchronousProcessor = new AsynchronousProcessor(framework.getAtmosphereConfig()) {
+                        @Override
+                        public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                            return framework.getAsyncSupport().service(req, res);
+                        }
+                    };
+                }
+            }
+        });
     }
 
     @Override
@@ -307,7 +312,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             logger.error("", e);
         }
 
-        return p != null ? p.proxied : w.proxied;
+        return p != null ? p : w.proxied;
     }
 
     private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {
