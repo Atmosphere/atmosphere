@@ -59,7 +59,7 @@ public class JBossWebSocket extends org.atmosphere.websocket.WebSocket {
         try {
             logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
             webSocket.closeSocket();
-        } catch (IOException e) {
+        } catch (Exception e) {
             logger.trace("Error closing websocket.", e);
         }
     }
