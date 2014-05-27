@@ -312,7 +312,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             logger.error("", e);
         }
 
-        return p != null ? p : w.proxied;
+        return p != null ? p : w;
     }
 
     private void dispatch(final WebSocket webSocket, List<AtmosphereRequest> list) {
@@ -326,7 +326,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     public void run() {
                         AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
                         try {
-                            r.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
                             dispatch(webSocket, r, w);
                         } finally {
                             r.destroy();
@@ -347,7 +346,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             return;
         }
 
-        AtmosphereRequest request = resource.getRequest();
+        AtmosphereRequest request = resource.getRequest(false);
         if (webSocketBinary == null) {
             request.body(webSocketMessage);
         } else {
@@ -389,9 +388,17 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         asynchronousProcessor.postInterceptors(framework.interceptors(), resource);
     }
 
+    private WebSocketHandlerProxy webSocketHandlerForMessage(WebSocket webSocket){
+        AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(webSocket.resource());
+        if (impl != null) {
+            impl.getRequest(false).setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
+        }
+        return WebSocketHandlerProxy.class.cast(webSocket.webSocketHandler());
+    }
+
     @Override
     public void invokeWebSocketProtocol(final WebSocket webSocket, String webSocketMessage) {
-        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler == null) {
             if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
@@ -403,7 +410,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 return;
             }
         } else {
-            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
+            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
                 try {
                     if (invokeInterceptors) {
                         invokeInterceptors(webSocketHandler, webSocket, webSocketMessage, null, 0, 0);
@@ -424,7 +431,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, byte[] data, int offset, int length) {
-        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler == null) {
             if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
@@ -436,7 +443,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 return;
             }
         } else {
-            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
+            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
                 try {
                     if (invokeInterceptors) {
                         invokeInterceptors(webSocketHandler, webSocket, null, data, offset, length);
@@ -469,7 +476,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, InputStream stream) {
-        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
+
         try {
             if (webSocketHandler == null) {
                 if (WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
@@ -480,8 +488,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     return;
                 }
             } else {
-                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
-                    WebSocketStreamingHandler.class.cast(webSocketHandler).onBinaryStream(webSocket, stream);
+                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied.getClass())) {
+                    WebSocketStreamingHandler.class.cast(webSocketHandler.proxied()).onBinaryStream(webSocket, stream);
                 } else {
                     dispatchStream(webSocket, stream);
                     return;
@@ -497,7 +505,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void invokeWebSocketProtocol(WebSocket webSocket, Reader reader) {
-        WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         try {
             if (webSocketHandler == null) {
@@ -509,8 +517,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     return;
                 }
             } else {
-                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.getClass())) {
-                    WebSocketStreamingHandler.class.cast(webSocketHandler).onTextStream(webSocket, reader);
+                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+                    WebSocketStreamingHandler.class.cast(webSocketHandler.proxied()).onTextStream(webSocket, reader);
                 } else {
                     dispatchReader(webSocket, reader);
                     return;

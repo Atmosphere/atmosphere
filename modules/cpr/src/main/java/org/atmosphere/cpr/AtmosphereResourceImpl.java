@@ -722,7 +722,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         try {
             if (!isCancelled.getAndSet(true)) {
                 suspended.set(false);
-                logger.info("Cancelling {}", uuid);
+                logger.debug("Cancelling {}", uuid);
 
                 if (config.getBroadcasterFactory() != null) {
                     config.getBroadcasterFactory().removeAllAtmosphereResource(this);

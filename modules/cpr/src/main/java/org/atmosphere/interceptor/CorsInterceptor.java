@@ -45,12 +45,14 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     @Override
-    public Action inspect(AtmosphereResource resource) {
+    public Action inspect(AtmosphereResource r) {
 
-        if (!enableAccessControl || Utils.webSocketMessage(resource)) return Action.CONTINUE;
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
-        AtmosphereRequest req = resource.getRequest();
-        AtmosphereResponse res = resource.getResponse();
+        if (!enableAccessControl) return Action.CONTINUE;
+
+        AtmosphereRequest req = r.getRequest();
+        AtmosphereResponse res = r.getResponse();
 
         if (req.getHeader("Origin") != null && res.getHeader("Access-Control-Allow-Origin") == null) {
             res.addHeader("Access-Control-Allow-Origin", req.getHeader("Origin"));

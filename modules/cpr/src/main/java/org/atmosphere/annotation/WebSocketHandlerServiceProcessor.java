@@ -17,6 +17,7 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.WebSocketHandlerService;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
@@ -25,8 +26,7 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
+import java.util.LinkedList;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.broadcasterClass;
@@ -49,7 +49,7 @@ public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHand
             framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
             filters(m.broadcastFilters(), framework);
 
-            List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+            final LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
 
             AtmosphereInterceptor aa = listeners(m.listeners(), framework);
             if (aa != null) {
@@ -66,8 +66,14 @@ public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHand
 
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
-            p.registerWebSocketHandler(m.path(), new WebSocketProcessor.WebSocketHandlerProxy( broadcasterClass(framework, m.broadcaster()),
+            p.registerWebSocketHandler(m.path(), new WebSocketProcessor.WebSocketHandlerProxy(broadcasterClass(framework, m.broadcaster()),
                     framework.newClassInstance(WebSocketHandler.class, annotatedClass), l));
+            framework.getAtmosphereConfig().startupHook(new AtmosphereConfig.StartupHook() {
+                @Override
+                public void started(AtmosphereFramework framework) {
+                    framework.initHandlerInterceptors(l);
+                }
+            });
         } catch (Throwable e) {
             logger.warn("", e);
         }

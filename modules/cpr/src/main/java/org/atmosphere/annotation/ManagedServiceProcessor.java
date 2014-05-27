@@ -27,7 +27,7 @@ import org.atmosphere.cpr.BroadcasterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
@@ -47,7 +47,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
             ManagedService a = aClass.getAnnotation(ManagedService.class);
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
 
-            List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+            List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
 
             atmosphereConfig(a.atmosphereConfig(), framework);
             filters(a.broadcastFilters(), framework);

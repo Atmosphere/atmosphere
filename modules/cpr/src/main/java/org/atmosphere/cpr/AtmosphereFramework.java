@@ -524,7 +524,7 @@ public class AtmosphereFramework {
             } catch (ServletException e) {
                 throw new RuntimeException(e);
             }
-            initHandlerInterceptors(w);
+            initHandlerInterceptors(w.interceptors);
         } else {
             logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
             logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
@@ -1100,10 +1100,9 @@ public class AtmosphereFramework {
         }
     }
 
-    protected void initHandlerInterceptors(AtmosphereHandlerWrapper w) {
-        if (w.interceptors != null) {
-            LinkedList<AtmosphereInterceptor> d = new LinkedList<AtmosphereInterceptor>(w.interceptors);
-            for (AtmosphereInterceptor i : d) {
+    public void initHandlerInterceptors(LinkedList<AtmosphereInterceptor> l) {
+        if (l != null) {
+            for (AtmosphereInterceptor i : l) {
 
                 //
                 InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(i.getClass()) ?
@@ -1111,7 +1110,7 @@ public class AtmosphereFramework {
 
                 // We need to relocate the interceptor
                 if (!p.equals(InvokationOrder.AFTER_DEFAULT)) {
-                    positionInterceptor(p, i, w.interceptors);
+                    positionInterceptor(p, i, l);
                 }
                 i.configure(config);
             }
@@ -1122,7 +1121,7 @@ public class AtmosphereFramework {
         initGlobalInterceptors();
 
         for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
-            initHandlerInterceptors(w);
+            initHandlerInterceptors(w.interceptors);
         }
     }
 

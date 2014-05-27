@@ -25,7 +25,7 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
@@ -47,7 +47,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
             filters(a.broadcastFilters(), framework);
 
             Class<?>[] interceptors = a.interceptors();
-            List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
+            List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
             for (Class i : interceptors) {
                 try {
                     AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.class, i);
