@@ -81,9 +81,10 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         String handshakeUUID = request.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
 
-            int version = Integer.valueOf(request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK).split("-")[0].replace(".", ""));
+            String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
+            int version = Integer.valueOf(javascriptVersion.split("-")[0].replace(".", ""));
             if (version < 221) {
-                logger.debug("Invalid Atmosphere Version");
+                logger.debug("Invalid Atmosphere Version {}", javascriptVersion);
                 response.setStatus(501);
                 response.addHeader(X_ATMOSPHERE_ERROR, "Atmosphere Protocol version not supported.");
                 try {
