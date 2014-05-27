@@ -719,5 +719,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cache.UUIDBroadcasterCache.invalidateCacheInterval
      */
     String UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL = UUIDBroadcasterCache.class.getName() + ".invalidateCacheInterval";
+    /**
+     * Invoke Atmosphere interceptor for on every websocket message.
+     * <p>
+     * Default: true
+     * Value: org.atmosphere.websocket.DefaultWebSocketProcessor.invokeInterceptorsOnMessage
+     */
+    String INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE = DefaultWebSocketProcessor.class.getName() + ".invokeInterceptorsOnMessage";
 }
 

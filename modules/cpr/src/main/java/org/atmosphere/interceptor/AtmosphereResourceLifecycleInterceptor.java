@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -126,7 +127,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     @Override
     public void postInspect(final AtmosphereResource r) {
 
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED)) return;
+        if (r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED) || Utils.webSocketMessage(r)) return;
 
         AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
         if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))

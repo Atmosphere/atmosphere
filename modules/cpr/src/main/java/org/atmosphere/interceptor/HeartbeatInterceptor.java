@@ -152,6 +152,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+
         final int interval = extractHeartbeatInterval(r);
 
         if (interval != 0) {

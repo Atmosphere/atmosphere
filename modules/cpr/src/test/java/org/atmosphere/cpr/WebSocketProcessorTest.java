@@ -344,7 +344,7 @@ public class WebSocketProcessorTest {
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
 
-        framework.addWebSocketHandler("/*", new WebSocketHandlerAdapter() {
+        framework.addWebSocketHandler("/*", new WebSocketProcessor.WebSocketHandlerProxy(new WebSocketHandlerAdapter() {
 
             @Override
             public void onTextMessage(WebSocket webSocket, String data) throws IOException {
@@ -355,7 +355,7 @@ public class WebSocketProcessorTest {
             public void onOpen(WebSocket webSocket) throws IOException {
                 webSocket.write(webSocket.resource().getRequest().getReader().readLine());
             }
-        });
+        }));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));

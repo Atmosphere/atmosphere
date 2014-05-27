@@ -11,6 +11,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,6 +26,9 @@ public class ShiroInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         if (r.getRequest().attributes().containsKey(FrameworkConfig.SECURITY_SUBJECT) == false) {
             try {
                 Subject currentUser = null;

@@ -33,7 +33,7 @@ public class AnnotationUtil {
     public static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
         for (Class i : interceptors) {
             try {
-                framework.interceptor((AtmosphereInterceptor) framework.newClassInstance(AtmosphereInterceptor.class, i));
+                framework.interceptor(framework.newClassInstance(AtmosphereInterceptor.class, i));
             } catch (Throwable e) {
                 logger.warn("", e);
             }

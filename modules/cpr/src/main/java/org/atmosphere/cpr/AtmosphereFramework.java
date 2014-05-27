@@ -939,6 +939,13 @@ public class AtmosphereFramework {
         }
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
         logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
+
+        WebSocketProcessor wp = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this);
+        boolean b = false;
+        if (DefaultWebSocketProcessor.class.isAssignableFrom(wp.getClass())) {
+            b = DefaultWebSocketProcessor.class.cast(wp).invokeInterceptors();
+        }
+        logger.info("Invoke AtmosphereInterceptor on WebSocket message {}", b);
         logger.info("HttpSession supported: {}", config.isSupportSession());
 
         logger.info("Atmosphere is using {} for dependency injection and object creation", objectFactory);
@@ -2676,7 +2683,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this)
                 .registerWebSocketHandler(path,
-                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(), handler));
+                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(), handler, interceptors));
         addAtmosphereHandler(path, h, l);
         return this;
     }

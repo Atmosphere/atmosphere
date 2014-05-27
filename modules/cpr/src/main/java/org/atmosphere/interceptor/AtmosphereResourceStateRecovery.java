@@ -103,7 +103,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (!Utils.pollableTransport(r.transport())){
+        if (!Utils.pollableTransport(r.transport()) && !Utils.webSocketMessage(r)){
 
             final BroadcasterTracker tracker = track(r).tick();
 

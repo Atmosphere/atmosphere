@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,9 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         String uuid = r.uuid();

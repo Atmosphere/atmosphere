@@ -47,6 +47,9 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         final AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         boolean connecting = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null && request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID).equals("0");
 

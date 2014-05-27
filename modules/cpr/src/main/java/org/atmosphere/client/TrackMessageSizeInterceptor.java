@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.IOUtils;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -103,7 +104,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        if (AtmosphereResource.TRANSPORT.UNDEFINED == r.transport())
+        if (AtmosphereResource.TRANSPORT.UNDEFINED == r.transport() || Utils.webSocketMessage(r))
             return Action.CONTINUE;
 
         final AtmosphereResponse response = r.getResponse();

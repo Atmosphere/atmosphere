@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -75,6 +76,9 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         final AtmosphereResponse response = r.getResponse();
 
         super.inspect(r);

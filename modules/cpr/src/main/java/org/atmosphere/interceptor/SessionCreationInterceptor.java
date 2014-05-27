@@ -18,6 +18,7 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.util.Utils;
 
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -36,6 +37,9 @@ public class SessionCreationInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         if (r.session(false) == null
                 && !ids.remove(r.uuid())
                 && r.getRequest().getMethod().equalsIgnoreCase("GET")) {

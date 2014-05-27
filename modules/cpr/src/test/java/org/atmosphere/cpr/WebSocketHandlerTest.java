@@ -29,6 +29,7 @@ import javax.servlet.ServletException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
+import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutionException;
 
@@ -80,7 +81,7 @@ public class WebSocketHandlerTest {
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-        registerWebSocketHandler("/*", new EchoHandler());
+        registerWebSocketHandler("/*", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
@@ -95,7 +96,7 @@ public class WebSocketHandlerTest {
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
-        registerWebSocketHandler("/a", new EchoHandler());
+        registerWebSocketHandler("/a", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/abcd").build();
         try {
@@ -113,8 +114,8 @@ public class WebSocketHandlerTest {
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
 
-        registerWebSocketHandler("/a", new EchoHandler());
-        registerWebSocketHandler("/b", new EchoHandler());
+        registerWebSocketHandler("/a", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
+        registerWebSocketHandler("/b", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
@@ -137,13 +138,13 @@ public class WebSocketHandlerTest {
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
 
-        registerWebSocketHandler("/a", new EchoHandler());
-        registerWebSocketHandler("/b", new EchoHandler() {
+        registerWebSocketHandler("/a", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
+        registerWebSocketHandler("/b", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler() {
             @Override
             public void onTextMessage(WebSocket webSocket, String data) throws IOException {
                 webSocket.write("2" + data);
             }
-        });
+        }));
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
@@ -187,7 +188,7 @@ public class WebSocketHandlerTest {
     private void registerWebSocketHandler(String path, WebSocketHandler w) {
         WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework).registerWebSocketHandler(path,
-                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w));
+                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w, new ArrayList<AtmosphereInterceptor>()));
     }
 
 

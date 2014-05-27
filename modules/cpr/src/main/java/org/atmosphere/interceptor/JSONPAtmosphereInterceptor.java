@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.StringEscapeUtils;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -50,6 +51,9 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         final AtmosphereRequest request = r.getRequest();
         final AtmosphereResponse response = r.getResponse();
         // Shield from Broken server

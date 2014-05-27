@@ -15,15 +15,19 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent;
 
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
+import java.util.Collections;
+import java.util.List;
 
 /**
  * Atmosphere's WebSocket Support implementation. The default behavior is implemented in {@link DefaultWebSocketProcessor}.
@@ -135,10 +139,18 @@ public interface WebSocketProcessor {
         final Class<? extends Broadcaster> broadcasterClazz;
         final WebSocketHandler proxied;
         private String path;
+        private final List<AtmosphereInterceptor> interceptors;
 
-        public WebSocketHandlerProxy(Class<? extends Broadcaster> broadcasterClazz, WebSocketHandler proxied) {
+        public WebSocketHandlerProxy(Class<? extends Broadcaster> broadcasterClazz, WebSocketHandler proxied, List<AtmosphereInterceptor> interceptors) {
             this.broadcasterClazz = broadcasterClazz;
             this.proxied = proxied;
+            this.interceptors = interceptors;
+        }
+
+        public WebSocketHandlerProxy(WebSocketHandler proxied) {
+            this.broadcasterClazz = SimpleBroadcaster.class;
+            this.proxied = proxied;
+            this.interceptors = Collections.emptyList();
         }
 
         public String path() {
@@ -152,6 +164,10 @@ public interface WebSocketProcessor {
 
         public WebSocketHandler proxied(){
             return proxied;
+        }
+
+        public List<AtmosphereInterceptor> interceptors(){
+            return interceptors;
         }
 
         @Override

@@ -25,10 +25,12 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.broadcasterClass;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
-import static org.atmosphere.annotation.AnnotationUtil.interceptors;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
 
 @AtmosphereAnnotation(WebSocketHandlerService.class)
@@ -47,17 +49,25 @@ public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHand
             framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
             filters(m.broadcastFilters(), framework);
 
-            interceptors(m.interceptors(), framework);
+            List<AtmosphereInterceptor> l = new ArrayList<AtmosphereInterceptor>();
 
             AtmosphereInterceptor aa = listeners(m.listeners(), framework);
             if (aa != null) {
-                framework.interceptor(aa);
+                l.add(aa);
+            }
+
+            for (Class i : m.interceptors()) {
+                try {
+                    l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
+                } catch (Throwable e) {
+                    logger.warn("", e);
+                }
             }
 
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
             p.registerWebSocketHandler(m.path(), new WebSocketProcessor.WebSocketHandlerProxy( broadcasterClass(framework, m.broadcaster()),
-                    framework.newClassInstance(WebSocketHandler.class, annotatedClass)));
+                    framework.newClassInstance(WebSocketHandler.class, annotatedClass), l));
         } catch (Throwable e) {
             logger.warn("", e);
         }

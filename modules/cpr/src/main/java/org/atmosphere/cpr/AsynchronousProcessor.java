@@ -290,7 +290,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return path;
     }
 
-    private Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
+    public Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
         Action a = Action.CONTINUE;
         for (AtmosphereInterceptor arc : c) {
             try {
@@ -319,7 +319,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return a;
     }
 
-    private void postInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
+    public void postInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
         AtmosphereInterceptor arc = null;
         for (int i = c.size() - 1; i > -1; i--) {
             try {
