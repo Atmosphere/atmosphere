@@ -37,12 +37,13 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.STATE_RECOVERY_TIMEOUT;
-import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.*;
+import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 
 /**
  * This interceptor associates a {@link AtmosphereResource} to all {@link Broadcaster} the resource was added before
@@ -58,6 +59,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     private BroadcasterFactory factory;
     private ScheduledExecutorService stateTracker;
     private long timeout = 5 * 1000 * 60;
+    private Future<?> f;
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -70,12 +72,14 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             timeout = Long.parseLong(s);
         }
 
-        clearStateTracker();
+
         logger.trace("{} started.", AtmosphereResourceStateRecovery.class.getName());
     }
 
     public AtmosphereResourceStateRecovery timeout(long timeout){
         this.timeout = timeout;
+        f.cancel(false);
+        clearStateTracker();
         return this;
     }
 
@@ -84,7 +88,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     }
 
     protected void clearStateTracker() {
-        stateTracker.scheduleAtFixedRate(new Runnable() {
+        f = stateTracker.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 long now = System.currentTimeMillis();
