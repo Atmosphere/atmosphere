@@ -71,15 +71,14 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         if (s != null) {
             timeout = Long.parseLong(s);
         }
-
-
+        startStateTracker();
         logger.trace("{} started.", AtmosphereResourceStateRecovery.class.getName());
     }
 
     public AtmosphereResourceStateRecovery timeout(long timeout){
         this.timeout = timeout;
         f.cancel(false);
-        clearStateTracker();
+        startStateTracker();
         return this;
     }
 
@@ -87,7 +86,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         return timeout;
     }
 
-    protected void clearStateTracker() {
+    protected void startStateTracker() {
         f = stateTracker.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {

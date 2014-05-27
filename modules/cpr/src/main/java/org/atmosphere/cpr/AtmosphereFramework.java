@@ -1102,8 +1102,10 @@ public class AtmosphereFramework {
 
     public void initHandlerInterceptors(LinkedList<AtmosphereInterceptor> l) {
         if (l != null) {
-            for (AtmosphereInterceptor i : l) {
+            LinkedList<AtmosphereInterceptor> copy = new LinkedList<AtmosphereInterceptor>();
+            copy.addAll(l);
 
+            for (AtmosphereInterceptor i : copy) {
                 //
                 InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(i.getClass()) ?
                         InvokationOrder.class.cast(i).priority() : InvokationOrder.AFTER_DEFAULT;
