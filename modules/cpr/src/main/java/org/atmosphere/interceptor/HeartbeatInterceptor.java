@@ -153,6 +153,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         final int interval = extractHeartbeatInterval(r);
 
         if (interval != 0) {
