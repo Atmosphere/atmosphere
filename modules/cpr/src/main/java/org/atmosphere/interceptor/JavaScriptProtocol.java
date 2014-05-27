@@ -180,6 +180,15 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         return this;
     }
 
+    public boolean enforceAtmosphereVersion(){
+        return enforceAtmosphereVersion;
+    }
+
+    public JavaScriptProtocol enforceAtmosphereVersion(boolean enforceAtmosphereVersion) {
+        this.enforceAtmosphereVersion = enforceAtmosphereVersion;
+        return this;
+    }
+
     @Override
     public String toString() {
         return "Atmosphere JavaScript Protocol";

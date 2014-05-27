@@ -124,8 +124,10 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             try {
                 asyncContext.complete();
             } catch (IllegalStateException ex) {
-                // Alresady completed.
-                logger.trace("Already resumed!", ex);
+                // Already completed. Jetty throw an exception on shutdown with log
+                try {
+                    logger.trace("Already resumed!", ex);
+                } catch (Exception ex2){};
             }
         }
     }
