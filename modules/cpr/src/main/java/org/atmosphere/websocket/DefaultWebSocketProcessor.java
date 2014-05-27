@@ -519,7 +519,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(webSocket.resource()), false);
                         }
                     } else {
-                        logger.debug("ASYNCHRONOUS_HOOK not available for {}", resource.uuid());
+                        logger.debug("Resource already cancelled {}", resource.uuid());
                     }
                 } else {
                     logger.debug("Unable to properly complete {}", resource == null ? "null" : resource.uuid());
