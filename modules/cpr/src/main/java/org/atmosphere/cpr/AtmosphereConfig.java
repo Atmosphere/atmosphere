@@ -252,12 +252,12 @@ public class AtmosphereConfig {
 
     /**
      * Return an init-param, or its default value.
-     * @param closedAtmosphereThinkTime
+     * @param key
      * @param defaultValue
      * @return
      */
-    public String getInitParameter(String closedAtmosphereThinkTime, String defaultValue) {
-        String s = getInitParameter(closedAtmosphereThinkTime);
+    public String getInitParameter(String key, String defaultValue) {
+        String s = getInitParameter(key);
         if (s == null) {
             return defaultValue;
         }

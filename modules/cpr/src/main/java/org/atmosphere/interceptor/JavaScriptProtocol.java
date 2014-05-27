@@ -60,6 +60,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private String wsDelimiter = "|";
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
     private AtmosphereFramework framework;
+    private boolean enforceAtmosphereVersion = true;
 
     @Override
     public void configure(final AtmosphereConfig config) {
@@ -67,6 +68,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         if (s != null) {
             wsDelimiter = s;
         }
+
+        enforceAtmosphereVersion = Boolean.valueOf(config.getInitParameter(ApplicationConfig.ENFORCE_ATMOSPHERE_VERSION, "true"));
 
         framework = config.framework();
     }
@@ -81,17 +84,19 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         String handshakeUUID = request.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
 
-            String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
-            int version = Integer.valueOf(javascriptVersion.split("-")[0].replace(".", ""));
-            if (version < 221) {
-                logger.debug("Invalid Atmosphere Version {}", javascriptVersion);
-                response.setStatus(501);
-                response.addHeader(X_ATMOSPHERE_ERROR, "Atmosphere Protocol version not supported.");
-                try {
-                    response.flushBuffer();
-                } catch (IOException e) {
+            if (enforceAtmosphereVersion) {
+                String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
+                int version = Integer.valueOf(javascriptVersion.split("-")[0].replace(".", ""));
+                if (version < 221) {
+                    logger.debug("Invalid Atmosphere Version {}", javascriptVersion);
+                    response.setStatus(501);
+                    response.addHeader(X_ATMOSPHERE_ERROR, "Atmosphere Protocol version not supported.");
+                    try {
+                        response.flushBuffer();
+                    } catch (IOException e) {
+                    }
+                    return Action.CANCELLED;
                 }
-                return Action.CANCELLED;
             }
 
             request.header(HeaderConfig.X_ATMO_PROTOCOL, null);
@@ -113,12 +118,15 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             final StringBuffer message = new StringBuffer(r.uuid())
                     .append(wsDelimiter)
                     .append(System.currentTimeMillis())
-                    .append(wsDelimiter)
-                    // since 2.2
-                    .append(heartbeatInterval)
+                    .append(wsDelimiter);
+
+            // since 2.2
+            if (enforceAtmosphereVersion) {
+                message.append(heartbeatInterval)
                     .append(wsDelimiter)
                     .append(heartbeatData)
                     .append(wsDelimiter);
+            }
 
             // https://github.com/Atmosphere/atmosphere/issues/993
             final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());

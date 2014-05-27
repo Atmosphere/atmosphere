@@ -20,6 +20,7 @@ import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
+import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
@@ -726,5 +727,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.DefaultWebSocketProcessor.invokeInterceptorsOnMessage
      */
     String INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE = DefaultWebSocketProcessor.class.getName() + ".invokeInterceptorsOnMessage";
+    /**
+     * Disable the Atmosphere Protocol version check. This can be used to supprt version of atmosphere-javascript lower than 2.2.1
+     * <p>
+     * Default: true
+     * Value: org.atmosphere.interceptor.JavaScriptProtocol.enforceAtmosphereProtocol
+     */
+    String ENFORCE_ATMOSPHERE_VERSION = JavaScriptProtocol.class.getName() + ".enforceAtmosphereProtocol";
 }
 
