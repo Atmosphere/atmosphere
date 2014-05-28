@@ -23,8 +23,6 @@ import javax.ws.rs.ext.MessageBodyReader;
 import javax.ws.rs.ext.MessageBodyWriter;
 import javax.ws.rs.ext.Provider;
 
-import org.codehaus.jackson.map.type.ClassKey;
-
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
  
@@ -42,9 +40,9 @@ import com.google.gson.GsonBuilder;
  */
 public final class GsonProviderProxy implements MessageBodyWriter<Object>, MessageBodyReader<Object> {
  
-	private static final String UTF_8 = "UTF-8";
+    private static final String UTF_8 = "UTF-8";
  
-	/**
+    /**
      * Looks like we need to worry about accidental
      *   data binding for types we shouldn't be handling. This is
      *   probably not a very good way to do it, but let's start by
@@ -88,13 +86,13 @@ public final class GsonProviderProxy implements MessageBodyWriter<Object>, Messa
         OutputStream.class, Writer.class,
         StreamingOutput.class, Response.class
     };
-	
-	private Gson gson = initializeGson();
+    
+    private Gson gson = initializeGson();
   
-	@Override
-	public boolean isReadable(Class<?> type, Type genericType,
-			java.lang.annotation.Annotation[] annotations, MediaType mediaType) {
-		if (!isJsonType(mediaType)) {
+    @Override
+    public boolean isReadable(Class<?> type, Type genericType,
+            java.lang.annotation.Annotation[] annotations, MediaType mediaType) {
+        if (!isJsonType(mediaType)) {
             return false;
         }
 
@@ -112,33 +110,33 @@ public final class GsonProviderProxy implements MessageBodyWriter<Object>, Messa
         }
 
         return true;
-	}
+    }
  
-	@Override
-	public Object readFrom(Class<Object> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders, InputStream entityStream) {
-		InputStreamReader streamReader = null;
-		try {
-			streamReader = new InputStreamReader(entityStream, UTF_8);
-			Type jsonType;
-			if (type.equals(genericType)) {
-				jsonType = type;
-			} else {
-				jsonType = genericType;
-			}
-			return gson.fromJson(streamReader, jsonType);
-		} catch (UnsupportedEncodingException e) {
-			return null;
-		} finally {
-			if (streamReader != null)
-				try {
-					streamReader.close();
-				} catch (IOException e) {}
-		}
-	}
+    @Override
+    public Object readFrom(Class<Object> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, String> httpHeaders, InputStream entityStream) {
+        InputStreamReader streamReader = null;
+        try {
+            streamReader = new InputStreamReader(entityStream, UTF_8);
+            Type jsonType;
+            if (type.equals(genericType)) {
+                jsonType = type;
+            } else {
+                jsonType = genericType;
+            }
+            return gson.fromJson(streamReader, jsonType);
+        } catch (UnsupportedEncodingException e) {
+            return null;
+        } finally {
+            if (streamReader != null)
+                try {
+                    streamReader.close();
+                } catch (IOException e) {}
+        }
+    }
  
-	@Override
-	public boolean isWriteable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
-		if (!isJsonType(mediaType)) {
+    @Override
+    public boolean isWriteable(Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
+        if (!isJsonType(mediaType)) {
             return false;
         }
 
@@ -156,30 +154,30 @@ public final class GsonProviderProxy implements MessageBodyWriter<Object>, Messa
         }
 
         return true;
-	}
+    }
  
-	@Override
-	public long getSize(Object object, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
-		return -1;
-	}
+    @Override
+    public long getSize(Object object, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType) {
+        return -1;
+    }
  
-	@Override
-	public void writeTo(Object object, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream) throws IOException, WebApplicationException {
-		OutputStreamWriter writer = new OutputStreamWriter(entityStream, UTF_8);
-		try {
-			Type jsonType;
-			if (type.equals(genericType)) {
-				jsonType = type;
-			} else {
-				jsonType = genericType;
-			}
-			gson.toJson(object, jsonType, writer);
-		} finally {
-			writer.close();
-		}
-	}
-	
-	protected boolean isJsonType(MediaType mediaType)
+    @Override
+    public void writeTo(Object object, Class<?> type, Type genericType, Annotation[] annotations, MediaType mediaType, MultivaluedMap<String, Object> httpHeaders, OutputStream entityStream) throws IOException, WebApplicationException {
+        OutputStreamWriter writer = new OutputStreamWriter(entityStream, UTF_8);
+        try {
+            Type jsonType;
+            if (type.equals(genericType)) {
+                jsonType = type;
+            } else {
+                jsonType = genericType;
+            }
+            gson.toJson(object, jsonType, writer);
+        } finally {
+            writer.close();
+        }
+    }
+    
+    protected boolean isJsonType(MediaType mediaType)
     {
         /* As suggested by Stephen D, there are 2 ways to check: either
          * being as inclusive as possible (if subtype is "json"), or
@@ -197,12 +195,43 @@ public final class GsonProviderProxy implements MessageBodyWriter<Object>, Messa
          */
         return true;
     }
-	
-	/**
-	 * Override this method if you need a different Gson configuration
-	 * @return
-	 */
-	protected Gson initializeGson() {
-		return new GsonBuilder().serializeNulls().create();
-	}
+    
+    /**
+     * Override this method if you need a different Gson configuration
+     * @return
+     */
+    protected Gson initializeGson() {
+        return new GsonBuilder().serializeNulls().create();
+    }
+    
+    private static final class ClassKey {
+        
+        private String _className;
+
+        private Class<?> _class;
+
+        private int _hashCode;
+
+        public ClassKey(Class<?> clz) {
+            _class = clz;
+            _className = clz.getName();
+            _hashCode = _className.hashCode();
+        }
+
+        @Override
+        public boolean equals(Object o) {
+            if (o == this) return true;
+            if (o == null) return false;
+            if (o.getClass() != getClass()) return false;
+            ClassKey other = (ClassKey) o;
+
+            return other._class == _class;
+        }
+
+        @Override 
+        public int hashCode() { return _hashCode; }
+
+        @Override 
+        public String toString() { return _className; }
+    }
 }
