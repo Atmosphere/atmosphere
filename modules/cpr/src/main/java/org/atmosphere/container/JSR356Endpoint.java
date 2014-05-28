@@ -137,10 +137,18 @@ public class JSR356Endpoint extends Endpoint {
         }
 
         try {
-            String requestUri = session.getRequestURI().toASCIIString();
+            String requestUri = uri.toASCIIString();
             if (requestUri.contains("?")) {
                 requestUri = requestUri.substring(0, requestUri.indexOf("?"));
             }
+
+            // https://issues.apache.org/bugzilla/show_bug.cgi?id=56573
+            // https://java.net/jira/browse/WEBSOCKET_SPEC-228
+            if (!requestUri.startsWith("ws://")) {
+                String protocol = session.isSecure() ? "wss://" : "ws://";
+                requestUri = new StringBuilder(protocol).append("127.0.0.1:8080").append(requestUri).toString();
+            }
+
             request = new AtmosphereRequest.Builder()
                     .requestURI(requestUri)
                     .requestURL(requestUri)
