@@ -118,6 +118,8 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             } else {
                 r.addEventListener(new OnSuspend() {
                     public void onSuspend(AtmosphereResourceEvent event) {
+                        r.removeEventListener(this);
+
                         logger.trace("onSuspend first");
                         final AtomicBoolean doNotSuspend = new AtomicBoolean(false);
                         /**
