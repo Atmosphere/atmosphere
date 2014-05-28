@@ -82,6 +82,11 @@
             <version>${jersey-version}</version>
         </dependency>
         <dependency>
+			<groupId>com.google.code.gson</groupId>
+			<artifactId>gson</artifactId>
+			<version>${gson-version}</version>
+		</dependency>
+        <dependency>
             <groupId>com.sun.grizzly</groupId>
             <artifactId>grizzly-http</artifactId>
             <version>${grizzly-version}</version>
