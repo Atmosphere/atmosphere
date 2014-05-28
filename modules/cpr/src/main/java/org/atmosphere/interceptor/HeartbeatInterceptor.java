@@ -84,7 +84,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
 
-        if (!Utils.pollableTransport(r.transport())){
+        if (!Utils.pollableTransport(r.transport()) && !Utils.webSocketMessage(r)){
             super.inspect(r);
             r.addEventListener(new Clock() {
                 @Override
