@@ -144,9 +144,22 @@ public class JSR356Endpoint extends Endpoint {
 
             // https://issues.apache.org/bugzilla/show_bug.cgi?id=56573
             // https://java.net/jira/browse/WEBSOCKET_SPEC-228
-            if (!requestUri.startsWith("ws://")) {
-                String protocol = session.isSecure() ? "wss://" : "ws://";
-                requestUri = new StringBuilder(protocol).append("127.0.0.1:8080").append(requestUri).toString();
+            if ((!requestUri.startsWith("http://")) || (!requestUri.startsWith("https://"))) {
+                if (requestUri.startsWith("/")) {
+                    List<String> l = handshakeRequest.getHeaders().get("origin");
+                    String origin;
+                    if (l.size() > 0) {
+                        origin = l.get(0);
+                    } else {
+                        // Broken WebSocket Spec
+                        origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").append(requestUri).toString();
+                    }
+                    requestUri = new StringBuilder(origin).append(requestUri).toString();
+                } else if (requestUri.startsWith("ws://")) {
+                    requestUri = requestUri.replace("ws://", "http://");
+                } else if (requestUri.startsWith("wss://")) {
+                    requestUri = requestUri.replace("wss://", "https://");
+                }
             }
 
             request = new AtmosphereRequest.Builder()
