@@ -107,8 +107,12 @@ public class IOUtils {
                 if (bufferedReader != null) {
                     char[] charBuffer = new char[8192];
                     int bytesRead = -1;
-                    while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
-                        stringBuilder.append(charBuffer, 0, bytesRead);
+                    try {
+                        while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
+                            stringBuilder.append(charBuffer, 0, bytesRead);
+                        }
+                    } catch (NullPointerException ex) {
+                        // https://java.net/jira/browse/GRIZZLY-1676
                     }
                 } else {
                     stringBuilder.append("");
