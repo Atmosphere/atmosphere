@@ -19,6 +19,7 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -27,8 +28,6 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
-
-import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnDisconnect;
 
 /**
  * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
@@ -51,7 +50,7 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
                 AtmosphereResourceImpl.class.cast(r).disableSuspendEvent(true);
             }
 
-            r.addEventListener(new OnDisconnect() {
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onDisconnect(AtmosphereResourceEvent event) {
                     logger.trace("Untracking {}", r.uuid());
@@ -60,6 +59,11 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
 
                 @Override
                 public void onClose(AtmosphereResourceEvent event) {
+                    onDisconnect(event);
+                }
+
+                @Override
+                public void onResume(AtmosphereResourceEvent event) {
                     onDisconnect(event);
                 }
             });
