@@ -619,6 +619,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
+    public AtmosphereRequest body(Reader body) {
+        bis = new IS(new ReaderInputStream(body));
+        br = new BufferedReader(body);
+        return this;
+    }
+
     /**
      * Return the request's body. This method will return an empty Body if the underlying container or framework is using
      * InputStream or Reader.
