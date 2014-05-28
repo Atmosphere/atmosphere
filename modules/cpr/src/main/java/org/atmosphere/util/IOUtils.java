@@ -74,8 +74,12 @@ public class IOUtils {
                 if (bufferedReader != null) {
                     char[] charBuffer = new char[8192];
                     int bytesRead = -1;
-                    while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
-                        stringBuilder.append(charBuffer, 0, bytesRead);
+                    try {
+                        while ((bytesRead = bufferedReader.read(charBuffer)) > 0) {
+                            stringBuilder.append(charBuffer, 0, bytesRead);
+                        }
+                    } catch (NullPointerException ex) {
+                        // https://java.net/jira/browse/GRIZZLY-1676
                     }
                 } else {
                     stringBuilder.append("");
@@ -175,10 +179,10 @@ public class IOUtils {
     public static boolean isAtmosphere(String className) {
         Class<? extends AtmosphereServlet> clazz;
         try {
-            clazz = (Class<? extends AtmosphereServlet> ) Thread.currentThread().getContextClassLoader().loadClass(className);
+            clazz = (Class<? extends AtmosphereServlet>) Thread.currentThread().getContextClassLoader().loadClass(className);
         } catch (Throwable t) {
             try {
-                clazz = (Class<? extends AtmosphereServlet> ) IOUtils.class.getClassLoader().loadClass(className);
+                clazz = (Class<? extends AtmosphereServlet>) IOUtils.class.getClassLoader().loadClass(className);
             } catch (Exception ex) {
                 return false;
             }
