@@ -94,7 +94,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        if (!Utils.pollableTransport(r.transport())){
+        if (!Utils.pollableTransport(r.transport()) && !Utils.webSocketMessage(r)){
 
             final BroadcasterTracker tracker = track(r).tick();
 
@@ -106,6 +106,8 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             } else {
                 r.addEventListener(new OnSuspend() {
                     public void onSuspend(AtmosphereResourceEvent event) {
+                        r.removeEventListener(this);
+
                         logger.trace("onSuspend first");
                         final AtomicBoolean doNotSuspend = new AtomicBoolean(false);
                         /**
