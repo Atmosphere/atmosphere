@@ -31,7 +31,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.UNDEFINED;
 import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
+import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
@@ -139,10 +141,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private TRANSPORT configureTransport() {
-        if (req == null) return TRANSPORT.UNDEFINED;
+        if (req == null) return UNDEFINED;
 
         String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (s == null) return TRANSPORT.UNDEFINED;
+        if (s == null) return UNDEFINED;
 
         s = s.replace("-", "_").toUpperCase();
         if (TRANSPORT.POLLING.name().equals(s)) {
@@ -162,7 +164,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } else if (TRANSPORT.CLOSE.name().equals(s)) {
             return TRANSPORT.CLOSE;
         } else {
-            return TRANSPORT.UNDEFINED;
+            return UNDEFINED;
         }
     }
 
@@ -361,8 +363,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
-                req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, HeaderConfig.LONG_POLLING_TRANSPORT);
+            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null || transport().equals(UNDEFINED) ) {
+                req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, LONG_POLLING_TRANSPORT);
             }
 
             req.setAttribute(PRE_SUSPEND, "true");
