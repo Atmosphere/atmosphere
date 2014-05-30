@@ -597,6 +597,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             logger.debug("About to close AtmosphereResource for {}", resource.uuid());
             final AtmosphereRequest r = resource.getRequest(false);
             final AtmosphereResponse s = resource.getResponse(false);
+            boolean ff = r.getAttribute("firefox") != null;
+            boolean completeLifecycle = true;
             try {
                 webSocketProtocol.onClose(webSocket);
 
@@ -609,8 +611,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         // See https://github.com/Atmosphere/atmosphere/issues/1590
                         // Better to call onDisconnect that onResume.
                         if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
-                            boolean ff = r.getAttribute("firefox") != null;
                             if (ff || closingTime > 0) {
+                                completeLifecycle = false;
                                 logger.debug("Delaying closing operation for firefox and resource {}", resource.uuid());
                                 ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
                                     @Override
@@ -635,7 +637,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
 
             } finally {
-                finish(webSocket, resource, r, s);
+                if (completeLifecycle) {
+                    finish(webSocket, resource, r, s);
+                }
             }
         }
     }
