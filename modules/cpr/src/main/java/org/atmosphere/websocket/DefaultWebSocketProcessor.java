@@ -348,7 +348,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
 
     private void invokeInterceptors(WebSocketHandlerProxy webSocketHandler,
-                                        WebSocket webSocket, Object webSocketMessageAsBody) throws IOException {
+                                    WebSocket webSocket, Object webSocketMessageAsBody) throws IOException {
         invokeInterceptors(webSocketHandler, webSocket, webSocketMessageAsBody, 0, 0);
     }
 
@@ -398,7 +398,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 } else if (InputStream.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
                     WebSocketStreamingHandler.class.cast(webSocketHandler.proxied()).onBinaryStream(webSocket, InputStream.class.cast(webSocketMessageAsBody));
                 } else {
-                    webSocketHandler.onByteMessage(webSocket, (byte[])webSocketMessageAsBody, offset, length);
+                    webSocketHandler.onByteMessage(webSocket, (byte[]) webSocketMessageAsBody, offset, length);
                 }
             } catch (IOException t) {
                 resource.onThrowable(t);
@@ -594,7 +594,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (resource == null) {
             logger.trace("Already closed {}", webSocket);
         } else {
-            logger.debug("About to close AtmosphereResource for {}", resource.uuid());
             final AtmosphereRequest r = resource.getRequest(false);
             final AtmosphereResponse s = resource.getResponse(false);
             boolean ff = r.getAttribute("firefox") != null;
@@ -606,36 +605,33 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     webSocketHandler.onClose(webSocket);
                 }
 
-                if (resource.getAtmosphereResourceEvent().isClosedByApplication()) {
-                    if (!resource.isCancelled()) {
-                        // See https://github.com/Atmosphere/atmosphere/issues/1590
-                        // Better to call onDisconnect that onResume.
-                        if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
-                            if (ff || closingTime > 0) {
-                                completeLifecycle = false;
-                                logger.debug("Delaying closing operation for firefox and resource {}", resource.uuid());
-                                ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
-                                    @Override
-                                    public Object call() throws Exception {
-                                        executeClose(webSocket, 1005);
-                                        finish(webSocket, resource, r, s);
-                                        return null;
-                                    }
-                                }, ff ? (closingTime == 0 ? 1000 : closingTime) : closingTime, TimeUnit.MILLISECONDS);
-                            } else {
-                                executeClose(webSocket, closeCode);
-                            }
+                logger.trace("About to close AtmosphereResource for {} with code {}", resource, closeCode);
+                if (!resource.getAtmosphereResourceEvent().isClosedByApplication() && !resource.isCancelled()) {
+                    // See https://github.com/Atmosphere/atmosphere/issues/1590
+                    // Better to call onDisconnect that onResume.
+                    if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
+                        if (ff || closingTime > 0) {
+                            completeLifecycle = false;
+                            logger.debug("Delaying closing operation for firefox and resource {}", resource.uuid());
+                            ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
+                                @Override
+                                public Object call() throws Exception {
+                                    executeClose(webSocket, 1005);
+                                    finish(webSocket, resource, r, s);
+                                    return null;
+                                }
+                            }, ff ? (closingTime == 0 ? 1000 : closingTime) : closingTime, TimeUnit.MILLISECONDS);
                         } else {
-                            logger.debug("Timeout", resource.uuid());
-                            asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(webSocket.resource()), false);
+                            executeClose(webSocket, closeCode);
                         }
                     } else {
-                        logger.trace("Resource already cancelled {}", resource.uuid());
+                        logger.debug("Timeout {}", resource.uuid());
+                        asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(webSocket.resource()), false);
                     }
                 } else {
-                    logger.trace("Unable to properly complete {}", resource == null ? "null" : resource.uuid());
+                    logger.debug("Unable to properly complete {}", resource == null ? "null" : resource.uuid());
+                    completeLifecycle = false;
                 }
-
             } finally {
                 if (completeLifecycle) {
                     finish(webSocket, resource, r, s);
