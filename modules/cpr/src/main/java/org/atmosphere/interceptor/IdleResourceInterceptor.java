@@ -79,6 +79,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                 if (req.getAttribute(MAX_INACTIVE) == null) {
                     logger.error("Invalid state {}", r);
                     config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+                    config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     continue;
                 }
 
