@@ -15,8 +15,10 @@
  */
 package org.atmosphere.cpr;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.io.IOException;
-import java.util.Collections;
 import java.util.LinkedList;
 
 /**
@@ -27,7 +29,10 @@ import java.util.LinkedList;
  */
 public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
+    private final Logger logger = LoggerFactory.getLogger(AtmosphereInterceptorWriter.class);
+
     protected final LinkedList<AsyncIOInterceptor> filters = new LinkedList<AsyncIOInterceptor>();
+    protected final LinkedList<AsyncIOInterceptor> reversedFilters = new LinkedList<AsyncIOInterceptor>();
 
     public AtmosphereInterceptorWriter() {
     }
@@ -77,8 +82,6 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
         }
         writeReady(response, responseDraft);
 
-        LinkedList<AsyncIOInterceptor> reversedFilters = (LinkedList<AsyncIOInterceptor>) filters.clone();
-        Collections.reverse(reversedFilters);
         for (AsyncIOInterceptor i : reversedFilters) {
             i.postPayload(response, data, offset, length);
         }
@@ -108,7 +111,9 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
      */
     public AtmosphereInterceptorWriter interceptor(AsyncIOInterceptor filter) {
         if (!filters.contains(filter)) {
+            logger.trace("Adding AsyncIOInterceptor {}", filter.getClass().getName());
             filters.addLast(filter);
+            reversedFilters.addFirst(filter);
         }
         return this;
     }
