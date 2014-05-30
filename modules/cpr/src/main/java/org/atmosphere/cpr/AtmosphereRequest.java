@@ -920,7 +920,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public boolean isAsyncSupported() {
-        return b.request.isAsyncSupported();
+        try {
+            return b.request.isAsyncSupported();
+        } catch(Exception ex) {
+            // Servlet 2.5 incompatible API.
+            logger.trace("", ex);
+            return false;
+        }
     }
 
     /**
