@@ -51,10 +51,12 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
+        if (!r.transport().equals(TRANSPORT.STREAMING)) return Action.CONTINUE;
+
         final AtmosphereResponse response = r.getResponse();
         String userAgent = r.getRequest().getHeader("User-Agent");
 
-        if (r.transport().equals(TRANSPORT.STREAMING) && userAgent != null &&
+        if (userAgent != null &&
                 (userAgent.indexOf("Android 2.") != -1 || userAgent.indexOf("Android 3.") != -1)) {
             super.inspect(r);
 
