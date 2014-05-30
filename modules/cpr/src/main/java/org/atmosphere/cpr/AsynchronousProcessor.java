@@ -318,7 +318,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 logger.trace("Interceptor {} interrupted the dispatch for {} with " + a, arc, r.uuid());
                 return a;
             }
-            logger.debug("\t {}: {} for {}", new String[]{String.valueOf(order++), arc.getClass().getName(), r.uuid()});
+
+            if (logger.isTraceEnabled()) {
+                logger.trace("\t {}: {} for {}", new String[]{String.valueOf(order++), arc.getClass().getName(), r.uuid()});
+            }
         }
         return a;
     }
