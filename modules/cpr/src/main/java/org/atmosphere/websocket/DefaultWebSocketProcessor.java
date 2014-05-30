@@ -628,10 +628,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(webSocket.resource()), false);
                         }
                     } else {
-                        logger.debug("Resource already cancelled {}", resource.uuid());
+                        logger.trace("Resource already cancelled {}", resource.uuid());
                     }
                 } else {
-                    logger.debug("Unable to properly complete {}", resource == null ? "null" : resource.uuid());
+                    logger.trace("Unable to properly complete {}", resource == null ? "null" : resource.uuid());
+                }
+
+                if (resource != null) {
+                    // Don't take any risk in case something goes wrong and remove the associated resource.
+                    framework.atmosphereFactory().remove(resource.uuid());
                 }
             } finally {
                 if (webSocket != null) {
