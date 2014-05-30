@@ -206,7 +206,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
                 }
                 proxy = postProcessMapping(webSocket, request, handler);
-                AtmosphereResourceImpl.class.cast(webSocket.resource()).action().type(asynchronousProcessor.invokeInterceptors(handler.interceptors(), webSocket.resource()).type());
+                AtmosphereResourceImpl.class.cast(webSocket.resource()).action().type(asynchronousProcessor.invokeInterceptors(handler.interceptors(), webSocket.resource(), 0).type());
             }
 
             // We must dispatch to execute AtmosphereInterceptor
@@ -372,7 +372,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
 
         // Globally defined
-        Action a = asynchronousProcessor.invokeInterceptors(framework.interceptors(), resource);
+        int tracing = 0;
+        Action a = asynchronousProcessor.invokeInterceptors(framework.interceptors(), resource, tracing);
         if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
             return;
         }
@@ -380,7 +381,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         WebSocketHandlerProxy proxy = WebSocketHandlerProxy.class.cast(webSocketHandler);
         if (a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
             // Per AtmosphereHandler
-            a = asynchronousProcessor.invokeInterceptors(proxy.interceptors(), resource);
+            a = asynchronousProcessor.invokeInterceptors(proxy.interceptors(), resource, tracing);
             if (a.type() != Action.TYPE.CONTINUE) {
                 return;
             }
@@ -641,7 +642,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s) {
-
         // Don't take any risk in case something goes wrong and remove the associated resource.
         framework.atmosphereFactory().remove(resource.uuid());
         if (webSocket != null) {
@@ -662,7 +662,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (s != null) {
             s.destroy(true);
         }
-
     }
 
     public void executeClose(WebSocket webSocket, int closeCode) {

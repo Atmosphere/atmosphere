@@ -112,6 +112,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
      */
     @Override
     public Action inspect(AtmosphereResource r) {
+
         switch (r.transport()) {
             case JSONP:
             case AJAX:

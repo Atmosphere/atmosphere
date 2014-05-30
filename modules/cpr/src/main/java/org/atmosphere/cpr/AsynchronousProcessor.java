@@ -148,6 +148,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
 
+        int tracing = 0;
+
         AtmosphereHandlerWrapper handlerWrapper = map(req);
         if (config.getBroadcasterFactory() == null) {
             logger.error("Atmosphere is misconfigured and will not work. BroadcasterFactory is null");
@@ -161,14 +163,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         // Globally defined
-        Action a = invokeInterceptors(config.framework().interceptors(), resource);
+        Action a = invokeInterceptors(config.framework().interceptors(), resource, tracing);
         if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
             return a;
         }
 
         if (a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
             // Per AtmosphereHandler
-            a = invokeInterceptors(handlerWrapper.interceptors, resource);
+            a = invokeInterceptors(handlerWrapper.interceptors, resource, tracing);
             if (a.type() != Action.TYPE.CONTINUE) {
                 return a;
             }
@@ -292,9 +294,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return path;
     }
 
-    public Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
+    public Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r, int tracing) {
         Action a = Action.CONTINUE;
-        int order = 0;
         for (AtmosphereInterceptor arc : c) {
             try {
                 a = arc.inspect(r);
@@ -320,7 +321,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             }
 
             if (logger.isTraceEnabled()) {
-                logger.trace("\t {}: {} for {}", new String[]{String.valueOf(order++), arc.getClass().getName(), r.uuid()});
+                logger.trace("\t {}: {} for {}", new String[]{String.valueOf(tracing++), arc.getClass().getName(), r.uuid()});
             }
         }
         return a;
