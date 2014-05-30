@@ -582,7 +582,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void close(final WebSocket webSocket, int closeCode) {
-        logger.trace("WebSocket {} closed with {}", webSocket.resource(), closeCode);
 
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
         // A message might be in the process of being processed and the websocket gets closed. In that corner
@@ -595,9 +594,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (resource == null) {
             logger.trace("Already closed {}", webSocket);
         } else {
-            logger.trace("About to close AtmosphereResource for {}", resource.uuid());
-            AtmosphereRequest r = resource.getRequest(false);
-            AtmosphereResponse s = resource.getResponse(false);
+            logger.debug("About to close AtmosphereResource for {}", resource.uuid());
+            final AtmosphereRequest r = resource.getRequest(false);
+            final AtmosphereResponse s = resource.getResponse(false);
             try {
                 webSocketProtocol.onClose(webSocket);
 
@@ -605,7 +604,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     webSocketHandler.onClose(webSocket);
                 }
 
-                if (resource != null && !resource.getAtmosphereResourceEvent().isClosedByApplication()) {
+                if (resource.getAtmosphereResourceEvent().isClosedByApplication()) {
                     if (!resource.isCancelled()) {
                         // See https://github.com/Atmosphere/atmosphere/issues/1590
                         // Better to call onDisconnect that onResume.
@@ -617,9 +616,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                     @Override
                                     public Object call() throws Exception {
                                         executeClose(webSocket, 1005);
+                                        finish(webSocket, resource, r, s);
                                         return null;
                                     }
-                                }, ff ? closingTime == 0 ? 500 : closingTime : closingTime, TimeUnit.MILLISECONDS);
+                                }, ff ? (closingTime == 0 ? 1000 : closingTime) : closingTime, TimeUnit.MILLISECONDS);
                             } else {
                                 executeClose(webSocket, closeCode);
                             }
@@ -634,32 +634,35 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     logger.trace("Unable to properly complete {}", resource == null ? "null" : resource.uuid());
                 }
 
-                if (resource != null) {
-                    // Don't take any risk in case something goes wrong and remove the associated resource.
-                    framework.atmosphereFactory().remove(resource.uuid());
-                }
             } finally {
-                if (webSocket != null) {
-                    try {
-                        r.setAttribute(WebSocket.CLEAN_CLOSE, Boolean.TRUE);
-                        webSocket.resource(null);
-
-                        if (webSocket.isOpen()) webSocket.close(s);
-                    } catch (IOException e) {
-                        logger.trace("", e);
-                    }
-                }
-
-                if (r != null) {
-                    r.destroy(true);
-                }
-
-                if (s != null) {
-                    s.destroy(true);
-                }
-
+                finish(webSocket, resource, r, s);
             }
         }
+    }
+
+    private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s) {
+
+        // Don't take any risk in case something goes wrong and remove the associated resource.
+        framework.atmosphereFactory().remove(resource.uuid());
+        if (webSocket != null) {
+            try {
+                r.setAttribute(WebSocket.CLEAN_CLOSE, Boolean.TRUE);
+                webSocket.resource(null);
+
+                if (webSocket.isOpen()) webSocket.close(s);
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
+        }
+
+        if (r != null) {
+            r.destroy(true);
+        }
+
+        if (s != null) {
+            s.destroy(true);
+        }
+
     }
 
     public void executeClose(WebSocket webSocket, int closeCode) {
