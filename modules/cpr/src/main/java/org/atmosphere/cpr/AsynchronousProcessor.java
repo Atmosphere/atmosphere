@@ -33,6 +33,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER;
+import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
@@ -250,8 +252,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             resource.atmosphereHandler(handlerWrapper.atmosphereHandler);
         }
 
-        req.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
-        req.setAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER, handlerWrapper);
+        req.setAttribute(ATMOSPHERE_RESOURCE, resource);
+        req.setAttribute(ATMOSPHERE_HANDLER_WRAPPER, handlerWrapper);
         req.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
 
         return resource;
@@ -292,6 +294,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
     public Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
         Action a = Action.CONTINUE;
+        int order = 0;
         for (AtmosphereInterceptor arc : c) {
             try {
                 a = arc.inspect(r);
@@ -315,6 +318,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 logger.trace("Interceptor {} interrupted the dispatch for {} with " + a, arc, r.uuid());
                 return a;
             }
+            logger.debug("\t {}: {} for {}", new String[]{String.valueOf(order++), arc.getClass().getName(), r.uuid()});
         }
         return a;
     }
@@ -365,7 +369,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             throws IOException, ServletException {
 
         AtmosphereResourceImpl r =
-                (AtmosphereResourceImpl) request.getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+                (AtmosphereResourceImpl) request.getAttribute(ATMOSPHERE_RESOURCE);
 
         if (r == null) return Action.CANCELLED; // We are cancelled already
 

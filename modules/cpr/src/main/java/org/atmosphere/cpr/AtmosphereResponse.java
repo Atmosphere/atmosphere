@@ -82,6 +82,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private boolean forceAsyncIOWriter = false;
     private String uuid = "0";
     private final AtomicBoolean usingStream = new AtomicBoolean(true);
+    private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -192,6 +193,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         headers.clear();
         atmosphereRequest = null;
         asyncIOWriter = null;
+        destroyed.set(true);
+    }
+
+    public boolean destroyed() {
+        return destroyed.get();
     }
 
     @Override
@@ -462,7 +468,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     private boolean validFlushOrClose() {
         if (asyncIOWriter == null) {
-            logger.trace("AtmosphereResponse for {} has been closed", uuid);
+            logger.warn("AtmosphereResponse for {} has been closed", uuid);
             return false;
         }
         return true;
@@ -874,7 +880,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             AtmosphereResourceImpl.class.cast(r).notifyListeners(
                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
         }
-        logger.trace("", ex);
+        // Don't take any risk and remove it.
+        r.getAtmosphereConfig().resourcesFactory().remove(uuid);
+        logger.debug("{} unexpected I/O exception", uuid, ex);
     }
 
     /**
@@ -1020,6 +1028,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             }
         } catch (Exception ex) {
             handleException(ex);
+            throw new RuntimeException(ex);
         }
         return this;
     }
