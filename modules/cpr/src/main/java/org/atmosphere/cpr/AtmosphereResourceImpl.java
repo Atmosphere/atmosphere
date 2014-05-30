@@ -801,7 +801,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     ",\n\t isCancelled=" + isCancelled() +
                     ",\n\t isSuspended=" + isSuspended() +
                     ",\n\t broadcaster=" + broadcaster.getID() + " size: " + broadcaster.getAtmosphereResources().size() +
-                    ",\n\t atmosphereHandler=" + atmosphereHandler +
+                    ",\n\t isClosedByClient=" + (event != null ? event.isClosedByClient() : false) +
+                    ",\n\t isClosedByApplication=" + (event != null ? event.isClosedByApplication() : false) +
                     ",\n\t action=" + action +
                     '}';
         } catch (NullPointerException ex) {
