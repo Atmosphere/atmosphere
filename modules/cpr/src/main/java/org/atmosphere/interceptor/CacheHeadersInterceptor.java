@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.util.Utils;
 
 import static org.atmosphere.cpr.HeaderConfig.CACHE_CONTROL;
 import static org.atmosphere.cpr.HeaderConfig.EXPIRES;
@@ -50,6 +51,9 @@ public class CacheHeadersInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
 

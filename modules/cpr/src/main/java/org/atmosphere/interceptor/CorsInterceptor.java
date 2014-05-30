@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 
 /**
  * CORS support.
@@ -42,6 +43,8 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource resource) {
+
+        if (Utils.webSocketMessage(resource)) return Action.CONTINUE;
 
         if (!enableAccessControl) return Action.CONTINUE;
 

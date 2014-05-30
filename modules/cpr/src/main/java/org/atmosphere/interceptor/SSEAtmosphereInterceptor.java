@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -121,6 +122,9 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
         String accept = request.getHeader("Accept") == null ? "text/plain" : request.getHeader("Accept").trim();

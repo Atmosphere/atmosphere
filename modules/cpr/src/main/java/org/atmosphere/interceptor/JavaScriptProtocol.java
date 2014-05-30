@@ -57,6 +57,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
         String uuid = r.getRequest().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         String handshakeUUID = r.getRequest().getHeader(HeaderConfig.X_ATMO_PROTOCOL);
         if (uuid != null && uuid.equals("0") && handshakeUUID != null) {
