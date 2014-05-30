@@ -457,73 +457,72 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         // We could potentially synchronize on webSocket but since it is a rare case, it is better to not synchronize.
         // synchronized (webSocket) {
 
-        AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
+        final AtmosphereResourceImpl resource = (AtmosphereResourceImpl) webSocket.resource();
 
         if (resource == null) {
             logger.debug("Already closed {}", webSocket);
         } else {
             logger.trace("About to close AtmosphereResource for {}", resource.uuid());
-            AtmosphereRequest r = resource.getRequest(false);
-            AtmosphereResponse s = resource.getResponse(false);
-            try {
-                webSocketProtocol.onClose(webSocket);
+            final AtmosphereRequest r = resource.getRequest(false);
+            final AtmosphereResponse s = resource.getResponse(false);
+            webSocketProtocol.onClose(webSocket);
 
-                if (webSocketHandler != null) {
-                    webSocketHandler.onClose(webSocket);
-                }
+            if (webSocketHandler != null) {
+                webSocketHandler.onClose(webSocket);
+            }
 
-                if (resource != null && resource.isInScope()) {
-                    Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
-                    if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
-                        final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
-                        if (!resource.isCancelled() && !resource.getAtmosphereResourceEvent().isClosedByClient()) {
-                            // See https://github.com/Atmosphere/atmosphere/issues/1590
-                            // Better to call onDisconnect that onResume.
-                            if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
-                                boolean ff = r.getAttribute("firefox") != null;
-                                if (ff || closingTime > 0) {
-                                    ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
-                                        @Override
-                                        public Object call() throws Exception {
-                                            executeClose(h, webSocket, 1005);
-                                            return null;
-                                        }
-                                    }, ff ? closingTime == 0 ? 500 : closingTime : closingTime, TimeUnit.MILLISECONDS);
-                                } else {
-                                    executeClose(h, webSocket, closeCode);
+            if (!resource.getAtmosphereResourceEvent().isClosedByClient() && !resource.isCancelled()) {
+                Object o = r.getAttribute(ASYNCHRONOUS_HOOK);
+                if (o != null && AsynchronousProcessorHook.class.isAssignableFrom(o.getClass())) {
+                    final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
+                    // See https://github.com/Atmosphere/atmosphere/issues/1590
+                    // Better to call onDisconnect that onResume.
+                    if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
+                        boolean ff = r.getAttribute("firefox") != null;
+                        if (ff || closingTime > 0) {
+                            ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
+                                @Override
+                                public Object call() throws Exception {
+                                    executeClose(h, webSocket, 1005);
+                                    finish(webSocket, resource, r, s);
+                                    return null;
                                 }
-                            } else {
-                                h.timedOut();
-                            }
+                            }, ff ? closingTime == 0 ? 500 : closingTime : closingTime, TimeUnit.MILLISECONDS);
+                            return;
+                        } else {
+                            executeClose(h, webSocket, closeCode);
                         }
+                    } else {
+                        h.timedOut();
                     }
+                    finish(webSocket, resource, r, s);
                 }
-
-            } finally {
-                if (webSocket != null) {
-                    try {
-                        r.setAttribute(WebSocket.CLEAN_CLOSE, Boolean.TRUE);
-                        webSocket.resource(null);
-
-                        if (webSocket.isOpen()) webSocket.close(s);
-                    } catch (IOException e) {
-                        logger.trace("", e);
-                    }
-                }
-
-                if (r != null) {
-                    r.destroy(true);
-                }
-
-                if (s != null) {
-                    s.destroy(true);
-                }
-
             }
         }
     }
 
-    public void executeClose(AsynchronousProcessorHook h, WebSocket webSocket, int closeCode){
+    private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s) {
+        if (webSocket != null) {
+            try {
+                r.setAttribute(WebSocket.CLEAN_CLOSE, Boolean.TRUE);
+                webSocket.resource(null);
+
+                if (webSocket.isOpen()) webSocket.close(s);
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
+        }
+
+        if (r != null) {
+            r.destroy(true);
+        }
+
+        if (s != null) {
+            s.destroy(true);
+        }
+    }
+
+    public void executeClose(AsynchronousProcessorHook h, WebSocket webSocket, int closeCode) {
         boolean isClosedByClient = webSocket.resource() == null ? true : webSocket.resource().getAtmosphereResourceEvent().isClosedByClient();
         h.closed();
         if (!isClosedByClient) {
