@@ -192,7 +192,7 @@ public class JSR356Endpoint extends Endpoint {
             session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
                 @Override
                 public void onMessage(ByteBuffer bb) {
-                    byte[] b = new byte[bb.limit()];
+                    byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
                     bb.get(b);
                     webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                 }
