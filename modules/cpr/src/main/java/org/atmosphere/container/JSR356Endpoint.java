@@ -147,8 +147,12 @@ public class JSR356Endpoint extends Endpoint {
             if ((!requestUri.startsWith("http://")) || (!requestUri.startsWith("https://"))) {
                 if (requestUri.startsWith("/")) {
                     List<String> l = handshakeRequest.getHeaders().get("origin");
+                    if (l == null) {
+                        // https://issues.jboss.org/browse/UNDERTOW-252
+                        l = handshakeRequest.getHeaders().get("Origin");
+                    }
                     String origin;
-                    if (l != null && l.size() > 0) {
+                    if (l.size() > 0) {
                         origin = l.get(0);
                     } else {
                         // Broken WebSocket Spec
