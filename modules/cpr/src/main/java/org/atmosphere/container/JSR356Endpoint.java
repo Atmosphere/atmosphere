@@ -182,6 +182,21 @@ public class JSR356Endpoint extends Endpoint {
 
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 
+            session.addMessageHandler(new MessageHandler.Whole<String>() {
+                @Override
+                public void onMessage(String s) {
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
+                }
+            });
+
+            session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
+                @Override
+                public void onMessage(ByteBuffer bb) {
+                    byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+                    bb.get(b);
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
+                }
+            });
         } catch (Throwable e) {
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
@@ -191,22 +206,6 @@ public class JSR356Endpoint extends Endpoint {
             logger.error("", e);
             return;
         }
-
-        session.addMessageHandler(new MessageHandler.Whole<String>() {
-            @Override
-            public void onMessage(String s) {
-                webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
-            }
-        });
-
-        session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
-            @Override
-            public void onMessage(ByteBuffer bb) {
-                byte[] b = new byte[bb.limit()];
-                bb.get(b);
-                webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
-            }
-        });
     }
 
     @Override
