@@ -148,7 +148,7 @@ public class JSR356Endpoint extends Endpoint {
                 if (requestUri.startsWith("/")) {
                     List<String> l = handshakeRequest.getHeaders().get("origin");
                     String origin;
-                    if (l.size() > 0) {
+                    if (l != null && l.size() > 0) {
                         origin = l.get(0);
                     } else {
                         // Broken WebSocket Spec
@@ -182,6 +182,21 @@ public class JSR356Endpoint extends Endpoint {
 
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 
+            session.addMessageHandler(new MessageHandler.Whole<String>() {
+                @Override
+                public void onMessage(String s) {
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
+                }
+            });
+
+            session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
+                @Override
+                public void onMessage(ByteBuffer bb) {
+                    byte[] b = new byte[bb.limit()];
+                    bb.get(b);
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
+                }
+            });
         } catch (Throwable e) {
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
@@ -192,28 +207,15 @@ public class JSR356Endpoint extends Endpoint {
             return;
         }
 
-        session.addMessageHandler(new MessageHandler.Whole<String>() {
-            @Override
-            public void onMessage(String s) {
-                webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
-            }
-        });
-
-        session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
-            @Override
-            public void onMessage(ByteBuffer bb) {
-                byte[] b = new byte[bb.limit()];
-                bb.get(b);
-                webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
-            }
-        });
     }
 
     @Override
     public void onClose(javax.websocket.Session session, javax.websocket.CloseReason closeCode) {
         logger.trace("{} closed {}", session, closeCode);
-        request.destroy();
-        webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
+        if (request != null) {
+            request.destroy();
+            webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
+        }
     }
 
     @Override
