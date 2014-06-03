@@ -44,7 +44,12 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        if (!r.uuid().equals("0") && !Utils.webSocketMessage(r) && !Utils.pollableTransport(r.transport())) {
+        if (Utils.webSocketMessage(r)) return Action.CONTINUE;
+
+        final AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        boolean connecting = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null && request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID).equals("0");
+
+        if (connecting || !Utils.pollableTransport(r.transport())) {
             if (!trackedUUID.add(r.uuid())) {
                 logger.trace("Blocking {} from suspend", r.uuid());
                 AtmosphereResourceImpl.class.cast(r).disableSuspendEvent(true);
@@ -61,11 +66,6 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
                 public void onClose(AtmosphereResourceEvent event) {
                     onDisconnect(event);
                 }
-
-                @Override
-                public void onResume(AtmosphereResourceEvent event) {
-                    onDisconnect(event);
-                }
             });
         }
         return Action.CONTINUE;
@@ -74,5 +74,10 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public String toString() {
         return "UUID Tracking Interceptor";
+    }
+
+    @Override
+    public PRIORITY priority() {
+        return InvokationOrder.BEFORE_DEFAULT;
     }
 }
