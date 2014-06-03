@@ -17,6 +17,7 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
@@ -28,6 +29,8 @@ import org.slf4j.LoggerFactory;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
+
+import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
 
 /**
  * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}
@@ -47,7 +50,7 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
         final AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
-        boolean connecting = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null && request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID).equals("0");
+        boolean connecting = request.getHeader(X_ATMOSPHERE_TRACKING_ID) != null && request.getHeader(X_ATMOSPHERE_TRACKING_ID).equals("0");
 
         if (connecting || !Utils.pollableTransport(r.transport())) {
             if (!trackedUUID.add(r.uuid())) {
