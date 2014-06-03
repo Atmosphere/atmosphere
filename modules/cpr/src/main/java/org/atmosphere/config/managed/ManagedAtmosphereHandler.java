@@ -168,6 +168,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     @Override
     @SuppressWarnings("unchecked")
     public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        Object msg = event.getMessage();
 
         // Original Value
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
@@ -191,7 +192,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else if (event.isResumedOnTimeout() || event.isResuming()) {
             invoke(onTimeoutMethod, event);
         } else {
-            Object msg = event.getMessage();
             Object o;
             if (msg != null) {
                 if (Managed.class.isAssignableFrom(msg.getClass())) {
@@ -227,11 +227,11 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     @Override
-    public boolean pathParams(){
+    public boolean pathParams() {
         return pathParams;
     }
 
-    protected boolean pathParams(Object o){
+    protected boolean pathParams(Object o) {
         for (Field field : o.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(PathParam.class)) {
                 return true;
@@ -327,13 +327,15 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     private Object message(AtmosphereResource resource, Object o) {
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
         try {
+            Method invokedMethod = (Method) request.getAttribute(getClass().getName());
             for (MethodInfo m : onRuntimeMethod) {
 
                 if (m.useReader) {
-                    o = resource.getRequest().getReader();
+                    o = request.getReader();
                 } else if (m.useStream) {
-                    o = resource.getRequest().getInputStream();
+                    o = request.getInputStream();
                 } else if (o == null) {
                     o = IOUtils.readEntirely(resource).toString();
                     if (String.class.cast(o).isEmpty()) {
@@ -352,11 +354,22 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                     logger.warn("Injection of more than 2 parameters not supported {}", m);
                 }
 
-                if (m.method.getParameterTypes().length == 2) {
-                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
+                if (invokedMethod == null) {
+                    request.setAttribute(getClass().getName(), m.method);
                 } else {
-                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
+                    request.removeAttribute(getClass().getName());
                 }
+
+                if (invokedMethod == null || !invokedMethod.equals(m.method)) {
+                    if (m.method.getParameterTypes().length == 2) {
+                        objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
+                    } else {
+                        objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
+                    }
+                } else {
+                    objectToEncode = o;
+                }
+
                 if (objectToEncode != null) {
                     return Invoker.encode(encoders.get(m.method), objectToEncode);
                 }
