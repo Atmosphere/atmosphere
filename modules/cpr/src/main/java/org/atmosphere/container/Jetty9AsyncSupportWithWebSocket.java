@@ -66,19 +66,20 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
             policy.setIdleTimeout(Integer.parseInt(max));
         }
 
-        // Crazy Jetty API Incompatibility
-        String serverInfo = config.getServletConfig().getServletContext().getServerInfo();
-        boolean isJetty91 = false;
-        if (serverInfo != null && serverInfo.indexOf("9.1") != -1) {
-            isJetty91 = true;
-        }
-
-        max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);;
         try {
+            // Crazy Jetty API Incompatibility
+            String serverInfo = config.getServletConfig().getServletContext().getServerInfo();
+            boolean isJetty91Plus = false;
+            if (serverInfo != null) {
+                int version = Integer.valueOf(serverInfo.split("/")[1].substring(0, 3).replace(".", ""));
+                isJetty91Plus = version > 90;
+            }
+
+            max = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
             if (max != null) {
                 //policy.setMaxMessageSize(Integer.parseInt(max));
                 Method m;
-                if (isJetty91) {
+                if (isJetty91Plus) {
                     m = policy.getClass().getMethod("setMaxTextMessageSize", new Class[]{int.class});
                 } else {
                     m = policy.getClass().getMethod("setMaxMessageSize", new Class[]{long.class});
@@ -90,7 +91,7 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
             if (max != null) {
                 //policy.setMaxMessageSize(Integer.parseInt(max));
                 Method m;
-                if (isJetty91) {
+                if (isJetty91Plus) {
                     m = policy.getClass().getMethod("setMaxBinaryMessageSize", new Class[]{int.class});
                 } else {
                     m = policy.getClass().getMethod("setMaxMessageSize", new Class[]{long.class});
