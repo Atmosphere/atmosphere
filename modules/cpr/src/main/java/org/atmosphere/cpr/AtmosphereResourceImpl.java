@@ -588,10 +588,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.isEmpty()) {
-            logger.trace("No listener with {}", event.getResource().uuid());
+            logger.trace("No listener with {}", uuid);
             return this;
         }
-        logger.trace("Invoking listener {} for {}", listeners, event.getResource().uuid());
+        logger.trace("Invoking listener {} for {}", listeners, uuid);
 
         Action oldAction = action;
         try {
