@@ -16,7 +16,6 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.HeartbeatAtmosphereResourceEvent;
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
@@ -27,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
@@ -228,12 +228,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
                     final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent(AtmosphereResourceImpl.class.cast(r));
 
-                    // Currently we fire heartbeat notification only for managed handler
-                    if (r.getAtmosphereHandler().getClass().isAssignableFrom(ManagedAtmosphereHandler.class)) {
+                    if (AtmosphereResourceHeartbeatEventListener.class.isAssignableFrom(r.getAtmosphereHandler().getClass())) {
                         r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnHeartbeat() {
                             @Override
                             public void onHeartbeat(AtmosphereResourceEvent event) {
-                                ManagedAtmosphereHandler.class.cast(r.getAtmosphereHandler()).onHeartbeat(event);
+                                AtmosphereResourceHeartbeatEventListener.class.cast(r.getAtmosphereHandler()).onHeartbeat(event);
                             }
                         });
                     }

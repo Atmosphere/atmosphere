@@ -17,11 +17,12 @@
 package org.atmosphere.cpr;
 
 /**
- * Receive notifications when resume, client disconnect or broadcast events occur.
+ * Receive notifications when resume, client disconnect or broadcast events occur. Also extends
+ * {@link AtmosphereResourceHeartbeatEventListener} which is notified when heartbeat events occur.
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereResourceEventListener {
+public interface AtmosphereResourceEventListener extends AtmosphereResourceHeartbeatEventListener {
 
     /**
      * Invoked when the {@link AtmosphereResource#suspend} is in the process of being suspended
@@ -47,13 +48,6 @@ public interface AtmosphereResourceEventListener {
      * @param event a {@link org.atmosphere.cpr.AtmosphereResourceEvent}
      */
     void onResume(AtmosphereResourceEvent event);
-
-    /**
-     * Invoked when the remote connections send a heartbeat.
-     *
-     * @param event a {@link AtmosphereResourceEvent}
-     */
-    void onHeartbeat(AtmosphereResourceEvent event);
 
     /**
      * Invoked when the remote connection gets closed.

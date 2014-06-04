@@ -31,6 +31,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -65,7 +66,8 @@ import static org.atmosphere.util.IOUtils.readEntirely;
  *
  * @author Jeanfrancois
  */
-public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler implements AnnotatedProxy {
+public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
+        implements AnnotatedProxy, AtmosphereResourceHeartbeatEventListener {
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
@@ -438,6 +440,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
      *
      * @param event the event
      */
+    @Override
     public void onHeartbeat(final AtmosphereResourceEvent event) {
         if (onHeartbeatMethod != null && !Utils.pollableTransport(event.getResource().transport())) {
             invoke(onHeartbeatMethod, event);
