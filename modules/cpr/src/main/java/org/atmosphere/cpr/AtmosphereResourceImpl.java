@@ -588,10 +588,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.isEmpty()) {
-            logger.trace("NO listener with {}", event);
+            logger.trace("No listener with {}", event.getResource().uuid());
             return this;
         }
-        logger.trace("Invoking listener with {}", event);
+        logger.trace("Invoking listener {} for {}", listeners, event.getResource().uuid());
 
         Action oldAction = action;
         try {
@@ -602,6 +602,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             } else if (event.isCancelled() || event.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
                     onDisconnect(event);
+                }else {
+                    logger.trace("Already disconnected {}", event.getResource().uuid());
                 }
             } else if (event.isResuming() || event.isResumedOnTimeout()) {
                 onResume(event);
