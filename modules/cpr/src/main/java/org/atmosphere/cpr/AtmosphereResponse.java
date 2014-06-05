@@ -882,7 +882,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         }
         // Don't take any risk and remove it.
         r.getAtmosphereConfig().resourcesFactory().remove(uuid);
-        logger.debug("{} unexpected I/O exception", uuid, ex);
+        logger.trace("{} unexpected I/O exception", uuid, ex);
     }
 
     /**
