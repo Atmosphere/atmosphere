@@ -20,8 +20,12 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Enumeration;
 
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
@@ -32,6 +36,11 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  * @author Jeanfrancois Arcand
  */
 public final class Utils {
+
+    /**
+     * The logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 
     public final static boolean webSocketEnabled(HttpServletRequest request) {
 
@@ -144,5 +153,29 @@ public final class Utils {
             }
         }
         return isWebSocket ? isOK : true;
+    }
+
+    /**
+     * <p>
+     * Manages the invocation of the given method on the specified 'proxied' instance. Logs any invocation failure.
+     * </p>
+     *
+     * @param proxiedInstance the instance
+     * @param m the method to invoke that belongs to the instance
+     * @param o the optional parameter
+     * @return the result of the invocation
+     */
+    public static Object invoke(final Object proxiedInstance, Method m, Object o) {
+        if (m != null) {
+            try {
+                return m.invoke(proxiedInstance, o == null ? new Object[]{} : new Object[]{o});
+            } catch (IllegalAccessException e) {
+                LOGGER.debug("", e);
+            } catch (InvocationTargetException e) {
+                LOGGER.debug("", e);
+            }
+        }
+        LOGGER.trace("No Method Mapped for {}", o);
+        return null;
     }
 }
