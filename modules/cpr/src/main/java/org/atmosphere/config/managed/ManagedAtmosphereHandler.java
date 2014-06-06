@@ -31,6 +31,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -45,7 +46,6 @@ import java.io.Reader;
 import java.io.Serializable;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -65,7 +65,8 @@ import static org.atmosphere.util.IOUtils.readEntirely;
  *
  * @author Jeanfrancois
  */
-public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler implements AnnotatedProxy {
+public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
+        implements AnnotatedProxy, AtmosphereResourceHeartbeatEventListener {
 
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
@@ -321,17 +322,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     private Object invoke(Method m, Object o) {
-        if (m != null) {
-            try {
-                return m.invoke(proxiedInstance, o == null ? new Object[]{} : new Object[]{o});
-            } catch (IllegalAccessException e) {
-                logger.debug("", e);
-            } catch (InvocationTargetException e) {
-                logger.debug("", e);
-            }
-        }
-        logger.trace("No Method Mapped for {}", o);
-        return null;
+        return Utils.invoke(proxiedInstance, m, o);
     }
 
     private Object message(AtmosphereResource resource, Object o) {
@@ -427,6 +418,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
      *
      * @param event the event
      */
+    @Override
     public void onHeartbeat(final AtmosphereResourceEvent event) {
         if (onHeartbeatMethod != null && !Utils.pollableTransport(event.getResource().transport())) {
             invoke(onHeartbeatMethod, event);
