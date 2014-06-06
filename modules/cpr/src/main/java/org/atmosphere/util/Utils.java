@@ -28,6 +28,7 @@ import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Enumeration;
 
+import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
@@ -153,6 +154,14 @@ public final class Utils {
             }
         }
         return isWebSocket ? isOK : true;
+    }
+
+    public static final AtmosphereResource websocketResource(AtmosphereResource r) {
+        String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+        if (parentUUID != null) {
+            r = r.getAtmosphereConfig().resourcesFactory().find(parentUUID);
+        }
+        return r;
     }
 
     /**
