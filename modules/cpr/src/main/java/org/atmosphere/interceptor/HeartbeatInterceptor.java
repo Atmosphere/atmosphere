@@ -152,15 +152,41 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+        final AtmosphereRequest request = r.getRequest();
+        final AtmosphereResponse response = r.getResponse();
+
+        // Check heartbeat
+        if (clientHeartbeatFrequencyInSeconds > 0) {
+            byte[] body = IOUtils.readEntirelyAsByte(r);
+
+            if (Arrays.equals(paddingBytes, body)) {
+                // Dispatch an event to notify that a heartbeat has been intercepted
+                // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
+                final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent(AtmosphereResourceImpl.class.cast(r));
+
+                if (AtmosphereResourceHeartbeatEventListener.class.isAssignableFrom(r.getAtmosphereHandler().getClass())) {
+                    r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnHeartbeat() {
+                        @Override
+                        public void onHeartbeat(AtmosphereResourceEvent event) {
+                            AtmosphereResourceHeartbeatEventListener.class.cast(r.getAtmosphereHandler()).onHeartbeat(event);
+                        }
+                    });
+                }
+
+                // Fire event
+                r.notifyListeners(event);
+
+                return Action.CANCELLED;
+            }
+
+            request.body(body);
+        }
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
         final int interval = extractHeartbeatInterval(r);
 
         if (interval != 0) {
-            final AtmosphereResponse response = r.getResponse();
-            final AtmosphereRequest request = r.getRequest();
-
             if (!Utils.pollableTransport(r.transport())){
                 super.inspect(r);
                 final boolean wasSuspended = r.isSuspended();
@@ -200,7 +226,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 return Action.CONTINUE;
             }
 
-            AsyncIOWriter writer = response.getAsyncIOWriter();
+            final AsyncIOWriter writer = response.getAsyncIOWriter();
 
             if (!Utils.resumableTransport(r.transport())
                     && AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())
@@ -220,31 +246,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
-            } else {
-                byte[] body = IOUtils.readEntirelyAsByte(r);
-
-                if (Arrays.equals(paddingBytes, body)) {
-                    // Dispatch an event to notify that a heartbeat has been intercepted
-                    // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
-                    final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent(AtmosphereResourceImpl.class.cast(r));
-
-                    if (AtmosphereResourceHeartbeatEventListener.class.isAssignableFrom(r.getAtmosphereHandler().getClass())) {
-                        r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnHeartbeat() {
-                            @Override
-                            public void onHeartbeat(AtmosphereResourceEvent event) {
-                                AtmosphereResourceHeartbeatEventListener.class.cast(r.getAtmosphereHandler()).onHeartbeat(event);
-                            }
-                        });
-                    }
-
-                    // Fire event
-                    r.notifyListeners(event);
-
-                    return Action.CANCELLED;
-                }
-
-                request.body(body);
             }
+
         }
 
         return Action.CONTINUE;
