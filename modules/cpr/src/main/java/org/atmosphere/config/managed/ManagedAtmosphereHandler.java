@@ -420,7 +420,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
      */
     @Override
     public void onHeartbeat(final AtmosphereResourceEvent event) {
-        if (onHeartbeatMethod != null && !Utils.pollableTransport(event.getResource().transport())) {
+        if (onHeartbeatMethod != null) {
             invoke(onHeartbeatMethod, event);
         }
     }
