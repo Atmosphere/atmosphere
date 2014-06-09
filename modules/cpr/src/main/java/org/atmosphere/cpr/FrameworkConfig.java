@@ -162,7 +162,7 @@ public interface FrameworkConfig {
     /**
      * Spring Injector
      */
-    String SPRING_INJECTOR = "org.atmosphere.spring.SpringObjectFactory";
+    String SPRING_INJECTOR = "org.atmosphere.spring.SpringWebObjectFactory";
     /**
      * CDI Injector
      */
