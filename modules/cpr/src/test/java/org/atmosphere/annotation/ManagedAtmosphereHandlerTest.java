@@ -23,9 +23,6 @@ import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
@@ -102,7 +99,7 @@ public class ManagedAtmosphereHandlerTest {
 
             @Override
             public String getInitParameter(String name) {
-                return null;
+                return HeartbeatInterceptor.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS.equals(name) ? "10": null;
             }
 
             @Override
