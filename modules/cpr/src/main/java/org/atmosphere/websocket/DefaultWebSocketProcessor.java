@@ -610,7 +610,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (!resource.getAtmosphereResourceEvent().isClosedByApplication() && !resource.isCancelled()) {
                     // See https://github.com/Atmosphere/atmosphere/issues/1590
                     // Better to call onDisconnect that onResume.
-                    if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
+                    if (allowedCloseCode(closeCode)) {
                         if (ff || closingTime > 0) {
                             completeLifecycle = false;
                             logger.debug("Delaying closing operation for firefox and resource {}", resource.uuid());
@@ -639,6 +639,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
+    }
+
+    private boolean allowedCloseCode(int closeCode) {
+        return closeCode < 1002 || closeCode > 1004 ? true : false;
     }
 
     private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s) {

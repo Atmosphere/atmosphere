@@ -217,8 +217,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                             break;
                         }
                     }
-                    // We have failed to map, so just broadcast what we have.
-                    event.setMessage(newMsg);
                     // To allow annotated methods to use BroadcasterFactory . This is clearly a hack.
                 } else {
                     logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
