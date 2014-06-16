@@ -1408,7 +1408,7 @@ public class AtmosphereFramework {
             return false;
         }
 
-        logger.warn("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
+        logger.debug("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
 
         // Atmosphere 1.1 : could add regressions
         // Jersey will itself handle the headers.
