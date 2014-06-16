@@ -260,9 +260,17 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     @Override
     public void close(AtmosphereResponse r) throws IOException {
         logger.trace("WebSocket.close()");
-        if (r.request() != null && r.request().getAttribute(CLEAN_CLOSE) == null) {
-            close();
+
+        try {
+            // Never trust underlying server.
+            // https://github.com/Atmosphere/atmosphere/issues/1633
+            if (r.request() != null && r.request().getAttribute(CLEAN_CLOSE) == null) {
+                close();
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
         }
+
         try {
             bb.clear();
             cb.clear();
