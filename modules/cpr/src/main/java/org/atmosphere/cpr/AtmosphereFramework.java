@@ -2786,23 +2786,24 @@ public class AtmosphereFramework {
     }
 
     protected void configureObjectFactory() {
-        if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {
-            logger.trace("ObjectFactory already set to {}", objectFactory);
-            return;
-        }
-
         String s = config.getInitParameter(ApplicationConfig.OBJECT_FACTORY);
         if (s != null) {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
             try {
                 AtmosphereObjectFactory aci = (AtmosphereObjectFactory) IOUtils.loadClass(getClass(), s).newInstance();
                 if (aci != null) {
+                    logger.debug("Found ObjectFactory {}", aci.getClass().getName());
                     objectFactory(aci);
                 }
             } catch (Exception ex) {
                 logger.warn("Unable to load AtmosphereClassInstantiator instance", ex);
             }
         }
+
+        if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {
+            logger.trace("ObjectFactory already set to {}", objectFactory);
+            return;
+        }
+
     }
 
     /**
