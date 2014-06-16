@@ -52,7 +52,7 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
         final AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         boolean connecting = request.getHeader(X_ATMOSPHERE_TRACKING_ID) != null && request.getHeader(X_ATMOSPHERE_TRACKING_ID).equals("0");
 
-        if (connecting || !Utils.pollableTransport(r.transport())) {
+        if (!connecting && !Utils.pollableTransport(r.transport())) {
             if (!trackedUUID.add(r.uuid())) {
                 logger.trace("Blocking {} from suspend", r.uuid());
                 AtmosphereResourceImpl.class.cast(r).disableSuspendEvent(true);
