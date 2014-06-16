@@ -91,7 +91,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
                 int version = Integer.valueOf(javascriptVersion.split("-")[0].replace(".", ""));
                 if (version < 221) {
-                    logger.debug("Invalid Atmosphere Version {}", javascriptVersion);
+                    logger.error("Invalid Atmosphere Version {}", javascriptVersion);
                     response.setStatus(501);
                     response.addHeader(X_ATMOSPHERE_ERROR, "Atmosphere Protocol version not supported.");
                     try {
