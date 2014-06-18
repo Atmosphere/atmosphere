@@ -123,18 +123,12 @@ public final class Utils {
 
     public final static boolean atmosphereProtocol(AtmosphereRequest r) {
         String p = r.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
-        if (p != null && Boolean.valueOf(p)) {
-            return true;
-        }
-        return false;
+        return (p != null && Boolean.valueOf(p));
     }
 
     public final static boolean webSocketMessage(AtmosphereResource r) {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
-        if (request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
-            return true;
-        }
-        return false;
+        return request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null;
     }
 
     public static boolean properProtocol(HttpServletRequest request) {
@@ -166,10 +160,7 @@ public final class Utils {
 
     public static final boolean closeMessage(AtmosphereRequest request) {
         String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
-        if (s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE)) {
-            return true;
-        }
-        return false;
+        return s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE);
     }
 
     /**
