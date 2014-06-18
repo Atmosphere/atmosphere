@@ -23,10 +23,11 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import static org.atmosphere.util.Utils.closeMessage;
 
 
 /**
@@ -55,9 +56,8 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
-        String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         String uuid = r.uuid();
-        if (s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE)) {
+        if (closeMessage(request)) {
             logger.debug("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = config.resourcesFactory().find(uuid);
             if (ss != null) {

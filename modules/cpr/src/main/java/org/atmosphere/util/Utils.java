@@ -164,6 +164,14 @@ public final class Utils {
         return r;
     }
 
+    public static final boolean closeMessage(AtmosphereRequest request) {
+        String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE)) {
+            return true;
+        }
+        return false;
+    }
+
     /**
      * <p>
      * Manages the invocation of the given method on the specified 'proxied' instance. Logs any invocation failure.
