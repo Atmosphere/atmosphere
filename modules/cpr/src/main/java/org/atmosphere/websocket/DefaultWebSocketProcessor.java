@@ -477,7 +477,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     final AsynchronousProcessorHook h = (AsynchronousProcessorHook) o;
                     // See https://github.com/Atmosphere/atmosphere/issues/1590
                     // Better to call onDisconnect that onResume.
-                    if (closeCode == 1005 || closeCode == 1001 || closeCode == 1006) {
+                    if (allowedCloseCode(closeCode)) {
                         boolean ff = r.getAttribute("firefox") != null;
                         if (ff || closingTime > 0) {
                             ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(new Callable<Object>() {
@@ -499,6 +499,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
+    }
+
+    private boolean allowedCloseCode(int closeCode) {
+        return closeCode < 1002 || closeCode > 1004 ? true : false;
     }
 
     private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s) {
