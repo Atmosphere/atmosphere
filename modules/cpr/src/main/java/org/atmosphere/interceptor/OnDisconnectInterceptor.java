@@ -24,12 +24,12 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import static org.atmosphere.cpr.FrameworkConfig.ASYNCHRONOUS_HOOK;
+import static org.atmosphere.util.Utils.closeMessage;
 
 /**
  * When the browser close the connection, the atmosphere.js will send an unsubscribe message to tell
@@ -55,10 +55,9 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
-        String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         String uuid = r.uuid();
-        if (p != null && s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
-            logger.trace("AtmosphereResource {} disconnected", uuid);
+        if (closeMessage(request)) {
+            logger.debug("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = AtmosphereResourceFactory.getDefault().find(uuid);
             if (ss != null) {
                 // Block websocket closing detection

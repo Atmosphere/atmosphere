@@ -125,4 +125,12 @@ public final class Utils {
         }
         return isWebSocket ? isOK : true;
     }
+
+    public static final boolean closeMessage(AtmosphereRequest request) {
+        String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
+            return true;
+        }
+        return false;
+    }
 }
