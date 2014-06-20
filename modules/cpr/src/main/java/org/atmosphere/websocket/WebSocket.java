@@ -150,7 +150,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         }
 
         if (!isOpen()) throw new IOException("Connection remotely closed for " + r != null ? r.uuid() : "Null");
-        logger.trace("WebSocket.write()");
+        logger.trace("WebSocket.write() {}", data);
 
         boolean transform = filters.size() > 0 && r.getStatus() < 400;
         if (binaryWrite) {

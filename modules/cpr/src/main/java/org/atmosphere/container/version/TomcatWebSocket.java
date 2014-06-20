@@ -19,6 +19,8 @@ import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Jeanfrancois Arcand
  */
 public class TomcatWebSocket extends WebSocket {
+
+    private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocket.class);
 
     private final WsOutbound outbound;
     private AtomicBoolean isOpen = new AtomicBoolean(true);
