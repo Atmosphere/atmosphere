@@ -49,13 +49,13 @@ import java.util.concurrent.TimeUnit;
  * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config. The heartbeat will be scheduled as soon as the
  * request is suspended.
  * </p>
- *
+ * <p/>
  * <p>
  * Moreover, any client can ask for a particular value with the {@link HeaderConfig#X_HEARTBEAT_SERVER} header set in
  * request. This value will be taken in consideration if it is greater than the configured value. Client can also
  * specify the value "0" to disable heartbeat.
  * </p>
- *
+ * <p/>
  * <p>
  * Finally the server notifies thanks to the {@link JavaScriptProtocol} the desired heartbeat interval that the client
  * should applies. This interceptor just manage the configured value and the {@link JavaScriptProtocol protocol} sends
@@ -187,7 +187,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         final int interval = extractHeartbeatInterval(r);
 
         if (interval != 0) {
-            if (!Utils.pollableTransport(r.transport())){
+            if (!Utils.pollableTransport(r.transport())) {
                 super.inspect(r);
                 final boolean wasSuspended = r.isSuspended();
 
@@ -301,8 +301,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
      * </p>
      *
      * @param interval the interval in seconds
-     * @param r the resource
-     * @param request the request response
+     * @param r        the resource
+     * @param request  the request response
      * @param response the resource response
      * @return this
      */
@@ -313,21 +313,23 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
-                if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
-                    try {
-                        logger.trace("Heartbeat for Resource {}", r);
-                        response.write(paddingBytes, false);
-                        if (Utils.resumableTransport(r.transport())) {
-                            r.resume();
-                        } else {
-                            response.flushBuffer();
+                synchronized (r) {
+                    if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
+                        try {
+                            logger.trace("Heartbeat for Resource {}", r);
+                            response.write(paddingBytes, false);
+                            if (Utils.resumableTransport(r.transport())) {
+                                r.resume();
+                            } else {
+                                response.flushBuffer();
+                            }
+                        } catch (Throwable t) {
+                            logger.trace("{}", r.uuid(), t);
+                            cancelF(request);
                         }
-                    } catch (Throwable t) {
-                        logger.trace("{}", r.uuid(), t);
+                    } else {
                         cancelF(request);
                     }
-                } else {
-                    cancelF(request);
                 }
                 return null;
             }
