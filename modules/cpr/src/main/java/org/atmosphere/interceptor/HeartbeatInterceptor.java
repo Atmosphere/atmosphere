@@ -84,7 +84,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         final AtmosphereResponse response = r.getResponse();
         final AtmosphereRequest request = r.getRequest();
 
-        if (!Utils.pollableTransport(r.transport()) && !Utils.webSocketMessage(r)){
+        if (!Utils.pollableTransport(r.transport()) && !Utils.webSocketMessage(r)) {
             super.inspect(r);
             r.addEventListener(new Clock() {
                 @Override
@@ -147,21 +147,23 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
-                if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
-                    try {
-                        logger.trace("Heartbeat for Resource {}", r);
-                        response.write(paddingBytes, false);
-                        if (Utils.resumableTransport(r.transport())) {
-                            r.resume();
-                        } else {
-                            response.flushBuffer();
+                synchronized (r) {
+                    if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
+                        try {
+                            logger.trace("Heartbeat for Resource {}", r);
+                            response.write(paddingBytes, false);
+                            if (Utils.resumableTransport(r.transport())) {
+                                r.resume();
+                            } else {
+                                response.flushBuffer();
+                            }
+                        } catch (Throwable t) {
+                            logger.trace("{}", r.uuid(), t);
+                            cancelF(request);
                         }
-                    } catch (Throwable t) {
-                        logger.trace("{}", r.uuid(), t);
+                    } else {
                         cancelF(request);
                     }
-                } else {
-                    cancelF(request);
                 }
                 return null;
             }
