@@ -65,11 +65,6 @@ public interface HeaderConfig {
     String X_ATMOSPHERE_FRAMEWORK = "X-Atmosphere-Framework";
 
     /**
-     * The current time.
-     */
-    String X_CACHE_DATE = "X-Cache-Date";
-
-    /**
      * The desired heartbeat interval in seconds sent by the server and asked by the client.
      */
     String X_HEARTBEAT_SERVER = "X-Heartbeat-Server";

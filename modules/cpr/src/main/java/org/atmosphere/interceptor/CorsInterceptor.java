@@ -32,7 +32,7 @@ import org.atmosphere.util.Utils;
  */
 public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
-    private final String EXPOSE_HEADERS = "X-Cache-Date, X-Atmosphere-tracking-id, " + HeaderConfig.X_HEARTBEAT_SERVER;
+    private final String EXPOSE_HEADERS = "X-Atmosphere-tracking-id, " + HeaderConfig.X_HEARTBEAT_SERVER;
 
     private boolean enableAccessControl = true;
 

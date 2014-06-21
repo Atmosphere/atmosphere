@@ -42,8 +42,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * <p>
- * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
- * and {@link HeaderConfig#X_CACHE_DATE}
+ * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}.
  * </p>
  * <p/>
  * <p>
@@ -118,10 +117,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             }
 
             // Since 1.0.10
-            final StringBuffer message = new StringBuffer(r.uuid())
-                    .append(wsDelimiter)
-                    .append(System.currentTimeMillis())
-                    .append(wsDelimiter);
+            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter);
 
             // since 2.2
             if (enforceAtmosphereVersion) {

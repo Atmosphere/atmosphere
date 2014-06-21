@@ -2205,7 +2205,6 @@ public class AtmosphereFramework {
                     }
                     if (!header.isEmpty()
                             && !header.toLowerCase().startsWith("x-atmo")
-                            && !header.equalsIgnoreCase("x-cache-date")
                             && !header.equalsIgnoreCase(HeaderConfig.X_HEARTBEAT_SERVER)
                             && !header.equalsIgnoreCase("Content-Type")
                             && !header.equalsIgnoreCase("_")) {

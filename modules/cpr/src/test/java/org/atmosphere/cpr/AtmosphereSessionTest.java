@@ -83,7 +83,7 @@ public class AtmosphereSessionTest {
                 latch.countDown();
             }
         });
-        final String qs = "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.4-javascript&X-Atmosphere-Transport=sse&X-Atmosphere-TrackMessageSize=true&X-Cache-Date=0&X-atmo-protocol=true&_=1380799455333";
+        final String qs = "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.4-javascript&X-Atmosphere-Transport=sse&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
         AtmosphereRequest request = new AtmosphereRequest.Builder().queryString(qs).pathInfo("/acquire").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
