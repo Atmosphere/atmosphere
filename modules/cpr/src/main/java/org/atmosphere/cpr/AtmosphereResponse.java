@@ -879,9 +879,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (r != null) {
             AtmosphereResourceImpl.class.cast(r).notifyListeners(
                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
+            // Don't take any risk and remove it.
+            r.getAtmosphereConfig().resourcesFactory().remove(uuid);
         }
-        // Don't take any risk and remove it.
-        r.getAtmosphereConfig().resourcesFactory().remove(uuid);
         logger.trace("{} unexpected I/O exception", uuid, ex);
     }
 
