@@ -595,6 +595,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (resource == null) {
             logger.trace("Already closed {}", webSocket);
         } else {
+            final boolean allowedToClose = allowedCloseCode(closeCode);
+
             final AtmosphereRequest r = resource.getRequest(false);
             final AtmosphereResponse s = resource.getResponse(false);
             boolean ff = r.getAttribute("firefox") != null;
@@ -610,7 +612,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (!resource.getAtmosphereResourceEvent().isClosedByApplication() && !resource.isCancelled()) {
                     // See https://github.com/Atmosphere/atmosphere/issues/1590
                     // Better to call onDisconnect that onResume.
-                    if (allowedCloseCode(closeCode)) {
+                    if (allowedToClose) {
                         if (ff || closingTime > 0) {
                             completeLifecycle = false;
                             logger.debug("Delaying closing operation for firefox and resource {}", resource.uuid());
@@ -618,7 +620,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                 @Override
                                 public Object call() throws Exception {
                                     executeClose(webSocket, 1005);
-                                    finish(webSocket, resource, r, s);
+                                    finish(webSocket, resource, r, s, allowedToClose);
                                     return null;
                                 }
                             }, ff ? (closingTime == 0 ? 1000 : closingTime) : closingTime, TimeUnit.MILLISECONDS);
@@ -635,7 +637,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             } finally {
                 if (completeLifecycle) {
-                    finish(webSocket, resource, r, s);
+                    finish(webSocket, resource, r, s, allowedToClose);
                 }
             }
         }
@@ -645,7 +647,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return closeCode < 1002 || closeCode > 1004 ? true : false;
     }
 
-    private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s) {
+    private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s, boolean allowedToClose) {
         // Don't take any risk in case something goes wrong and remove the associated resource.
         framework.atmosphereFactory().remove(resource.uuid());
         if (webSocket != null) {
@@ -653,7 +655,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 r.setAttribute(WebSocket.CLEAN_CLOSE, Boolean.TRUE);
                 webSocket.resource(null);
 
-                if (webSocket.isOpen()) webSocket.close(s);
+                if (allowedToClose) webSocket.close(s);
             } catch (IOException e) {
                 logger.trace("", e);
             }
