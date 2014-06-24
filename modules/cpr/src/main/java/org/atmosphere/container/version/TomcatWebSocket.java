@@ -83,6 +83,8 @@ public class TomcatWebSocket extends WebSocket {
                 logger.trace("WebSocket.close() for AtmosphereResource {}", uuid);
                 outbound.close(1000, closeCode);
             } catch (IOException e) {
+                // https://github.com/Atmosphere/atmosphere/issues/1646
+                // Tomcat will go in limbo
                 logger.trace("", e);
             }
         } else {
