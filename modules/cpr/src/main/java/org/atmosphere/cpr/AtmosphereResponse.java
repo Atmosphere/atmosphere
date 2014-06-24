@@ -844,16 +844,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (resource() != null && resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
             try {
                 if (isUsingStream()) {
-                    try {
-                        getOutputStream().close();
-                    } catch (java.lang.IllegalStateException ex) {
-                        logger.trace("", ex);
-                    }
+                    getOutputStream().close();
                 } else {
                     getWriter().close();
                 }
-            } catch (IOException e) {
-                logger.trace("", e);
+            } catch (Exception e) {
+                //https://github.com/Atmosphere/atmosphere/issues/1643
+                logger.trace("Unexpected exception", e);
             }
         }
     }
@@ -1092,6 +1089,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     /**
      * Return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()} used by this object.
+     *
      * @return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()} used by this object.
      */
     public String uuid() {
