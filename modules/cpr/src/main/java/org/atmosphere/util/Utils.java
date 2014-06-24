@@ -45,10 +45,9 @@ public final class Utils {
 
     public final static boolean webSocketEnabled(HttpServletRequest request) {
 
-        if (closeMessage(request)) return false;
+        if (closeMessage(request) || !webSocketQueryStringPresentOrNull(request)) return false;
 
         boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
-
         if (allowWebSocketWithoutHeaders) return true;
 
         boolean webSocketEnabled = false;
@@ -88,6 +87,16 @@ public final class Utils {
                 return true;
             default:
                 return false;
+        }
+    }
+
+    public final static boolean webSocketQueryStringPresentOrNull(HttpServletRequest request) {
+        String transport = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (transport == null) {
+            // ignore so other framework client can work
+            return true;
+        } else {
+            return transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT);
         }
     }
 
