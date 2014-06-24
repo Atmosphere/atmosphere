@@ -188,7 +188,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     public void destroy(boolean force) {
         if (!force) return;
-        logger.trace("{} destroyed", this.hashCode());
+        logger.trace("{} destroyed", uuid);
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
@@ -882,7 +882,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             // Don't take any risk and remove it.
             r.getAtmosphereConfig().resourcesFactory().remove(uuid);
         }
-        logger.trace("{} unexpected I/O exception", uuid, ex);
+        logger.trace("{} unexpected I/O exception {}", uuid, ex);
     }
 
     /**

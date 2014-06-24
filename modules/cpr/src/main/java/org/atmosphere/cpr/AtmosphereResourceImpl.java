@@ -603,7 +603,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 if (!disconnected.getAndSet(true)) {
                     onDisconnect(event);
                 }else {
-                    logger.trace("Already disconnected {}", event.getResource().uuid());
+                    logger.trace("Skipping notification, already disconnected {}", event.getResource().uuid());
                 }
             } else if (event.isResuming() || event.isResumedOnTimeout()) {
                 onResume(event);

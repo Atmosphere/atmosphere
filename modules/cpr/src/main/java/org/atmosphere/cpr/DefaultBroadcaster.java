@@ -1095,8 +1095,8 @@ public class DefaultBroadcaster implements Broadcaster {
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
         logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster {}", ar.uuid(), getID());
-        logger.trace("NotifyAndCache " , notifyAndCache);
-        logger.trace("", t);
+        logger.trace("NotifyAndCache {} " , notifyAndCache);
+        logger.trace("{}", t);
 
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
