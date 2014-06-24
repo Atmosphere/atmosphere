@@ -107,7 +107,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             AtmosphereResourceImpl.class.cast(r).cloneState(this.r);
         }
         this.r = r;
-        uuid = r.uuid();
+        if (r != null) uuid = r.uuid();
         return this;
     }
 
