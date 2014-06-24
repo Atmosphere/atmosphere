@@ -189,8 +189,8 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to dispatch
-     * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
-     * of size 1 is used if this method is not invoked.
+     * {@link AtmosphereResourceEvent}. By default, the result of {@link ExecutorsFactory#getMessageDispatcher(AtmosphereConfig, String)}
+     * is used if this method is not invoked.
      *
      * @param executorService to be used when broadcasting.
      */
@@ -200,8 +200,8 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to dispatch
-     * {@link AtmosphereResourceEvent}. By default, an {@link Executors#newFixedThreadPool}
-     * of size 1 is used if this method is not invoked.
+     * {@link AtmosphereResourceEvent}. By default, the result of {@link ExecutorsFactory#getMessageDispatcher(AtmosphereConfig, String)}
+     * is used if this method is not invoked.
      *
      * @param executorService  to be used when broadcasting.
      * @param isExecutorShared true if the life cycle of the {@link ExecutorService} will be executed by the application.
@@ -219,7 +219,7 @@ public class BroadcasterConfig {
 
     /**
      * Return the {@link ExecutorService} this {@link Broadcaster} supports.
-     * By default it returns an {@link java.util.concurrent.Executors#newFixedThreadPool(int)} of size 1.
+     * By default it returns the result of {@link ExecutorsFactory#getMessageDispatcher(AtmosphereConfig, String)}}.
      *
      * @return An ExecutorService.
      */
@@ -229,7 +229,7 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to write
-     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
      * is used if this method is not invoked.
      *
      * @param asyncWriteService to be used when writing events.
@@ -240,7 +240,7 @@ public class BroadcasterConfig {
 
     /**
      * Set an {@link ExecutorService} which can be used to write
-     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, an {@link Executors#newFixedThreadPool}
+     * {@link org.atmosphere.cpr.AtmosphereResourceEvent#getMessage()}. By default, the result of {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}
      * is used if this method is not invoked.
      *
      * @param asyncWriteService     to be used when writing events.
@@ -259,7 +259,7 @@ public class BroadcasterConfig {
 
     /**
      * Return the {@link ExecutorService} this {@link Broadcaster} use for executing asynchronous write of events.
-     * By default it returns an {@link java.util.concurrent.Executors#newCachedThreadPool()} of size 1.
+     * By default it returns the result of {@link ExecutorsFactory#getAsyncOperationExecutor(AtmosphereConfig, String)}.
      *
      * @return An ExecutorService.
      */
