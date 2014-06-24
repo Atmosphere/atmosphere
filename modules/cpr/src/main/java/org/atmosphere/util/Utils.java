@@ -35,7 +35,10 @@ public final class Utils {
 
     public final static boolean webSocketEnabled(HttpServletRequest request) {
 
+        if (closeMessage(request)) return false;
+
         boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
+
         if (allowWebSocketWithoutHeaders) return true;
 
         boolean webSocketEnabled = false;
@@ -126,7 +129,7 @@ public final class Utils {
         return isWebSocket ? isOK : true;
     }
 
-    public static final boolean closeMessage(AtmosphereRequest request) {
+    public static final boolean closeMessage(HttpServletRequest request) {
         String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         if (s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT)) {
             return true;
