@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.Serializable;
+import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -51,6 +52,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
     protected String methodType = "POST";
     protected String delimiter = "@@";
     protected boolean destroyable;
+    protected boolean rewriteUri;
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -73,11 +75,9 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         this.delimiter = delimiter;
 
         String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-        if (s != null && Boolean.valueOf(s)) {
-            destroyable = true;
-        } else {
-            destroyable = false;
-        }
+        destroyable = s != null && Boolean.valueOf(s);
+
+        rewriteUri = Boolean.valueOf(config.getInitParameter(ApplicationConfig.REWRITE_WEBSOCKET_REQUESTURI, "true"));
     }
 
     @Override
@@ -93,6 +93,14 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
+
+        // This confuse some JAXRS servers like RestEasy
+        if (rewriteUri && (requestURI.startsWith("http://") || requestURI.startsWith("https://"))) {
+            logger.debug("Rewriting requestURI {}. To disable, add {} set to true as init-param",
+                    requestURI, ApplicationConfig.REWRITE_WEBSOCKET_REQUESTURI);
+            requestURI = URI.create(requestURI).getPath();
+            request.requestURI(requestURI);
+        }
 
         if (message.startsWith(delimiter)) {
             int delimiterLength = delimiter.length();
