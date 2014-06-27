@@ -249,6 +249,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     @Override
     public synchronized void destroy() {
+        // Invalid state
+        if (config == null) return;
 
         String s = config.getInitParameter(ApplicationConfig.SHARED);
         if (s != null && s.equalsIgnoreCase("true")) {
