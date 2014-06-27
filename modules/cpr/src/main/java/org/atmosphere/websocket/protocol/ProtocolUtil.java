@@ -50,7 +50,11 @@ public class ProtocolUtil {
     private static Map<String, Object> attributes(AtmosphereRequest request) {
         Map<String, Object> m = new ConcurrentHashMap<String, Object>();
         m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
-        m.putAll(request.attributes());
+        for (Map.Entry<String, Object> e : request.attributes().entrySet()) {
+            if (e.getKey() != null) {
+                m.put(e.getKey(), e.getValue());
+            }
+        }
         return m;
     }
 }

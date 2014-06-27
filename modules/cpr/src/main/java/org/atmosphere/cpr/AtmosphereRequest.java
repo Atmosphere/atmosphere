@@ -84,6 +84,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
     private AtomicBoolean streamSet = new AtomicBoolean();
     private AtomicBoolean readerSet = new AtomicBoolean();
+    private String uuid;
 
     private AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
@@ -645,6 +646,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
+    public AtmosphereRequest requestURI(String requestURI) {
+        b.requestURI = requestURI;
+        return this;
+    }
+
     private final static class ByteInputStream extends ServletInputStream {
 
         private final ByteArrayInputStream bis;
@@ -920,7 +926,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public boolean isAsyncSupported() {
-        return b.request.isAsyncSupported();
+        try {
+            return b.request.isAsyncSupported();
+        } catch(Exception ex) {
+            // Servlet 2.5 incompatible API.
+            logger.trace("", ex);
+            return false;
+        }
     }
 
     /**
@@ -968,10 +980,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     /**
-     * The {@link AtmosphereResource} associated with this request. If the request hasn't been suspended, this
-     * method will return null.
+     * The {@link AtmosphereResource} associated with this request.
      *
-     * @return an {@link AtmosphereResource}, or null if no resource has ben associated yet.
+     * @return an {@link AtmosphereResource}
      */
     public AtmosphereResource resource() {
         return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);

@@ -588,10 +588,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.isEmpty()) {
-            logger.trace("NO listener with {}", event);
+            logger.trace("No listener with {}", uuid);
             return this;
         }
-        logger.trace("Invoking listener with {}", event);
+        logger.trace("Invoking listener {} for {}", listeners, uuid);
 
         Action oldAction = action;
         try {
@@ -602,6 +602,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             } else if (event.isCancelled() || event.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
                     onDisconnect(event);
+                }else {
+                    logger.trace("Skipping notification, already disconnected {}", event.getResource().uuid());
                 }
             } else if (event.isResuming() || event.isResumedOnTimeout()) {
                 onResume(event);
@@ -724,7 +726,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         try {
             if (!isCancelled.getAndSet(true)) {
                 suspended.set(false);
-                logger.debug("Cancelling {}", uuid);
+                logger.trace("Cancelling {}", uuid);
 
                 if (config.getBroadcasterFactory() != null) {
                     config.getBroadcasterFactory().removeAllAtmosphereResource(this);
@@ -760,7 +762,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
                     AtmosphereRequest.class.cast(req).destroy();
                 }
-                req.removeAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
                 event.destroy();
             }
         } finally {
@@ -769,7 +770,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private void unregister() {
-        config.resourcesFactory().unRegisterUuidForFindCandidate(this);
+        config.resourcesFactory().remove(uuid);
     }
 
     public void _destroy() {
@@ -802,7 +803,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     ",\n\t isCancelled=" + isCancelled() +
                     ",\n\t isSuspended=" + isSuspended() +
                     ",\n\t broadcaster=" + broadcaster.getID() + " size: " + broadcaster.getAtmosphereResources().size() +
-                    ",\n\t atmosphereHandler=" + atmosphereHandler +
+                    ",\n\t isClosedByClient=" + (event != null ? event.isClosedByClient() : false) +
+                    ",\n\t isClosedByApplication=" + (event != null ? event.isClosedByApplication() : false) +
                     ",\n\t action=" + action +
                     '}';
         } catch (NullPointerException ex) {

@@ -58,6 +58,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     private WebSocketHandler webSocketHandler;
     protected ByteBuffer bb = ByteBuffer.allocate(8192);
     protected CharBuffer cb = CharBuffer.allocate(8192);
+    protected String uuid = "NUll";
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
@@ -106,6 +107,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             AtmosphereResourceImpl.class.cast(r).cloneState(this.r);
         }
         this.r = r;
+        if (r != null) uuid = r.uuid();
         return this;
     }
 
@@ -149,8 +151,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             return this;
         }
 
-        if (!isOpen()) throw new IOException("Connection remotely closed for " + r != null ? r.uuid() : "Null");
-        logger.trace("WebSocket.write()");
+        if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
+        logger.trace("WebSocket.write() {}", data);
 
         boolean transform = filters.size() > 0 && r.getStatus() < 400;
         if (binaryWrite) {
@@ -192,9 +194,12 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             logger.error("Cannot write null value for {}", resource());
             return this;
         }
-        if (!isOpen()) throw new IOException("Connection remotely closed for " + r != null ? r.uuid() : "Null");
+        if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
 
-        logger.trace("WebSocket.write()");
+        if (logger.isTraceEnabled()) {
+            logger.trace("WebSocket.write() {}", new String(b, offset, length, "UTF-8"));
+        }
+
         boolean transform = filters.size() > 0 && r.getStatus() < 400;
         if (binaryWrite || resource().forceBinaryWrite()) {
             if (transform) {
@@ -242,7 +247,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         super.writeError(r, errorCode, message);
         if (!firstWrite.get()) {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} " +
-                    "The WebSocket connection is still open and client can continue sending messages.", errorCode + " " + message, retrieveUUID());
+                    "The WebSocket connection is still open and client can continue sending messages.", errorCode + " " + message, uuid());
         } else {
             logger.debug("{} {}", errorCode, message);
         }
@@ -259,10 +264,18 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
     @Override
     public void close(AtmosphereResponse r) throws IOException {
-        logger.trace("WebSocket.close()");
-        if (r.request() != null && r.request().getAttribute(CLEAN_CLOSE) == null) {
-            close();
+        logger.trace("WebSocket.close() for {}", uuid);
+
+        try {
+            // Never trust underlying server.
+            // https://github.com/Atmosphere/atmosphere/issues/1633
+            if (r.request() != null && r.request().getAttribute(CLEAN_CLOSE) == null) {
+                close();
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
         }
+
         try {
             bb.clear();
             cb.clear();
@@ -309,8 +322,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
      */
     abstract public void close();
 
-    protected String retrieveUUID() {
-        return r == null ? "null" : r.uuid();
+    protected String uuid() {
+        return uuid;
     }
 
     public static void notSupported(AtmosphereRequest request, AtmosphereResponse response) throws IOException {

@@ -390,7 +390,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
 
-            }, time, time, lifeCyclePolicy.getTimeUnit());
+            }, 0, time, lifeCyclePolicy.getTimeUnit());
             ref.set(currentLifecycleTask);
         }
     }
@@ -683,6 +683,7 @@ public class DefaultBroadcaster implements Broadcaster {
         deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache != null ? cache.uuid() : BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
 
         if (resources.isEmpty()) {
+            logger.trace("No resource available for {} and message {}", getID(), finalMsg);
             entryDone(deliver.future);
             return;
         }
@@ -1093,9 +1094,12 @@ public class DefaultBroadcaster implements Broadcaster {
     public void onException(Throwable t, final AtmosphereResource ar, boolean notifyAndCache) {
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
+        logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster {}", ar.uuid(), getID());
+        logger.trace("NotifyAndCache {} " , notifyAndCache);
+        logger.trace("{}", t);
+
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
-        logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster " + name, ar.uuid(), t);
 
         if (notifyAndCache) {
             final AtmosphereResourceEventImpl event = r.getAtmosphereResourceEvent();
@@ -1117,7 +1121,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 @Override
                 public void run() {
                     try {
+                        logger.trace("Forcing connection close {}", ar.uuid());
                         r.resume();
+                        r.close();
                     } catch (Throwable t) {
                         logger.trace("Was unable to resume a corrupted AtmosphereResource {}", r);
                         logger.trace("Cause", t);

@@ -144,15 +144,26 @@ public class JSR356Endpoint extends Endpoint {
 
             // https://issues.apache.org/bugzilla/show_bug.cgi?id=56573
             // https://java.net/jira/browse/WEBSOCKET_SPEC-228
-            if ( (!requestUri.startsWith("http://")) || (!requestUri.startsWith("https://")) ) {
-            	if (requestUri.startsWith("/")){
-                	String origin = ((List<String>)handshakeRequest.getHeaders().get("origin")).get(0);
-                	requestUri = new StringBuilder(origin).append(requestUri).toString();
-            	} else if (requestUri.startsWith("ws://")){
-            		requestUri = requestUri.replace("ws://", "http://");
-            	} else if (requestUri.startsWith("wss://")){
-            		requestUri = requestUri.replace("wss://", "https://"); 
-            	}
+            if ((!requestUri.startsWith("http://")) || (!requestUri.startsWith("https://"))) {
+                if (requestUri.startsWith("/")) {
+                    List<String> l = handshakeRequest.getHeaders().get("origin");
+                    if (l == null) {
+                        // https://issues.jboss.org/browse/UNDERTOW-252
+                        l = handshakeRequest.getHeaders().get("Origin");
+                    }
+                    String origin;
+                    if (l.size() > 0) {
+                        origin = l.get(0);
+                    } else {
+                        // Broken WebSocket Spec
+                        origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").append(requestUri).toString();
+                    }
+                    requestUri = new StringBuilder(origin).append(requestUri).toString();
+                } else if (requestUri.startsWith("ws://")) {
+                    requestUri = requestUri.replace("ws://", "http://");
+                } else if (requestUri.startsWith("wss://")) {
+                    requestUri = requestUri.replace("wss://", "https://");
+                }
             }
 
             request = new AtmosphereRequest.Builder()
@@ -175,6 +186,21 @@ public class JSR356Endpoint extends Endpoint {
 
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 
+            session.addMessageHandler(new MessageHandler.Whole<String>() {
+                @Override
+                public void onMessage(String s) {
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
+                }
+            });
+
+            session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
+                @Override
+                public void onMessage(ByteBuffer bb) {
+                    byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+                    bb.get(b);
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
+                }
+            });
         } catch (Throwable e) {
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
@@ -185,28 +211,15 @@ public class JSR356Endpoint extends Endpoint {
             return;
         }
 
-        session.addMessageHandler(new MessageHandler.Whole<String>() {
-            @Override
-            public void onMessage(String s) {
-                webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
-            }
-        });
-
-        session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
-            @Override
-            public void onMessage(ByteBuffer bb) {
-                byte[] b = new byte[bb.limit()];
-                bb.get(b);
-                webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
-            }
-        });
     }
 
     @Override
     public void onClose(javax.websocket.Session session, javax.websocket.CloseReason closeCode) {
         logger.trace("{} closed {}", session, closeCode);
-        request.destroy();
-        webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
+        if (request != null) {
+            request.destroy();
+            webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
+        }
     }
 
     @Override

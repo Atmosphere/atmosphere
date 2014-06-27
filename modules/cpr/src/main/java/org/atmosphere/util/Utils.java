@@ -20,10 +20,15 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.Enumeration;
 
+import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
@@ -33,7 +38,14 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  */
 public final class Utils {
 
+    /**
+     * The logger.
+     */
+    private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+
     public final static boolean webSocketEnabled(HttpServletRequest request) {
+
+        if (closeMessage(request) || !webSocketQueryStringPresentOrNull(request)) return false;
 
         boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
         if (allowWebSocketWithoutHeaders) return true;
@@ -78,6 +90,16 @@ public final class Utils {
         }
     }
 
+    public final static boolean webSocketQueryStringPresentOrNull(HttpServletRequest request) {
+        String transport = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        if (transport == null) {
+            // ignore so other framework client can work
+            return true;
+        } else {
+            return transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT);
+        }
+    }
+
     public final static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case JSONP:
@@ -113,18 +135,12 @@ public final class Utils {
 
     public final static boolean atmosphereProtocol(AtmosphereRequest r) {
         String p = r.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
-        if (p != null && Boolean.valueOf(p)) {
-            return true;
-        }
-        return false;
+        return (p != null && Boolean.valueOf(p));
     }
 
     public final static boolean webSocketMessage(AtmosphereResource r) {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
-        if (request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null) {
-            return true;
-        }
-        return false;
+        return request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null;
     }
 
     public static boolean properProtocol(HttpServletRequest request) {
@@ -144,5 +160,42 @@ public final class Utils {
             }
         }
         return isWebSocket ? isOK : true;
+    }
+
+    public static final AtmosphereResource websocketResource(AtmosphereResource r) {
+        String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+        if (parentUUID != null) {
+            r = r.getAtmosphereConfig().resourcesFactory().find(parentUUID);
+        }
+        return r;
+    }
+
+    public static final boolean closeMessage(HttpServletRequest request) {
+        String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
+        return s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE);
+    }
+
+    /**
+     * <p>
+     * Manages the invocation of the given method on the specified 'proxied' instance. Logs any invocation failure.
+     * </p>
+     *
+     * @param proxiedInstance the instance
+     * @param m the method to invoke that belongs to the instance
+     * @param o the optional parameter
+     * @return the result of the invocation
+     */
+    public static Object invoke(final Object proxiedInstance, Method m, Object o) {
+        if (m != null) {
+            try {
+                return m.invoke(proxiedInstance, o == null ? new Object[]{} : new Object[]{o});
+            } catch (IllegalAccessException e) {
+                LOGGER.debug("", e);
+            } catch (InvocationTargetException e) {
+                LOGGER.debug("", e);
+            }
+        }
+        LOGGER.trace("No Method Mapped for {}", o);
+        return null;
     }
 }

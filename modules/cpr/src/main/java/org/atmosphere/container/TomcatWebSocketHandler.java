@@ -31,6 +31,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.nio.CharBuffer;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class TomcatWebSocketHandler extends StreamInbound {
 
@@ -41,6 +42,8 @@ public class TomcatWebSocketHandler extends StreamInbound {
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
+    // Tomcat may invoke onClose several time.
+    private final AtomicBoolean isClosed = new AtomicBoolean();
 
     public TomcatWebSocketHandler(AtmosphereRequest request, AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.request = request;
@@ -74,7 +77,8 @@ public class TomcatWebSocketHandler extends StreamInbound {
 
     @Override
     protected void onClose(int closeCode) {
-        if (webSocketProcessor == null) return;
+        if (webSocketProcessor == null || isClosed.getAndSet(true)) return;
+
         logger.trace("onClose {}", closeCode);
         try {
             webSocketProcessor.close(webSocket, closeCode);

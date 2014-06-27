@@ -19,6 +19,8 @@ import org.apache.catalina.websocket.WsOutbound;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.nio.ByteBuffer;
@@ -31,6 +33,8 @@ import java.util.concurrent.atomic.AtomicBoolean;
  * @author Jeanfrancois Arcand
  */
 public class TomcatWebSocket extends WebSocket {
+
+    private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocket.class);
 
     private final WsOutbound outbound;
     private AtomicBoolean isOpen = new AtomicBoolean(true);
@@ -49,41 +53,45 @@ public class TomcatWebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
-        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
+        logger.trace("WebSocket.write() for {}", uuid);
         outbound.writeTextMessage(CharBuffer.wrap(s));
         return this;
     }
 
     @Override
     public WebSocket write(byte[] b, int offset, int length) throws IOException {
-        logger.trace("WebSocket.write() for {}", resource() != null ? resource().uuid() : "");
+        logger.trace("WebSocket.write() for {}", uuid);
         outbound.writeBinaryMessage(ByteBuffer.wrap(b, offset, length));
         return this;
     }
 
     @Override
     public void close() {
-        isOpen.set(false);
-
-        if (!isClosed.getAndSet(true)) {
-            try {
-                logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
-                outbound.close(1000, closeCode);
-            } catch (IOException e) {
-                logger.trace("", e);
-            }
-        }
+        close(uuid());
     }
 
     @Override
     public void close(AtmosphereResponse r) throws IOException {
+        close(r.uuid());
+    }
+
+    void close(String uuid) {
         isOpen.set(false);
 
         if (!isClosed.getAndSet(true)) {
-            logger.trace("WebSocket.close()");
-            outbound.close(1000, closeCode);
+            try {
+                logger.trace("WebSocket.close() for AtmosphereResource {}", uuid);
+                outbound.close(1000, closeCode);
+            } catch (IOException e) {
+                // https://github.com/Atmosphere/atmosphere/issues/1646
+                // Tomcat will go in limbo
+                logger.trace("", e);
+            }
+        } else {
+            logger.trace("Already closed {}", uuid);
         }
     }
+
 
     @Override
     public WebSocket flush(AtmosphereResponse r) throws IOException {

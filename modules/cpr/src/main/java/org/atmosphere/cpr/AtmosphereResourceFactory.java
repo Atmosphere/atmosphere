@@ -286,8 +286,10 @@ public final class AtmosphereResourceFactory {
      * @param r {@link AtmosphereResource}
      */
     public void unRegisterUuidForFindCandidate(AtmosphereResource r) {
-        logger.trace("Removing: {}", r);
-        resources.remove(r.uuid());
+        Object o = resources.remove(r.uuid());
+        if (o != null) {
+            logger.trace("Removing: {}", r);
+        }
     }
 
     public void destroy() {

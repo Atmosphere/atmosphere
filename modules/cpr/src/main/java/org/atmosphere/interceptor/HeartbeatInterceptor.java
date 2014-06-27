@@ -16,7 +16,6 @@
 package org.atmosphere.interceptor;
 
 import org.atmosphere.HeartbeatAtmosphereResourceEvent;
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
@@ -27,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
@@ -49,13 +49,13 @@ import java.util.concurrent.TimeUnit;
  * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config. The heartbeat will be scheduled as soon as the
  * request is suspended.
  * </p>
- *
+ * <p/>
  * <p>
  * Moreover, any client can ask for a particular value with the {@link HeaderConfig#X_HEARTBEAT_SERVER} header set in
  * request. This value will be taken in consideration if it is greater than the configured value. Client can also
  * specify the value "0" to disable heartbeat.
  * </p>
- *
+ * <p/>
  * <p>
  * Finally the server notifies thanks to the {@link JavaScriptProtocol} the desired heartbeat interval that the client
  * should applies. This interceptor just manage the configured value and the {@link JavaScriptProtocol protocol} sends
@@ -152,16 +152,42 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
+        final AtmosphereRequest request = r.getRequest();
+        final AtmosphereResponse response = r.getResponse();
+
+        // Check heartbeat
+        if (clientHeartbeatFrequencyInSeconds > 0) {
+            byte[] body = IOUtils.readEntirelyAsByte(r);
+
+            if (Arrays.equals(paddingBytes, body)) {
+                // Dispatch an event to notify that a heartbeat has been intercepted
+                // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
+                final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent(AtmosphereResourceImpl.class.cast(r));
+
+                if (AtmosphereResourceHeartbeatEventListener.class.isAssignableFrom(r.getAtmosphereHandler().getClass())) {
+                    r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnHeartbeat() {
+                        @Override
+                        public void onHeartbeat(AtmosphereResourceEvent event) {
+                            AtmosphereResourceHeartbeatEventListener.class.cast(r.getAtmosphereHandler()).onHeartbeat(event);
+                        }
+                    });
+                }
+
+                // Fire event
+                r.notifyListeners(event);
+
+                return Action.CANCELLED;
+            }
+
+            request.body(body);
+        }
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
         final int interval = extractHeartbeatInterval(r);
 
         if (interval != 0) {
-            final AtmosphereResponse response = r.getResponse();
-            final AtmosphereRequest request = r.getRequest();
-
-            if (!Utils.pollableTransport(r.transport())){
+            if (!Utils.pollableTransport(r.transport())) {
                 super.inspect(r);
                 final boolean wasSuspended = r.isSuspended();
 
@@ -200,7 +226,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                 return Action.CONTINUE;
             }
 
-            AsyncIOWriter writer = response.getAsyncIOWriter();
+            final AsyncIOWriter writer = response.getAsyncIOWriter();
 
             if (!Utils.resumableTransport(r.transport())
                     && AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())
@@ -220,32 +246,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     }
                 });
                 r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
-            } else {
-                byte[] body = IOUtils.readEntirelyAsByte(r);
-
-                if (Arrays.equals(paddingBytes, body)) {
-                    // Dispatch an event to notify that a heartbeat has been intercepted
-                    // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
-                    final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent(AtmosphereResourceImpl.class.cast(r));
-
-                    // Currently we fire heartbeat notification only for managed handler
-                    if (r.getAtmosphereHandler().getClass().isAssignableFrom(ManagedAtmosphereHandler.class)) {
-                        r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnHeartbeat() {
-                            @Override
-                            public void onHeartbeat(AtmosphereResourceEvent event) {
-                                ManagedAtmosphereHandler.class.cast(r.getAtmosphereHandler()).onHeartbeat(event);
-                            }
-                        });
-                    }
-
-                    // Fire event
-                    r.notifyListeners(event);
-
-                    return Action.CANCELLED;
-                }
-
-                request.body(body);
             }
+
         }
 
         return Action.CONTINUE;
@@ -299,8 +301,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
      * </p>
      *
      * @param interval the interval in seconds
-     * @param r the resource
-     * @param request the request response
+     * @param r        the resource
+     * @param request  the request response
      * @param response the resource response
      * @return this
      */
@@ -311,21 +313,23 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
             @Override
             public Object call() throws Exception {
-                if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
-                    try {
-                        logger.trace("Heartbeat for Resource {}", r);
-                        response.write(paddingBytes, false);
-                        if (Utils.resumableTransport(r.transport())) {
-                            r.resume();
-                        } else {
-                            response.flushBuffer();
+                synchronized (r) {
+                    if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
+                        try {
+                            logger.trace("Heartbeat for Resource {}", r);
+                            response.write(paddingBytes, false);
+                            if (Utils.resumableTransport(r.transport())) {
+                                r.resume();
+                            } else {
+                                response.flushBuffer();
+                            }
+                        } catch (Throwable t) {
+                            logger.trace("{}", r.uuid(), t);
+                            cancelF(request);
                         }
-                    } catch (Throwable t) {
-                        logger.trace("{}", r.uuid(), t);
+                    } else {
                         cancelF(request);
                     }
-                } else {
-                    cancelF(request);
                 }
                 return null;
             }

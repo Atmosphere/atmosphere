@@ -42,8 +42,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * <p>
- * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}
- * and {@link HeaderConfig#X_CACHE_DATE}
+ * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}.
  * </p>
  * <p/>
  * <p>
@@ -76,6 +75,9 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource ar) {
+
+        if (Utils.webSocketMessage(ar)) return Action.CONTINUE;
+
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
         final AtmosphereRequest request = r.getRequest(false);
         final AtmosphereResponse response = r.getResponse(false);
@@ -88,7 +90,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
                 int version = Integer.valueOf(javascriptVersion.split("-")[0].replace(".", ""));
                 if (version < 221) {
-                    logger.debug("Invalid Atmosphere Version {}", javascriptVersion);
+                    logger.error("Invalid Atmosphere Version {}", javascriptVersion);
                     response.setStatus(501);
                     response.addHeader(X_ATMOSPHERE_ERROR, "Atmosphere Protocol version not supported.");
                     try {
@@ -115,10 +117,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             }
 
             // Since 1.0.10
-            final StringBuffer message = new StringBuffer(r.uuid())
-                    .append(wsDelimiter)
-                    .append(System.currentTimeMillis())
-                    .append(wsDelimiter);
+            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter);
 
             // since 2.2
             if (enforceAtmosphereVersion) {

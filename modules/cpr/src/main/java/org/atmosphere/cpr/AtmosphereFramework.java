@@ -1408,7 +1408,7 @@ public class AtmosphereFramework {
             return false;
         }
 
-        logger.warn("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
+        logger.debug("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
 
         // Atmosphere 1.1 : could add regressions
         // Jersey will itself handle the headers.
@@ -2205,7 +2205,6 @@ public class AtmosphereFramework {
                     }
                     if (!header.isEmpty()
                             && !header.toLowerCase().startsWith("x-atmo")
-                            && !header.equalsIgnoreCase("x-cache-date")
                             && !header.equalsIgnoreCase(HeaderConfig.X_HEARTBEAT_SERVER)
                             && !header.equalsIgnoreCase("Content-Type")
                             && !header.equalsIgnoreCase("_")) {
@@ -2786,23 +2785,24 @@ public class AtmosphereFramework {
     }
 
     protected void configureObjectFactory() {
-        if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {
-            logger.trace("ObjectFactory already set to {}", objectFactory);
-            return;
-        }
-
         String s = config.getInitParameter(ApplicationConfig.OBJECT_FACTORY);
         if (s != null) {
-            ClassLoader cl = Thread.currentThread().getContextClassLoader();
             try {
                 AtmosphereObjectFactory aci = (AtmosphereObjectFactory) IOUtils.loadClass(getClass(), s).newInstance();
                 if (aci != null) {
+                    logger.debug("Found ObjectFactory {}", aci.getClass().getName());
                     objectFactory(aci);
                 }
             } catch (Exception ex) {
                 logger.warn("Unable to load AtmosphereClassInstantiator instance", ex);
             }
         }
+
+        if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {
+            logger.trace("ObjectFactory already set to {}", objectFactory);
+            return;
+        }
+
     }
 
     /**

@@ -82,6 +82,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private boolean forceAsyncIOWriter = false;
     private String uuid = "0";
     private final AtomicBoolean usingStream = new AtomicBoolean(true);
+    private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -187,11 +188,16 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     public void destroy(boolean force) {
         if (!force) return;
-        logger.trace("{} destroyed", this.hashCode());
+        logger.trace("{} destroyed", uuid);
         cookies.clear();
         headers.clear();
         atmosphereRequest = null;
         asyncIOWriter = null;
+        destroyed.set(true);
+    }
+
+    public boolean destroyed() {
+        return destroyed.get();
     }
 
     @Override
@@ -462,7 +468,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     private boolean validFlushOrClose() {
         if (asyncIOWriter == null) {
-            logger.trace("AtmosphereResponse for {} has been closed", uuid);
+            logger.warn("AtmosphereResponse for {} has been closed", uuid);
             return false;
         }
         return true;
@@ -844,16 +850,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (resource() != null && resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
             try {
                 if (isUsingStream()) {
-                    try {
-                        getOutputStream().close();
-                    } catch (java.lang.IllegalStateException ex) {
-                        logger.trace("", ex);
-                    }
+                    getOutputStream().close();
                 } else {
                     getWriter().close();
                 }
-            } catch (IOException e) {
-                logger.trace("", e);
+            } catch (Exception e) {
+                //https://github.com/Atmosphere/atmosphere/issues/1643
+                logger.trace("Unexpected exception", e);
             }
         }
     }
@@ -873,8 +876,10 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (r != null) {
             AtmosphereResourceImpl.class.cast(r).notifyListeners(
                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
+            // Don't take any risk and remove it.
+            r.getAtmosphereConfig().resourcesFactory().remove(uuid);
         }
-        logger.trace("", ex);
+        logger.trace("{} unexpected I/O exception {}", uuid, ex);
     }
 
     /**
@@ -905,6 +910,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             }
         } catch (Exception ex) {
             handleException(ex);
+            throw new RuntimeException(ex);
         }
         return this;
     }
@@ -1020,6 +1026,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             }
         } catch (Exception ex) {
             handleException(ex);
+            throw new RuntimeException(ex);
         }
         return this;
     }
@@ -1092,6 +1099,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     /**
      * Return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()} used by this object.
+     *
      * @return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()} used by this object.
      */
     public String uuid() {

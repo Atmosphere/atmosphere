@@ -22,6 +22,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResource.TRANSPORT;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,10 +52,12 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(final AtmosphereResource r) {
 
-        final AtmosphereResponse response = r.getResponse();
-        String userAgent = r.getRequest().getHeader("User-Agent");
+        if (!r.transport().equals(TRANSPORT.STREAMING)) return Action.CONTINUE;
 
-        if (r.transport().equals(TRANSPORT.STREAMING) && userAgent != null &&
+        final AtmosphereResponse response = AtmosphereResourceImpl.class.cast(r).getResponse(false);
+        String userAgent = AtmosphereResourceImpl.class.cast(r).getRequest(false).getHeader("User-Agent");
+
+        if (userAgent != null &&
                 (userAgent.indexOf("Android 2.") != -1 || userAgent.indexOf("Android 3.") != -1)) {
             super.inspect(r);
 

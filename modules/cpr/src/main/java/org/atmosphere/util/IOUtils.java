@@ -343,7 +343,7 @@ public class IOUtils {
                 }
             }
         } catch (IOException e) {
-            logger.warn("Unable to read META-INF/services/{} from class loader", path, e);
+            logger.debug("Unable to read META-INF/services/{} from class loader", path, e);
         } finally {
             close(is, reader);
         }
