@@ -643,8 +643,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
     }
 
+    // Highly bogus nased on which I/O layer we are using.
     private boolean allowedCloseCode(int closeCode) {
-        return closeCode < 1002 || closeCode > 1004 ? true : false;
+        return closeCode < 1001 || closeCode > 1004 ? true : false;
     }
 
     private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s, boolean closeWebSocket) {
