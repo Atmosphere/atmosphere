@@ -26,7 +26,6 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
 import java.lang.reflect.Method;
 import java.net.URI;
 import java.util.Set;
@@ -100,6 +99,8 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
             } catch (Throwable t) {
                 super.invokeOnStateChange(r, e);
             }
+        } else {
+            super.invokeOnStateChange(r, e);
         }
     }
 
