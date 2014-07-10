@@ -109,7 +109,7 @@ public interface ApplicationConfig {
     /**
      * The default {@link org.atmosphere.cpr.BroadcasterCache} class.
      * <p/>
-     * Default: "" (Not installed by default)<br>
+     * Default: org.atmosphere.cache.DefaultBroadcasterCache (Doing nothing, not caching anything)<br>
      * Value: org.atmosphere.cpr.broadcasterCacheClass
      */
     String BROADCASTER_CACHE = ApplicationConfig.class.getPackage().getName() + ".broadcasterCacheClass";
