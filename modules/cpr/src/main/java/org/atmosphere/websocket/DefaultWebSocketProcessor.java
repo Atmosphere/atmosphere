@@ -609,7 +609,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
 
                 logger.trace("About to close AtmosphereResource for {} with code {}", resource, closeCode);
-                if (!resource.getAtmosphereResourceEvent().isClosedByApplication() && !resource.isCancelled()) {
+                if (!resource.getAtmosphereResourceEvent().isClosedByClient() && !resource.getAtmosphereResourceEvent().isClosedByApplication() && !resource.isCancelled()) {
                     // See https://github.com/Atmosphere/atmosphere/issues/1590
                     // Better to call onDisconnect that onResume.
                     if (allowedToClose) {
