@@ -309,7 +309,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         if (config.isSupportSession()
                 && req.getSession(false) != null
-                && req.getSession().getMaxInactiveInterval() != -1
+                && req.getSession().getMaxInactiveInterval() >= 0
                 && req.getSession().getMaxInactiveInterval() * 1000 < timeout) {
             throw new IllegalStateException("Cannot suspend a " +
                     "response longer than the session timeout. Increase the value of session-timeout in web.xml");
