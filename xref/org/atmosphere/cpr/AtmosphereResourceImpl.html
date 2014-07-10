@@ -319,7 +319,7 @@
 <a class="jxr_linenumber" name="309" href="#309">309</a> 
 <a class="jxr_linenumber" name="310" href="#310">310</a>         <strong class="jxr_keyword">if</strong> (config.isSupportSession()
 <a class="jxr_linenumber" name="311" href="#311">311</a>                 &amp;&amp; req.getSession(false) != <strong class="jxr_keyword">null</strong>
-<a class="jxr_linenumber" name="312" href="#312">312</a>                 &amp;&amp; req.getSession().getMaxInactiveInterval() != -1
+<a class="jxr_linenumber" name="312" href="#312">312</a>                 &amp;&amp; req.getSession().getMaxInactiveInterval() &gt;= 0
 <a class="jxr_linenumber" name="313" href="#313">313</a>                 &amp;&amp; req.getSession().getMaxInactiveInterval() * 1000 &lt; timeout) {
 <a class="jxr_linenumber" name="314" href="#314">314</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"Cannot suspend a "</span> +
 <a class="jxr_linenumber" name="315" href="#315">315</a>                     <span class="jxr_string">"response longer than the session timeout. Increase the value of session-timeout in web.xml"</span>);

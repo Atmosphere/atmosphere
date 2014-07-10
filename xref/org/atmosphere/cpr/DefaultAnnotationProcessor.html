@@ -259,7 +259,7 @@
 <a class="jxr_linenumber" name="249" href="#249">249</a>             }
 <a class="jxr_linenumber" name="250" href="#250">250</a> 
 <a class="jxr_linenumber" name="251" href="#251">251</a>             <strong class="jxr_keyword">if</strong> (handleAtmosphereAnnotation) {
-<a class="jxr_linenumber" name="252" href="#252">252</a>                 scanForCustomAnnotation(atmosphereAnnotatedClasses);
+<a class="jxr_linenumber" name="252" href="#252">252</a>                 scanForCustomAnnotation();
 <a class="jxr_linenumber" name="253" href="#253">253</a>             }
 <a class="jxr_linenumber" name="254" href="#254">254</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="255" href="#255">255</a>         }
@@ -283,112 +283,117 @@
 <a class="jxr_linenumber" name="273" href="#273">273</a>             <strong class="jxr_keyword">return</strong> scanForCustomizedAnnotation;
 <a class="jxr_linenumber" name="274" href="#274">274</a>         }
 <a class="jxr_linenumber" name="275" href="#275">275</a> 
-<a class="jxr_linenumber" name="276" href="#276">276</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> scanForCustomAnnotation(Set&lt;Class&lt;?&gt;&gt; atmosphereAnnotatedClasses) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="276" href="#276">276</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> scanForCustomAnnotation() <strong class="jxr_keyword">throws</strong> IOException {
 <a class="jxr_linenumber" name="277" href="#277">277</a>             <a href="../../../org/atmosphere/cpr/DefaultAnnotationProcessor.html">BytecodeBasedAnnotationProcessor</a> b = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/DefaultAnnotationProcessor.html">BytecodeBasedAnnotationProcessor</a>(handler);
 <a class="jxr_linenumber" name="278" href="#278">278</a>             b.configure(framework);
 <a class="jxr_linenumber" name="279" href="#279">279</a>             String path = framework.getServletContext().getRealPath(framework.getHandlersPath());
-<a class="jxr_linenumber" name="280" href="#280">280</a>             b.scan(<strong class="jxr_keyword">new</strong> File(path)).destroy();
-<a class="jxr_linenumber" name="281" href="#281">281</a>         }
-<a class="jxr_linenumber" name="282" href="#282">282</a> 
-<a class="jxr_linenumber" name="283" href="#283">283</a>         @Override
-<a class="jxr_linenumber" name="284" href="#284">284</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scan(<strong class="jxr_keyword">final</strong> String packageName) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="285" href="#285">285</a>             Set&lt;Class&lt;?&gt;&gt; atmosphereAnnotatedClasses = annotations.get(AtmosphereAnnotation.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="286" href="#286">286</a>             <strong class="jxr_keyword">boolean</strong> handleAtmosphereAnnotation = handleAtmosphereAnnotation(atmosphereAnnotatedClasses);
+<a class="jxr_linenumber" name="280" href="#280">280</a>             <strong class="jxr_keyword">if</strong> (path != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="281" href="#281">281</a>                 b.scan(<strong class="jxr_keyword">new</strong> File(path)).destroy();
+<a class="jxr_linenumber" name="282" href="#282">282</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="283" href="#283">283</a>                 logger.warn(<span class="jxr_string">"Unable to scan using File. Scanning classpath"</span>);
+<a class="jxr_linenumber" name="284" href="#284">284</a>                 b.scanAll();
+<a class="jxr_linenumber" name="285" href="#285">285</a>             }
+<a class="jxr_linenumber" name="286" href="#286">286</a>         }
 <a class="jxr_linenumber" name="287" href="#287">287</a> 
-<a class="jxr_linenumber" name="288" href="#288">288</a>             <strong class="jxr_keyword">for</strong> (Map.Entry&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt;, Set&lt;Class&lt;?&gt;&gt;&gt; entry : annotations.entrySet()) {
-<a class="jxr_linenumber" name="289" href="#289">289</a>                 <strong class="jxr_keyword">for</strong> (Class&lt;?&gt; clazz : entry.getValue()) {
-<a class="jxr_linenumber" name="290" href="#290">290</a>                     <strong class="jxr_keyword">if</strong> (packageName.equals(<span class="jxr_string">"all"</span>) || clazz.getPackage().getName().startsWith(packageName)) {
-<a class="jxr_linenumber" name="291" href="#291">291</a>                         handler.handleAnnotation(framework, entry.getKey(), clazz);
-<a class="jxr_linenumber" name="292" href="#292">292</a>                     }
-<a class="jxr_linenumber" name="293" href="#293">293</a>                 }
-<a class="jxr_linenumber" name="294" href="#294">294</a>             }
-<a class="jxr_linenumber" name="295" href="#295">295</a> 
-<a class="jxr_linenumber" name="296" href="#296">296</a>             <strong class="jxr_keyword">if</strong> (handleAtmosphereAnnotation) {
-<a class="jxr_linenumber" name="297" href="#297">297</a>                 scanForCustomAnnotation(atmosphereAnnotatedClasses);
-<a class="jxr_linenumber" name="298" href="#298">298</a>             }
-<a class="jxr_linenumber" name="299" href="#299">299</a> 
-<a class="jxr_linenumber" name="300" href="#300">300</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="301" href="#301">301</a>         }
-<a class="jxr_linenumber" name="302" href="#302">302</a> 
-<a class="jxr_linenumber" name="303" href="#303">303</a>         @Override
-<a class="jxr_linenumber" name="304" href="#304">304</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scanAll() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="305" href="#305">305</a>             <strong class="jxr_keyword">return</strong> scan(<span class="jxr_string">"all"</span>);
+<a class="jxr_linenumber" name="288" href="#288">288</a>         @Override
+<a class="jxr_linenumber" name="289" href="#289">289</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scan(<strong class="jxr_keyword">final</strong> String packageName) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="290" href="#290">290</a>             Set&lt;Class&lt;?&gt;&gt; atmosphereAnnotatedClasses = annotations.get(AtmosphereAnnotation.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="291" href="#291">291</a>             <strong class="jxr_keyword">boolean</strong> handleAtmosphereAnnotation = handleAtmosphereAnnotation(atmosphereAnnotatedClasses);
+<a class="jxr_linenumber" name="292" href="#292">292</a> 
+<a class="jxr_linenumber" name="293" href="#293">293</a>             <strong class="jxr_keyword">for</strong> (Map.Entry&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt;, Set&lt;Class&lt;?&gt;&gt;&gt; entry : annotations.entrySet()) {
+<a class="jxr_linenumber" name="294" href="#294">294</a>                 <strong class="jxr_keyword">for</strong> (Class&lt;?&gt; clazz : entry.getValue()) {
+<a class="jxr_linenumber" name="295" href="#295">295</a>                     <strong class="jxr_keyword">if</strong> (packageName.equals(<span class="jxr_string">"all"</span>) || clazz.getPackage().getName().startsWith(packageName)) {
+<a class="jxr_linenumber" name="296" href="#296">296</a>                         handler.handleAnnotation(framework, entry.getKey(), clazz);
+<a class="jxr_linenumber" name="297" href="#297">297</a>                     }
+<a class="jxr_linenumber" name="298" href="#298">298</a>                 }
+<a class="jxr_linenumber" name="299" href="#299">299</a>             }
+<a class="jxr_linenumber" name="300" href="#300">300</a> 
+<a class="jxr_linenumber" name="301" href="#301">301</a>             <strong class="jxr_keyword">if</strong> (handleAtmosphereAnnotation) {
+<a class="jxr_linenumber" name="302" href="#302">302</a>                 scanForCustomAnnotation();
+<a class="jxr_linenumber" name="303" href="#303">303</a>             }
+<a class="jxr_linenumber" name="304" href="#304">304</a> 
+<a class="jxr_linenumber" name="305" href="#305">305</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="306" href="#306">306</a>         }
 <a class="jxr_linenumber" name="307" href="#307">307</a> 
 <a class="jxr_linenumber" name="308" href="#308">308</a>         @Override
-<a class="jxr_linenumber" name="309" href="#309">309</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
-<a class="jxr_linenumber" name="310" href="#310">310</a>             annotations.clear();
+<a class="jxr_linenumber" name="309" href="#309">309</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scanAll() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="310" href="#310">310</a>             <strong class="jxr_keyword">return</strong> scan(<span class="jxr_string">"all"</span>);
 <a class="jxr_linenumber" name="311" href="#311">311</a>         }
-<a class="jxr_linenumber" name="312" href="#312">312</a>     }
-<a class="jxr_linenumber" name="313" href="#313">313</a> 
-<a class="jxr_linenumber" name="314" href="#314">314</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultAnnotationProcessor.html">BytecodeBasedAnnotationProcessor</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> {
-<a class="jxr_linenumber" name="315" href="#315">315</a> 
-<a class="jxr_linenumber" name="316" href="#316">316</a>         <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/util/annotation/AnnotationDetector.html">AnnotationDetector</a> detector;
-<a class="jxr_linenumber" name="317" href="#317">317</a>         <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AnnotationHandler.html">AnnotationHandler</a> handler;
+<a class="jxr_linenumber" name="312" href="#312">312</a> 
+<a class="jxr_linenumber" name="313" href="#313">313</a>         @Override
+<a class="jxr_linenumber" name="314" href="#314">314</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
+<a class="jxr_linenumber" name="315" href="#315">315</a>             annotations.clear();
+<a class="jxr_linenumber" name="316" href="#316">316</a>         }
+<a class="jxr_linenumber" name="317" href="#317">317</a>     }
 <a class="jxr_linenumber" name="318" href="#318">318</a> 
-<a class="jxr_linenumber" name="319" href="#319">319</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultAnnotationProcessor.html">BytecodeBasedAnnotationProcessor</a>(<a href="../../../org/atmosphere/cpr/AnnotationHandler.html">AnnotationHandler</a> handler) {
-<a class="jxr_linenumber" name="320" href="#320">320</a>             <strong class="jxr_keyword">this</strong>.handler = handler;
-<a class="jxr_linenumber" name="321" href="#321">321</a>         }
-<a class="jxr_linenumber" name="322" href="#322">322</a> 
-<a class="jxr_linenumber" name="323" href="#323">323</a>         @Override
-<a class="jxr_linenumber" name="324" href="#324">324</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> configure(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework) {
-<a class="jxr_linenumber" name="325" href="#325">325</a> 
-<a class="jxr_linenumber" name="326" href="#326">326</a>             <strong class="jxr_keyword">final</strong> AnnotationDetector.TypeReporter reporter = <strong class="jxr_keyword">new</strong> AnnotationDetector.TypeReporter() {
-<a class="jxr_linenumber" name="327" href="#327">327</a>                 @SuppressWarnings(<span class="jxr_string">"unchecked"</span>)
-<a class="jxr_linenumber" name="328" href="#328">328</a>                 @Override
-<a class="jxr_linenumber" name="329" href="#329">329</a>                 <strong class="jxr_keyword">public</strong> Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt;[] annotations() {
-<a class="jxr_linenumber" name="330" href="#330">330</a>                     <strong class="jxr_keyword">return</strong> handler.handledClass();
-<a class="jxr_linenumber" name="331" href="#331">331</a>                 }
-<a class="jxr_linenumber" name="332" href="#332">332</a> 
+<a class="jxr_linenumber" name="319" href="#319">319</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultAnnotationProcessor.html">BytecodeBasedAnnotationProcessor</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> {
+<a class="jxr_linenumber" name="320" href="#320">320</a> 
+<a class="jxr_linenumber" name="321" href="#321">321</a>         <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/util/annotation/AnnotationDetector.html">AnnotationDetector</a> detector;
+<a class="jxr_linenumber" name="322" href="#322">322</a>         <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AnnotationHandler.html">AnnotationHandler</a> handler;
+<a class="jxr_linenumber" name="323" href="#323">323</a> 
+<a class="jxr_linenumber" name="324" href="#324">324</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultAnnotationProcessor.html">BytecodeBasedAnnotationProcessor</a>(<a href="../../../org/atmosphere/cpr/AnnotationHandler.html">AnnotationHandler</a> handler) {
+<a class="jxr_linenumber" name="325" href="#325">325</a>             <strong class="jxr_keyword">this</strong>.handler = handler;
+<a class="jxr_linenumber" name="326" href="#326">326</a>         }
+<a class="jxr_linenumber" name="327" href="#327">327</a> 
+<a class="jxr_linenumber" name="328" href="#328">328</a>         @Override
+<a class="jxr_linenumber" name="329" href="#329">329</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> configure(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework) {
+<a class="jxr_linenumber" name="330" href="#330">330</a> 
+<a class="jxr_linenumber" name="331" href="#331">331</a>             <strong class="jxr_keyword">final</strong> AnnotationDetector.TypeReporter reporter = <strong class="jxr_keyword">new</strong> AnnotationDetector.TypeReporter() {
+<a class="jxr_linenumber" name="332" href="#332">332</a>                 @SuppressWarnings(<span class="jxr_string">"unchecked"</span>)
 <a class="jxr_linenumber" name="333" href="#333">333</a>                 @Override
-<a class="jxr_linenumber" name="334" href="#334">334</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> reportTypeAnnotation(Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt; annotation, String className) {
-<a class="jxr_linenumber" name="335" href="#335">335</a>                     logger.info(<span class="jxr_string">"Found Annotation in {} being scanned: {}"</span>, className, annotation);
-<a class="jxr_linenumber" name="336" href="#336">336</a>                     <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="337" href="#337">337</a>                         <strong class="jxr_keyword">final</strong> Class&lt;?&gt; discoveredClass = loadClass(getClass(), className);
-<a class="jxr_linenumber" name="338" href="#338">338</a>                         handler.handleAnnotation(framework, annotation, discoveredClass);
-<a class="jxr_linenumber" name="339" href="#339">339</a>                     } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="340" href="#340">340</a>                         logger.warn(<span class="jxr_string">"Could not load discovered class"</span>, e);
-<a class="jxr_linenumber" name="341" href="#341">341</a>                     }
-<a class="jxr_linenumber" name="342" href="#342">342</a>                 }
-<a class="jxr_linenumber" name="343" href="#343">343</a> 
-<a class="jxr_linenumber" name="344" href="#344">344</a>             };
-<a class="jxr_linenumber" name="345" href="#345">345</a>             detector = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/util/annotation/AnnotationDetector.html">AnnotationDetector</a>(reporter);
-<a class="jxr_linenumber" name="346" href="#346">346</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="347" href="#347">347</a>         }
+<a class="jxr_linenumber" name="334" href="#334">334</a>                 <strong class="jxr_keyword">public</strong> Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt;[] annotations() {
+<a class="jxr_linenumber" name="335" href="#335">335</a>                     <strong class="jxr_keyword">return</strong> handler.handledClass();
+<a class="jxr_linenumber" name="336" href="#336">336</a>                 }
+<a class="jxr_linenumber" name="337" href="#337">337</a> 
+<a class="jxr_linenumber" name="338" href="#338">338</a>                 @Override
+<a class="jxr_linenumber" name="339" href="#339">339</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> reportTypeAnnotation(Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt; annotation, String className) {
+<a class="jxr_linenumber" name="340" href="#340">340</a>                     logger.info(<span class="jxr_string">"Found Annotation in {} being scanned: {}"</span>, className, annotation);
+<a class="jxr_linenumber" name="341" href="#341">341</a>                     <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="342" href="#342">342</a>                         <strong class="jxr_keyword">final</strong> Class&lt;?&gt; discoveredClass = loadClass(getClass(), className);
+<a class="jxr_linenumber" name="343" href="#343">343</a>                         handler.handleAnnotation(framework, annotation, discoveredClass);
+<a class="jxr_linenumber" name="344" href="#344">344</a>                     } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="345" href="#345">345</a>                         logger.warn(<span class="jxr_string">"Could not load discovered class"</span>, e);
+<a class="jxr_linenumber" name="346" href="#346">346</a>                     }
+<a class="jxr_linenumber" name="347" href="#347">347</a>                 }
 <a class="jxr_linenumber" name="348" href="#348">348</a> 
-<a class="jxr_linenumber" name="349" href="#349">349</a>         @Override
-<a class="jxr_linenumber" name="350" href="#350">350</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scan(File rootDir) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="351" href="#351">351</a>             detector.detect(rootDir);
-<a class="jxr_linenumber" name="352" href="#352">352</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="353" href="#353">353</a>         }
-<a class="jxr_linenumber" name="354" href="#354">354</a> 
-<a class="jxr_linenumber" name="355" href="#355">355</a>         @Override
-<a class="jxr_linenumber" name="356" href="#356">356</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scan(String packageName) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="357" href="#357">357</a>             logger.trace(<span class="jxr_string">"Scanning @Service annotations in {}"</span>, packageName);
-<a class="jxr_linenumber" name="358" href="#358">358</a>             detector.detect(packageName);
-<a class="jxr_linenumber" name="359" href="#359">359</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="360" href="#360">360</a>         }
-<a class="jxr_linenumber" name="361" href="#361">361</a> 
-<a class="jxr_linenumber" name="362" href="#362">362</a>         @Override
-<a class="jxr_linenumber" name="363" href="#363">363</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scanAll() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="364" href="#364">364</a>             detector.detect();
-<a class="jxr_linenumber" name="365" href="#365">365</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="366" href="#366">366</a>         }
-<a class="jxr_linenumber" name="367" href="#367">367</a> 
-<a class="jxr_linenumber" name="368" href="#368">368</a>         @Override
-<a class="jxr_linenumber" name="369" href="#369">369</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
-<a class="jxr_linenumber" name="370" href="#370">370</a>             <strong class="jxr_keyword">if</strong> (detector != <strong class="jxr_keyword">null</strong>) detector.destroy();
+<a class="jxr_linenumber" name="349" href="#349">349</a>             };
+<a class="jxr_linenumber" name="350" href="#350">350</a>             detector = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/util/annotation/AnnotationDetector.html">AnnotationDetector</a>(reporter);
+<a class="jxr_linenumber" name="351" href="#351">351</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="352" href="#352">352</a>         }
+<a class="jxr_linenumber" name="353" href="#353">353</a> 
+<a class="jxr_linenumber" name="354" href="#354">354</a>         @Override
+<a class="jxr_linenumber" name="355" href="#355">355</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scan(File rootDir) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="356" href="#356">356</a>             detector.detect(rootDir);
+<a class="jxr_linenumber" name="357" href="#357">357</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="358" href="#358">358</a>         }
+<a class="jxr_linenumber" name="359" href="#359">359</a> 
+<a class="jxr_linenumber" name="360" href="#360">360</a>         @Override
+<a class="jxr_linenumber" name="361" href="#361">361</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scan(String packageName) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="362" href="#362">362</a>             logger.trace(<span class="jxr_string">"Scanning @Service annotations in {}"</span>, packageName);
+<a class="jxr_linenumber" name="363" href="#363">363</a>             detector.detect(packageName);
+<a class="jxr_linenumber" name="364" href="#364">364</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="365" href="#365">365</a>         }
+<a class="jxr_linenumber" name="366" href="#366">366</a> 
+<a class="jxr_linenumber" name="367" href="#367">367</a>         @Override
+<a class="jxr_linenumber" name="368" href="#368">368</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AnnotationProcessor.html">AnnotationProcessor</a> scanAll() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="369" href="#369">369</a>             detector.detect();
+<a class="jxr_linenumber" name="370" href="#370">370</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="371" href="#371">371</a>         }
-<a class="jxr_linenumber" name="372" href="#372">372</a>     }
-<a class="jxr_linenumber" name="373" href="#373">373</a> 
-<a class="jxr_linenumber" name="374" href="#374">374</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Class&lt;?&gt; loadClass(Class thisClass, String className) <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="375" href="#375">375</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="376" href="#376">376</a>             <strong class="jxr_keyword">return</strong> Thread.currentThread().getContextClassLoader().loadClass(className);
-<a class="jxr_linenumber" name="377" href="#377">377</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="378" href="#378">378</a>             <strong class="jxr_keyword">return</strong> thisClass.getClassLoader().loadClass(className);
-<a class="jxr_linenumber" name="379" href="#379">379</a>         }
-<a class="jxr_linenumber" name="380" href="#380">380</a>     }
-<a class="jxr_linenumber" name="381" href="#381">381</a> }
+<a class="jxr_linenumber" name="372" href="#372">372</a> 
+<a class="jxr_linenumber" name="373" href="#373">373</a>         @Override
+<a class="jxr_linenumber" name="374" href="#374">374</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
+<a class="jxr_linenumber" name="375" href="#375">375</a>             <strong class="jxr_keyword">if</strong> (detector != <strong class="jxr_keyword">null</strong>) detector.destroy();
+<a class="jxr_linenumber" name="376" href="#376">376</a>         }
+<a class="jxr_linenumber" name="377" href="#377">377</a>     }
+<a class="jxr_linenumber" name="378" href="#378">378</a> 
+<a class="jxr_linenumber" name="379" href="#379">379</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Class&lt;?&gt; loadClass(Class thisClass, String className) <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="380" href="#380">380</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="381" href="#381">381</a>             <strong class="jxr_keyword">return</strong> Thread.currentThread().getContextClassLoader().loadClass(className);
+<a class="jxr_linenumber" name="382" href="#382">382</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="383" href="#383">383</a>             <strong class="jxr_keyword">return</strong> thisClass.getClassLoader().loadClass(className);
+<a class="jxr_linenumber" name="384" href="#384">384</a>         }
+<a class="jxr_linenumber" name="385" href="#385">385</a>     }
+<a class="jxr_linenumber" name="386" href="#386">386</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

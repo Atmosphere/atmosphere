@@ -69,7 +69,7 @@
 <a class="jxr_linenumber" name="59" href="#59">59</a>          <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="60" href="#60">60</a>              logger.trace(<span class="jxr_string">"WebSocket.close() for AtmosphereResource {}"</span>, resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">"null"</span>);
 <a class="jxr_linenumber" name="61" href="#61">61</a>              webSocket.closeSocket();
-<a class="jxr_linenumber" name="62" href="#62">62</a>          } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="62" href="#62">62</a>          } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="63" href="#63">63</a>              logger.trace(<span class="jxr_string">"Error closing websocket."</span>, e);
 <a class="jxr_linenumber" name="64" href="#64">64</a>          }
 <a class="jxr_linenumber" name="65" href="#65">65</a>      }
