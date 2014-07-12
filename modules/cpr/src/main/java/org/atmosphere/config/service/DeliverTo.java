@@ -15,25 +15,26 @@
  */
 package org.atmosphere.config.service;
 
-import org.atmosphere.config.managed.Encoder;
-
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
 import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * Use this annotation with the {@link ManagedService} annotation. A method annotated with this annotation will be
- * invoked when the connection has been suspended and ready.
+ * Broadcast the returned value only to the calling resource {@link DELIVER_TO#RESOURCE},
+ * to its associated Broadcaster {@link DELIVER_TO#BROADCASTER}
+ * or to all created Broadcasters {@link DELIVER_TO#ALL}
  *
- * @author Jeanfrancois Arcand
+ * @author Guillaume Drouet
  */
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
-public @interface Ready {
+public @interface DeliverTo {
+
+    static enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
 
     /**
-     * A list of {@link org.atmosphere.config.managed.Encoder}
+     * @return the {@link DELIVER_TO}
      */
-    Class<? extends Encoder>[] encoders() default {};
+    DELIVER_TO value();
 }

@@ -16,6 +16,7 @@
 package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.Delete;
+import org.atmosphere.config.service.DeliverTo;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.Heartbeat;
@@ -165,7 +166,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
             Object o = message(resource, body);
             if (o != null) {
-                resource.getBroadcaster().broadcast(new Managed(o));
+                final DeliverTo deliverTo = onPostMethod == null ? null : onPostMethod.getAnnotation(DeliverTo.class);
+                deliver(new Managed(o), deliverTo, DeliverTo.DELIVER_TO.BROADCASTER, resource);
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
@@ -380,9 +382,25 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected void processReady(AtmosphereResource r) {
-        Object o = message(onReadyMethod, r);
+        deliver(message(onReadyMethod, r), onReadyMethod.getAnnotation(DeliverTo.class), DeliverTo.DELIVER_TO.RESOURCE, r);
+    }
 
-        switch (onReadyMethod.getAnnotation(Ready.class).value()) {
+    /**
+     * <p>
+     * Delivers the given message according to the specified {@link DeliverTo configuration).
+     * </p>
+     *
+     * @param o the message
+     * @param deliverConfig the annotation state
+     * @param defaultDeliver the strategy applied if deliverConfig is {@code null}
+     * @param r the resource
+     */
+    protected void deliver(final Object o,
+                           final DeliverTo deliverConfig,
+                           final DeliverTo.DELIVER_TO defaultDeliver,
+                           final AtmosphereResource r) {
+        final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
+        switch (deliverTo) {
             case RESOURCE:
                 if (o != null) {
                     try {
