@@ -390,7 +390,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
 
-            }, 0, time, lifeCyclePolicy.getTimeUnit());
+            }, time, time, lifeCyclePolicy.getTimeUnit());
             ref.set(currentLifecycleTask);
         }
     }
