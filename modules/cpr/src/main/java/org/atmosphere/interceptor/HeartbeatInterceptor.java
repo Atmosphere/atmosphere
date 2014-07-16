@@ -43,10 +43,14 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
+import static org.atmosphere.cpr.ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS;
+import static org.atmosphere.cpr.ApplicationConfig.RESUME_ON_HEARTBEAT;
+
 /**
  * <p>
  * An interceptor that send whitespace every in 60 seconds by default. Another value could be specified with the
- * {@link #HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config. The heartbeat will be scheduled as soon as the
+ * {@link org.atmosphere.cpr.ApplicationConfig#HEARTBEAT_INTERVAL_IN_SECONDS} in the atmosphere config. The heartbeat will be scheduled as soon as the
  * request is suspended.
  * </p>
  * <p/>
@@ -65,20 +69,13 @@ import java.util.concurrent.TimeUnit;
  * @author Jeanfrancois Arcand
  */
 public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
-
-    public final static String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
-
-    /**
-     * Configuration key for client heartbeat.
-     */
-    public final static String CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".clientHeartbeatFrequencyInSeconds";
     public final static String INTERCEPTOR_ADDED = HeartbeatInterceptor.class.getName();
     public final static String HEARTBEAT_FUTURE = "heartbeat.future";
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
     private byte[] paddingBytes = " ".getBytes();
-
+    private boolean resumeOnHeartbeat;
     private int heartbeatFrequencyInSeconds = 60;
 
     /**
@@ -128,6 +125,15 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         return this;
     }
 
+    public boolean resumeOnHeartbeat(){
+        return resumeOnHeartbeat;
+    }
+
+    public HeartbeatInterceptor resumeOnHeartbeat(boolean resumeOnHeartbeat) {
+        this.resumeOnHeartbeat = resumeOnHeartbeat;
+        return this;
+    }
+
     @Override
     public void configure(final AtmosphereConfig config) {
         // Server
@@ -143,6 +149,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         heartBeat = ExecutorsFactory.getScheduler(config);
+
+        resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
     }
 
     private static class Clock extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
@@ -318,7 +326,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                         try {
                             logger.trace("Heartbeat for Resource {}", r);
                             response.write(paddingBytes, false);
-                            if (Utils.resumableTransport(r.transport())) {
+                            if (Utils.resumableTransport(r.transport()) && resumeOnHeartbeat) {
                                 r.resume();
                             } else {
                                 response.flushBuffer();
