@@ -906,4 +906,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         this.webSocket = webSocket;
         return this;
     }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
+
+        if (!uuid.equals(that.uuid)) return false;
+
+        return true;
+    }
+
 }

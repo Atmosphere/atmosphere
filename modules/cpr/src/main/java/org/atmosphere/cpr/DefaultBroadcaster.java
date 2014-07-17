@@ -1341,9 +1341,20 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.warn("AtmosphereResource {} is not suspended. If cached messages exists, this may cause unexpected situation. Suspend first", r.uuid());
             }
 
-            if (resources.contains(r)) {
-                logger.debug("Duplicate resource {}", r.uuid());
-                return this;
+            if (!backwardCompatible && resources.contains(r)) {
+                if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
+                    AtmosphereResource dup = config.resourcesFactory().find(r.uuid());
+                    if (dup != null && dup.hashCode() != r.hashCode()) {
+                        logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
+                        dup.resume();
+                    } else {
+                        logger.debug("Duplicate resource {}", r.uuid());
+                        return this;
+                    }
+                } else {
+                    logger.debug("Duplicate resource {}", r.uuid());
+                    return this;
+                }
             }
 
             // Only synchronize if we have a valid BroadcasterCache
