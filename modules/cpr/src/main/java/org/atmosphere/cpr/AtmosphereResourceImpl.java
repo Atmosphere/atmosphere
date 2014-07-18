@@ -363,7 +363,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null || transport().equals(UNDEFINED) ) {
+            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null || transport().equals(UNDEFINED)) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, LONG_POLLING_TRANSPORT);
             }
 
@@ -602,7 +602,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             } else if (event.isCancelled() || event.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
                     onDisconnect(event);
-                }else {
+                } else {
                     logger.trace("Skipping notification, already disconnected {}", event.getResource().uuid());
                 }
             } else if (event.isResuming() || event.isResumedOnTimeout()) {
@@ -837,6 +837,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
     }
 
+    public void dirtyClose() {
+        try {
+            event.setCancelled(true);
+            notifyListeners();
+            cancel();
+            if (webSocket != null) {
+                webSocket.close();
+            }
+        } catch (IOException ex) {
+            logger.trace("", ex);
+        }
+    }
+
     @Override
     public AtmosphereResource forceBinaryWrite(boolean forceBinaryWrite) {
         this.forceBinaryWrite = forceBinaryWrite;
@@ -918,5 +931,4 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         return true;
     }
-
 }
