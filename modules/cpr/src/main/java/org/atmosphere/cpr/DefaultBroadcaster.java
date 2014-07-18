@@ -1343,10 +1343,10 @@ public class DefaultBroadcaster implements Broadcaster {
 
             if (!backwardCompatible && resources.contains(r)) {
                 if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
-                    AtmosphereResource dup = config.resourcesFactory().find(r.uuid());
+                    AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
                     if (dup != null && dup.hashCode() != r.hashCode()) {
                         logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
-                        dup.resume();
+                        AtmosphereResourceImpl.class.cast(dup).dirtyClose();
                     } else {
                         logger.debug("Duplicate resource {}", r.uuid());
                         return this;
@@ -1397,7 +1397,9 @@ public class DefaultBroadcaster implements Broadcaster {
         if (!wasResumed && isAtmosphereResourceValid(r)) {
             logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
 
-            String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+            String parentUUID = r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) ?
+                    (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) :
+                    null;
             if (!backwardCompatible && parentUUID != null) {
                 AtmosphereResource p = config.resourcesFactory().find(parentUUID);
                 if (p != null && !resources.contains(p)) {
