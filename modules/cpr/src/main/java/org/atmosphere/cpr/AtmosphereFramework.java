@@ -2012,7 +2012,8 @@ public class AtmosphereFramework {
             configureRequestResponse(req, res);
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
-            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || ex.getMessage().startsWith("JBoss failed"))) {
+            boolean isJBoss = ex.getMessage().startsWith("JBoss failed");
+            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || isJBoss)) {
                 if (!isFilter) {
                     logger.warn("Failed using comet support: {}, error: {} Is the NIO or APR Connector enabled?", asyncSupport.getClass().getName(),
                             ex.getMessage());
@@ -2021,7 +2022,7 @@ public class AtmosphereFramework {
                         "e.g NIO/APR or HTTP for all. If not, {} will be used and cannot be changed.", BlockingIOCometSupport.class.getName(), ex);
 
                 AsyncSupport current = asyncSupport;
-                asyncSupport = asyncSupport.supportWebSocket() ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
+                asyncSupport = asyncSupport.supportWebSocket() && !isJBoss ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
                 if (current instanceof AsynchronousProcessor) {
                     ((AsynchronousProcessor) current).shutdown();
                 }
