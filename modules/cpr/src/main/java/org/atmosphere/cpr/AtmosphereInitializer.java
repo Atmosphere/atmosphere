@@ -98,7 +98,7 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                         }
                     }
                 } catch (Throwable t) {
-                    logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName(), t);
+                    logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", SessionSupport.class.getName(), t);
                 }
 
                 c.setAttribute(reg.getKey(), framework);
