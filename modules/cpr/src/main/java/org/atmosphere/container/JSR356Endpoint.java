@@ -168,7 +168,7 @@ public class JSR356Endpoint extends Endpoint {
 
             request = new AtmosphereRequest.Builder()
                     .requestURI(requestUri)
-                    .requestURL(new StringBuffer(requestUri))
+                    .requestURL(requestUri)
                     .headers(headers)
                     .session((HttpSession) handshakeRequest.getHttpSession())
                     .servletPath(servletPath)
