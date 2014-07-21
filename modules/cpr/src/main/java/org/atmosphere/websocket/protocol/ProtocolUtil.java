@@ -41,10 +41,10 @@ public class ProtocolUtil {
                 .contentType(contentType == null ? request.getContentType() : contentType)
                 .attributes(m)
                 .pathInfo(pathInfo)
-                .contextPath(resource.getRequest().getContextPath())
-                .servletPath(resource.getRequest().getServletPath())
+                .contextPath(request.getContextPath())
+                .servletPath(request.getServletPath())
                 .requestURI(requestURI)
-                .requestURL(resource.getRequest().getRequestURL())
+                .requestURL(request.requestURL())
                 .destroyable(destroyable)
                 .headers(request.headersMap())
                 .session(resource.session()));
