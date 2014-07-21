@@ -244,7 +244,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         try {
             if (!isResumed.getAndSet(true) && isInScope.get()) {
                 suspended.set(false);
-                logger.debug("AtmosphereResource {} is resuming", uuid());
+                logger.trace("AtmosphereResource {} is resuming", uuid());
 
                 action.type(Action.TYPE.RESUME);
 
