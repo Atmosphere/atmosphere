@@ -249,7 +249,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             logger.debug("The WebSocket handshake succeeded but the dispatched URI failed with status {} : {} " +
                     "The WebSocket connection is still open and client can continue sending messages.", errorCode + " " + message, uuid());
         } else {
-            logger.debug("{} {}", errorCode, message);
+            logger.warn("Unable to write {} {}", errorCode, message);
         }
 
         return this;
