@@ -149,7 +149,8 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
     @Override
     public void onError(WebSocket webSocket, WebSocketProcessor.WebSocketException t) {
-        logger.warn(t.getMessage() + " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
+        logger.warn(t.getMessage() + ". Unable to deliver the websocket messages to installed component." +
+                " Status {} Message {}", t.response().getStatus(), t.response().getStatusMessage());
     }
 }
 
