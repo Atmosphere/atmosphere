@@ -17,6 +17,7 @@ package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 
 import java.util.Map;
@@ -30,7 +31,7 @@ public class ProtocolUtil {
                                                                 String methodType,
                                                                 String contentType,
                                                                 boolean destroyable) {
-        AtmosphereRequest request = resource.getRequest();
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
         Map<String, Object> m = attributes(request);
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
@@ -40,7 +41,10 @@ public class ProtocolUtil {
                 .contentType(contentType == null ? request.getContentType() : contentType)
                 .attributes(m)
                 .pathInfo(pathInfo)
+                .contextPath(resource.getRequest().getContextPath())
+                .servletPath(resource.getRequest().getServletPath())
                 .requestURI(requestURI)
+                .requestURL(resource.getRequest().getRequestURL())
                 .destroyable(destroyable)
                 .headers(request.headersMap())
                 .session(resource.session()));

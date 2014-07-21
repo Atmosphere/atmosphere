@@ -1102,7 +1102,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<String, String[]>());
         private String servletPath = "";
         private String requestURI;
-        private String requestURL;
+        private StringBuffer requestURL;
         private Map<String, Object> localAttributes = new ConcurrentHashMap<String, Object>();
         private InputStream inputStream;
         private Reader reader;
@@ -1212,7 +1212,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return this;
         }
 
-        public Builder requestURL(String requestURL) {
+        public Builder requestURL(StringBuffer requestURL) {
             this.requestURL = requestURL;
             return this;
         }
@@ -1894,7 +1894,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .pathInfo(request.getPathInfo())
                 .contextPath(request.getContextPath())
                 .requestURI(request.getRequestURI())
-                .requestURL(request.getRequestURL().toString())
+                .requestURL(request.getRequestURL())
                 .method(request.getMethod())
                 .serverName(request.getServerName())
                 .serverPort(request.getServerPort())
