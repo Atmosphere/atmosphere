@@ -32,9 +32,12 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.Enumeration;
+import java.util.HashMap;
 import java.util.HashSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
@@ -43,6 +46,7 @@ import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYP
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 public class WebSocketProcessorTest {
 
@@ -364,5 +368,59 @@ public class WebSocketProcessorTest {
 
         assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
 
+    }
+
+    @Test
+    public void undetectedCloseWebSocketTest() throws IOException, ServletException, ExecutionException, InterruptedException {
+        final AtomicReference<Cookie> cValue = new AtomicReference<Cookie>();
+        final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                r.set(resource);
+                resource.getBroadcaster().addAtmosphereResource(resource);
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                Cookie[] c = event.getResource().getRequest().getCookies();
+                cValue.set(c[0]);
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+        Map<String,String> m = new HashMap<String, String>();
+        m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").build();
+        request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, null);
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+
+        final AtomicBoolean dirtyDisconnect = new AtomicBoolean();
+        request.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, w.resource().uuid());
+        m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
+        request.headers(m);
+        AtmosphereResource dup = AtmosphereResourceFactory.getDefault().create(framework.config, w.resource().uuid(), request).suspend();
+        w.resource(dup);
+        dup.addEventListener(new AtmosphereResourceEventListenerAdapter.OnDisconnect() {
+            @Override
+            public void onDisconnect(AtmosphereResourceEvent event) {
+                if (event.isCancelled()) dirtyDisconnect.set(true);
+            }
+        });
+        request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, null);
+
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+
+        r.get().getBroadcaster().broadcast("yo").get();
+        assertTrue(dirtyDisconnect.get());
     }
 }
