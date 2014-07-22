@@ -995,10 +995,10 @@ public class AtmosphereFramework {
                         String clientVersion = "2.2.3";
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
-                                if (inputLine.startsWith("ATMO21_VERSION=")) {
-                                    newVersion = inputLine.substring("ATMO21_VERSION=".length());
-                                } else if (inputLine.startsWith("CLIENT2_VERSION=")) {
-                                    clientVersion = inputLine.substring("CLIENT2_VERSION=".length());
+                                if (inputLine.startsWith("ATMO22_VERSION=")) {
+                                    newVersion = inputLine.substring("ATMO22_VERSION=".length());
+                                } else if (inputLine.startsWith("CLIENT3_VERSION=")) {
+                                    clientVersion = inputLine.substring("CLIENT3_VERSION=".length());
                                     break;
                                 }
                             }
