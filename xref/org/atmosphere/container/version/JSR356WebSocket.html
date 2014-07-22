@@ -73,7 +73,7 @@
 <a class="jxr_linenumber" name="63" href="#63">63</a>          <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="64" href="#64">64</a>              <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="65" href="#65">65</a>                  semaphore.acquireUninterruptibly();
-<a class="jxr_linenumber" name="66" href="#66">66</a>                  session.getAsyncRemote().sendText(s, <strong class="jxr_keyword">new</strong> WriteResult(resource(), s, semaphore));
+<a class="jxr_linenumber" name="66" href="#66">66</a>                  session.getAsyncRemote().sendText(s, <strong class="jxr_keyword">new</strong> WriteResult(resource(), s));
 <a class="jxr_linenumber" name="67" href="#67">67</a>              } <strong class="jxr_keyword">catch</strong> (IllegalStateException e) {
 <a class="jxr_linenumber" name="68" href="#68">68</a>                  semaphore.release();
 <a class="jxr_linenumber" name="69" href="#69">69</a>                  <strong class="jxr_keyword">throw</strong> e;
@@ -90,7 +90,7 @@
 <a class="jxr_linenumber" name="80" href="#80">80</a>              semaphore.acquireUninterruptibly();
 <a class="jxr_linenumber" name="81" href="#81">81</a>              ByteBuffer b = ByteBuffer.wrap(data, offset, length);
 <a class="jxr_linenumber" name="82" href="#82">82</a>              session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
-<a class="jxr_linenumber" name="83" href="#83">83</a>                      <strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/container/version/JSR356WebSocket.html">WriteResult</a>(resource(), b.array(), semaphore));
+<a class="jxr_linenumber" name="83" href="#83">83</a>                      <strong class="jxr_keyword">new</strong> <a href="../../../../org/atmosphere/container/version/JSR356WebSocket.html">WriteResult</a>(resource(), b.array()));
 <a class="jxr_linenumber" name="84" href="#84">84</a>          } <strong class="jxr_keyword">catch</strong> (NullPointerException e) {
 <a class="jxr_linenumber" name="85" href="#85">85</a>              patchGlassFish(e);
 <a class="jxr_linenumber" name="86" href="#86">86</a>              semaphore.release();
@@ -122,25 +122,23 @@
 <a class="jxr_linenumber" name="112" href="#112">112</a> 
 <a class="jxr_linenumber" name="113" href="#113">113</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r;
 <a class="jxr_linenumber" name="114" href="#114">114</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Object message;
-<a class="jxr_linenumber" name="115" href="#115">115</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Semaphore semaphore;
-<a class="jxr_linenumber" name="116" href="#116">116</a> 
-<a class="jxr_linenumber" name="117" href="#117">117</a>         <strong class="jxr_keyword">private</strong> <a href="../../../../org/atmosphere/container/version/JSR356WebSocket.html">WriteResult</a>(<a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object message, Semaphore semaphore) {
-<a class="jxr_linenumber" name="118" href="#118">118</a>             <strong class="jxr_keyword">this</strong>.r = r;
-<a class="jxr_linenumber" name="119" href="#119">119</a>             <strong class="jxr_keyword">this</strong>.message = message;
-<a class="jxr_linenumber" name="120" href="#120">120</a>             <strong class="jxr_keyword">this</strong>.semaphore = semaphore;
-<a class="jxr_linenumber" name="121" href="#121">121</a>         }
-<a class="jxr_linenumber" name="122" href="#122">122</a> 
-<a class="jxr_linenumber" name="123" href="#123">123</a>         @Override
-<a class="jxr_linenumber" name="124" href="#124">124</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onResult(SendResult result) {
-<a class="jxr_linenumber" name="125" href="#125">125</a>             semaphore.release();
-<a class="jxr_linenumber" name="126" href="#126">126</a>             <strong class="jxr_keyword">if</strong> (!result.isOK() || result.getException() != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="127" href="#127">127</a>                 logger.trace(<span class="jxr_string">"WebSocket {} failed to write {}"</span>, r, message);
-<a class="jxr_linenumber" name="128" href="#128">128</a>                 <a href="../../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = r.getBroadcaster();
-<a class="jxr_linenumber" name="129" href="#129">129</a>                 b.getBroadcasterConfig().getBroadcasterCache().addToCache(b.getID(), r, <strong class="jxr_keyword">new</strong> BroadcastMessage(message));
-<a class="jxr_linenumber" name="130" href="#130">130</a>             }
-<a class="jxr_linenumber" name="131" href="#131">131</a>         }
-<a class="jxr_linenumber" name="132" href="#132">132</a>     }
-<a class="jxr_linenumber" name="133" href="#133">133</a> }
+<a class="jxr_linenumber" name="115" href="#115">115</a> 
+<a class="jxr_linenumber" name="116" href="#116">116</a>         <strong class="jxr_keyword">private</strong> <a href="../../../../org/atmosphere/container/version/JSR356WebSocket.html">WriteResult</a>(<a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, Object message) {
+<a class="jxr_linenumber" name="117" href="#117">117</a>             <strong class="jxr_keyword">this</strong>.r = r;
+<a class="jxr_linenumber" name="118" href="#118">118</a>             <strong class="jxr_keyword">this</strong>.message = message;
+<a class="jxr_linenumber" name="119" href="#119">119</a>         }
+<a class="jxr_linenumber" name="120" href="#120">120</a> 
+<a class="jxr_linenumber" name="121" href="#121">121</a>         @Override
+<a class="jxr_linenumber" name="122" href="#122">122</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onResult(SendResult result) {
+<a class="jxr_linenumber" name="123" href="#123">123</a>             semaphore.release();
+<a class="jxr_linenumber" name="124" href="#124">124</a>             <strong class="jxr_keyword">if</strong> (!result.isOK() || result.getException() != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="125" href="#125">125</a>                 logger.trace(<span class="jxr_string">"WebSocket {} failed to write {}"</span>, r, message);
+<a class="jxr_linenumber" name="126" href="#126">126</a>                 <a href="../../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = r.getBroadcaster();
+<a class="jxr_linenumber" name="127" href="#127">127</a>                 b.getBroadcasterConfig().getBroadcasterCache().addToCache(b.getID(), r.uuid(), <strong class="jxr_keyword">new</strong> BroadcastMessage(message));
+<a class="jxr_linenumber" name="128" href="#128">128</a>             }
+<a class="jxr_linenumber" name="129" href="#129">129</a>         }
+<a class="jxr_linenumber" name="130" href="#130">130</a>     }
+<a class="jxr_linenumber" name="131" href="#131">131</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

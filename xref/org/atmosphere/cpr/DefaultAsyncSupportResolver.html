@@ -235,97 +235,99 @@
 <a class="jxr_linenumber" name="225" href="#225">225</a>             <strong class="jxr_keyword">return</strong> targetClass.getDeclaredConstructor(<strong class="jxr_keyword">new</strong> Class[]{AtmosphereConfig.<strong class="jxr_keyword">class</strong>})
 <a class="jxr_linenumber" name="226" href="#226">226</a>                     .newInstance(config);
 <a class="jxr_linenumber" name="227" href="#227">227</a>         } <strong class="jxr_keyword">catch</strong> (<strong class="jxr_keyword">final</strong> Exception e) {
-<a class="jxr_linenumber" name="228" href="#228">228</a>             logger.error(<span class="jxr_string">"failed to create comet support class: {}, error: {}"</span>, targetClass, e.getMessage());
-<a class="jxr_linenumber" name="229" href="#229">229</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalArgumentException(<span class="jxr_string">"Unable to create"</span> + targetClass, e);
-<a class="jxr_linenumber" name="230" href="#230">230</a>         }
-<a class="jxr_linenumber" name="231" href="#231">231</a>     }
-<a class="jxr_linenumber" name="232" href="#232">232</a> 
-<a class="jxr_linenumber" name="233" href="#233">233</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> newCometSupport(<strong class="jxr_keyword">final</strong> String targetClassFQN) {
-<a class="jxr_linenumber" name="234" href="#234">234</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="235" href="#235">235</a>             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-<a class="jxr_linenumber" name="236" href="#236">236</a>             <strong class="jxr_keyword">return</strong> (AsyncSupport) cl.loadClass(targetClassFQN)
-<a class="jxr_linenumber" name="237" href="#237">237</a>                     .getDeclaredConstructor(<strong class="jxr_keyword">new</strong> Class[]{AtmosphereConfig.<strong class="jxr_keyword">class</strong>}).newInstance(config);
-<a class="jxr_linenumber" name="238" href="#238">238</a>         } <strong class="jxr_keyword">catch</strong> (<strong class="jxr_keyword">final</strong> Exception e) {
-<a class="jxr_linenumber" name="239" href="#239">239</a>             logger.error(<span class="jxr_string">"failed to create comet support class: {}, error: {}"</span>, targetClassFQN, e.getMessage());
-<a class="jxr_linenumber" name="240" href="#240">240</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalArgumentException(<span class="jxr_string">"Unable to create"</span> + targetClassFQN, e);
-<a class="jxr_linenumber" name="241" href="#241">241</a>         }
-<a class="jxr_linenumber" name="242" href="#242">242</a>     }
-<a class="jxr_linenumber" name="243" href="#243">243</a> 
-<a class="jxr_linenumber" name="244" href="#244">244</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="245" href="#245">245</a> <em class="jxr_javadoccomment">     * This method is the general interface to the outside world.</em>
-<a class="jxr_linenumber" name="246" href="#246">246</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="247" href="#247">247</a> <em class="jxr_javadoccomment">     * @param useNativeIfPossible - should the resolver try to use a native container comet support if present?</em>
-<a class="jxr_linenumber" name="248" href="#248">248</a> <em class="jxr_javadoccomment">     * @param defaultToBlocking   - should the resolver default to blocking IO comet support?</em>
-<a class="jxr_linenumber" name="249" href="#249">249</a> <em class="jxr_javadoccomment">     * @return an instance of AsyncSupport</em>
-<a class="jxr_linenumber" name="250" href="#250">250</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="251" href="#251">251</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolve(<strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> useNativeIfPossible, <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> defaultToBlocking) {
-<a class="jxr_linenumber" name="252" href="#252">252</a>         <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> servletAsyncSupport = defaultCometSupport(defaultToBlocking);
-<a class="jxr_linenumber" name="253" href="#253">253</a> 
-<a class="jxr_linenumber" name="254" href="#254">254</a>         <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> nativeSupport;
-<a class="jxr_linenumber" name="255" href="#255">255</a>         <strong class="jxr_keyword">if</strong> (!defaultToBlocking &amp;&amp; (useNativeIfPossible ||
-<a class="jxr_linenumber" name="256" href="#256">256</a>                 servletAsyncSupport.getClass().getName().equals(BlockingIOCometSupport.<strong class="jxr_keyword">class</strong>.getName()))) {
-<a class="jxr_linenumber" name="257" href="#257">257</a>             nativeSupport = resolveNativeCometSupport(detectContainersPresent());
-<a class="jxr_linenumber" name="258" href="#258">258</a>             <strong class="jxr_keyword">return</strong> nativeSupport == <strong class="jxr_keyword">null</strong> ? servletAsyncSupport : nativeSupport;
-<a class="jxr_linenumber" name="259" href="#259">259</a>         }
-<a class="jxr_linenumber" name="260" href="#260">260</a>         <strong class="jxr_keyword">return</strong> servletAsyncSupport;
-<a class="jxr_linenumber" name="261" href="#261">261</a>     }
-<a class="jxr_linenumber" name="262" href="#262">262</a> 
-<a class="jxr_linenumber" name="263" href="#263">263</a>     @Override
-<a class="jxr_linenumber" name="264" href="#264">264</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolve(<strong class="jxr_keyword">boolean</strong> useNativeIfPossible, <strong class="jxr_keyword">boolean</strong> defaultToBlocking, <strong class="jxr_keyword">boolean</strong> useServlet30Async) {
-<a class="jxr_linenumber" name="265" href="#265">265</a>         <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> cs = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="266" href="#266">266</a> 
-<a class="jxr_linenumber" name="267" href="#267">267</a>         <em class="jxr_comment">// Validate the value for old Servlet Container.</em>
-<a class="jxr_linenumber" name="268" href="#268">268</a>         useServlet30Async = testClassExists(SERVLET_30);
-<a class="jxr_linenumber" name="269" href="#269">269</a> 
-<a class="jxr_linenumber" name="270" href="#270">270</a>         <strong class="jxr_keyword">if</strong> (!defaultToBlocking) {
-<a class="jxr_linenumber" name="271" href="#271">271</a>             List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
-<a class="jxr_linenumber" name="272" href="#272">272</a> 
-<a class="jxr_linenumber" name="273" href="#273">273</a>             <strong class="jxr_keyword">if</strong> (!l.isEmpty()) {
-<a class="jxr_linenumber" name="274" href="#274">274</a>                 cs = resolveWebSocket(l);
-<a class="jxr_linenumber" name="275" href="#275">275</a>             }
-<a class="jxr_linenumber" name="276" href="#276">276</a>         }
-<a class="jxr_linenumber" name="277" href="#277">277</a> 
-<a class="jxr_linenumber" name="278" href="#278">278</a>         <strong class="jxr_keyword">if</strong> (cs == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="279" href="#279">279</a>             <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> nativeSupport = resolveNativeCometSupport(detectContainersPresent());
-<a class="jxr_linenumber" name="280" href="#280">280</a>             <strong class="jxr_keyword">return</strong> nativeSupport == <strong class="jxr_keyword">null</strong> ? defaultCometSupport(defaultToBlocking) : nativeSupport;
-<a class="jxr_linenumber" name="281" href="#281">281</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="282" href="#282">282</a>             <strong class="jxr_keyword">return</strong> cs;
-<a class="jxr_linenumber" name="283" href="#283">283</a>         }
-<a class="jxr_linenumber" name="284" href="#284">284</a>     }
-<a class="jxr_linenumber" name="285" href="#285">285</a> 
-<a class="jxr_linenumber" name="286" href="#286">286</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolveWebSocket(<strong class="jxr_keyword">final</strong> java.util.List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; available) {
-<a class="jxr_linenumber" name="287" href="#287">287</a>         <strong class="jxr_keyword">if</strong> (available == <strong class="jxr_keyword">null</strong> || available.isEmpty()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="288" href="#288">288</a>         <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">return</strong> newCometSupport(available.get(0));
-<a class="jxr_linenumber" name="289" href="#289">289</a>     }
-<a class="jxr_linenumber" name="290" href="#290">290</a> 
-<a class="jxr_linenumber" name="291" href="#291">291</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="292" href="#292">292</a> <em class="jxr_javadoccomment">     * This method is called to determine which native comet support to the used.</em>
-<a class="jxr_linenumber" name="293" href="#293">293</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="294" href="#294">294</a> <em class="jxr_javadoccomment">     * @param available</em>
-<a class="jxr_linenumber" name="295" href="#295">295</a> <em class="jxr_javadoccomment">     * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available ontainers</em>
-<a class="jxr_linenumber" name="296" href="#296">296</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="297" href="#297">297</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolveNativeCometSupport(<strong class="jxr_keyword">final</strong> java.util.List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; available) {
-<a class="jxr_linenumber" name="298" href="#298">298</a>         <strong class="jxr_keyword">if</strong> (available == <strong class="jxr_keyword">null</strong> || available.isEmpty()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="299" href="#299">299</a>         <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (available.size() == 1) <strong class="jxr_keyword">return</strong> newCometSupport(available.get(0));
-<a class="jxr_linenumber" name="300" href="#300">300</a>         <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">return</strong> resolveMultipleNativeSupportConflict(available);
-<a class="jxr_linenumber" name="301" href="#301">301</a>     }
-<a class="jxr_linenumber" name="302" href="#302">302</a> 
-<a class="jxr_linenumber" name="303" href="#303">303</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="304" href="#304">304</a> <em class="jxr_javadoccomment">     * This method is called if there are more than one potential native container in scope.</em>
-<a class="jxr_linenumber" name="305" href="#305">305</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="306" href="#306">306</a> <em class="jxr_javadoccomment">     * @return a AsyncSupport instance</em>
-<a class="jxr_linenumber" name="307" href="#307">307</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="308" href="#308">308</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolveMultipleNativeSupportConflict(<strong class="jxr_keyword">final</strong> List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; available) {
-<a class="jxr_linenumber" name="309" href="#309">309</a>         <strong class="jxr_keyword">final</strong> StringBuilder b = <strong class="jxr_keyword">new</strong> StringBuilder(<span class="jxr_string">"Found multiple containers, please specify which one to use: "</span>);
-<a class="jxr_linenumber" name="310" href="#310">310</a>         <strong class="jxr_keyword">for</strong> (Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt; cs : available) {
-<a class="jxr_linenumber" name="311" href="#311">311</a>             b.append((cs != <strong class="jxr_keyword">null</strong>) ? cs.getCanonicalName() : <span class="jxr_string">"null"</span>).append(<span class="jxr_string">", "</span>);
-<a class="jxr_linenumber" name="312" href="#312">312</a>         }
-<a class="jxr_linenumber" name="313" href="#313">313</a> 
-<a class="jxr_linenumber" name="314" href="#314">314</a>         b.append(<span class="jxr_string">" until you do, Atmosphere will use:"</span> + available.get(0));
-<a class="jxr_linenumber" name="315" href="#315">315</a>         logger.warn(<span class="jxr_string">"{}"</span>, b.toString());
-<a class="jxr_linenumber" name="316" href="#316">316</a>         <strong class="jxr_keyword">return</strong> newCometSupport(available.get(0));
-<a class="jxr_linenumber" name="317" href="#317">317</a>     }
-<a class="jxr_linenumber" name="318" href="#318">318</a> }
+<a class="jxr_linenumber" name="228" href="#228">228</a>             logger.error(<span class="jxr_string">"Failed to create comet support class: {}, error: {}"</span>, targetClass, e.getMessage());
+<a class="jxr_linenumber" name="229" href="#229">229</a>             logger.error(<span class="jxr_string">"Switching to BlockingIO"</span>);
+<a class="jxr_linenumber" name="230" href="#230">230</a> 
+<a class="jxr_linenumber" name="231" href="#231">231</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/BlockingIOCometSupport.html">BlockingIOCometSupport</a>(config);
+<a class="jxr_linenumber" name="232" href="#232">232</a>         }
+<a class="jxr_linenumber" name="233" href="#233">233</a>     }
+<a class="jxr_linenumber" name="234" href="#234">234</a> 
+<a class="jxr_linenumber" name="235" href="#235">235</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> newCometSupport(<strong class="jxr_keyword">final</strong> String targetClassFQN) {
+<a class="jxr_linenumber" name="236" href="#236">236</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="237" href="#237">237</a>             ClassLoader cl = Thread.currentThread().getContextClassLoader();
+<a class="jxr_linenumber" name="238" href="#238">238</a>             <strong class="jxr_keyword">return</strong> (AsyncSupport) cl.loadClass(targetClassFQN)
+<a class="jxr_linenumber" name="239" href="#239">239</a>                     .getDeclaredConstructor(<strong class="jxr_keyword">new</strong> Class[]{AtmosphereConfig.<strong class="jxr_keyword">class</strong>}).newInstance(config);
+<a class="jxr_linenumber" name="240" href="#240">240</a>         } <strong class="jxr_keyword">catch</strong> (<strong class="jxr_keyword">final</strong> Exception e) {
+<a class="jxr_linenumber" name="241" href="#241">241</a>             logger.error(<span class="jxr_string">"failed to create comet support class: {}, error: {}"</span>, targetClassFQN, e.getMessage());
+<a class="jxr_linenumber" name="242" href="#242">242</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalArgumentException(<span class="jxr_string">"Unable to create"</span> + targetClassFQN, e);
+<a class="jxr_linenumber" name="243" href="#243">243</a>         }
+<a class="jxr_linenumber" name="244" href="#244">244</a>     }
+<a class="jxr_linenumber" name="245" href="#245">245</a> 
+<a class="jxr_linenumber" name="246" href="#246">246</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="247" href="#247">247</a> <em class="jxr_javadoccomment">     * This method is the general interface to the outside world.</em>
+<a class="jxr_linenumber" name="248" href="#248">248</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="249" href="#249">249</a> <em class="jxr_javadoccomment">     * @param useNativeIfPossible - should the resolver try to use a native container comet support if present?</em>
+<a class="jxr_linenumber" name="250" href="#250">250</a> <em class="jxr_javadoccomment">     * @param defaultToBlocking   - should the resolver default to blocking IO comet support?</em>
+<a class="jxr_linenumber" name="251" href="#251">251</a> <em class="jxr_javadoccomment">     * @return an instance of AsyncSupport</em>
+<a class="jxr_linenumber" name="252" href="#252">252</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="253" href="#253">253</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolve(<strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> useNativeIfPossible, <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> defaultToBlocking) {
+<a class="jxr_linenumber" name="254" href="#254">254</a>         <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> servletAsyncSupport = defaultCometSupport(defaultToBlocking);
+<a class="jxr_linenumber" name="255" href="#255">255</a> 
+<a class="jxr_linenumber" name="256" href="#256">256</a>         <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> nativeSupport;
+<a class="jxr_linenumber" name="257" href="#257">257</a>         <strong class="jxr_keyword">if</strong> (!defaultToBlocking &amp;&amp; (useNativeIfPossible ||
+<a class="jxr_linenumber" name="258" href="#258">258</a>                 servletAsyncSupport.getClass().getName().equals(BlockingIOCometSupport.<strong class="jxr_keyword">class</strong>.getName()))) {
+<a class="jxr_linenumber" name="259" href="#259">259</a>             nativeSupport = resolveNativeCometSupport(detectContainersPresent());
+<a class="jxr_linenumber" name="260" href="#260">260</a>             <strong class="jxr_keyword">return</strong> nativeSupport == <strong class="jxr_keyword">null</strong> ? servletAsyncSupport : nativeSupport;
+<a class="jxr_linenumber" name="261" href="#261">261</a>         }
+<a class="jxr_linenumber" name="262" href="#262">262</a>         <strong class="jxr_keyword">return</strong> servletAsyncSupport;
+<a class="jxr_linenumber" name="263" href="#263">263</a>     }
+<a class="jxr_linenumber" name="264" href="#264">264</a> 
+<a class="jxr_linenumber" name="265" href="#265">265</a>     @Override
+<a class="jxr_linenumber" name="266" href="#266">266</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolve(<strong class="jxr_keyword">boolean</strong> useNativeIfPossible, <strong class="jxr_keyword">boolean</strong> defaultToBlocking, <strong class="jxr_keyword">boolean</strong> useServlet30Async) {
+<a class="jxr_linenumber" name="267" href="#267">267</a>         <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> cs = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="268" href="#268">268</a> 
+<a class="jxr_linenumber" name="269" href="#269">269</a>         <em class="jxr_comment">// Validate the value for old Servlet Container.</em>
+<a class="jxr_linenumber" name="270" href="#270">270</a>         useServlet30Async = testClassExists(SERVLET_30);
+<a class="jxr_linenumber" name="271" href="#271">271</a> 
+<a class="jxr_linenumber" name="272" href="#272">272</a>         <strong class="jxr_keyword">if</strong> (!defaultToBlocking) {
+<a class="jxr_linenumber" name="273" href="#273">273</a>             List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
+<a class="jxr_linenumber" name="274" href="#274">274</a> 
+<a class="jxr_linenumber" name="275" href="#275">275</a>             <strong class="jxr_keyword">if</strong> (!l.isEmpty()) {
+<a class="jxr_linenumber" name="276" href="#276">276</a>                 cs = resolveWebSocket(l);
+<a class="jxr_linenumber" name="277" href="#277">277</a>             }
+<a class="jxr_linenumber" name="278" href="#278">278</a>         }
+<a class="jxr_linenumber" name="279" href="#279">279</a> 
+<a class="jxr_linenumber" name="280" href="#280">280</a>         <strong class="jxr_keyword">if</strong> (cs == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="281" href="#281">281</a>             <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> nativeSupport = resolveNativeCometSupport(detectContainersPresent());
+<a class="jxr_linenumber" name="282" href="#282">282</a>             <strong class="jxr_keyword">return</strong> nativeSupport == <strong class="jxr_keyword">null</strong> ? defaultCometSupport(defaultToBlocking) : nativeSupport;
+<a class="jxr_linenumber" name="283" href="#283">283</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="284" href="#284">284</a>             <strong class="jxr_keyword">return</strong> cs;
+<a class="jxr_linenumber" name="285" href="#285">285</a>         }
+<a class="jxr_linenumber" name="286" href="#286">286</a>     }
+<a class="jxr_linenumber" name="287" href="#287">287</a> 
+<a class="jxr_linenumber" name="288" href="#288">288</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolveWebSocket(<strong class="jxr_keyword">final</strong> java.util.List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; available) {
+<a class="jxr_linenumber" name="289" href="#289">289</a>         <strong class="jxr_keyword">if</strong> (available == <strong class="jxr_keyword">null</strong> || available.isEmpty()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="290" href="#290">290</a>         <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">return</strong> newCometSupport(available.get(0));
+<a class="jxr_linenumber" name="291" href="#291">291</a>     }
+<a class="jxr_linenumber" name="292" href="#292">292</a> 
+<a class="jxr_linenumber" name="293" href="#293">293</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="294" href="#294">294</a> <em class="jxr_javadoccomment">     * This method is called to determine which native comet support to the used.</em>
+<a class="jxr_linenumber" name="295" href="#295">295</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="296" href="#296">296</a> <em class="jxr_javadoccomment">     * @param available</em>
+<a class="jxr_linenumber" name="297" href="#297">297</a> <em class="jxr_javadoccomment">     * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available ontainers</em>
+<a class="jxr_linenumber" name="298" href="#298">298</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="299" href="#299">299</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolveNativeCometSupport(<strong class="jxr_keyword">final</strong> java.util.List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; available) {
+<a class="jxr_linenumber" name="300" href="#300">300</a>         <strong class="jxr_keyword">if</strong> (available == <strong class="jxr_keyword">null</strong> || available.isEmpty()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="301" href="#301">301</a>         <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (available.size() == 1) <strong class="jxr_keyword">return</strong> newCometSupport(available.get(0));
+<a class="jxr_linenumber" name="302" href="#302">302</a>         <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">return</strong> resolveMultipleNativeSupportConflict(available);
+<a class="jxr_linenumber" name="303" href="#303">303</a>     }
+<a class="jxr_linenumber" name="304" href="#304">304</a> 
+<a class="jxr_linenumber" name="305" href="#305">305</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="306" href="#306">306</a> <em class="jxr_javadoccomment">     * This method is called if there are more than one potential native container in scope.</em>
+<a class="jxr_linenumber" name="307" href="#307">307</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="308" href="#308">308</a> <em class="jxr_javadoccomment">     * @return a AsyncSupport instance</em>
+<a class="jxr_linenumber" name="309" href="#309">309</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="310" href="#310">310</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AsyncSupport.html">AsyncSupport</a> resolveMultipleNativeSupportConflict(<strong class="jxr_keyword">final</strong> List&lt;Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt;&gt; available) {
+<a class="jxr_linenumber" name="311" href="#311">311</a>         <strong class="jxr_keyword">final</strong> StringBuilder b = <strong class="jxr_keyword">new</strong> StringBuilder(<span class="jxr_string">"Found multiple containers, please specify which one to use: "</span>);
+<a class="jxr_linenumber" name="312" href="#312">312</a>         <strong class="jxr_keyword">for</strong> (Class&lt;? <strong class="jxr_keyword">extends</strong> AsyncSupport&gt; cs : available) {
+<a class="jxr_linenumber" name="313" href="#313">313</a>             b.append((cs != <strong class="jxr_keyword">null</strong>) ? cs.getCanonicalName() : <span class="jxr_string">"null"</span>).append(<span class="jxr_string">", "</span>);
+<a class="jxr_linenumber" name="314" href="#314">314</a>         }
+<a class="jxr_linenumber" name="315" href="#315">315</a> 
+<a class="jxr_linenumber" name="316" href="#316">316</a>         b.append(<span class="jxr_string">" until you do, Atmosphere will use:"</span> + available.get(0));
+<a class="jxr_linenumber" name="317" href="#317">317</a>         logger.warn(<span class="jxr_string">"{}"</span>, b.toString());
+<a class="jxr_linenumber" name="318" href="#318">318</a>         <strong class="jxr_keyword">return</strong> newCometSupport(available.get(0));
+<a class="jxr_linenumber" name="319" href="#319">319</a>     }
+<a class="jxr_linenumber" name="320" href="#320">320</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

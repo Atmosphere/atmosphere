@@ -153,28 +153,29 @@
 <a class="jxr_linenumber" name="143" href="#143">143</a> <em class="jxr_javadoccomment">     * Return the default {@link BroadcasterFactory}.</em>
 <a class="jxr_linenumber" name="144" href="#144">144</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="145" href="#145">145</a> <em class="jxr_javadoccomment">     * @return the default {@link BroadcasterFactory}.</em>
-<a class="jxr_linenumber" name="146" href="#146">146</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="147" href="#147">147</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">synchronized</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> getDefault() {
-<a class="jxr_linenumber" name="148" href="#148">148</a>         <strong class="jxr_keyword">return</strong> factory;
-<a class="jxr_linenumber" name="149" href="#149">149</a>     }
-<a class="jxr_linenumber" name="150" href="#150">150</a> 
-<a class="jxr_linenumber" name="151" href="#151">151</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> addBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
-<a class="jxr_linenumber" name="152" href="#152">152</a>         <strong class="jxr_keyword">if</strong> (!broadcasterListeners.contains(b)) {
-<a class="jxr_linenumber" name="153" href="#153">153</a>             broadcasterListeners.add(b);
-<a class="jxr_linenumber" name="154" href="#154">154</a>         }
-<a class="jxr_linenumber" name="155" href="#155">155</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="156" href="#156">156</a>     }
-<a class="jxr_linenumber" name="157" href="#157">157</a> 
-<a class="jxr_linenumber" name="158" href="#158">158</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> removeBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
-<a class="jxr_linenumber" name="159" href="#159">159</a>         broadcasterListeners.remove(b);
-<a class="jxr_linenumber" name="160" href="#160">160</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="161" href="#161">161</a>     }
-<a class="jxr_linenumber" name="162" href="#162">162</a> 
-<a class="jxr_linenumber" name="163" href="#163">163</a>     <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> setBroadcasterFactory(<a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> f, <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> c) {
-<a class="jxr_linenumber" name="164" href="#164">164</a>         factory = f;
-<a class="jxr_linenumber" name="165" href="#165">165</a>         config = c;
-<a class="jxr_linenumber" name="166" href="#166">166</a>     }
-<a class="jxr_linenumber" name="167" href="#167">167</a> }
+<a class="jxr_linenumber" name="146" href="#146">146</a> <em class="jxr_javadoccomment">     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#resourcesFactory()}</em>
+<a class="jxr_linenumber" name="147" href="#147">147</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="148" href="#148">148</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">synchronized</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> getDefault() {
+<a class="jxr_linenumber" name="149" href="#149">149</a>         <strong class="jxr_keyword">return</strong> factory;
+<a class="jxr_linenumber" name="150" href="#150">150</a>     }
+<a class="jxr_linenumber" name="151" href="#151">151</a> 
+<a class="jxr_linenumber" name="152" href="#152">152</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> addBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
+<a class="jxr_linenumber" name="153" href="#153">153</a>         <strong class="jxr_keyword">if</strong> (!broadcasterListeners.contains(b)) {
+<a class="jxr_linenumber" name="154" href="#154">154</a>             broadcasterListeners.add(b);
+<a class="jxr_linenumber" name="155" href="#155">155</a>         }
+<a class="jxr_linenumber" name="156" href="#156">156</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="157" href="#157">157</a>     }
+<a class="jxr_linenumber" name="158" href="#158">158</a> 
+<a class="jxr_linenumber" name="159" href="#159">159</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> removeBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b) {
+<a class="jxr_linenumber" name="160" href="#160">160</a>         broadcasterListeners.remove(b);
+<a class="jxr_linenumber" name="161" href="#161">161</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="162" href="#162">162</a>     }
+<a class="jxr_linenumber" name="163" href="#163">163</a> 
+<a class="jxr_linenumber" name="164" href="#164">164</a>     <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> setBroadcasterFactory(<a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> f, <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> c) {
+<a class="jxr_linenumber" name="165" href="#165">165</a>         factory = f;
+<a class="jxr_linenumber" name="166" href="#166">166</a>         config = c;
+<a class="jxr_linenumber" name="167" href="#167">167</a>     }
+<a class="jxr_linenumber" name="168" href="#168">168</a> }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

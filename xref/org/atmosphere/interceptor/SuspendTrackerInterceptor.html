@@ -32,35 +32,35 @@
 <a class="jxr_linenumber" name="22" href="#22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEvent;
 <a class="jxr_linenumber" name="23" href="#23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 <a class="jxr_linenumber" name="24" href="#24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceImpl;
-<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.Utils;
-<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
-<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
-<a class="jxr_linenumber" name="28" href="#28">28</a>  
-<a class="jxr_linenumber" name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Collections;
-<a class="jxr_linenumber" name="30" href="#30">30</a>  <strong class="jxr_keyword">import</strong> java.util.HashSet;
-<a class="jxr_linenumber" name="31" href="#31">31</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
-<a class="jxr_linenumber" name="32" href="#32">32</a>  
-<a class="jxr_linenumber" name="33" href="#33">33</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
-<a class="jxr_linenumber" name="34" href="#34">34</a>  
-<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}</em>
-<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment"> * and {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onPreSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}</em>
-<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment"> * &lt;/p&gt;</em>
-<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> * When used, the onSuspend will be only called ONCE for every transport, when the first request is made.</em>
-<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> *</em>
-<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
-<a class="jxr_linenumber" name="42" href="#42">42</a>  <em class="jxr_javadoccomment"> */</em>
-<a class="jxr_linenumber" name="43" href="#43">43</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/interceptor/SuspendTrackerInterceptor.html">SuspendTrackerInterceptor</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/AtmosphereInterceptorAdapter.html">AtmosphereInterceptorAdapter</a> {
-<a class="jxr_linenumber" name="44" href="#44">44</a>  
-<a class="jxr_linenumber" name="45" href="#45">45</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Set&lt;String&gt; trackedUUID = Collections.synchronizedSet(<strong class="jxr_keyword">new</strong> HashSet&lt;String&gt;());
-<a class="jxr_linenumber" name="46" href="#46">46</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(SuspendTrackerInterceptor.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="47" href="#47">47</a>  
-<a class="jxr_linenumber" name="48" href="#48">48</a>      @Override
-<a class="jxr_linenumber" name="49" href="#49">49</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> inspect(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.HeaderConfig;
+<a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.Utils;
+<a class="jxr_linenumber" name="27" href="#27">27</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="29" href="#29">29</a>  
+<a class="jxr_linenumber" name="30" href="#30">30</a>  <strong class="jxr_keyword">import</strong> java.util.Collections;
+<a class="jxr_linenumber" name="31" href="#31">31</a>  <strong class="jxr_keyword">import</strong> java.util.HashSet;
+<a class="jxr_linenumber" name="32" href="#32">32</a>  <strong class="jxr_keyword">import</strong> java.util.Set;
+<a class="jxr_linenumber" name="33" href="#33">33</a>  
+<a class="jxr_linenumber" name="34" href="#34">34</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="35" href="#35">35</a>  <em class="jxr_javadoccomment"> * An interceptor that keep track of {@link AtmosphereResource#uuid()} and disable invocation of {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}</em>
+<a class="jxr_linenumber" name="36" href="#36">36</a>  <em class="jxr_javadoccomment"> * and {@link org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter#onPreSuspend(org.atmosphere.cpr.AtmosphereResourceEvent)}</em>
+<a class="jxr_linenumber" name="37" href="#37">37</a>  <em class="jxr_javadoccomment"> * &lt;/p&gt;</em>
+<a class="jxr_linenumber" name="38" href="#38">38</a>  <em class="jxr_javadoccomment"> * When used, the onSuspend will be only called ONCE for every transport, when the first request is made.</em>
+<a class="jxr_linenumber" name="39" href="#39">39</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="40" href="#40">40</a>  <em class="jxr_javadoccomment"> * @author Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="41" href="#41">41</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="42" href="#42">42</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/interceptor/SuspendTrackerInterceptor.html">SuspendTrackerInterceptor</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/AtmosphereInterceptorAdapter.html">AtmosphereInterceptorAdapter</a> {
+<a class="jxr_linenumber" name="43" href="#43">43</a>  
+<a class="jxr_linenumber" name="44" href="#44">44</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Set&lt;String&gt; trackedUUID = Collections.synchronizedSet(<strong class="jxr_keyword">new</strong> HashSet&lt;String&gt;());
+<a class="jxr_linenumber" name="45" href="#45">45</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(SuspendTrackerInterceptor.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="46" href="#46">46</a>  
+<a class="jxr_linenumber" name="47" href="#47">47</a>      @Override
+<a class="jxr_linenumber" name="48" href="#48">48</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> inspect(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="49" href="#49">49</a>  
 <a class="jxr_linenumber" name="50" href="#50">50</a>          <strong class="jxr_keyword">if</strong> (Utils.webSocketMessage(r)) <strong class="jxr_keyword">return</strong> Action.CONTINUE;
 <a class="jxr_linenumber" name="51" href="#51">51</a>  
 <a class="jxr_linenumber" name="52" href="#52">52</a>          <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).getRequest(false);
-<a class="jxr_linenumber" name="53" href="#53">53</a>          <strong class="jxr_keyword">boolean</strong> connecting = request.getHeader(X_ATMOSPHERE_TRACKING_ID) != <strong class="jxr_keyword">null</strong> &amp;&amp; request.getHeader(X_ATMOSPHERE_TRACKING_ID).equals(<span class="jxr_string">"0"</span>);
+<a class="jxr_linenumber" name="53" href="#53">53</a>          <strong class="jxr_keyword">boolean</strong> connecting = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != <strong class="jxr_keyword">null</strong> &amp;&amp; request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID).equals(<span class="jxr_string">"0"</span>);
 <a class="jxr_linenumber" name="54" href="#54">54</a>  
 <a class="jxr_linenumber" name="55" href="#55">55</a>          <strong class="jxr_keyword">if</strong> (!connecting &amp;&amp; !Utils.pollableTransport(r.transport())) {
 <a class="jxr_linenumber" name="56" href="#56">56</a>              <strong class="jxr_keyword">if</strong> (!trackedUUID.add(r.uuid())) {
@@ -84,16 +84,20 @@
 <a class="jxr_linenumber" name="74" href="#74">74</a>          <strong class="jxr_keyword">return</strong> Action.CONTINUE;
 <a class="jxr_linenumber" name="75" href="#75">75</a>      }
 <a class="jxr_linenumber" name="76" href="#76">76</a>  
-<a class="jxr_linenumber" name="77" href="#77">77</a>      @Override
-<a class="jxr_linenumber" name="78" href="#78">78</a>      <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="79" href="#79">79</a>          <strong class="jxr_keyword">return</strong> <span class="jxr_string">"UUID Tracking Interceptor"</span>;
-<a class="jxr_linenumber" name="80" href="#80">80</a>      }
-<a class="jxr_linenumber" name="81" href="#81">81</a>  
-<a class="jxr_linenumber" name="82" href="#82">82</a>      @Override
-<a class="jxr_linenumber" name="83" href="#83">83</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/InvokationOrder.html">PRIORITY</a> priority() {
-<a class="jxr_linenumber" name="84" href="#84">84</a>          <strong class="jxr_keyword">return</strong> InvokationOrder.BEFORE_DEFAULT;
-<a class="jxr_linenumber" name="85" href="#85">85</a>      }
-<a class="jxr_linenumber" name="86" href="#86">86</a>  }
+<a class="jxr_linenumber" name="77" href="#77">77</a>      <strong class="jxr_keyword">public</strong> Set&lt;String&gt; trackedUUID(){
+<a class="jxr_linenumber" name="78" href="#78">78</a>          <strong class="jxr_keyword">return</strong> trackedUUID;
+<a class="jxr_linenumber" name="79" href="#79">79</a>      }
+<a class="jxr_linenumber" name="80" href="#80">80</a>  
+<a class="jxr_linenumber" name="81" href="#81">81</a>      @Override
+<a class="jxr_linenumber" name="82" href="#82">82</a>      <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="83" href="#83">83</a>          <strong class="jxr_keyword">return</strong> <span class="jxr_string">"UUID Tracking Interceptor"</span>;
+<a class="jxr_linenumber" name="84" href="#84">84</a>      }
+<a class="jxr_linenumber" name="85" href="#85">85</a>  
+<a class="jxr_linenumber" name="86" href="#86">86</a>      @Override
+<a class="jxr_linenumber" name="87" href="#87">87</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/InvokationOrder.html">PRIORITY</a> priority() {
+<a class="jxr_linenumber" name="88" href="#88">88</a>          <strong class="jxr_keyword">return</strong> InvokationOrder.BEFORE_DEFAULT;
+<a class="jxr_linenumber" name="89" href="#89">89</a>      }
+<a class="jxr_linenumber" name="90" href="#90">90</a>  }
 </pre>
 <hr/><div id="footer">This page was automatically generated by <a href="http://maven.apache.org/">Maven</a></div></body>
 </html>

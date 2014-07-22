@@ -161,7 +161,7 @@
 <a class="jxr_linenumber" name="151" href="#151">151</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> ECHO_ATMOSPHEREHANDLER = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/handler/AbstractReflectorAtmosphereHandler.html">AbstractReflectorAtmosphereHandler</a>() {
 <a class="jxr_linenumber" name="152" href="#152">152</a>         @Override
 <a class="jxr_linenumber" name="153" href="#153">153</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onRequest(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="154" href="#154">154</a>             String body = IOUtils.readEntirely(resource).toString();
+<a class="jxr_linenumber" name="154" href="#154">154</a>             String body = IOUtils.readEntirelyAsString(resource).toString();
 <a class="jxr_linenumber" name="155" href="#155">155</a>             <strong class="jxr_keyword">if</strong> (!body.isEmpty()) {
 <a class="jxr_linenumber" name="156" href="#156">156</a>                 resource.getBroadcaster().broadcast(body);
 <a class="jxr_linenumber" name="157" href="#157">157</a>             }

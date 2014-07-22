@@ -43,7 +43,7 @@
 <a class="jxr_linenumber" name="33" href="#33">33</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> interceptors(Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereInterceptor&gt;[] interceptors, <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework) {
 <a class="jxr_linenumber" name="34" href="#34">34</a>          <strong class="jxr_keyword">for</strong> (Class i : interceptors) {
 <a class="jxr_linenumber" name="35" href="#35">35</a>              <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="36" href="#36">36</a>                  framework.interceptor((AtmosphereInterceptor) framework.newClassInstance(AtmosphereInterceptor.<strong class="jxr_keyword">class</strong>, i));
+<a class="jxr_linenumber" name="36" href="#36">36</a>                  framework.interceptor(framework.newClassInstance(AtmosphereInterceptor.<strong class="jxr_keyword">class</strong>, i));
 <a class="jxr_linenumber" name="37" href="#37">37</a>              } <strong class="jxr_keyword">catch</strong> (Throwable e) {
 <a class="jxr_linenumber" name="38" href="#38">38</a>                  logger.warn(<span class="jxr_string">""</span>, e);
 <a class="jxr_linenumber" name="39" href="#39">39</a>              }

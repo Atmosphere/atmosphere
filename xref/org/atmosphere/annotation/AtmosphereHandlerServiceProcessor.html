@@ -35,7 +35,7 @@
 <a class="jxr_linenumber" name="25" href="#25">25</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
 <a class="jxr_linenumber" name="26" href="#26">26</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
 <a class="jxr_linenumber" name="27" href="#27">27</a>  
-<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> java.util.ArrayList;
+<a class="jxr_linenumber" name="28" href="#28">28</a>  <strong class="jxr_keyword">import</strong> java.util.LinkedList;
 <a class="jxr_linenumber" name="29" href="#29">29</a>  <strong class="jxr_keyword">import</strong> java.util.List;
 <a class="jxr_linenumber" name="30" href="#30">30</a>  
 <a class="jxr_linenumber" name="31" href="#31">31</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
@@ -57,7 +57,7 @@
 <a class="jxr_linenumber" name="47" href="#47">47</a>              filters(a.broadcastFilters(), framework);
 <a class="jxr_linenumber" name="48" href="#48">48</a>  
 <a class="jxr_linenumber" name="49" href="#49">49</a>              Class&lt;?&gt;[] interceptors = a.interceptors();
-<a class="jxr_linenumber" name="50" href="#50">50</a>              List&lt;AtmosphereInterceptor&gt; l = <strong class="jxr_keyword">new</strong> ArrayList&lt;AtmosphereInterceptor&gt;();
+<a class="jxr_linenumber" name="50" href="#50">50</a>              List&lt;AtmosphereInterceptor&gt; l = <strong class="jxr_keyword">new</strong> LinkedList&lt;AtmosphereInterceptor&gt;();
 <a class="jxr_linenumber" name="51" href="#51">51</a>              <strong class="jxr_keyword">for</strong> (Class i : interceptors) {
 <a class="jxr_linenumber" name="52" href="#52">52</a>                  <strong class="jxr_keyword">try</strong> {
 <a class="jxr_linenumber" name="53" href="#53">53</a>                      <a href="../../../org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a> ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.<strong class="jxr_keyword">class</strong>, i);

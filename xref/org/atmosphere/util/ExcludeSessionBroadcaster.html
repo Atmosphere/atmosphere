@@ -45,7 +45,7 @@
 <a class="jxr_linenumber" name="35" href="#35">35</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Broadcaster;
 <a class="jxr_linenumber" name="36" href="#36">36</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcasterFuture;
 <a class="jxr_linenumber" name="37" href="#37">37</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.DefaultBroadcaster;
-<a class="jxr_linenumber" name="38" href="#38">38</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Entry;
+<a class="jxr_linenumber" name="38" href="#38">38</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Deliver;
 <a class="jxr_linenumber" name="39" href="#39">39</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
 <a class="jxr_linenumber" name="40" href="#40">40</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
 <a class="jxr_linenumber" name="41" href="#41">41</a>  
@@ -94,7 +94,7 @@
 <a class="jxr_linenumber" name="84" href="#84">84</a>          }
 <a class="jxr_linenumber" name="85" href="#85">85</a>  
 <a class="jxr_linenumber" name="86" href="#86">86</a>          BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, sub.size());
-<a class="jxr_linenumber" name="87" href="#87">87</a>          dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Entry.html">Entry</a>(newMsg, sub, f, msg));
+<a class="jxr_linenumber" name="87" href="#87">87</a>          dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(newMsg, sub, f, msg));
 <a class="jxr_linenumber" name="88" href="#88">88</a>          <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="89" href="#89">89</a>      }
 <a class="jxr_linenumber" name="90" href="#90">90</a>  
@@ -121,7 +121,7 @@
 <a class="jxr_linenumber" name="111" href="#111">111</a>         }
 <a class="jxr_linenumber" name="112" href="#112">112</a> 
 <a class="jxr_linenumber" name="113" href="#113">113</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, subset.size());
-<a class="jxr_linenumber" name="114" href="#114">114</a>         dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Entry.html">Entry</a>(newMsg, subset, f, msg));
+<a class="jxr_linenumber" name="114" href="#114">114</a>         dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(newMsg, subset, f, msg));
 <a class="jxr_linenumber" name="115" href="#115">115</a>         <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="116" href="#116">116</a>     }
 <a class="jxr_linenumber" name="117" href="#117">117</a> 
@@ -153,7 +153,7 @@
 <a class="jxr_linenumber" name="143" href="#143">143</a>         }
 <a class="jxr_linenumber" name="144" href="#144">144</a> 
 <a class="jxr_linenumber" name="145" href="#145">145</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, subset.size());
-<a class="jxr_linenumber" name="146" href="#146">146</a>         dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Entry.html">Entry</a>(newMsg, subset, f, msg));
+<a class="jxr_linenumber" name="146" href="#146">146</a>         dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(newMsg, subset, f, msg));
 <a class="jxr_linenumber" name="147" href="#147">147</a>         <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="148" href="#148">148</a>     }
 <a class="jxr_linenumber" name="149" href="#149">149</a> 
@@ -187,7 +187,7 @@
 <a class="jxr_linenumber" name="177" href="#177">177</a>         }
 <a class="jxr_linenumber" name="178" href="#178">178</a> 
 <a class="jxr_linenumber" name="179" href="#179">179</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, subset.size());
-<a class="jxr_linenumber" name="180" href="#180">180</a>         dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Entry.html">Entry</a>(newMsg, subset, f, msg));
+<a class="jxr_linenumber" name="180" href="#180">180</a>         dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(newMsg, subset, f, msg));
 <a class="jxr_linenumber" name="181" href="#181">181</a>         <strong class="jxr_keyword">return</strong> f;
 <a class="jxr_linenumber" name="182" href="#182">182</a>     }
 <a class="jxr_linenumber" name="183" href="#183">183</a> }
