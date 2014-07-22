@@ -651,10 +651,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return this;
     }
 
-    public String requestURL() {
-        return b.requestURL;
-    }
-
     private final static class ByteInputStream extends ServletInputStream {
 
         private final ByteArrayInputStream bis;
@@ -1855,7 +1851,15 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             return AtmosphereRequest.class.cast(request);
         }
-        return new Builder().request(request).build();
+
+        Builder b = new Builder();
+        Enumeration<String> e = request.getAttributeNames();
+        String s;
+        while (e.hasMoreElements()) {
+            s = e.nextElement();
+            b.localAttributes.put(s, request.getAttribute(s));
+        }
+        return b.request(request).build();
     }
 
     /**
