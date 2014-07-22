@@ -56,6 +56,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
+import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 
 /**
  * The default {@link Broadcaster} implementation.
@@ -1342,7 +1343,10 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             if (!backwardCompatible && resources.contains(r)) {
-                if (r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
+                boolean duplicate = r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET
+                        || AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(INJECTED_ATMOSPHERE_RESOURCE) != null;
+
+                if (duplicate) {
                     AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
                     if (dup != null && dup.hashCode() != r.hashCode()) {
                         logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
