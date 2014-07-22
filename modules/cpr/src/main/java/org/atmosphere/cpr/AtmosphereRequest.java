@@ -1862,6 +1862,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         return b.request(request).build();
     }
 
+
+
     /**
      * Copy the HttpServletRequest content inside an AtmosphereRequest. By default the returned AtmosphereRequest
      * is not destroyable.
@@ -2016,5 +2018,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     '}';
 
         }
+    }
+
+    public String requestURL() {
+        return b.requestURL;
     }
 }
