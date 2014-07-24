@@ -25,8 +25,8 @@ import org.atmosphere.container.Grizzly2CometSupport;
 import org.atmosphere.container.Grizzly2WebSocketSupport;
 import org.atmosphere.container.GrizzlyCometSupport;
 import org.atmosphere.container.GrizzlyServlet30WebSocketSupport;
+import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
 import org.atmosphere.container.JBossWebCometSupport;
-import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.container.Jetty7CometSupport;
 import org.atmosphere.container.Jetty9AsyncSupportWithWebSocket;
@@ -192,7 +192,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         add(Grizzly2WebSocketSupport.class);
 
                     if (testClassExists(JBOSS_AS7_WEBSOCKET))
-                        add(JBossWebSocketSupport.class);
+                        add(JBossAsyncSupportWithWebSocket.class);
                 }
             }
         };
