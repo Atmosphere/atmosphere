@@ -382,6 +382,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected void processReady(AtmosphereResource r) {
+        if (onReadyMethod.getAnnotation(Ready.class).value() != Ready.DELIVER_TO.RESOURCE) {
+            logger.warn("Since 2.2, delivery strategy must be specified with @DeliverTo, not with a value in the @Ready annotation.", new IllegalStateException());
+        }
+
         deliver(message(onReadyMethod, r), onReadyMethod.getAnnotation(DeliverTo.class), DeliverTo.DELIVER_TO.RESOURCE, r);
     }
 
