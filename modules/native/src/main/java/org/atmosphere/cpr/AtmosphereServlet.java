@@ -15,8 +15,21 @@
  */
 package org.atmosphere.cpr;
 
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
+
+import java.io.IOException;
+import java.util.Enumeration;
+
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
+import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
@@ -25,17 +38,6 @@ import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-import java.io.IOException;
-import java.util.Enumeration;
-
-import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
  * This servlet supports native Comet support with Tomcat 6, 7 and JBoss Web 3.x
@@ -312,6 +314,9 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         if (isWebSocket && framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
             logger.trace("Dispatching websocket event: " + httpEvent);
             ((JBossWebSocketSupport) framework.asyncSupport).dispatch(httpEvent);
+        } else if (isWebSocket && framework.asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
+        	logger.trace("Dispatching websocket event: " + httpEvent);
+            ((JBossAsyncSupportWithWebSocket) framework.asyncSupport).dispatch(httpEvent);
         } else {
             logger.trace("Dispatching comet event: " + httpEvent);
             framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
