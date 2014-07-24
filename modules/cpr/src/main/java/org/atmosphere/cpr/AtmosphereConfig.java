@@ -264,6 +264,14 @@ public class AtmosphereConfig {
         return s;
     }
 
+    public boolean getInitParameter(String key, boolean defaultValue) {
+        String s = getInitParameter(key);
+        if (s == null) {
+            return defaultValue;
+        }
+        return Boolean.valueOf(s);
+    }
+
     public AtmosphereResourceFactory resourcesFactory(){
         return framework.atmosphereFactory();
     }

@@ -20,6 +20,7 @@ import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.util.EndpointMapper;
@@ -109,7 +110,7 @@ public interface ApplicationConfig {
     /**
      * The default {@link org.atmosphere.cpr.BroadcasterCache} class.
      * <p/>
-     * Default: "" (Not installed by default)<br>
+     * Default: org.atmosphere.cache.DefaultBroadcasterCache (Doing nothing, not caching anything)<br>
      * Value: org.atmosphere.cpr.broadcasterCacheClass
      */
     String BROADCASTER_CACHE = ApplicationConfig.class.getPackage().getName() + ".broadcasterCacheClass";
@@ -743,5 +744,27 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.protocol.SimpleHttpProtocol.rewriteURL
      */
     String REWRITE_WEBSOCKET_REQUESTURI = SimpleHttpProtocol.class.getName() + ".rewriteURL";
+    /**
+     * The heartbeat frequency, in seconds.
+     * <p/>
+     * Default: 60
+     * Value: org.atmosphere.interceptor.HeartbeatInterceptor.heartbeatFrequencyInSeconds
+     */
+    String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
+
+    /**
+     * Configuration key for client heartbeat.
+     * <p/>
+     * Default: 0 (disabled)
+     * Value: org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds
+     */
+    String CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".clientHeartbeatFrequencyInSeconds";
+    /**
+     * Resume the long-polling or jsonp connection on every heartbeat (I/O operations).
+     * <p/>
+     * Default: true
+     * Value: org.atmosphere.interceptor.HeartbeatInterceptor.resumeOnHeartbeat
+     */
+    String RESUME_ON_HEARTBEAT = HeartbeatInterceptor.class.getName() + ".resumeOnHeartbeat";
 }
 

@@ -20,6 +20,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -113,7 +114,7 @@ public class JSR356Endpoint extends Endpoint {
             headers.put(e.getKey(), e.getValue().size() > 0 ? e.getValue().get(0) : "");
         }
 
-        String servletPath = "";
+        String servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
 
         URI uri = session.getRequestURI();
         String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
@@ -121,7 +122,6 @@ public class JSR356Endpoint extends Endpoint {
         // /contextPath/servletPath/pathInfo
         StringBuffer b = new StringBuffer("/");
         for (int i = 0; i < paths.length; i++) {
-            if (i == 2) servletPath += "/" + paths[i];
             if (i >= 3) {
                 b.append(paths[i]).append("/");
             }

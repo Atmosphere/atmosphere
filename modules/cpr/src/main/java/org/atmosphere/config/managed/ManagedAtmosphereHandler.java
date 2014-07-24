@@ -16,6 +16,7 @@
 package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.Delete;
+import org.atmosphere.config.service.DeliverTo;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.Heartbeat;
@@ -163,9 +164,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 invoke(onPostMethod, resource);
             }
 
-            Object o = message(resource, body);
-            if (o != null) {
-                resource.getBroadcaster().broadcast(new Managed(o));
+            MethodInfo.EncoderObject e = message(resource, body);
+            if (e != null && e.encodedObject != null) {
+                deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
@@ -219,7 +220,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                     }
                 } else {
                     logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
-                    o = message(r, msg);
+                    final MethodInfo.EncoderObject e = message(r, msg);
+                    o = e == null ? null : e.encodedObject;
                     if (o != null) {
                         event.setMessage(o);
                     }
@@ -324,7 +326,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return Utils.invoke(proxiedInstance, m, o);
     }
 
-    private Object message(AtmosphereResource resource, Object o) {
+    private MethodInfo.EncoderObject message(AtmosphereResource resource, Object o) {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
         try {
             for (MethodInfo m : onRuntimeMethod) {
@@ -358,7 +360,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
 
                 if (objectToEncode != null) {
-                    return Invoker.encode(encoders.get(m.method), objectToEncode);
+                    return m.encode(encoders, objectToEncode);
                 }
             }
         } catch (Throwable t) {
@@ -380,9 +382,25 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected void processReady(AtmosphereResource r) {
-        Object o = message(onReadyMethod, r);
+        deliver(message(onReadyMethod, r), onReadyMethod.getAnnotation(DeliverTo.class), DeliverTo.DELIVER_TO.RESOURCE, r);
+    }
 
-        switch (onReadyMethod.getAnnotation(Ready.class).value()) {
+    /**
+     * <p>
+     * Delivers the given message according to the specified {@link DeliverTo configuration).
+     * </p>
+     *
+     * @param o the message
+     * @param deliverConfig the annotation state
+     * @param defaultDeliver the strategy applied if deliverConfig is {@code null}
+     * @param r the resource
+     */
+    protected void deliver(final Object o,
+                           final DeliverTo deliverConfig,
+                           final DeliverTo.DELIVER_TO defaultDeliver,
+                           final AtmosphereResource r) {
+        final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
+        switch (deliverTo) {
             case RESOURCE:
                 if (o != null) {
                     try {
@@ -432,11 +450,64 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     public final static class MethodInfo {
 
         final Method method;
+        final DeliverTo.DELIVER_TO deliverTo;
         boolean useStream;
         boolean useReader;
 
         public MethodInfo(Method method) {
             this.method = method;
+
+            if (method.isAnnotationPresent(DeliverTo.class)) {
+                this.deliverTo = method.getAnnotation(DeliverTo.class).value();
+            } else {
+                this.deliverTo = DeliverTo.DELIVER_TO.BROADCASTER;
+            }
+        }
+
+        /**
+         * <p>
+         * Creates a new {@link org.atmosphere.config.managed.ManagedAtmosphereHandler.MethodInfo.EncoderObject} which encodes the given object and wraps the result.
+         * </p>
+         *
+         * @param encoders the encoders
+         * @param objectToEncode the object to encode and wrap
+         * @return the resulting object encoder
+         */
+        EncoderObject encode(final Map<Method, List<Encoder<?, ?>>> encoders, final Object objectToEncode) {
+            return new EncoderObject(encoders, objectToEncode);
+        }
+
+        /**
+         * <p>
+         * Inner class that wraps an object to encode and exposes access to the enclosing {@link MethodInfo}.
+         * </p>
+         *
+         * @author Guillaume Drouet
+         */
+        class EncoderObject {
+
+            /**
+             * The encoded object.
+             */
+            final Object encodedObject;
+
+            /**
+             * The referenced to the enclosing instance.
+             */
+            final MethodInfo methodInfo;
+
+            /**
+             * <p>
+             * Builds a new instance.
+             * </p>
+             *
+             * @param encoders the encoders
+             * @param objectToEncode the object to encode
+             */
+            public EncoderObject(final Map<Method, List<Encoder<?, ?>>> encoders, final Object objectToEncode) {
+                encodedObject = Invoker.encode(encoders.get(method), objectToEncode);
+                methodInfo = MethodInfo.this;
+            }
         }
     }
 

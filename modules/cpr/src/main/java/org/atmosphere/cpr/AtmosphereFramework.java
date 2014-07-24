@@ -1298,7 +1298,7 @@ public class AtmosphereFramework {
             boolean sessionSupport = Boolean.valueOf(s) || SessionSupport.initializationHint;
             config.setSupportSession(sessionSupport);
             if (sessionSupport && (sc.getServletContext().getMajorVersion() < 3 || !SessionSupport.initializationHint)) {
-                logger.warn("SessionSupport error. Make sure you define {} as a listener in web.xml instead", SessionSupport.class.getName());
+                logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", SessionSupport.class.getName());
             }
             isSessionSupportSpecified = true;
         }
