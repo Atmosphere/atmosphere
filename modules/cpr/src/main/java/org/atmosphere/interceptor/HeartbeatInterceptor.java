@@ -160,8 +160,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(final AtmosphereResource r) {
-        final AtmosphereRequest request = r.getRequest();
-        final AtmosphereResponse response = r.getResponse();
+        final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
+        final AtmosphereRequest request = impl.getRequest(false);
+        final AtmosphereResponse response = impl.getResponse(false);
 
         // Check heartbeat
         if (clientHeartbeatFrequencyInSeconds > 0) {
@@ -192,7 +193,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
-        final int interval = extractHeartbeatInterval(r);
+        final int interval = extractHeartbeatInterval(impl);
 
         if (interval != 0) {
             if (!Utils.pollableTransport(r.transport())) {
@@ -238,7 +239,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
             if (!Utils.resumableTransport(r.transport())
                     && AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())
-                    && r.getRequest().getAttribute(INTERCEPTOR_ADDED) == null) {
+                    && request.getAttribute(INTERCEPTOR_ADDED) == null) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     @Override
@@ -253,7 +254,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                         clock(interval, r, request, response);
                     }
                 });
-                r.getRequest().setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
+                request.setAttribute(INTERCEPTOR_ADDED, Boolean.TRUE);
             }
 
         }
@@ -270,11 +271,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
      * @param resource the resource
      * @return the interval, 0 won't trigger the heartbeat
      */
-    protected int extractHeartbeatInterval(final AtmosphereResource resource) {
+    protected int extractHeartbeatInterval(final AtmosphereResourceImpl resource) {
         // Extract the desired heartbeat interval
         // Won't be applied if lower config value
         int interval = heartbeatFrequencyInSeconds;
-        final String s = resource.getRequest().getHeader(HeaderConfig.X_HEARTBEAT_SERVER);
+        final String s = resource.getRequest(false).getHeader(HeaderConfig.X_HEARTBEAT_SERVER);
 
         if (s != null) {
             try {
