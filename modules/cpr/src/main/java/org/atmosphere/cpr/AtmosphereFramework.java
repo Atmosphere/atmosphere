@@ -837,8 +837,8 @@ public class AtmosphereFramework {
                             while ((inputLine = in.readLine().trim()) != null) {
                                 if (inputLine.startsWith("ATMO21_VERSION=")) {
                                     newVersion = inputLine.substring("ATMO21_VERSION=".length());
-                                } else if (inputLine.startsWith("CLIENT_VERSION=")) {
-                                    clientVersion = inputLine.substring("CLIENT_VERSION=".length());
+                                } else if (inputLine.startsWith("CLIENT2_VERSION=")) {
+                                    clientVersion = inputLine.substring("CLIENT2_VERSION=".length());
                                     break;
                                 } else if (inputLine.startsWith("ATMO22_VERSION=")) {
                                     nextMajorRelease = inputLine.substring("ATMO22_VERSION=".length());
