@@ -831,20 +831,28 @@ public class AtmosphereFramework {
 
                         String inputLine;
                         String newVersion = Version.getRawVersion();
-                        String clientVersion = "2.1.2";
+                        String clientVersion = "2.1.8";
+                        String nextMajorRelease = "2.2.0";
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
                                 if (inputLine.startsWith("ATMO21_VERSION=")) {
                                     newVersion = inputLine.substring("ATMO21_VERSION=".length());
-                                } else if (inputLine.startsWith("CLIENT2_VERSION=")) {
-                                    clientVersion = inputLine.substring("CLIENT2_VERSION=".length());
+                                } else if (inputLine.startsWith("CLIENT_VERSION=")) {
+                                    clientVersion = inputLine.substring("CLIENT_VERSION=".length());
                                     break;
+                                } else if (inputLine.startsWith("ATMO22_VERSION=")) {
+                                    nextMajorRelease = inputLine.substring("ATMO22_VERSION=".length());
                                 }
                             }
                         } finally {
                             logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
                             if (newVersion.compareTo(Version.getRawVersion()) != 0) {
-                                logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
+
+                                String msg = "\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}";
+                                if (nextMajorRelease.toLowerCase().indexOf("rc") == -1 && nextMajorRelease.toLowerCase().indexOf("beta") == -1) {
+                                    msg = "\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}";
+                                }
+                                logger.info(msg, newVersion, nextMajorRelease);
                             }
                             try {
                                 in.close();
@@ -852,6 +860,7 @@ public class AtmosphereFramework {
                             }
                             urlConnection.disconnect();
                         }
+
 
                         JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
                         tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
