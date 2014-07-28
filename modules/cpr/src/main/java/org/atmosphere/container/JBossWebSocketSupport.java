@@ -70,6 +70,12 @@ public class JBossWebSocketSupport extends JBossWebCometSupport {
         return true;
     }
 
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        // TODO: How can this be fixed.
+        return this;
+    }
+
     /**
      * @param httpEvent
      * @throws javax.servlet.ServletException
