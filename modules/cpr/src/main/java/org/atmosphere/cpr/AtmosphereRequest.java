@@ -1851,8 +1851,18 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (AtmosphereRequest.class.isAssignableFrom(request.getClass())) {
             return AtmosphereRequest.class.cast(request);
         }
-        return new Builder().request(request).build();
+
+        Builder b = new Builder();
+        Enumeration<String> e = request.getAttributeNames();
+        String s;
+        while (e.hasMoreElements()) {
+            s = e.nextElement();
+            b.localAttributes.put(s, request.getAttribute(s));
+        }
+        return b.request(request).build();
     }
+
+
 
     /**
      * Copy the HttpServletRequest content inside an AtmosphereRequest. By default the returned AtmosphereRequest
@@ -2008,5 +2018,9 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                     '}';
 
         }
+    }
+
+    public String requestURL() {
+        return b.requestURL;
     }
 }

@@ -69,6 +69,7 @@ import static org.atmosphere.util.IOUtils.readEntirely;
 public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         implements AnnotatedProxy, AtmosphereResourceHeartbeatEventListener {
 
+    private static IllegalArgumentException IAE = null;
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
@@ -382,7 +383,41 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected void processReady(AtmosphereResource r) {
-        deliver(message(onReadyMethod, r), onReadyMethod.getAnnotation(DeliverTo.class), DeliverTo.DELIVER_TO.RESOURCE, r);
+        final DeliverTo deliverTo;
+        final Ready ready = onReadyMethod.getAnnotation(Ready.class);
+
+        // Keep backward compatibility
+        if (ready.value() != Ready.DELIVER_TO.RESOURCE) {
+            if (IAE == null) {
+                IAE = new IllegalArgumentException();
+            }
+
+            logger.warn("Since 2.2, delivery strategy must be specified with @DeliverTo, not with a value in the @Ready annotation.", IAE);
+            deliverTo = new DeliverTo() {
+
+                @Override
+                public DELIVER_TO value() {
+                    switch (ready.value()) {
+                        case ALL:
+                            return DELIVER_TO.ALL;
+
+                        case BROADCASTER:
+                            return DELIVER_TO.BROADCASTER;
+                    }
+
+                    return null;
+                }
+
+                @Override
+                public Class<? extends Annotation> annotationType() {
+                    return null;
+                }
+            };
+        } else {
+            deliverTo = onReadyMethod.getAnnotation(DeliverTo.class);
+        }
+
+        deliver(message(onReadyMethod, r), deliverTo, DeliverTo.DELIVER_TO.RESOURCE, r);
     }
 
     /**

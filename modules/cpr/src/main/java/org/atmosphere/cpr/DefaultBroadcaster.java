@@ -56,6 +56,7 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
+import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 
 /**
  * The default {@link Broadcaster} implementation.
@@ -1341,9 +1342,23 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.warn("AtmosphereResource {} is not suspended. If cached messages exists, this may cause unexpected situation. Suspend first", r.uuid());
             }
 
-            if (resources.contains(r)) {
-                logger.debug("Duplicate resource {}", r.uuid());
-                return this;
+            if (!backwardCompatible && resources.contains(r)) {
+                boolean duplicate = r.transport() != AtmosphereResource.TRANSPORT.WEBSOCKET
+                        || AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(INJECTED_ATMOSPHERE_RESOURCE) != null;
+
+                if (duplicate) {
+                    AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
+                    if (dup != null && dup.hashCode() != r.hashCode()) {
+                        logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
+                        AtmosphereResourceImpl.class.cast(dup).dirtyClose();
+                    } else {
+                        logger.debug("Duplicate resource {}", r.uuid());
+                        return this;
+                    }
+                } else {
+                    logger.debug("Duplicate resource {}", r.uuid());
+                    return this;
+                }
             }
 
             // Only synchronize if we have a valid BroadcasterCache
@@ -1386,7 +1401,9 @@ public class DefaultBroadcaster implements Broadcaster {
         if (!wasResumed && isAtmosphereResourceValid(r)) {
             logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
 
-            String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+            String parentUUID = r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) ?
+                    (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) :
+                    null;
             if (!backwardCompatible && parentUUID != null) {
                 AtmosphereResource p = config.resourcesFactory().find(parentUUID);
                 if (p != null && !resources.contains(p)) {

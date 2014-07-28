@@ -216,6 +216,25 @@ public final class AtmosphereResourceFactory {
     }
 
     /**
+     * Create an {@link AtmosphereResource} associated with the uuid.
+     *
+     * @param config an {@link AtmosphereConfig}
+     * @param uuid   a String representing a UUID
+     * @param request a {@link org.atmosphere.cpr.AtmosphereRequest}
+     * @return
+     */
+    public final AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request) {
+        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
+        return create(config,
+                noOps,
+                request,
+                response,
+                config.framework().getAsyncSupport(),
+                noOpsHandler);
+    }
+
+    /**
      * Remove the {@link AtmosphereResource} from all instances of {@link Broadcaster}.
      *
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}

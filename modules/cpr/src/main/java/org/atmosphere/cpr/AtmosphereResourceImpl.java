@@ -244,7 +244,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         try {
             if (!isResumed.getAndSet(true) && isInScope.get()) {
                 suspended.set(false);
-                logger.debug("AtmosphereResource {} is resuming", uuid());
+                logger.trace("AtmosphereResource {} is resuming", uuid());
 
                 action.type(Action.TYPE.RESUME);
 
@@ -363,7 +363,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null || transport().equals(UNDEFINED) ) {
+            if (req.getHeader(X_ATMOSPHERE_TRANSPORT) == null || transport().equals(UNDEFINED)) {
                 req.setAttribute(FrameworkConfig.TRANSPORT_IN_USE, LONG_POLLING_TRANSPORT);
             }
 
@@ -602,7 +602,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             } else if (event.isCancelled() || event.isClosedByClient()) {
                 if (!disconnected.getAndSet(true)) {
                     onDisconnect(event);
-                }else {
+                } else {
                     logger.trace("Skipping notification, already disconnected {}", event.getResource().uuid());
                 }
             } else if (event.isResuming() || event.isResumedOnTimeout()) {
@@ -837,6 +837,19 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
     }
 
+    public void dirtyClose() {
+        try {
+            event.setCancelled(true);
+            notifyListeners();
+            cancel();
+            if (webSocket != null) {
+                webSocket.close();
+            }
+        } catch (IOException ex) {
+            logger.trace("", ex);
+        }
+    }
+
     @Override
     public AtmosphereResource forceBinaryWrite(boolean forceBinaryWrite) {
         this.forceBinaryWrite = forceBinaryWrite;
@@ -905,5 +918,17 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public AtmosphereResourceImpl webSocket(WebSocket webSocket) {
         this.webSocket = webSocket;
         return this;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+
+        AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
+
+        if (!uuid.equals(that.uuid)) return false;
+
+        return true;
     }
 }
