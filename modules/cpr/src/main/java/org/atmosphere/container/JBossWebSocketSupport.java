@@ -37,7 +37,7 @@ import java.lang.reflect.Constructor;
  * @author Péter Miklós
  * @see https://github.com/mikebrock/jboss-websockets
  */
-public class JBossWebSocketSupport extends JBossWebCometSupport {
+public class JBossWebSocketSupport extends AsynchronousProcessor {
 
 
     private static final Logger logger = LoggerFactory.getLogger(JBossWebSocketSupport.class);
@@ -66,8 +66,19 @@ public class JBossWebSocketSupport extends JBossWebCometSupport {
     }
 
     @Override
+    public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+        return suspended(req, res);
+    }
+
+    @Override
     public boolean supportWebSocket() {
         return true;
+    }
+
+    @Override
+    public AsyncSupport complete(AtmosphereResourceImpl r) {
+        // TODO: How can this be fixed.
+        return this;
     }
 
     /**
