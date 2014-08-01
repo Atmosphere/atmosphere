@@ -120,6 +120,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void cleanup() {
+        messages.clear();
+        activeClients.clear();
+        emptyList.clear();
+        inspectors.clear();
+
         if (scheduledFuture != null) {
             scheduledFuture.cancel(false);
             scheduledFuture = null;
