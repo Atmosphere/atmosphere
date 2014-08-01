@@ -329,12 +329,20 @@ public class BroadcasterConfig {
     }
 
     protected void destroy(boolean force) {
-        if (!force && !handleExecutors) return;
 
         broadcasterCache.cleanup();
         if ((force || !shared) && broadcasterCache != null) {
             broadcasterCache.stop();
         }
+
+        for (BroadcastFilter f : filters) {
+            if (f instanceof BroadcastFilterLifecycle) {
+                ((BroadcastFilterLifecycle) f).destroy();
+            }
+        }
+        removeAllFilters();
+
+        if (!force && !handleExecutors) return;
 
         if ((force || !isExecutorShared) && executorService != null) {
             executorService.shutdownNow();
@@ -346,13 +354,6 @@ public class BroadcasterConfig {
         if ((force || !shared) && scheduler != null) {
             scheduler.shutdownNow();
         }
-
-        for (BroadcastFilter f : filters) {
-            if (f instanceof BroadcastFilterLifecycle) {
-                ((BroadcastFilterLifecycle) f).destroy();
-            }
-        }
-        removeAllFilters();
     }
 
     /**
