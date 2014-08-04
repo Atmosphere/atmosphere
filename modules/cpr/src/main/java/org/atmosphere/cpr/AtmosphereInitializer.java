@@ -18,8 +18,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
@@ -39,13 +37,9 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 @HandlesTypes({})
 public class AtmosphereInitializer implements ServletContainerInitializer {
 
-    private final Logger logger = LoggerFactory.getLogger(AtmosphereInitializer.class);
-
-
     @Override
     public void onStartup(Set<Class<?>> classes, final ServletContext c) throws ServletException {
-        logger.trace("Initializing AtmosphereFramework");
-
+        c.log("Initializing AtmosphereFramework");
         for (Map.Entry<String, ? extends ServletRegistration> reg : c.getServletRegistrations().entrySet()) {
             if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName()))  {
 
@@ -85,7 +79,7 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                         }
                     });
                 } catch (Throwable t) {
-                    logger.trace("Unable to install WebSocket Session Creator", t);
+                	c.log("AtmosphereFramework : Unable to install WebSocket Session Creator", t);
                 }
 
                 try {
@@ -94,11 +88,11 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                         boolean sessionSupport = Boolean.valueOf(s);
                         if (sessionSupport && c.getMajorVersion() > 2) {
                             c.addListener(SessionSupport.class);
-                            logger.debug("Installed {}", SessionSupport.class);
+                            c.log("AtmosphereFramework : Installed "+SessionSupport.class);
                         }
                     }
                 } catch (Throwable t) {
-                    logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", SessionSupport.class.getName(), t);
+                	c.log("AtmosphereFramework : SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", t);
                 }
 
                 c.setAttribute(reg.getKey(), framework);
