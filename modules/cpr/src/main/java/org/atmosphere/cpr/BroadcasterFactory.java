@@ -143,7 +143,7 @@ public abstract class BroadcasterFactory {
      * Return the default {@link BroadcasterFactory}.
      *
      * @return the default {@link BroadcasterFactory}.
-     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#resourcesFactory()}
+     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#getBroadcasterFactory()}
      */
     public synchronized static BroadcasterFactory getDefault() {
         return factory;
