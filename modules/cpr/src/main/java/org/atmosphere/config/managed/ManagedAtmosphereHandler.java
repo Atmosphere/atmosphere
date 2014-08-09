@@ -137,7 +137,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 resource.addEventListener(new OnResume() {
                     @Override
                     public void onResume(AtmosphereResourceEvent event) {
-                        invoke(onResumeMethod, event.getResource());
+                        invoke(onResumeMethod, event);
                         resource.removeEventListener(this);
                     }
                 });
