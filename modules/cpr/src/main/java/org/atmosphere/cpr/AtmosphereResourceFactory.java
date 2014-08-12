@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,6 +80,7 @@ public final class AtmosphereResourceFactory {
         try {
             r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
             r.initialize(config, null, request, response, a, voidAtmosphereHandler);
+            setDefaultSerializer(config, r);
         } catch (Exception e) {
             logger.error("", e);
         }
@@ -105,6 +107,7 @@ public final class AtmosphereResourceFactory {
         try {
             r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
             r.initialize(config, broadcaster, request, response, a, handler);
+            setDefaultSerializer(config, r);
         } catch (Exception e) {
             logger.error("", e);
         }
@@ -144,6 +147,7 @@ public final class AtmosphereResourceFactory {
         try {
             r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
             r.initialize(config, null, response.request(), response, a, voidAtmosphereHandler);
+            setDefaultSerializer(config, r);
         } catch (Exception e) {
             logger.error("", e);
         }
@@ -223,5 +227,13 @@ public final class AtmosphereResourceFactory {
 
     public final static AtmosphereResourceFactory getDefault() {
         return factory;
+    }
+
+    private void setDefaultSerializer(AtmosphereConfig config, AtmosphereResource r) throws Exception {
+        Class<Serializer> serializerClass = config.framework().getDefaultSerializerClass();
+        if (serializerClass != null) {
+            Serializer serializer = config.framework().newClassInstance(Serializer.class, serializerClass);
+            r.setSerializer(serializer);
+        }
     }
 }

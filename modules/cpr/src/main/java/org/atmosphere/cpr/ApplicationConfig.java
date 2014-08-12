@@ -724,9 +724,18 @@ public interface ApplicationConfig {
      * Rewrite the original handshake request URI when websocket is used, trimming the http://host:port from the value.
      * This is required with when JSR356 is used and JAXRS like Jersey2 is used.
      * <p/>
-     * Default: true
+     * Default: true<br>
      * Value: org.atmosphere.websocket.protocol.SimpleHttpProtocol.rewriteURL
      */
     String REWRITE_WEBSOCKET_REQUESTURI = SimpleHttpProtocol.class.getName() + ".rewriteURL";
+
+    /**
+     * Set the default {@link org.atmosphere.cpr.Serializer} implementation {@link org.atmosphere.cpr.AtmosphereResource}s use
+     * to serialize broadcasted objects.
+     * <p/>
+     * Default: empty (no Serialize class used)<br>
+     * Value: org.atmosphere.cpr.AtmosphereResource.defaultSerializer
+     */
+    String DEFAULT_SERIALIZER = AtmosphereResource.class.getName() + ".defaultSerializer";
 }
 
