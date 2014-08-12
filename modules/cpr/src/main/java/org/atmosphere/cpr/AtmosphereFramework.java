@@ -220,6 +220,8 @@ public class AtmosphereFramework {
     protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<BroadcasterConfig.FilterManipulator>();
     protected AtmosphereResourceFactory arFactory;
     protected MetaBroadcaster metaBroadcaster;
+    protected String defaultSerializerClassName;
+    protected Class<Serializer> defaultSerializerClass;
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
             CorsInterceptor.class,
@@ -868,6 +870,7 @@ public class AtmosphereFramework {
             loadConfiguration(scFacade);
             initWebSocket();
             initEndpointMapper();
+            initDefaultSerializer();
 
             autoDetectContainer();
             configureWebDotXmlAtmosphereHandler(scFacade);
@@ -939,6 +942,9 @@ public class AtmosphereFramework {
         }
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
         logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
+        if (defaultSerializerClassName != null && !defaultSerializerClassName.isEmpty()) {
+            logger.info("Using Serializer: {}", defaultSerializerClassName);
+        }
 
         WebSocketProcessor wp = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this);
         boolean b = false;
@@ -1346,6 +1352,11 @@ public class AtmosphereFramework {
         s = sc.getInitParameter(FrameworkConfig.JERSEY_SCANNING_PACKAGE);
         if (s != null) {
             packages.add(s);
+        }
+
+        s = sc.getInitParameter(ApplicationConfig.DEFAULT_SERIALIZER);
+        if (s != null) {
+            defaultSerializerClassName = s;
         }
     }
 
@@ -2930,4 +2941,58 @@ public class AtmosphereFramework {
         return this;
     }
 
+    /**
+     * Get the default {@link org.atmosphere.cpr.Serializer} class name to use for {@link org.atmosphere.cpr.AtmosphereResource}s.
+     *
+     * @return the class name as a string, might be null if not configured
+     */
+    public String getDefaultSerializerClassName() {
+        return defaultSerializerClassName;
+    }
+
+    /**
+     * Get the default {@link org.atmosphere.cpr.Serializer} class to use for {@link org.atmosphere.cpr.AtmosphereResource}s.
+     *
+     * @return the class, might be null if not configured
+     */
+    public Class<Serializer> getDefaultSerializerClass() {
+        return defaultSerializerClass;
+    }
+
+    /**
+     * Set the default {@link org.atmosphere.cpr.Serializer} class name to use for {@link org.atmosphere.cpr.AtmosphereResource}s.
+     *
+     * @param defaultSerializerClassName the class name to use
+     * @return this
+     */
+    public AtmosphereFramework setDefaultSerializerClassName(String defaultSerializerClassName) {
+        this.defaultSerializerClassName = defaultSerializerClassName;
+        initDefaultSerializer();
+        return this;
+    }
+
+    private void initDefaultSerializer() {
+        if (defaultSerializerClassName != null && !defaultSerializerClassName.isEmpty()) {
+            try {
+                @SuppressWarnings("unchecked")
+                Class<Serializer> clazz = (Class<Serializer>) IOUtils.<Serializer>loadClass(Serializer.class, defaultSerializerClassName);
+                if (Serializer.class.isAssignableFrom(clazz)) {
+                    defaultSerializerClass = clazz;
+                }
+                else {
+                    logger.error("Default Serializer class name does not implement Serializer interface");
+                    defaultSerializerClassName = null;
+                    defaultSerializerClass = null;
+                }
+            } catch (Exception e) {
+                logger.error("Unable to set default Serializer", e);
+                defaultSerializerClassName = null;
+                defaultSerializerClass = null;
+            }
+        }
+        else {
+            defaultSerializerClassName = null;
+            defaultSerializerClass = null;
+        }
+    }
 }

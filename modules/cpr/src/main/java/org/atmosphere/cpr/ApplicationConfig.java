@@ -725,14 +725,14 @@ public interface ApplicationConfig {
     /**
      * Invoke Atmosphere interceptor for on every websocket message.
      * <p/>
-     * Default: true
+     * Default: true<br>
      * Value: org.atmosphere.websocket.DefaultWebSocketProcessor.invokeInterceptorsOnMessage
      */
     String INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE = DefaultWebSocketProcessor.class.getName() + ".invokeInterceptorsOnMessage";
     /**
      * Disable the Atmosphere Protocol version check. This can be used to supprt version of atmosphere-javascript lower than 2.2.1
      * <p/>
-     * Default: true
+     * Default: true<br>
      * Value: org.atmosphere.interceptor.JavaScriptProtocol.enforceAtmosphereProtocol
      */
     String ENFORCE_ATMOSPHERE_VERSION = JavaScriptProtocol.class.getName() + ".enforceAtmosphereProtocol";
@@ -740,14 +740,14 @@ public interface ApplicationConfig {
      * Rewrite the original handshake request URI when websocket is used, trimming the http://host:port from the value.
      * This is required with when JSR356 is used and JAXRS like Jersey2 is used.
      * <p/>
-     * Default: true
+     * Default: true<br>
      * Value: org.atmosphere.websocket.protocol.SimpleHttpProtocol.rewriteURL
      */
     String REWRITE_WEBSOCKET_REQUESTURI = SimpleHttpProtocol.class.getName() + ".rewriteURL";
     /**
      * The heartbeat frequency, in seconds.
      * <p/>
-     * Default: 60
+     * Default: 60<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.heartbeatFrequencyInSeconds
      */
     String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
@@ -755,16 +755,25 @@ public interface ApplicationConfig {
     /**
      * Configuration key for client heartbeat.
      * <p/>
-     * Default: 0 (disabled)
+     * Default: 0 (disabled)<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds
      */
     String CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".clientHeartbeatFrequencyInSeconds";
     /**
      * Resume the long-polling or jsonp connection on every heartbeat (I/O operations).
      * <p/>
-     * Default: true
+     * Default: true<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.resumeOnHeartbeat
      */
     String RESUME_ON_HEARTBEAT = HeartbeatInterceptor.class.getName() + ".resumeOnHeartbeat";
+
+    /**
+     * Set the default {@link org.atmosphere.cpr.Serializer} implementation {@link org.atmosphere.cpr.AtmosphereResource}s use
+     * to serialize broadcasted objects.
+     * <p/>
+     * Default: empty (no Serialize class used)<br>
+     * Value: org.atmosphere.cpr.AtmosphereResource.defaultSerializer
+     */
+    String DEFAULT_SERIALIZER = AtmosphereResource.class.getName() + ".defaultSerializer";
 }
 
