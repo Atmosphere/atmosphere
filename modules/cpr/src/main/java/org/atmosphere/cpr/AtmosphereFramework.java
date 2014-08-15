@@ -2991,7 +2991,7 @@ public class AtmosphereFramework {
         if (defaultSerializerClassName != null && !defaultSerializerClassName.isEmpty()) {
             try {
                 @SuppressWarnings("unchecked")
-                Class<Serializer> clazz = (Class<Serializer>) IOUtils.<Serializer>loadClass(Serializer.class, defaultSerializerClassName);
+                Class<Serializer> clazz = (Class<Serializer>) IOUtils.loadClass(Serializer.class, defaultSerializerClassName);
                 if (Serializer.class.isAssignableFrom(clazz)) {
                     defaultSerializerClass = clazz;
                 }
