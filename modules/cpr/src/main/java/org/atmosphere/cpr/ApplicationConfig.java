@@ -775,5 +775,24 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.AtmosphereResource.defaultSerializer
      */
     String DEFAULT_SERIALIZER = AtmosphereResource.class.getName() + ".defaultSerializer";
+    /**
+     * Disable container managed framework auto initialization during startup lifecycle (Servlet 3.0).
+     * This is useful e.g. if special initialization or framework extensions are needed.
+     * <p/>
+     * Default: false (Auto initialization enabled)<br/>
+     * Value: org.atmosphere.cpr.AtmosphereInitializer.disabled
+     * 
+     * <p/>
+     * Example init-param:
+     * <pre>
+     * &lt;init-param&gt;
+     * &lt;param-name&gt;org.atmosphere.cpr.AtmosphereInitializer.disabled&lt;/param-name&gt;
+     * &lt;param-value&gt;true&lt;/param-value&gt;
+     * &lt;/init-param&gt;
+     * </pre>
+     * 
+     * @see {@link https://github.com/Atmosphere/atmosphere/issues/1695}
+     */
+    String DISABLE_ATMOSPHERE_INITIALIZER = AtmosphereInitializer.class.getName()+".disabled";
 }
 

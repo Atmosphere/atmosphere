@@ -36,6 +36,14 @@ import java.util.Set;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 
+/**
+ * Initializer for the AtmosphereFramework per servlet instance, 
+ * this initializer is called during web-application startup lifecycle (since Servlet 3.0).
+ * If you need to disable automatic initialization take a look at the following switch: 
+ * 
+ * {@link org.atmosphere.cpr.ApplicationConfig}.DISABLE_ATMOSPHERE_INITIALIZER}
+ */
+
 @HandlesTypes({})
 public class AtmosphereInitializer implements ServletContainerInitializer {
 
