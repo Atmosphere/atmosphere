@@ -793,6 +793,6 @@ public interface ApplicationConfig {
      * 
      * @see {@link https://github.com/Atmosphere/atmosphere/issues/1695}
      */
-	String DISABLE_ATMOSPHERE_INITIALIZER = AtmosphereInitializer.class.getName()+".disabled";
+    String DISABLE_ATMOSPHERE_INITIALIZER = AtmosphereInitializer.class.getName()+".disabled";
 }
 
