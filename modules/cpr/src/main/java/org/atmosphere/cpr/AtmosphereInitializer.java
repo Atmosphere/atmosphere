@@ -27,6 +27,7 @@ import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
 import javax.servlet.annotation.HandlesTypes;
 import javax.servlet.http.HttpServletRequest;
+
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -34,15 +35,27 @@ import java.util.Set;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 
+/**
+ * Initializer for the AtmosphereFramework per servlet instance, 
+ * this initializer is called during web-application startup lifecycle (since Servlet 3.0).
+ * If you need to disable automatic initialization take a look at the following switch: 
+ * 
+ * {@link org.atmosphere.cpr.ApplicationConfig}.DISABLE_ATMOSPHERE_INITIALIZER}
+ */
+
 @HandlesTypes({})
 public class AtmosphereInitializer implements ServletContainerInitializer {
-
     @Override
     public void onStartup(Set<Class<?>> classes, final ServletContext c) throws ServletException {
         c.log("Initializing AtmosphereFramework");
         for (Map.Entry<String, ? extends ServletRegistration> reg : c.getServletRegistrations().entrySet()) {
+            String disableSwitchValue = reg.getValue().getInitParameter(ApplicationConfig.DISABLE_ATMOSPHERE_INITIALIZER);
+            // check if AtmosphereInitializer is disabled via web.xml see: https://github.com/Atmosphere/atmosphere/issues/1695
+            if (Boolean.parseBoolean(disableSwitchValue)){
+            	c.log("container managed initialization disabled for servlet: "+reg.getValue().getName());
+            	continue;
+            }
             if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName()))  {
-
                 final AtmosphereFramework framework = new AtmosphereFramework(false, true);
                 // Hack to make jsr356 works. Pretty ugly.
                 DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());

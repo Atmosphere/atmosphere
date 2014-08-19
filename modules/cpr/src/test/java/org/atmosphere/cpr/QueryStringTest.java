@@ -22,9 +22,11 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
@@ -86,7 +88,8 @@ public class QueryStringTest {
             public void destroy() {
             }
         });
-        Map<String, String[]> queryStrings = new HashMap<String, String[]>();
+        // use ordered map to keep ordering in map see https://github.com/Atmosphere/atmosphere/issues/1652
+        Map<String, String[]> queryStrings = new LinkedHashMap<String, String[]>();
         queryStrings.put("a", new String[]{"b"});
         queryStrings.put("b", new String[]{"d"});
         queryStrings.put("c", new String[]{"f"});
@@ -96,7 +99,7 @@ public class QueryStringTest {
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(q.get());
-        assertEquals(q.get(), "b=d&c=f&a=b");
+        assertEquals(q.get(), "a=b&b=d&c=f");
     }
 
     @Test
