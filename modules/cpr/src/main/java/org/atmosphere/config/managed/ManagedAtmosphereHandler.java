@@ -34,9 +34,9 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -167,7 +167,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
             MethodInfo.EncoderObject e = message(resource, body);
             if (e != null && e.encodedObject != null) {
-                deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);
+                IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
@@ -417,50 +417,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             deliverTo = onReadyMethod.getAnnotation(DeliverTo.class);
         }
 
-        deliver(message(onReadyMethod, r), deliverTo, DeliverTo.DELIVER_TO.RESOURCE, r);
-    }
-
-    /**
-     * <p>
-     * Delivers the given message according to the specified {@link DeliverTo configuration).
-     * </p>
-     *
-     * @param o the message
-     * @param deliverConfig the annotation state
-     * @param defaultDeliver the strategy applied if deliverConfig is {@code null}
-     * @param r the resource
-     */
-    protected void deliver(final Object o,
-                           final DeliverTo deliverConfig,
-                           final DeliverTo.DELIVER_TO defaultDeliver,
-                           final AtmosphereResource r) {
-        final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
-        switch (deliverTo) {
-            case RESOURCE:
-                if (o != null) {
-                    try {
-                        synchronized (r) {
-                            if (String.class.isAssignableFrom(o.getClass())) {
-                                r.write(o.toString()).getResponse().flushBuffer();
-                            } else if (byte[].class.isAssignableFrom(o.getClass())) {
-                                r.write((byte[]) o).getResponse().flushBuffer();
-                            }
-                        }
-                    } catch (Exception ex) {
-                        logger.warn("", ex);
-                    }
-                }
-                break;
-            case BROADCASTER:
-                r.getBroadcaster().broadcast(o);
-                break;
-            case ALL:
-                for (Broadcaster b : r.getAtmosphereConfig().getBroadcasterFactory().lookupAll()) {
-                    b.broadcast(o);
-                }
-                break;
-
-        }
+        IOUtils.deliver(message(onReadyMethod, r), deliverTo, DeliverTo.DELIVER_TO.RESOURCE, r);
     }
 
     /**
