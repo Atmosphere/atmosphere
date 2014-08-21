@@ -31,6 +31,19 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Target(ElementType.METHOD)
 public @interface Ready {
+    /**
+     * Use {@link DeliverTo.DELIVER_TO} instead.
+     *
+     * @deprecated
+     */
+    static enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
+
+    /**
+     * Use {@link DeliverTo} annotation instead.
+     *
+     * @deprecated
+     */
+    DELIVER_TO value() default DELIVER_TO.RESOURCE;
 
     /**
      * A list of {@link org.atmosphere.config.managed.Encoder}

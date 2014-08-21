@@ -15,11 +15,13 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.config.service.DeliverTo;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServlet;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.MeteorServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -62,6 +64,49 @@ public class IOUtils {
                 add("org.primefaces.push.PushServlet");
             }
         };
+    }
+
+    /**
+     * <p>
+     * Delivers the given message according to the specified {@link org.atmosphere.config.service.DeliverTo configuration).
+     * </p>
+     *
+     * @param o the message
+     * @param deliverConfig the annotation state
+     * @param defaultDeliver the strategy applied if deliverConfig is {@code null}
+     * @param r the resource
+     */
+    public static void deliver(final Object o,
+                               final DeliverTo deliverConfig,
+                               final DeliverTo.DELIVER_TO defaultDeliver,
+                               final AtmosphereResource r) {
+        final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
+        switch (deliverTo) {
+            case RESOURCE:
+                if (o != null) {
+                    try {
+                        synchronized (r) {
+                            if (String.class.isAssignableFrom(o.getClass())) {
+                                r.write(o.toString()).getResponse().flushBuffer();
+                            } else if (byte[].class.isAssignableFrom(o.getClass())) {
+                                r.write((byte[]) o).getResponse().flushBuffer();
+                            }
+                        }
+                    } catch (Exception ex) {
+                        logger.warn("", ex);
+                    }
+                }
+                break;
+            case BROADCASTER:
+                r.getBroadcaster().broadcast(o);
+                break;
+            case ALL:
+                for (Broadcaster b : r.getAtmosphereConfig().getBroadcasterFactory().lookupAll()) {
+                    b.broadcast(o);
+                }
+                break;
+
+        }
     }
 
     public static Object readEntirely(AtmosphereResource r) {

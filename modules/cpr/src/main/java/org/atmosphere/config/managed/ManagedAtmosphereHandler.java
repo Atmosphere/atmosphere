@@ -34,9 +34,9 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
+import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,6 +69,7 @@ import static org.atmosphere.util.IOUtils.readEntirely;
 public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         implements AnnotatedProxy, AtmosphereResourceHeartbeatEventListener {
 
+    private static IllegalArgumentException IAE = null;
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
@@ -166,7 +167,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
             MethodInfo.EncoderObject e = message(resource, body);
             if (e != null && e.encodedObject != null) {
-                deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);
+                IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
@@ -382,50 +383,41 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected void processReady(AtmosphereResource r) {
-        deliver(message(onReadyMethod, r), onReadyMethod.getAnnotation(DeliverTo.class), DeliverTo.DELIVER_TO.RESOURCE, r);
-    }
+        final DeliverTo deliverTo;
+        final Ready ready = onReadyMethod.getAnnotation(Ready.class);
 
-    /**
-     * <p>
-     * Delivers the given message according to the specified {@link DeliverTo configuration).
-     * </p>
-     *
-     * @param o the message
-     * @param deliverConfig the annotation state
-     * @param defaultDeliver the strategy applied if deliverConfig is {@code null}
-     * @param r the resource
-     */
-    protected void deliver(final Object o,
-                           final DeliverTo deliverConfig,
-                           final DeliverTo.DELIVER_TO defaultDeliver,
-                           final AtmosphereResource r) {
-        final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
-        switch (deliverTo) {
-            case RESOURCE:
-                if (o != null) {
-                    try {
-                        synchronized (r) {
-                            if (String.class.isAssignableFrom(o.getClass())) {
-                                r.write(o.toString()).getResponse().flushBuffer();
-                            } else if (byte[].class.isAssignableFrom(o.getClass())) {
-                                r.write((byte[]) o).getResponse().flushBuffer();
-                            }
-                        }
-                    } catch (Exception ex) {
-                        logger.warn("", ex);
+        // Keep backward compatibility
+        if (ready.value() != Ready.DELIVER_TO.RESOURCE) {
+            if (IAE == null) {
+                IAE = new IllegalArgumentException();
+            }
+
+            logger.warn("Since 2.2, delivery strategy must be specified with @DeliverTo, not with a value in the @Ready annotation.", IAE);
+            deliverTo = new DeliverTo() {
+
+                @Override
+                public DELIVER_TO value() {
+                    switch (ready.value()) {
+                        case ALL:
+                            return DELIVER_TO.ALL;
+
+                        case BROADCASTER:
+                            return DELIVER_TO.BROADCASTER;
                     }
-                }
-                break;
-            case BROADCASTER:
-                r.getBroadcaster().broadcast(o);
-                break;
-            case ALL:
-                for (Broadcaster b : r.getAtmosphereConfig().getBroadcasterFactory().lookupAll()) {
-                    b.broadcast(o);
-                }
-                break;
 
+                    return null;
+                }
+
+                @Override
+                public Class<? extends Annotation> annotationType() {
+                    return null;
+                }
+            };
+        } else {
+            deliverTo = onReadyMethod.getAnnotation(DeliverTo.class);
         }
+
+        IOUtils.deliver(message(onReadyMethod, r), deliverTo, DeliverTo.DELIVER_TO.RESOURCE, r);
     }
 
     /**
