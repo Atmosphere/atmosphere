@@ -1498,7 +1498,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
                 notifyOnRemoveAtmosphereResourceListener(r);
             } else {
-                logger.trace("Unable to remove {} from{}", r.uuid(), getID());
+                logger.trace("Unable to remove {} from {}", r.uuid(), getID());
             }
         }
 
