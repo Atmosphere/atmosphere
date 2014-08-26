@@ -297,8 +297,8 @@ public final class AnnotationDetector {
                 // Handle JBoss VFS URL's which look like (example package 'nl.dvelop'):
                 // vfs:/foo/bar/website.war/WEB-INF/classes/nl/dvelop/
                 // vfs:/foo/bar/website.war/WEB-INF/lib/dwebcore-0.0.1.jar/nl/dvelop/
-                // On JBoss 5.1, the protocol of VFS URL is vfsfile, make it work on JBoss 5.1
-                final boolean isVfs = ("vfs".equals(url.getProtocol()) || "vfsfile".equals(url.getProtocol()));
+                // Different vfs protocols include vfs, vfsfile, vfszip, vfsjar, and vfsmemory
+                final boolean isVfs = url.getProtocol() != null && url.getProtocol().startsWith("vfs");
                 if ("file".equals(url.getProtocol()) || isVfs) {
                     final File dir = toFile(url);
                     if (dir.isDirectory()) {
