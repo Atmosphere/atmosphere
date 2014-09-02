@@ -22,15 +22,16 @@ import org.atmosphere.cpr.BroadcasterCache;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
@@ -57,25 +58,25 @@ public class UUIDBroadcasterCache implements BroadcasterCache, CleanUpMemory {
 
     private long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1);//1 minute
 
-    public static class ClientQueue {
+    public final static class ClientQueue implements Serializable {
+         private static final long serialVersionUID = -126253550299206646L;
 
-        private final LinkedList<CacheMessage> queue = new LinkedList<CacheMessage>();
+         private final ConcurrentLinkedQueue<CacheMessage> queue = new ConcurrentLinkedQueue<CacheMessage>();
+         private final Set<String> ids = Collections.synchronizedSet(new HashSet<String>());
 
-        private final Set<String> ids = new HashSet<String>();
+         public ConcurrentLinkedQueue<CacheMessage> getQueue() {
+             return queue;
+         }
 
-        public LinkedList<CacheMessage> getQueue() {
-            return queue;
-        }
+         public Set<String> getIds() {
+             return ids;
+         }
 
-        public Set<String> getIds() {
-            return ids;
-        }
-
-        @Override
-        public String toString() {
-            return queue.toString();
-        }
-    }
+         @Override
+         public String toString() {
+             return queue.toString();
+         }
+     }
 
     public static class CacheMessage {
 
@@ -224,7 +225,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache, CleanUpMemory {
             clientQueue = new ClientQueue();
             messages.put(clientId, clientQueue);
         }
-        clientQueue.getQueue().addLast(message);
+        clientQueue.getQueue().offer(message);
         clientQueue.getIds().add(message.getId());
     }
 
@@ -245,15 +246,12 @@ public class UUIDBroadcasterCache implements BroadcasterCache, CleanUpMemory {
             activeClients.put(clientId, now);
             clientQueue = messages.remove(clientId);
         }
-        List<CacheMessage> clientMessages;
-        if (clientQueue == null) {
-            clientMessages = Collections.emptyList();
-        } else {
-            clientMessages = clientQueue.getQueue();
-        }
 
-        for (CacheMessage cacheMessage : clientMessages) {
-            result.add(cacheMessage.getMessage());
+        if (clientQueue != null) {
+            ConcurrentLinkedQueue<CacheMessage> clientMessages = clientQueue.getQueue();
+            for (CacheMessage cacheMessage : clientMessages) {
+                result.add(cacheMessage.getMessage());
+            }
         }
 
         if (logger.isTraceEnabled()) {
