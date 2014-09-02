@@ -83,7 +83,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache, CleanUpMemory {
 
         private final String id;
 
-        private CacheMessage(String id, Object message) {
+        public CacheMessage(String id, Object message) {
             this.id = id;
             this.message = message;
         }
