@@ -58,16 +58,23 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         String uuid = r.uuid();
         if (closeMessage(request)) {
-            logger.debug("AtmosphereResource {} disconnected", uuid);
             AtmosphereResource ss = config.resourcesFactory().find(uuid);
-            if (ss != null) {
-                // Block websocket closing detection
-                AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
-                p.completeLifecycle(ss, false);
-            } else {
-                logger.debug("Was unable to execute onDisconnect on {}", r.uuid());
+            if (ss == null) {
+                logger.debug("No Suspended Connection found for {}. Using the AtmosphereResource associated with the close message", uuid);
+                ss = r;
             }
+
+            if (ss == null) {
+                logger.debug("Was unable to execute onDisconnect on {}", r.uuid());
+                return Action.CONTINUE;
+            }
+            logger.debug("AtmosphereResource {} disconnected", uuid);
+
+            // Block websocket closing detection
+            AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
+
+            p.completeLifecycle(ss, false);
             return Action.CANCELLED;
         }
         return Action.CONTINUE;
