@@ -330,7 +330,7 @@ public final class AnnotationDetector {
                     }
                 } else if (isRunningJavaWebStart()) {
                     try {
-                        webstart((JarURLConnection) url.openConnection(), packageName, streams);
+                        loadJarContent((JarURLConnection) url.openConnection(), packageName, streams);
                     } catch (ClassCastException cce) {
                         throw new AssertionError("Not a File: " + url.toExternalForm());
                     }
@@ -360,7 +360,7 @@ public final class AnnotationDetector {
                         files.add(jarFile);
                         if (DEBUG) print("Add jar file: '%s'", jarFile);
                     } else {
-                        throw new AssertionError("Not a File: " + jarFile);
+                        loadJarContent((JarURLConnection) url.openConnection(), packageName, streams);
                     }
                 }
             }
@@ -384,7 +384,7 @@ public final class AnnotationDetector {
         return hasJNLP;
     }
 
-    private void webstart(JarURLConnection url, String packageName, Set<InputStream> streams) throws IOException {
+    private void loadJarContent(JarURLConnection url, String packageName, Set<InputStream> streams) throws IOException {
         // Using a JarURLConnection will load the JAR from the cache when using Webstart 1.6
         // In Webstart 1.5, the URL will point to the cached JAR on the local filesystem
         JarFile jarFile = url.getJarFile();
