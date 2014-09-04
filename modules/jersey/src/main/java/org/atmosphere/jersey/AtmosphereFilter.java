@@ -598,14 +598,14 @@ public class AtmosphereFilter implements ResourceFilterFactory {
 
             Broadcaster b = ar.getBroadcaster();
             Object msg = o;
-            String returnMsg = null;
+            Object returnMsg = null;
             // Something went wrong if null.
             if (o instanceof Broadcastable) {
                 if (((Broadcastable) o).getBroadcaster() != null) {
                     b = ((Broadcastable) o).getBroadcaster();
                 }
                 msg = ((Broadcastable) o).getMessage();
-                returnMsg = ((Broadcastable) o).getResponseMessage().toString();
+                returnMsg = ((Broadcastable) o).getResponseMessage();
             }
 
             if (action == Action.RESUME_ON_BROADCAST) {
