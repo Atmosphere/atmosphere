@@ -2357,14 +2357,17 @@ public class AtmosphereFramework {
     protected void positionInterceptor(InvokationOrder.PRIORITY p, AtmosphereInterceptor c, LinkedList<AtmosphereInterceptor> interceptors) {
         switch (p) {
             case AFTER_DEFAULT:
+
                 interceptors.remove(c);
+                if (!checkDuplicate(c)) return;
+
                 interceptors.addLast(c);
                 break;
             case BEFORE_DEFAULT:
 
+                interceptors.remove(c);
                 if (!checkDuplicate(c)) return;
 
-                interceptors.remove(c);
                 int pos = executeFirstSet ? 1 : 0;
                 this.interceptors.add(pos, c);
                 break;
@@ -2373,8 +2376,11 @@ public class AtmosphereFramework {
                     logger.warn("More than one AtmosphereInterceptor are defined to execute before the defaults. {} will be added before {}", c, interceptors.get(0));
                 }
 
-                logger.info("AtmosphereInterceptor {} will always be executed first", c);
                 interceptors.remove(c);
+
+                if (!checkDuplicate(c)) return;
+
+                logger.info("AtmosphereInterceptor {} will always be executed first", c);
                 interceptors.addFirst(c);
                 executeFirstSet = true;
                 break;
