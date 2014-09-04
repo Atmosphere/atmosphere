@@ -137,10 +137,6 @@ public class MetaBroadcaster {
             throw new NullPointerException();
         }
 
-        if (!path.startsWith("/")) {
-            path = "/" + path;
-        }
-
         if (path.contains("*")) {
             path = path.replace("*", MAPPING_REGEX);
         }
