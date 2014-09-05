@@ -39,10 +39,11 @@ public class UUIDBroadcasterCacheTest {
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
     private UUIDBroadcasterCache broadcasterCache;
+    private AtmosphereConfig config;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+        config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         config.framework().setBroadcasterFactory(factory);
@@ -62,7 +63,7 @@ public class UUIDBroadcasterCacheTest {
     @AfterMethod
     public void addAR() {
         broadcaster.removeAtmosphereResource(ar);
-        BroadcasterFactory.getDefault().destroy();
+        config.getBroadcasterFactory().destroy();
     }
 
     @Test

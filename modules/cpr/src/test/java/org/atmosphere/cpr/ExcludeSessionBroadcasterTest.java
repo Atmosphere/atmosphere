@@ -36,10 +36,11 @@ public class ExcludeSessionBroadcasterTest {
     private AtmosphereResource ar;
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
+    private AtmosphereConfig config;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+        config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(ExcludeSessionBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
 
@@ -59,7 +60,7 @@ public class ExcludeSessionBroadcasterTest {
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
         atmosphereHandler.value.set(new HashSet());
-        BroadcasterFactory.getDefault().destroy();
+        config.getBroadcasterFactory().destroy();
     }
 
     @Test

@@ -67,8 +67,8 @@ public class AtmosphereResourceFactoryTest {
 
     @Test
     public void findTest() {
-        Broadcaster b1 = BroadcasterFactory.getDefault().get("b1");
-        Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
+        Broadcaster b1 = framework.getBroadcasterFactory().get("b1");
+        Broadcaster b2 = framework.getBroadcasterFactory().get("b2");
         AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.getAtmosphereConfig(), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         assertNotNull(r);
@@ -82,9 +82,9 @@ public class AtmosphereResourceFactoryTest {
     @Test
     public void notFoundTest() {
         for (int i = 0; i < 10; i++) {
-            BroadcasterFactory.getDefault().get(String.valueOf(i));
+            framework.getBroadcasterFactory().get(String.valueOf(i));
         }
-        AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.getAtmosphereConfig(), BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
+        AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.getAtmosphereConfig(), framework.getBroadcasterFactory().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
         assertNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
@@ -93,10 +93,10 @@ public class AtmosphereResourceFactoryTest {
     @Test
     public void deleteTest() {
         for (int i = 0; i < 10; i++) {
-            BroadcasterFactory.getDefault().get(String.valueOf(i));
+            framework.getBroadcasterFactory().get(String.valueOf(i));
         }
-        Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
-        AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.config, BroadcasterFactory.getDefault().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
+        Broadcaster b2 = framework.getBroadcasterFactory().get("b2");
+        AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.config, framework.getBroadcasterFactory().lookup("1"), AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         assertNotNull(r);
         b2.addAtmosphereResource(r.suspend());
@@ -108,8 +108,8 @@ public class AtmosphereResourceFactoryTest {
 
     @Test
     public void broadcastersTest() {
-        Broadcaster b1 = BroadcasterFactory.getDefault().get("b1");
-        Broadcaster b2 = BroadcasterFactory.getDefault().get("b2");
+        Broadcaster b1 = framework.getBroadcasterFactory().get("b1");
+        Broadcaster b2 = framework.getBroadcasterFactory().get("b2");
         AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.getAtmosphereConfig(), b1, AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class), AtmosphereResource.TRANSPORT.WEBSOCKET);
         r.suspend();

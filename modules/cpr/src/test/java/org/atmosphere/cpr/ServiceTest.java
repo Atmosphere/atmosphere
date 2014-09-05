@@ -59,7 +59,7 @@ public class ServiceTest {
 
     @Test
     public void testBroadcasterService() throws IOException, ServletException {
-        assertEquals(BroadcasterFactory.getDefault().get("test").getClass().getName(), B.class.getName());
+        assertEquals(framework.getBroadcasterFactory().get("test").getClass().getName(), B.class.getName());
     }
 
     @BroadcasterService

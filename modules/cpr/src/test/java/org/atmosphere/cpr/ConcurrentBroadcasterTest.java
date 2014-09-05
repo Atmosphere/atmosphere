@@ -35,10 +35,11 @@ public class ConcurrentBroadcasterTest {
     private AtmosphereResource ar;
     private DefaultBroadcaster broadcaster;
     private AR atmosphereHandler;
-
+    private AtmosphereConfig config;
+    
     @BeforeMethod
     public void setUp() throws Exception {
-        AtmosphereConfig config = new AtmosphereFramework()
+        config = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .getAtmosphereConfig();
 
@@ -50,7 +51,7 @@ public class ConcurrentBroadcasterTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.destroy();
-        DefaultBroadcasterFactory.getDefault().destroy();
+        config.getBroadcasterFactory().destroy();
     }
 
     public final static class AR implements AtmosphereHandler {

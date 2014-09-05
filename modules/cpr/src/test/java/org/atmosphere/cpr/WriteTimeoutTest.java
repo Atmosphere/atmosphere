@@ -49,7 +49,7 @@ public class WriteTimeoutTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.destroy();
-        BroadcasterFactory.getDefault().destroy();
+        config.getBroadcasterFactory().destroy();
     }
 
     @Test

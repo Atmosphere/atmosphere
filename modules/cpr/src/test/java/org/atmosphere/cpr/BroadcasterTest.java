@@ -39,10 +39,11 @@ public class BroadcasterTest {
     private AtmosphereResource ar;
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
+    private AtmosphereConfig config;
 
     @BeforeMethod
     public void setUp() throws Exception {
-        AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
+        config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
@@ -61,7 +62,7 @@ public class BroadcasterTest {
     public void unSetUp() throws Exception {
         broadcaster.destroy();
         atmosphereHandler.value.set(new HashSet());
-        DefaultBroadcasterFactory.getDefault().destroy();
+        config.getBroadcasterFactory().destroy();
     }
 
     @Test
@@ -222,7 +223,7 @@ public class BroadcasterTest {
             public void onPreDestroy(Broadcaster b) {
             }
         };
-        BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/a1");
+        config.getBroadcasterFactory().addBroadcasterListener(l).get("/a1");
         assertTrue(create.get());
     }
 
@@ -244,7 +245,7 @@ public class BroadcasterTest {
                 deleted.set(Boolean.TRUE);
             }
         };
-        BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/b1").destroy();
+        config.getBroadcasterFactory().addBroadcasterListener(l).get("/b1").destroy();
         assertTrue(deleted.get());
     }
 
@@ -266,7 +267,7 @@ public class BroadcasterTest {
             public void onPreDestroy(Broadcaster b) {
             }
         };
-        BroadcasterFactory.getDefault().addBroadcasterListener(l).get("/c1").broadcast("").get();
+        config.getBroadcasterFactory().addBroadcasterListener(l).get("/c1").broadcast("").get();
         assertTrue(complete.get());
     }
 }
