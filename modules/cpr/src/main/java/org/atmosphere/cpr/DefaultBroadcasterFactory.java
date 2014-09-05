@@ -16,6 +16,7 @@
 
 package org.atmosphere.cpr;
 
+import org.atmosphere.lifecycle.BroadcasterLifecyclePolicyHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -55,6 +56,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
     protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
     protected int defaultPolicyInteger = -1;
     private final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
+    private final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
 
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
@@ -139,6 +141,8 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             for (BroadcasterListener l : broadcasterListeners) {
                 b.addBroadcasterListener(l);
             }
+
+            addBroadcasterListener(lifeCycleListener);
             logger.trace("Broadcaster {} was created {}", id, b);
 
             notifyOnPostCreate(b);

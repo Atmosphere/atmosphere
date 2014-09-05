@@ -261,6 +261,13 @@ public interface Broadcaster {
     public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
 
     /**
+     * Get the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}.
+     *
+     * @return {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
+     */
+    public BroadcasterLifeCyclePolicy getBroadcasterLifeCyclePolicy();
+
+    /**
      * Add a {@link BroadcasterLifeCyclePolicyListener}.
      *
      * @param b a {@link BroadcasterLifeCyclePolicyListener}
