@@ -66,15 +66,7 @@ public class AtmosphereServiceProcessor implements Processor<Object> {
 
                 String mapping = a.path();
 
-                Class<? extends AtmosphereInterceptor>[] interceptors = a.interceptors();
-                for (Class i : interceptors) {
-                    try {
-                        AtmosphereInterceptor ai = framework.newClassInstance(AtmosphereInterceptor.class, i);
-                        l.add(ai);
-                    } catch (Throwable e) {
-                        logger.warn("", e);
-                    }
-                }
+                AnnotationUtil.interceptors(framework, a.interceptors(), l);
 
                 if (!a.dispatch()) {
                     AtmosphereHandler proxy = new AtmosphereServletProcessor() {

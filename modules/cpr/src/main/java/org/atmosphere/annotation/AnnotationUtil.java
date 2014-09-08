@@ -15,6 +15,7 @@
  */
 package org.atmosphere.annotation;
 
+import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
@@ -23,12 +24,22 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
+import org.atmosphere.interceptor.SuspendTrackerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.List;
 
 public class AnnotationUtil {
 
     public static final Logger logger = LoggerFactory.getLogger(AnnotationUtil.class);
+
+    private static final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
+            AtmosphereResourceLifecycleInterceptor.class,
+            TrackMessageSizeInterceptor.class,
+            SuspendTrackerInterceptor.class
+    };
 
     public static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
         for (Class i : interceptors) {
@@ -51,6 +62,20 @@ public class AnnotationUtil {
             String[] nv = s.split("=");
             framework.addInitParameter(nv[0], nv[1]);
             framework.reconfigureInitParams(true);
+        }
+    }
+
+    public static void defaultInterceptors(AtmosphereFramework framework, List<AtmosphereInterceptor> l) {
+        interceptors(framework, defaultInterceptors, l);
+    }
+
+    public static void interceptors(AtmosphereFramework framework, Class<? extends AtmosphereInterceptor>[] interceptors, List<AtmosphereInterceptor> l) {
+        for (Class i : interceptors) {
+            try {
+                l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
+            } catch (Throwable e) {
+                logger.warn("", e);
+            }
         }
     }
 

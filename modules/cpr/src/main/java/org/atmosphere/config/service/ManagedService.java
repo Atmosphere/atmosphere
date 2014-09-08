@@ -25,7 +25,6 @@ import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
-import org.atmosphere.interceptor.IdleResourceInterceptor;
 import org.atmosphere.interceptor.SuspendTrackerInterceptor;
 
 import java.lang.annotation.Documented;
@@ -81,15 +80,11 @@ public @interface ManagedService {
     Class<? extends Broadcaster> broadcaster() default DefaultBroadcaster.class;
 
     /**
-     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Default are {@link AtmosphereResourceLifecycleInterceptor},
+     * A list of {@link org.atmosphere.cpr.AtmosphereInterceptor} to install. Defined interceptor will be appended to the default set: {@link AtmosphereResourceLifecycleInterceptor},
      * {@link org.atmosphere.config.managed.ManagedServiceInterceptor}, {@link TrackMessageSizeInterceptor},
      * {@link HeartbeatInterceptor} and {@link SuspendTrackerInterceptor}
      */
-    Class<? extends AtmosphereInterceptor>[] interceptors() default {
-            AtmosphereResourceLifecycleInterceptor.class,
-            TrackMessageSizeInterceptor.class,
-            SuspendTrackerInterceptor.class
-    };
+    Class<? extends AtmosphereInterceptor>[] interceptors() default {};
 
     /**
      * Atmosphere's configuration that will be passed to the associated {@link org.atmosphere.cpr.AtmosphereHandler}. Configuration

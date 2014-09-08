@@ -82,14 +82,8 @@ public class ManagedServiceProcessor implements Processor<Object> {
                 }
             });
 
-            Class<? extends AtmosphereInterceptor>[] interceptors = a.interceptors();
-            for (Class i : interceptors) {
-                try {
-                    l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
-                } catch (Throwable e) {
-                    logger.warn("", e);
-                }
-            }
+            AnnotationUtil.defaultInterceptors(framework, l);
+            AnnotationUtil.interceptors(framework, a.interceptors(), l);
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
         } catch (Throwable e) {
             logger.warn("", e);

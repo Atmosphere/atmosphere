@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -59,15 +58,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
                 l.add(aa);
             }
 
-            Class<? extends AtmosphereInterceptor>[] interceptors = m.interceptors();
-            for (Class i : interceptors) {
-                try {
-                    AtmosphereInterceptor ai = framework.newClassInstance(AtmosphereInterceptor.class, i);
-                    l.add(ai);
-                } catch (Throwable e) {
-                    logger.warn("", e);
-                }
-            }
+            AnnotationUtil.interceptors(framework, m.interceptors(), l);
 
             if (m.path().contains("{")) {
                 framework.interceptors().add(framework.newClassInstance(AtmosphereInterceptor.class, MeteorServiceInterceptor.class));
