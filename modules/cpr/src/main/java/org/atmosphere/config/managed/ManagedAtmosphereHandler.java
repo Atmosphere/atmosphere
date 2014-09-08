@@ -229,6 +229,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
             }
 
+            r.getRequest().removeAttribute(getClass().getName());
             super.onStateChange(event);
         }
 
