@@ -620,16 +620,30 @@ public class AtmosphereFramework implements ServletContextProvider {
 
                         String inputLine;
                         String newVersion = Version.getRawVersion();
+                        String clientVersion = "2.1.10";
+                        String nextMajorRelease = "2.3.0";
+                        boolean nextAvailable = false;
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
-                                if (inputLine.startsWith("ATMO_VERSION=")) {
-                                    newVersion = inputLine.substring("ATMO_VERSION=".length());
+                                if (inputLine.startsWith("ATMO11_VERSION=")) {
+                                    newVersion = inputLine.substring("ATMO11_VERSION=".length());
+                                } else if (inputLine.startsWith("CLIENT_VERSION=")) {
+                                    clientVersion = inputLine.substring("CLIENT_VERSION=".length());
                                     break;
+                                } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
+                                    nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
+                                    nextAvailable = true;
                                 }
                             }
                         } finally {
+                            logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
                             if (newVersion.compareTo(Version.getRawVersion()) != 0) {
-                                logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
+
+                                String msg = "\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}";
+                                if (nextAvailable && nextMajorRelease.toLowerCase().indexOf("rc") == -1 && nextMajorRelease.toLowerCase().indexOf("beta") == -1) {
+                                    msg = "\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}";
+                                }
+                                logger.info(msg, newVersion, nextMajorRelease);
                             }
                             try {
                                 in.close();
