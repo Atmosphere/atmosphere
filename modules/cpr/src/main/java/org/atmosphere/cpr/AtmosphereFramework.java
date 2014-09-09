@@ -1008,8 +1008,8 @@ public class AtmosphereFramework {
                                 } else if (inputLine.startsWith("CLIENT3_VERSION=")) {
                                     clientVersion = inputLine.substring("CLIENT3_VERSION=".length());
                                     break;
-                                } else if (inputLine.startsWith("ATMO23_VERSION=")) {
-                                    nextMajorRelease = inputLine.substring("ATMO23_VERSION=".length());
+                                } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
+                                    nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
                                     nextAvailable = true;
                                 }
                             }
