@@ -519,13 +519,7 @@ public class AtmosphereFramework {
         addMapping(mapping, w);
 
         if (isInit) {
-            try {
-                if (h instanceof AtmosphereServletProcessor) {
-                    ((AtmosphereServletProcessor) h).init(config);
-                }
-            } catch (ServletException e) {
-                throw new RuntimeException(e);
-            }
+            initServletProcessor(h);
             initHandlerInterceptors(w.interceptors);
         } else {
             logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
@@ -583,6 +577,10 @@ public class AtmosphereFramework {
         w.broadcaster.setID(broadcasterId);
         w.interceptors = LinkedList.class.isAssignableFrom(l.getClass()) ? LinkedList.class.cast(l) : new LinkedList<AtmosphereInterceptor>(l);
 
+        if (isInit) {
+            initServletProcessor(h);
+        }
+
         addMapping(mapping, w);
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
         if (l.size() > 0) {
@@ -602,6 +600,16 @@ public class AtmosphereFramework {
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, String broadcasterId) {
         addAtmosphereHandler(mapping, h, broadcasterId, Collections.<AtmosphereInterceptor>emptyList());
         return this;
+    }
+
+    private void initServletProcessor(AtmosphereHandler h) {
+        try {
+            if (h instanceof AtmosphereServletProcessor) {
+                ((AtmosphereServletProcessor) h).init(config);
+            }
+        } catch (ServletException e) {
+            throw new RuntimeException(e);
+        }
     }
 
     /**
@@ -625,6 +633,7 @@ public class AtmosphereFramework {
         if (!isInit) {
             logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
                     new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+            initServletProcessor(h);
         } else {
             logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
                     new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
