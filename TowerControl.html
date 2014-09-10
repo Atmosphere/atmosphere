@@ -1,0 +1,256 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="keywords" content="Java,WebSockets,Server Side Events,AJAX,JavaScript">
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print"/>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <title>Async-IO.org: Powering the Atmosphere Framework</title>
+</head>
+
+<body>
+<div id="container">
+<div class="inner">
+
+<header>
+    <div class="asyncIO">
+        <div class="asyncIO-left">
+            <br>
+
+            <div style="text-align: center;">
+                <a href="http://async-io.org"><img title="logo" alt="" src="./images/AsyncIO.png"/></a>
+            </div>
+        </div>
+        <div class="asyncIO-right">
+            <h1>Debugging And Monitoring Atmosphere in Production using Atmosphere Tower Control</h1>
+
+            <h2><strong>Explore your Atmosphere .... with few clicks</strong>
+            </h2>
+
+        </div>
+    </div>
+
+</header>
+
+<section id="main_content">
+
+    <p><a href="./images/towerControl.png">Atmosphere Tower Control</a> is designed with ease of use and flexibility in mind and delivers unprecedented
+        power to Atmosphere’s Developers. Atmosphere Tower Control is a complete ecosystem for developers,
+        offering a complete end to end solution for monitoring an debugging an Atmosphere application.
+    </p>
+
+    <p>
+        Tower Control offers the ability to completely configure Atmosphere, collect statistics, reload
+        Atmosphere applications and hot swap an Atmosphere applications remotely.
+    </p>
+
+    <h2>Installing Tower Control</h2>
+
+    <h3>Installing Tower Control is simple. All you need to do is to add the artefact:</h3>
+
+    <div>
+            <pre class="prettyprint">
+&lt;dependency&gt;
+&lt;groupId>io.async&lt;/groupId&gt;
+&lt;artifactId>atmosphere-tower-control&lt;/artifactId&gt;
+&lt;version>1.0.0&lt;/version&gt;
+&lt;/dependency&gt;</pre>
+    </div>
+    <p>Atmosphere will auto-detect the jar and will install Tower Control automatically. Once installed, you
+        should see in your log:</p>
+
+    <div class="example">
+        <div class="example-left-long">
+            	    <pre class="prettyprint">
+11:56:17.411 INFO [main] o.a.c.AnnotationHandler [AnnotationHandler.java:63] Found Annotation in class io.async.control.TowerControlInterceptor being scanned: interface org.atmosphere.config.service.AtmosphereInterceptorService
+11:56:17.537 INFO [main] i.a.c.TowerControlInterceptor [TowerControlInterceptor.java:58]
+
+	 Atmosphere Tower Control
+
+
+11:56:17.538 INFO [main] o.a.c.AnnotationHandler [AnnotationHandler.java:63] Found Annotation in class io.async.control.TowerConttrolListener being scanned: interface org.atmosphere.config.service.BroadcasterListenerService
+            </pre>
+        </div>
+    </div>
+
+    <h3>Starting Tower Control</h3>
+
+    <p>To start Tower Control, all you need to have is a tool supporting JMX. For example, both Java Mission
+        Control(JMC) and jVisualVM supports JMX. Let’s assume we will use JMC. To start JMC, just do:</p>
+
+    <div class="example">
+        <div class="example-left-long">
+            	    <pre class="prettyprint">
+ % jmc
+            </pre>
+        </div>
+    </div>
+    <a href="./images/jmc.png"><img title="jmc" alt="" src="./images/jmc.png"/></a>
+
+    <p>Next, select under the JVM Browser Tab, select the Java process, which started your Atmosphere
+        Application. On the right side, select the MBean Tab. You should see</p>
+
+    <a href="./images/mbean.png"><img title="jmc" alt="" src="./images/mbean.png"/></a>
+
+    <p>To make things simpler, type io.async in the Filter field, so we just see Tower Control Beans</p>
+
+    <a href="./images/easy.png"><img title="easy" alt="" src="./images/easy.png"/></a>
+
+    <p>All the Atmosphere’s MBeans are grouped by type:</p>
+    <ul>
+        <li><strong>io.async.control</strong>: Contains information about installed AsyncSupport and
+            AtmosphereFramework classes.
+        </li>
+        <li><strong>io.async.control.broadcaster</strong>: The current set of created Broadcaster with their
+            associated state.
+        </li>
+        <li><strong>io.async.control.cache</strong>: The current set of created BroadcasterCache with their
+            associated state.
+        </li>
+        <li><strong>io.async.control.factory</strong>: The BroadcasterFactory, AtmosphereResourceFactory and
+            WebSocketProcessorFactory with their associated state.
+        </li>
+        <li><strong>io.async.control.interceptors</strong>: The current set of installed AtmosphereInterceptor
+            with their associated state.
+        </li>
+        <li><strong>io.async.control.resource</strong>: The current set of connected clients, represented by
+            their AtmosphereResource.
+        </li>
+        <li><strong>io.async.statistics</strong>: Live statistic like number of connections, messages, transport
+            used as well as Browser’s used.
+        </li>
+        <li><strong>io.async.control.websocket</strong>: Contains information about installed WebSocketProcessor
+        </li>
+    </ul>
+    <p>Let’s explore them one by one and see what kind of information is available from those beans.</p>
+
+    <h3>io.async.control.AsyncSupport</h3>
+    <h4>Attributes</h4>
+
+    <p>Contains information about the server used and if websocket is supported or not.</p>
+    <h4>Operations</h4>
+
+    <p>No operation available</p>
+    <a href="./images/AsyncSupport.png"><img title="snake" alt="" src="./images/AsyncSupport.png"/></a>
+
+    <h3>io.async.control.AtmosphereFramework</h3>
+    <h4>Attributes</h4>
+
+    <p>Contains information about how Atmosphere has been started and configured. Everything configured by
+        default or via web/application.xml is getting reflected.</p>
+    <h4>Operations</h4>
+
+    <p>You can reconfigure the AtmosphereFramework via the MBean’s operations. For example, you can add
+        BroadcasterListener, init-params etc. and then click on reload to reconfigure the
+        AtmosphereFramework.</p>
+    <a href="./images/AtmosphereFramework.png"><img title="jmc" alt="" src="./images/AtmosphereFramework.png"/></a>
+
+    <h3>io.async.control.broadcaster</h3>
+    <h4>Attributes</h4>
+
+    <p>Contains information about the current state of a Broadcaster. For example, the AtmosphereResource, the number of
+        them, the installed BroadcasterListener, etc.</p>
+    <h4>Operations</h4>
+
+    <p>Several operations are available, like adding, on the fly, AtmosphereResource, broadcasting messages, resuming
+        AtmosphereResources etc.</p>
+    <a href="./images/Broadcaster.png"><img title="snake" alt="" src="./images/Broadcaster.png"/></a>
+
+    <h3>io.async.control.cache</h3>
+    <h4>Attributes</h4>
+
+    <p>Contains information about the current state of the BroadcasterCache like active AtmosphereResource, installed
+        listeners etc.</p>
+    <h4>Operations</h4>
+
+    <p>Message can be added, excluded or deleted from the cache</p>
+    <a href="./images/Cache.png"><img title="snake" alt="" src="./images/Cache.png"/></a>
+
+    <h3>io.async.control.config</h3>
+    <h4>Attributes</h4>
+
+    <p>Contains information about the BroadcasterConfig likes Thread, Thread Pool, etc.</p>
+    <h4>Operations</h4>
+
+    <p>You can destroy or remove BroadcastFilter</p>
+    <a href="./images/BroadcasterConfig.png"><img title="snake" alt="" src="./images/BroadcasterConfig.png"/></a>
+
+    <h3>io.async.control.factory</h3>
+    <h4>Attributes</h4>
+
+    <p>Contains information about the number of AtmosphereResource, Broadcaster and WebSocketProcessor</p>
+    <h4>Operations</h4>
+
+    <p>You add find AtmosphereResource based on their UUID</p>
+    <a href="./images/Factory.png"><img title="snake" alt="" src="./images/Factory.png"/></a>
+
+    <h3>io.async.control.interceptors</h3>
+    <h4>Attributes</h4>
+
+    <p>Contains information about the installed AtmosphereInterceptors</p>
+    <h4>Operations</h4>
+
+    <p>For example, you can configure on the fly the SuspendTrackerInterceptor.</p>
+    <a href="./images/Interceptor.png"><img title="snake" alt="" src="./images/Interceptor.png"/></a>
+
+    <h3>io.async.control.resource</h3>
+    <h4>Attributes</h4>
+
+    <p>The list of current connected users, or AtmosphereResource.</p>
+    <h4>Operations</h4>
+
+    <p>You can close and or resume an existing AtmosphereResource</p>
+    <a href="./images/Resource.png"><img title="snake" alt="" src="./images/Resource.png"/></a>
+
+    <h3>io.async.control.statistics</h3>
+    <h4>Attributes</h4>
+
+    <p>Collect statistics about the current number of connections, disconnected count, total received messages etc.</p>
+    <h4>Operations</h4>
+
+    <p>Enable/Disable statistics collection.</p>
+    <a href="./images/Stats.png"><img title="snake" alt="" src="./images/Stats.png"/></a>
+
+    <h3>io.async.control.websocket</h3>
+    <h4>Attributes</h4>
+
+    <p>Information about how websockets are installed and configured.</p>
+    <h4>Operations</h4>
+
+    <p>None</p>
+    <a href="./images/WebSocket.png"><img title="snake" alt="" src="./images/WebSocket.png"/></a>
+    <p/>
+    <h2>Debugging and Monitoring!</h2>
+    <p>As you can see, Tower Control can not only be used as a debug tool, but as a powerful monitoring tool for
+            application deployed in production.</p>
+
+
+</section>
+<footer>
+    <p>©2014. All Rights Reserved - <a href="http://async-io.org">Async-IO.org</a>. Follow us on <a
+            href="http://twitter.com/asyncio">Twitter</a></p>
+</footer>
+
+<script type="text/javascript">
+    var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+    document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+</script>
+<script type="text/javascript">
+    try {
+        var pageTracker = _gat._getTracker("UA-31990725-1");
+        pageTracker._trackPageview();
+    } catch (err) {
+    }
+</script>
+
+</div>
+</div>
+</body>
+</html>
