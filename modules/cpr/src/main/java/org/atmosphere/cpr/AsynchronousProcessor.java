@@ -125,9 +125,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         // https://github.com/Atmosphere/atmosphere/issues/1637
         if (isServlet30 && (!req.isAsyncSupported() && !Utils.closeMessage(req))) {
-            logger.error("Invalid request state. AsyncContext#startAsync not supported. Make sure async-supported is set to true in web.xml {}", req.getRequestURL().toString());
+            logger.error("Invalid request state. <async-supported>true</async-supported> must be defined for ALL Servlets and Filters  declarations in web.xml {}", req.getRequestURL().toString());
             res.setStatus(501);
-            res.addHeader(X_ATMOSPHERE_ERROR, "AsyncContext not enabled");
+            res.addHeader(X_ATMOSPHERE_ERROR, "<async-supported>true</async-supported> must be defined for ALL Servlets and Filters  declarations in web.xml.");
             res.flushBuffer();
             return new Action();
         }
