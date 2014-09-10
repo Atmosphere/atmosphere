@@ -198,39 +198,41 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             r.getRequest(false).setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, false);
         }
 
-        if (event.isCancelled() || event.isClosedByClient()) {
-            invoke(onDisconnectMethod, event);
-        } else if (event.isResumedOnTimeout() || event.isResuming()) {
-            invoke(onTimeoutMethod, event);
-        } else {
-            Object o;
-            if (msg != null) {
-                if (Managed.class.isAssignableFrom(msg.getClass())) {
-                    Object newMsg = Managed.class.cast(msg).o;
-                    event.setMessage(newMsg);
-                    // No method matched. Give a last chance by trying to decode the proxiedInstance.
-                    // This makes application development more simpler.
-                    // Chaining of encoder is not supported.
-                    // TODO: This could be problematic with String + method
-                    for (MethodInfo m : onRuntimeMethod) {
-                        o = Invoker.encode(encoders.get(m.method), newMsg);
+        try {
+            if (event.isCancelled() || event.isClosedByClient()) {
+                invoke(onDisconnectMethod, event);
+            } else if (event.isResumedOnTimeout() || event.isResuming()) {
+                invoke(onTimeoutMethod, event);
+            } else {
+                Object o;
+                if (msg != null) {
+                    if (Managed.class.isAssignableFrom(msg.getClass())) {
+                        Object newMsg = Managed.class.cast(msg).o;
+                        event.setMessage(newMsg);
+                        // No method matched. Give a last chance by trying to decode the proxiedInstance.
+                        // This makes application development more simpler.
+                        // Chaining of encoder is not supported.
+                        // TODO: This could be problematic with String + method
+                        for (MethodInfo m : onRuntimeMethod) {
+                            o = Invoker.encode(encoders.get(m.method), newMsg);
+                            if (o != null) {
+                                event.setMessage(o);
+                                break;
+                            }
+                        }
+                    } else {
+                        logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
+                        final MethodInfo.EncoderObject e = message(r, msg);
+                        o = e == null ? null : e.encodedObject;
                         if (o != null) {
                             event.setMessage(o);
-                            break;
                         }
                     }
-                } else {
-                    logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
-                    final MethodInfo.EncoderObject e = message(r, msg);
-                    o = e == null ? null : e.encodedObject;
-                    if (o != null) {
-                        event.setMessage(o);
-                    }
                 }
+                super.onStateChange(event);
             }
-
+        } finally {
             r.getRequest().removeAttribute(getClass().getName());
-            super.onStateChange(event);
         }
 
         if (resumeOnBroadcast && r.isSuspended()) {
@@ -474,7 +476,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
          * Creates a new {@link org.atmosphere.config.managed.ManagedAtmosphereHandler.MethodInfo.EncoderObject} which encodes the given object and wraps the result.
          * </p>
          *
-         * @param encoders the encoders
+         * @param encoders       the encoders
          * @param objectToEncode the object to encode and wrap
          * @return the resulting object encoder
          */
@@ -506,7 +508,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
              * Builds a new instance.
              * </p>
              *
-             * @param encoders the encoders
+             * @param encoders       the encoders
              * @param objectToEncode the object to encode
              */
             public EncoderObject(final Map<Method, List<Encoder<?, ?>>> encoders, final Object objectToEncode) {
