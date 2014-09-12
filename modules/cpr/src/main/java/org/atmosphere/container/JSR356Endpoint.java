@@ -119,10 +119,16 @@ public class JSR356Endpoint extends Endpoint {
         URI uri = session.getRequestURI();
         String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
 
-        // /contextPath/servletPath/pathInfo
+        int pathInfoStartIndex = 3;
+        String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
+        if("".equals(contextPath)){
+        	pathInfoStartIndex = 2;
+        }
+        
+        // /contextPath/servletPath/pathInfo or /servletPath/pathInfo
         StringBuffer b = new StringBuffer("/");
         for (int i = 0; i < paths.length; i++) {
-            if (i >= 3) {
+            if (i >= pathInfoStartIndex) {
                 b.append(paths[i]).append("/");
             }
         }
