@@ -134,15 +134,23 @@
             Atmosphere Postman guarantees the client that when sending a message, the message will always be delivered
             to the server. In case of a failure, the message will be re-sent until it reaches the server. Postman
             guarantee client delivery.
-            <p/><p/>
-            When combined with Atmosphere Satellite, on which the messaging system is installed on, has its own data
-            store so that the messages can be stored locally. When a websocket or fallback transport delivers a message,
+            <p/>
+
+            <p/>
+            When combined with Atmosphere Satellite, when a websocket or fallback transport delivers a message,
             the send operation does not complete successfully until the message is safely stored in the sender’s data
             store. Subsequently, the message is not deleted from one data store until it is successfully forwarded to
             and stored in the next data store. As a result, once a websocket or fallback transport successfully sends a
             message, it is also stored in memory on at least one Atmosphere Satellite until the message has been
-            successfully delivered and acknowledged by the browser.
+            successfully delivered and acknowledged by the browser. Installing Satellite and Postman guarante 100%
+            messages delivery, both from the browser and the server.
+            <p/>
 
+            <p/>
+            Postman also contains mechanisms for fixing browser specific errors. For example, Firefox can leaks
+            websockets connections when pages are fastly reloaded. Under that circumstance, a server may die because of
+            those phantoms websockets, who create a memory leak. Postman ships with a mechanism to detect that situation
+            and automatically get rid of phantoms websockets.
             <p>
 
             </p>
