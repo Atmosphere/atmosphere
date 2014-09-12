@@ -66,7 +66,8 @@
                         Discounts are also available</a>
                 </p></h2>
             <h3 id="Control">Atmosphere Tower Control</h3>
-            <a href="./TowerControl.html">Tower Control</a> monitoring product is designed with ease of use and flexibility in mind and delivers
+            <a href="./TowerControl.html">Tower Control</a> monitoring product is designed with ease of use and
+            flexibility in mind and delivers
             unprecedented power to DevOps and users alike. Tower Control is a complete ecosystem for DevOps,
             offering a complete end to end solution for monitoring an Atmosphere application. Tower Control offers the
             ability to completely configure Atmosphere, collect statistics, reload Atmosphere applications and hot swamp
@@ -129,16 +130,18 @@
             </p>
 
             <h3 id="PostMan">Atmosphere Postman</h3>
-            With Guaranteed Delivery, the Atmosphere Postman system uses a built-in data store to persist messages. Each
-            Atmosphere Satellite on which the messaging system is installed on has its own data store so that the
-            messages can be stored locally.
-            When a websocket or fallback transport delivers a message, the send operation does not complete successfully
-            until the message is safely stored in the sender’s data store. Subsequently, the message is not deleted from
-            one data store until it is successfully forwarded to and stored in the next data store.
-            As a result, once a websocket or fallback transport successfully sends a message, it is also stored in
-            memory on at least one Atmosphere Satellite until the message has been successfully delivered and
-            acknowledged by the
-            browser.
+            With Guaranteed Delivery, the Atmosphere Postman system uses a built-in data store to persist messages.
+            Atmosphere Postman guarantees the client that when sending a message, the message will always be delivered
+            to the server. In case of a failure, the message will be re-sent until it reaches the server. Postman
+            guarantee client delivery.
+            <p/><p/>
+            When combined with Atmosphere Satellite, on which the messaging system is installed on, has its own data
+            store so that the messages can be stored locally. When a websocket or fallback transport delivers a message,
+            the send operation does not complete successfully until the message is safely stored in the sender’s data
+            store. Subsequently, the message is not deleted from one data store until it is successfully forwarded to
+            and stored in the next data store. As a result, once a websocket or fallback transport successfully sends a
+            message, it is also stored in memory on at least one Atmosphere Satellite until the message has been
+            successfully delivered and acknowledged by the browser.
 
             <p>
 
