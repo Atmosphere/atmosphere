@@ -121,10 +121,10 @@ public class JSR356Endpoint extends Endpoint {
 
         int pathInfoStartIndex = 3;
         String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
-        if("".equals(contextPath)){
-        	pathInfoStartIndex = 2;
+        if ("".equals(contextPath)) {
+            pathInfoStartIndex = 2;
         }
-        
+
         // /contextPath/servletPath/pathInfo or /servletPath/pathInfo
         StringBuffer b = new StringBuffer("/");
         for (int i = 0; i < paths.length; i++) {
