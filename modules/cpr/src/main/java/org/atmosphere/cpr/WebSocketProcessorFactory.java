@@ -18,6 +18,8 @@ package org.atmosphere.cpr;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProcessor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.WeakHashMap;
@@ -28,6 +30,7 @@ import java.util.WeakHashMap;
  * @author Jeanfrancois Arcand
  */
 public class WebSocketProcessorFactory {
+    private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessorFactory.class);
 
     private static WebSocketProcessorFactory factory;
 
@@ -78,6 +81,7 @@ public class WebSocketProcessorFactory {
                 processor =  framework.newClassInstance(WebSocketProcessor.class,
                         (Class<WebSocketProcessor>) IOUtils.loadClass(getClass(), webSocketProcessorName));
             } catch (Exception ex) {
+                logger.error("Unable to create {}", webSocketProcessorName);
                 processor = new DefaultWebSocketProcessor(framework);
             }
         }
