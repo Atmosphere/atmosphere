@@ -15,7 +15,7 @@
  */
 package org.atmosphere.interceptor;
 
-import org.atmosphere.HeartbeatAtmosphereResourceEvent;
+import org.atmosphere.cpr.HeartbeatAtmosphereResourceEvent;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;

@@ -14,7 +14,7 @@
  * the License.
  */
 
-package org.atmosphere;
+package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;

@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.HeartbeatAtmosphereResourceEvent;
+import org.atmosphere.cpr.HeartbeatAtmosphereResourceEvent;
 import org.atmosphere.interceptor.AllowInterceptor;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
