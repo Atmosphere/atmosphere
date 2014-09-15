@@ -87,10 +87,10 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultWebSocketProcessor.class);
 
-    private final AtmosphereFramework framework;
-    private final WebSocketProtocol webSocketProtocol;
-    private final boolean destroyable;
-    private final boolean executeAsync;
+    private /* final */ AtmosphereFramework framework;
+    private /* final */ WebSocketProtocol webSocketProtocol;
+    private /* final */ boolean destroyable;
+    private /* final */ boolean executeAsync;
     private ExecutorService asyncExecutor;
     private ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandlerProxy> handlers = new ConcurrentHashMap<String, WebSocketHandlerProxy>();
@@ -99,12 +99,15 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;
-    private final long closingTime;
+    private /* final */ long closingTime;
     private AsynchronousProcessor asynchronousProcessor;
-    private final boolean invokeInterceptors;
+    private /* final */ boolean invokeInterceptors;
 
-    public DefaultWebSocketProcessor(final AtmosphereFramework framework) {
-        this.framework = framework;
+    public DefaultWebSocketProcessor() {
+    }
+
+    public  WebSocketProcessor configure(AtmosphereConfig config) {
+        this.framework = config.framework();
         this.webSocketProtocol = framework.getWebSocketProtocol();
 
         String s = framework.getAtmosphereConfig().getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
@@ -127,7 +130,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             charBufferMaxSize = byteBufferMaxSize;
         }
 
-        AtmosphereConfig config = framework.getAtmosphereConfig();
         if (executeAsync) {
             asyncExecutor = ExecutorsFactory.getAsyncOperationExecutor(config, "WebSocket");
         } else {
@@ -154,6 +156,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         });
+        return this;
     }
 
     @Override

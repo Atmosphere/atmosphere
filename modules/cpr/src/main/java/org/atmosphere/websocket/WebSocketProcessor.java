@@ -15,6 +15,7 @@
  */
 package org.atmosphere.websocket;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -38,6 +39,14 @@ import java.util.List;
  * @author Jeanfrancois Arcand
  */
 public interface WebSocketProcessor {
+
+    /**
+     * Configure, or post construct a WebSocketProcessor
+     * @param config an {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @return this
+     */
+    WebSocketProcessor configure(AtmosphereConfig config);
+
     /**
      * Determine if the WebSocket's handshake data can be processed, or if the request be cancelled. Since it's container
      * related native API, the {@link HttpServletRequest} might be null, so implementation must check for null.

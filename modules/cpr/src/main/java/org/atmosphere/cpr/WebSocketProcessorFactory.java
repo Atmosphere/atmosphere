@@ -74,21 +74,21 @@ public class WebSocketProcessorFactory {
     private WebSocketProcessor createProcessor(AtmosphereFramework framework) {
         WebSocketProcessor processor = null;
 
-        String webSocketProcessorName = framework
-                .getWebSocketProcessorClassName();
+        String webSocketProcessorName = framework.getWebSocketProcessorClassName();
         if (!webSocketProcessorName.equalsIgnoreCase(DefaultWebSocketProcessor.class.getName())) {
             try {
                 processor =  framework.newClassInstance(WebSocketProcessor.class,
                         (Class<WebSocketProcessor>) IOUtils.loadClass(getClass(), webSocketProcessorName));
             } catch (Exception ex) {
                 logger.error("Unable to create {}", webSocketProcessorName);
-                processor = new DefaultWebSocketProcessor(framework);
+                processor = new DefaultWebSocketProcessor();
             }
         }
 
         if (processor == null) {
-            processor = new DefaultWebSocketProcessor(framework);
+            processor = new DefaultWebSocketProcessor();
         }
+        processor.configure(framework.getAtmosphereConfig());
 
         return processor;
     }
