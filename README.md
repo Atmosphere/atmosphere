@@ -6,7 +6,7 @@ The Atmosphere Framework contains client and server side components for building
 
 <center>Follow us on [Twitter](http://www.twitter.com/atmo_framework)</center>.
 
-Atmosphere transparently supports WebSockets, Server Side Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
+Atmosphere transparently supports WebSockets, Server Sent Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
 The Atmosphere Framework Stack consists of: 
 
@@ -31,7 +31,7 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
 
 ### Quick Start
 
-The Atmosphere's Framework ships with many examples describing how to implement WebSockets, Server Side Events, Long Polling, HTTP Streaming and JSONP client applications. Take a look at [this page](https://github.com/Atmosphere/atmosphere-samples/) to pick the best sample to start with.
+The Atmosphere's Framework ships with many examples describing how to implement WebSockets, Server Sent Events, Long Polling, HTTP Streaming and JSONP client applications. Take a look at [this page](https://github.com/Atmosphere/atmosphere-samples/) to pick the best sample to start with.
 
 ### To use Atmosphere, add the following dependency:
 ```xml
@@ -44,7 +44,7 @@ The Atmosphere's Framework ships with many examples describing how to implement 
       
 Where atmosphere-module can be: jersey, runtime (main module), guice, redis, hazelcast, jms, jgroups or gwt. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
-#### Jump directly inside the code: WebSockets, Server Side Events (SSE), Long-Polling, JSONP and HTTP Streaming!
+#### Jump directly inside the code: WebSockets, Server Sent Events (SSE), Long-Polling, JSONP and HTTP Streaming!
 
 Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/webapp/index.html#L34)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/java/org/atmosphere/samples/pubsub/JerseyPubSub.java#L36) or the infamous Chat [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/webapp/javascript/application.js#L1)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/java/org/atmosphere/samples/chat/Chat.java#L32) to realize how simple Atmosphere is!
 
