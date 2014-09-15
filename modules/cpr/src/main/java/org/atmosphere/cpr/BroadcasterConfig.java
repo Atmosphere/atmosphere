@@ -91,10 +91,10 @@ public class BroadcasterConfig {
      * @param asyncWriteService
      * @param scheduler
      * @param config
-     * @param name
+     * @param broadcasterId
      */
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereConfig config, String name) {
+                             ScheduledExecutorService scheduler, AtmosphereConfig config, String broadcasterId) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
