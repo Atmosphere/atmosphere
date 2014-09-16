@@ -159,7 +159,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
                             break;
                     }
                 }
-            }).suspend(timeoutInMilli == -1 ? timeoutInMilli : timeoutInMilli);
+            }).suspend(timeoutInMilli);
         }
     }
 
