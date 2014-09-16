@@ -30,6 +30,8 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT;
+import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.POLLING;
+import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.UNDEFINED;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnBroadcast;
 
 /**
@@ -61,9 +63,11 @@ import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnBroadc
 public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterceptor {
 
     private String method = "GET";
+    // For backward compat.
     private Integer timeoutInSeconds = -1;
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereResourceLifecycleInterceptor.class);
     private final boolean force;
+    private long timeoutInMilli = -1;
 
     public AtmosphereResourceLifecycleInterceptor(){
         this(false);
@@ -84,6 +88,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         if (s != null) {
             timeoutInSeconds = Integer.valueOf(s);
         }
+        timeoutInMilli = TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS);
     }
 
     public String method() {
@@ -101,6 +106,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
 
     public AtmosphereResourceLifecycleInterceptor timeoutInSeconds(int timeoutInSeconds) {
         this.timeoutInSeconds = timeoutInSeconds;
+        timeoutInMilli = TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS);
         return this;
     }
 
@@ -128,7 +134,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     @Override
     public void postInspect(final AtmosphereResource r) {
 
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.UNDEFINED) || Utils.webSocketMessage(r)) return;
+        if (r.transport().equals(UNDEFINED) || Utils.webSocketMessage(r) || r.transport().equals(POLLING)) return;
 
         AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
         if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))
@@ -153,7 +159,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
                             break;
                     }
                 }
-            }).suspend(timeoutInSeconds == -1 ? timeoutInSeconds : TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS));
+            }).suspend(timeoutInMilli == -1 ? timeoutInMilli : timeoutInMilli);
         }
     }
 
