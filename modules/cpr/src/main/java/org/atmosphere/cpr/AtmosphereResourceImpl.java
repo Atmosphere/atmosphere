@@ -714,6 +714,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onClose(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onClose(e);
+            if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
+                WebSocketEventListener.class.cast(r).onClose(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
+            }
         }
     }
 
