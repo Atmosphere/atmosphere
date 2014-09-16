@@ -53,8 +53,7 @@ import java.util.Map;
  *
  * @author Jeanfrancois Arcand
  */
-public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandler
-        implements AtmosphereServletProcessor {
+public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandler {
 
     private final static String APPLICATION_NAME = "applicationClassName";
     private static final Logger logger = LoggerFactory.getLogger(ReflectorServletProcessor.class);

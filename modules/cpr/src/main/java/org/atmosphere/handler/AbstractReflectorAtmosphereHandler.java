@@ -18,17 +18,20 @@
 package org.atmosphere.handler;
 
 import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -44,7 +47,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
  *
  * @author Jean-francois Arcand
  */
-public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHandler {
+public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereServletProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractReflectorAtmosphereHandler.class);
 
@@ -145,7 +148,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
                 }
             } else {
                 if (isUsingStream) {
-                    r.getOutputStream().write(writeAsBytes ? (byte[])message : message.toString().getBytes(r.getCharacterEncoding()));
+                    r.getOutputStream().write(writeAsBytes ? (byte[]) message : message.toString().getBytes(r.getCharacterEncoding()));
                     r.getOutputStream().flush();
                 } else {
                     r.getWriter().write(message.toString());
@@ -186,6 +189,10 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
 
     @Override
     public void destroy() {
+    }
+
+    @Override
+    public void init(AtmosphereConfig config) throws ServletException {
     }
 
     /**
