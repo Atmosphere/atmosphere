@@ -21,6 +21,7 @@ import javax.servlet.ServletContext;
  * A simple Factory to get access to the {@linl ServletContext}. This factory won't work if more than one Servlet is deployed inside the same war.
  *
  * @author Jeanfrancois Arcand
+ * @deprecated
  */
 public class ServletContextFactory {
 
