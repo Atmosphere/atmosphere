@@ -87,8 +87,8 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         s = config.getInitParameter(ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT);
         if (s != null) {
             timeoutInSeconds = Integer.valueOf(s);
+            timeoutInMilli = TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS);
         }
-        timeoutInMilli = TimeUnit.MILLISECONDS.convert(timeoutInSeconds, TimeUnit.SECONDS);
     }
 
     public String method() {
