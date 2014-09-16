@@ -165,7 +165,10 @@ public final class Utils {
     public static final AtmosphereResource websocketResource(AtmosphereResource r) {
         String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
         if (parentUUID != null) {
-            r = r.getAtmosphereConfig().resourcesFactory().find(parentUUID);
+            AtmosphereResource resource = r.getAtmosphereConfig().resourcesFactory().find(parentUUID);
+            if (resource != null) {
+                r = resource;
+            }
         }
         return r;
     }
@@ -181,8 +184,8 @@ public final class Utils {
      * </p>
      *
      * @param proxiedInstance the instance
-     * @param m the method to invoke that belongs to the instance
-     * @param o the optional parameter
+     * @param m               the method to invoke that belongs to the instance
+     * @param o               the optional parameter
      * @return the result of the invocation
      */
     public static Object invoke(final Object proxiedInstance, Method m, Object o) {
