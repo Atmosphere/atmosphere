@@ -59,9 +59,9 @@ public class HTTPGetMethod {
             urlConnection = openURLConnection(url);
             urlConnection.setInstanceFollowRedirects(true);
             urlConnection.setRequestMethod(GET_METHOD_NAME);
-            urlConnection.setRequestProperty("User-agent", uaName + " ("
-                    + osString + ")");
+            urlConnection.setRequestProperty("User-agent", uaName + " (" + osString + ")");
 
+            logger.debug("Sending Server's information to Atmosphere's Google Analytics {} {}", urlString, uaName + " (" + osString + ")");
             urlConnection.connect();
             int responseCode = getResponseCode(urlConnection);
             if (responseCode != HttpURLConnection.HTTP_OK) {
@@ -89,7 +89,6 @@ public class HTTPGetMethod {
 
     private void logMessage(String message) {
         logger.trace("{}", message);
-
     }
 
     private void logError(String errorMesssage) {

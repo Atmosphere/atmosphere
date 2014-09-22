@@ -781,7 +781,7 @@ public interface ApplicationConfig {
      * <p/>
      * Default: false (Auto initialization enabled)<br/>
      * Value: org.atmosphere.cpr.AtmosphereInitializer.disabled
-     * 
+     * <p/>
      * <p/>
      * Example init-param:
      * <pre>
@@ -790,9 +790,15 @@ public interface ApplicationConfig {
      * &lt;param-value&gt;true&lt;/param-value&gt;
      * &lt;/init-param&gt;
      * </pre>
-     * 
+     *
      * @see {@link https://github.com/Atmosphere/atmosphere/issues/1695}
      */
-    String DISABLE_ATMOSPHERE_INITIALIZER = AtmosphereInitializer.class.getName()+".disabled";
+    String DISABLE_ATMOSPHERE_INITIALIZER = AtmosphereInitializer.class.getName() + ".disabled";
+    /**
+     * Disable Google Analytics.
+     * Default: true (enabled) <br>
+     * Value: org.atmosphere.cpr.AtmosphereFramework.analytics
+     */
+    String ANALYTICS = AtmosphereFramework.class.getName() + ".analytics";
 }
 

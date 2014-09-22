@@ -987,11 +987,14 @@ public class AtmosphereFramework {
     }
 
     protected void analytics() {
+        if (!config.getInitParameter(ApplicationConfig.ANALYTICS, true)) return;
+
         final String container = getServletContext().getServerInfo();
         if (allowAllClassesScan) {
             Thread t = new Thread() {
                 public void run() {
                     try {
+                        logger.debug("Retrieving Atmosphere's latest version from http://async-io.org/version.html");
                         HttpURLConnection urlConnection = (HttpURLConnection)
                                 URI.create("http://async-io.org/version.html").toURL().openConnection();
                         urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
