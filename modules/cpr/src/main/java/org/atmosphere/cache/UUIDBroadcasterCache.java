@@ -140,22 +140,28 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public CacheMessage addToCache(String broadcasterId, String uuid, BroadcastMessage message) {
-        Object e = message.message();
         if (logger.isTraceEnabled()) {
-            logger.trace("Adding for AtmosphereResource {} cached messages {}", uuid, e);
+            logger.trace("Adding for AtmosphereResource {} cached messages {}", uuid, message.message());
             logger.trace("Active clients {}", activeClients());
         }
 
         String messageId = UUID.randomUUID().toString();
-        CacheMessage cacheMessage = new CacheMessage(messageId, e, uuid);
-        if (uuid.equals(NULL)) {
-            //no clients are connected right now, caching message for all active clients
-            for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
-                addMessageIfNotExists(broadcasterId, entry.getKey(), cacheMessage);
+        boolean cache = true;
+        if (!inspect(message)) {
+            cache = false;
+        }
+
+        CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid);;
+        if (cache) {
+            if (uuid.equals(NULL)) {
+                //no clients are connected right now, caching message for all active clients
+                for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
+                    addMessageIfNotExists(broadcasterId, entry.getKey(), cacheMessage);
+                }
+            } else {
+                cacheCandidate(broadcasterId, uuid);
+                addMessageIfNotExists(broadcasterId, uuid, cacheMessage);
             }
-        } else {
-            cacheCandidate(broadcasterId, uuid);
-            addMessageIfNotExists(broadcasterId, uuid, cacheMessage);
         }
         return cacheMessage;
     }
@@ -337,11 +343,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         return this.getClass().getName();
     }
 
-    public List<BroadcasterCacheListener> listeners(){
+    public List<BroadcasterCacheListener> listeners() {
         return listeners;
     }
 
-    public List<BroadcasterCacheInspector> inspectors(){
+    public List<BroadcasterCacheInspector> inspectors() {
         return inspectors;
     }
 }
