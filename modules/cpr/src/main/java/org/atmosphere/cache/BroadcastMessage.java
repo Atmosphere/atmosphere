@@ -25,7 +25,7 @@ import java.util.UUID;
 public final class BroadcastMessage {
 
     public final String id;
-    public final Object message;
+    public Object message;
 
     public BroadcastMessage(String id, Object message) {
         this.id = id;
@@ -36,11 +36,16 @@ public final class BroadcastMessage {
         this(UUID.randomUUID().toString(), message);
     }
 
-    public String getId() {
+    public String id() {
         return id;
     }
 
-    public Object getMessage() {
+    public Object message() {
         return message;
+    }
+
+    public BroadcastMessage message(Object message) {
+        this.message = message;
+        return this;
     }
 }
