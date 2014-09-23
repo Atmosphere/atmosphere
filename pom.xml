@@ -36,6 +36,10 @@
             <id>neotyk</id>
             <name>Hubert Iwaniuk</name>
         </developer>
+        <developer>
+            <id>slovdahl</id>
+            <name>Sebastian Lövdahl</name>
+        </developer>
     </developers>
     <issueManagement>
         <system>GitHub Issues</system>
