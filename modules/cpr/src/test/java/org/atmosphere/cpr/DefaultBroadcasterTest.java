@@ -87,7 +87,7 @@ public class DefaultBroadcasterTest {
             public List<Object> retrieveFromCache(String id, String uuid) {
                 ArrayList<Object> cacheContents = new ArrayList<Object>();
                 if (!cache.isEmpty()) {
-                    cacheContents.add(cache.get(id).message);
+                    cacheContents.add(cache.get(id).message());
                     cache.clear();
                 }
                 return cacheContents;
