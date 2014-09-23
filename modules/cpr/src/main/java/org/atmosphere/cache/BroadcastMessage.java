@@ -35,4 +35,12 @@ public final class BroadcastMessage {
     public BroadcastMessage(Object message) {
         this(UUID.randomUUID().toString(), message);
     }
+
+    public String getId() {
+        return id;
+    }
+
+    public Object getMessage() {
+        return message;
+    }
 }
