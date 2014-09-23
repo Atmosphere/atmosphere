@@ -46,7 +46,7 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public CacheMessage addToCache(String broadcasterId, String uuid, BroadcastMessage message) {
-        logger.trace("Message {} might be lost! Please install a proper BroadcasterCache", message.message);
+        logger.trace("Message {} might be lost! Please install a proper BroadcasterCache", message.message());
         return null;
     }
 
