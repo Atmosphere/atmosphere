@@ -25,7 +25,7 @@ import java.util.UUID;
 public final class BroadcastMessage {
 
     private final String id;
-    private Object message;
+    private final Object message;
 
     public BroadcastMessage(String id, Object message) {
         this.id = id;
@@ -44,8 +44,4 @@ public final class BroadcastMessage {
         return message;
     }
 
-    public BroadcastMessage message(Object message) {
-        this.message = message;
-        return this;
-    }
 }

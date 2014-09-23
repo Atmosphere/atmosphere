@@ -23,8 +23,7 @@ package org.atmosphere.cache;
  */
 public interface BroadcasterCacheInspector {
     /**
-     * Inspect the {@link BroadcastMessage} and return true if the message can be cached, false if not. A
-     * Message can also be modified.
+     * Inspect the {@link BroadcastMessage} and return true if the message can be cached, false if not.
      * @param message {@link BroadcastMessage}
      * @return true if allowed to be cached, false if not.
      */
