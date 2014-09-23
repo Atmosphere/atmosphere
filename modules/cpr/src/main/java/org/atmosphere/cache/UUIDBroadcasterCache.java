@@ -140,7 +140,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public CacheMessage addToCache(String broadcasterId, String uuid, BroadcastMessage message) {
-        Object e = message.message;
+        Object e = message.message();
         if (logger.isTraceEnabled()) {
             logger.trace("Adding for AtmosphereResource {} cached messages {}", uuid, e);
             logger.trace("Active clients {}", activeClients());
