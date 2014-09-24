@@ -93,6 +93,7 @@ import java.util.Map.Entry;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -943,12 +944,25 @@ public class AtmosphereFramework {
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
 
         BroadcasterConfig bc = broadcasterFactory.lookup(Broadcaster.ROOT_MASTER, true).getBroadcasterConfig();
+        if (bc.getExecutorService() != null) {
+            ExecutorService executorService = bc.getExecutorService();
+            if (ThreadPoolExecutor.class.isAssignableFrom(executorService.getClass())) {
+                long max = ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize();
+                logger.info("Messaging Thread Pool Size: {}",
+                        ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize() == 2147483647 ? "Unlimited" : max);
+            } else {
+                logger.info("Messaging ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
+            }
+        }
+
         if (bc.getAsyncWriteService() != null) {
-            long max = ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize();
-            logger.info("Messaging Thread Pool Size: {}",
-                    ThreadPoolExecutor.class.cast(bc.getExecutorService()).getMaximumPoolSize() == 2147483647 ? "Unlimited" : max);
-            logger.info("Async I/O Thread Pool Size: {}",
-                    ThreadPoolExecutor.class.cast(bc.getAsyncWriteService()).getMaximumPoolSize());
+            ExecutorService asyncWriteService = bc.getAsyncWriteService();
+            if (ThreadPoolExecutor.class.isAssignableFrom(asyncWriteService.getClass())) {
+                logger.info("Async I/O Thread Pool Size: {}",
+                        ThreadPoolExecutor.class.cast(asyncWriteService).getMaximumPoolSize());
+            } else {
+                logger.info("Async I/O ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
+            }
         }
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
         logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
@@ -2997,8 +3011,7 @@ public class AtmosphereFramework {
                 Class<Serializer> clazz = (Class<Serializer>) IOUtils.loadClass(Serializer.class, defaultSerializerClassName);
                 if (Serializer.class.isAssignableFrom(clazz)) {
                     defaultSerializerClass = clazz;
-                }
-                else {
+                } else {
                     logger.error("Default Serializer class name does not implement Serializer interface");
                     defaultSerializerClassName = null;
                     defaultSerializerClass = null;
@@ -3008,8 +3021,7 @@ public class AtmosphereFramework {
                 defaultSerializerClassName = null;
                 defaultSerializerClass = null;
             }
-        }
-        else {
+        } else {
             defaultSerializerClassName = null;
             defaultSerializerClass = null;
         }
