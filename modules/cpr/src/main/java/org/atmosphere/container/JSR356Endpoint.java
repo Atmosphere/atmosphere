@@ -15,6 +15,23 @@
  */
 package org.atmosphere.container;
 
+import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpSession;
+import javax.websocket.CloseReason;
+import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
+import javax.websocket.MessageHandler;
+import javax.websocket.Session;
+import javax.websocket.server.HandshakeRequest;
+
 import org.atmosphere.container.version.JSR356WebSocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -26,22 +43,6 @@ import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.http.HttpSession;
-import javax.websocket.CloseReason;
-import javax.websocket.Endpoint;
-import javax.websocket.EndpointConfig;
-import javax.websocket.MessageHandler;
-import javax.websocket.Session;
-import javax.websocket.server.HandshakeRequest;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 
 public class JSR356Endpoint extends Endpoint {
 
@@ -56,7 +57,7 @@ public class JSR356Endpoint extends Endpoint {
     private final int webSocketWriteTimeout;
     private HandshakeRequest handshakeRequest;
 
-    public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
+    public JSR356Endpoint(final AtmosphereFramework framework, final WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
         this.webSocketProcessor = webSocketProcessor;
 
@@ -86,47 +87,53 @@ public class JSR356Endpoint extends Endpoint {
         }
     }
 
-    public JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
+    public JSR356Endpoint handshakeRequest(final HandshakeRequest handshakeRequest) {
         this.handshakeRequest = handshakeRequest;
         return this;
     }
 
     @Override
-    public void onOpen(Session session, EndpointConfig endpointConfig) {
+    public void onOpen(final Session session, final EndpointConfig endpointConfig) {
 
         if (!webSocketProcessor.handshake(request)) {
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Handshake not accepted."));
-            } catch (IOException e) {
+            } catch (final IOException e) {
                 logger.trace("", e);
             }
             return;
         }
 
-        if (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
-        if (webSocketWriteTimeout != -1) session.setMaxIdleTimeout(webSocketWriteTimeout);
-        if (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
+        if (maxBinaryBufferSize != -1) {
+			session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
+		}
+        if (webSocketWriteTimeout != -1) {
+			session.setMaxIdleTimeout(webSocketWriteTimeout);
+		}
+        if (maxTextBufferSize != -1) {
+			session.setMaxTextMessageBufferSize(maxTextBufferSize);
+		}
 
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
-        Map<String, String> headers = new HashMap<String, String>();
-        for (Map.Entry<String, List<String>> e : handshakeRequest.getHeaders().entrySet()) {
+        final Map<String, String> headers = new HashMap<String, String>();
+        for (final Map.Entry<String, List<String>> e : handshakeRequest.getHeaders().entrySet()) {
             headers.put(e.getKey(), e.getValue().size() > 0 ? e.getValue().get(0) : "");
         }
 
-        String servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
+        final String servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
 
-        URI uri = session.getRequestURI();
-        String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
+        final URI uri = session.getRequestURI();
+        final String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
 
         int pathInfoStartIndex = 3;
-        String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
+        final String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
         if ("".equals(contextPath)) {
             pathInfoStartIndex = 2;
         }
 
         // /contextPath/servletPath/pathInfo or /servletPath/pathInfo
-        StringBuffer b = new StringBuffer("/");
+        final StringBuffer b = new StringBuffer("/");
         for (int i = 0; i < paths.length; i++) {
             if (i >= pathInfoStartIndex) {
                 b.append(paths[i]).append("/");
@@ -158,7 +165,7 @@ public class JSR356Endpoint extends Endpoint {
                         l = handshakeRequest.getHeaders().get("Origin");
                     }
                     String origin;
-                    if (l.size() > 0) {
+                    if (l != null && l.size() > 0) {
                         origin = l.get(0);
                     } else {
                         // Broken WebSocket Spec
@@ -194,23 +201,23 @@ public class JSR356Endpoint extends Endpoint {
 
             session.addMessageHandler(new MessageHandler.Whole<String>() {
                 @Override
-                public void onMessage(String s) {
+                public void onMessage(final String s) {
                     webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
                 }
             });
 
             session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
                 @Override
-                public void onMessage(ByteBuffer bb) {
-                    byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+                public void onMessage(final ByteBuffer bb) {
+                    final byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
                     bb.get(b);
                     webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                 }
             });
-        } catch (Throwable e) {
+        } catch (final Throwable e) {
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
-            } catch (IOException e1) {
+            } catch (final IOException e1) {
                 logger.trace("", e);
             }
             logger.error("", e);
@@ -220,7 +227,7 @@ public class JSR356Endpoint extends Endpoint {
     }
 
     @Override
-    public void onClose(javax.websocket.Session session, javax.websocket.CloseReason closeCode) {
+    public void onClose(final javax.websocket.Session session, final javax.websocket.CloseReason closeCode) {
         logger.trace("{} closed {}", session, closeCode);
         if (request != null) {
             request.destroy();
@@ -229,7 +236,7 @@ public class JSR356Endpoint extends Endpoint {
     }
 
     @Override
-    public void onError(javax.websocket.Session session, java.lang.Throwable t) {
+    public void onError(final javax.websocket.Session session, final java.lang.Throwable t) {
         logger.error("", t);
         webSocketProcessor.notifyListener(webSocket,
                 new WebSocketEventListener.WebSocketEvent<Throwable>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
