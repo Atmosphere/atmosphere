@@ -15,6 +15,23 @@
  */
 package org.atmosphere.container;
 
+import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
+
+import java.io.IOException;
+import java.net.URI;
+import java.nio.ByteBuffer;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import javax.servlet.http.HttpSession;
+import javax.websocket.CloseReason;
+import javax.websocket.Endpoint;
+import javax.websocket.EndpointConfig;
+import javax.websocket.MessageHandler;
+import javax.websocket.Session;
+import javax.websocket.server.HandshakeRequest;
+
 import org.atmosphere.container.version.JSR356WebSocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -27,33 +44,17 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpSession;
-import javax.websocket.CloseReason;
-import javax.websocket.Endpoint;
-import javax.websocket.EndpointConfig;
-import javax.websocket.MessageHandler;
-import javax.websocket.Session;
-import javax.websocket.server.HandshakeRequest;
-import java.io.IOException;
-import java.net.URI;
-import java.nio.ByteBuffer;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-
-import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
-
 public class JSR356Endpoint extends Endpoint {
 
-    private static final Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);
+    private static Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);
 
-    private final WebSocketProcessor webSocketProcessor;
-    private final Integer maxBinaryBufferSize;
-    private final Integer maxTextBufferSize;
+    private WebSocketProcessor webSocketProcessor;
+    private Integer maxBinaryBufferSize;
+    private Integer maxTextBufferSize;
     private AtmosphereRequest request;
-    private final AtmosphereFramework framework;
+    private AtmosphereFramework framework;
     private WebSocket webSocket;
-    private final int webSocketWriteTimeout;
+    private int webSocketWriteTimeout;
     private HandshakeRequest handshakeRequest;
 
     public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
@@ -103,9 +104,15 @@ public class JSR356Endpoint extends Endpoint {
             return;
         }
 
-        if (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
-        if (webSocketWriteTimeout != -1) session.setMaxIdleTimeout(webSocketWriteTimeout);
-        if (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
+        if (maxBinaryBufferSize != -1) {
+			session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
+		}
+        if (webSocketWriteTimeout != -1) {
+			session.setMaxIdleTimeout(webSocketWriteTimeout);
+		}
+        if (maxTextBufferSize != -1) {
+			session.setMaxTextMessageBufferSize(maxTextBufferSize);
+		}
 
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
