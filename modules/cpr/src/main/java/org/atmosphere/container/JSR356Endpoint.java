@@ -158,10 +158,11 @@ public class JSR356Endpoint extends Endpoint {
                         l = handshakeRequest.getHeaders().get("Origin");
                     }
                     String origin;
-                    if (l.size() > 0) {
+                    if (l != null && l.size() > 0) {
                         origin = l.get(0);
                     } else {
                         // Broken WebSocket Spec
+                        logger("Unable to retrieve the `origin` header for websocket {}", session);
                         origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").append(requestUri).toString();
                     }
                     requestUri = new StringBuilder(origin).append(requestUri).toString();
