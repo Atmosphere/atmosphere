@@ -1,3 +1,5 @@
+**Notice:** Atmosphere 3, aka [Vibe](http://vibe-project.github.io/blog/vibe-3.0.0-alpha1-released/), first release now available!
+
 <p align="center">
 <img src="http://atmosphere.github.io/atmosphere/images/atmosphere.png" alt="LOGO"/>
 </p>
