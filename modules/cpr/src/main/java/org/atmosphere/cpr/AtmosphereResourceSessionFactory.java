@@ -30,6 +30,7 @@ public abstract class AtmosphereResourceSessionFactory {
      * Return the default {@link AtmosphereResourceSessionFactory}
      *
      * @return the default {@link AtmosphereResourceSessionFactory}
+     * @deprecated use {@link org.atmosphere.cpr.AtmosphereConfig#sessionFactory}
      */
     public static AtmosphereResourceSessionFactory getDefault() {
         return DEFAULT;
@@ -63,4 +64,6 @@ public abstract class AtmosphereResourceSessionFactory {
     public AtmosphereResourceSession getSession(AtmosphereResource resource) {
         return getSession(resource, true);
     }
+
+    public abstract void destroy();
 }

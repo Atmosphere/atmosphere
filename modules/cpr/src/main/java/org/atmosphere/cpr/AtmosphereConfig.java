@@ -254,7 +254,7 @@ public class AtmosphereConfig {
      * Return an init-param, or its default value.
      * @param key
      * @param defaultValue
-     * @return
+     * @return an init-param, or its default value.
      */
     public String getInitParameter(String key, String defaultValue) {
         String s = getInitParameter(key);
@@ -264,6 +264,12 @@ public class AtmosphereConfig {
         return s;
     }
 
+    /**
+     * Return an init-param, or its default value.
+     * @param key
+     * @param defaultValue
+     * @return an init-param, or its default value.
+     */
     public boolean getInitParameter(String key, boolean defaultValue) {
         String s = getInitParameter(key);
         if (s == null) {
@@ -272,13 +278,30 @@ public class AtmosphereConfig {
         return Boolean.valueOf(s);
     }
 
+    /**
+     * Return the {@link AtmosphereResourceFactory}
+     * @return the AtmosphereResourceFactory
+     */
     public AtmosphereResourceFactory resourcesFactory(){
         return framework.atmosphereFactory();
     }
 
+    /**
+     * Return the {@link org.atmosphere.cpr.MetaBroadcaster}
+     * @return the MetaBroadcaster
+     */
     public MetaBroadcaster metaBroadcaster(){
         return framework.metaBroadcaster();
     }
+
+    /**
+     * Return the {@link AtmosphereResourceSessionFactory}
+     * @return the AtmosphereResourceSessionFactory
+     */
+    public AtmosphereResourceSessionFactory sessionFactory(){
+        return framework.sessionFactory();
+    }
+
 
     /**
      * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An

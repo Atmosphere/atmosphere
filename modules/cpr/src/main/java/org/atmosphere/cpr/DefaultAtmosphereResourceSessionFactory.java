@@ -54,6 +54,11 @@ public class DefaultAtmosphereResourceSessionFactory extends AtmosphereResourceS
         return session;
     }
 
+    @Override
+    public void destroy() {
+        sessions.clear();
+    }
+
     /**
      * Used in testing
      */

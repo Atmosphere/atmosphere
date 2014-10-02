@@ -221,6 +221,7 @@ public class AtmosphereFramework {
     protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<BroadcasterConfig.FilterManipulator>();
     protected AtmosphereResourceFactory arFactory;
     protected MetaBroadcaster metaBroadcaster;
+    protected AtmosphereResourceSessionFactory sessionFactory;
     protected String defaultSerializerClassName;
     protected Class<Serializer> defaultSerializerClass;
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
@@ -1629,6 +1630,8 @@ public class AtmosphereFramework {
 
         if (metaBroadcaster != null) metaBroadcaster.destroy();
         if (arFactory != null) arFactory.destroy();
+        if (sessionFactory != null) sessionFactory.destroy();
+
         WebSocketProcessorFactory.getDefault().destroy();
 
         resetStates();
@@ -1658,6 +1661,7 @@ public class AtmosphereFramework {
         broadcasterFactory = null;
         arFactory = null;
         metaBroadcaster = null;
+        sessionFactory = null;
         annotationFound = false;
         return this;
     }
@@ -2962,14 +2966,13 @@ public class AtmosphereFramework {
 
     public MetaBroadcaster metaBroadcaster() {
         if (metaBroadcaster == null) {
-            configureMetaBroadcaster();
+            metaBroadcaster = new MetaBroadcaster(config);
         }
         return metaBroadcaster;
     }
 
     private AtmosphereFramework configureMetaBroadcaster() {
         if (metaBroadcaster == null) {
-            metaBroadcaster = new MetaBroadcaster(config);
         }
         return this;
     }
@@ -3026,4 +3029,17 @@ public class AtmosphereFramework {
             defaultSerializerClass = null;
         }
     }
+
+    /**
+     * Return the {@link AtmosphereResourceSessionFactory}
+     * @return the AtmosphereResourceSessionFactory
+     */
+    public synchronized AtmosphereResourceSessionFactory sessionFactory() {
+        if (sessionFactory == null) {
+            sessionFactory = new DefaultAtmosphereResourceSessionFactory();
+        }
+        return sessionFactory;
+    }
+
+
 }
