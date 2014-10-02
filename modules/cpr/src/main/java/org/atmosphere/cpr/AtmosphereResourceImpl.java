@@ -724,7 +724,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            Servlet30CometSupport.endAsyncContext(req);
+            if (asyncSupport.getClass().isAssignableFrom(Servlet30CometSupport.class)) {
+                Servlet30CometSupport.endAsyncContext(req);
+            }
 
             SessionTimeoutSupport.restoreTimeout(req);
             action.type(Action.TYPE.CANCELLED);
