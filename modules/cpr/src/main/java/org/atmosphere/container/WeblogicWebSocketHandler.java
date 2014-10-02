@@ -33,11 +33,10 @@ import weblogic.websocket.WebSocketConnection;
 import weblogic.websocket.WebSocketContext;
 import weblogic.websocket.WebSocketListener;
 
+import javax.servlet.ServletContext;
 import java.io.IOException;
 
-import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
-
-@weblogic.websocket.annotation.WebSocket(pathPatterns = "/ws/*", timeout = -1, maxMessageSize=8192)
+@weblogic.websocket.annotation.WebSocket(pathPatterns = "/ws/*", timeout = -1, maxMessageSize = 8192)
 public class WeblogicWebSocketHandler implements WebSocketListener {
 
     private final Logger logger = LoggerFactory.getLogger(WeblogicWebSocketHandler.class);
@@ -49,6 +48,8 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
 
     @Override
     public void init(WebSocketContext webSocketContext) {
+        logger.info("WebSocketContext initialized {}", webSocketContext);
+        configure(webSocketContext.getServletContext());
     }
 
     @Override
@@ -64,11 +65,8 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
 
     @Override
     public void onOpen(WebSocketConnection webSocketConnection) {
-        if (config == null) {
-            configure();
-        }
-
-        if (webSocketWriteTimeout != -1) webSocketConnection.getWebSocketContext().setTimeoutSecs(webSocketWriteTimeout);
+        if (webSocketWriteTimeout != -1)
+            webSocketConnection.getWebSocketContext().setTimeoutSecs(webSocketWriteTimeout);
         if (maxTextBufferSize != -1) webSocketConnection.getWebSocketContext().setMaxMessageSize(maxTextBufferSize);
 
         WebSocket webSocket = new WebLogicWebSocket(webSocketConnection, config);
@@ -76,13 +74,9 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         webSocketConnection.getWebSocketContext().getServletContext().setAttribute(webSocketConnection.toString(), webSocket);
 
         AtmosphereRequest ar = AtmosphereRequest.cloneRequest(request.get(), true, false, true);
-
-        String pathInfo = ar.getPathInfo();
-        String servletPath = ar.getServletPath();
-        ar.pathInfo(null).servletPath(pathInfo).contextPath(ar.getContextPath() + servletPath);
         request.set(null);
         try {
-            webSocketProcessor.open(webSocket, ar , AtmosphereResponse.newInstance(config, ar, webSocket));
+            webSocketProcessor.open(webSocket, ar, AtmosphereResponse.newInstance(config, ar, webSocket));
         } catch (IOException e) {
             logger.error("{}", e);
         }
@@ -148,24 +142,22 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         webSocketProcessor.close(webSocket, closingMessage.getStatusCode());
     }
 
-    private void configure() {
-        synchronized(this) {
-            config = config.getBroadcasterFactory().lookup(ROOT_MASTER).getBroadcasterConfig().getAtmosphereConfig();
-            webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
+    private void configure(ServletContext servletContext) {
+        config = (AtmosphereConfig) servletContext.getAttribute(AtmosphereConfig.class.getName());
+        webSocketProcessor = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(config.framework());
 
-            String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
-            if (s != null) {
-                webSocketWriteTimeout = Integer.valueOf(s);
-            } else {
-                webSocketWriteTimeout = -1;
-            }
+        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
+        if (s != null) {
+            webSocketWriteTimeout = Integer.valueOf(s);
+        } else {
+            webSocketWriteTimeout = -1;
+        }
 
-            s = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
-            if (s != null) {
-                maxTextBufferSize = Integer.valueOf(s);
-            } else {
-                maxTextBufferSize = -1;
-            }
+        s = config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
+        if (s != null) {
+            maxTextBufferSize = Integer.valueOf(s);
+        } else {
+            maxTextBufferSize = -1;
         }
     }
 }
