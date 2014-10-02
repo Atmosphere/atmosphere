@@ -64,6 +64,7 @@
                             org.atmosphere.config.service*,
                             org.atmosphere.container*,
                             org.atmosphere.cpr*,
+                            org.atmosphere.inject*,
                             org.atmosphere.handler*,
                             org.atmosphere.interceptor*,
                             org.atmosphere.util*,
@@ -261,6 +262,13 @@
             <artifactId>atmosphere-stubs</artifactId>
             <version>1.0.0</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+          <groupId>javax.inject</groupId>
+          <artifactId>javax.inject</artifactId>
+          <version>1</version>
+          <scope>provided</scope>
         </dependency>
 
         <dependency>

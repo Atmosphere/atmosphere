@@ -27,6 +27,7 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
 import org.atmosphere.interceptor.CacheHeadersInterceptor;
 import org.atmosphere.interceptor.CorsInterceptor;
@@ -126,6 +127,7 @@ import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.INJECT_LIBARY;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
@@ -212,7 +214,7 @@ public class AtmosphereFramework {
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
-    protected AtmosphereObjectFactory objectFactory = new DefaultAtmosphereObjectFactory();
+    protected AtmosphereObjectFactory objectFactory;
     protected final AtomicBoolean isDestroyed = new AtomicBoolean();
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
@@ -1524,6 +1526,17 @@ public class AtmosphereFramework {
                 logger.trace("", e);
             }
         }
+
+        if (objectFactory == null) {
+            try {
+                IOUtils.loadClass(getClass(), INJECT_LIBARY);
+                objectFactory = new InjectableObjectFactory();
+            } catch (Exception e) {
+                logger.trace("javax.inject.Inject nor installed. Using DefaultAtmosphereObjectFactory");
+                objectFactory = new DefaultAtmosphereObjectFactory();
+            }
+        }
+
         return objectFactory;
     }
 

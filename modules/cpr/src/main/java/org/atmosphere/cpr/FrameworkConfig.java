@@ -171,6 +171,9 @@ public interface FrameworkConfig {
      * Tag for WebSocket's Message
      */
     String WEBSOCKET_MESSAGE = WebSocketProcessor.class.getName() + ".websocket.message";
-
+    /**
+     * The Java Inject class
+     */
+    String INJECT_LIBARY = "javax.inject.Inject";
 
 }

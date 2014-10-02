@@ -25,14 +25,19 @@ import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResourceSessionFactory;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.MetaBroadcaster;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.ExcludeSessionBroadcaster;
@@ -41,6 +46,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.inject.Inject;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -497,5 +503,64 @@ public class ManagedAtmosphereHandlerTest {
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertNotNull(message.get());
         assertEquals(message.get(), Heartbeat.paddingData);
+    }
+
+    @ManagedService(path = "/injectAnnotation")
+    public final static class InjectAnnotation {
+
+        @Inject
+        private AtmosphereConfig config;
+        @Inject
+        private AtmosphereFramework f;
+        @Inject
+        private AtmosphereResourceFactory resourceFactory;
+        @Inject
+        private BroadcasterFactory bFactory;
+        @Inject
+        private MetaBroadcaster m;
+        @Inject
+        private AtmosphereResourceSessionFactory sessionFactory;
+
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(resource);
+            resource.addEventListener(new OnSuspend() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/injectAnnotation").method("POST").body("message").build();
+
+                    try {
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ServletException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).suspend();
+
+        }
+
+        @Message
+        public void message(String s) {
+            message.set(config.toString());
+            message.set(f.toString());
+            message.set(resourceFactory.toString());
+            message.set(bFactory.toString());
+            message.set(m.toString());
+            message.set(sessionFactory.toString());
+        }
+    }
+
+    @Test
+    public void testInjectAnnotation() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/injectAnnotation").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+        assertNotNull(message.get());
+        assertEquals(message.get(), framework.sessionFactory().toString());
+
     }
 }
