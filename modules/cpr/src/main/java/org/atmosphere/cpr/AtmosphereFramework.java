@@ -25,6 +25,7 @@ import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
+import org.atmosphere.container.WebLogicServlet30WithWebSocket;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
@@ -911,6 +912,11 @@ public class AtmosphereFramework {
         }
         isInit = true;
         config.initComplete();
+
+        // wlc 12.x
+        if (WebLogicServlet30WithWebSocket.class.isAssignableFrom(asyncSupport.getClass())) {
+            servletConfig.getServletContext().setAttribute(AtmosphereConfig.class.getName(), config);
+        }
 
         return this;
     }
