@@ -724,7 +724,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            if (asyncSupport.getClass().isAssignableFrom(Servlet30CometSupport.class)) {
+            if (Servlet30CometSupport.class.isAssignableFrom(this.getClass())) {
                 Servlet30CometSupport.endAsyncContext(req);
             }
 
