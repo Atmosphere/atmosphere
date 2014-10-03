@@ -284,8 +284,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
             if (isNotNoOps()) {
                 if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
-                    if (b.request.getAttribute(name) != null) {
-                        list.add(b.request.getAttribute(name));
+                    if (attributeWithoutException(b.request, name) != null) {
+                        list.add(attributeWithoutException(b.request, name));
                     }
                 }
             }
@@ -400,7 +400,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             if (s.startsWith(X_ATMOSPHERE) && isNotNoOps()) {
                 // Craziness with Struts 2 who wraps String attribute as BigDecimal
                 // https://github.com/Atmosphere/atmosphere/issues/1367
-                Object o = b.request.getAttribute(s);
+                Object o = attributeWithoutException(b.request, s);
                 if (o == null || String.class.isAssignableFrom(o.getClass())) {
                     name = String.class.cast(o);
                 } else {
@@ -409,7 +409,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                             HttpServletRequest hsr = HttpServletRequestWrapper.class.cast(b.request);
                             while (hsr instanceof HttpServletRequestWrapper) {
                                 hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
-                                o = hsr.getAttribute(s);
+                                o = attributeWithoutException(hsr, s);
                                 if (o == null || String.class.isAssignableFrom(o.getClass())) {
                                     name = String.class.cast(o);
                                     break;
@@ -717,7 +717,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public Object getAttribute(String s) {
-        return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (isNotNoOps() ? b.request.getAttribute(s) : null);
+        return b.localAttributes.get(s) != null ? b.localAttributes.get(s) : (isNotNoOps() ? attributeWithoutException(b.request, s) : null);
     }
 
     /**
@@ -1031,6 +1031,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             }
         }
         return Collections.enumeration(l);
+    }
+
+    private static Object attributeWithoutException(HttpServletRequest request, String attribute) {
+        try {
+            return request.getAttribute(attribute);
+        } catch(NullPointerException ex) {
+            // https://github.com/Atmosphere/atmosphere/issues/1732
+            logger.trace("Unexpected NPE", ex);
+            return "";
+        }
     }
 
     /**
@@ -1857,7 +1867,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         String s;
         while (e.hasMoreElements()) {
             s = e.nextElement();
-            b.localAttributes.put(s, request.getAttribute(s));
+            b.localAttributes.put(s, attributeWithoutException(request, s));
         }
         return b.request(request).build();
     }
@@ -1919,7 +1929,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 .isSSecure(request.isSecure());
 
         if (loadInMemory) {
-            String s = (String) request.getAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST);
+            String s = (String) attributeWithoutException(request, FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST);
             boolean throwException = s != null && Boolean.parseBoolean(s);
             r = new NoOpsRequest(throwException);
             if (isWrapped) {
@@ -1944,7 +1954,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         e = request.getAttributeNames();
         while (e.hasMoreElements()) {
             s = e.nextElement();
-            b.localAttributes.put(s, request.getAttribute(s));
+            b.localAttributes.put(s, attributeWithoutException(request, s));
         }
 
         e = request.getParameterNames();
