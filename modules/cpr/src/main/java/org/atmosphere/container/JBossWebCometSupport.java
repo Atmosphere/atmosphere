@@ -78,7 +78,10 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
             throw unableToDetectComet;
         }
 
-        logger.trace("Event Type {} for {}", event.getType(), req.getQueryString());
+        if (logger.isTraceEnabled()) {
+            logger.trace("Event Type {} for {}", event.getType(), req.getRequestURL().toString());
+        }
+
         Action action = null;
         // For now, we are just interested in HttpEvent.REA
         AtmosphereResource r = req.resource();
