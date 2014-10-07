@@ -372,7 +372,7 @@ public class BroadcastFilterTest {
         }
     }
 
-    private final static class Filter implements BroadcastFilter {
+    public final static class Filter implements BroadcastFilter {
 
         final String msg;
 
