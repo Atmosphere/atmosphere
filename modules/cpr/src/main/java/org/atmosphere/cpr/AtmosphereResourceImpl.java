@@ -119,6 +119,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         String s = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
         if (s == null) {
             s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+            if (s == null) {
+                String tmp = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
+                s = !tmp.equalsIgnoreCase("0") ? tmp : null;
+            }
         }
         uuid = s == null ? UUID.randomUUID().toString() : s;
 
