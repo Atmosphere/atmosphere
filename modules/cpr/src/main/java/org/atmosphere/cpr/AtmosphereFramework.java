@@ -215,7 +215,7 @@ public class AtmosphereFramework {
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
-    protected AtmosphereObjectFactory objectFactory;
+    protected AtmosphereObjectFactory objectFactory = new DefaultAtmosphereObjectFactory();
     protected final AtomicBoolean isDestroyed = new AtomicBoolean();
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
@@ -1533,7 +1533,7 @@ public class AtmosphereFramework {
             }
         }
 
-        if (objectFactory == null) {
+        if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass().getName())) {
             try {
                 IOUtils.loadClass(getClass(), INJECT_LIBARY);
                 objectFactory = new InjectableObjectFactory();
