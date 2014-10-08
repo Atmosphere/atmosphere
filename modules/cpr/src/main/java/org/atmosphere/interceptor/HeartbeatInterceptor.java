@@ -37,6 +37,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.io.UnsupportedEncodingException;
 import java.util.Arrays;
 import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
@@ -45,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
 import static org.atmosphere.cpr.ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS;
+import static org.atmosphere.cpr.ApplicationConfig.HEARTBEAT_PADDING_CHAR;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_ON_HEARTBEAT;
 
 /**
@@ -125,7 +127,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         return this;
     }
 
-    public boolean resumeOnHeartbeat(){
+    public boolean resumeOnHeartbeat() {
         return resumeOnHeartbeat;
     }
 
@@ -142,6 +144,16 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
             heartbeatFrequencyInSeconds = Integer.valueOf(s);
         }
 
+        // Server
+        s = config.getInitParameter(HEARTBEAT_PADDING_CHAR);
+        if (s != null) {
+            try {
+                paddingBytes = s.getBytes("UTF-8");
+            } catch (UnsupportedEncodingException e) {
+                logger.error("", e);
+            }
+        }
+
         // Client
         s = config.getInitParameter(CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS);
         if (s != null) {
@@ -151,6 +163,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         heartBeat = ExecutorsFactory.getScheduler(config);
 
         resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
+        logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", new String[]
+                {new String(paddingBytes), String.valueOf(heartbeatFrequencyInSeconds), String.valueOf(clientHeartbeatFrequencyInSeconds)});
     }
 
     private static class Clock extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
