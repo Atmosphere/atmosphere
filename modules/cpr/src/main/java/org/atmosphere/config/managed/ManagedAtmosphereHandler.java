@@ -198,41 +198,37 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             r.getRequest(false).setAttribute(ApplicationConfig.RESUME_ON_BROADCAST, false);
         }
 
-        try {
-            if (event.isCancelled() || event.isClosedByClient()) {
-                invoke(onDisconnectMethod, event);
-            } else if (event.isResumedOnTimeout() || event.isResuming()) {
-                invoke(onTimeoutMethod, event);
-            } else {
-                Object o;
-                if (msg != null) {
-                    if (Managed.class.isAssignableFrom(msg.getClass())) {
-                        Object newMsg = Managed.class.cast(msg).o;
-                        event.setMessage(newMsg);
-                        // No method matched. Give a last chance by trying to decode the proxiedInstance.
-                        // This makes application development more simpler.
-                        // Chaining of encoder is not supported.
-                        // TODO: This could be problematic with String + method
-                        for (MethodInfo m : onRuntimeMethod) {
-                            o = Invoker.encode(encoders.get(m.method), newMsg);
-                            if (o != null) {
-                                event.setMessage(o);
-                                break;
-                            }
-                        }
-                    } else {
-                        logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
-                        final MethodInfo.EncoderObject e = message(r, msg);
-                        o = e == null ? null : e.encodedObject;
+        if (event.isCancelled() || event.isClosedByClient()) {
+            invoke(onDisconnectMethod, event);
+        } else if (event.isResumedOnTimeout() || event.isResuming()) {
+            invoke(onTimeoutMethod, event);
+        } else {
+            Object o;
+            if (msg != null) {
+                if (Managed.class.isAssignableFrom(msg.getClass())) {
+                    Object newMsg = Managed.class.cast(msg).o;
+                    event.setMessage(newMsg);
+                    // No method matched. Give a last chance by trying to decode the proxiedInstance.
+                    // This makes application development more simpler.
+                    // Chaining of encoder is not supported.
+                    // TODO: This could be problematic with String + method
+                    for (MethodInfo m : onRuntimeMethod) {
+                        o = Invoker.encode(encoders.get(m.method), newMsg);
                         if (o != null) {
                             event.setMessage(o);
+                            break;
                         }
                     }
+                } else {
+                    logger.trace("BroadcasterFactory has been used, this may produce recursion if encoder/decoder match the broadcasted message");
+                    final MethodInfo.EncoderObject e = message(r, msg);
+                    o = e == null ? null : e.encodedObject;
+                    if (o != null) {
+                        event.setMessage(o);
+                    }
                 }
-                super.onStateChange(event);
             }
-        } finally {
-            r.getRequest().removeAttribute(getClass().getName());
+            super.onStateChange(event);
         }
 
         if (resumeOnBroadcast && r.isSuspended()) {
@@ -335,8 +331,17 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         try {
 
             Method invokedMethod = (Method) request.getAttribute(getClass().getName());
-            for (MethodInfo m : onRuntimeMethod) {
+            request.removeAttribute(getClass().getName());
 
+            if (invokedMethod != null) {
+                for (MethodInfo m : onRuntimeMethod) {
+                    if (invokedMethod.equals(m.method)) {
+                        return m.encode(encoders, o);
+                    }
+                }
+            }
+
+            for (MethodInfo m : onRuntimeMethod) {
                 if (m.useReader) {
                     o = request.getReader();
                 } else if (m.useStream) {
@@ -360,13 +365,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
 
                 if (invokedMethod == null) {
-                    request.setAttribute(getClass().getName(), m.method);
-                } else {
-                    request.removeAttribute(getClass().getName());
-                }
-
-                if (invokedMethod == null || !invokedMethod.equals(m.method)) {
                     if (m.method.getParameterTypes().length == 2) {
+                        request.setAttribute(getClass().getName(), m.method);
                         objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
                     } else {
                         objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
