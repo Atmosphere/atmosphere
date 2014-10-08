@@ -76,7 +76,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(HeartbeatInterceptor.class);
     private ScheduledExecutorService heartBeat;
-    private byte[] paddingBytes = " ".getBytes();
+    private byte[] paddingBytes = "X".getBytes();
     private boolean resumeOnHeartbeat;
     private int heartbeatFrequencyInSeconds = 60;
 
