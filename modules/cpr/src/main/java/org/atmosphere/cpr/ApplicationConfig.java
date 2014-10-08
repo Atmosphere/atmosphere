@@ -745,13 +745,19 @@ public interface ApplicationConfig {
      */
     String REWRITE_WEBSOCKET_REQUESTURI = SimpleHttpProtocol.class.getName() + ".rewriteURL";
     /**
+     * The heartbeat padding String.
+     * <p/>
+     * Default: ' '<br>
+     * Value: org.atmosphere.interceptor.HeartbeatInterceptor.paddingChar
+     */
+    String HEARTBEAT_PADDING_CHAR= HeartbeatInterceptor.class.getName() + ".paddingChar";
+    /**
      * The heartbeat frequency, in seconds.
      * <p/>
      * Default: 60<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.heartbeatFrequencyInSeconds
      */
     String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
-
     /**
      * Configuration key for client heartbeat.
      * <p/>
