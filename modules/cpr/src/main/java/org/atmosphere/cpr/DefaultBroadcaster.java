@@ -803,9 +803,9 @@ public class DefaultBroadcaster implements Broadcaster {
             this.uuid = uuid;
         }
 
-        public List<String> asString(){
+        public List<String> asString() {
             List<String> l = new ArrayList<String>();
-            for (AsyncWriteToken w: queue) {
+            for (AsyncWriteToken w : queue) {
                 l.add(w.toString());
             }
             return l;
@@ -1096,7 +1096,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
         logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster {}", ar.uuid(), getID());
-        logger.trace("NotifyAndCache {} " , notifyAndCache);
+        logger.trace("NotifyAndCache {} ", notifyAndCache);
         logger.trace("{}", t);
 
         // Remove to prevent other broadcast to re-use it.
@@ -1739,31 +1739,31 @@ public class DefaultBroadcaster implements Broadcaster {
         return false;
     }
 
-    public ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners(){
+    public ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners() {
         return broadcasterListeners;
     }
 
-    public BroadcasterLifeCyclePolicy lifeCyclePolicy(){
+    public BroadcasterLifeCyclePolicy lifeCyclePolicy() {
         return lifeCyclePolicy;
     }
 
-    public ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners(){
+    public ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners() {
         return lifeCycleListeners;
     }
 
-    public BlockingQueue<Deliver> messages(){
+    public BlockingQueue<Deliver> messages() {
         return messages;
     }
 
-    public ConcurrentHashMap<String, WriteQueue> writeQueues(){
+    public ConcurrentHashMap<String, WriteQueue> writeQueues() {
         return writeQueues;
     }
 
-    public POLICY policy(){
+    public POLICY policy() {
         return policy;
     }
 
-    public boolean outOfOrderBroadcastSupported(){
-        return  outOfOrderBroadcastSupported.get();
+    public boolean outOfOrderBroadcastSupported() {
+        return outOfOrderBroadcastSupported.get();
     }
 }
