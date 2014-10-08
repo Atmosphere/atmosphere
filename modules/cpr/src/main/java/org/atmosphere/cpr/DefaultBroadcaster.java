@@ -955,7 +955,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // Must make sure execute only one thread
-            synchronized (r) {
+            synchronized (rImpl) {
                 try {
                     rImpl.getRequest().setAttribute(CACHED, "true");
                     prepareInvokeOnStateChange(r, e);
@@ -1445,16 +1445,15 @@ public class DefaultBroadcaster implements Broadcaster {
             return this;
         }
 
-        boolean removed;
-        synchronized (resources) {
-            removed = resources.remove(r);
-            if (removed) {
-                if (r.isSuspended()) {
-                    logger.trace("Excluded from {} : {}", getID(), r.uuid());
-                    bc.getBroadcasterCache().excludeFromCache(getID(), r);
-                }
-                notifyOnRemoveAtmosphereResourceListener(r);
+        boolean removed= resources.remove(r);
+        if (removed) {
+            if (r.isSuspended()) {
+                logger.trace("Excluded from {} : {}", getID(), r.uuid());
+                bc.getBroadcasterCache().excludeFromCache(getID(), r);
             }
+            notifyOnRemoveAtmosphereResourceListener(r);
+        } else {
+            logger.trace("Unable to remove {} from {}", r.uuid(), getID());
         }
 
         if (!removed) return this;
