@@ -152,7 +152,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     @Override
     public AsyncSupport complete(AtmosphereResourceImpl r) {
         try {
-            HttpEvent event = (HttpEvent) r.getRequest().getAttribute(HTTP_EVENT);
+            HttpEvent event = (HttpEvent) r.getRequest(false).getAttribute(HTTP_EVENT);
             // Resume without closing the underlying suspended connection.
             if (event != null) {
                 event.close();
