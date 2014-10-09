@@ -1468,9 +1468,7 @@ public class DefaultBroadcaster implements Broadcaster {
             return this;
         }
 
-        boolean removed;
-        synchronized (resources) {
-            removed = resources.remove(r);
+        boolean removed = resources.remove(r);
             if (removed) {
                 if (r.isSuspended()) {
                     logger.trace("Excluded from {} : {}", getID(), r.uuid());
@@ -1478,7 +1476,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
                 notifyOnRemoveAtmosphereResourceListener(r);
             }
-        }
 
         if (!removed) return this;
 
