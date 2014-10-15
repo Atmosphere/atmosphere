@@ -675,7 +675,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 bc = r.getBroadcaster();
             }
 
-            if (response.getEntity() instanceof Broadcastable) {
+            if (response.getEntity() == null && response.getEntity() instanceof Broadcastable) {
                 Broadcastable b = (Broadcastable) response.getEntity();
                 bc = b.getBroadcaster();
                 response.setEntity(b.getResponseMessage());
