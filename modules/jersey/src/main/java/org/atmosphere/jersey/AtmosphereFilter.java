@@ -675,7 +675,12 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 bc = r.getBroadcaster();
             }
 
-            if (response.getEntity() == null && response.getEntity() instanceof Broadcastable) {
+            if (response.getEntity() == null) {
+                //https://github.com/Atmosphere/atmosphere/issues/423
+                response.setEntity("");
+            }
+
+            if (response.getEntity() instanceof Broadcastable) {
                 Broadcastable b = (Broadcastable) response.getEntity();
                 bc = b.getBroadcaster();
                 response.setEntity(b.getResponseMessage());
