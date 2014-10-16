@@ -75,7 +75,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
      * @param <U>
      * @throws IllegalAccessException
      */
-    protected <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
+    public <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
         Method[] methods = defaultType.getMethods();
         for (Method m : methods) {
             if (m.isAnnotationPresent(PostConstruct.class)) {
@@ -96,7 +96,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
      * @param <U>
      * @throws IllegalAccessException
      */
-    protected <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
+    public <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
         Field[] fields = defaultType.getDeclaredFields();
         for (Field field : fields) {
             field.setAccessible(true);
