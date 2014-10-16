@@ -26,6 +26,14 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Support injection of Atmosphere's Internal object using {@link }
+ * {@link org.atmosphere.cpr.AtmosphereConfig},{@link AtmosphereFramework,{@link AtmosphereFramework,{@link org.atmosphere.cpr.BroadcasterFactory,
+ * {@link org.atmosphere.cpr.AtmosphereResourceFactory} ,{@link org.atmosphere.cpr.MetaBroadcaster } and
+ * {@link org.atmosphere.cpr.AtmosphereResourceSessionFactory }
+ *
+ * @author Jeanfrancois Arcand
+ */
 public class InjectableObjectFactory implements AtmosphereObjectFactory {
 
     private final static Class<Injectable<?>>[] defaultInjectables = new Class[]{
@@ -53,6 +61,42 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
 
         U instance = defaultType.newInstance();
 
+        injectAtmosphereInternalObject(instance, defaultType, framework);
+        postConstructExecution(instance, defaultType);
+
+        return instance;
+    }
+
+    /**
+     * Execute {@PostConstruct} method.
+     *
+     * @param instance    the requested object.
+     * @param defaultType the type of the requested object
+     * @param <U>
+     * @throws IllegalAccessException
+     */
+    protected <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
+        Method[] methods = defaultType.getMethods();
+        for (Method m : methods) {
+            if (m.isAnnotationPresent(PostConstruct.class)) {
+                try {
+                    m.invoke(instance);
+                } catch (InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
+
+    }
+
+    /**
+     * @param instance    the requested object.
+     * @param defaultType the type of the requested object
+     * @param framework   the {@link org.atmosphere.cpr.AtmosphereFramework}
+     * @param <U>
+     * @throws IllegalAccessException
+     */
+    protected <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
         Field[] fields = defaultType.getDeclaredFields();
         for (Field field : fields) {
             field.setAccessible(true);
@@ -66,18 +110,6 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
             }
         }
 
-        Method[] methods = defaultType.getMethods();
-        for (Method m : methods) {
-            if (m.isAnnotationPresent(PostConstruct.class)) {
-                try {
-                    m.invoke(instance);
-                } catch (InvocationTargetException e) {
-                    throw new RuntimeException(e);
-                }
-            }
-        }
-
-        return instance;
     }
 
     public InjectableObjectFactory injectable(Injectable<?> injectable) {
