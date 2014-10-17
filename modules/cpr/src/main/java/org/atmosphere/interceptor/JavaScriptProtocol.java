@@ -88,7 +88,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
 
             if (enforceAtmosphereVersion) {
                 String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
-                int version = Integer.valueOf(javascriptVersion.split("-")[0].replace(".", ""));
+                int version = parseVersion(javascriptVersion.split("-")[0]);
                 if (version < 221) {
                     logger.error("Invalid Atmosphere Version {}", javascriptVersion);
                     response.setStatus(501);
@@ -168,6 +168,12 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             }
         }
         return Action.CONTINUE;
+    }
+
+    private static int parseVersion(String version) {
+        // Remove any qualifier if the version is 1.2.3.qualifier
+        String[] parts = version.split("\\.");
+        return Integer.valueOf(parts[0] + parts[1] + parts[2]);
     }
 
     public String wsDelimiter() {
