@@ -24,15 +24,14 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Map;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class AtmosphereResourceTest {
     private AtmosphereFramework framework;
@@ -173,6 +172,37 @@ public class AtmosphereResourceTest {
 
         assertEquals(b.getAtmosphereResources().size(), 0);
 
+    }
+
+    @Test
+    public void testHashCode(){
+        String uuid = UUID.randomUUID().toString();
+
+        AtmosphereRequest request = AtmosphereRequest.newInstance();
+        request.setAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,uuid);
+        AtmosphereResponse response = AtmosphereResponse.newInstance(request);
+
+        AtmosphereResourceImpl res0 = new AtmosphereResourceImpl();
+        res0.initialize(framework.getAtmosphereConfig(),
+                        framework.getBroadcasterFactory().get(),
+                        request, response, null, null);
+
+        AtmosphereResourceImpl res1 = new AtmosphereResourceImpl();
+        res1.initialize(framework.getAtmosphereConfig(),
+                        framework.getBroadcasterFactory().get(),
+                        request, response, null, null);
+
+        assertEquals(res0,res1);
+
+        HashSet set = new HashSet();
+        set.add(res0);
+        set.add(res1);
+
+        assertEquals(set.size(),1);
+        assertTrue(set.contains(res0));
+        assertTrue(set.contains(res1));
+        assertEquals(res0,set.iterator().next());
+        assertEquals(res1,set.iterator().next());
     }
 
 }

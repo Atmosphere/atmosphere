@@ -938,8 +938,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
 
-        if (!uuid.equals(that.uuid)) return false;
+        if (uuid != null ? !uuid.equals(that.uuid) : that.uuid != null) return false;
 
         return true;
+    }
+
+    @Override
+    public int hashCode() {
+        return uuid != null ? uuid.hashCode() : 0;
     }
 }
