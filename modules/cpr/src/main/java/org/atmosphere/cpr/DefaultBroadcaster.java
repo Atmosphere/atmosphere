@@ -1262,7 +1262,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 if (duplicate) {
                     AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
-                    if (dup != null && dup.hashCode() != r.hashCode()) {
+                    if (dup != null && dup != r) {
                         logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
                         AtmosphereResourceImpl.class.cast(dup).dirtyClose();
                     } else {
