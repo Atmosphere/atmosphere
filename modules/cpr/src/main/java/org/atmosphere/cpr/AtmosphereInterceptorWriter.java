@@ -118,6 +118,24 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
         return this;
     }
 
+    /**
+     * Add an {@link AsyncIOInterceptor} that will be invoked at the specified index position.
+     *
+     * @param filter {@link AsyncIOInterceptor
+     * @param index
+     * @return this
+     */
+    public AtmosphereInterceptorWriter interceptor(AsyncIOInterceptor filter, int index) {
+        if (!filters.contains(filter)) {
+            if (logger.isTraceEnabled()) {
+                logger.trace("Adding AsyncIOInterceptor {} at index {}", filter.getClass().getName(), index);
+            }
+            filters.add(index, filter);
+            reversedFilters.add(reversedFilters.size() - index, filter);
+        }
+        return this;
+    }
+
     public LinkedList<AsyncIOInterceptor> filters(){
         return filters;
     }
