@@ -166,7 +166,7 @@ public class JSR356Endpoint extends Endpoint {
                     } else {
                         // Broken WebSocket Spec
                         logger.trace("Unable to retrieve the `origin` header for websocket {}", session);
-                        origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").append(requestUri).toString();
+                        origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").toString();
                     }
                     requestUri = new StringBuilder(origin).append(requestUri).toString();
                 } else if (requestUri.startsWith("ws://")) {
