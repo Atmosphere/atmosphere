@@ -19,6 +19,7 @@ import org.atmosphere.container.version.JSR356WebSocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequest.Builder;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocket;
@@ -34,7 +35,9 @@ import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 import javax.websocket.server.HandshakeRequest;
+
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
@@ -46,6 +49,9 @@ import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 public class JSR356Endpoint extends Endpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);
+    
+    private final String websocketLocalAddressUserProperty = "javax.websocket.endpoint.localAddress";
+    private final String websocketRemoteAddressUserProperty = "javax.websocket.endpoint.remoteAddress";
 
     private final WebSocketProcessor webSocketProcessor;
     private final Integer maxBinaryBufferSize;
@@ -176,7 +182,10 @@ public class JSR356Endpoint extends Endpoint {
                 }
             }
 
-            request = new AtmosphereRequest.Builder()
+            InetSocketAddress localSocketAddr = (InetSocketAddress) endpointConfig.getUserProperties().get(websocketLocalAddressUserProperty);
+            InetSocketAddress remoteSocketAddr = (InetSocketAddress) endpointConfig.getUserProperties().get(websocketRemoteAddressUserProperty);
+            
+            Builder builder = new AtmosphereRequest.Builder()
                     .requestURI(requestUri)
                     .requestURL(requestUri)
                     .headers(headers)
@@ -184,8 +193,22 @@ public class JSR356Endpoint extends Endpoint {
                     .servletPath(servletPath)
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo)
-                    .userPrincipal(session.getUserPrincipal())
-                    .build()
+                    .userPrincipal(session.getUserPrincipal());
+            
+            if(localSocketAddr != null){
+            	builder.localAddr(localSocketAddr.getAddress() != null? localSocketAddr.getAddress().getHostAddress() : "");
+            	builder.localName(localSocketAddr.getHostName());
+            	builder.localPort(localSocketAddr.getPort());
+            }
+            
+            if(remoteSocketAddr != null){
+            	builder.remoteAddr(remoteSocketAddr.getAddress() != null? remoteSocketAddr.getAddress().getHostAddress() : "");
+            	builder.remoteHost(remoteSocketAddr.getHostName());
+            	builder.remotePort(remoteSocketAddr.getPort());
+            }
+            
+            request = builder
+            		.build()
                     .queryString(session.getQueryString());
 
 
