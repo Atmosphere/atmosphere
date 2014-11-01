@@ -861,7 +861,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRemoteAddr() {
-        return isNotNoOps() ? b.request.getRemoteAddr() : b.lazyRemote != null ? b.lazyRemote.getHostAddress() : b.remoteAddr;
+    	return b.remoteAddr != ""? b.remoteAddr : isNotNoOps() ? b.request.getRemoteAddr(): b.lazyRemote != null ? b.lazyRemote.getHostAddress() : "";
     }
 
     /**
@@ -869,7 +869,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getRemoteHost() {
-        return isNotNoOps() ? b.request.getRemoteHost() : b.lazyRemote != null ? b.lazyRemote.getHostName() : b.remoteHost;
+    	return b.remoteHost != ""? b.remoteHost : isNotNoOps() ? b.request.getRemoteHost(): b.lazyRemote != null ? b.lazyRemote.getHostName() : "";
     }
 
     /**
@@ -877,7 +877,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public int getRemotePort() {
-        return isNotNoOps() ? b.request.getRemotePort() : b.lazyRemote != null ? b.lazyRemote.getPort() : b.remotePort;
+    	return b.remotePort != 0? b.remotePort : isNotNoOps() ? b.request.getRemotePort(): b.lazyRemote != null ? b.lazyRemote.getPort() : 0;
     }
 
     /**
@@ -955,7 +955,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getLocalName() {
-        return isNotNoOps() ? b.request.getLocalName() : b.lazyLocal != null ? b.lazyLocal.getHostName() : b.localName;
+    	return b.localName != ""? b.localName : isNotNoOps() ? b.request.getLocalName(): b.lazyLocal != null ? b.lazyLocal.getHostName() : "";
     }
 
     /**
@@ -963,7 +963,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public int getLocalPort() {
-        return isNotNoOps() ? b.request.getLocalPort() : b.lazyLocal != null ? b.lazyLocal.getPort() : b.localPort;
+    	return b.localPort != 0? b.localPort : isNotNoOps() ? b.request.getLocalPort(): b.lazyLocal != null ? b.lazyLocal.getPort() : 0;
     }
 
     /**
@@ -971,7 +971,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      */
     @Override
     public String getLocalAddr() {
-        return isNotNoOps() ? b.request.getLocalAddr() : b.lazyLocal != null ? b.lazyLocal.getHostAddress() : b.localAddr;
+    	return b.localAddr != ""? b.localAddr : isNotNoOps() ? b.request.getLocalAddr(): b.lazyLocal != null ? b.lazyLocal.getHostAddress() : "";
     }
 
     private boolean isNotNoOps() {
