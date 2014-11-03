@@ -35,17 +35,22 @@ import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 import javax.websocket.server.HandshakeRequest;
 import java.io.IOException;
+import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 
 public class JSR356Endpoint extends Endpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);
+
+    private final static String JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS = "javax.websocket.endpoint.localAddress";
+    private final static String JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS = "javax.websocket.endpoint.remoteAddress";
 
     private final WebSocketProcessor webSocketProcessor;
     private final Integer maxBinaryBufferSize;
@@ -92,7 +97,7 @@ public class JSR356Endpoint extends Endpoint {
     }
 
     @Override
-    public void onOpen(Session session, EndpointConfig endpointConfig) {
+    public void onOpen(Session session, final EndpointConfig endpointConfig) {
 
         if (!webSocketProcessor.handshake(request)) {
             try {
@@ -116,7 +121,7 @@ public class JSR356Endpoint extends Endpoint {
 
         String servletPath = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
         if (servletPath == null) {
-          servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
+            servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
         }
 
         URI uri = session.getRequestURI();
@@ -185,6 +190,18 @@ public class JSR356Endpoint extends Endpoint {
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo)
                     .userPrincipal(session.getUserPrincipal())
+                    .remoteInetSocketAddress(new Callable<InetSocketAddress>() {
+                        @Override
+                        public InetSocketAddress call() throws Exception {
+                            return (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS);
+                        }
+                    })
+                    .localInetSocketAddress(new Callable<InetSocketAddress>() {
+                        @Override
+                        public InetSocketAddress call() throws Exception {
+                            return (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS);
+                        }
+                    })
                     .build()
                     .queryString(session.getQueryString());
 
