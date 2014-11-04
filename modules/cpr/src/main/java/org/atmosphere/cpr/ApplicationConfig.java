@@ -334,6 +334,13 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE = ApplicationConfig.class.getPackage().getName() + ".broadcaster.maxAsyncWriteThreads";
     /**
+     * The maximum number of Thread created by the {@link org.atmosphere.util.ExecutorsFactory#getScheduler(AtmosphereConfig)}.
+     * <p/>
+     * Default: {@link Runtime#availableProcessors()} <br>
+     * Value: org.atmosphere.cpr.maxSchedulerThread
+     */
+    String SCHEDULER_THREADPOOL_MAXSIZE = ApplicationConfig.class.getPackage().getName() + ".maxSchedulerThread";
+    /**
      * BroadcasterLifecycle max idle time before executing.
      * <p/>
      * Default: 5 minutes<br>

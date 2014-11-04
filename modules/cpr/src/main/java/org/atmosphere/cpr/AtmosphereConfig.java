@@ -279,6 +279,20 @@ public class AtmosphereConfig {
     }
 
     /**
+     * Return an init-param, or its default value.
+     * @param key
+     * @param defaultValue
+     * @return an init-param, or its default value.
+     */
+    public int getInitParameter(String key, int defaultValue) {
+        String s = getInitParameter(key);
+        if (s == null) {
+            return defaultValue;
+        }
+        return Integer.valueOf(s);
+    }
+
+    /**
      * Return the {@link AtmosphereResourceFactory}
      * @return the AtmosphereResourceFactory
      */

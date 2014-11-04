@@ -66,6 +66,7 @@ public class ExecutorsFactory {
             }
 
             ThreadPoolExecutor messageService;
+            logger.trace("Max number of DispatchOp {}", numberOfMessageProcessingThread == -1 ? "Unlimited" : numberOfMessageProcessingThread);
             if (numberOfMessageProcessingThread == -1) {
                 messageService = (ThreadPoolExecutor) Executors.newCachedThreadPool(new ThreadFactory() {
 
@@ -137,6 +138,7 @@ public class ExecutorsFactory {
             }
 
             ThreadPoolExecutor asyncWriteService;
+            logger.trace("Max number of AsyncOp {}", numberOfAsyncThread == -1 ? "Unlimited" : numberOfAsyncThread);
             if (numberOfAsyncThread == -1) {
                 asyncWriteService = (ThreadPoolExecutor) Executors.newCachedThreadPool(new ThreadFactory() {
 
@@ -184,7 +186,9 @@ public class ExecutorsFactory {
         final boolean shared = config.framework().isShareExecutorServices();
 
         if (!shared || config.properties().get("scheduler") == null) {
-            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(Runtime.getRuntime().availableProcessors(), new ThreadFactory() {
+            int threads = config.getInitParameter(ApplicationConfig.SCHEDULER_THREADPOOL_MAXSIZE, Runtime.getRuntime().availableProcessors());
+            logger.trace("Max number of Atmosphere-Scheduler {}", threads);
+            ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(threads, new ThreadFactory() {
 
                 private final AtomicInteger count = new AtomicInteger();
 
