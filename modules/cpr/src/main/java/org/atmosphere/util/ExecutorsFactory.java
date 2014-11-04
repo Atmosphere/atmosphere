@@ -41,6 +41,10 @@ public class ExecutorsFactory {
     public final static int DEFAULT_MESSAGE_THREAD = -1;
     public final static int DEFAULT_KEEP_ALIVE = 30;
 
+    public final static String ASYNC_WRITE_THREAD_POOL = "asyncWriteService";
+    public final static String SCHEDULER_THREAD_POOL = "scheduler";
+    public final static String BROADCASTER_THREAD_POOL = "executorService";
+
     /**
      * Create an {@link ExecutorService} to be used for dispatching messages, not I/O events.
      *
@@ -52,7 +56,7 @@ public class ExecutorsFactory {
         final boolean shared = config.framework().isShareExecutorServices();
 
         boolean isExecutorShared = shared ? true : false;
-        if (!shared || config.properties().get("executorService") == null) {
+        if (!shared || config.properties().get(BROADCASTER_THREAD_POOL) == null) {
             int numberOfMessageProcessingThread = DEFAULT_MESSAGE_THREAD;
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
             if (s != null) {
@@ -96,11 +100,11 @@ public class ExecutorsFactory {
             keepAliveThreads(messageService, config);
 
             if (shared) {
-                config.properties().put("executorService", messageService);
+                config.properties().put(BROADCASTER_THREAD_POOL, messageService);
             }
             return messageService;
         } else {
-            return (ExecutorService) config.properties().get("executorService");
+            return (ExecutorService) config.properties().get(BROADCASTER_THREAD_POOL);
         }
     }
 
@@ -124,7 +128,7 @@ public class ExecutorsFactory {
         final boolean shared = config.framework().isShareExecutorServices();
 
         boolean isAsyncExecutorShared = shared ? true : false;
-        if (!shared || config.properties().get("asyncWriteService") == null) {
+        if (!shared || config.properties().get(ASYNC_WRITE_THREAD_POOL) == null) {
             int numberOfAsyncThread = DEFAULT_ASYNC_THREAD;
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
             if (s != null) {
@@ -168,11 +172,11 @@ public class ExecutorsFactory {
             keepAliveThreads(asyncWriteService, config);
 
             if (shared) {
-                config.properties().put("asyncWriteService", asyncWriteService);
+                config.properties().put(ASYNC_WRITE_THREAD_POOL, asyncWriteService);
             }
             return asyncWriteService;
         } else {
-            return (ExecutorService) config.properties().get("asyncWriteService");
+            return (ExecutorService) config.properties().get(ASYNC_WRITE_THREAD_POOL);
         }
     }
 
@@ -185,7 +189,7 @@ public class ExecutorsFactory {
     public static ScheduledExecutorService getScheduler(final AtmosphereConfig config) {
         final boolean shared = config.framework().isShareExecutorServices();
 
-        if (!shared || config.properties().get("scheduler") == null) {
+        if (!shared || config.properties().get(SCHEDULER_THREAD_POOL) == null) {
             int threads = config.getInitParameter(ApplicationConfig.SCHEDULER_THREADPOOL_MAXSIZE, Runtime.getRuntime().availableProcessors());
             logger.trace("Max number of Atmosphere-Scheduler {}", threads);
             ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(threads, new ThreadFactory() {
@@ -201,11 +205,31 @@ public class ExecutorsFactory {
             });
 
             if (shared) {
-                config.properties().put("scheduler", scheduler);
+                config.properties().put(SCHEDULER_THREAD_POOL, scheduler);
             }
             return scheduler;
         } else {
-            return (ScheduledExecutorService) config.properties().get("scheduler");
+            return (ScheduledExecutorService) config.properties().get(SCHEDULER_THREAD_POOL);
         }
+    }
+
+    public final static void reset(AtmosphereConfig config) {
+        ExecutorService e = (ExecutorService) config.properties().get(ASYNC_WRITE_THREAD_POOL);
+        if (e != null) {
+            e.shutdown();
+        }
+        config.properties().put(ASYNC_WRITE_THREAD_POOL, null);
+
+        e = (ExecutorService) config.properties().get(SCHEDULER_THREAD_POOL);
+        if (e != null) {
+            e.shutdown();
+        }
+        config.properties().put(SCHEDULER_THREAD_POOL, null);
+
+        e = (ExecutorService) config.properties().get(BROADCASTER_THREAD_POOL);
+        if (e != null) {
+            e.shutdown();
+        }
+        config.properties().put(BROADCASTER_THREAD_POOL, null);
     }
 }
