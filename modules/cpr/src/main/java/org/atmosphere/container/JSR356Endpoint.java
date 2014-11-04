@@ -94,6 +94,8 @@ public class JSR356Endpoint extends Endpoint {
     @Override
     public void onOpen(Session session, EndpointConfig endpointConfig) {
 
+        if (framework.isDestroyed()) return;
+
         if (!webSocketProcessor.handshake(request)) {
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Handshake not accepted."));
