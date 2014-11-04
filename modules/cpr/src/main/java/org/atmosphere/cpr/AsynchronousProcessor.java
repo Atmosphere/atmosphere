@@ -427,6 +427,12 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     }
 
                     AtmosphereResourceEventImpl e = impl.getAtmosphereResourceEvent();
+                    // https://github.com/Atmosphere/atmosphere/issues/1756
+                    // Do not go inside Atmosphere once undeployed to avoid all kind of issues.
+                    if (config.framework().isDestroyed()) {
+                        cancelled = true;
+                    }
+
                     if (!e.isClosedByClient()) {
                         if (cancelled) {
                             e.setCancelled(true);
