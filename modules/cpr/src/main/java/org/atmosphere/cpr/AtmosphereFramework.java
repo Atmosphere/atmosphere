@@ -2068,6 +2068,9 @@ public class AtmosphereFramework {
      * @throws ServletException
      */
     public Action doCometSupport(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+
+        if (isDestroyed.get()) return Action.CANCELLED;
+
         Action a = null;
         try {
             configureRequestResponse(req, res);
@@ -3060,5 +3063,11 @@ public class AtmosphereFramework {
         return sessionFactory;
     }
 
-
+    /**
+     * Return true is the {@link #destroy()} method has been invoked.
+     * @return true is the {@link #destroy()} method has been invoked.
+     */
+    public boolean isDestroyed(){
+        return isDestroyed.get();
+    }
 }
