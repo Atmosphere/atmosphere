@@ -251,8 +251,13 @@ public class JSR356Endpoint extends Endpoint {
 
     @Override
     public void onError(javax.websocket.Session session, java.lang.Throwable t) {
-        logger.error("", t);
-        webSocketProcessor.notifyListener(webSocket,
-                new WebSocketEventListener.WebSocketEvent<Throwable>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
+        try {
+            logger.error("", t);
+            webSocketProcessor.notifyListener(webSocket,
+                    new WebSocketEventListener.WebSocketEvent<Throwable>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
+        } catch (Exception ex) {
+            // Ignore completely
+            // https://github.com/Atmosphere/atmosphere/issues/1758
+        }
     }
 }
