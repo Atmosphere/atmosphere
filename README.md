@@ -4,8 +4,7 @@
 ### Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Applications. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all major [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers).
 
-<center>Follow us on [Twitter](http://www.twitter.com/atmo_framework)</center>.
-
+<p align="center">Follow us on [Twitter](http://www.twitter.com/atmo_framework)</p>
 Atmosphere transparently supports WebSockets, Server Sent Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
 The Atmosphere Framework Stack consists of: 
