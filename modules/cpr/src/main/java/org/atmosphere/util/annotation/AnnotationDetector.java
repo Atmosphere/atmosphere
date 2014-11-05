@@ -45,10 +45,10 @@ import java.io.InputStream;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Method;
 import java.net.JarURLConnection;
-import java.net.URLConnection;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLDecoder;
 import java.util.Arrays;
 import java.util.Enumeration;
@@ -358,19 +358,19 @@ public final class AnnotationDetector {
                         }
                     }
                     try {
-	                    if (jarFile.isFile()) {
-	                        files.add(jarFile);
-	                        if (DEBUG) print("Add jar file: '%s'", jarFile);
-	                    } else {
-	                    	final URLConnection urlConnection = url.openConnection();
-	                    	if (urlConnection instanceof JarURLConnection) {
-	                    		loadJarContent((JarURLConnection)(url.openConnection()), packageName, streams);
-	                    	} else {
-	                    		streams.add(url.openConnection().getInputStream());
-	                    	}
-	                    }
+                        if (jarFile.isFile()) {
+                            files.add(jarFile);
+                            if (DEBUG) print("Add jar file: '%s'", jarFile);
+                        } else {
+                            final URLConnection urlConnection = url.openConnection();
+                            if (urlConnection instanceof JarURLConnection) {
+                                loadJarContent((JarURLConnection) (url.openConnection()), packageName, streams);
+                            } else {
+                                streams.add(url.openConnection().getInputStream());
+                            }
+                        }
                     } catch (Exception ex) {
-                    	print("Cannot load from jar file", ex);
+                        print("Cannot load from jar file", ex);
                     }
                 }
             }
