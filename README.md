@@ -70,6 +70,6 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 ## Build Status
 [![Build Status](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/badge/icon)](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/)
 
-[![githalytics.com alpha](https://cruel-carlota.pagodabox.com/451c0e9dd7bfaa28ea12114ceb11695b "githalytics.com")](http://githalytics.com/Atmosphere/atmosphere)
+[![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)]
 
 
