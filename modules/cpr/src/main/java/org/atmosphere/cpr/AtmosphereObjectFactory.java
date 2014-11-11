@@ -8,15 +8,21 @@ package org.atmosphere.cpr;
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereObjectFactory {
+
+    /**
+     * Configure the factory using the {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
+     */
+    public void configure(AtmosphereConfig config);
+
     /**
      * Delegate the creation of Object to the underlying object provider like Spring, Guice, etc.
      *
      *
-     * @param framework {@link org.atmosphere.cpr.AtmosphereFramework}
      * @param classType The class' type to be created
      * @param defaultType a class to be created  @return  an instance of T
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-	public <T, U extends T> T newClassInstance(AtmosphereFramework framework, Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException;
+	public <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException;
 }

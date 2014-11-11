@@ -62,7 +62,6 @@ import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.enterprise.inject.Produces;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -453,8 +452,11 @@ public class AtmosphereFramework {
         }
 
         @Override
-        public <T, U extends T> U newClassInstance(AtmosphereFramework framework,
-                                                   Class<T> classType,
+        public void configure(AtmosphereConfig config) {
+        }
+
+        @Override
+        public <T, U extends T> U newClassInstance(Class<T> classType,
                                                    Class<U> defaultType) throws InstantiationException, IllegalAccessException {
             return defaultType.newInstance();
         }
@@ -863,6 +865,8 @@ public class AtmosphereFramework {
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
             objectFactory = lookupDefaultObjectFactoryType();
+            objectFactory.configure(config);
+
             asyncSupportListener(newClassInstance(AsyncSupportListener.class, AsyncSupportListenerAdapter.class));
 
             configureObjectFactory();
@@ -2813,7 +2817,7 @@ public class AtmosphereFramework {
      * @throws IllegalAccessException
      */
     public <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException {
-        return objectFactory.newClassInstance(this, classType, defaultType);
+        return objectFactory.newClassInstance(classType, defaultType);
     }
 
     /**

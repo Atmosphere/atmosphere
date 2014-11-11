@@ -15,6 +15,7 @@
  */
 package org.atmosphere.inject;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
 
@@ -46,10 +47,15 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
     };
 
     private final List<Injectable<?>> injectables = new ArrayList<Injectable<?>>();
+    private AtmosphereConfig config;
 
     @Override
-    public <T, U extends T> U newClassInstance(AtmosphereFramework framework,
-                                               Class<T> classType,
+    public void configure(AtmosphereConfig config) {
+        this.config = config;
+    }
+
+    @Override
+    public <T, U extends T> U newClassInstance(Class<T> classType,
                                                Class<U> defaultType) throws InstantiationException, IllegalAccessException {
 
         // Thread safe
@@ -61,7 +67,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
 
         U instance = defaultType.newInstance();
 
-        injectAtmosphereInternalObject(instance, defaultType, framework);
+        injectAtmosphereInternalObject(instance, defaultType, config.framework());
         postConstructExecution(instance, defaultType);
 
         return instance;
