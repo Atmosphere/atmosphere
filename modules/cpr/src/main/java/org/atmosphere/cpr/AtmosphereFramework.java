@@ -2828,6 +2828,7 @@ public class AtmosphereFramework {
      */
     public void objectFactory(AtmosphereObjectFactory objectFactory) {
         this.objectFactory = objectFactory;
+        this.objectFactory.configure(config);
     }
 
     /**
