@@ -20,12 +20,15 @@ import org.atmosphere.lifecycle.BroadcasterLifecyclePolicyHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.enterprise.inject.Default;
+import javax.enterprise.inject.Produces;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY_TIMEOUT;
@@ -38,12 +41,12 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 
 /**
  * This class is responsible for creating {@link Broadcaster} instances. You can also add and remove {@link Broadcaster}
- * and lookup using {@link BroadcasterFactory#getDefault()} ()} from any classes loaded using the same class loader.
  *
  * @author Jeanfrancois Arcand
  * @author Jason Burgess
  */
-public class DefaultBroadcasterFactory extends BroadcasterFactory {
+public class DefaultBroadcasterFactory implements BroadcasterFactory {
+    protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
@@ -55,12 +58,13 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
     protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
     protected int defaultPolicyInteger = -1;
+
     private final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
     private final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
+    private final AtmosphereConfig config;
 
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
-        this.factory = this;
         config = c;
         configure(broadcasterLifeCyclePolicy);
     }
@@ -281,7 +285,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         }
         broadcasterListeners.clear();
         store.clear();
-        factory = null;
     }
 
     public void notifyOnPostCreate(Broadcaster b) {
@@ -294,23 +297,6 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
         }
     }
 
-    /**
-     * Build a default {@link BroadcasterFactory} returned when invoking {@link #getDefault()} ()}.
-     *
-     * @param clazz A class implementing {@link Broadcaster}
-     * @param c     An instance of {@link AtmosphereConfig}
-     * @return the default {@link BroadcasterFactory}.
-     * @throws InstantiationException
-     * @throws IllegalAccessException
-     */
-    public static BroadcasterFactory buildAndReplaceDefaultfactory(Class<? extends Broadcaster> clazz, AtmosphereConfig c)
-            throws InstantiationException, IllegalAccessException {
-
-        factory = new DefaultBroadcasterFactory(clazz, "NEVER", c);
-        c.framework().setBroadcasterFactory(factory);
-        return factory;
-    }
-
     public static final class BroadcasterCreationException extends RuntimeException {
         public BroadcasterCreationException(Throwable t) {
             super(t);
@@ -319,7 +305,10 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     @Override
     public BroadcasterFactory addBroadcasterListener(BroadcasterListener l) {
-        super.addBroadcasterListener(l);
+        if (!broadcasterListeners.contains(l)) {
+            broadcasterListeners.add(l);
+        }
+
         for (Broadcaster b : store.values()) {
             b.addBroadcasterListener(l);
         }
@@ -328,7 +317,7 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     @Override
     public BroadcasterFactory removeBroadcasterListener(BroadcasterListener l) {
-        super.removeBroadcasterListener(l);
+        broadcasterListeners.remove(l);
         for (Broadcaster b : store.values()) {
             b.removeBroadcasterListener(l);
         }

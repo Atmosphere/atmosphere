@@ -62,6 +62,7 @@ import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.enterprise.inject.Produces;
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -1226,7 +1227,6 @@ public class AtmosphereFramework {
                 broadcasterFactory.addBroadcasterListener(b);
             }
 
-            BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
             configureAtmosphereResourceFactory();
         } catch (Exception ex) {
             logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
@@ -1480,7 +1480,6 @@ public class AtmosphereFramework {
         broadcasterFactory.destroy();
 
         broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
-        BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
         for (BroadcasterListener b : broadcasterListeners) {
             broadcasterFactory.addBroadcasterListener(b);
         }
@@ -1646,8 +1645,6 @@ public class AtmosphereFramework {
         BroadcasterFactory factory = broadcasterFactory;
         if (factory != null) {
             factory.destroy();
-            BroadcasterFactory.factory = null;
-            BroadcasterFactory.config = null;
         }
 
         if (metaBroadcaster != null) metaBroadcaster.destroy();
@@ -1769,7 +1766,6 @@ public class AtmosphereFramework {
                         ClassLoader cl = Thread.currentThread().getContextClassLoader();
                         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
                         broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
-                        BroadcasterFactory.setBroadcasterFactory(broadcasterFactory, config);
                     }
 
                     b = broadcasterFactory.lookup(atmoHandler.getContextRoot(), true);
@@ -2005,6 +2001,7 @@ public class AtmosphereFramework {
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
         req.setAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST, "" + config.isThrowExceptionOnCloned());
+
         boolean skip = true;
         String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
         if (s != null) {
@@ -3073,4 +3070,5 @@ public class AtmosphereFramework {
     public boolean isDestroyed(){
         return isDestroyed.get();
     }
+
 }

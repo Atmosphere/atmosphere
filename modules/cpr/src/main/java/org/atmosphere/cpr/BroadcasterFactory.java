@@ -24,11 +24,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class BroadcasterFactory {
-
-    protected static BroadcasterFactory factory;
-    protected static AtmosphereConfig config;
-    protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
+public interface BroadcasterFactory {
 
     /**
      * Return an instance of the default {@link Broadcaster}.
@@ -39,7 +35,7 @@ public abstract class BroadcasterFactory {
      * @throws IllegalAccessException
      * @throws InstantiationException
      */
-    abstract public Broadcaster get();
+    Broadcaster get();
 
     /**
      * Create a new instance of {@link Broadcaster} and store it for.
@@ -47,7 +43,7 @@ public abstract class BroadcasterFactory {
      * @param id The unique ID used to retrieve {@link Broadcaster}
      * @return a new instance of {@link Broadcaster}
      */
-    abstract public Broadcaster get(Object id);
+    Broadcaster get(Object id);
 
     /**
      * Create a new instance of {@link Broadcaster} and store it for.
@@ -56,12 +52,12 @@ public abstract class BroadcasterFactory {
      * @param id The unique ID used to retrieve {@link Broadcaster}
      * @return a new instance of {@link Broadcaster}
      */
-    abstract public <T extends Broadcaster> T get(Class<T> c, Object id);
+    <T extends Broadcaster> T get(Class<T> c, Object id);
 
     /**
      * Shutdown all {@link Broadcaster}s.
      */
-    abstract public void destroy();
+    void destroy();
 
     /**
      * Add a {@link Broadcaster} to the list.
@@ -69,7 +65,7 @@ public abstract class BroadcasterFactory {
      * @param b a {@link Broadcaster}
      * @return false if a with the same name {@link Broadcaster} was already stored
      */
-    abstract public boolean add(Broadcaster b, Object id);
+    boolean add(Broadcaster b, Object id);
 
     /**
      * Remove a {@link Broadcaster} from the list.
@@ -78,91 +74,77 @@ public abstract class BroadcasterFactory {
      * @param id the {@link Broadcaster's ID}
      * @return false if wasn't present, or {@link Broadcaster}
      */
-    abstract public boolean remove(Broadcaster b, Object id);
+    boolean remove(Broadcaster b, Object id);
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param c
      * @param id The Broadcaster's unique ID, or name.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public <T extends Broadcaster> T lookup(Class<T> c, Object id);
+    <T extends Broadcaster> T lookup(Class<T> c, Object id);
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param c
      * @param id           The Broadcaster's unique ID, or name.
      * @param createIfNull If the broadcaster is not found, create it.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull);
+    <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull);
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param id The Broadcaster's unique ID, or name.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public <T extends Broadcaster> T lookup(Object id);
+    <T extends Broadcaster> T lookup(Object id);
 
     /**
      * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID
-     * used when invoking {@link BroadcasterFactory#getDefault()}.
      *
      * @param id           The Broadcaster's unique ID, or name.
      * @param createIfNull If the broadcaster is not found, create it.
      * @return a Broadcaster, or null if not found.
      */
-    abstract public <T extends Broadcaster> T lookup(Object id, boolean createIfNull);
+    <T extends Broadcaster> T lookup(Object id, boolean createIfNull);
 
     /**
      * Remove all instances of {@link AtmosphereResource} from all registered {@link Broadcaster}s.
      *
      * @param r an void {@link AtmosphereResource}
      */
-    abstract public void removeAllAtmosphereResource(AtmosphereResource r);
+    void removeAllAtmosphereResource(AtmosphereResource r);
 
     /**
      * Remove the associated {@link Broadcaster}.
      */
-    abstract public boolean remove(Object id);
+    boolean remove(Object id);
 
     /**
      * Return an immutable Collection of {@link Broadcaster} this factory contains.
      *
      * @return an immutable Collection of {@link Broadcaster} this factory contains.
      */
-    abstract public Collection<Broadcaster> lookupAll();
+    Collection<Broadcaster> lookupAll();
 
     /**
-     * Return the default {@link BroadcasterFactory}.
+     * Add a {@link org.atmosphere.cpr.BroadcasterListener}
      *
-     * @return the default {@link BroadcasterFactory}.
-     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#getBroadcasterFactory()}
+     * @param b a {@link org.atmosphere.cpr.BroadcasterListener}
+     * @return this
      */
-    public synchronized static BroadcasterFactory getDefault() {
-        return factory;
-    }
+    BroadcasterFactory addBroadcasterListener(BroadcasterListener b);
 
-    public BroadcasterFactory addBroadcasterListener(BroadcasterListener b) {
-        if (!broadcasterListeners.contains(b)) {
-            broadcasterListeners.add(b);
-        }
-        return this;
-    }
+    /**
+     * Remove a {@link org.atmosphere.cpr.BroadcasterListener}
+     *
+     * @param b a {@link org.atmosphere.cpr.BroadcasterListener}
+     * @return this
+     */
+    BroadcasterFactory removeBroadcasterListener(BroadcasterListener b);
 
-    public BroadcasterFactory removeBroadcasterListener(BroadcasterListener b) {
-        broadcasterListeners.remove(b);
-        return this;
-    }
-
-    static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereConfig c) {
-        factory = f;
-        config = c;
-    }
 }

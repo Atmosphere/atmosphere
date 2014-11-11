@@ -82,8 +82,8 @@ public class MetaBroadcaster {
     }
 
     protected MetaBroadcasterFuture broadcast(final String path, Object message, int time, TimeUnit unit, boolean delay, boolean cacheMessage) {
-        if (config != null  || BroadcasterFactory.getDefault() != null) {
-            Collection<Broadcaster> c = config != null ? config.getBroadcasterFactory().lookupAll() : BroadcasterFactory.getDefault().lookupAll();
+        if (config != null) {
+            Collection<Broadcaster> c = config.getBroadcasterFactory().lookupAll();
 
             final Map<String, String> m = new HashMap<String, String>();
             List<Broadcaster> l = new ArrayList<Broadcaster>();

@@ -21,6 +21,7 @@ import com.sun.jersey.spi.inject.Injectable;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.BroadcasterListener;
 
 import javax.ws.rs.core.Context;
 import java.lang.reflect.Type;
@@ -81,7 +82,7 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             };
         }
 
-        class BroadcasterFactoryProxy extends BroadcasterFactory {
+        class BroadcasterFactoryProxy implements BroadcasterFactory {
             BroadcasterFactory _get() {
                 return getAtmosphereResource(AtmosphereResource.class, true).getAtmosphereConfig().getBroadcasterFactory();
             }
@@ -149,6 +150,18 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             @Override
             public Collection<Broadcaster> lookupAll() {
                 return _get().lookupAll();
+            }
+
+            @Override
+            public BroadcasterFactory addBroadcasterListener(BroadcasterListener b) {
+                _get().addBroadcasterListener(b);
+                return this;
+            }
+
+            @Override
+            public BroadcasterFactory removeBroadcasterListener(BroadcasterListener b) {
+                _get().removeBroadcasterListener(b);
+                return this;
             }
         }
     }

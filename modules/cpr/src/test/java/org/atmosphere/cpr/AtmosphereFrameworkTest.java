@@ -91,7 +91,7 @@ public class AtmosphereFrameworkTest {
 
     }
 
-    public final static class MyBroadcasterFactory extends BroadcasterFactory {
+    public final static class MyBroadcasterFactory implements BroadcasterFactory {
 
         @Override
         public Broadcaster get() {
@@ -156,6 +156,16 @@ public class AtmosphereFrameworkTest {
         @Override
         public Collection<Broadcaster> lookupAll() {
             return null;
+        }
+
+        @Override
+        public BroadcasterFactory addBroadcasterListener(BroadcasterListener b) {
+            return this;
+        }
+
+        @Override
+        public BroadcasterFactory removeBroadcasterListener(BroadcasterListener b) {
+            return this;
         }
     }
 }

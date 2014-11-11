@@ -175,5 +175,8 @@ public interface FrameworkConfig {
      * The Java Inject class
      */
     String INJECT_LIBARY = "javax.inject.Inject";
-
+    /**
+     * The current installed {@link org.atmosphere.cpr.BroadcasterFactory}
+     */
+    String BROADCASTER_FACTORY = BroadcasterFactory.class.getName();
 }
