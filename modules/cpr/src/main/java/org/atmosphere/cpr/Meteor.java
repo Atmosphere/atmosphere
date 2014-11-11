@@ -334,4 +334,12 @@ public class Meteor {
     public AtmosphereResource getAtmosphereResource() {
         return r;
     }
+
+    /**
+     * Return the {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @return the {@link org.atmosphere.cpr.AtmosphereConfig}
+     */
+    public AtmosphereConfig getAtmosphereConfig() {
+        return r.getAtmosphereConfig();
+    }
 }
