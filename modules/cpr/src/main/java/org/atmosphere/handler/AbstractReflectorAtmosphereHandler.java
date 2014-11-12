@@ -162,7 +162,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereHa
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
-        if (event.isResuming() || event.isCancelled()) return;
+        if (event.isCancelled() || event.isResuming()) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
         // Between event.isCancelled and resource, the connection has been remotly closed.
