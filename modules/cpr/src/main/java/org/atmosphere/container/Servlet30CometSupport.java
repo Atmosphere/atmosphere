@@ -176,13 +176,20 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 return;
             }
 
+            final AsyncContext asyncContext = event.getAsyncContext();
             try {
-                p.timedout((AtmosphereRequest) event.getAsyncContext().getRequest(),
-                        (AtmosphereResponse) event.getAsyncContext().getResponse());
+                p.timedout((AtmosphereRequest) asyncContext.getRequest(),
+                        (AtmosphereResponse) asyncContext.getResponse());
             } catch (ServletException ex) {
                 logger.warn("onTimeout(): failed timing out comet response: " + event.getAsyncContext().getResponse(), ex);
             } finally {
-                event.getAsyncContext().complete();
+                try {
+                    asyncContext.complete();
+                } catch (IllegalStateException ex) {
+                    // The complete method has been already called.
+                    // https://tomcat.apache.org/tomcat-7.0-doc/api/org/apache/coyote/AsyncStateMachine.html
+                    logger.trace("", ex);
+                }
             }
         }
 
