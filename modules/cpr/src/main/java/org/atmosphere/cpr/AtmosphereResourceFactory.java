@@ -40,7 +40,6 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 public final class AtmosphereResourceFactory {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceFactory.class);
-    private static AtmosphereResourceFactory factory;
     private final static Broadcaster noOps = (Broadcaster)
             Proxy.newProxyInstance(Broadcaster.class.getClassLoader(), new Class[]{Broadcaster.class},
                     new InvocationHandler() {
@@ -71,8 +70,6 @@ public final class AtmosphereResourceFactory {
 
     public AtmosphereResourceFactory(BroadcasterFactory broadcasterFactory){
         this.broadcasterFactory = broadcasterFactory;
-        // This is quite ugly, but here for legacy reason.
-        factory = this;
     }
 
     private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<String, AtmosphereResource>();
@@ -284,14 +281,6 @@ public final class AtmosphereResourceFactory {
             }
         }
         return h;
-    }
-
-    /**
-     * Use {@link AtmosphereConfig#resourcesFactory() instead}
-     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#resourcesFactory()}
-     */
-    public final static AtmosphereResourceFactory getDefault() {
-        return factory;
     }
 
     /**

@@ -21,20 +21,6 @@ package org.atmosphere.cpr;
  * @author uklance (https://github.com/uklance)
  */
 public abstract class AtmosphereResourceSessionFactory {
-    // TODO: support IOC
-    // TO Make this Happend, we gonna need to pass an AtmosphereFramework's instance to the constructor and
-    // use the newInstance method, or add support for some sort of @Inject.
-    private static final AtmosphereResourceSessionFactory DEFAULT = new DefaultAtmosphereResourceSessionFactory();
-
-    /**
-     * Return the default {@link AtmosphereResourceSessionFactory}
-     *
-     * @return the default {@link AtmosphereResourceSessionFactory}
-     * @deprecated use {@link org.atmosphere.cpr.AtmosphereConfig#sessionFactory}
-     */
-    public static AtmosphereResourceSessionFactory getDefault() {
-        return DEFAULT;
-    }
 
     /**
      * Returns the current session associated with the

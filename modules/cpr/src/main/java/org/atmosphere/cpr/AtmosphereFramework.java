@@ -1000,6 +1000,15 @@ public class AtmosphereFramework {
 
         logger.info("\n\n\tFor Atmosphere Framework Commercial Support, visit \n\t{} " +
                 "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
+
+        Universe.broadcasterFactory(broadcasterFactory);
+    }
+
+    protected void universe() {
+        Universe.broadcasterFactory(broadcasterFactory);
+        Universe.resourceFactory(arFactory);
+        Universe.sessionResourceFactory(sessionFactory);
+        Universe.framework(this);
     }
 
     private void configureAnnotationPackages() {

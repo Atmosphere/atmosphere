@@ -408,7 +408,8 @@ public class WebSocketProcessorTest {
         request.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, w.resource().uuid());
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
         request.headers(m);
-        AtmosphereResource dup = AtmosphereResourceFactory.getDefault().create(framework.config, w.resource().uuid(), request).suspend();
+        AtmosphereResource dup = framework.getAtmosphereConfig().resourcesFactory()
+                .create(framework.config, w.resource().uuid(), request).suspend();
         w.resource(dup);
         dup.addEventListener(new AtmosphereResourceEventListenerAdapter.OnDisconnect() {
             @Override

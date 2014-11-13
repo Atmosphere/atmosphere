@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cache;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
@@ -57,6 +58,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
+    protected AtmosphereConfig config;
 
     @Override
     public void start() {
@@ -186,6 +188,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         } else {
             reaper = Executors.newSingleThreadScheduledExecutor();
         }
+        this.config = config.getAtmosphereConfig();
     }
 
     @Override

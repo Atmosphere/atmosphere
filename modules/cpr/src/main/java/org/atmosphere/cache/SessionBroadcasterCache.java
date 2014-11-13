@@ -48,7 +48,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
         if (uuid.equals(NULL)) return cacheMessage;
 
         try {
-            HttpSession session = AtmosphereResourceFactory.getDefault().find(uuid).session();
+            HttpSession session = config.resourcesFactory().find(uuid).session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return cacheMessage;
@@ -70,7 +70,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
         List<Object> result = new ArrayList<Object>();
         try {
-            HttpSession session = AtmosphereResourceFactory.getDefault().find(uuid).session();
+            HttpSession session = config.resourcesFactory().find(uuid).session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return result;

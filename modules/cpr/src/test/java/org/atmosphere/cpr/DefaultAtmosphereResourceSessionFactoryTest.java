@@ -36,8 +36,8 @@ import static org.testng.Assert.fail;
 public class DefaultAtmosphereResourceSessionFactoryTest {
     @Test
     public void testSessionLifecycle() {
-        DefaultAtmosphereResourceSessionFactory factory = (DefaultAtmosphereResourceSessionFactory) AtmosphereResourceSessionFactory
-                .getDefault();
+        DefaultAtmosphereResourceSessionFactory factory = new DefaultAtmosphereResourceSessionFactory();
+
         AtmosphereResourceEventListener disconnectListener = factory.getDisconnectListener();
 
         AtmosphereResource r1 = Mockito.mock(AtmosphereResource.class);
