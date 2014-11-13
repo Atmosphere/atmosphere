@@ -21,6 +21,19 @@ public class Universe {
     private static AtmosphereFramework framework;
     private static AtmosphereResourceFactory resourceFactory;
     private static AtmosphereResourceSessionFactory sessionFactory;
+    private static MetaBroadcaster metaBroadcaster;
+
+    /**
+     * Set the must be unique {@link org.atmosphere.cpr.MetaBroadcaster}
+     *
+     * @param a {@link org.atmosphere.cpr.MetaBroadcaster}
+     */
+    public static void metaBroadcaster(MetaBroadcaster a) {
+        if (metaBroadcaster != null) {
+            logger.warn("More than one Universe configured. Universe class will gives wrong object reference");
+        }
+        metaBroadcaster = a;
+    }
 
     /**
      * Set the must be unique {@link org.atmosphere.cpr.BroadcasterFactory}
@@ -104,5 +117,14 @@ public class Universe {
      */
     public static AtmosphereResourceSessionFactory sessionFactory() {
         return sessionFactory;
+    }
+
+    /**
+     * Return the {@link org.atmosphere.cpr.MetaBroadcaster}
+     *
+     * @return the {@link org.atmosphere.cpr.MetaBroadcaster}
+     */
+    public static MetaBroadcaster metaBroadcaster() {
+        return metaBroadcaster;
     }
 }
