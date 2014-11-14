@@ -116,12 +116,20 @@ public class AtmosphereConfig {
         }
     }
 
-    public String getInitParameter(String closedAtmosphereThinkTime, String defaultValue) {
-        String s = getInitParameter(closedAtmosphereThinkTime);
+    public String getInitParameter(String name, String defaultValue) {
+        String s = getInitParameter(name);
         if (s == null) {
             return defaultValue;
         }
         return s;
+    }
+
+    public boolean getInitParameter(String name, boolean b) {
+        String s = getInitParameter(name);
+        if (s == null) {
+            return b;
+        }
+        return Boolean.valueOf(s);
     }
 
     /**
