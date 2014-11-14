@@ -15,7 +15,6 @@
  */
 package org.atmosphere.util;
 
-import com.apple.eawt.Application;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
