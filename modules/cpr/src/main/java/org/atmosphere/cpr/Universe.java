@@ -30,7 +30,7 @@ public class Universe {
      */
     public static void metaBroadcaster(MetaBroadcaster a) {
         if (metaBroadcaster != null) {
-            logger.warn("More than one Universe configured. Universe class will gives wrong object reference");
+            logger.warn("More than one Universe configured. Universe class will gives wrong object reference {}", a);
         }
         metaBroadcaster = a;
     }
@@ -42,7 +42,7 @@ public class Universe {
      */
     public static void broadcasterFactory(BroadcasterFactory a) {
         if (factory != null) {
-            logger.warn("More than one Universe configured. Universe class will gives wrong object reference");
+            logger.warn("More than one Universe configured. Universe class will gives wrong object reference {}", a);
         }
         factory = a;
     }
@@ -54,7 +54,7 @@ public class Universe {
      */
     public static void framework(AtmosphereFramework a) {
         if (framework != null) {
-            logger.warn("More than one Universe configured. Universe class will gives wrong object reference");
+            logger.warn("More than one Universe configured. Universe class will gives wrong object reference {}", a);
         }
         framework = a;
     }
@@ -66,7 +66,7 @@ public class Universe {
      */
     public static void resourceFactory(AtmosphereResourceFactory a) {
         if (resourceFactory != null) {
-            logger.warn("More than one Universe configured. Universe class will gives wrong object reference");
+            logger.warn("More than one Universe configured. Universe class will gives wrong object reference {}", a);
         }
         resourceFactory = a;
     }
@@ -78,7 +78,7 @@ public class Universe {
      */
     public static void sessionResourceFactory(AtmosphereResourceSessionFactory a) {
         if (sessionFactory != null) {
-            logger.warn("More than one Universe configured. Universe class will gives wrong object reference");
+            logger.warn("More than one Universe configured. Universe class will gives wrong object reference {}", a);
         }
         sessionFactory = a;
     }
