@@ -15,7 +15,6 @@
  */
 package org.atmosphere.util;
 
-import com.apple.eawt.Application;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
@@ -31,7 +30,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Stateless Factory to create {@link ExecutorService} used in all Atmosphere Component. By default they are
- * shared amongst all component. To change the behavior, add {@link ApplicationConfig#BROADCASTER_SHARABLE_THREAD_POOLS}
+ * shared amongst all component. To change the behavior, add {
+ * link ApplicationConfig#BROADCASTER_SHARABLE_THREAD_POOLS}
  *
  * @author Jeanfrancois Arcand
  */
