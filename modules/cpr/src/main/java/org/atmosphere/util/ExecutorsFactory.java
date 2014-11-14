@@ -15,6 +15,7 @@
  */
 package org.atmosphere.util;
 
+import com.apple.eawt.Application;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
@@ -115,6 +116,7 @@ public class ExecutorsFactory {
             keepAlive = Integer.parseInt(s);
         }
         e.setKeepAliveTime(keepAlive, TimeUnit.SECONDS);
+        e.allowCoreThreadTimeOut(config.getInitParameter(ApplicationConfig.ALLOW_CORE_THREAD_TIMEOUT, true));
     }
 
     /**
@@ -207,6 +209,9 @@ public class ExecutorsFactory {
             if (shared) {
                 config.properties().put(SCHEDULER_THREAD_POOL, scheduler);
             }
+
+            keepAliveThreads((ThreadPoolExecutor)scheduler, config);
+
             return scheduler;
         } else {
             return (ScheduledExecutorService) config.properties().get(SCHEDULER_THREAD_POOL);

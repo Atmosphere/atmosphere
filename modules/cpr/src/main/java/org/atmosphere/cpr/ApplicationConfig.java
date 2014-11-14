@@ -334,6 +334,14 @@ public interface ApplicationConfig {
      */
     String BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE = ApplicationConfig.class.getPackage().getName() + ".broadcaster.maxAsyncWriteThreads";
     /**
+     * Time out threads created by the {@link org.atmosphere.util.ExecutorsFactory}.
+     * <p/>
+     * Default: true} <br>
+     * Value: org.atmosphere.cpr.allowCoreThreadTimeOut
+     * #see {@link java.util.concurrent.ThreadPoolExecutor#allowCoreThreadTimeOut}
+     */
+    String ALLOW_CORE_THREAD_TIMEOUT = ApplicationConfig.class.getPackage().getName() + ".allowCoreThreadTimeOut";
+    /**
      * The maximum number of Thread created by the {@link org.atmosphere.util.ExecutorsFactory#getScheduler(AtmosphereConfig)}.
      * <p/>
      * Default: {@link Runtime#availableProcessors()} <br>
