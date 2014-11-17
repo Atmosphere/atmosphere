@@ -15,8 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpSession;
-
 /**
  * Web.xml init-param configuration supported by Atmosphere.
  *
@@ -115,7 +113,7 @@ public interface ApplicationConfig {
      */
     String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
     /**
-     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link HttpSession#setMaxInactiveInterval(int)}
+     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link javax.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.removeSessionTimeout
@@ -695,7 +693,7 @@ public interface ApplicationConfig {
      */
     String JSR356_MAPPING_PATH = "org.atmosphere.container.JSR356AsyncSupport.mappingPath";
     /**
-     * The default {@link HttpSession#setMaxInactiveInterval(int)}
+     * The default {@link javax.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: -1<br>
      * Value: org.atmosphere.cpr.session.maxInactiveInterval
@@ -799,7 +797,7 @@ public interface ApplicationConfig {
      * &lt;/init-param&gt;
      * </pre>
      *
-     * @see {@link https://github.com/Atmosphere/atmosphere/issues/1695}
+     * @see {@see https://github.com/Atmosphere/atmosphere/issues/1695}
      */
     String DISABLE_ATMOSPHERE_INITIALIZER =  "org.atmosphere.cpr.AtmosphereInitializer.disabled";
     /**
@@ -807,6 +805,6 @@ public interface ApplicationConfig {
      * Default: true (enabled) <br>
      * Value: org.atmosphere.cpr.AtmosphereFramework.analytics
      */
-    String ANALYTICS = AtmosphereFramework.class.getName() + ".analytics";
+    String ANALYTICS = "org.atmosphere.cpr.AtmosphereFramework.analytics.analytics";
 }
 
