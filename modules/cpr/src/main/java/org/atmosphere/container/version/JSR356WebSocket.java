@@ -61,15 +61,12 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public WebSocket write(String s) throws IOException {
         try {
-            try {
-                semaphore.acquireUninterruptibly();
-                session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
-            } catch (IllegalStateException e) {
-                semaphore.release();
-                throw e;
-            }
+            semaphore.acquireUninterruptibly();
+            session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
         } catch (NullPointerException e) {
             patchGlassFish(e);
+        } finally {
+            semaphore.release();
         }
         return this;
     }
@@ -83,10 +80,8 @@ public class JSR356WebSocket extends WebSocket {
                     new WriteResult(resource(), b.array()));
         } catch (NullPointerException e) {
             patchGlassFish(e);
+        } finally {
             semaphore.release();
-        } catch (IllegalStateException e) {
-            semaphore.release();
-            throw e;
         }
         return this;
     }
