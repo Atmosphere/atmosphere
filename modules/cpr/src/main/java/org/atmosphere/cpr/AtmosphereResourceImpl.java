@@ -152,6 +152,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         if (s == null) return UNDEFINED;
 
+        if (s.equals(UNDEFINED.name()) && Utils.properProtocol(req)) {
+            return TRANSPORT.WEBSOCKET;
+        }
+
         s = s.replace("-", "_").toUpperCase();
         if (TRANSPORT.POLLING.name().equals(s)) {
             return TRANSPORT.POLLING;
