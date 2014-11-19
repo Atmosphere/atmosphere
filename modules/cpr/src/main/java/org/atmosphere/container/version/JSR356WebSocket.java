@@ -47,10 +47,7 @@ public class JSR356WebSocket extends WebSocket {
         super(config);
         this.session = session;
         // https://issues.apache.org/bugzilla/show_bug.cgi?id=56026
-        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
-        if (s != null) {
-            session.getAsyncRemote().setSendTimeout(Integer.valueOf(s));
-        }
+        session.getAsyncRemote().setSendTimeout(config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME, 10 * 1000));
     }
 
     @Override
