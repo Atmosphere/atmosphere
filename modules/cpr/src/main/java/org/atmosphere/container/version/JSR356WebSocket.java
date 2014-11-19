@@ -65,8 +65,10 @@ public class JSR356WebSocket extends WebSocket {
             session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
         } catch (NullPointerException e) {
             patchGlassFish(e);
-        } finally {
             semaphore.release();
+        } catch (RuntimeException e){
+            semaphore.release();
+            throw e;
         }
         return this;
     }
@@ -80,8 +82,10 @@ public class JSR356WebSocket extends WebSocket {
                     new WriteResult(resource(), b.array()));
         } catch (NullPointerException e) {
             patchGlassFish(e);
-        } finally {
             semaphore.release();
+        } catch (RuntimeException e){
+            semaphore.release();
+            throw e;
         }
         return this;
     }
