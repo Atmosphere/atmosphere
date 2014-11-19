@@ -264,6 +264,20 @@ public class AtmosphereConfig {
         return s;
     }
 
+    /**
+     * Return an init-param, or its default value.
+     * @param key
+     * @param defaultValue
+     * @return
+     */
+    public int getInitParameter(String key, int defaultValue) {
+        String s = getInitParameter(key);
+        if (s == null) {
+            return defaultValue;
+        }
+        return Integer.valueOf(s);
+    }
+
     public boolean getInitParameter(String key, boolean defaultValue) {
         String s = getInitParameter(key);
         if (s == null) {
