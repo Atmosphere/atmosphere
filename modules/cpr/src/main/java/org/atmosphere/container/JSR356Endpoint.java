@@ -105,6 +105,11 @@ public class JSR356Endpoint extends Endpoint {
             return;
         }
 
+        if (!session.isOpen()) {
+            logger.trace("Session Closed {}", session);
+            return;
+        }
+
         if (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
         if (webSocketWriteTimeout != -1) session.setMaxIdleTimeout(webSocketWriteTimeout);
         if (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
@@ -187,7 +192,6 @@ public class JSR356Endpoint extends Endpoint {
                     .build()
                     .queryString(session.getQueryString());
 
-
             // TODO: Fix this crazy code.
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "false");
 
@@ -195,28 +199,38 @@ public class JSR356Endpoint extends Endpoint {
 
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 
-            session.addMessageHandler(new MessageHandler.Whole<String>() {
-                @Override
-                public void onMessage(String s) {
-                    webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
-                }
-            });
+            if (session.isOpen()) {
+                session.addMessageHandler(new MessageHandler.Whole<String>() {
+                    @Override
+                    public void onMessage(String s) {
+                        webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
+                    }
+                });
 
-            session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
-                @Override
-                public void onMessage(ByteBuffer bb) {
-                    byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
-                    bb.get(b);
-                    webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
-                }
-            });
+                session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
+                    @Override
+                    public void onMessage(ByteBuffer bb) {
+                        byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+                        bb.get(b);
+                        webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
+                    }
+                });
+            } else {
+                logger.trace("Session closed during onOpen {}", session);
+                onClose(session, new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Session closed already"));
+            }
         } catch (Throwable e) {
+            if (session.isOpen()){
+                logger.error("", e);
+            } else {
+                logger.trace("Session closed during onOpen", e);
+            }
+
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
             } catch (IOException e1) {
                 logger.trace("", e);
             }
-            logger.error("", e);
             return;
         }
 
