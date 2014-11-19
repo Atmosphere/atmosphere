@@ -199,6 +199,14 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_IDLETIME = "org.atmosphere.websocket.maxIdleTime";
     /**
+     * Timeout of JSR356 write operation.
+     * See {@link javax.websocket.RemoteEndpoint.Async#setSendTimeout(long)}
+     * <p/>
+     * Default: 1 minute<br>
+     * Value: org.atmosphere.websocket.writeTimeout
+     */
+    String WEBSOCKET_WRITE_TIMEOUT = "org.atmosphere.websocket.writeTimeout";
+    /**
      * Tell Atmosphere the WebSocket write buffer size.
      * <p/>
      * Default: 8192<br>
