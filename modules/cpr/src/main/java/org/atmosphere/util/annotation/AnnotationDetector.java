@@ -188,7 +188,7 @@ public final class AnnotationDetector {
 
     // Only used during development. If set to "true" debug messages are displayed.
     private static final boolean DEBUG = false;
-    private final Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
+    private final static Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
 
     // Constant Pool type tags
     private static final int CP_UTF8 = 1;
@@ -795,7 +795,7 @@ public final class AnnotationDetector {
                 }
                 logMessage = String.format(message, args);
             }
-            System.out.println(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
+            logger.debug(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
         }
     }
 
