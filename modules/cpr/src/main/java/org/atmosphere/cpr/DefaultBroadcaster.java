@@ -471,7 +471,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             return;
                         } else {
                             logger.warn("This message {} will be lost", msg);
-                            logger.debug("Failed to submit broadcast handler runnable to for Broadcaster {}", getID(), ex);
+                            logger.warn("Failed to submit broadcast handler runnable to for Broadcaster" + getID(), ex);
                         }
                     } finally {
                         if (outOfOrderBroadcastSupported.get()) {
@@ -527,7 +527,7 @@ public class DefaultBroadcaster implements Broadcaster {
                                                 token.originalMessage, token.resource != null ? token.resource.uuid() : "null");
                                         cacheLostMessage(token.resource, token, true);
                                     }
-                                    logger.debug("Failed to execute a write operation for Broadcaster {}", getID(), ex);
+                                    logger.warn("Failed to execute a write operation for Broadcaster " + getID(), ex);
                                 }
                             } finally {
                                 if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
@@ -1095,9 +1095,9 @@ public class DefaultBroadcaster implements Broadcaster {
     public void onException(Throwable t, final AtmosphereResource ar, boolean notifyAndCache) {
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
-        logger.trace("Unexpected exception for AtmosphereResource {} and Broadcaster {}", ar.uuid(), getID());
-        logger.trace("NotifyAndCache {} ", notifyAndCache);
-        logger.trace("{}", t);
+        logger.warn("Unexpected exception for AtmosphereResource {} and Broadcaster {}", ar.uuid(), getID());
+        logger.warn("{}", t);
+        logger.trace("NotifyAndCache {} " , notifyAndCache);
 
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
