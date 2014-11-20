@@ -31,12 +31,14 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
@@ -109,7 +111,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 }
                 req.setAttribute(SUSPENDED, true);
             } else {
-                bz51881(event);
+                bz51881(event, false);
             }
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
@@ -120,12 +122,12 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 action = cancelled(req, res);
             }
 
-            bz51881(event);
+            bz51881(event, false);
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
             action = timedout(req, res);
-            bz51881(event);
+            bz51881(event, false);
         } else if (event.getEventType() == EventType.ERROR) {
-            bz51881(event);
+            bz51881(event, false);
         } else if (event.getEventType() == EventType.END) {
             if (req.resource() != null && req.resource().isResumed()) {
                 AtmosphereResourceImpl.class.cast(req.resource()).cancel();
@@ -133,13 +135,13 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                bz51881(event);
+                bz51881(event, false);
             }
         }
         return action;
     }
 
-    private void bz51881(CometEvent event) throws IOException {
+    private void bz51881(final CometEvent event, boolean delay) throws IOException {
         try {
             String[] tomcatVersion = config.getServletContext().getServerInfo().substring(14).split("\\.");
             String minorVersion = tomcatVersion[2];
@@ -167,11 +169,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                 } catch (Throwable t) {
                     logger.trace("Was unable to recycle internal Tomcat object");
                 } finally {
-                    try {
-                        event.close();
-                    } catch (IllegalStateException e) {
-                        logger.trace("", e);
-                    }
+                    close(event);
                 }
 
                 try {
@@ -184,19 +182,30 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
                     logger.trace("Was unable to recycle internal Tomcat object");
                 }
             } else {
-                try {
-                    event.close();
-                } catch (IllegalStateException ex) {
-                    logger.trace("event.close", ex);
+                // Prevent Deadlock
+                // https://github.com/Atmosphere/atmosphere/issues/1782
+                if (delay) {
+                    ExecutorsFactory.getScheduler(config).schedule(new Runnable() {
+                        @Override
+                        public void run() {
+                            close(event);
+                        }
+                    }, 500, TimeUnit.MILLISECONDS);
+                } else {
+                    close(event);
                 }
             }
         } catch (NumberFormatException ex) {
             logger.trace("This is a mofified version of Tomcat {}", config.getServletContext().getServerInfo().substring(14).split("\\."));
-            try {
-                event.close();
-            } catch (IllegalStateException e) {
-                logger.trace("event.close", e);
-            }
+            close(event);
+        }
+    }
+
+    private void close(CometEvent event) {
+        try {
+            event.close();
+        } catch (Exception ex) {
+            logger.trace("event.close", ex);
         }
     }
 
@@ -204,7 +213,10 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
         if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
-            complete(r);
+            CometEvent event = (CometEvent) r.getRequest(false).getAttribute(COMET_EVENT);
+            if (event != null && !r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
+                close(event);
+            }
         }
     }
 
@@ -216,7 +228,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
 
             // Resume without closing the underlying suspended connection.
             if (!r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
-                bz51881(event);
+                bz51881(event, !r.isResumed());
             }
         } catch (IOException ex) {
             logger.debug("action failed", ex);
@@ -231,7 +243,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
         if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
-            bz51881(event);
+            bz51881(event, false);
         }
         return action;
     }
