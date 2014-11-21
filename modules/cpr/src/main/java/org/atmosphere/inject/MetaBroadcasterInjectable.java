@@ -16,6 +16,7 @@
 package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.DefaultMetaBroadcaster;
 import org.atmosphere.cpr.MetaBroadcaster;
 
 import java.lang.reflect.Type;
@@ -24,7 +25,7 @@ import java.lang.reflect.Type;
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && MetaBroadcaster.class.isAssignableFrom((Class) t);
+        return (t instanceof Class) && DefaultMetaBroadcaster.class.isAssignableFrom((Class) t);
     }
 
     @Override

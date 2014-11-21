@@ -168,7 +168,7 @@ public class AtmosphereResourceStateRecoveryTest {
 
 
         r.suspend();
-        MetaBroadcaster.getDefault().broadcastTo("/1", "Initialize Cache").get();
+        config.metaBroadcaster().broadcastTo("/1", "Initialize Cache").get();
         r.close();
 
         AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");

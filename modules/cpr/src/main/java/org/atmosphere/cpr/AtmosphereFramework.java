@@ -873,6 +873,7 @@ public class AtmosphereFramework {
             configureAnnotationPackages();
 
             configureBroadcasterFactory();
+            configureMetaBroadcaster();
             configureScanningPackage(scFacade, ApplicationConfig.ANNOTATION_PACKAGE);
             configureScanningPackage(scFacade, FrameworkConfig.JERSEY2_SCANNING_PACKAGE);
             configureScanningPackage(scFacade, FrameworkConfig.JERSEY_SCANNING_PACKAGE);
@@ -885,7 +886,6 @@ public class AtmosphereFramework {
 
             // Reconfigure in case an annotation changed the default.
             configureBroadcasterFactory();
-            configureMetaBroadcaster();
             patchContainer();
             configureBroadcaster();
             loadConfiguration(scFacade);
@@ -3011,14 +3011,17 @@ public class AtmosphereFramework {
     }
 
     public MetaBroadcaster metaBroadcaster() {
-        if (metaBroadcaster == null) {
-            metaBroadcaster = new MetaBroadcaster(config);
-        }
         return metaBroadcaster;
     }
 
     private AtmosphereFramework configureMetaBroadcaster() {
-        if (metaBroadcaster == null) {
+        try {
+            metaBroadcaster = newClassInstance(MetaBroadcaster.class, DefaultMetaBroadcaster.class);
+            metaBroadcaster.configure(config);
+        } catch (InstantiationException e) {
+            logger.error("", e);
+        } catch (IllegalAccessException e) {
+            logger.error("", e);
         }
         return this;
     }
@@ -3082,7 +3085,13 @@ public class AtmosphereFramework {
      */
     public synchronized AtmosphereResourceSessionFactory sessionFactory() {
         if (sessionFactory == null) {
-            sessionFactory = new DefaultAtmosphereResourceSessionFactory();
+            try {
+                sessionFactory = newClassInstance(AtmosphereResourceSessionFactory.class, DefaultAtmosphereResourceSessionFactory.class);
+            } catch (InstantiationException e) {
+                logger.error("", e);
+            } catch (IllegalAccessException e) {
+                logger.error("", e);
+            }
         }
         return sessionFactory;
     }

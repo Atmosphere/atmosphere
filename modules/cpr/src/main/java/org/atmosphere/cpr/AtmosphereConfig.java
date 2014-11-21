@@ -301,7 +301,7 @@ public class AtmosphereConfig {
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.MetaBroadcaster}
+     * Return the {@link DefaultMetaBroadcaster}
      * @return the MetaBroadcaster
      */
     public MetaBroadcaster metaBroadcaster(){

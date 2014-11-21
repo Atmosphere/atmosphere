@@ -21,7 +21,7 @@ import java.util.concurrent.ConcurrentMap;
 /**
  * @author uklance (https://github.com/uklance)
  */
-public class DefaultAtmosphereResourceSessionFactory extends AtmosphereResourceSessionFactory {
+public class DefaultAtmosphereResourceSessionFactory implements AtmosphereResourceSessionFactory {
     private final ConcurrentMap<String, AtmosphereResourceSession> sessions = new ConcurrentHashMap<String, AtmosphereResourceSession>();
 
     private final AtmosphereResourceEventListener disconnectListener = new AtmosphereResourceEventListenerAdapter() {
@@ -52,6 +52,11 @@ public class DefaultAtmosphereResourceSessionFactory extends AtmosphereResourceS
             }
         }
         return session;
+    }
+
+    @Override
+    public AtmosphereResourceSession getSession(AtmosphereResource resource) {
+        return getSession(resource, true);
     }
 
     @Override

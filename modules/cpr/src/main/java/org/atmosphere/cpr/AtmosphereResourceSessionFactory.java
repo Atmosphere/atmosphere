@@ -20,7 +20,7 @@ package org.atmosphere.cpr;
  *
  * @author uklance (https://github.com/uklance)
  */
-public abstract class AtmosphereResourceSessionFactory {
+public interface AtmosphereResourceSessionFactory {
 
     /**
      * Returns the current session associated with the
@@ -36,7 +36,7 @@ public abstract class AtmosphereResourceSessionFactory {
      * @return the session associated with this request or null if create is
      * false and the resource has no valid session
      */
-    public abstract AtmosphereResourceSession getSession(AtmosphereResource resource, boolean create);
+    AtmosphereResourceSession getSession(AtmosphereResource resource, boolean create);
 
     /**
      * Returns the current session associated with the
@@ -47,9 +47,7 @@ public abstract class AtmosphereResourceSessionFactory {
      * {@link AtmosphereResource}, or creates one if it does not yet
      * exist.
      */
-    public AtmosphereResourceSession getSession(AtmosphereResource resource) {
-        return getSession(resource, true);
-    }
+    AtmosphereResourceSession getSession(AtmosphereResource resource);
 
-    public abstract void destroy();
+    void destroy();
 }

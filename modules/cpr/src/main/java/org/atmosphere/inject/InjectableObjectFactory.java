@@ -30,7 +30,7 @@ import java.util.List;
 /**
  * Support injection of Atmosphere's Internal object using {@link }
  * {@link org.atmosphere.cpr.AtmosphereConfig},{@link AtmosphereFramework,{@link AtmosphereFramework,{@link org.atmosphere.cpr.BroadcasterFactory,
- * {@link org.atmosphere.cpr.AtmosphereResourceFactory} ,{@link org.atmosphere.cpr.MetaBroadcaster } and
+ * {@link org.atmosphere.cpr.AtmosphereResourceFactory} ,{@link org.atmosphere.cpr.DefaultMetaBroadcaster } and
  * {@link org.atmosphere.cpr.AtmosphereResourceSessionFactory }
  *
  * @author Jeanfrancois Arcand

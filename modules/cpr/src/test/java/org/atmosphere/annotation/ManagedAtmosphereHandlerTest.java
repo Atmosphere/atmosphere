@@ -37,7 +37,7 @@ import org.atmosphere.cpr.AtmosphereResourceSessionFactory;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.cpr.MetaBroadcaster;
+import org.atmosphere.cpr.DefaultMetaBroadcaster;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.ExcludeSessionBroadcaster;
@@ -517,7 +517,7 @@ public class ManagedAtmosphereHandlerTest {
         @Inject
         private BroadcasterFactory bFactory;
         @Inject
-        private MetaBroadcaster m;
+        private DefaultMetaBroadcaster m;
         @Inject
         private AtmosphereResourceSessionFactory sessionFactory;
 
