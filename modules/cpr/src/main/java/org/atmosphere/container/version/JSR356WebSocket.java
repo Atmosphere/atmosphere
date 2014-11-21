@@ -32,6 +32,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Asynchronous based {@link Session} websocket
@@ -44,6 +45,7 @@ public class JSR356WebSocket extends WebSocket {
     private final Session session;
     private final Semaphore semaphore = new Semaphore(1, true);// https://issues.apache.org/bugzilla/show_bug.cgi?id=56026
     private final int writeTimeout;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public JSR356WebSocket(Session session, AtmosphereConfig config) {
         super(config);
@@ -122,7 +124,7 @@ public class JSR356WebSocket extends WebSocket {
     @Override
     public void close() {
 
-        if (!session.isOpen()) return;
+        if (!session.isOpen() || closed.getAndSet(true)) return;
 
         logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {
