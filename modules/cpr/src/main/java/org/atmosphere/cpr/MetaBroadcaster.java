@@ -15,15 +15,38 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.inject.Configurable;
+
 import java.util.List;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 /**
+ * Broadcast events to all or a subset of available {@link Broadcaster}s based on their {@link org.atmosphere.cpr.Broadcaster#getID()} value.
+ * This class allows broadcasting events to a set of broadcasters that maps to some String like:
+ * <blockquote><pre>
+ *        // Broadcast the event to all Broadcaster ID starting with /hello
+ *        broadcast("/hello", event)
+ *        // Broadcast the event to all Broadcaster ID
+ *        broaccast("/*", event);
+ * </pre></blockquote>
+ * The rule used is similar to path/URI mapping used by technology like Servlet, Jersey, etc.
+ * <p/>
+ * NOTE: Broadcasters' name must start with / in order to get retrieved by this class.
+ * <p/>
+ * This class is NOT thread safe.
+ * <p/>
+ * If you want to use MetaBroadcaster with Jersey or any framework, make sure all {@link org.atmosphere.cpr.Broadcaster#getID()}
+ * starts with '/'. For example, with Jersey:
+ * <blockquote><pre>
+ *
  * @author Jeanfrancois Arcand
+ * @Path(RestConstants.STREAMING + "/workspace{wid:/[0-9A-Z]+}")
+ * public class JerseyPubSub {
+ * @PathParam("wid") private Broadcaster topic;
+ * </pre></blockquote>
  */
-public interface MetaBroadcaster {
-    void configure(AtmosphereConfig config);
+public interface MetaBroadcaster extends Configurable {
 
     Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message);
 

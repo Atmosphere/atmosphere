@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.inject.Configurable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -36,7 +37,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
  *
  * @author Jeanfrancois Arcand
  */
-public final class AtmosphereResourceFactory {
+public final class AtmosphereResourceFactory implements Configurable {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceFactory.class);
     private final static Broadcaster noOps = (Broadcaster)

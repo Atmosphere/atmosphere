@@ -15,8 +15,8 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.inject.Configurable;
 
 import java.util.Map;
 
@@ -27,9 +27,7 @@ import java.util.Map;
  * @param <U>
  * @Jeanfrancois Arcand
  */
-public interface EndpointMapper<U> {
-
-    public void configure(AtmosphereConfig config);
+public interface EndpointMapper<U> extends Configurable {
 
     /**
      * Mape the request to its associated endpoint.

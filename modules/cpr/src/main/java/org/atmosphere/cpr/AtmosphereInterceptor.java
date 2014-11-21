@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.inject.Configurable;
+
 /**
  * Intercept the dispatch of {@link AtmosphereResource} before they get dispatched to {@link AtmosphereHandler}s.
  * An implementation of this class can intercept the dispatch and modify the AtmosphereResource and its
@@ -24,14 +26,7 @@ package org.atmosphere.cpr;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereInterceptor {
-
-    /**
-     * Allow this object to configure its state when initialized.
-     *
-     * @param config an {@link AtmosphereConfig}
-     */
-    void configure(AtmosphereConfig config);
+public interface AtmosphereInterceptor extends Configurable {
 
     /**
      * Invoked before an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}.
