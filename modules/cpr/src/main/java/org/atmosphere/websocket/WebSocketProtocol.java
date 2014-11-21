@@ -16,7 +16,7 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.inject.Configurable;
+import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.List;
 
@@ -26,7 +26,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocketProtocol extends Configurable {
+public interface WebSocketProtocol extends AtmosphereConfigAware {
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} or

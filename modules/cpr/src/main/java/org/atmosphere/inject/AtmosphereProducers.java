@@ -29,7 +29,7 @@ import javax.enterprise.inject.Produces;
  * Atmosphere Internal Object Injection for DI supporting JSR 330
  */
 @ApplicationScoped
-public class AtmosphereProducers implements Configurable {
+public class AtmosphereProducers implements AtmosphereConfigAware {
 
     private AtmosphereConfig config;
 

@@ -20,7 +20,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 /**
  * @author Jeanfrancois Arcand
  */
-public interface Configurable {
+public interface AtmosphereConfigAware {
     /**
      * Configure an AtmosphereFramework object.
      * @param config {@link org.atmosphere.cpr.AtmosphereConfig}

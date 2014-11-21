@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.inject.Configurable;
+import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.List;
 import java.util.concurrent.Future;
@@ -46,7 +46,7 @@ import java.util.concurrent.TimeUnit;
  * @PathParam("wid") private Broadcaster topic;
  * </pre></blockquote>
  */
-public interface MetaBroadcaster extends Configurable {
+public interface MetaBroadcaster extends AtmosphereConfigAware {
 
     Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message);
 

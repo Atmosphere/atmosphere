@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.inject.Configurable;
+import org.atmosphere.inject.AtmosphereConfigAware;
 
 /**
  * Intercept the dispatch of {@link AtmosphereResource} before they get dispatched to {@link AtmosphereHandler}s.
@@ -26,7 +26,7 @@ import org.atmosphere.inject.Configurable;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereInterceptor extends Configurable {
+public interface AtmosphereInterceptor extends AtmosphereConfigAware {
 
     /**
      * Invoked before an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}.
