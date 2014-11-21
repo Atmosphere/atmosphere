@@ -48,17 +48,28 @@ public class DefaultBroadcasterFactory extends BroadcasterFactory {
 
     private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
 
-    private final Class<? extends Broadcaster> clazz;
+    private Class<? extends Broadcaster> clazz;
 
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
     protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
     protected int defaultPolicyInteger = -1;
     private final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
+    private AtmosphereConfig config;
 
+    public DefaultBroadcasterFactory(){
+    }
+
+    @Deprecated
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
         this.factory = this;
+        config = c;
+        configure(broadcasterLifeCyclePolicy);
+    }
+
+    public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+        this.clazz = clazz;
         config = c;
         configure(broadcasterLifeCyclePolicy);
     }

@@ -31,6 +31,14 @@ public abstract class BroadcasterFactory {
     protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
 
     /**
+     * Configure the factory
+     * @param clazz {@link org.atmosphere.cpr.Broadcaster}
+     * @param broadcasterLifeCyclePolicy {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
+     * @param c {@link org.atmosphere.cpr.AtmosphereConfig}
+     */
+    abstract public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c);
+
+    /**
      * Return an instance of the default {@link Broadcaster}.
      * <p/>
      * The name of the Broadcaster will be randomly generated.
@@ -161,6 +169,7 @@ public abstract class BroadcasterFactory {
         return this;
     }
 
+    @Deprecated
     static void setBroadcasterFactory(BroadcasterFactory f, AtmosphereConfig c) {
         factory = f;
         config = c;
