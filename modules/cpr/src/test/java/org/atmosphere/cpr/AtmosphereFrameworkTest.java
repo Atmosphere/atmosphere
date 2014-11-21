@@ -94,6 +94,10 @@ public class AtmosphereFrameworkTest {
     public final static class MyBroadcasterFactory implements BroadcasterFactory {
 
         @Override
+        public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+        }
+
+        @Override
         public Broadcaster get() {
             return null;
         }

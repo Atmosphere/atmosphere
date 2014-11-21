@@ -1233,7 +1233,8 @@ public class AtmosphereFramework {
             if (broadcasterFactory == null) {
                 Class<? extends Broadcaster> bc =
                         (Class<? extends Broadcaster>) IOUtils.loadClass(getClass(), broadcasterClassName);
-                broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+                broadcasterFactory = newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class);
+                broadcasterFactory.configure(bc, broadcasterLifeCyclePolicy, config);
             }
 
             for (BroadcasterListener b : broadcasterListeners) {
@@ -1492,7 +1493,8 @@ public class AtmosphereFramework {
 
         broadcasterFactory.destroy();
 
-        broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+        broadcasterFactory = newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class);
+        broadcasterFactory.configure(bc, broadcasterLifeCyclePolicy, config);
         for (BroadcasterListener b : broadcasterListeners) {
             broadcasterFactory.addBroadcasterListener(b);
         }
@@ -1778,7 +1780,8 @@ public class AtmosphereFramework {
                         broadcasterClassName = broadcasterClass;
                         ClassLoader cl = Thread.currentThread().getContextClassLoader();
                         Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterClassName);
-                        broadcasterFactory = new DefaultBroadcasterFactory(bc, broadcasterLifeCyclePolicy, config);
+                        broadcasterFactory = newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class);
+                        broadcasterFactory.configure(bc, broadcasterLifeCyclePolicy, config);
                     }
 
                     b = broadcasterFactory.lookup(atmoHandler.getContextRoot(), true);

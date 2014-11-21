@@ -17,7 +17,6 @@
 package org.atmosphere.cpr;
 
 import java.util.Collection;
-import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
  * Factory for {@link Broadcaster} used by Atmosphere when creating broadcasters.
@@ -25,6 +24,14 @@ import java.util.concurrent.ConcurrentLinkedQueue;
  * @author Jeanfrancois Arcand
  */
 public interface BroadcasterFactory {
+
+    /**
+     * Configure the factory
+     * @param clazz {@link org.atmosphere.cpr.Broadcaster}
+     * @param broadcasterLifeCyclePolicy {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
+     * @param c {@link org.atmosphere.cpr.AtmosphereConfig}
+     */
+    public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c);
 
     /**
      * Return an instance of the default {@link Broadcaster}.

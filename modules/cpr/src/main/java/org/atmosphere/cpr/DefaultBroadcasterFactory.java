@@ -20,8 +20,6 @@ import org.atmosphere.lifecycle.BroadcasterLifecyclePolicyHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.enterprise.inject.Default;
-import javax.enterprise.inject.Produces;
 import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
@@ -52,7 +50,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
 
-    private final Class<? extends Broadcaster> clazz;
+    private Class<? extends Broadcaster> clazz;
 
     private BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
@@ -61,9 +59,19 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     private final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
     private final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
-    private final AtmosphereConfig config;
+    private AtmosphereConfig config;
 
+    public DefaultBroadcasterFactory(){
+    }
+
+    @Deprecated
     protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+        this.clazz = clazz;
+        config = c;
+        configure(broadcasterLifeCyclePolicy);
+    }
+
+    public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
         config = c;
         configure(broadcasterLifeCyclePolicy);
