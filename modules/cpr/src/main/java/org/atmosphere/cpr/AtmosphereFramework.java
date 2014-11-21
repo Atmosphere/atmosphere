@@ -2996,7 +2996,14 @@ public class AtmosphereFramework {
     }
 
     private AtmosphereFramework configureAtmosphereResourceFactory() {
-        arFactory = new AtmosphereResourceFactory(broadcasterFactory);
+        try {
+            arFactory = newClassInstance(AtmosphereResourceFactory.class, AtmosphereResourceFactory.class);
+        } catch (InstantiationException e) {
+            logger.error("", e);
+        } catch (IllegalAccessException e) {
+            logger.error("", e);
+        }
+        arFactory.configure(config);
         return this;
     }
 

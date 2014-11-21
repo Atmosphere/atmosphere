@@ -16,7 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -66,10 +65,13 @@ public final class AtmosphereResourceFactory {
         public void destroy() {
         }
     };
-    private final BroadcasterFactory broadcasterFactory;
+    private BroadcasterFactory broadcasterFactory;
 
-    public AtmosphereResourceFactory(BroadcasterFactory broadcasterFactory){
-        this.broadcasterFactory = broadcasterFactory;
+    public AtmosphereResourceFactory(){
+    }
+
+    public void configure(AtmosphereConfig config) {
+        this.broadcasterFactory = config.getBroadcasterFactory();
     }
 
     private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<String, AtmosphereResource>();
@@ -324,4 +326,5 @@ public final class AtmosphereResourceFactory {
             r.setSerializer(serializer);
         }
     }
+
 }
