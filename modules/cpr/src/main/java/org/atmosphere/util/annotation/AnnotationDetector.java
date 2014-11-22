@@ -50,6 +50,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -317,7 +318,15 @@ public final class AnnotationDetector {
                                 if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
                             } else {
                                 try {
-                                    List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
+                                    // VirtualFile#getChildren(java.lang.String) may return an object which refers a .jar managed by the deployer
+                                    // The problem is that this .jar file does not contains .class in sub-directories
+                                    // Ex: if your original file contains /foo/bar/Baz.class and /foo/Bar.class, VFS returns a .jar file with:
+                                    // - /foo
+                                    // - /foo/Bar.class
+                                    // - /foo/bar
+                                    // ==> /foo/bar/Baz.class is missing!
+                                    // Resolving child directories recursively solves the issue
+                                    List<org.jboss.vfs.VirtualFile> vfs = getVfsChildren(org.jboss.vfs.VFS.getChild(dir.getPath()));
                                     for (org.jboss.vfs.VirtualFile f : vfs) {
                                         files.add(f.getPhysicalFile());
                                     }
@@ -381,6 +390,28 @@ public final class AnnotationDetector {
         } else if (!streams.isEmpty()) {
             detect(new ClassFileIterator(streams.toArray(new InputStream[streams.size()]), pkgNameFilter));
         }
+    }
+
+    /**
+     * <p>
+     * This method recursively retrieves VFS files when a directory is detected.
+     * </p>
+     *
+     * @param vfs the root
+     * @return all children files
+     */
+    private List<org.jboss.vfs.VirtualFile> getVfsChildren(final org.jboss.vfs.VirtualFile vfs) {
+        final List<org.jboss.vfs.VirtualFile> retval = new ArrayList<org.jboss.vfs.VirtualFile>();
+
+        for (org.jboss.vfs.VirtualFile f : vfs.getChildren()) {
+            if (f.isDirectory()) {
+                retval.addAll(getVfsChildren(org.jboss.vfs.VFS.getChild(vfs.getPathName() + File.separator + f.getName())));
+            } else {
+                retval.add(f);
+            }
+        }
+
+        return retval;
     }
 
     private boolean isRunningJavaWebStart() {
