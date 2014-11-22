@@ -187,8 +187,6 @@ public final class AnnotationDetector {
 
     }
 
-    // Only used during development. If set to "true" debug messages are displayed.
-    private static final boolean DEBUG = false;
     private final static Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
 
     // Constant Pool type tags
@@ -305,7 +303,7 @@ public final class AnnotationDetector {
                     final File dir = toFile(url);
                     if (dir.isDirectory()) {
                         files.add(dir);
-                        if (DEBUG) print("Add directory: '%s'", dir);
+                        print("Add directory: '%s'", dir);
                     } else if (isVfs) {
                         //Jar file via JBoss VFS protocol - strip package name
                         String jarPath = dir.getPath();
@@ -315,7 +313,7 @@ public final class AnnotationDetector {
                             final File jarFile = new File(jarPath);
                             if (jarFile.isFile() && jarFile.exists()) {
                                 files.add(jarFile);
-                                if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
+                                print("Add jar file from VFS: '%s'", jarFile);
                             } else {
                                 try {
                                     // VirtualFile#getChildren(java.lang.String) may return an object which refers a .jar managed by the deployer
@@ -369,7 +367,7 @@ public final class AnnotationDetector {
                     try {
                         if (jarFile.isFile()) {
                             files.add(jarFile);
-                            if (DEBUG) print("Add jar file: '%s'", jarFile);
+                            print("Add jar file: '%s'", jarFile);
                         } else {
                             final URLConnection urlConnection = url.openConnection();
                             if (urlConnection instanceof JarURLConnection) {
@@ -482,9 +480,7 @@ public final class AnnotationDetector {
      * {@code CAFEBABE} are silently ignored.
      */
     public void detect(final File... filesOrDirectories) throws IOException {
-        if (DEBUG) {
-            print("detectFilesOrDirectories: %s", (Object) filesOrDirectories);
-        }
+        print("detectFilesOrDirectories: %s", (Object) filesOrDirectories);
         detect(new ClassFileIterator(filesOrDirectories, null));
     }
 
@@ -549,7 +545,7 @@ public final class AnnotationDetector {
 
     private void readVersion(final DataInput di) throws IOException {
         // sequence: minor version, major version (argument_index is 1-based)
-        if (DEBUG) {
+        if (logger.isDebugEnabled()) {
             print("Java Class version %2$d.%1$d",
                     di.readUnsignedShort(), di.readUnsignedShort());
         } else {
@@ -623,9 +619,7 @@ public final class AnnotationDetector {
 
     private void readThisClass(final DataInput di) throws IOException {
         typeName = resolveUtf8(di);
-        if (DEBUG) {
-            print("read type '%s'", typeName);
-        }
+        print("read type '%s'", typeName);
     }
 
     private void readSuperClass(final DataInput di) throws IOException {
@@ -639,23 +633,19 @@ public final class AnnotationDetector {
 
     private void readFields(final DataInput di) throws IOException {
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("field count = %d", count);
-        }
+        print("field count = %d", count);
         for (int i = 0; i < count; ++i) {
             readAccessFlags(di);
             memberName = resolveUtf8(di);
             final String descriptor = resolveUtf8(di);
             readAttributes(di, 'F', fieldReporter == null);
-            if (DEBUG) {
-                print("Field: %s, descriptor: %s", memberName, descriptor);
-            }
+            print("Field: %s, descriptor: %s", memberName, descriptor);
         }
     }
 
     private void readMethods(final DataInput di) throws IOException {
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
+        {
             print("method count = %d", count);
         }
         for (int i = 0; i < count; ++i) {
@@ -663,9 +653,7 @@ public final class AnnotationDetector {
             memberName = resolveUtf8(di);
             final String descriptor = resolveUtf8(di);
             readAttributes(di, 'M', methodReporter == null);
-            if (DEBUG) {
-                print("Method: %s, descriptor: %s", memberName, descriptor);
-            }
+            print("Method: %s, descriptor: %s", memberName, descriptor);
         }
     }
 
@@ -673,9 +661,7 @@ public final class AnnotationDetector {
                                 final boolean skipReporting) throws IOException {
 
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("attribute count (%s) = %d", reporterType, count);
-        }
+        print("attribute count (%s) = %d", reporterType, count);
         for (int i = 0; i < count; ++i) {
             final String name = resolveUtf8(di);
             // in bytes, use this to skip the attribute info block
@@ -685,9 +671,7 @@ public final class AnnotationDetector {
                             "RuntimeInvisibleAnnotations".equals(name))) {
                 readAnnotations(di, reporterType);
             } else {
-                if (DEBUG) {
-                    print("skip attribute %s", name);
-                }
+                print("skip attribute %s", name);
                 di.skipBytes(length);
             }
         }
@@ -698,9 +682,7 @@ public final class AnnotationDetector {
 
         // the number of Runtime(In)VisibleAnnotations
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("annotation count (%s) = %d", reporterType, count);
-        }
+        print("annotation count (%s) = %d", reporterType, count);
         for (int i = 0; i < count; ++i) {
             final String rawTypeName = readAnnotation(di);
             final Class<? extends Annotation> type = annotations.get(rawTypeName);
@@ -728,11 +710,9 @@ public final class AnnotationDetector {
         final String rawTypeName = resolveUtf8(di);
         // num_element_value_pairs
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("annotation elements count: %d", count);
-        }
+        print("annotation elements count: %d", count);
         for (int i = 0; i < count; ++i) {
-            if (DEBUG) {
+            if (logger.isDebugEnabled()) {
                 print("element '%s'", resolveUtf8(di));
             } else {
                 di.skipBytes(2);
@@ -744,9 +724,7 @@ public final class AnnotationDetector {
 
     private void readAnnotationElementValue(final DataInput di) throws IOException {
         final int tag = di.readUnsignedByte();
-        if (DEBUG) {
-            print("tag='%c'", (char) tag);
-        }
+        print("tag='%c'", (char) tag);
         switch (tag) {
             case BYTE:
             case CHAR:
@@ -790,14 +768,10 @@ public final class AnnotationDetector {
         final String s;
         if (value instanceof Integer) {
             s = (String) constantPool[(Integer) value];
-            if (DEBUG) {
-                print("resolveUtf8(%d): %d --> %s", index, value, s);
-            }
+            print("resolveUtf8(%d): %d --> %s", index, value, s);
         } else {
             s = (String) value;
-            if (DEBUG) {
-                print("resolveUtf8(%d): %s", index, s);
-            }
+            print("resolveUtf8(%d): %s", index, s);
         }
 
         return s;
@@ -807,7 +781,7 @@ public final class AnnotationDetector {
      * Helper method for simple (debug) logging.
      */
     private static void print(final String message, final Object... args) {
-        if (DEBUG) {
+        if (logger.isDebugEnabled()) {
             final String logMessage;
             if (args.length == 0) {
                 logMessage = message;
