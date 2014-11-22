@@ -310,6 +310,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     @Override
     public void setHeader(String name, String value) {
+        //https://github.com/Atmosphere/atmosphere/issues/1783
+        if (value == null) value = "";
+
         headers.put(name, value);
 
         if (delegateToNativeResponse) {
@@ -323,6 +326,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     @Override
     public void addHeader(String name, String value) {
+        //https://github.com/Atmosphere/atmosphere/issues/1783
+        if (value == null) value = "";
+
         headers.put(name, value);
 
         if (delegateToNativeResponse) {
