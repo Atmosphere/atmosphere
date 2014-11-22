@@ -56,7 +56,7 @@ public class JSR356WebSocket extends WebSocket {
 
     @Override
     public boolean isOpen() {
-        return session.isOpen();
+        return session.isOpen() && !closed.get();
     }
 
     @Override
