@@ -586,7 +586,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     @Override
     public void close(final WebSocket webSocket, int closeCode) {
 
-        if (webSocket.isOpen()) {
+        if (!webSocket.isOpen()) {
             logger.trace("Already closed {}", webSocket);
             return;
         }
