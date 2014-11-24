@@ -87,7 +87,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      */
     @Override
     public final AtmosphereResource create(AtmosphereConfig config,
-                                           DefaultAtmosphereRequest request,
+                                           AtmosphereRequest request,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a) {
         AtmosphereResource r = null;
@@ -114,7 +114,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
     @Override
     public final AtmosphereResource create(AtmosphereConfig config,
                                            Broadcaster broadcaster,
-                                           DefaultAtmosphereRequest request,
+                                           AtmosphereRequest request,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a,
                                            AtmosphereHandler handler) {
@@ -135,7 +135,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
     @Override
     public final AtmosphereResource create(AtmosphereConfig config,
                                            Broadcaster broadcaster,
-                                           DefaultAtmosphereRequest request,
+                                           AtmosphereRequest request,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a,
                                            AtmosphereHandler handler,
@@ -220,7 +220,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
                 noOps,
-                DefaultAtmosphereRequest.newInstance(),
+                AtmosphereRequest.newInstance(),
                 response,
                 config.framework().getAsyncSupport(),
                 noOpsHandler);
@@ -231,11 +231,11 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      *
      * @param config an {@link AtmosphereConfig}
      * @param uuid   a String representing a UUID
-     * @param request a {@link DefaultAtmosphereRequest}
+     * @param request a {@link AtmosphereRequest}
      * @return
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config, String uuid, DefaultAtmosphereRequest request) {
+    public final AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request) {
         AtmosphereResponse response = AtmosphereResponse.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
