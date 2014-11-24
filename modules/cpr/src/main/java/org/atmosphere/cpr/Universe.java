@@ -60,9 +60,9 @@ public class Universe {
     }
 
     /**
-     * Set the must be unique {@link org.atmosphere.cpr.AtmosphereResourceFactory}
+     * Set the must be unique {@link AtmosphereResourceFactory}
      *
-     * @param a {@link org.atmosphere.cpr.AtmosphereResourceFactory}
+     * @param a {@link AtmosphereResourceFactory}
      */
     public static void resourceFactory(AtmosphereResourceFactory a) {
         if (resourceFactory != null) {
@@ -102,9 +102,9 @@ public class Universe {
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.AtmosphereResourceFactory}
+     * Return the {@link AtmosphereResourceFactory}
      *
-     * @return the {@link org.atmosphere.cpr.AtmosphereResourceFactory}
+     * @return the {@link AtmosphereResourceFactory}
      */
     public static AtmosphereResourceFactory resourceFactory() {
         return resourceFactory;

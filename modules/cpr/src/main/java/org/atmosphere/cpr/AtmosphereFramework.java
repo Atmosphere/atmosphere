@@ -3000,7 +3000,7 @@ public class AtmosphereFramework {
 
     private AtmosphereFramework configureAtmosphereResourceFactory() {
         try {
-            arFactory = newClassInstance(AtmosphereResourceFactory.class, AtmosphereResourceFactory.class);
+            arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
         } catch (InstantiationException e) {
             logger.error("", e);
         } catch (IllegalAccessException e) {
