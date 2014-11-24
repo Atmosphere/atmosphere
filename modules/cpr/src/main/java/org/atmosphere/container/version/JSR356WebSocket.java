@@ -65,7 +65,14 @@ public class JSR356WebSocket extends WebSocket {
         try {
             acquired = semaphore.tryAcquire(writeTimeout, TimeUnit.MILLISECONDS);
             if (acquired) {
-                session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
+
+                if (isOpen()) {
+                    session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
+                } else {
+                    logger.warn("WebSocket session {} is closed, message {} will not be send", session.getId(), s);
+                    semaphore.release();
+                }
+
             } else {
                 logger.warn("Timeout while waiting until socket is available, message {} will be lost", s);
             }
@@ -81,9 +88,16 @@ public class JSR356WebSocket extends WebSocket {
         try {
             acquired = semaphore.tryAcquire(writeTimeout, TimeUnit.MILLISECONDS);
             if (acquired) {
-                ByteBuffer b = ByteBuffer.wrap(data, offset, length);
-                session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
-                        new WriteResult(resource(), b.array()));
+
+                if (isOpen()) {
+                    ByteBuffer b = ByteBuffer.wrap(data, offset, length);
+                    session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
+                            new WriteResult(resource(), b.array()));
+                } else {
+                    logger.warn("WebSocket session {} is closed, message will not be send", session.getId());
+                    semaphore.release();
+                }
+
             } else {
                 logger.warn("Timeout while waiting until socket is available, message will be lost");
             }
