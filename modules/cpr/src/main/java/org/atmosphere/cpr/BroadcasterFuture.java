@@ -120,10 +120,13 @@ public class BroadcasterFuture<E> implements Future {
     public E get(long l, TimeUnit tu) throws InterruptedException, ExecutionException, TimeoutException {
 
         if (innerFuture != null) {
-            return (E) innerFuture.get();
+            return (E) innerFuture.get(l, tu);
         }
 
-        latch.await(l, tu);
+        boolean isSuccessful = latch.await(l, tu);
+        if (!isSuccessful) {
+            throw new TimeoutException();
+        }
         return msg;
     }
 }
