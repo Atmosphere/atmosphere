@@ -147,9 +147,14 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     return responseDraft;
                 }
 
+                AtmosphereResource r = response.resource();
+                if (r == null) {
+                    throw new IOException("Connection Closed by the Client " + response.uuid());
+                }
+
                 int size = cb.length();
                 // The String must have been escaped by the JSONPAtmosphereInterceptor
-                if (response.resource().transport().equals(AtmosphereResource.TRANSPORT.JSONP) && data.length != responseDraft.length) {
+                if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) && data.length != responseDraft.length) {
                     size = inCharset.newDecoder().decode(ByteBuffer.wrap(data, 0, data.length)).length();
                 }
 
