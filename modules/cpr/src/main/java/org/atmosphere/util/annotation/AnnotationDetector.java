@@ -778,7 +778,7 @@ public final class AnnotationDetector {
     }
 
     /**
-     * Helper method for simple (debug) logging.
+     * Helper method for simple (trace) logging.
      */
     private static void print(final String message, final Object... args) {
         if (logger.isDebugEnabled()) {
@@ -800,7 +800,7 @@ public final class AnnotationDetector {
                 }
                 logMessage = String.format(message, args);
             }
-            logger.debug(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
+            logger.trace(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
         }
     }
 
