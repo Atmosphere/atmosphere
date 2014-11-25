@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 
@@ -327,7 +328,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
     }
 
     @Override
-    public ConcurrentHashMap<String, AtmosphereResource> resources() {
+    public ConcurrentMap<String, AtmosphereResource> resources() {
         return resources;
     }
 

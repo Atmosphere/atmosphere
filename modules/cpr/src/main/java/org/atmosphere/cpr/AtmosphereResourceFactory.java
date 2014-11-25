@@ -20,6 +20,7 @@ import org.atmosphere.inject.AtmosphereConfigAware;
 import java.util.Collection;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * A Factory used to manage {@link AtmosphereResource} instances. You can use this factory to create, remove and find
@@ -176,7 +177,7 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
 
     void destroy();
 
-    ConcurrentHashMap<String, AtmosphereResource> resources();
+    ConcurrentMap<String, AtmosphereResource> resources();
 
     Collection<AtmosphereResource> findAll();
 }
