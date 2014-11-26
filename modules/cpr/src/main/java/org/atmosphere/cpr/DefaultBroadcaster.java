@@ -1009,9 +1009,10 @@ public class DefaultBroadcaster implements Broadcaster {
     public void onException(Throwable t, final AtmosphereResource ar, boolean notifyAndCache) {
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
 
-        logger.warn("Unexpected exception for AtmosphereResource {} and Broadcaster {}", ar.uuid(), getID());
-        logger.warn("{}", t);
-        logger.trace("NotifyAndCache {} ", notifyAndCache);
+        logger.trace("I/O Exception (or related) during execution of the write operation for " +
+                        "AtmosphereResource {} and Broadcaster {}. Message will be cached {}",
+                new String[]{ar.uuid(), getID(), String.valueOf(notifyAndCache)});
+        logger.trace("{}", t);
 
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
