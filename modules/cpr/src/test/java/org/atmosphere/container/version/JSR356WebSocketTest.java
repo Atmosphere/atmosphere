@@ -26,7 +26,12 @@ public class JSR356WebSocketTest {
         session = mock(Session.class);
         asyncRemoteEndpoint = mock(RemoteEndpoint.Async.class);
         when(session.getAsyncRemote()).thenReturn(asyncRemoteEndpoint);
-        webSocket = new JSR356WebSocket(session, new AtmosphereFramework().getAtmosphereConfig());
+        webSocket = new JSR356WebSocket(session, new AtmosphereFramework().getAtmosphereConfig()) {
+            @Override
+            public boolean isOpen() {
+                return true;
+            }
+        };
     }
 
     @Test(timeOut = 1000)

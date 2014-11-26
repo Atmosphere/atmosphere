@@ -61,15 +61,23 @@ public class JSR356WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(String s) throws IOException {
+
+        if (!isOpen()) {
+            throw new IOException("Socket closed {}");
+        }
+
         boolean acquired = false;
         try {
             acquired = semaphore.tryAcquire(writeTimeout, TimeUnit.MILLISECONDS);
             if (acquired) {
                 session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
             } else {
-                logger.warn("Timeout while waiting until socket is available, message {} will be lost", s);
+                throw new IOException("Socket closed");
             }
         } catch (Throwable e) {
+            if (IOException.class.isAssignableFrom(e.getClass())) {
+                throw IOException.class.cast(e);
+            }
             handleError(e, acquired);
         }
         return this;
@@ -77,6 +85,11 @@ public class JSR356WebSocket extends WebSocket {
 
     @Override
     public WebSocket write(byte[] data, int offset, int length) throws IOException {
+
+        if (!isOpen()) {
+            throw new IOException("Socket closed {}");
+        }
+
         boolean acquired = false;
         try {
             acquired = semaphore.tryAcquire(writeTimeout, TimeUnit.MILLISECONDS);
@@ -85,26 +98,24 @@ public class JSR356WebSocket extends WebSocket {
                 session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
                         new WriteResult(resource(), b.array()));
             } else {
-                logger.warn("Timeout while waiting until socket is available, message will be lost");
+                throw new IOException("Socket closed");
             }
         } catch (Throwable e) {
+            if (IOException.class.isAssignableFrom(e.getClass())) {
+                throw IOException.class.cast(e);
+            }
             handleError(e, acquired);
         }
         return this;
     }
 
-    private void handleError(Throwable e, boolean acquired) {
+    private void handleError(Throwable e, boolean acquired) throws IOException {
         if (acquired) {
             semaphore.release();
         }
 
         if (e instanceof NullPointerException) {
             patchGlassFish((NullPointerException) e);
-            return;
-        }
-
-        if (e instanceof InterruptedException) {
-            logger.info("Writing to the socket {} was interrupted", session.getId());
             return;
         }
 
