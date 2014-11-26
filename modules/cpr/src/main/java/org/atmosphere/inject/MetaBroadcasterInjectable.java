@@ -25,7 +25,7 @@ import java.lang.reflect.Type;
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && DefaultMetaBroadcaster.class.isAssignableFrom((Class) t);
+        return (t instanceof Class) && MetaBroadcaster.class.isAssignableFrom((Class) t);
     }
 
     @Override

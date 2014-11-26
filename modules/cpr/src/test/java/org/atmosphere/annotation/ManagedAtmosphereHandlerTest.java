@@ -38,6 +38,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultMetaBroadcaster;
+import org.atmosphere.cpr.MetaBroadcaster;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.ExcludeSessionBroadcaster;
@@ -520,6 +521,8 @@ public class ManagedAtmosphereHandlerTest {
         private DefaultMetaBroadcaster m;
         @Inject
         private AtmosphereResourceSessionFactory sessionFactory;
+        @Inject
+        private MetaBroadcaster metaBroadcaster;
 
         @Get
         public void get(AtmosphereResource resource) {
@@ -549,6 +552,7 @@ public class ManagedAtmosphereHandlerTest {
             message.set(bFactory.toString());
             message.set(m.toString());
             message.set(sessionFactory.toString());
+            message.set(metaBroadcaster.toString());
         }
     }
 
@@ -560,7 +564,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), framework.sessionFactory().toString());
+        assertEquals(message.get(), framework.metaBroadcaster().toString());
 
     }
 }
