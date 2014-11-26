@@ -717,9 +717,9 @@ public class DefaultBroadcaster implements Broadcaster {
             this.uuid = uuid;
         }
 
-        public List<String> asString(){
+        public List<String> asString() {
             List<String> l = new ArrayList<String>();
-            for (AsyncWriteToken w: queue) {
+            for (AsyncWriteToken w : queue) {
                 l.add(w.toString());
             }
             return l;
@@ -1011,7 +1011,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         logger.warn("Unexpected exception for AtmosphereResource {} and Broadcaster {}", ar.uuid(), getID());
         logger.warn("{}", t);
-        logger.trace("NotifyAndCache {} " , notifyAndCache);
+        logger.trace("NotifyAndCache {} ", notifyAndCache);
 
         // Remove to prevent other broadcast to re-use it.
         removeAtmosphereResource(r);
@@ -1402,7 +1402,7 @@ public class DefaultBroadcaster implements Broadcaster {
             return this;
         }
 
-        boolean removed= resources.remove(r);
+        boolean removed = resources.remove(r);
         if (removed) {
             if (r.isSuspended()) {
                 logger.trace("Excluded from {} : {}", getID(), r.uuid());
@@ -1623,39 +1623,39 @@ public class DefaultBroadcaster implements Broadcaster {
         return false;
     }
 
-    public ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners(){
+    public ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners() {
         return broadcasterListeners;
     }
 
-    public BroadcasterLifeCyclePolicy lifeCyclePolicy(){
+    public BroadcasterLifeCyclePolicy lifeCyclePolicy() {
         return lifeCyclePolicy;
     }
 
-    public ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners(){
+    public ConcurrentLinkedQueue<BroadcasterLifeCyclePolicyListener> lifeCycleListeners() {
         return lifeCycleListeners;
     }
 
-    public BlockingQueue<Deliver> messages(){
+    public BlockingQueue<Deliver> messages() {
         return messages;
     }
 
-    public ConcurrentHashMap<String, WriteQueue> writeQueues(){
+    public ConcurrentHashMap<String, WriteQueue> writeQueues() {
         return writeQueues;
     }
 
-    public POLICY policy(){
+    public POLICY policy() {
         return policy;
     }
 
-    public boolean outOfOrderBroadcastSupported(){
-        return  outOfOrderBroadcastSupported.get();
+    public boolean outOfOrderBroadcastSupported() {
+        return outOfOrderBroadcastSupported.get();
     }
 
-    public AtomicBoolean recentActivity(){
+    public AtomicBoolean recentActivity() {
         return recentActivity;
     }
 
-    public LifecycleHandler lifecycleHandler(){
+    public LifecycleHandler lifecycleHandler() {
         return lifecycleHandler;
     }
 
@@ -1664,7 +1664,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return this;
     }
 
-    public Future<?> currentLifecycleTask(){
+    public Future<?> currentLifecycleTask() {
         return currentLifecycleTask;
     }
 
