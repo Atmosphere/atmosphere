@@ -95,7 +95,7 @@ public class JSR356WebSocket extends WebSocket {
             acquired = semaphore.tryAcquire(writeTimeout, TimeUnit.MILLISECONDS);
             if (acquired) {
                 ByteBuffer b = ByteBuffer.wrap(data, offset, length);
-                session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
+                session.getAsyncRemote().sendBinary(b,
                         new WriteResult(resource(), b.array()));
             } else {
                 throw new IOException("Socket closed");
