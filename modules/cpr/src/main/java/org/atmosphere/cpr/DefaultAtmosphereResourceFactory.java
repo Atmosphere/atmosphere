@@ -37,7 +37,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
  *
  * @author Jeanfrancois Arcand
  */
-public final class DefaultAtmosphereResourceFactory implements AtmosphereResourceFactory {
+public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFactory {
 
     private final static Logger logger = LoggerFactory.getLogger(DefaultAtmosphereResourceFactory.class);
     private final static Broadcaster noOps = (Broadcaster)
@@ -67,6 +67,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
         }
     };
     private BroadcasterFactory broadcasterFactory;
+    private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<String, AtmosphereResource>();
 
     public DefaultAtmosphereResourceFactory(){
     }
@@ -75,8 +76,6 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
     public void configure(AtmosphereConfig config) {
         this.broadcasterFactory = config.getBroadcasterFactory();
     }
-
-    private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<String, AtmosphereResource>();
 
     /**
      * Create an {@link AtmosphereResourceImpl}
@@ -87,7 +86,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return an {@link AtmosphereResourceImpl}
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config,
+    public AtmosphereResource create(AtmosphereConfig config,
                                            AtmosphereRequest request,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a) {
@@ -113,7 +112,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return an {@link AtmosphereResourceImpl}
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config,
+    public AtmosphereResource create(AtmosphereConfig config,
                                            Broadcaster broadcaster,
                                            AtmosphereRequest request,
                                            AtmosphereResponse response,
@@ -134,7 +133,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return an {@link AtmosphereResourceImpl}
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config,
+    public AtmosphereResource create(AtmosphereConfig config,
                                            Broadcaster broadcaster,
                                            AtmosphereRequest request,
                                            AtmosphereResponse response,
@@ -167,7 +166,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return an {@link AtmosphereResourceImpl}
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config,
+    public AtmosphereResource create(AtmosphereConfig config,
                                            Broadcaster broadcaster,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a,
@@ -176,7 +175,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
     }
 
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config,
+    public AtmosphereResource create(AtmosphereConfig config,
                                            Broadcaster broadcaster,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a,
@@ -194,7 +193,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return an {@link AtmosphereResourceImpl}
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config,
+    public AtmosphereResource create(AtmosphereConfig config,
                                            AtmosphereResponse response,
                                            AsyncSupport<?> a) {
         AtmosphereResource r = null;
@@ -216,7 +215,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config, String uuid) {
+    public AtmosphereResource create(AtmosphereConfig config, String uuid) {
         AtmosphereResponse response = AtmosphereResponse.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
@@ -236,7 +235,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return
      */
     @Override
-    public final AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request) {
+    public AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request) {
         AtmosphereResponse response = AtmosphereResponse.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
@@ -254,7 +253,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return the {@link AtmosphereResource}, or null if not found.
      */
     @Override
-    public final AtmosphereResource remove(String uuid) {
+    public AtmosphereResource remove(String uuid) {
         logger.trace("Removing: {}", uuid);
         AtmosphereResource r = resources.remove(uuid);
         if (r != null) {
@@ -270,7 +269,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return the {@link AtmosphereResource}, or null if not found.
      */
     @Override
-    public final AtmosphereResource find(String uuid) {
+    public AtmosphereResource find(String uuid) {
         if (uuid == null) return null;
         return resources.get(uuid);
     }
@@ -285,7 +284,7 @@ public final class DefaultAtmosphereResourceFactory implements AtmosphereResourc
      * @return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}
      */
     @Override
-    public final Set<Broadcaster> broadcasters(String uuid) {
+    public Set<Broadcaster> broadcasters(String uuid) {
         Collection<Broadcaster> l = broadcasterFactory.lookupAll();
         Set<Broadcaster> h = new HashSet<Broadcaster>();
         for (Broadcaster b : l) {
