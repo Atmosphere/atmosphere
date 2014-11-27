@@ -70,6 +70,7 @@
                             org.atmosphere.interceptor*,
                             org.atmosphere.util*,
                             org.atmosphere.websocket*,
+                            org.atmosphere.lifecycle*,
                             org.atmosphere.websocket.protocol*,
                         </Export-Package>
                     </instructions>
