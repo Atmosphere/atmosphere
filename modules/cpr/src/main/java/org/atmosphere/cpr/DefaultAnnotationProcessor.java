@@ -20,6 +20,7 @@ import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
+import org.atmosphere.config.service.AtmosphereResourceFactoryService;
 import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.config.service.BroadcasterCacheListenerService;
@@ -86,7 +87,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             AtmosphereService.class,
             EndpointMapperService.class,
             BroadcasterCacheListenerService.class,
-            AtmosphereAnnotation.class
+            AtmosphereAnnotation.class,
+            AtmosphereResourceFactoryService.class
     };
 
     private AnnotationProcessor delegate;

@@ -268,6 +268,11 @@ public class AtmosphereFramework {
         }
     };
 
+    public void setAndConfigureAtmosphereResourceFactory(AtmosphereResourceFactory arFactory) {
+        this.arFactory = arFactory;
+        this.arFactory.configure(config);
+    }
+
     public static final class AtmosphereHandlerWrapper {
 
         public final AtmosphereHandler atmosphereHandler;
@@ -886,6 +891,7 @@ public class AtmosphereFramework {
 
             // Reconfigure in case an annotation changed the default.
             configureBroadcasterFactory();
+            configureAtmosphereResourceFactory();
             patchContainer();
             configureBroadcaster();
             loadConfiguration(scFacade);
@@ -980,6 +986,7 @@ public class AtmosphereFramework {
             }
         }
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
+        logger.info("Using AtmosphereResurceFactory: {}", arFactory.getClass().getName());
         logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
         if (defaultSerializerClassName != null && !defaultSerializerClassName.isEmpty()) {
             logger.info("Using Serializer: {}", defaultSerializerClassName);
@@ -1240,8 +1247,6 @@ public class AtmosphereFramework {
             for (BroadcasterListener b : broadcasterListeners) {
                 broadcasterFactory.addBroadcasterListener(b);
             }
-
-            configureAtmosphereResourceFactory();
         } catch (Exception ex) {
             logger.error("Unable to configure Broadcaster/Factory/Cache", ex);
         }
@@ -2999,6 +3004,7 @@ public class AtmosphereFramework {
     }
 
     private AtmosphereFramework configureAtmosphereResourceFactory() {
+        if (arFactory != null) return this;
         try {
             arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
         } catch (InstantiationException e) {
