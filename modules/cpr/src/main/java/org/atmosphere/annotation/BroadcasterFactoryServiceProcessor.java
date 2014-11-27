@@ -30,8 +30,7 @@ public class BroadcasterFactoryServiceProcessor implements Processor<Broadcaster
     @Override
     public void handle(AtmosphereFramework framework, Class<BroadcasterFactory> annotatedClass) {
         try {
-            Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) annotatedClass;
-            framework.setBroadcasterFactory(framework.newClassInstance(BroadcasterFactory.class, bf));
+            framework.setBroadcasterFactory(framework.newClassInstance(BroadcasterFactory.class, annotatedClass));
             framework.configureBroadcasterFactory();
         } catch (Throwable e) {
             logger.warn("", e);
