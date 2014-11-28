@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 public interface AtmosphereConfigAware {
     /**
      * Configure an AtmosphereFramework object.
+     *
      * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
      */
     void configure(AtmosphereConfig config);
