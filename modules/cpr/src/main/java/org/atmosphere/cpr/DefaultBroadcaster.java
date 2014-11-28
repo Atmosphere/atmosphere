@@ -704,11 +704,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliver.message = beforeProcessingMessage;
                         boolean deliverMessage = perRequestFilter(r, deliver);
 
-                        if (!deliverMessage || deliver.message == null) {
-                            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, r.uuid());
-                            bc.getBroadcasterCache().clearCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, deliver.cache);
-                            continue;
-                        }
+                        if (endBroadcast(deliver, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
                             queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver);
@@ -718,11 +714,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 case RESOURCE:
                     boolean deliverMessage = perRequestFilter(deliver.resource, deliver);
 
-                    if (!deliverMessage || deliver.message == null) {
-                        logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource.uuid());
-                        bc.getBroadcasterCache().clearCache(getID(), deliver.resource != null ? deliver.resource.uuid() : BroadcasterCache.NULL, deliver.cache);
-                        return;
-                    }
+                    if (endBroadcast(deliver, deliverMessage)) return;
 
                     if (deliver.writeLocally) {
                         queueWriteIO(deliver.resource, deliver);
@@ -733,11 +725,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliver.message = beforeProcessingMessage;
                         deliverMessage = perRequestFilter(r, deliver);
 
-                        if (!deliverMessage || deliver.message == null) {
-                            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, r.uuid());
-                            bc.getBroadcasterCache().clearCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, deliver.cache);
-                            continue;
-                        }
+                        if (endBroadcast(deliver, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
                             queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver);
@@ -750,6 +738,17 @@ public class DefaultBroadcaster implements Broadcaster {
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
         }
+    }
+
+    protected boolean endBroadcast(Deliver deliver, boolean deliverMessage){
+        if (!deliverMessage || deliver.message == null) {
+            logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource != null ? deliver.resource.uuid() : "null");
+            bc.getBroadcasterCache().clearCache(getID(), deliver.resource != null ? deliver.resource.uuid() : BroadcasterCache.NULL, deliver.cache);
+            entryDone(deliver.future);
+
+            return true;
+        }
+        return false;
     }
 
     protected void queueWriteIO(AtmosphereResource r, Deliver deliver) throws InterruptedException {
