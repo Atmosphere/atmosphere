@@ -614,6 +614,8 @@ public class DefaultBroadcaster implements Broadcaster {
             Object beforeProcessingMessage = deliver.message;
             switch (deliver.type) {
                 case ALL:
+                    AtomicInteger count = new AtomicInteger(resources.size());
+
                     for (AtmosphereResource r : resources) {
                         deliver.message = beforeProcessingMessage;
                         boolean deliverMessage = perRequestFilter(r, deliver);
@@ -621,7 +623,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         if (endBroadcast(deliver, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver);
+                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
                         }
                     }
                     break;
@@ -631,10 +633,12 @@ public class DefaultBroadcaster implements Broadcaster {
                     if (endBroadcast(deliver, deliverMessage)) return;
 
                     if (deliver.writeLocally) {
-                        queueWriteIO(deliver.resource, deliver);
+                        queueWriteIO(deliver.resource, deliver, new AtomicInteger(1));
                     }
                     break;
                 case SET:
+                    count = new AtomicInteger(deliver.resources.size());
+
                     for (AtmosphereResource r : deliver.resources) {
                         deliver.message = beforeProcessingMessage;
                         deliverMessage = perRequestFilter(r, deliver);
@@ -642,7 +646,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         if (endBroadcast(deliver, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver);
+                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
                         }
                     }
                     break;
@@ -665,7 +669,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return false;
     }
 
-    protected void queueWriteIO(AtmosphereResource r, Deliver deliver) throws InterruptedException {
+    protected void queueWriteIO(AtmosphereResource r, Deliver deliver, AtomicInteger count) throws InterruptedException {
         if (deliver.async) {
             // The onStateChange/onRequest may change the isResumed value, hence we need to make sure only one thread flip
             // the switch to garantee the Entry will be cached in the order it was broadcasted.
@@ -677,7 +681,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
 
-            AsyncWriteToken w = new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache);
+            AsyncWriteToken w = new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache, count);
             if (!outOfOrderBroadcastSupported.get()) {
                 WriteQueue writeQueue = writeQueues.get(r.uuid());
                 if (writeQueue == null) {
@@ -696,14 +700,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 uniqueWriteQueue.queue.offer(w);
             }
         } else {
-            executeBlockingWrite(r, deliver);
+            executeBlockingWrite(r, deliver, count);
         }
     }
 
-    protected void executeBlockingWrite(AtmosphereResource r, Deliver deliver) throws InterruptedException {
+    protected void executeBlockingWrite(AtmosphereResource r, Deliver deliver, AtomicInteger count) throws InterruptedException {
         // We deliver using the calling thread.
         synchronized (r) {
-            executeAsyncWrite(new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache));
+            executeAsyncWrite(new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache, count));
         }
     }
 
@@ -821,7 +825,11 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
 
-            entryDone(token.future);
+            if (token.lastBroadcasted()) {
+                notifyBroadcastListener();
+            }
+
+            if (token.future != null) token.future.done();
 
             if (lostCandidate) {
                 cacheLostMessage(r, token, true);
@@ -1553,20 +1561,23 @@ public class DefaultBroadcaster implements Broadcaster {
         BroadcasterFuture future;
         Object originalMessage;
         CacheMessage cache;
+        AtomicInteger count;
 
-        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage) {
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage, AtomicInteger count) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;
             this.originalMessage = originalMessage;
+            this.count = count;
         }
 
-        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage, CacheMessage cache) {
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage, CacheMessage cache, AtomicInteger count) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;
             this.originalMessage = originalMessage;
             this.cache = cache;
+            this.count = count;
         }
 
         public void destroy() {
@@ -1574,6 +1585,10 @@ public class DefaultBroadcaster implements Broadcaster {
             this.msg = null;
             this.future = null;
             this.originalMessage = null;
+        }
+
+        public boolean lastBroadcasted() {
+            return count.decrementAndGet() == 0;
         }
 
         @Override

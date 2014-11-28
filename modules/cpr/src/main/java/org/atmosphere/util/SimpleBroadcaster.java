@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.
@@ -132,7 +133,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     }
 
     @Override
-    protected void queueWriteIO(AtmosphereResource r, Deliver deliver) throws InterruptedException {
-        executeBlockingWrite(r, deliver);
+    protected void queueWriteIO(AtmosphereResource r, Deliver deliver, AtomicInteger count) throws InterruptedException {
+        executeBlockingWrite(r, deliver, count);
     }
 }
