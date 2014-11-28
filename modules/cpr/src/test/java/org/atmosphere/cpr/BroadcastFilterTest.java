@@ -273,6 +273,15 @@ public class BroadcastFilterTest {
         assertEquals(atmosphereHandler.value.get().toString(), "1|0");
     }
 
+
+    @Test
+    public void testAbortPerFilterFuture() throws ExecutionException, InterruptedException {
+        broadcaster.getBroadcasterConfig().addFilter(new AbortFilter2());
+
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "");
+    }
+
     private final static class PerRequestFilter implements PerRequestBroadcastFilter {
 
         String msg;
@@ -331,6 +340,19 @@ public class BroadcastFilterTest {
         @Override
         public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(perRequest ? BroadcastAction.ACTION.ABORT : BroadcastAction.ACTION.CONTINUE, message);
+        }
+    }
+
+    private final static class AbortFilter2 implements PerRequestBroadcastFilter {
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
+        }
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+            return new BroadcastAction(BroadcastAction.ACTION.ABORT, message);
         }
     }
 
