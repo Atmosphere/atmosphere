@@ -80,7 +80,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
     private boolean cookieComputed = false;
-    private final BufferedReader voidReader = new BufferedReader(new StringReader(""), 5);
+    private volatile BufferedReader voidReader;
     private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
     private AtomicBoolean streamSet = new AtomicBoolean();
     private AtomicBoolean readerSet = new AtomicBoolean();
@@ -91,6 +91,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (b.request == null) b.request(new NoOpsRequest());
 
         this.b = b;
+    }
+    
+    private BufferedReader getVoidReader() {
+    	if (voidReader == null) {
+    		voidReader = new BufferedReader(new StringReader(""), 5);
+    	}
+    	return voidReader;
     }
 
     private ServletInputStream configureStream() {
@@ -523,7 +530,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public BufferedReader getReader() throws IOException {
         if (b.body.isEmpty()) {
             configureReader();
-            return br == null ? (isNotNoOps() ? b.request.getReader() : voidReader) : br;
+            return br == null ? (isNotNoOps() ? b.request.getReader() : getVoidReader()) : br;
         } else if (b.body.hasString()) {
            br = new BufferedReader(new StringReader(body().asString()));
         } else if (b.body.hasBytes()) {
@@ -1484,11 +1491,18 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private final static String[] EMPTY_ARRAY = new String[0];
         private final StringBuffer EMPTY_STRING_BUFFER = new StringBuffer();
         private final static Cookie[] EMPTY_COOKIE = new Cookie[0];
-        private final BufferedReader voidReader = new BufferedReader(new StringReader(""));
+        private volatile BufferedReader voidReader;
         private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
 
         public NoOpsRequest() {
             this.throwExceptionOnCloned = false;
+        }
+        
+        private BufferedReader getVoidReader() {
+        	if (voidReader == null) {
+        		voidReader = new BufferedReader(new StringReader(""));
+        	}
+        	return voidReader;
         }
 
         public NoOpsRequest(boolean throwExceptionOnCloned) {
@@ -1753,7 +1767,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         @Override
         public BufferedReader getReader() throws IOException {
-            return voidReader;
+            return getVoidReader();
         }
 
         @Override
