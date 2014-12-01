@@ -801,7 +801,7 @@ public final class AnnotationDetector {
                 }
                 logMessage = String.format(message, args);
             }
-            logger.debug(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
+            logger.trace(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
         }
     }
 
