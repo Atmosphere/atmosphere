@@ -18,6 +18,8 @@ package org.atmosphere.inject;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
@@ -37,6 +39,8 @@ import java.util.List;
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory {
 
+    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
+
     private final static Class<Injectable<?>>[] defaultInjectables = new Class[]{
             AtmosphereConfigInjectable.class,
             AtmosphereFrameworkInjectable.class,
@@ -52,18 +56,18 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
+        for (Class<Injectable<?>> i : defaultInjectables) {
+            try {
+                injectables.add(i.newInstance());
+            } catch (Exception e) {
+                logger.error("", e);
+            }
+        }
     }
 
     @Override
     public <T, U extends T> U newClassInstance(Class<T> classType,
                                                Class<U> defaultType) throws InstantiationException, IllegalAccessException {
-
-        // Thread safe
-        if (injectables.isEmpty()) {
-            for (Class<Injectable<?>> i : defaultInjectables) {
-                injectables.add(i.newInstance());
-            }
-        }
 
         U instance = defaultType.newInstance();
 
