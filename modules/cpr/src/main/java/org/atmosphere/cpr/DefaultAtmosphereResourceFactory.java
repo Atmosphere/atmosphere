@@ -277,9 +277,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
     @Override
     public void locate(String uuid, Async async) {
         AtmosphereResource r = find(uuid);
-        if (uuid == null) {
-            async.notAvailable(uuid);
-        } else {
+        if (uuid != null) {
             async.available(r);
         }
     }
