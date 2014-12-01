@@ -274,6 +274,16 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
         return resources.get(uuid);
     }
 
+    @Override
+    public void locate(String uuid, Async async) {
+        AtmosphereResource r = find(uuid);
+        if (uuid == null) {
+            async.notAvailable(uuid);
+        } else {
+            async.available(r);
+        }
+    }
+
     /**
      * Return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}, e.g for which
      * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} has been called. Note that this

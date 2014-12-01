@@ -19,7 +19,6 @@ import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.Collection;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -151,6 +150,16 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
     AtmosphereResource find(String uuid);
 
     /**
+     * Locate an {@link AtmosphereResource}, based on its {@link org.atmosphere.cpr.AtmosphereResource#uuid()}, in a
+     * cluster. If the {@link AtmosphereResource} is available in the cluster, the {@link org.atmosphere.cpr.AtmosphereResourceFactory.Async#available}
+     * callback will be invoked. If not, the {@link org.atmosphere.cpr.AtmosphereResourceFactory.Async#notAvailable}
+     *
+     * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
+     * @param async an {@link Async}
+     */
+    void locate(String uuid, Async async);
+
+    /**
      * Return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}, e.g for which
      * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} has been called. Note that this
      * method is not synchronized and may not return all the {@link Broadcaster} in case
@@ -180,4 +189,23 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
     ConcurrentMap<String, AtmosphereResource> resources();
 
     Collection<AtmosphereResource> findAll();
+
+    /**
+     * An interface to use in order to retrieve an {@link AtmosphereResource} inside a cluster.
+     */
+    public static interface Async {
+
+        /**
+         * A stub representing an {@link AtmosphereResource} located somewhere in a cluster
+         * @param r
+         */
+        void available(AtmosphereResource r);
+
+        /**
+         * Unable to locate the {@link AtmosphereResource} inside a cluster.
+         * @param uuid
+         */
+        void notAvailable(String uuid);
+
+    }
 }
