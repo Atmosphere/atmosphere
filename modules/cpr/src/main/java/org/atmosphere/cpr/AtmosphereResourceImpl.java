@@ -82,6 +82,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private boolean forceBinaryWrite;
     private final AtomicBoolean suspended = new AtomicBoolean();
     private WebSocket webSocket;
+    private final AtomicBoolean inClosingPhase = new AtomicBoolean();
 
     public AtmosphereResourceImpl() {
     }
@@ -946,5 +947,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (!uuid.equals(that.uuid)) return false;
 
         return true;
+    }
+
+    public AtmosphereResourceImpl inClosingPhase(boolean inProgress) {
+        inClosingPhase.set(inProgress);
+        return this;
+    }
+
+    public boolean inClosingPhase(){
+        return inClosingPhase.get();
     }
 }

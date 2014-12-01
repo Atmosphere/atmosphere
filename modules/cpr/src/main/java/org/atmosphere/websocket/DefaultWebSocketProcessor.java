@@ -602,6 +602,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (resource == null) {
             logger.trace("Already closed {}", webSocket);
         } else {
+            resource.inClosingPhase(true);
+
             final boolean allowedToClose = allowedCloseCode(closeCode);
 
             final AtmosphereRequest r = resource.getRequest(false);
