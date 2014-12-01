@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -72,7 +73,7 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
 
             AtmosphereResourceImpl.class.cast(ss).inClosingPhase(true);
             // Block websocket closing detection
-//            AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
+            AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
             p.completeLifecycle(ss, false);
             return Action.CANCELLED;
