@@ -45,6 +45,7 @@ import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.DISCONNECT;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
@@ -273,6 +274,46 @@ public class WebSocketProcessorTest {
     }
 
     @Test
+    public void inClosePhaseTest() throws IOException, ServletException, ExecutionException, InterruptedException {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+        final AtomicBoolean closed = new AtomicBoolean();
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(final AtmosphereResource resource) throws IOException {
+                resource.addEventListener(new WebSocketEventListenerAdapter() {
+                    @Override
+                    public void onClose(WebSocketEvent event) {
+                        closed.set(true);
+                    }
+                });
+
+                AtmosphereResourceImpl.class.cast(resource).inClosingPhase(true);
+                AtmosphereResourceEventImpl.class.cast(resource.getAtmosphereResourceEvent()).isClosedByClient(true);
+                AsynchronousProcessor.class.cast(framework.getAsyncSupport()).completeLifecycle(resource, false);
+                processor.close(w, 1005);
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+
+        assertFalse(closed.get());
+    }
+
+    @Test
     public void onCloseAtmosphereRequestAttribute() throws IOException, ServletException, ExecutionException, InterruptedException {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         final WebSocket w = new ArrayBaseWebSocket(b);
@@ -397,7 +438,7 @@ public class WebSocketProcessorTest {
             public void destroy() {
             }
         });
-        Map<String,String> m = new HashMap<String, String>();
+        Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
 
         AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").build();

@@ -71,6 +71,7 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
             }
             logger.debug("AtmosphereResource {} disconnected", uuid);
 
+            AtmosphereResourceImpl.class.cast(ss).inClosingPhase(true);
             // Block websocket closing detection
             AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
