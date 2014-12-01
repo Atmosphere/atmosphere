@@ -32,7 +32,7 @@ public class AtmosphereFrameworkServiceProcessor implements Processor<Atmosphere
         try {
             framework.frameworkListener(framework.newClassInstance(AtmosphereFrameworkListener.class, annotatedClass));
         } catch (Exception e) {
-            e.printStackTrace();
+            logger.error("", e);
         }
     }
 }
