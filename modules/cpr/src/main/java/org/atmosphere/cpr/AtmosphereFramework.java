@@ -421,6 +421,8 @@ public class AtmosphereFramework {
                     fwk.webSocketProtocolClassName = WebSocketProtocol.class.getName();
                 } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
                     fwk.webSocketProcessorClassName = WebSocketProcessor.class.getName();
+                } else if (AtmosphereFrameworkListener.class.isAssignableFrom(c)) {
+                    fwk.frameworkListener(fwk.newClassInstance(AtmosphereFrameworkListener.class, c));
                 } else {
                     logger.warn("{} is not a framework service that could be installed", c.getName());
                 }
@@ -817,11 +819,11 @@ public class AtmosphereFramework {
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
 
-        onPreInit();
         readSystemProperties();
         populateBroadcasterType();
         populateObjectFactoryType();
         loadMetaService();
+        onPreInit();
 
         try {
             ServletConfig scFacade;
