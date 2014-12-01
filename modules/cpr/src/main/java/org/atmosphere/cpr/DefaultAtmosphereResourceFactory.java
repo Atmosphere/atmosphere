@@ -353,5 +353,4 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
             r.setSerializer(serializer);
         }
     }
-
 }

@@ -201,11 +201,5 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
          */
         void available(AtmosphereResource r);
 
-        /**
-         * Unable to locate the {@link AtmosphereResource} inside a cluster.
-         * @param uuid
-         */
-        void notAvailable(String uuid);
-
     }
 }
