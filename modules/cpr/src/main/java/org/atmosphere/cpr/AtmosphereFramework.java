@@ -228,6 +228,7 @@ public class AtmosphereFramework {
     protected AtmosphereResourceSessionFactory sessionFactory;
     protected String defaultSerializerClassName;
     protected Class<Serializer> defaultSerializerClass;
+    protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<AtmosphereFrameworkListener>();
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
             CorsInterceptor.class,
@@ -816,6 +817,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
 
+        onPreInit();
         readSystemProperties();
         populateBroadcasterType();
         populateObjectFactoryType();
@@ -932,6 +934,8 @@ public class AtmosphereFramework {
         if (WebLogicServlet30WithWebSocket.class.isAssignableFrom(asyncSupport.getClass())) {
             servletConfig.getServletContext().setAttribute(AtmosphereConfig.class.getName(), config);
         }
+
+        onPostInit();
 
         return this;
     }
@@ -1647,6 +1651,8 @@ public class AtmosphereFramework {
 
         if (isDestroyed.getAndSet(true)) return this;
 
+        onPreDestroy();
+
         // Invoke ShutdownHook.
         config.destroy();
 
@@ -1674,6 +1680,9 @@ public class AtmosphereFramework {
         WebSocketProcessorFactory.getDefault().destroy();
 
         resetStates();
+
+        onPostDestroy();
+
         return this;
     }
 
@@ -3110,4 +3119,61 @@ public class AtmosphereFramework {
         return isDestroyed.get();
     }
 
+    /**
+     * Add a {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     * @param l {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     * @return this;
+     */
+    public AtmosphereFramework frameworkListener(AtmosphereFrameworkListener l) {
+        frameworkListeners.add(l);
+        return this;
+    }
+
+    /**
+     * Return the list of {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+      * @return  {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     */
+    public List<AtmosphereFrameworkListener> frameworkListeners(){
+        return frameworkListeners;
+    }
+
+    protected void onPreInit() {
+        for (AtmosphereFrameworkListener l : frameworkListeners) {
+            try {
+                l.onPreInit(this);
+            } catch (Exception e) {
+                logger.error("", e);
+            }
+        }
+    }
+
+    protected void onPostInit() {
+        for (AtmosphereFrameworkListener l : frameworkListeners) {
+            try {
+                l.onPostInit(this);
+            } catch (Exception e) {
+                logger.error("", e);
+            }
+        }
+    }
+
+    protected void onPreDestroy() {
+        for (AtmosphereFrameworkListener l : frameworkListeners) {
+            try {
+                l.onPreDestroy(this);
+            } catch (Exception e) {
+                logger.error("", e);
+            }
+        }
+    }
+
+    protected void onPostDestroy() {
+        for (AtmosphereFrameworkListener l : frameworkListeners) {
+            try {
+                l.onPostDestroy(this);
+            } catch (Exception e) {
+                logger.error("", e);
+            }
+        }
+    }
 }

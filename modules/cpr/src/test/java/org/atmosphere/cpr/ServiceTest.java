@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
@@ -62,6 +63,11 @@ public class ServiceTest {
         assertEquals(framework.getBroadcasterFactory().get("test").getClass().getName(), B.class.getName());
     }
 
+    @Test
+    public void testFrameworkListenerService() throws IOException, ServletException {
+        assertEquals(framework.frameworkListeners().get(0).getClass().getName(), C.class.getName());
+    }
+
     @BroadcasterService
     public final static class B extends SimpleBroadcaster {
 
@@ -69,4 +75,10 @@ public class ServiceTest {
         }
     }
 
+    @AtmosphereFrameworkListenerService
+    public final static class C extends AtmosphereFrameworkListenerAdapter {
+
+        public C() {
+        }
+    }
 }

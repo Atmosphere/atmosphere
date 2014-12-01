@@ -23,8 +23,10 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 public class AtmosphereFrameworkTest {
@@ -78,6 +80,57 @@ public class AtmosphereFrameworkTest {
             }
         });
         assertNotNull(s);
+    }
+
+    @Test
+    public void testAtmosphereFrameworkListener() throws ServletException {
+        AtmosphereServlet s = new MyAtmosphereServlet();
+        final AtomicInteger count = new AtomicInteger();
+        s.framework().frameworkListener(new AtmosphereFrameworkListener() {
+            @Override
+            public void onPreInit(AtmosphereFramework f) {
+                count.incrementAndGet();
+            }
+
+            @Override
+            public void onPostInit(AtmosphereFramework f) {
+                count.incrementAndGet();
+            }
+
+            @Override
+            public void onPreDestroy(AtmosphereFramework f) {
+                count.incrementAndGet();
+            }
+
+            @Override
+            public void onPostDestroy(AtmosphereFramework f) {
+                count.incrementAndGet();
+            }
+        });
+
+        s.init(new ServletConfig() {
+            @Override
+            public String getServletName() {
+                return "void";
+            }
+
+            @Override
+            public ServletContext getServletContext() {
+                return mock(ServletContext.class);
+            }
+
+            @Override
+            public String getInitParameter(String name) {
+                return null;
+            }
+
+            @Override
+            public Enumeration<String> getInitParameterNames() {
+                return null;
+            }
+        });
+        s.destroy();
+        assertEquals(count.get(), 4);
     }
 
     public class MyAtmosphereServlet extends AtmosphereServlet {
