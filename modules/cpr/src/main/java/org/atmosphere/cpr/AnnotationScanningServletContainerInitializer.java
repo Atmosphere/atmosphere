@@ -3,6 +3,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
+import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.config.service.AtmosphereResourceFactoryService;
@@ -59,7 +60,8 @@ import java.util.Set;
         EndpointMapperService.class,
         BroadcasterCacheListenerService.class,
         AtmosphereAnnotation.class,
-        AtmosphereResourceFactoryService.class
+        AtmosphereResourceFactoryService.class,
+        AtmosphereFrameworkListenerService.class
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {
 

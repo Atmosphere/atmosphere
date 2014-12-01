@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
+import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.config.service.AtmosphereResourceFactoryService;
@@ -88,7 +89,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             EndpointMapperService.class,
             BroadcasterCacheListenerService.class,
             AtmosphereAnnotation.class,
-            AtmosphereResourceFactoryService.class
+            AtmosphereResourceFactoryService.class,
+            AtmosphereFrameworkListenerService.class
     };
 
     private AnnotationProcessor delegate;
