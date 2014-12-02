@@ -2646,22 +2646,23 @@ public class AtmosphereFramework {
                 if (path != null) {
                     annotationProcessor.scan(new File(path));
                 }
+            }
 
-                String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : realPath(sc, DEFAULT_LIB_PATH);
-                if (pathLibs != null) {
-                    File libFolder = new File(pathLibs);
-                    File jars[] = libFolder.listFiles(new FilenameFilter() {
+            // Always scan library
+            String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : realPath(sc, DEFAULT_LIB_PATH);
+            if (pathLibs != null) {
+                File libFolder = new File(pathLibs);
+                File jars[] = libFolder.listFiles(new FilenameFilter() {
 
-                        @Override
-                        public boolean accept(File arg0, String arg1) {
-                            return arg1.endsWith(".jar");
-                        }
-                    });
+                    @Override
+                    public boolean accept(File arg0, String arg1) {
+                        return arg1.endsWith(".jar");
+                    }
+                });
 
-                    if (jars != null) {
-                        for (File file : jars) {
-                            annotationProcessor.scan(file);
-                        }
+                if (jars != null) {
+                    for (File file : jars) {
+                        annotationProcessor.scan(file);
                     }
                 }
             }

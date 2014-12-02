@@ -44,6 +44,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletContext;
 import javax.servlet.annotation.HandlesTypes;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;
@@ -163,6 +164,23 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             String path = IOUtils.realPath(f.getServletContext(), f.getHandlersPath());
             if (path != null) {
                 detector.detect(new File(path));
+            }
+
+            String pathLibs =  IOUtils.realPath(f.getServletContext(), f.getLibPath());
+            if (pathLibs != null) {
+                File libFolder = new File(pathLibs);
+                File jars[] = libFolder.listFiles(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File arg0, String arg1) {
+                        return arg1.endsWith(".jar");
+                    }
+                });
+
+                if (jars != null) {
+                    for (File file : jars) {
+                        detector.detect(file);
+                    }
+                }
             }
 
             // JBoss|vfs with APR issue, or any strange containers may fail. This is a hack for them.
