@@ -122,7 +122,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         ServletContext sc = framework.getServletContext();
 
         Map<Class<? extends Annotation>, Set<Class<?>>>  annotations= (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
-        //sc.removeAttribute(ANNOTATION_ATTRIBUTE);
+        sc.removeAttribute(ANNOTATION_ATTRIBUTE);
 
         boolean scanForAtmosphereAnnotation = false;
         if (annotations == null || annotations.isEmpty()) {
