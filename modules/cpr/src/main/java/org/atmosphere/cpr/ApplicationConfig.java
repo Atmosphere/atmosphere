@@ -814,5 +814,11 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.AtmosphereFramework.analytics
      */
     String ANALYTICS = "org.atmosphere.cpr.AtmosphereFramework.analytics.analytics";
+    /**
+     * For use of (@link BytecodeBasedAnnotationProcessor}
+     * Default: false
+     * Value: org.atmosphere.cpr.annotation.useBytecodeProcessor
+     */
+    String BYTECODE_PROCESSOR = "org.atmosphere.cpr.annotation.useBytecodeProcessor";
 }
 

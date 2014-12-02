@@ -128,8 +128,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         Map<Class<? extends Annotation>, Set<Class<?>>>  annotations= (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
         sc.removeAttribute(ANNOTATION_ATTRIBUTE);
 
+        boolean useByteCodeProcessor = config.getInitParameter(ApplicationConfig.BYTECODE_PROCESSOR, false);
+
         boolean scanForAtmosphereAnnotation = false;
-        if (annotations == null || annotations.isEmpty()) {
+        if (useByteCodeProcessor || annotations == null || annotations.isEmpty()) {
             delegate = new BytecodeBasedAnnotationProcessor(handler);
             scanForAtmosphereAnnotation = true;
         } else {
