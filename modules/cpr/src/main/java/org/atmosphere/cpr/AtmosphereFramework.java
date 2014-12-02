@@ -875,8 +875,7 @@ public class AtmosphereFramework {
             preventOOM();
             doInitParams(scFacade);
             doInitParamsForWebSocket(scFacade);
-            objectFactory = lookupDefaultObjectFactoryType();
-            objectFactory.configure(config);
+            lookupDefaultObjectFactoryType();
 
             asyncSupportListener(newClassInstance(AsyncSupportListener.class, AsyncSupportListenerAdapter.class));
 
@@ -1550,10 +1549,14 @@ public class AtmosphereFramework {
     }
 
     protected AtmosphereObjectFactory lookupDefaultObjectFactoryType() {
+
+        if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass().getName())) return objectFactory;
+
         for (String b : objectFactoryType) {
             try {
                 Class<?> c = Class.forName(b);
-                return (AtmosphereObjectFactory) c.newInstance();
+                objectFactory = (AtmosphereObjectFactory) c.newInstance();
+                break;
             } catch (ClassNotFoundException e) {
                 logger.trace(e.getMessage() + " not found");
             } catch (Exception e) {
@@ -1571,6 +1574,7 @@ public class AtmosphereFramework {
             }
         }
 
+        objectFactory.configure(config);
         return objectFactory;
     }
 
