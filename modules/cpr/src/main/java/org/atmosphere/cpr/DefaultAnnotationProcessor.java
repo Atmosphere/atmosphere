@@ -122,8 +122,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     }
 
     @Override
-    public AnnotationProcessor configure(final AtmosphereFramework framework) {
-        ServletContext sc = framework.getServletContext();
+    public void configure(final AtmosphereConfig config) {
+        ServletContext sc = config.framework().getServletContext();
 
         Map<Class<? extends Annotation>, Set<Class<?>>>  annotations= (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
         sc.removeAttribute(ANNOTATION_ATTRIBUTE);
@@ -135,16 +135,15 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         } else {
             Map<Class<? extends Annotation>, Set<Class<?>>> clone = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
             clone.putAll(annotations);
-            delegate = new ServletContainerInitializerAnnotationProcessor(handler, clone, framework);
+            delegate = new ServletContainerInitializerAnnotationProcessor(handler, clone, config.framework());
         }
         logger.info("AnnotationProcessor {} being used", delegate.getClass());
 
         if (scanForAtmosphereAnnotation) {
-            scanForAnnotation(framework);
+            scanForAnnotation(config.framework());
         }
 
-        delegate.configure(framework);
-        return this;
+        delegate.configure(config.framework().getAtmosphereConfig());
     }
 
     private void scanForAnnotation(AtmosphereFramework f) {
@@ -238,8 +237,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         }
 
         @Override
-        public AnnotationProcessor configure(final AtmosphereFramework framework) {
-            return this;
+        public void configure(final AtmosphereConfig config) {
         }
 
         @Override
@@ -284,7 +282,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
         private void scanForCustomAnnotation() throws IOException {
             BytecodeBasedAnnotationProcessor b = new BytecodeBasedAnnotationProcessor(handler);
-            b.configure(framework);
+            b.configure(framework.getAtmosphereConfig());
             String path = framework.getServletContext().getRealPath(framework.getHandlersPath());
             if (path != null) {
                 b.scan(new File(path)).destroy();
@@ -338,7 +336,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         }
 
         @Override
-        public AnnotationProcessor configure(final AtmosphereFramework framework) {
+        public void configure(final AtmosphereConfig config) {
 
             final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
                 @SuppressWarnings("unchecked")
@@ -351,7 +349,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
                     try {
                         final Class<?> discoveredClass = loadClass(getClass(), className);
-                        handler.handleAnnotation(framework, annotation, discoveredClass);
+                        handler.handleAnnotation(config.framework(), annotation, discoveredClass);
                     } catch (Exception e) {
                         logger.warn("Could not load discovered class", e);
                     }
@@ -359,7 +357,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
             };
             detector = new AnnotationDetector(reporter);
-            return this;
         }
 
         @Override

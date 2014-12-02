@@ -2633,7 +2633,7 @@ public class AtmosphereFramework {
                     (Class<AnnotationProcessor>) IOUtils.loadClass(getClass(), annotationProcessorClassName));
             logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
 
-            annotationProcessor.configure(this);
+            annotationProcessor.configure(config);
 
             if (packages.size() > 0) {
                 for (String s : packages) {

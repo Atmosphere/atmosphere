@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.inject.AtmosphereConfigAware;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -23,15 +25,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AnnotationProcessor {
-
-    /**
-     * Configure this class with an instance of {@link AtmosphereFramework}
-     *
-     * @param framework the {@link AtmosphereFramework}
-     * @return this
-     */
-    public AnnotationProcessor configure(AtmosphereFramework framework);
+public interface AnnotationProcessor extends AtmosphereConfigAware{
 
     /**
      * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.
