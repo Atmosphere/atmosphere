@@ -421,6 +421,8 @@ public class AtmosphereFramework {
                     fwk.webSocketProtocolClassName = WebSocketProtocol.class.getName();
                 } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
                     fwk.webSocketProcessorClassName = WebSocketProcessor.class.getName();
+                } else if (AtmosphereResourceFactory.class.isAssignableFrom(c)) {
+                    fwk.setAndConfigureAtmosphereResourceFactory(fwk.newClassInstance(AtmosphereResourceFactory.class, c));
                 } else if (AtmosphereFrameworkListener.class.isAssignableFrom(c)) {
                     fwk.frameworkListener(fwk.newClassInstance(AtmosphereFrameworkListener.class, c));
                 } else {
