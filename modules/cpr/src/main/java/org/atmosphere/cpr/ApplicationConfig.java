@@ -810,5 +810,11 @@ public interface ApplicationConfig {
      * @see {@link https://github.com/Atmosphere/atmosphere/issues/1695}
      */
     String DISABLE_ATMOSPHERE_INITIALIZER =  "org.atmosphere.cpr.AtmosphereInitializer.disabled";
+    /**
+     * For use of (@link BytecodeBasedAnnotationProcessor}
+     * Default: false
+     * Value: org.atmosphere.cpr.annotation.useBytecodeProcessor
+     */
+    String BYTECODE_PROCESSOR = "org.atmosphere.cpr.annotation.useBytecodeProcessor";
 }
 
