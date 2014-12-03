@@ -35,11 +35,12 @@ import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
 import java.nio.charset.CharsetEncoder;
+import java.nio.charset.MalformedInputException;
 import java.util.Arrays;
 import java.util.HashSet;
 
-import static org.atmosphere.cpr.ApplicationConfig.MESSAGE_DELIMITER;
 import static org.atmosphere.cpr.ApplicationConfig.EXCLUDED_CONTENT_TYPES;
+import static org.atmosphere.cpr.ApplicationConfig.MESSAGE_DELIMITER;
 
 /**
  * An {@link org.atmosphere.cpr.AtmosphereInterceptor} that add a message size and delimiter.
@@ -138,36 +139,42 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
             if (response.request().getAttribute(SKIP_INTERCEPTOR) == null
                     && (response.getContentType() == null
                     || !excludedContentTypes.contains(response.getContentType().toLowerCase()))) {
-                response.setCharacterEncoding(OUT_ENCODING);
+                try {
+                    response.setCharacterEncoding(OUT_ENCODING);
 
-                CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
-                String s = cb.toString();
+                    CharBuffer cb = inCharset.newDecoder().decode(ByteBuffer.wrap(responseDraft, 0, responseDraft.length));
+                    String s = cb.toString();
 
-                if (s.trim().length() == 0) {
+                    if (s.trim().length() == 0) {
+                        return responseDraft;
+                    }
+
+                    AtmosphereResource r = response.resource();
+                    if (r == null) {
+                        throw new IOException("Connection Closed by the Client " + response.uuid());
+                    }
+
+                    int size = cb.length();
+                    // The String must have been escaped by the JSONPAtmosphereInterceptor
+                    if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) && data.length != responseDraft.length) {
+                        size = inCharset.newDecoder().decode(ByteBuffer.wrap(data, 0, data.length)).length();
+                    }
+
+                    String csq = Integer.toString(size) + endString;
+                    ByteBuffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
+                    CharBuffer cb2 = CharBuffer.wrap(csq);
+                    CharsetEncoder encoder = outCharset.newEncoder();
+                    encoder.encode(cb2, bb, false);
+                    encoder.encode(cb, bb, false);
+                    bb.flip();
+                    byte[] b = new byte[bb.limit()];
+                    bb.get(b);
+                    return b;
+                } catch (MalformedInputException ex) {
+                    // https://github.com/Atmosphere/atmosphere/issues/1803
+                    logger.warn("Cannot decode the response bytes for {}. Writing the message as it is", response.uuid(), ex);
                     return responseDraft;
                 }
-
-                AtmosphereResource r = response.resource();
-                if (r == null) {
-                    throw new IOException("Connection Closed by the Client " + response.uuid());
-                }
-
-                int size = cb.length();
-                // The String must have been escaped by the JSONPAtmosphereInterceptor
-                if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) && data.length != responseDraft.length) {
-                    size = inCharset.newDecoder().decode(ByteBuffer.wrap(data, 0, data.length)).length();
-                }
-
-                String csq = Integer.toString(size) + endString;
-                ByteBuffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
-                CharBuffer cb2 = CharBuffer.wrap(csq);
-                CharsetEncoder encoder = outCharset.newEncoder();
-                encoder.encode(cb2, bb, false);
-                encoder.encode(cb, bb, false);
-                bb.flip();
-                byte[] b = new byte[bb.limit()];
-                bb.get(b);
-                return b;
             } else {
                 return responseDraft;
             }
