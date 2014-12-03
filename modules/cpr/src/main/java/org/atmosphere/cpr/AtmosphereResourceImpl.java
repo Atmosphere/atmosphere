@@ -953,12 +953,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return uuid != null ? uuid.hashCode() : 0;
     }
 
-    public AtmosphereResourceImpl inClosingPhase(boolean inProgress) {
-        inClosingPhase.set(inProgress);
-        return this;
-    }
-
-    public boolean inClosingPhase(){
-        return inClosingPhase.get();
+    public boolean getAndSetInClosingPhase(){
+        return inClosingPhase.getAndSet(true);
     }
 }

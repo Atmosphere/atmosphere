@@ -428,7 +428,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @return true if the operation was executed.
      */
     public boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
-        if (r != null && !r.isCancelled() && !AtmosphereResourceImpl.class.cast(r).inClosingPhase()){
+        if (r != null && !r.isCancelled() && !AtmosphereResourceImpl.class.cast(r).getAndSetInClosingPhase()){
             logger.trace("Finishing lifecycle for AtmosphereResource {}", r.uuid());
             final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
             synchronized (impl) {
