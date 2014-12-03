@@ -917,6 +917,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
             if (token.future != null) token.future.done();
 
+            r.getRequest().setAttribute(getID(), null);
+
             if (lostCandidate) {
                 cacheLostMessage(r, token, true);
             }
