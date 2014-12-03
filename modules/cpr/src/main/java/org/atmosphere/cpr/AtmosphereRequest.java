@@ -359,7 +359,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             c = isNotNoOps() && b.request.getContextPath() != null ? b.request.getContextPath() : b.contextPath != null ? b.contextPath : "";
         } catch (NullPointerException ex) {
             // https://github.com/Atmosphere/atmosphere/issues/1804
-            logger.debug("Unexpected getContextPath exception. Forcing `/`", ex);
+            logger.warn("Unexpected getContextPath exception. Forcing `/`", ex);
         }
         return c;
     }
