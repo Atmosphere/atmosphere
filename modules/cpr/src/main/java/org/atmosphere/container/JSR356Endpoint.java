@@ -223,13 +223,13 @@ public class JSR356Endpoint extends Endpoint {
             if (session.isOpen()){
                 logger.error("", e);
             } else {
-                logger.trace("Session closed during onOpen", e);
+                logger.warn("Session closed during onOpen", e);
             }
 
             try {
                 session.close(new CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
             } catch (IOException e1) {
-                logger.trace("", e);
+                logger.debug("", e);
             }
             return;
         }
