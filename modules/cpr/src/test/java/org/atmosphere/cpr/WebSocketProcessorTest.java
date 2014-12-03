@@ -292,7 +292,6 @@ public class WebSocketProcessorTest {
                     }
                 });
 
-                AtmosphereResourceImpl.class.cast(resource).inClosingPhase(true);
                 AtmosphereResourceEventImpl.class.cast(resource.getAtmosphereResourceEvent()).isClosedByClient(true);
                 AsynchronousProcessor.class.cast(framework.getAsyncSupport()).completeLifecycle(resource, false);
                 processor.close(w, 1005);
