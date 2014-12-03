@@ -49,8 +49,12 @@ public final class Utils {
 
         boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
         if (allowWebSocketWithoutHeaders) return true;
+        boolean webSocketEnabled = rawWebSocket(request);
 
-        boolean webSocketEnabled = false;
+        return webSocketEnabled;
+    }
+
+    public final static boolean rawWebSocket(HttpServletRequest request) {
         Enumeration<String> connection = request.getHeaders("Connection");
         if (connection == null || !connection.hasMoreElements()) {
             connection = request.getHeaders("connection");
@@ -60,12 +64,11 @@ public final class Utils {
             String[] e = connection.nextElement().toString().split(",");
             for (String upgrade : e) {
                 if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
-                    webSocketEnabled = true;
-                    break;
+                    return true;
                 }
             }
         }
-        return webSocketEnabled;
+        return false;
     }
 
     public final static boolean firefoxWebSocketEnabled(HttpServletRequest request) {
