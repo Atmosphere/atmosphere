@@ -193,6 +193,11 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                     if (testClassExists(JBOSS_AS7_WEBSOCKET))
                         add(JBossAsyncSupportWithWebSocket.class);
+
+                    if (isEmpty()) {
+                        if (testClassExists(JSR356_WEBSOCKET))
+                            add(JSR356AsyncSupport.class);
+                    }
                 }
             }
         };
