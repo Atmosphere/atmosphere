@@ -368,7 +368,7 @@ public class IOUtils {
             is = AtmosphereFramework.class.getClassLoader().getResourceAsStream("META-INF/services/" + path);
 
             if (is == null) {
-                logger.warn("META-INF/services/{} not found in class loader", path);
+                logger.info("META-INF/services/{} not found in class loader", path);
                 return b;
             }
 
