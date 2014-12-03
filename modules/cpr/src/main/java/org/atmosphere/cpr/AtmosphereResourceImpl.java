@@ -153,7 +153,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         String s = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         if (s == null) return UNDEFINED;
 
-        if (s.equals(UNDEFINED.name()) && Utils.properProtocol(req)) {
+        if (s.equals(UNDEFINED.name()) && Utils.rawWebSocket(req)) {
             return TRANSPORT.WEBSOCKET;
         }
 
