@@ -45,6 +45,7 @@ public class SessionSupport implements HttpSessionListener {
             HttpSession s = se.getSession();
             BroadcasterFactory f = (BroadcasterFactory) s.getAttribute(FrameworkConfig.BROADCASTER_FACTORY);
             if (f != null) {
+                s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, null);
                 for (Broadcaster b : f.lookupAll()) {
                     for (AtmosphereResource r : b.getAtmosphereResources()) {
                         if (r.session() != null && r.session().getId().equals(s.getId())) {
