@@ -94,7 +94,7 @@ public class BroadcasterConfig {
      * @param name
      */
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
-                             ScheduledExecutorService scheduler, AtmosphereConfig config, String name) {
+                             ScheduledExecutorService scheduler, AtmosphereConfig config, String broadcasterId) {
         this.executorService = executorService;
         this.scheduler = scheduler;
         this.asyncWriteService = asyncWriteService;
@@ -148,7 +148,7 @@ public class BroadcasterConfig {
         config.properties().put("shared", "true");
     }
 
-    protected BroadcasterConfig broadcasterID(String name) {
+    protected BroadcasterConfig broadcasterID(String broadcasterId) {
         this.broadcasterId = broadcasterId;
         initClusterExtension();
         return this;
