@@ -335,11 +335,6 @@ public class BroadcasterConfig {
             broadcasterCache.stop();
         }
 
-        for (BroadcastFilter f : filters) {
-            if (f instanceof BroadcastFilterLifecycle) {
-                ((BroadcastFilterLifecycle) f).destroy();
-            }
-        }
         removeAllFilters();
 
         if (!force && !handleExecutors) return;
