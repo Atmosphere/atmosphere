@@ -148,7 +148,7 @@ public class BroadcasterConfig {
         config.properties().put("shared", "true");
     }
 
-    protected BroadcasterConfig broadcasterID(String name) {
+    protected BroadcasterConfig broadcasterID(String broadcasterId) {
         this.broadcasterId = broadcasterId;
         initClusterExtension();
         return this;
