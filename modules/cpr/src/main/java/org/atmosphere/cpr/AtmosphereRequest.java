@@ -690,7 +690,12 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
         b.localAttributes.put(s, o);
         if (isNotNoOps()) {
-            b.request.setAttribute(s, o);
+            try {
+                b.request.setAttribute(s, o);
+            } catch (NullPointerException ex) {
+                // https://github.com/Atmosphere/atmosphere/issues/1806
+                logger.warn("", ex);
+            }
         }
     }
 
