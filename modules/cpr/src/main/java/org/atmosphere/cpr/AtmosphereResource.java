@@ -93,10 +93,6 @@ public interface AtmosphereResource {
      * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
      * returns true) has no effect.
      * <p/>
-     * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
-     * work well with suspended responses. By default, the {@link AtmosphereResponse#getWriter} will be used. You can
-     * change that behavior by setting a request attribute named org.atmosphere.useStream so the framework will
-     * use {@link AtmosphereResponse#getOutputStream()}.
      *
      * @param timeout The maximum amount of time, in milliseconds, a {@link AtmosphereResponse} can be suspended. When
      *                the timeout expires, the {@link AtmosphereResponse} will be automatically resumed and committed.
@@ -110,10 +106,6 @@ public interface AtmosphereResource {
      * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
      * returns true) has no effect.
      * <p/>
-     * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
-     * work well with suspended responses. By default, the {@link AtmosphereResponse#getWriter} will be used. You can
-     * change that behavior by setting a request attribute named org.atmosphere.useStream so the framework will
-     * use {@link AtmosphereResponse#getOutputStream()}.
      *
      * @param timeout  The maximum amount of time a {@link AtmosphereResponse} can be suspended. When the timeout
      *                 expires, the {@link AtmosphereResponse} will be automatically resumed and committed. Usage of any
