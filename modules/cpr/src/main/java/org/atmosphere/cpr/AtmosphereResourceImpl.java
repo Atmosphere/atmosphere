@@ -631,7 +631,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         } catch (Throwable t) {
             AtmosphereResourceEventImpl.class.cast(event).setThrowable(t);
             if (event.isSuspended()) {
-                logger.warn("Exception during suspend() operation {}", t);
+                logger.warn("Exception during suspend() operation {}", t.toString());
+                logger.debug("", t);
                 broadcaster.removeAtmosphereResource(this);
                 if (config.getBroadcasterFactory() != null) {
                     config.getBroadcasterFactory().removeAllAtmosphereResource(this);
