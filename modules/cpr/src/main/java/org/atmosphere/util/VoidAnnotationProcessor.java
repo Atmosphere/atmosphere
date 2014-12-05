@@ -16,7 +16,7 @@
 package org.atmosphere.util;
 
 import org.atmosphere.cpr.AnnotationProcessor;
-import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
 
 import java.io.File;
 import java.io.IOException;
@@ -27,6 +27,11 @@ import java.io.IOException;
  * @author Jeanfrancois Arcand
  */
 public class VoidAnnotationProcessor implements AnnotationProcessor {
+    @Override
+    public AnnotationProcessor configure(AtmosphereFramework framework) {
+        return null;
+    }
+
     @Override
     public AnnotationProcessor scan(File rootDir) throws IOException {
         return this;
@@ -45,9 +50,5 @@ public class VoidAnnotationProcessor implements AnnotationProcessor {
     @Override
     public void destroy() {
 
-    }
-
-    @Override
-    public void configure(AtmosphereConfig config) {
     }
 }
