@@ -585,12 +585,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     @Override
     public void close(final WebSocket webSocket, int closeCode) {
-
-        if (!webSocket.isOpen()) {
-            logger.trace("Already closed {}", webSocket);
-            return;
-        }
-
         WebSocketHandler webSocketHandler = webSocket.webSocketHandler();
         // A message might be in the process of being processed and the websocket gets closed. In that corner
         // case the webSocket.resource will be set to false and that might cause NPE in some WebSocketProcol implementation
