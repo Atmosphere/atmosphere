@@ -748,7 +748,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 Response.ResponseBuilder b = Response.ok();
                 b = configureHeaders(b);
 
-                AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
+                AtmosphereConfig config = r.getAtmosphereConfig();
 
                 String defaultCT = config.getInitParameter(DEFAULT_CONTENT_TYPE);
                 if (defaultCT == null) {

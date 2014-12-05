@@ -766,8 +766,8 @@ public class DefaultBroadcaster implements Broadcaster {
         final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(token.resource);
         final boolean willBeResumed = Utils.resumableTransport(r.transport());
         List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList() : EMPTY_LISTENERS;
+        final AtmosphereRequest request = r.getRequest(false);
         try {
-            final AtmosphereRequest request = r.getRequest(false);
 
             event.setMessage(token.msg);
 
@@ -831,11 +831,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
             if (token.future != null) token.future.done();
 
-            r.getRequest().setAttribute(getID(), null);
-
             if (lostCandidate) {
                 cacheLostMessage(r, token, true);
             }
+
+            request.removeAttribute(getID());
+            request.removeAttribute(ASYNC_TOKEN);
             token.destroy();
         }
     }
@@ -1066,9 +1067,12 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param r {@link AtmosphereResource}
      */
     public void cacheLostMessage(AtmosphereResource r) {
-        // Quite ugly cast that need to be fixed all over the place
-        cacheLostMessage(r, (AsyncWriteToken)
-                AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ASYNC_TOKEN));
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        try {
+            cacheLostMessage(r, (AsyncWriteToken) request.getAttribute(ASYNC_TOKEN));
+        } finally {
+            request.removeAttribute(ASYNC_TOKEN);
+        }
     }
 
     /**
@@ -1077,9 +1081,12 @@ public class DefaultBroadcaster implements Broadcaster {
      * @param r {@link AtmosphereResource}
      */
     public void cacheLostMessage(AtmosphereResource r, boolean force) {
-        // Quite ugly cast that need to be fixed all over the place
-        cacheLostMessage(r, (AsyncWriteToken)
-                AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(ASYNC_TOKEN), force);
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        try {
+            cacheLostMessage(r, (AsyncWriteToken) request.getAttribute(ASYNC_TOKEN), force);
+        } finally {
+            request.removeAttribute(ASYNC_TOKEN);
+        }
     }
 
     /**
