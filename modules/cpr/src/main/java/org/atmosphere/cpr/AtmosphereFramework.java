@@ -135,6 +135,7 @@ import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.SPRING_INJECTOR;
+import static org.atmosphere.cpr.FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST;
 import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
@@ -2001,7 +2002,8 @@ public class AtmosphereFramework {
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
         req.setAttribute(BROADCASTER_CLASS, broadcasterClassName);
         req.setAttribute(ATMOSPHERE_CONFIG, config);
-        req.setAttribute(FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST, "" + config.isThrowExceptionOnCloned());
+        req.setAttribute(THROW_EXCEPTION_ON_CLONED_REQUEST, "" + config.isThrowExceptionOnCloned());
+
         boolean skip = true;
         String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
         if (s != null) {

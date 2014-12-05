@@ -128,6 +128,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 try {
                     logger.trace("Already resumed!", ex);
                 } catch (Exception ex2){};
+            } finally {
+                request.removeAttribute(FrameworkConfig.ASYNC_CONTEXT);
             }
         }
     }
