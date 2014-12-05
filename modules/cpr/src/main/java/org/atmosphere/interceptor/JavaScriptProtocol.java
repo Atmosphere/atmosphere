@@ -174,6 +174,12 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         return Action.CONTINUE;
     }
 
+    private static int parseVersion(String version) {
+        // Remove any qualifier if the version is 1.2.3.qualifier
+        String[] parts = version.split("\\.");
+        return Integer.valueOf(parts[0] + parts[1] + parts[2]);
+    }
+
     public String wsDelimiter() {
         return wsDelimiter;
     }
