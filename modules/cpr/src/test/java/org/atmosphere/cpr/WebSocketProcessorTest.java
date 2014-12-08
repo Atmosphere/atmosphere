@@ -36,7 +36,9 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -463,5 +465,48 @@ public class WebSocketProcessorTest {
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertTrue(dirtyDisconnect.get());
+    }
+
+    @Test
+    public void testIsSuspended() throws Exception {
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+        final CountDownLatch suspendedLatch = new CountDownLatch(1);
+        final AtomicBoolean beforeSuspend = new AtomicBoolean(), afterSuspend = new AtomicBoolean();
+
+        framework.addAtmosphereHandler("/*", new AtmosphereHandler() {
+
+            @Override
+            public void onRequest(AtmosphereResource resource) throws IOException {
+                beforeSuspend.set(resource.isSuspended());
+                resource.getBroadcaster().addAtmosphereResource(resource.suspend());
+                afterSuspend.set(resource.isSuspended());
+                suspendedLatch.countDown();
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+                event.getResource().write(event.getMessage().toString().getBytes());
+            }
+
+            @Override
+            public void destroy() {
+            }
+        });
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+
+        suspendedLatch.await(5, TimeUnit.SECONDS);
+
+        assertFalse(beforeSuspend.get());
+        assertTrue(afterSuspend.get());
+
+        Broadcaster broadcaster = framework.getBroadcasterFactory().lookup("/*");
+        assertEquals(broadcaster.getAtmosphereResources().size(), 1);
+        AtmosphereResource resource = broadcaster.getAtmosphereResources().iterator().next();
+        assertEquals(resource.isSuspended(), true);
     }
 }
