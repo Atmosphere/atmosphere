@@ -15,20 +15,9 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import java.io.IOException;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
-
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
+import java.util.concurrent.ConcurrentMap;
 
 /**
  * A Factory used to manage {@link AtmosphereResource} instances. You can use this factory to create, remove and find
@@ -36,48 +25,31 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
  *
  * @author Jeanfrancois Arcand
  */
-public final class AtmosphereResourceFactory {
+public abstract class AtmosphereResourceFactory {
 
-    private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceFactory.class);
     private static AtmosphereResourceFactory factory;
-    private final static Broadcaster noOps = (Broadcaster)
-            Proxy.newProxyInstance(Broadcaster.class.getClassLoader(), new Class[]{Broadcaster.class},
-                    new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            if (method.getName().equals("isDestroyed")) return false;
-                            return null;
-                        }
-                    });
-    private final static AtmosphereHandler noOpsHandler = (AtmosphereHandler)
-            Proxy.newProxyInstance(AtmosphereHandler.class.getClassLoader(), new Class[]{AtmosphereHandler.class},
-                    new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            return null;
-                        }
-                    });
-    private final static AtmosphereHandler voidAtmosphereHandler = new AbstractReflectorAtmosphereHandler() {
-        @Override
-        public void onRequest(AtmosphereResource resource) throws IOException {
-        }
 
-        @Override
-        public void destroy() {
-        }
-    };
-    private BroadcasterFactory broadcasterFactory;
-
-    public AtmosphereResourceFactory(){
-        // This is quite ugly, but here for legacy reason.
-        factory = this;
+    /**
+     * Package-private method used by DefaultAtmosphereResourceFactory to store
+     * the current AtmosphereResourceFactory instance.
+     *
+     * @param atmosphereResourceFactory the current AtmosphereResourceFactory instance
+     */
+    static void updateAtmosphereResourceFactory(AtmosphereResourceFactory atmosphereResourceFactory) {
+        factory = atmosphereResourceFactory;
     }
 
-    public void configure(AtmosphereConfig config) {
-        this.broadcasterFactory = config.getBroadcasterFactory();
+    /**
+     * Use {@link AtmosphereConfig#resourcesFactory() instead}
+     *
+     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#resourcesFactory()}
+     */
+    @Deprecated
+    public static AtmosphereResourceFactory getDefault() {
+        return factory;
     }
 
-    private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<String, AtmosphereResource>();
+    public abstract void configure(AtmosphereConfig config);
 
     /**
      * Create an {@link AtmosphereResourceImpl}
@@ -87,20 +59,10 @@ public final class AtmosphereResourceFactory {
      * @param a       {@link AsyncSupport}
      * @return an {@link AtmosphereResourceImpl}
      */
-    public final AtmosphereResource create(AtmosphereConfig config,
-                                           AtmosphereRequest request,
-                                           AtmosphereResponse response,
-                                           AsyncSupport<?> a) {
-        AtmosphereResource r = null;
-        try {
-            r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
-            r.initialize(config, null, request, response, a, voidAtmosphereHandler);
-            setDefaultSerializer(config, r);
-        } catch (Exception e) {
-            logger.error("", e);
-        }
-        return r;
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config,
+                              AtmosphereRequest request,
+                              AtmosphereResponse response,
+                              AsyncSupport<?> a);
 
     /**
      * Create an {@link AtmosphereResourceImpl}.
@@ -112,14 +74,12 @@ public final class AtmosphereResourceFactory {
      * @param handler     an {@link AtmosphereHandler}
      * @return an {@link AtmosphereResourceImpl}
      */
-    public final AtmosphereResource create(AtmosphereConfig config,
-                                           Broadcaster broadcaster,
-                                           AtmosphereRequest request,
-                                           AtmosphereResponse response,
-                                           AsyncSupport<?> a,
-                                           AtmosphereHandler handler) {
-        return create(config, broadcaster, request, response, a, handler, AtmosphereResource.TRANSPORT.UNDEFINED);
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config,
+                              Broadcaster broadcaster,
+                              AtmosphereRequest request,
+                              AtmosphereResponse response,
+                              AsyncSupport<?> a,
+                              AtmosphereHandler handler);
 
     /**
      * Create an {@link AtmosphereResourceImpl}.
@@ -132,27 +92,13 @@ public final class AtmosphereResourceFactory {
      * @param t           an {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}
      * @return an {@link AtmosphereResourceImpl}
      */
-    public final AtmosphereResource create(AtmosphereConfig config,
-                                           Broadcaster broadcaster,
-                                           AtmosphereRequest request,
-                                           AtmosphereResponse response,
-                                           AsyncSupport<?> a,
-                                           AtmosphereHandler handler,
-                                           AtmosphereResource.TRANSPORT t) {
-        AtmosphereResource r = null;
-        try {
-            r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
-
-            if (request.getHeader(X_ATMOSPHERE_TRANSPORT) == null) {
-                request.header(X_ATMOSPHERE_TRANSPORT, t.name());
-            }
-            r.initialize(config, broadcaster, request, response, a, handler);
-            setDefaultSerializer(config, r);
-        } catch (Exception e) {
-            logger.error("", e);
-        }
-        return r;
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config,
+                              Broadcaster broadcaster,
+                              AtmosphereRequest request,
+                              AtmosphereResponse response,
+                              AsyncSupport<?> a,
+                              AtmosphereHandler handler,
+                              AtmosphereResource.TRANSPORT t);
 
     /**
      * Create an {@link AtmosphereResourceImpl}.
@@ -164,22 +110,18 @@ public final class AtmosphereResourceFactory {
      * @param handler     an {@link AtmosphereHandler}
      * @return an {@link AtmosphereResourceImpl}
      */
-    public final AtmosphereResource create(AtmosphereConfig config,
-                                           Broadcaster broadcaster,
-                                           AtmosphereResponse response,
-                                           AsyncSupport<?> a,
-                                           AtmosphereHandler handler) {
-        return create(config, broadcaster, response.request(), response, a, handler);
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config,
+                              Broadcaster broadcaster,
+                              AtmosphereResponse response,
+                              AsyncSupport<?> a,
+                              AtmosphereHandler handler);
 
-    public final AtmosphereResource create(AtmosphereConfig config,
-                                           Broadcaster broadcaster,
-                                           AtmosphereResponse response,
-                                           AsyncSupport<?> a,
-                                           AtmosphereHandler handler,
-                                           AtmosphereResource.TRANSPORT t) {
-        return create(config, broadcaster, response.request(), response, a, handler, t);
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config,
+                              Broadcaster broadcaster,
+                              AtmosphereResponse response,
+                              AsyncSupport<?> a,
+                              AtmosphereHandler handler,
+                              AtmosphereResource.TRANSPORT t);
 
     /**
      * Create an {@link AtmosphereResourceImpl}.
@@ -189,19 +131,9 @@ public final class AtmosphereResourceFactory {
      * @param a        {@link AsyncSupport}
      * @return an {@link AtmosphereResourceImpl}
      */
-    public final AtmosphereResource create(AtmosphereConfig config,
-                                           AtmosphereResponse response,
-                                           AsyncSupport<?> a) {
-        AtmosphereResource r = null;
-        try {
-            r = config.framework().newClassInstance(AtmosphereResource.class, AtmosphereResourceImpl.class);
-            r.initialize(config, null, response.request(), response, a, voidAtmosphereHandler);
-            setDefaultSerializer(config, r);
-        } catch (Exception e) {
-            logger.error("", e);
-        }
-        return r;
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config,
+                              AtmosphereResponse response,
+                              AsyncSupport<?> a);
 
     /**
      * Create an {@link AtmosphereResource} associated with the uuid.
@@ -210,35 +142,17 @@ public final class AtmosphereResourceFactory {
      * @param uuid   a String representing a UUID
      * @return
      */
-    public final AtmosphereResource create(AtmosphereConfig config, String uuid) {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
-        response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
-        return create(config,
-                noOps,
-                AtmosphereRequest.newInstance(),
-                response,
-                config.framework().getAsyncSupport(),
-                noOpsHandler);
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config, String uuid);
 
     /**
      * Create an {@link AtmosphereResource} associated with the uuid.
      *
-     * @param config an {@link AtmosphereConfig}
-     * @param uuid   a String representing a UUID
+     * @param config  an {@link AtmosphereConfig}
+     * @param uuid    a String representing a UUID
      * @param request a {@link org.atmosphere.cpr.AtmosphereRequest}
      * @return
      */
-    public final AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request) {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
-        response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
-        return create(config,
-                noOps,
-                request,
-                response,
-                config.framework().getAsyncSupport(),
-                noOpsHandler);
-    }
+    public abstract AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request);
 
     /**
      * Remove the {@link AtmosphereResource} from all instances of {@link Broadcaster}.
@@ -246,14 +160,7 @@ public final class AtmosphereResourceFactory {
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.
      */
-    public final AtmosphereResource remove(String uuid) {
-        logger.trace("Removing: {}", uuid);
-        AtmosphereResource r = resources.remove(uuid);
-        if (r != null) {
-            r.getAtmosphereConfig().getBroadcasterFactory().removeAllAtmosphereResource(r);
-        }
-        return r;
-    }
+    public abstract AtmosphereResource remove(String uuid);
 
     /**
      * Find an {@link AtmosphereResource} based on its {@link org.atmosphere.cpr.AtmosphereResource#uuid()}.
@@ -261,10 +168,7 @@ public final class AtmosphereResourceFactory {
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.
      */
-    public final AtmosphereResource find(String uuid) {
-        if (uuid == null) return null;
-        return resources.get(uuid);
-    }
+    public abstract AtmosphereResource find(String uuid);
 
     /**
      * Return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}, e.g for which
@@ -275,67 +179,25 @@ public final class AtmosphereResourceFactory {
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}
      */
-    public final Set<Broadcaster> broadcasters(String uuid) {
-        Collection<Broadcaster> l = broadcasterFactory.lookupAll();
-        Set<Broadcaster> h = new HashSet<Broadcaster>();
-        for (Broadcaster b : l) {
-            for (AtmosphereResource r : b.getAtmosphereResources()) {
-                if (r.uuid().equalsIgnoreCase(uuid)) {
-                    h.add(b);
-                }
-            }
-        }
-        return h;
-    }
-
-    /**
-     * Use {@link AtmosphereConfig#resourcesFactory() instead}
-     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereConfig#resourcesFactory()}
-     */
-    public final static AtmosphereResourceFactory getDefault() {
-        return factory;
-    }
+    public abstract Set<Broadcaster> broadcasters(String uuid);
 
     /**
      * Register an {@link AtmosphereResource} for being a candidate to {@link #find(String)} operation.
      *
      * @param r {@link AtmosphereResource}
      */
-    public void registerUuidForFindCandidate(AtmosphereResource r) {
-        logger.trace("Adding: {}", r);
-        resources.put(r.uuid(), r);
-    }
+    public abstract void registerUuidForFindCandidate(AtmosphereResource r);
 
     /**
      * Un register an {@link AtmosphereResource} for being a candidate to {@link #find(String)} operation.
      *
      * @param r {@link AtmosphereResource}
      */
-    public void unRegisterUuidForFindCandidate(AtmosphereResource r) {
-        Object o = resources.remove(r.uuid());
-        if (o != null) {
-            logger.trace("Removing: {}", r);
-        }
-    }
+    public abstract void unRegisterUuidForFindCandidate(AtmosphereResource r);
 
-    public void destroy() {
-        resources.clear();
-    }
+    public abstract void destroy();
 
-    public ConcurrentHashMap<String, AtmosphereResource> resources() {
-        return resources;
-    }
+    public abstract ConcurrentMap<String, AtmosphereResource> resources();
 
-    public Collection<AtmosphereResource> findAll() {
-        return resources.values();
-    }
-
-    private void setDefaultSerializer(AtmosphereConfig config, AtmosphereResource r) throws Exception {
-        Class<Serializer> serializerClass = config.framework().getDefaultSerializerClass();
-        if (serializerClass != null) {
-            Serializer serializer = config.framework().newClassInstance(Serializer.class, serializerClass);
-            r.setSerializer(serializer);
-        }
-    }
-
+    public abstract Collection<AtmosphereResource> findAll();
 }
