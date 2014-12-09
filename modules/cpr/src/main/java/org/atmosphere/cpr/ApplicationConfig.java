@@ -710,7 +710,7 @@ public interface ApplicationConfig {
      */
     String SESSION_MAX_INACTIVE_INTERVAL = "org.atmosphere.cpr.session.maxInactiveInterval";
     /**
-     * Wait X milliseconds before considering the {@link AtmosphereResource} closed. This is useful when {@link org.atmosphere.util.Utils#enableProtocol())}
+     * Wait X milliseconds before considering the {@link AtmosphereResource} closed. This is useful when {@link org.atmosphere.util.Utils#atmosphereProtocol(AtmosphereRequest r))}
      * return true, and let the client send the {@link HeaderConfig#DISCONNECT_TRANSPORT_MESSAGE} message.
      * <p/>
      * Default: 500<br>
