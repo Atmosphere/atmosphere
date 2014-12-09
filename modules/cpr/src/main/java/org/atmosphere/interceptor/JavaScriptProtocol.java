@@ -120,19 +120,24 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 }
             }
 
-            // Since 1.0.10
-            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter);
-
-            // since 2.2
+            String message;
             if (enforceAtmosphereVersion) {
-                message.append(heartbeatInterval)
-                    .append(wsDelimiter)
-                    .append(heartbeatData)
-                    .append(wsDelimiter);
+                // UUID since 1.0.10
+                message = r.uuid()
+                    + wsDelimiter
+                    // heartbeat since 2.2
+                    + heartbeatInterval
+                    + wsDelimiter
+                    + heartbeatData
+                    + wsDelimiter;
+            }
+            else {
+                // UUID since 1.0.10
+                message = r.uuid();
             }
 
             // https://github.com/Atmosphere/atmosphere/issues/993
-            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
+            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message);
             if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
                 for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
                     if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
