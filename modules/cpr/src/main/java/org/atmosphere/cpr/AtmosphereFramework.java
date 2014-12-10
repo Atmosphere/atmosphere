@@ -822,6 +822,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
 
+        servletConfig = servletConfig(sc, wrap);
         readSystemProperties();
         populateBroadcasterType();
         populateObjectFactoryType();
@@ -829,53 +830,12 @@ public class AtmosphereFramework {
         onPreInit();
 
         try {
-            ServletConfig scFacade;
 
-            if (wrap) {
-                scFacade = new ServletConfig() {
-
-                    AtomicBoolean done = new AtomicBoolean();
-
-                    public String getServletName() {
-                        return sc.getServletName();
-                    }
-
-                    public ServletContext getServletContext() {
-                        return sc.getServletContext();
-                    }
-
-                    public String getInitParameter(String name) {
-                        String param = initParams.get(name);
-                        if (param == null) {
-                            return sc.getInitParameter(name);
-                        }
-                        return param;
-                    }
-
-                    public Enumeration<String> getInitParameterNames() {
-                        if (!done.getAndSet(true)) {
-                            Enumeration en = sc.getInitParameterNames();
-                            if (en != null) {
-                                while (en.hasMoreElements()) {
-                                    String name = (String) en.nextElement();
-                                    if (!initParams.containsKey(name)) {
-                                        initParams.put(name, sc.getInitParameter(name));
-                                    }
-                                }
-                            }
-                        }
-                        return Collections.enumeration(initParams.keySet());
-                    }
-                };
-            } else {
-                scFacade = sc;
-            }
-            this.servletConfig = scFacade;
             ServletContextFactory.getDefault().init(sc.getServletContext());
 
             preventOOM();
-            doInitParams(scFacade);
-            doInitParamsForWebSocket(scFacade);
+            doInitParams(servletConfig);
+            doInitParamsForWebSocket(servletConfig);
             lookupDefaultObjectFactoryType();
 
             asyncSupportListener(newClassInstance(AsyncSupportListener.class, AsyncSupportListenerAdapter.class));
@@ -885,31 +845,31 @@ public class AtmosphereFramework {
 
             configureBroadcasterFactory();
             configureMetaBroadcaster();
-            configureScanningPackage(scFacade, ApplicationConfig.ANNOTATION_PACKAGE);
-            configureScanningPackage(scFacade, FrameworkConfig.JERSEY2_SCANNING_PACKAGE);
-            configureScanningPackage(scFacade, FrameworkConfig.JERSEY_SCANNING_PACKAGE);
+            configureScanningPackage(servletConfig, ApplicationConfig.ANNOTATION_PACKAGE);
+            configureScanningPackage(servletConfig, FrameworkConfig.JERSEY2_SCANNING_PACKAGE);
+            configureScanningPackage(servletConfig, FrameworkConfig.JERSEY_SCANNING_PACKAGE);
             // Force scanning of the packages defined.
             defaultPackagesToScan();
 
-            installAnnotationProcessor(scFacade);
+            installAnnotationProcessor(servletConfig);
 
-            autoConfigureService(scFacade.getServletContext());
+            autoConfigureService(servletConfig.getServletContext());
 
             // Reconfigure in case an annotation changed the default.
             configureBroadcasterFactory();
             configureAtmosphereResourceFactory();
             patchContainer();
             configureBroadcaster();
-            loadConfiguration(scFacade);
+            loadConfiguration(servletConfig);
             initWebSocket();
             initEndpointMapper();
             initDefaultSerializer();
 
             autoDetectContainer();
-            configureWebDotXmlAtmosphereHandler(scFacade);
-            asyncSupport.init(scFacade);
-            initAtmosphereHandler(scFacade);
-            configureAtmosphereInterceptor(scFacade);
+            configureWebDotXmlAtmosphereHandler(servletConfig);
+            asyncSupport.init(servletConfig);
+            initAtmosphereHandler(servletConfig);
+            configureAtmosphereInterceptor(servletConfig);
             analytics();
 
             // http://java.net/jira/browse/ATMOSPHERE-157
@@ -942,6 +902,51 @@ public class AtmosphereFramework {
         onPostInit();
 
         return this;
+    }
+
+    protected ServletConfig servletConfig(final ServletConfig sc, boolean wrap) {
+        ServletConfig servletConfig;
+
+        if (wrap) {
+            servletConfig = new ServletConfig() {
+
+                AtomicBoolean done = new AtomicBoolean();
+
+                public String getServletName() {
+                    return sc.getServletName();
+                }
+
+                public ServletContext getServletContext() {
+                    return sc.getServletContext();
+                }
+
+                public String getInitParameter(String name) {
+                    String param = initParams.get(name);
+                    if (param == null) {
+                        return sc.getInitParameter(name);
+                    }
+                    return param;
+                }
+
+                public Enumeration<String> getInitParameterNames() {
+                    if (!done.getAndSet(true)) {
+                        Enumeration en = sc.getInitParameterNames();
+                        if (en != null) {
+                            while (en.hasMoreElements()) {
+                                String name = (String) en.nextElement();
+                                if (!initParams.containsKey(name)) {
+                                    initParams.put(name, sc.getInitParameter(name));
+                                }
+                            }
+                        }
+                    }
+                    return Collections.enumeration(initParams.keySet());
+                }
+            };
+        } else {
+            servletConfig = sc;
+        }
+        return servletConfig;
     }
 
     public void reconfigureInitParams(boolean reconfigureInitParams) {
