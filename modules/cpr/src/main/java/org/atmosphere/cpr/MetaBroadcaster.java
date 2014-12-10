@@ -16,8 +16,11 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.inject.AtmosphereConfigAware;
+import org.atmosphere.util.ExecutorsFactory;
 
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -47,18 +50,134 @@ import java.util.concurrent.TimeUnit;
  * </pre></blockquote>
  */
 public interface MetaBroadcaster extends AtmosphereConfigAware {
-
+    /**
+     * Broadcast the message to all Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()} matches the broadcasterID value.
+     *
+     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param message       a message to be broadcasted
+     * @return a Future
+     */
     Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message);
 
+    /**
+     * Broadcast the message at a fixed rate to all Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * matches the broadcasterID value. This operation will invoke {@link Broadcaster#scheduleFixedBroadcast(Object, long, java.util.concurrent.TimeUnit)}}
+     *
+     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param message       a message to be broadcasted
+     * @param time          a time value
+     * @param unit          a {@link TimeUnit}
+     * @return a Future
+     */
     Future<List<Broadcaster>> scheduleTo(String broadcasterID, Object message, int time, TimeUnit unit);
 
+    /**
+     * Delay the message delivery to Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * matches the broadcasterID value. This operation will invoke {@link Broadcaster#delayBroadcast(Object, long, java.util.concurrent.TimeUnit)} (Object, long, java.util.concurrent.TimeUnit)}}
+     *
+     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param message       a message to be broadcasted
+     * @param time          a time value
+     * @param unit          a {@link TimeUnit}
+     * @return a Future
+     */
     Future<List<Broadcaster>> delayTo(String broadcasterID, Object message, int time, TimeUnit unit);
 
+    /**
+     * Add a {@link BroadcasterListener} to all mapped {@link Broadcaster}s.
+     *
+     * @param b {@link BroadcasterListener}
+     * @return this
+     */
     MetaBroadcaster addBroadcasterListener(BroadcasterListener b);
 
+    /**
+     * Remove the {@link BroadcasterListener}.
+     *
+     * @param b {@link BroadcasterListener}
+     * @return this
+     */
     MetaBroadcaster removeBroadcasterListener(BroadcasterListener b);
 
+    /**
+     * Set the {@link MetaBroadcasterCache}. Default is {@link NoCache}.
+     *
+     * @param cache
+     * @return this
+     */
     MetaBroadcaster cache(DefaultMetaBroadcaster.MetaBroadcasterCache cache);
 
     void destroy();
+
+
+    /**
+     * Cache message if no {@link Broadcaster} maps the {@link #broadcastTo(String, Object)}
+     */
+    public static interface MetaBroadcasterCache {
+
+        /**
+         * Cache the Broadcaster ID and message
+         *
+         * @param path    the value passed to {@link #broadcastTo(String, Object)}
+         * @param message the value passed to {@link #broadcastTo(String, Object)}
+         * @return this
+         */
+        public MetaBroadcasterCache cache(String path, Object message);
+
+        /**
+         * Flush the Cache.
+         *
+         * @return this
+         */
+        public MetaBroadcasterCache flushCache();
+
+    }
+
+    public final static class NoCache implements MetaBroadcasterCache {
+
+        @Override
+        public MetaBroadcasterCache cache(String path, Object o) {
+            return this;
+        }
+
+        @Override
+        public MetaBroadcasterCache flushCache() {
+            return this;
+        }
+    }
+
+    /**
+     * Flush the cache every 30 seconds.
+     */
+    public final static class ThirtySecondsCache implements MetaBroadcasterCache, Runnable {
+
+        private final DefaultMetaBroadcaster defaultMetaBroadcaster;
+        private final ConcurrentHashMap<String, Object> cache = new ConcurrentHashMap<String, Object>();
+
+        public ThirtySecondsCache(DefaultMetaBroadcaster metaBroadcaster, AtmosphereConfig config) {
+            this.defaultMetaBroadcaster = metaBroadcaster;
+            ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(this, 0, 30, TimeUnit.SECONDS);
+        }
+
+        @Override
+        public MetaBroadcasterCache cache(String path, Object o) {
+            cache.put(path, o);
+            return this;
+        }
+
+        @Override
+        public MetaBroadcasterCache flushCache() {
+            for (Map.Entry<String, Object> e : cache.entrySet()) {
+                defaultMetaBroadcaster.map(e.getKey(), e.getValue(), -1, null, false, false);
+            }
+            return this;
+        }
+
+        @Override
+        public void run() {
+            flushCache();
+            cache.clear();
+        }
+    }
+
 }
