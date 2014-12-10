@@ -123,13 +123,13 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             String message;
             if (enforceAtmosphereVersion) {
                 // UUID since 1.0.10
-                message = r.uuid()
-                    + wsDelimiter
+                message = new StringBuilder(r.uuid())
+                    .append(wsDelimiter)
                     // heartbeat since 2.2
-                    + heartbeatInterval
-                    + wsDelimiter
-                    + heartbeatData
-                    + wsDelimiter;
+                    .append(heartbeatInterval)
+                    .append(wsDelimiter)
+                    .append(heartbeatData)
+                    .append(wsDelimiter).toString();
             }
             else {
                 // UUID since 1.0.10
