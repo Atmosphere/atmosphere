@@ -38,15 +38,15 @@ public class AtmosphereConfig {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereConfig.class);
 
-    private final List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
+    private List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession;
     private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
-    private final AtmosphereFramework framework;
-    private final Map<String, Object> properties = new HashMap<String, Object>();
-    protected final List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
-    protected final List<StartupHook> startUpHook = new ArrayList<StartupHook>();
+    private AtmosphereFramework framework;
+    private Map<String, Object> properties = new HashMap<String, Object>();
+    protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
+    protected List<StartupHook> startUpHook = new ArrayList<StartupHook>();
 
     public AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
@@ -142,7 +142,7 @@ public class AtmosphereConfig {
     public void setSupportSession(boolean supportSession) {
         this.supportSession = supportSession;
     }
-    
+
     /**
      * Allow HTTP session timeout removal when session support is active
      *
@@ -252,6 +252,7 @@ public class AtmosphereConfig {
 
     /**
      * Return an init-param, or its default value.
+     *
      * @param key
      * @param defaultValue
      * @return an init-param, or its default value.
@@ -266,6 +267,7 @@ public class AtmosphereConfig {
 
     /**
      * Return an init-param, or its default value.
+     *
      * @param key
      * @param defaultValue
      * @return an init-param, or its default value.
@@ -280,6 +282,7 @@ public class AtmosphereConfig {
 
     /**
      * Return an init-param, or its default value.
+     *
      * @param key
      * @param defaultValue
      * @return an init-param, or its default value.
@@ -294,25 +297,28 @@ public class AtmosphereConfig {
 
     /**
      * Return the {@link AtmosphereResourceFactory}
+     *
      * @return the AtmosphereResourceFactory
      */
-    public AtmosphereResourceFactory resourcesFactory(){
+    public AtmosphereResourceFactory resourcesFactory() {
         return framework.atmosphereFactory();
     }
 
     /**
      * Return the {@link DefaultMetaBroadcaster}
+     *
      * @return the MetaBroadcaster
      */
-    public MetaBroadcaster metaBroadcaster(){
+    public MetaBroadcaster metaBroadcaster() {
         return framework.metaBroadcaster();
     }
 
     /**
      * Return the {@link AtmosphereResourceSessionFactory}
+     *
      * @return the AtmosphereResourceSessionFactory
      */
-    public AtmosphereResourceSessionFactory sessionFactory(){
+    public AtmosphereResourceSessionFactory sessionFactory() {
         return framework.sessionFactory();
     }
 
@@ -333,5 +339,18 @@ public class AtmosphereConfig {
     public static interface StartupHook {
 
         void started(AtmosphereFramework framework);
+    }
+
+    public AtmosphereConfig populate(AtmosphereConfig config) {
+        atmosphereHandlerConfig = config.atmosphereHandlerConfig;
+
+        supportSession = config.supportSession;
+        sessionTimeoutRemovalAllowed = config.sessionTimeoutRemovalAllowed;
+        throwExceptionOnCloned = config.throwExceptionOnCloned;
+        framework = config.framework;
+        properties = config.properties;
+        shutdownHooks = config.shutdownHooks;
+        startUpHook = config.startUpHook;
+        return this;
     }
 }
