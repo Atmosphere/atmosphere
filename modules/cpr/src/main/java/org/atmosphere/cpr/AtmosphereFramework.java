@@ -845,6 +845,10 @@ public class AtmosphereFramework {
 
             configureBroadcasterFactory();
             configureMetaBroadcaster();
+            configureAtmosphereResourceFactory();
+            if (isSessionSupportSpecified) {
+                sessionFactory();
+            }
             configureScanningPackage(servletConfig, ApplicationConfig.ANNOTATION_PACKAGE);
             configureScanningPackage(servletConfig, FrameworkConfig.JERSEY2_SCANNING_PACKAGE);
             configureScanningPackage(servletConfig, FrameworkConfig.JERSEY_SCANNING_PACKAGE);
@@ -857,7 +861,6 @@ public class AtmosphereFramework {
 
             // Reconfigure in case an annotation changed the default.
             configureBroadcasterFactory();
-            configureAtmosphereResourceFactory();
             patchContainer();
             configureBroadcaster();
             loadConfiguration(servletConfig);
