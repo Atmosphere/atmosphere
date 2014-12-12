@@ -142,7 +142,7 @@ final class ClassFileIterator {
                             if (name.endsWith(".class")) {
                                 isFile = true;
                                 return new FileInputStream(file);
-                            } else if (fileIterator.isRootFile() && (endsWithIgnoreCase(name, ".jar") || isZipFile(file))) {
+                            } else if (fileIterator.isRootFile() && (endsWithIgnoreCase(name, ".jar") || isZipFile(file)) && file.exists()) {
                                 try {
                                     zipIterator = new ZipFileIterator(new ZipFile(file), pkgNameFilter);
                                 } catch (Exception ex) {
