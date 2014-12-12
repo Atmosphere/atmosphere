@@ -141,7 +141,7 @@ public class Meteor {
             req.setAttribute(AtmosphereResourceImpl.SKIP_BROADCASTER_CREATION, Boolean.TRUE);
         }
 
-        Meteor m = new Meteor(r, l, s);
+        Meteor m = new Meteor(r, l, (s != null ? s : r.getSerializer()));
         req.setAttribute(METEOR, m);
         return m;
     }
