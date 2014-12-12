@@ -155,10 +155,6 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     int size = cb.length();
-                    // The String must have been escaped by the JSONPAtmosphereInterceptor
-                    if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) && data.length != responseDraft.length) {
-                        size = inCharset.newDecoder().decode(ByteBuffer.wrap(data, 0, data.length)).length();
-                    }
 
                     String csq = Integer.toString(size) + endString;
                     ByteBuffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
