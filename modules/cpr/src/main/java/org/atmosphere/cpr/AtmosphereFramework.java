@@ -217,7 +217,7 @@ public class AtmosphereFramework {
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound = false;
     protected boolean executeFirstSet = false;
-    protected AtmosphereObjectFactory objectFactory = new DefaultAtmosphereObjectFactory();
+    protected AtmosphereObjectFactory<?> objectFactory = new DefaultAtmosphereObjectFactory();
     protected final AtomicBoolean isDestroyed = new AtomicBoolean();
     protected boolean externalizeDestroy = false;
     protected AnnotationProcessor annotationProcessor = null;
@@ -457,7 +457,7 @@ public class AtmosphereFramework {
         }
     }
 
-    public static class DefaultAtmosphereObjectFactory implements AtmosphereObjectFactory {
+    public static class DefaultAtmosphereObjectFactory implements AtmosphereObjectFactory<Object> {
         public String toString() {
             return "DefaultAtmosphereObjectFactory";
         }
@@ -470,6 +470,11 @@ public class AtmosphereFramework {
         public <T, U extends T> U newClassInstance(Class<T> classType,
                                                    Class<U> defaultType) throws InstantiationException, IllegalAccessException {
             return defaultType.newInstance();
+        }
+
+        @Override
+        public AtmosphereObjectFactory allowInjectionOf(java.lang.Object o) {
+            return this;
         }
     }
 

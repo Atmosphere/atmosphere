@@ -37,7 +37,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public class InjectableObjectFactory implements AtmosphereObjectFactory {
+public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
@@ -122,7 +122,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory {
 
     }
 
-    public InjectableObjectFactory injectable(Injectable<?> injectable) {
+    public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable) {
         injectables.add(injectable);
         return this;
     }

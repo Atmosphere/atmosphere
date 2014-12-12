@@ -9,7 +9,7 @@ import org.atmosphere.inject.AtmosphereConfigAware;
  * @author Norman Franke
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereObjectFactory extends AtmosphereConfigAware {
+public interface AtmosphereObjectFactory<Z> extends AtmosphereConfigAware {
 
     /**
      * Delegate the creation of Object to the underlying object provider like Spring, Guice, etc.
@@ -24,4 +24,11 @@ public interface AtmosphereObjectFactory extends AtmosphereConfigAware {
      * @throws IllegalAccessException
      */
 	public <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException;
+
+    /**
+     * Pass information to the underlying Dependency Injection Implementation
+     * @param z an Z
+     * @return this
+     */
+    public AtmosphereObjectFactory allowInjectionOf(Z z);
 }
