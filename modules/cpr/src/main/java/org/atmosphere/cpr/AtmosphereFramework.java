@@ -2039,7 +2039,6 @@ public class AtmosphereFramework {
             res.setHeader(HeaderConfig.X_FIRST_REQUEST, "true");
             res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
         } else {
-            res.setHeader(HeaderConfig.X_FIRST_REQUEST, null);
             // This may breaks 1.0.0 application because the WebSocket's associated AtmosphereResource will
             // all have the same UUID, and retrieving the original one for WebSocket, so we don't set it at all.
             // Null means it is not an HTTP request.
