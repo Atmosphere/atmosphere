@@ -2196,7 +2196,10 @@ public class AtmosphereFramework {
 
         // We must recreate all previously created Broadcaster.
         for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
-            w.broadcaster = broadcasterFactory.lookup(w.broadcaster.getID(), true);
+            // If case one listener is initializing the framework.
+            if (w.broadcaster != null) {
+                w.broadcaster = broadcasterFactory.lookup(w.broadcaster.getID(), true);
+            }
         }
         return this;
     }
