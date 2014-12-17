@@ -230,10 +230,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public boolean isSuspended() {
-        // return true also if the type of Action is SUSPEND_MESSAGE. if
-        // WebSocketMessageSuspendInterceptor is enabled it indicates that
-        // this resource represents a message from a WebSocket client
-        return suspended.get() || action.type() == Action.TYPE.SUSPEND_MESSAGE;
+        return suspended.get();
     }
 
     @Override
