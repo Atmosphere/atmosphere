@@ -843,7 +843,9 @@ public class AtmosphereFramework {
             doInitParamsForWebSocket(servletConfig);
             lookupDefaultObjectFactoryType();
 
-            asyncSupportListener(newClassInstance(AsyncSupportListener.class, AsyncSupportListenerAdapter.class));
+            if (logger.isDebugEnabled()) {
+                asyncSupportListener(newClassInstance(AsyncSupportListener.class, AsyncSupportListenerAdapter.class));
+            }
 
             configureObjectFactory();
             configureAnnotationPackages();
