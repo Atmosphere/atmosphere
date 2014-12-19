@@ -169,6 +169,7 @@ public class AtmosphereFramework {
 
     protected final List<String> broadcasterFilters = new ArrayList<String>();
     protected final List<AsyncSupportListener> asyncSupportListeners = new ArrayList<AsyncSupportListener>();
+    protected final List<AtmosphereResourceListener> atmosphereResourceListeners = new ArrayList<AtmosphereResourceListener>();
     protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<String>();
     protected final HashMap<String, String> initParams = new HashMap<String, String>();
     protected final AtmosphereConfig config;
@@ -2740,7 +2741,7 @@ public class AtmosphereFramework {
         return this;
     }
 
-    public void notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {
+    public AtmosphereFramework notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {
         for (AsyncSupportListener l : asyncSupportListeners()) {
             try {
                 switch (type) {
@@ -2764,6 +2765,21 @@ public class AtmosphereFramework {
                 logger.warn("", t);
             }
         }
+        return this;
+    }
+
+    public AtmosphereFramework notifyDestroyed(String uuid) {
+        for (AtmosphereResourceListener l : atmosphereResourceListeners()) {
+            l.onDisconnect(uuid);
+        }
+        return this;
+    }
+
+    public AtmosphereFramework notifySuspended(String uuid) {
+        for (AtmosphereResourceListener l : atmosphereResourceListeners()) {
+            l.onSuspended(uuid);
+        }
+        return this;
     }
 
     /**
@@ -3203,4 +3219,23 @@ public class AtmosphereFramework {
             }
         }
     }
+
+    /**
+     * Return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     * @return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     */
+    public List<AtmosphereResourceListener> atmosphereResourceListeners() {
+        return atmosphereResourceListeners;
+    }
+
+    /**
+     * Add a {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     * @param atmosphereResourceListener a {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     * @return this
+     */
+    public AtmosphereFramework atmosphereResourceListener(AtmosphereResourceListener atmosphereResourceListener) {
+        atmosphereResourceListeners.add(atmosphereResourceListener);
+        return this;
+    }
+
 }

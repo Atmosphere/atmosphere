@@ -37,6 +37,7 @@ import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
 import org.atmosphere.util.VoidExecutorService;
+import org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent;
 import org.atmosphere.websocket.protocol.StreamingHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -713,6 +714,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             break;
                         case DISCONNECT:
                             WebSocketEventListener.class.cast(l).onDisconnect(event);
+                            onDisconnect(event, l);
                             break;
                         case CONTROL:
                             WebSocketEventListener.class.cast(l).onControl(event);
@@ -726,7 +728,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         case CLOSE:
                             boolean isClosedByClient = r.getAtmosphereResourceEvent().isClosedByClient();
                             l.onDisconnect(new AtmosphereResourceEventImpl(r, !isClosedByClient, false, isClosedByClient, null));
-                            WebSocketEventListener.class.cast(l).onDisconnect(event);
+                            onDisconnect(event, l);
                             WebSocketEventListener.class.cast(l).onClose(event);
                             break;
                     }
@@ -747,6 +749,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 }
             }
         }
+    }
+
+    private void onDisconnect(WebSocketEvent event, AtmosphereResourceEventListener l) {
+        if (event.webSocket() != null && event.webSocket().resource() != null) {
+            framework.notifyDestroyed(event.webSocket().resource().uuid());
+        }
+        WebSocketEventListener.class.cast(l).onDisconnect(event);
     }
 
     public static final Map<String, String> configureHeader(AtmosphereRequest request) {

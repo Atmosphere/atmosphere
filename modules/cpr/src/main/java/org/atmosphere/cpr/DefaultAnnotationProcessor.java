@@ -91,7 +91,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             BroadcasterCacheListenerService.class,
             AtmosphereAnnotation.class,
             AtmosphereResourceFactoryService.class,
-            AtmosphereFrameworkListenerService.class
+            AtmosphereFrameworkListenerService.class,
+            AtmosphereResourceListener.class
     };
 
     private AnnotationProcessor delegate;

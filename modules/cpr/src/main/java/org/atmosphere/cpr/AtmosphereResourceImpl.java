@@ -597,7 +597,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
-        if (listeners.isEmpty()) {
+        if (listeners.isEmpty() && config.framework().atmosphereResourceListeners().isEmpty()) {
             logger.trace("No listener with {}", uuid);
             return this;
         }
@@ -687,6 +687,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
             r.onSuspend(e);
         }
+        if (e.getResource() != null) {
+            config.framework().notifySuspended(e.getResource().uuid());
+        }
     }
 
     void onPreSuspend(AtmosphereResourceEvent e) {
@@ -712,6 +715,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
                 WebSocketEventListener.class.cast(r).onDisconnect(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
             }
+        }
+
+        if(e.getResource() != null) {
+            config.framework().notifyDestroyed(e.getResource().uuid());
         }
     }
 

@@ -61,7 +61,8 @@ import java.util.Set;
         BroadcasterCacheListenerService.class,
         AtmosphereAnnotation.class,
         AtmosphereResourceFactoryService.class,
-        AtmosphereFrameworkListenerService.class
+        AtmosphereFrameworkListenerService.class,
+        AtmosphereResourceListener.class
 })
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {
 

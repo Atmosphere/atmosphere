@@ -102,7 +102,6 @@ public class AtmosphereResourceListenerTest {
             public void onHeartbeat(AtmosphereResourceEvent event) {
             }
 
-
             @Override
             public void onDisconnect(AtmosphereResourceEvent event) {
                 disconnected.set(true);
