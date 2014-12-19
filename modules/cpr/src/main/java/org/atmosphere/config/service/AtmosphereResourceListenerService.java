@@ -22,7 +22,7 @@ import java.lang.annotation.RetentionPolicy;
 import java.lang.annotation.Target;
 
 /**
- * An annotation for telling Atmosphere which {@link org.atmosphere.cpr.AsyncSupportListener} class to use by default.
+ * Install an {@link org.atmosphere.cpr.AtmosphereResourceListener}
  *
  * @author Jeanfrancois Arcand
  */
