@@ -99,12 +99,6 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
         ctx.addCometHandler(c);
         req.setAttribute(ATMOSPHERE, c.hashCode());
         ctx.addAttribute("Time", System.currentTimeMillis());
-
-        if (supportSession()) {
-            // Store as well in the session in case the resume operation
-            // happens outside the AtmosphereHandler.onStateChange scope.
-            req.getSession().setAttribute(ATMOSPHERE, c.hashCode());
-        }
     }
 
     /**
@@ -121,11 +115,6 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
 
         CometHandler handler = ctx.getCometHandler((Integer) req.getAttribute(ATMOSPHERE));
         req.removeAttribute(ATMOSPHERE);
-
-        if (handler == null && supportSession() && req.getSession(false) != null) {
-            handler = ctx.getCometHandler((Integer) req.getSession(false).getAttribute(ATMOSPHERE));
-            req.getSession().removeAttribute(ATMOSPHERE);
-        }
 
         if (req.resource() != null) {
             try {
