@@ -40,6 +40,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
@@ -395,11 +396,23 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     @Override
     public String getHeader(String name) {
+        String s;
         if (name.equalsIgnoreCase("content-type")) {
-            String s = headers.get("Content-Type");
+            s = headers.get("Content-Type");
+
+            if (s == null) {
+                s = _r().getHeader(name);
+            }
+
             return s == null ? contentType : s;
         }
-        return headers.get(name);
+
+        s = headers.get(name);
+        if (s == null) {
+            s = _r().getHeader(name);
+        }
+
+        return s;
     }
 
     @Override
@@ -412,12 +425,24 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
             h = headers.get(name);
         }
         s.add(h);
+
+        Collection<String> r = _r().getHeaders(name);
+        if (r != null && !r.isEmpty()) {
+            s.addAll(r);
+        }
+
         return Collections.unmodifiableList(s);
     }
 
     @Override
     public Collection<String> getHeaderNames() {
-        return Collections.unmodifiableSet(headers.keySet());
+        Set<String> s = headers.keySet();
+        Collection<String> r = _r().getHeaderNames();
+        if (r != null && !r.isEmpty()) {
+            s.addAll(r);
+        }
+
+        return Collections.unmodifiableSet(s);
     }
 
     @Override
