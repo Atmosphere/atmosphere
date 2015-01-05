@@ -40,7 +40,7 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
     public void configure(AtmosphereConfig config) {
         String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
         if (ac != null) {
-            enableAccessControl = Boolean.parseBoolean(ac);
+            enableAccessControl = !Boolean.parseBoolean(ac);
         }
     }
 
