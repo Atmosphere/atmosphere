@@ -27,6 +27,7 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
@@ -275,6 +276,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
     protected void shutdown() {
+        Collection<AtmosphereResource> c = config.resourcesFactory().findAll();
+        for (AtmosphereResource r : c) {
+            try {
+                r.close();
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
+        }
     }
 
     @Override

@@ -77,6 +77,7 @@ public class GlassFishServ30WebSocketSupport extends Servlet30CometSupport {
 
     @Override
     public void shutdown() {
+        super.shutdown();
         WebSocketEngine.getEngine().unregister(application);
         super.shutdown();
     }

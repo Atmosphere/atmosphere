@@ -77,6 +77,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
 
     @Override
     public void shutdown() {
+        super.shutdown();
         WebSocketEngine.getEngine().unregister(application);
         super.shutdown();
     }

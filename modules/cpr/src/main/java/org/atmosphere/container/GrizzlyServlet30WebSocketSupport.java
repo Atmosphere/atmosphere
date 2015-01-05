@@ -52,6 +52,7 @@ public class GrizzlyServlet30WebSocketSupport extends Servlet30CometSupport {
 
     @Override
     public void shutdown() {
+        super.shutdown();
         WebSocketEngine.getEngine().unregister(glassfishWebSocketHandler);
         super.shutdown();
     }
