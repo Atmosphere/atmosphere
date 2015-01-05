@@ -1632,6 +1632,11 @@ public class AtmosphereFramework {
         // Invoke ShutdownHook.
         config.destroy();
 
+        BroadcasterFactory factory = broadcasterFactory;
+        if (factory != null) {
+            factory.destroy();
+        }
+
         if (asyncSupport != null && AsynchronousProcessor.class.isAssignableFrom(asyncSupport.getClass())) {
             ((AsynchronousProcessor) asyncSupport).shutdown();
         }
@@ -1640,13 +1645,6 @@ public class AtmosphereFramework {
         for (Entry<String, AtmosphereHandlerWrapper> entry : atmosphereHandlers.entrySet()) {
             AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
             handlerWrapper.atmosphereHandler.destroy();
-        }
-
-        BroadcasterFactory factory = broadcasterFactory;
-        if (factory != null) {
-            factory.destroy();
-            BroadcasterFactory.factory = null;
-            BroadcasterFactory.config = null;
         }
 
         if (metaBroadcaster != null) metaBroadcaster.destroy();
