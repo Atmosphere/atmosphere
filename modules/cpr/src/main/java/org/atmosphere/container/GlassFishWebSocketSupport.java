@@ -52,6 +52,7 @@ public class GlassFishWebSocketSupport extends GrizzlyCometSupport {
 
     @Override
     public void shutdown() {
+        super.shutdown();
         WebSocketEngine.getEngine().unregister(glassfishWebSocketHandler);
         super.shutdown();
     }
