@@ -116,7 +116,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 writeCache(r, cachedMessages);
                 return Action.CANCELLED;
             } else {
-                r.addEventListener(new OnSuspend() {
+                r.addEventListener(new OnAlwaysSuspend() {
                     public void onSuspend(AtmosphereResourceEvent event) {
                         r.removeEventListener(this);
 
@@ -299,5 +299,10 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         } catch (IOException e) {
             logger.warn("Unable to recover from state recovery {}", r.uuid(), e);
         }
+    }
+
+    abstract static public class OnAlwaysSuspend extends OnSuspend implements AllowInterceptor {
+        @Override
+        abstract public void onSuspend(AtmosphereResourceEvent event);
     }
 }
