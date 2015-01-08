@@ -62,7 +62,7 @@ public final class Action {
          */
         SUSPEND_MESSAGE,
         /**
-         * Skip the invocation of {@link AtmosphereHandler}, but invoke all {@link AtmosphereInterceptor}.
+         * Skip the invocation of {@link AtmosphereHandler} and interrupt the invocation of all {@link AtmosphereInterceptor}.
          */
         SKIP_ATMOSPHEREHANDLER
     }
