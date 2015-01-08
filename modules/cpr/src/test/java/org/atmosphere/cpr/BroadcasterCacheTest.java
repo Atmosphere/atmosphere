@@ -196,7 +196,7 @@ public class BroadcasterCacheTest {
     @Test
     public void testBasicExcludeCache() throws ExecutionException, InterruptedException, ServletException {
         BroadcasterCache cache = new UUIDBroadcasterCache();
-        cache.configure(broadcaster.getBroadcasterConfig());
+        cache.configure(config);
 
         AtmosphereResource r = config.resourcesFactory().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
@@ -214,7 +214,7 @@ public class BroadcasterCacheTest {
     @Test
     public void testExcludeCache() throws ExecutionException, InterruptedException, ServletException {
         BroadcasterCache cache = new UUIDBroadcasterCache();
-        cache.configure(broadcaster.getBroadcasterConfig());
+        cache.configure(config);
 
         AtmosphereResource r = config.resourcesFactory().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
@@ -233,7 +233,7 @@ public class BroadcasterCacheTest {
     public void testCloseExcludeCache() throws ExecutionException, InterruptedException, ServletException, IOException {
         UUIDBroadcasterCache cache = new UUIDBroadcasterCache();
         SimpleBroadcaster b = config.getBroadcasterFactory().lookup(SimpleBroadcaster.class, "uuidTest", true);
-        cache.configure(b.getBroadcasterConfig());
+        cache.configure(config);
 
         b.getBroadcasterConfig().setBroadcasterCache(cache);
         // Reset
@@ -257,7 +257,7 @@ public class BroadcasterCacheTest {
     public void testSuspendExcludeCache() throws ExecutionException, InterruptedException, ServletException, IOException {
         UUIDBroadcasterCache cache = new UUIDBroadcasterCache();
         SimpleBroadcaster b = config.getBroadcasterFactory().lookup(SimpleBroadcaster.class, "uuidTest", true);
-        cache.configure(b.getBroadcasterConfig());
+        cache.configure(config);
 
         b.getBroadcasterConfig().setBroadcasterCache(cache);
         // Reset

@@ -126,7 +126,7 @@ public class BroadcasterConfig {
                 broadcasterCache = config.framework().newClassInstance(BroadcasterCache.class,
                         (Class<BroadcasterCache>) IOUtils.loadClass(getClass(), className));
                 configureSharedCacheExecutor();
-                broadcasterCache.configure(this);
+                broadcasterCache.configure(config);
             }
 
             for (BroadcasterCacheInspector b : config.framework().inspectors()) {

@@ -20,6 +20,7 @@ import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cache.DefaultBroadcasterCache;
+import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.List;
 
@@ -63,7 +64,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public interface BroadcasterCache {
+public interface BroadcasterCache extends AtmosphereConfigAware {
     public static final String NULL = "null";
 
     BroadcasterCache DEFAULT = new DefaultBroadcasterCache();
@@ -83,13 +84,6 @@ public interface BroadcasterCache {
      * and some future must be cancelled. This method will always be invoked when a {@link Broadcaster} gets destroyed.
      */
     void cleanup();
-
-    /**
-     * Configure the cache.
-     *
-     * @param config a {@link BroadcasterConfig}
-     */
-    void configure(BroadcasterConfig config);
 
     /**
      * Start tracking messages associated with {@link AtmosphereResource} from the cache.

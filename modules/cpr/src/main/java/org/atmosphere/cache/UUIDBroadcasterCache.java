@@ -15,11 +15,10 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
-import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
@@ -39,6 +38,9 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_CLIENT_IDLETIME;
+import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL;
 
 /**
  * An improved {@link BroadcasterCache} implementation that is based on the unique identifier (UUID) that all
@@ -88,25 +90,25 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void configure(BroadcasterConfig config) {
-        Object o = config.getAtmosphereConfig().properties().get("shared");
+    public void configure(AtmosphereConfig config) {
+        Object o = config.properties().get("shared");
         if (o != null) {
             shared = Boolean.parseBoolean(o.toString());
         }
 
         if (shared) {
-            taskScheduler = ExecutorsFactory.getScheduler(config.getAtmosphereConfig());
+            taskScheduler = ExecutorsFactory.getScheduler(config);
         } else {
             taskScheduler = Executors.newSingleThreadScheduledExecutor();
         }
 
         clientIdleTime = TimeUnit.SECONDS.toMillis(
-                Long.valueOf(config.getAtmosphereConfig().getInitParameter(ApplicationConfig.UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
+                Long.valueOf(config.getInitParameter(UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
 
         invalidateCacheInterval = TimeUnit.SECONDS.toMillis(
-                Long.valueOf(config.getAtmosphereConfig().getInitParameter(ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
+                Long.valueOf(config.getInitParameter(UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
 
-        uuidProvider = config.getAtmosphereConfig().uuidProvider();
+        uuidProvider = config.uuidProvider();
     }
 
     @Override
