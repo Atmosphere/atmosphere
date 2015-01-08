@@ -33,7 +33,6 @@ import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
@@ -217,7 +216,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 // Next, we need to create a new broadcaster per resource.
                 for (AtmosphereResource resource : resources) {
                     Broadcaster b = config.getBroadcasterFactory()
-                            .get(getClass(), getClass().getSimpleName() + "/" + UUID.randomUUID());
+                            .get(getClass(), getClass().getSimpleName() + "/" + config.uuidProvider().generateUuid());
 
                     /**
                      * REQUEST_SCOPE means one BroadcasterCache per Broadcaster,
@@ -255,7 +254,7 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public synchronized void setID(String id) {
         if (id == null) {
-            id = getClass().getSimpleName() + "/" + UUID.randomUUID();
+            id = getClass().getSimpleName() + "/" + config.uuidProvider().generateUuid();
         }
 
         if (config.getBroadcasterFactory() == null)

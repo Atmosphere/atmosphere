@@ -43,12 +43,14 @@ import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultEndpointMapper;
+import org.atmosphere.util.DefaultUUIDProvider;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.ServletContextFactory;
 import org.atmosphere.util.ServletProxyFactory;
+import org.atmosphere.util.UUIDProvider;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.analytics.FocusPoint;
 import org.atmosphere.util.analytics.JGoogleAnalyticsTracker;
@@ -93,7 +95,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -231,6 +232,7 @@ public class AtmosphereFramework {
     protected String defaultSerializerClassName;
     protected Class<Serializer> defaultSerializerClass;
     protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<AtmosphereFrameworkListener>();
+    private UUIDProvider uuidProvider = new DefaultUUIDProvider();
     protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
             // Add CORS support
             CorsInterceptor.class,
@@ -2090,7 +2092,7 @@ public class AtmosphereFramework {
         }
 
         if (s == null || s.equals("0")) {
-            s = UUID.randomUUID().toString();
+            s = config.uuidProvider().generateUuid();
             res.setHeader(HeaderConfig.X_FIRST_REQUEST, "true");
             res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
         } else {
@@ -3236,6 +3238,24 @@ public class AtmosphereFramework {
     public AtmosphereFramework atmosphereResourceListener(AtmosphereResourceListener atmosphereResourceListener) {
         atmosphereResourceListeners.add(atmosphereResourceListener);
         return this;
+    }
+
+    /**
+     * Set a {@link java.util.UUID} like implementation for generating random UUID String
+     * @param uuidProvider
+     * @return this
+     */
+    public AtmosphereFramework uuidProvider(UUIDProvider uuidProvider) {
+        this.uuidProvider = uuidProvider;
+        return this;
+    }
+
+    /**
+     * Return the {@link org.atmosphere.util.UUIDProvider}
+     * @return  {@link org.atmosphere.util.UUIDProvider}
+     */
+    public UUIDProvider uuidProvider(){
+        return uuidProvider;
     }
 
 }

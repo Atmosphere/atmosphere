@@ -125,7 +125,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 s = tmp != null && !tmp.equalsIgnoreCase("0") ? tmp : null;
             }
         }
-        uuid = s == null ? UUID.randomUUID().toString() : s;
+        uuid = s == null ? config.uuidProvider().generateUuid() : s;
 
         if (config.isSupportSession()) {
             // Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
@@ -461,7 +461,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             Broadcaster.SCOPE scope = broadcaster.getScope();
             synchronized (this) {
-                String id = scope != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered" + UUID.randomUUID();
+                String id = scope != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered"
+                        + config.uuidProvider().generateUuid();
 
                 // Another Thread may have added the Broadcaster.
                 broadcaster = config.getBroadcasterFactory().lookup(id, true);

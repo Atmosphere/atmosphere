@@ -50,6 +50,7 @@ public class UUIDBroadcasterCacheTest {
 
         broadcasterCache = new UUIDBroadcasterCache();
         broadcaster.getBroadcasterConfig().setBroadcasterCache(broadcasterCache);
+        broadcasterCache.configure(broadcaster.getBroadcasterConfig());
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,

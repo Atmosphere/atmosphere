@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereHandlerConfig;
+import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -322,6 +323,14 @@ public class AtmosphereConfig {
         return framework.sessionFactory();
     }
 
+    /**
+     * Return the {@link org.atmosphere.util.UUIDProvider}
+     *
+     * @return {@link org.atmosphere.util.UUIDProvider}
+     */
+    public UUIDProvider uuidProvider() {
+        return framework.uuidProvider();
+    }
 
     /**
      * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An

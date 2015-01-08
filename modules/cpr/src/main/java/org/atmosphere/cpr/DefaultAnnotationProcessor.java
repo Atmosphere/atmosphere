@@ -22,6 +22,7 @@ import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
 import org.atmosphere.config.service.AtmosphereResourceFactoryService;
+import org.atmosphere.config.service.AtmosphereResourceListenerService;
 import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.config.service.BroadcasterCacheListenerService;
@@ -33,6 +34,7 @@ import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
+import org.atmosphere.config.service.UUIDProviderService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
@@ -92,7 +94,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             AtmosphereAnnotation.class,
             AtmosphereResourceFactoryService.class,
             AtmosphereFrameworkListenerService.class,
-            AtmosphereResourceListener.class
+            AtmosphereResourceListenerService.class,
+            UUIDProviderService.class
     };
 
     private AnnotationProcessor delegate;

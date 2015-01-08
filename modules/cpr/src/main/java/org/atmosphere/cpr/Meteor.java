@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -132,7 +131,8 @@ public class Meteor {
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
                 BroadcasterFactory f = r.getAtmosphereConfig().getBroadcasterFactory();
-                b = f.get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
+                b = f.get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName()
+                        + r.getAtmosphereConfig().uuidProvider().generateUuid());
             } catch (Throwable t) {
                 throw new RuntimeException(t);
             }

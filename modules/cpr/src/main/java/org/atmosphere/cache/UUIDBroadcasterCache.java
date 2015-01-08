@@ -21,6 +21,7 @@ import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
 import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,7 +33,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
@@ -61,6 +61,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private boolean shared = true;
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
+    private UUIDProvider uuidProvider;
 
     /**
      * This class wraps all messages to be delivered to a client. The class is thread safe to be accessed in a
@@ -104,6 +105,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
         invalidateCacheInterval = TimeUnit.SECONDS.toMillis(
                 Long.valueOf(config.getAtmosphereConfig().getInitParameter(ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
+
+        uuidProvider = config.getAtmosphereConfig().uuidProvider();
     }
 
     @Override
@@ -145,7 +148,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             logger.trace("Active clients {}", activeClients());
         }
 
-        String messageId = UUID.randomUUID().toString();
+        String messageId = uuidProvider.generateUuid();
         boolean cache = true;
         if (!inspect(message)) {
             cache = false;

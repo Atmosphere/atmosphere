@@ -24,7 +24,6 @@ import java.net.URI;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Enumeration;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
@@ -114,7 +113,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     @Override
     public synchronized final Broadcaster get() {
-        return get(clazz.getSimpleName() + "-" + UUID.randomUUID());
+        return get(clazz.getSimpleName() + "-" + config.uuidProvider().generateUuid());
     }
 
     @Override
