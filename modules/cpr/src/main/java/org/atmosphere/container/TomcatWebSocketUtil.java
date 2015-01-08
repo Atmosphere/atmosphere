@@ -60,6 +60,8 @@ import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
+
 public class TomcatWebSocketUtil {
     private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocketUtil.class);
     private static final Queue<MessageDigest> sha1Helpers = new ConcurrentLinkedQueue<MessageDigest>();
@@ -144,7 +146,8 @@ public class TomcatWebSocketUtil {
             if (s != null && Boolean.valueOf(s)) {
                 isDestroyable = true;
             }
-            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.cloneRequest(req, true, useBuildInSession, isDestroyable),
+            StreamInbound inbound = new TomcatWebSocketHandler(
+                    AtmosphereRequest.cloneRequest(req, true, useBuildInSession, isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
                     config.framework(), webSocketProcessor);
             facade.doUpgrade(inbound);
             return new Action(Action.TYPE.CREATED);

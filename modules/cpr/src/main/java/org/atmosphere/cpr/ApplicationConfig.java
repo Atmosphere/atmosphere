@@ -113,6 +113,13 @@ public interface ApplicationConfig {
      */
     String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
     /**
+     * Tell Atmosphere to create a new {@link javax.servlet.http.HttpSession} when starting and when {@link #PROPERTY_SESSION_SUPPORT} is set to true.
+     * <p/>
+     * Default: true<br>
+     * Value: org.atmosphere.cpr.sessionCreate
+     */
+    String PROPERTY_SESSION_CREATE = "org.atmosphere.cpr.sessionCreate";
+    /**
      * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link javax.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: true<br>

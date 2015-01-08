@@ -86,8 +86,9 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                         @Override
                         public void requestInitialized(ServletRequestEvent sre) {
                             HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
-                            if (framework.getAtmosphereConfig().isSupportSession() && Utils.webSocketEnabled(r)) {
-                                r.getSession(true);
+                            AtmosphereConfig config = framework.getAtmosphereConfig();
+                            if (config.isSupportSession() && Utils.webSocketEnabled(r)) {
+                                r.getSession(config.getInitParameter(ApplicationConfig.PROPERTY_SESSION_CREATE, true));
                             }
                         }
                     });

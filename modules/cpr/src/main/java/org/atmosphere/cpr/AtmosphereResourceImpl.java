@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.UNDEFINED;
 import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
@@ -129,7 +130,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (config.isSupportSession()) {
             // Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
             try {
-                session = req.getSession(true);
+                session = req.getSession(config.getInitParameter(PROPERTY_SESSION_CREATE, true));
             } catch (NullPointerException ex) {
                 // http://java.net/jira/browse/GLASSFISH-18856
                 logger.trace("http://java.net/jira/browse/GLASSFISH-18856", ex);

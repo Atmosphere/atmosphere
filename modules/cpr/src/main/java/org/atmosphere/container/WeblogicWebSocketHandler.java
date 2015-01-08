@@ -36,6 +36,8 @@ import weblogic.websocket.WebSocketListener;
 import javax.servlet.ServletContext;
 import java.io.IOException;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
+
 @weblogic.websocket.annotation.WebSocket(pathPatterns = "/ws/*", timeout = -1, maxMessageSize = 8192)
 public class WeblogicWebSocketHandler implements WebSocketListener {
 
@@ -73,7 +75,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         // TODO: Dangerous
         webSocketConnection.getWebSocketContext().getServletContext().setAttribute(webSocketConnection.toString(), webSocket);
 
-        AtmosphereRequest ar = AtmosphereRequest.cloneRequest(request.get(), true, false, true);
+        AtmosphereRequest ar = AtmosphereRequest.cloneRequest(request.get(), true, false, true, config.getInitParameter(PROPERTY_SESSION_CREATE, true));
         request.set(null);
         try {
             webSocketProcessor.open(webSocket, ar, AtmosphereResponse.newInstance(config, ar, webSocket));

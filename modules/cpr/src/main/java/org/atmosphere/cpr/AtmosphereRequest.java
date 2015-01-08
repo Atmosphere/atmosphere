@@ -1907,7 +1907,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable) {
+    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable, boolean createSession) {
         Builder b;
         HttpServletRequest r;
 
@@ -1930,9 +1930,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         HttpSession session = null;
         if (copySession) {
-            session = request.getSession(true);
+            session = request.getSession(createSession);
             if (session != null) {
                 session = new FakeHttpSession(session);
+            } else {
+                session = new FakeHttpSession("", null, System.currentTimeMillis(), -1);
             }
         }
 

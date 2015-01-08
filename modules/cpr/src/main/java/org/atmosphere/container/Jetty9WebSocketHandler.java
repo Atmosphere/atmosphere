@@ -13,6 +13,8 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
+
 public class Jetty9WebSocketHandler implements WebSocketListener {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty9WebSocketHandler.class);
@@ -31,7 +33,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     private AtmosphereRequest cloneRequest(final HttpServletRequest request) {
         try {
             AtmosphereRequest r = AtmosphereRequest.wrap(request);
-            return AtmosphereRequest.cloneRequest(r, false, false, false);
+            return AtmosphereRequest.cloneRequest(r, false, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
         } catch (Exception ex) {
             logger.error("", ex);
             throw new RuntimeException("Invalid WebSocket Request");

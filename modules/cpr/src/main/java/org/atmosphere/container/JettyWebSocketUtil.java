@@ -34,6 +34,8 @@ import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
+
 public class JettyWebSocketUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
@@ -107,7 +109,7 @@ public class JettyWebSocketUtil {
                     throw new IllegalStateException();
                 }
 
-                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, useBuildInSession.get(), isDestroyable),
+                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, useBuildInSession.get(), isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
                         config.framework(), webSocketProcessor);
             }
         });

@@ -33,6 +33,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
@@ -153,8 +154,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         if (supportSession()) {
             // Create the session needed to support the Resume
             // operation from disparate requests.
-            HttpSession s = req.getSession(true);
-            if (s.isNew()) {
+            HttpSession s = req.getSession(config.getInitParameter(PROPERTY_SESSION_CREATE, true));
+            if (s != null && s.isNew()) {
                 s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, config.getBroadcasterFactory());
             }
 
@@ -220,7 +221,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         Action action = resource.action();
         if (supportSession() && allowSessionTimeoutRemoval() && action.type().equals(Action.TYPE.SUSPEND)) {
             // Do not allow times out.
-            SessionTimeoutSupport.setupTimeout(config, req.getSession());
+            SessionTimeoutSupport.setupTimeout(config, req.getSession(config.getInitParameter(ApplicationConfig.PROPERTY_SESSION_CREATE, true)));
         }
         logger.trace("Action for {} was {} with transport " + req.getHeader(X_ATMOSPHERE_TRANSPORT), req.resource() != null ? req.resource().uuid() : "null", action);
         return action;
