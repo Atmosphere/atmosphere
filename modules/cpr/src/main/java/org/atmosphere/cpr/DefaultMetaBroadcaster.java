@@ -147,6 +147,11 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
         return map(broadcasterID, message, -1, null, false, true);
     }
 
+    @Override
+    public Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message, boolean cacheMessage) {
+        return map(broadcasterID, message, -1, null, false, cacheMessage);
+    }
+
     /**
      * Flush the cached messages.
      * @return this

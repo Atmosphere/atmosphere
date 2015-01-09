@@ -60,6 +60,16 @@ public interface MetaBroadcaster extends AtmosphereConfigAware {
     Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message);
 
     /**
+     * Broadcast the message to all Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()} matches the broadcasterID value.
+     *
+     * @param broadcasterID a String (or path) that can potentially match a {@link org.atmosphere.cpr.Broadcaster#getID()}
+     * @param message       a message to be broadcasted
+     * @param cacheMessage  allow the cache to be cached or not.
+     * @return a Future
+     */
+    Future<List<Broadcaster>> broadcastTo(String broadcasterID, Object message, boolean cacheMessage);
+
+    /**
      * Broadcast the message at a fixed rate to all Broadcasters whose {@link org.atmosphere.cpr.Broadcaster#getID()}
      * matches the broadcasterID value. This operation will invoke {@link Broadcaster#scheduleFixedBroadcast(Object, long, java.util.concurrent.TimeUnit)}}
      *
@@ -151,11 +161,11 @@ public interface MetaBroadcaster extends AtmosphereConfigAware {
      */
     public final static class ThirtySecondsCache implements MetaBroadcasterCache, Runnable {
 
-        private final DefaultMetaBroadcaster defaultMetaBroadcaster;
+        private final MetaBroadcaster metaBroadcaster;
         private final ConcurrentHashMap<String, Object> cache = new ConcurrentHashMap<String, Object>();
 
-        public ThirtySecondsCache(DefaultMetaBroadcaster metaBroadcaster, AtmosphereConfig config) {
-            this.defaultMetaBroadcaster = metaBroadcaster;
+        public ThirtySecondsCache(MetaBroadcaster metaBroadcaster, AtmosphereConfig config) {
+            this.metaBroadcaster = metaBroadcaster;
             ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(this, 0, 30, TimeUnit.SECONDS);
         }
 
@@ -168,7 +178,7 @@ public interface MetaBroadcaster extends AtmosphereConfigAware {
         @Override
         public MetaBroadcasterCache flushCache() {
             for (Map.Entry<String, Object> e : cache.entrySet()) {
-                defaultMetaBroadcaster.map(e.getKey(), e.getValue(), -1, null, false, false);
+                metaBroadcaster.broadcastTo(e.getKey(), e.getValue(), false);
             }
             return this;
         }
