@@ -1295,6 +1295,7 @@ public class AtmosphereFramework {
                             && w.broadcaster.getBroadcasterConfig().getBroadcasterCache().getClass().getName().equals(DefaultBroadcasterCache.class.getName())) {
                         BroadcasterCache cache = newClassInstance(BroadcasterCache.class,
                                 (Class<BroadcasterCache>) IOUtils.loadClass(getClass(), broadcasterCacheClassName));
+                        cache.configure(config);
                         w.broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
                     }
                 }

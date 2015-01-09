@@ -16,7 +16,7 @@
 
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.AtmosphereResourceFactory;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -70,7 +70,14 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
         List<Object> result = new ArrayList<Object>();
         try {
-            HttpSession session = config.resourcesFactory().find(uuid).session();
+            AtmosphereResource r = config.resourcesFactory().find(uuid);
+
+            if (r == null) {
+                logger.trace("Invalid UUID {}", uuid);
+                return result;
+            }
+
+            HttpSession session = r.session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return result;

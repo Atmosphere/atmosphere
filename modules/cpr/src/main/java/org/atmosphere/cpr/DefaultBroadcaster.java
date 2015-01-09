@@ -223,6 +223,7 @@ public class DefaultBroadcaster implements Broadcaster {
                      */
                     if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
                         BroadcasterCache cache = config.framework().newClassInstance(BroadcasterCache.class, bc.getBroadcasterCache().getClass());
+                        cache.configure(config);
                         b.getBroadcasterConfig().setBroadcasterCache(cache);
                     }
 
