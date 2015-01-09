@@ -1099,9 +1099,9 @@ public class AtmosphereFramework {
             }
         }
 
-        logger.info("Installing Default AtmosphereInterceptor");
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         if (s == null || !"true".equalsIgnoreCase(s)) {
+            logger.info("Installing Default AtmosphereInterceptors");
 
             s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
             if (s != null) {
@@ -1111,7 +1111,7 @@ public class AtmosphereFramework {
             // We must reposition
             LinkedList<AtmosphereInterceptor> copy = null;
             if (!interceptors.isEmpty()) {
-                copy = new LinkedList(interceptors);
+                copy = new LinkedList<AtmosphereInterceptor>(interceptors);
                 interceptors.clear();
             }
 
