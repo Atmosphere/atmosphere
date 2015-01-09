@@ -84,17 +84,19 @@ public class MeteorServlet extends AtmosphereServlet {
 
     @Override
     public void init(final ServletConfig sc) throws ServletException {
-        super.init(sc);
+        if (!framework().isInit) {
+            super.init(sc);
 
-        if (delegate == null) {
-            loadDelegateViaConfig(sc);
-        } else {
-            ReflectorServletProcessor r = new ReflectorServletProcessor(delegate);
-            for (Filter f : filters) {
-                r.addFilter(f);
+            if (delegate == null) {
+                loadDelegateViaConfig(sc);
+            } else {
+                ReflectorServletProcessor r = new ReflectorServletProcessor(delegate);
+                for (Filter f : filters) {
+                    r.addFilter(f);
+                }
+                framework().getBroadcasterFactory().remove(delegateMapping);
+                framework.addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
             }
-            framework().getBroadcasterFactory().remove(delegateMapping);
-            framework.addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
         }
     }
 
