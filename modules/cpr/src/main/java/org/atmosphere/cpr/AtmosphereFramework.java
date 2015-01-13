@@ -894,6 +894,13 @@ public class AtmosphereFramework {
             if (s != null) {
                 sharedThreadPools = Boolean.parseBoolean(s);
             }
+
+            Runtime.getRuntime().addShutdownHook(new Thread() {
+                public void run() {
+                    AtmosphereFramework.this.destroy();
+                }
+            });
+
             info();
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
