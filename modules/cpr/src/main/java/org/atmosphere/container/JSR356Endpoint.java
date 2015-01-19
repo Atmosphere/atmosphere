@@ -136,7 +136,7 @@ public class JSR356Endpoint extends Endpoint {
 
         int pathInfoStartIndex = 3;
         String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
-        if ("".equals(contextPath)) {
+        if ("".equals(contextPath) || "".equals(servletPath)) {
             pathInfoStartIndex = 2;
         }
 
@@ -158,15 +158,15 @@ public class JSR356Endpoint extends Endpoint {
         }
 
         try {
-            String requestUri = uri.toASCIIString();
-            if (requestUri.contains("?")) {
-                requestUri = requestUri.substring(0, requestUri.indexOf("?"));
+            String requestURL = uri.toASCIIString();
+            if (requestURL.contains("?")) {
+                requestURL = requestURL.substring(0, requestURL.indexOf("?"));
             }
 
             // https://issues.apache.org/bugzilla/show_bug.cgi?id=56573
             // https://java.net/jira/browse/WEBSOCKET_SPEC-228
-            if ((!requestUri.startsWith("http://")) || (!requestUri.startsWith("https://"))) {
-                if (requestUri.startsWith("/")) {
+            if ((!requestURL.startsWith("http://")) || (!requestURL.startsWith("https://"))) {
+                if (requestURL.startsWith("/")) {
                     List<String> l = handshakeRequest.getHeaders().get("origin");
                     if (l == null) {
                         // https://issues.jboss.org/browse/UNDERTOW-252
@@ -180,17 +180,17 @@ public class JSR356Endpoint extends Endpoint {
                         logger.trace("Unable to retrieve the `origin` header for websocket {}", session);
                         origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").toString();
                     }
-                    requestUri = new StringBuilder(origin).append(requestUri).toString();
-                } else if (requestUri.startsWith("ws://")) {
-                    requestUri = requestUri.replace("ws://", "http://");
-                } else if (requestUri.startsWith("wss://")) {
-                    requestUri = requestUri.replace("wss://", "https://");
+                    requestURL = new StringBuilder(origin).append(requestURL).toString();
+                } else if (requestURL.startsWith("ws://")) {
+                    requestURL = requestURL.replace("ws://", "http://");
+                } else if (requestURL.startsWith("wss://")) {
+                    requestURL = requestURL.replace("wss://", "https://");
                 }
             }
 
             request = new AtmosphereRequest.Builder()
-                    .requestURI(requestUri)
-                    .requestURL(requestUri)
+                    .requestURI(uri.getPath())
+                    .requestURL(requestURL)
                     .headers(headers)
                     .session((HttpSession) handshakeRequest.getHttpSession())
                     .servletPath(servletPath)

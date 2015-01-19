@@ -243,7 +243,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             return (AsyncSupport) cl.loadClass(targetClassFQN)
                     .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
         } catch (final Exception e) {
-            logger.error("failed to create comet support class: {}, error: {}", targetClassFQN, e);
+            logger.error("Failed to create comet support class: {}, error: {}", targetClassFQN, e);
             throw new IllegalArgumentException("Unable to create " + targetClassFQN, e);
         }
     }

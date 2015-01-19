@@ -2014,6 +2014,11 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
                 } catch (Exception e) {
                     logger.warn("", e);
                 }
+
+                // Falback
+                if (address == null) {
+                    address = new InetSocketAddress(8080);
+                }
             }
             return address;
         }

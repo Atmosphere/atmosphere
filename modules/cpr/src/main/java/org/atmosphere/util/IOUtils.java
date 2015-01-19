@@ -263,6 +263,9 @@ public class IOUtils {
      * @return Servlet mapping without trailing slash and wildcard
      */
     public static String getCleanedServletPath(String fullServletPath) {
+
+        if (fullServletPath.equalsIgnoreCase("/*")) return "";
+
         Matcher matcher = SERVLET_PATH_PATTERN.matcher(fullServletPath);
 
         // It should not happen if the servlet path is valid
