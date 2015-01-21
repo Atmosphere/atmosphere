@@ -40,7 +40,7 @@ import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 import static org.atmosphere.cpr.FrameworkConfig.CONTAINER_RESPONSE;
 
 /**
- * HTML 5 Server-Side Events implementation.
+ * HTML 5 Server-Sent Events implementation.
  *
  * @author Jeanfrancois Arcand
  */

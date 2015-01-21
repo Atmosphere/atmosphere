@@ -22,7 +22,7 @@ import org.atmosphere.inject.AtmosphereConfigAware;
  * An implementation of this class can intercept the dispatch and modify the AtmosphereResource and its
  * associated {@link AtmosphereRequest} and {@link AtmosphereResponse}.
  * <p/>
- * This class can be used to implement custom protocols like Server-Side Events, Socket.IO, etc.
+ * This class can be used to implement custom protocols like Server-Sent Events, Socket.IO, etc.
  *
  * @author Jeanfrancois Arcand
  */

@@ -637,7 +637,7 @@ public interface ApplicationConfig {
      */
     String JSR356_PATH_MAPPING_LENGTH = "org.atmosphere.cpr.jsr356.pathMappingLength";
     /**
-     * Default Server Side Event content type.
+     * Default Server-Sent Event content type.
      * Default: text/event-stream
      * Value: org.atmosphere.interceptor.SSEAtmosphereInterceptor.contentType
      */
