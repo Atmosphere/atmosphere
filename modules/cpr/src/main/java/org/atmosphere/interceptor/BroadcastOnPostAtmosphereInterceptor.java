@@ -22,6 +22,8 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
+
 import static org.atmosphere.util.IOUtils.isBodyEmpty;
 import static org.atmosphere.util.IOUtils.readEntirely;
 
@@ -45,7 +47,14 @@ public class BroadcastOnPostAtmosphereInterceptor extends AtmosphereInterceptorA
     public void postInspect(AtmosphereResource r) {
         if (r.getRequest().getMethod().equalsIgnoreCase("POST")) {
             AtmosphereRequest request = r.getRequest();
-            Object o = readEntirely(r);
+            Object o;
+            try {
+                o = readEntirely(r);
+            } catch (IOException e) {
+                logger.warn("", e);
+                return;
+            }
+
             if (isBodyEmpty(o)) {
                 logger.warn("{} received an empty body", request);
                 return;
