@@ -20,8 +20,8 @@ Using another framework? Look at the list of supported [extensions](https://gith
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
-### Commercial support now available!
-Commercial Support is now available via [Async-IO.org](http://async-io.org) Want the project to stay alive? Please donate by visiting the [Async-IO.org](http://async-io.org) and click on the donate button!
+### Commercial support
+Commercial Support is available via [Async-IO.org](http://async-io.org) 
 
 ### Tutorial
 
