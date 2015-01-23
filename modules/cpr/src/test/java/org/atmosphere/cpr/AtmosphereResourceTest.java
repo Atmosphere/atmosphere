@@ -17,13 +17,16 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +35,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 
 public class AtmosphereResourceTest {
@@ -175,4 +181,51 @@ public class AtmosphereResourceTest {
 
     }
 
+    @Test
+    public void testCloseResponseOutputStream() throws IOException {
+        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AsyncIOWriter writer = mock(AsyncIOWriter.class);
+        response.asyncIOWriter(writer);
+        ServletOutputStream sos = response.getOutputStream();
+        sos.close();
+        
+        // for 2.2.x, the underlining stream is closed
+        verify(writer, times(1)).close(response);
+        reset(writer);
+        
+        response.closeAsyncIOWriterOnClose(true);
+        sos = response.getOutputStream();
+        sos.close();
+        verify(writer, times(1)).close(response);
+        reset(writer);
+
+        response.closeAsyncIOWriterOnClose(false);
+        sos = response.getOutputStream();
+        sos.close();
+        verify(writer, times(0)).close(response);
+    }
+
+    @Test
+    public void testCloseResponseWriter() throws IOException {
+        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AsyncIOWriter writer = mock(AsyncIOWriter.class);
+        response.asyncIOWriter(writer);
+        PrintWriter pw = response.getWriter();
+        pw.close();
+        
+        // for 2.2.x, the underlining stream is closed
+        verify(writer, times(1)).close(response);
+        reset(writer);
+
+        response.closeAsyncIOWriterOnClose(true);
+        pw = response.getWriter();
+        pw.close();
+        verify(writer, times(1)).close(response);
+        reset(writer);
+
+        response.closeAsyncIOWriterOnClose(false);
+        pw = response.getWriter();
+        pw.close();
+        verify(writer, times(0)).close(response);
+    }
 }

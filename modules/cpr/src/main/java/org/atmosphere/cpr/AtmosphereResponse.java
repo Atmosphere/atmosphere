@@ -81,6 +81,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private boolean destroyable;
     private HttpServletResponse response;
     private boolean forceAsyncIOWriter = false;
+    private boolean closeAsyncIOWriterOnClose = true;
     private String uuid = "0";
     private final AtomicBoolean usingStream = new AtomicBoolean(true);
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
@@ -490,6 +491,15 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         return this;
     }
 
+    public boolean isCloseAsyncIOWriterOnClose() {
+        return closeAsyncIOWriterOnClose;
+    }
+
+    public AtmosphereResponse closeAsyncIOWriterOnClose(boolean closeAsyncIOWriterOnClose) {
+        this.closeAsyncIOWriterOnClose = closeAsyncIOWriterOnClose;
+        return this;
+    }
+
     private void validAsyncIOWriter() throws IOException {
         if (asyncIOWriter == null) {
             logger.trace("{} invalid state", this.hashCode());
@@ -585,7 +595,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void close() throws java.io.IOException {
-                    if (!validFlushOrClose()) return;
+                    if (!validFlushOrClose() || !closeAsyncIOWriterOnClose) return;
 
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
@@ -735,7 +745,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void close() {
-                    if (!validFlushOrClose()) return;
+                    if (!validFlushOrClose() || !closeAsyncIOWriterOnClose) return;
 
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
