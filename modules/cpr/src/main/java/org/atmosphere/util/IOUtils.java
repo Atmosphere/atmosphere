@@ -71,10 +71,10 @@ public class IOUtils {
      * Delivers the given message according to the specified {@link org.atmosphere.config.service.DeliverTo configuration).
      * </p>
      *
-     * @param o the message
-     * @param deliverConfig the annotation state
+     * @param o              the message
+     * @param deliverConfig  the annotation state
      * @param defaultDeliver the strategy applied if deliverConfig is {@code null}
-     * @param r the resource
+     * @param r              the resource
      */
     public static void deliver(final Object o,
                                final DeliverTo deliverConfig,
@@ -109,7 +109,7 @@ public class IOUtils {
         }
     }
 
-    public static Object readEntirely(AtmosphereResource r) {
+    public static Object readEntirely(AtmosphereResource r) throws IOException {
         AtmosphereRequest request = r.getRequest();
         return isBodyBinary(request) ? readEntirelyAsByte(r) : readEntirelyAsString(r).toString();
     }
@@ -130,7 +130,7 @@ public class IOUtils {
         }
     }
 
-    public static StringBuilder readEntirelyAsString(AtmosphereResource r) {
+    public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {
         final StringBuilder stringBuilder = new StringBuilder();
         AtmosphereRequest request = r.getRequest();
         if (request.body().isEmpty()) {
@@ -162,8 +162,6 @@ public class IOUtils {
                 } else {
                     stringBuilder.append("");
                 }
-            } catch (IOException ex) {
-                logger.warn("", ex);
             } finally {
                 if (bufferedReader != null) {
                     try {
@@ -184,7 +182,7 @@ public class IOUtils {
         return stringBuilder;
     }
 
-    public static byte[] readEntirelyAsByte(AtmosphereResource r) {
+    public static byte[] readEntirelyAsByte(AtmosphereResource r) throws IOException {
         AtmosphereRequest request = r.getRequest();
         AtmosphereRequest.Body body = request.body();
         if (request.body().isEmpty()) {
@@ -216,8 +214,6 @@ public class IOUtils {
                 } else {
                     bbIS.write("".getBytes());
                 }
-            } catch (IOException ex) {
-                logger.warn("", ex);
             } finally {
                 if (bufferedStream != null) {
                     try {
