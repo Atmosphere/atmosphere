@@ -17,13 +17,18 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.websocket.WebSocket;
+import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
+
 import java.io.IOException;
+import java.io.PrintWriter;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -32,6 +37,9 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.reset;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.testng.Assert.assertEquals;
 
 public class AtmosphereResourceTest {
@@ -173,6 +181,44 @@ public class AtmosphereResourceTest {
 
         assertEquals(b.getAtmosphereResources().size(), 0);
 
+    }
+
+    @Test
+    public void testCloseResponseOutputStream() throws IOException {
+        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AsyncIOWriter writer = mock(AsyncIOWriter.class);
+        AsyncIOWriter wswriter = mock(WebSocket.class);
+
+        response.asyncIOWriter(writer);
+        ServletOutputStream sos = response.getOutputStream();
+        sos.close();
+
+        verify(writer, times(1)).close(response);
+        reset(writer);
+
+        response.asyncIOWriter(wswriter);
+        sos = response.getOutputStream();
+        sos.close();
+        verify(wswriter, times(0)).close(response);
+    }
+
+    @Test
+    public void testCloseResponseWriter() throws IOException {
+        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AsyncIOWriter writer = mock(AsyncIOWriter.class);
+        AsyncIOWriter wswriter = mock(WebSocket.class);
+
+        response.asyncIOWriter(writer);
+        PrintWriter pw = response.getWriter();
+        pw.close();
+
+        verify(writer, times(1)).close(response);
+        reset(writer);
+
+        response.asyncIOWriter(wswriter);
+        pw = response.getWriter();
+        pw.close();
+        verify(wswriter, times(0)).close(response);
     }
 
 }
