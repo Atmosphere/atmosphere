@@ -131,7 +131,10 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     }
 
     protected byte[] transform(byte[] b, int offset, int length) throws IOException {
-        AtmosphereResponse response = r.getResponse();
+        return transform(r.getResponse(), b, offset, length);
+    }
+
+    protected byte[] transform(AtmosphereResponse response, byte[] b, int offset, int length) throws IOException {
         AsyncIOWriter a = response.getAsyncIOWriter();
         try {
             response.asyncIOWriter(buffer);
@@ -158,7 +161,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         if (binaryWrite) {
             byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
             if (transform) {
-                b = transform(b, 0, b.length);
+                b = transform(r, b, 0, b.length);
             }
 
             if (b != null) {
@@ -167,7 +170,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         } else {
             if (transform) {
                 byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
-                data = new String(transform(b, 0, b.length), r.getCharacterEncoding());
+                data = new String(transform(r, b, 0, b.length), r.getCharacterEncoding());
             }
 
             if (data != null) {
@@ -203,7 +206,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         boolean transform = filters.size() > 0 && r.getStatus() < 400;
         if (binaryWrite || resource().forceBinaryWrite()) {
             if (transform) {
-                b = transform(b, offset, length);
+                b = transform(r, b, offset, length);
             }
 
             if (b != null) {
@@ -213,7 +216,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             String data = null;
             String charset = r.getCharacterEncoding() == null ? "UTF-8" : r.getCharacterEncoding();
             if (transform) {
-                data = new String(transform(b, offset, length), charset);
+                data = new String(transform(r, b, offset, length), charset);
             } else {
                 data = new String(b, offset, length, charset);
             }
