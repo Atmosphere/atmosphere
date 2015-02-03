@@ -320,6 +320,12 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     public Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r, int tracing) {
         Action a = Action.CONTINUE;
         for (AtmosphereInterceptor arc : c) {
+
+            if (!AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                logger.warn("Request closed during processing {} and transport {}", r.uuid(), r.transport());
+                return Action.CANCELLED;
+            }
+
             try {
                 a = arc.inspect(r);
             } catch (Exception ex) {
