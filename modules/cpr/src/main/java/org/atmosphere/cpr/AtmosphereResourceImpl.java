@@ -858,7 +858,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         event.setCloseByApplication(true);
         notifyListeners();
         cancel();
-        if (webSocket != null) {
+        if (webSocket != null && webSocket.isOpen()) {
             webSocket.close();
         }
     }
