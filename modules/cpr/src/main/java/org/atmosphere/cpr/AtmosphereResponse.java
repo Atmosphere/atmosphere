@@ -586,7 +586,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 @Override
                 public void close() throws java.io.IOException {
                     if (!validFlushOrClose()
-                        || asyncIOWriter instanceof WebSocket) return;
+                        || asyncIOWriter instanceof KeepOpenStreamAware) return;
 
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;
@@ -737,7 +737,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
                 @Override
                 public void close() {
                     if (!validFlushOrClose()
-                        || asyncIOWriter instanceof WebSocket) return;
+                        || asyncIOWriter instanceof KeepOpenStreamAware) return;
 
                     // Prevent StackOverflow
                     boolean b = forceAsyncIOWriter;

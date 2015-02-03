@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.KeepOpenStreamAware;
 import org.atmosphere.util.ByteArrayAsyncWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,7 +40,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class WebSocket extends AtmosphereInterceptorWriter {
+public abstract class WebSocket extends AtmosphereInterceptorWriter implements KeepOpenStreamAware {
 
     protected static final Logger logger = LoggerFactory.getLogger(WebSocket.class);
     public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
