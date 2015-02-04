@@ -27,6 +27,10 @@ import org.atmosphere.websocket.WebSocketProcessor;
  */
 public interface FrameworkConfig {
     /**
+     * The default Kafka Broadcaster class.
+     */
+    String KAFKA_BROADCASTER = "org.atmosphere.kafka.KafkaBroadcaster";
+    /**
      * The default Hazelcast Broadcaster class.
      */
     String HAZELCAST_BROADCASTER = "org.atmosphere.plugin.hazelcast.HazelcastBroadcaster";

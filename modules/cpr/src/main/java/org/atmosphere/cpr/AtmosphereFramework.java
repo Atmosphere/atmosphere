@@ -129,6 +129,7 @@ import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
+import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.INJECT_LIBARY;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
@@ -512,6 +513,7 @@ public class AtmosphereFramework {
      * The order of addition is quite important here.
      */
     private void populateBroadcasterType() {
+        broadcasterTypes.add(KAFKA_BROADCASTER);
         broadcasterTypes.add(HAZELCAST_BROADCASTER);
         broadcasterTypes.add(XMPP_BROADCASTER);
         broadcasterTypes.add(REDIS_BROADCASTER);
