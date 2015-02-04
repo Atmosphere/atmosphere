@@ -160,7 +160,7 @@ public class TomcatWebSocketUtil {
             }
             return action;
         } catch (Exception ex) {
-            logger.error("", ex);
+            logger.warn("", ex);
         }
         return Action.CANCELLED;
     }
