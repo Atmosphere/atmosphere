@@ -85,15 +85,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -1199,29 +1191,93 @@ public class AtmosphereFramework {
         }
     }
 
-    public void initHandlerInterceptors(LinkedList<AtmosphereInterceptor> l) {
-        if (l != null) {
-            LinkedList<AtmosphereInterceptor> copy = new LinkedList<AtmosphereInterceptor>();
-            copy.addAll(l);
+    private static class InterceptorComparator implements Comparator<AtmosphereInterceptor>
+    {
+        @Override
+        public int compare(AtmosphereInterceptor i1, AtmosphereInterceptor i2)
+        {
+            InvokationOrder.PRIORITY p1, p2;
 
-            for (AtmosphereInterceptor i : copy) {
-                //
-                InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(i.getClass()) ?
-                        InvokationOrder.class.cast(i).priority() : InvokationOrder.AFTER_DEFAULT;
-
-                // We need to relocate the interceptor
-                if (!p.equals(InvokationOrder.AFTER_DEFAULT)) {
-                    positionInterceptor(p, i, l);
-                }
-                i.configure(config);
+            if (i1 instanceof InvokationOrder)
+            {
+                p1 = ((InvokationOrder) i1).priority();
             }
+            else
+            {
+                p1 = InvokationOrder.PRIORITY.AFTER_DEFAULT;
+            }
+
+            if (i2 instanceof InvokationOrder)
+            {
+                p2 = ((InvokationOrder) i2).priority();
+            }
+            else
+            {
+                p2 = InvokationOrder.PRIORITY.AFTER_DEFAULT;
+            }
+
+            int orderResult = 0;
+
+            switch (p1)
+            {
+                case AFTER_DEFAULT:
+                    switch (p2)
+                    {
+                        case BEFORE_DEFAULT:
+                        case FIRST_BEFORE_DEFAULT:
+                            orderResult = -1;
+                            break;
+                    }
+                    break;
+
+                case BEFORE_DEFAULT:
+                    switch (p2)
+                    {
+                        case AFTER_DEFAULT:
+                            orderResult = 1;
+                            break;
+                        case FIRST_BEFORE_DEFAULT:
+                            orderResult = -1;
+                            break;
+                    }
+                    break;
+
+                case FIRST_BEFORE_DEFAULT:
+                    switch (p2)
+                    {
+                        case AFTER_DEFAULT:
+                        case BEFORE_DEFAULT:
+                            orderResult = 1;
+                            break;
+                    }
+                    break;
+            }
+
+            return orderResult;
         }
     }
 
-    protected void initInterceptors() {
+    public void initHandlerInterceptors(LinkedList<AtmosphereInterceptor> l)
+    {
+        if (l != null)
+        {
+            for(AtmosphereInterceptor c : l)
+            {
+                c.configure(config);
+            }
+
+            l.addAll(interceptors);
+
+            Collections.sort(l, new InterceptorComparator());
+        }
+    }
+
+    protected void initInterceptors()
+    {
         initGlobalInterceptors();
 
-        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
+        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values())
+        {
             initHandlerInterceptors(w.interceptors);
         }
     }
