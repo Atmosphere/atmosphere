@@ -71,7 +71,7 @@
 <a class="jxr_linenumber" name="L63" href="#L63">63</a>          <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"OPTIONS"</span>.equals(req.getMethod())) {
 <a class="jxr_linenumber" name="L64" href="#L64">64</a>              res.setHeader(<span class="jxr_string">"Access-Control-Allow-Methods"</span>, <span class="jxr_string">"OPTIONS, GET, POST"</span>);
 <a class="jxr_linenumber" name="L65" href="#L65">65</a>              res.setHeader(<span class="jxr_string">"Access-Control-Allow-Headers"</span>,
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>                      <span class="jxr_string">"Origin, Content-Type, AuthToken, X-Atmosphere-Framework, "</span>
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>                      <span class="jxr_string">"Origin, Content-Type, AuthToken, X-Atmosphere-Framework, X-Requested-With, "</span>
 <a class="jxr_linenumber" name="L67" href="#L67">67</a>                              + EXPOSE_HEADERS
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>                              + <span class="jxr_string">", X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol"</span>);
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>              res.setHeader(<span class="jxr_string">"Access-Control-Max-Age"</span>, <span class="jxr_string">"-1"</span>);
@@ -103,6 +103,6 @@
 <a class="jxr_linenumber" name="L95" href="#L95">95</a>  }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2014. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
 </body>
 </html>

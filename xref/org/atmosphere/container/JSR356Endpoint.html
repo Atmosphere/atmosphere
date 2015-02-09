@@ -136,8 +136,8 @@
 <a class="jxr_linenumber" name="L128" href="#L128">128</a> 
 <a class="jxr_linenumber" name="L129" href="#L129">129</a>         <strong class="jxr_keyword">int</strong> pathInfoStartIndex = 3;
 <a class="jxr_linenumber" name="L130" href="#L130">130</a>         String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>         <strong class="jxr_keyword">if</strong>(<span class="jxr_string">""</span>.equals(contextPath)){
-<a class="jxr_linenumber" name="L132" href="#L132">132</a>         	pathInfoStartIndex = 2;
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>         <strong class="jxr_keyword">if</strong> (<span class="jxr_string">""</span>.equals(contextPath) || <span class="jxr_string">""</span>.equals(servletPath)) {
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>             pathInfoStartIndex = 2;
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>         }
 <a class="jxr_linenumber" name="L134" href="#L134">134</a>         
 <a class="jxr_linenumber" name="L135" href="#L135">135</a>         <em class="jxr_comment">// /contextPath/servletPath/pathInfo or /servletPath/pathInfo</em>
@@ -158,15 +158,15 @@
 <a class="jxr_linenumber" name="L150" href="#L150">150</a>         }
 <a class="jxr_linenumber" name="L151" href="#L151">151</a> 
 <a class="jxr_linenumber" name="L152" href="#L152">152</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>             String requestUri = uri.toASCIIString();
-<a class="jxr_linenumber" name="L154" href="#L154">154</a>             <strong class="jxr_keyword">if</strong> (requestUri.contains(<span class="jxr_string">"?"</span>)) {
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>                 requestUri = requestUri.substring(0, requestUri.indexOf(<span class="jxr_string">"?"</span>));
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>             String requestURL = uri.toASCIIString();
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>             <strong class="jxr_keyword">if</strong> (requestURL.contains(<span class="jxr_string">"?"</span>)) {
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>                 requestURL = requestURL.substring(0, requestURL.indexOf(<span class="jxr_string">"?"</span>));
 <a class="jxr_linenumber" name="L156" href="#L156">156</a>             }
 <a class="jxr_linenumber" name="L157" href="#L157">157</a> 
 <a class="jxr_linenumber" name="L158" href="#L158">158</a>             <em class="jxr_comment">// https://issues.apache.org/bugzilla/show_bug.cgi?id=56573</em>
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>             <em class="jxr_comment">// https://java.net/jira/browse/WEBSOCKET_SPEC-228</em>
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>             <strong class="jxr_keyword">if</strong> ((!requestUri.startsWith(<span class="jxr_string">"http://"</span>)) || (!requestUri.startsWith(<span class="jxr_string">"https://"</span>))) {
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>                 <strong class="jxr_keyword">if</strong> (requestUri.startsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>             <strong class="jxr_keyword">if</strong> ((!requestURL.startsWith(<span class="jxr_string">"http://"</span>)) || (!requestURL.startsWith(<span class="jxr_string">"https://"</span>))) {
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>                 <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"/"</span>)) {
 <a class="jxr_linenumber" name="L162" href="#L162">162</a>                     List&lt;String&gt; l = handshakeRequest.getHeaders().get(<span class="jxr_string">"origin"</span>);
 <a class="jxr_linenumber" name="L163" href="#L163">163</a>                     <strong class="jxr_keyword">if</strong> (l == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L164" href="#L164">164</a>                         <em class="jxr_comment">// https://issues.jboss.org/browse/UNDERTOW-252</em>
@@ -180,17 +180,17 @@
 <a class="jxr_linenumber" name="L172" href="#L172">172</a>                         logger.trace(<span class="jxr_string">"Unable to retrieve the `origin` header for websocket {}"</span>, session);
 <a class="jxr_linenumber" name="L173" href="#L173">173</a>                         origin = <strong class="jxr_keyword">new</strong> StringBuilder(<span class="jxr_string">"http"</span>).append(session.isSecure() ? <span class="jxr_string">"s"</span> : <span class="jxr_string">""</span>).append(<span class="jxr_string">"://0.0.0.0:80"</span>).toString();
 <a class="jxr_linenumber" name="L174" href="#L174">174</a>                     }
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>                     requestUri = <strong class="jxr_keyword">new</strong> StringBuilder(origin).append(requestUri).toString();
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestUri.startsWith(<span class="jxr_string">"ws://"</span>)) {
-<a class="jxr_linenumber" name="L177" href="#L177">177</a>                     requestUri = requestUri.replace(<span class="jxr_string">"ws://"</span>, <span class="jxr_string">"http://"</span>);
-<a class="jxr_linenumber" name="L178" href="#L178">178</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestUri.startsWith(<span class="jxr_string">"wss://"</span>)) {
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>                     requestUri = requestUri.replace(<span class="jxr_string">"wss://"</span>, <span class="jxr_string">"https://"</span>);
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>                     requestURL = <strong class="jxr_keyword">new</strong> StringBuilder(origin).append(requestURL).toString();
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"ws://"</span>)) {
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>                     requestURL = requestURL.replace(<span class="jxr_string">"ws://"</span>, <span class="jxr_string">"http://"</span>);
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"wss://"</span>)) {
+<a class="jxr_linenumber" name="L179" href="#L179">179</a>                     requestURL = requestURL.replace(<span class="jxr_string">"wss://"</span>, <span class="jxr_string">"https://"</span>);
 <a class="jxr_linenumber" name="L180" href="#L180">180</a>                 }
 <a class="jxr_linenumber" name="L181" href="#L181">181</a>             }
 <a class="jxr_linenumber" name="L182" href="#L182">182</a> 
 <a class="jxr_linenumber" name="L183" href="#L183">183</a>             request = <strong class="jxr_keyword">new</strong> AtmosphereRequest.Builder()
-<a class="jxr_linenumber" name="L184" href="#L184">184</a>                     .requestURI(requestUri)
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>                     .requestURL(requestUri)
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>                     .requestURI(uri.getPath())
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>                     .requestURL(requestURL)
 <a class="jxr_linenumber" name="L186" href="#L186">186</a>                     .headers(headers)
 <a class="jxr_linenumber" name="L187" href="#L187">187</a>                     .session((HttpSession) handshakeRequest.getHttpSession())
 <a class="jxr_linenumber" name="L188" href="#L188">188</a>                     .servletPath(servletPath)
@@ -262,6 +262,6 @@
 <a class="jxr_linenumber" name="L254" href="#L254">254</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2014. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
 </body>
 </html>

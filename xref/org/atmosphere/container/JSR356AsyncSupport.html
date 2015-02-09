@@ -61,7 +61,7 @@
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>          String servletPath = config.getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>          <strong class="jxr_keyword">if</strong> (servletPath == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L55" href="#L55">55</a>              servletPath = IOUtils.guestServletPath(config);
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>              <strong class="jxr_keyword">if</strong> (servletPath.equals(<span class="jxr_string">"/"</span>) || servletPath.equals(<span class="jxr_string">"/*"</span>)) {
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>              <strong class="jxr_keyword">if</strong> (servletPath.equals(<span class="jxr_string">""</span>) || servletPath.equals(<span class="jxr_string">"/"</span>) || servletPath.equals(<span class="jxr_string">"/*"</span>)) {
 <a class="jxr_linenumber" name="L57" href="#L57">57</a>                  servletPath = PATH +<span class="jxr_string">"}"</span>;
 <a class="jxr_linenumber" name="L58" href="#L58">58</a>              }
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>          }
@@ -135,6 +135,6 @@
 <a class="jxr_linenumber" name="L127" href="#L127">127</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2014. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
 </body>
 </html>

@@ -163,39 +163,35 @@
 <a class="jxr_linenumber" name="L155" href="#L155">155</a>                     }
 <a class="jxr_linenumber" name="L156" href="#L156">156</a> 
 <a class="jxr_linenumber" name="L157" href="#L157">157</a>                     <strong class="jxr_keyword">int</strong> size = cb.length();
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>                     <em class="jxr_comment">// The String must have been escaped by the JSONPAtmosphereInterceptor</em>
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>                     <strong class="jxr_keyword">if</strong> (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) &amp;&amp; data.length != responseDraft.length) {
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>                         size = inCharset.newDecoder().decode(ByteBuffer.wrap(data, 0, data.length)).length();
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>                     }
-<a class="jxr_linenumber" name="L162" href="#L162">162</a> 
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>                     String csq = Integer.toString(size) + endString;
-<a class="jxr_linenumber" name="L164" href="#L164">164</a>                     ByteBuffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>                     CharBuffer cb2 = CharBuffer.wrap(csq);
-<a class="jxr_linenumber" name="L166" href="#L166">166</a>                     CharsetEncoder encoder = outCharset.newEncoder();
-<a class="jxr_linenumber" name="L167" href="#L167">167</a>                     encoder.encode(cb2, bb, false);
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>                     encoder.encode(cb, bb, false);
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>                     bb.flip();
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>                     byte[] b = <strong class="jxr_keyword">new</strong> byte[bb.limit()];
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>                     bb.get(b);
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>                     <strong class="jxr_keyword">return</strong> b;
-<a class="jxr_linenumber" name="L173" href="#L173">173</a>                 } <strong class="jxr_keyword">catch</strong> (MalformedInputException ex) {
-<a class="jxr_linenumber" name="L174" href="#L174">174</a>                     <em class="jxr_comment">// https://github.com/Atmosphere/atmosphere/issues/1803</em>
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>                     logger.warn(<span class="jxr_string">"Cannot decode the response bytes for {}. Writing the message as it is"</span>, response.uuid(), ex);
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>                     <strong class="jxr_keyword">return</strong> responseDraft;
-<a class="jxr_linenumber" name="L177" href="#L177">177</a>                 }
-<a class="jxr_linenumber" name="L178" href="#L178">178</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>                 <strong class="jxr_keyword">return</strong> responseDraft;
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>             }
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>         }
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>     }
-<a class="jxr_linenumber" name="L183" href="#L183">183</a> 
-<a class="jxr_linenumber" name="L184" href="#L184">184</a>     @Override
-<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/InvokationOrder.html">PRIORITY</a> priority() {
-<a class="jxr_linenumber" name="L186" href="#L186">186</a>         <strong class="jxr_keyword">return</strong> InvokationOrder.BEFORE_DEFAULT;
-<a class="jxr_linenumber" name="L187" href="#L187">187</a>     }
-<a class="jxr_linenumber" name="L188" href="#L188">188</a> }
+<a class="jxr_linenumber" name="L158" href="#L158">158</a> 
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>                     String csq = Integer.toString(size) + endString;
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>                     ByteBuffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>                     CharBuffer cb2 = CharBuffer.wrap(csq);
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>                     CharsetEncoder encoder = outCharset.newEncoder();
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>                     encoder.encode(cb2, bb, false);
+<a class="jxr_linenumber" name="L164" href="#L164">164</a>                     encoder.encode(cb, bb, false);
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>                     bb.flip();
+<a class="jxr_linenumber" name="L166" href="#L166">166</a>                     byte[] b = <strong class="jxr_keyword">new</strong> byte[bb.limit()];
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>                     bb.get(b);
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>                     <strong class="jxr_keyword">return</strong> b;
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>                 } <strong class="jxr_keyword">catch</strong> (MalformedInputException ex) {
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>                     <em class="jxr_comment">// https://github.com/Atmosphere/atmosphere/issues/1803</em>
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>                     logger.warn(<span class="jxr_string">"Cannot decode the response bytes for {}. Writing the message as it is"</span>, response.uuid(), ex);
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>                     <strong class="jxr_keyword">return</strong> responseDraft;
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>                 }
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>                 <strong class="jxr_keyword">return</strong> responseDraft;
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>             }
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>         }
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>     }
+<a class="jxr_linenumber" name="L179" href="#L179">179</a> 
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>     @Override
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/InvokationOrder.html">PRIORITY</a> priority() {
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>         <strong class="jxr_keyword">return</strong> InvokationOrder.BEFORE_DEFAULT;
+<a class="jxr_linenumber" name="L183" href="#L183">183</a>     }
+<a class="jxr_linenumber" name="L184" href="#L184">184</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2014. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
 </body>
 </html>

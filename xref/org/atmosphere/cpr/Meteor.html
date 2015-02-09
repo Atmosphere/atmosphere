@@ -149,7 +149,7 @@
 <a class="jxr_linenumber" name="L141" href="#L141">141</a>             req.setAttribute(AtmosphereResourceImpl.SKIP_BROADCASTER_CREATION, Boolean.TRUE);
 <a class="jxr_linenumber" name="L142" href="#L142">142</a>         }
 <a class="jxr_linenumber" name="L143" href="#L143">143</a> 
-<a class="jxr_linenumber" name="L144" href="#L144">144</a>         <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> m = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a>(r, l, s);
+<a class="jxr_linenumber" name="L144" href="#L144">144</a>         <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> m = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a>(r, l, (s != <strong class="jxr_keyword">null</strong> ? s : r.getSerializer()));
 <a class="jxr_linenumber" name="L145" href="#L145">145</a>         req.setAttribute(METEOR, m);
 <a class="jxr_linenumber" name="L146" href="#L146">146</a>         <strong class="jxr_keyword">return</strong> m;
 <a class="jxr_linenumber" name="L147" href="#L147">147</a>     }
@@ -345,6 +345,6 @@
 <a class="jxr_linenumber" name="L337" href="#L337">337</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2014. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
 </body>
 </html>

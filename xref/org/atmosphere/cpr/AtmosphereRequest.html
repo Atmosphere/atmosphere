@@ -2020,56 +2020,61 @@
 <a class="jxr_linenumber" name="L2012" href="#L2012">2012</a>                 } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="L2013" href="#L2013">2013</a>                     logger.warn(<span class="jxr_string">""</span>, e);
 <a class="jxr_linenumber" name="L2014" href="#L2014">2014</a>                 }
-<a class="jxr_linenumber" name="L2015" href="#L2015">2015</a>             }
-<a class="jxr_linenumber" name="L2016" href="#L2016">2016</a>             <strong class="jxr_keyword">return</strong> address;
-<a class="jxr_linenumber" name="L2017" href="#L2017">2017</a>         }
-<a class="jxr_linenumber" name="L2018" href="#L2018">2018</a> 
-<a class="jxr_linenumber" name="L2019" href="#L2019">2019</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getPort() {
-<a class="jxr_linenumber" name="L2020" href="#L2020">2020</a>             <strong class="jxr_keyword">return</strong> address().getPort();
-<a class="jxr_linenumber" name="L2021" href="#L2021">2021</a>         }
-<a class="jxr_linenumber" name="L2022" href="#L2022">2022</a> 
-<a class="jxr_linenumber" name="L2023" href="#L2023">2023</a>         <strong class="jxr_keyword">public</strong> String getHostAddress() {
-<a class="jxr_linenumber" name="L2024" href="#L2024">2024</a>             <strong class="jxr_keyword">return</strong> address().getAddress().getHostAddress();
-<a class="jxr_linenumber" name="L2025" href="#L2025">2025</a>         }
-<a class="jxr_linenumber" name="L2026" href="#L2026">2026</a> 
-<a class="jxr_linenumber" name="L2027" href="#L2027">2027</a>         <strong class="jxr_keyword">public</strong> String getHostName() {
-<a class="jxr_linenumber" name="L2028" href="#L2028">2028</a>             <strong class="jxr_keyword">return</strong> address().getHostName();
-<a class="jxr_linenumber" name="L2029" href="#L2029">2029</a>         }
-<a class="jxr_linenumber" name="L2030" href="#L2030">2030</a> 
-<a class="jxr_linenumber" name="L2031" href="#L2031">2031</a>     }
-<a class="jxr_linenumber" name="L2032" href="#L2032">2032</a> 
-<a class="jxr_linenumber" name="L2033" href="#L2033">2033</a>     @Override
-<a class="jxr_linenumber" name="L2034" href="#L2034">2034</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="L2035" href="#L2035">2035</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L2036" href="#L2036">2036</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
-<a class="jxr_linenumber" name="L2037" href="#L2037">2037</a>                     <span class="jxr_string">" method="</span> + getMethod() +
-<a class="jxr_linenumber" name="L2038" href="#L2038">2038</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
-<a class="jxr_linenumber" name="L2039" href="#L2039">2039</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
-<a class="jxr_linenumber" name="L2040" href="#L2040">2040</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
-<a class="jxr_linenumber" name="L2041" href="#L2041">2041</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
-<a class="jxr_linenumber" name="L2042" href="#L2042">2042</a>                     <span class="jxr_string">" requestURL="</span> + getRequestURL() +
-<a class="jxr_linenumber" name="L2043" href="#L2043">2043</a>                     <span class="jxr_string">" AtmosphereResource UUID="</span> + (resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">""</span>) +
-<a class="jxr_linenumber" name="L2044" href="#L2044">2044</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
-<a class="jxr_linenumber" name="L2045" href="#L2045">2045</a>                     '}';
-<a class="jxr_linenumber" name="L2046" href="#L2046">2046</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="L2047" href="#L2047">2047</a>             <em class="jxr_comment">// Jetty error</em>
-<a class="jxr_linenumber" name="L2048" href="#L2048">2048</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
-<a class="jxr_linenumber" name="L2049" href="#L2049">2049</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
-<a class="jxr_linenumber" name="L2050" href="#L2050">2050</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
-<a class="jxr_linenumber" name="L2051" href="#L2051">2051</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
-<a class="jxr_linenumber" name="L2052" href="#L2052">2052</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
-<a class="jxr_linenumber" name="L2053" href="#L2053">2053</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
-<a class="jxr_linenumber" name="L2054" href="#L2054">2054</a>                     '}';
-<a class="jxr_linenumber" name="L2055" href="#L2055">2055</a> 
-<a class="jxr_linenumber" name="L2056" href="#L2056">2056</a>         }
-<a class="jxr_linenumber" name="L2057" href="#L2057">2057</a>     }
-<a class="jxr_linenumber" name="L2058" href="#L2058">2058</a> 
-<a class="jxr_linenumber" name="L2059" href="#L2059">2059</a>     <strong class="jxr_keyword">public</strong> String requestURL() {
-<a class="jxr_linenumber" name="L2060" href="#L2060">2060</a>         <strong class="jxr_keyword">return</strong> b.requestURL;
-<a class="jxr_linenumber" name="L2061" href="#L2061">2061</a>     }
-<a class="jxr_linenumber" name="L2062" href="#L2062">2062</a> }
+<a class="jxr_linenumber" name="L2015" href="#L2015">2015</a> 
+<a class="jxr_linenumber" name="L2016" href="#L2016">2016</a>                 <em class="jxr_comment">// Falback</em>
+<a class="jxr_linenumber" name="L2017" href="#L2017">2017</a>                 <strong class="jxr_keyword">if</strong> (address == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L2018" href="#L2018">2018</a>                     address = <strong class="jxr_keyword">new</strong> InetSocketAddress(8080);
+<a class="jxr_linenumber" name="L2019" href="#L2019">2019</a>                 }
+<a class="jxr_linenumber" name="L2020" href="#L2020">2020</a>             }
+<a class="jxr_linenumber" name="L2021" href="#L2021">2021</a>             <strong class="jxr_keyword">return</strong> address;
+<a class="jxr_linenumber" name="L2022" href="#L2022">2022</a>         }
+<a class="jxr_linenumber" name="L2023" href="#L2023">2023</a> 
+<a class="jxr_linenumber" name="L2024" href="#L2024">2024</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> getPort() {
+<a class="jxr_linenumber" name="L2025" href="#L2025">2025</a>             <strong class="jxr_keyword">return</strong> address().getPort();
+<a class="jxr_linenumber" name="L2026" href="#L2026">2026</a>         }
+<a class="jxr_linenumber" name="L2027" href="#L2027">2027</a> 
+<a class="jxr_linenumber" name="L2028" href="#L2028">2028</a>         <strong class="jxr_keyword">public</strong> String getHostAddress() {
+<a class="jxr_linenumber" name="L2029" href="#L2029">2029</a>             <strong class="jxr_keyword">return</strong> address().getAddress().getHostAddress();
+<a class="jxr_linenumber" name="L2030" href="#L2030">2030</a>         }
+<a class="jxr_linenumber" name="L2031" href="#L2031">2031</a> 
+<a class="jxr_linenumber" name="L2032" href="#L2032">2032</a>         <strong class="jxr_keyword">public</strong> String getHostName() {
+<a class="jxr_linenumber" name="L2033" href="#L2033">2033</a>             <strong class="jxr_keyword">return</strong> address().getHostName();
+<a class="jxr_linenumber" name="L2034" href="#L2034">2034</a>         }
+<a class="jxr_linenumber" name="L2035" href="#L2035">2035</a> 
+<a class="jxr_linenumber" name="L2036" href="#L2036">2036</a>     }
+<a class="jxr_linenumber" name="L2037" href="#L2037">2037</a> 
+<a class="jxr_linenumber" name="L2038" href="#L2038">2038</a>     @Override
+<a class="jxr_linenumber" name="L2039" href="#L2039">2039</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="L2040" href="#L2040">2040</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L2041" href="#L2041">2041</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
+<a class="jxr_linenumber" name="L2042" href="#L2042">2042</a>                     <span class="jxr_string">" method="</span> + getMethod() +
+<a class="jxr_linenumber" name="L2043" href="#L2043">2043</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
+<a class="jxr_linenumber" name="L2044" href="#L2044">2044</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
+<a class="jxr_linenumber" name="L2045" href="#L2045">2045</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
+<a class="jxr_linenumber" name="L2046" href="#L2046">2046</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
+<a class="jxr_linenumber" name="L2047" href="#L2047">2047</a>                     <span class="jxr_string">" requestURL="</span> + getRequestURL() +
+<a class="jxr_linenumber" name="L2048" href="#L2048">2048</a>                     <span class="jxr_string">" AtmosphereResource UUID="</span> + (resource() != <strong class="jxr_keyword">null</strong> ? resource().uuid() : <span class="jxr_string">""</span>) +
+<a class="jxr_linenumber" name="L2049" href="#L2049">2049</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
+<a class="jxr_linenumber" name="L2050" href="#L2050">2050</a>                     '}';
+<a class="jxr_linenumber" name="L2051" href="#L2051">2051</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="L2052" href="#L2052">2052</a>             <em class="jxr_comment">// Jetty error</em>
+<a class="jxr_linenumber" name="L2053" href="#L2053">2053</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereRequest{"</span> +
+<a class="jxr_linenumber" name="L2054" href="#L2054">2054</a>                     <span class="jxr_string">" contextPath="</span> + getContextPath() +
+<a class="jxr_linenumber" name="L2055" href="#L2055">2055</a>                     <span class="jxr_string">" servletPath="</span> + getServletPath() +
+<a class="jxr_linenumber" name="L2056" href="#L2056">2056</a>                     <span class="jxr_string">" pathInfo="</span> + getPathInfo() +
+<a class="jxr_linenumber" name="L2057" href="#L2057">2057</a>                     <span class="jxr_string">" requestURI="</span> + getRequestURI() +
+<a class="jxr_linenumber" name="L2058" href="#L2058">2058</a>                     <span class="jxr_string">" destroyable="</span> + b.destroyable +
+<a class="jxr_linenumber" name="L2059" href="#L2059">2059</a>                     '}';
+<a class="jxr_linenumber" name="L2060" href="#L2060">2060</a> 
+<a class="jxr_linenumber" name="L2061" href="#L2061">2061</a>         }
+<a class="jxr_linenumber" name="L2062" href="#L2062">2062</a>     }
+<a class="jxr_linenumber" name="L2063" href="#L2063">2063</a> 
+<a class="jxr_linenumber" name="L2064" href="#L2064">2064</a>     <strong class="jxr_keyword">public</strong> String requestURL() {
+<a class="jxr_linenumber" name="L2065" href="#L2065">2065</a>         <strong class="jxr_keyword">return</strong> b.requestURL;
+<a class="jxr_linenumber" name="L2066" href="#L2066">2066</a>     }
+<a class="jxr_linenumber" name="L2067" href="#L2067">2067</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2014. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
 </body>
 </html>
