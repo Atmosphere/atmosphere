@@ -91,9 +91,13 @@ public class AtmosphereServlet extends HttpServlet {
                     // Equinox throw an exception (NPE)
                     // WebLogic Crap => https://github.com/Atmosphere/atmosphere/issues/1569
                     if (UnsupportedOperationException.class.isAssignableFrom(ex.getClass())) {
-                        logger.warn("WebLogic 12c unable to retrieve Servlet. Please make sure your servlet-name to 'AtmosphereServlet'");
-                        framework = (AtmosphereFramework) sc.getServletContext()
-                                                    .getAttribute(AtmosphereServlet.class.getSimpleName());
+                        logger.warn("WebLogic 12c unable to retrieve Servlet. Please make sure your servlet-name is 'AtmosphereServlet' " +
+                                        "or set org.atmosphere.servlet to the current value");
+                        String name = sc.getInitParameter(ApplicationConfig.SERVLET_NAME);
+                        if (name == null) {
+                            name = "AtmosphereServlet.class.getSimpleName()";
+                        }
+                        framework = (AtmosphereFramework) sc.getServletContext().getAttribute(name);
                     } else {
                         logger.trace("", ex);
                     }

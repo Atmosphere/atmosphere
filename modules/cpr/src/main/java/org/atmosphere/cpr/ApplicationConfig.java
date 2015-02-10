@@ -827,5 +827,11 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.annotation.useBytecodeProcessor
      */
     String BYTECODE_PROCESSOR = "org.atmosphere.cpr.annotation.useBytecodeProcessor";
+    /**
+     * The web.xml servlet-name.
+     * Default: null <br>
+     * Value: AtmosphereServlet
+     */
+    String SERVLET_NAME = "org.atmosphere.servlet";
 }
 
