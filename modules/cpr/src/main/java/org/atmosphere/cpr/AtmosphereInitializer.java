@@ -61,7 +61,10 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                 DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
                 List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
 
-                if (l.size() == 0 && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
+                // Don't use WebLogic Native WebSocket support if JSR356 is available
+                int size = c.getServerInfo().contains("WebLogic") ? 1 : 0;
+
+                if (l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
                     framework.setAsyncSupport(new JSR356AsyncSupport(new AtmosphereConfig(framework) {
                         public ServletContext getServletContext() {
                             return c;

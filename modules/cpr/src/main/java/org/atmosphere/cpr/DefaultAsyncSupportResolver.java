@@ -73,7 +73,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String NETTY = "org.jboss.netty.channel.Channel";
     public final static String JBOSS_AS7_WEBSOCKET = "org.atmosphere.jboss.as.websockets.servlet.WebSocketServlet";
     public final static String JSR356_WEBSOCKET = "javax.websocket.Endpoint";
-    public final static String WEBLOGIC_WEBSOCKWET = "weblogic.websocket.annotation.WebSocket";
+    public final static String WEBLOGIC_WEBSOCKET = "weblogic.websocket.annotation.WebSocket";
+    public final static String HK2 = "org.glassfish.hk2.utilities.reflection.ReflectionHelper";
 
     private final AtmosphereConfig config;
 
@@ -166,7 +167,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     if (testClassExists(GRIZZLY_WEBSOCKET))
                         add(GrizzlyServlet30WebSocketSupport.class);
 
-                    if (testClassExists(WEBLOGIC_WEBSOCKWET)) {
+                    if (testClassExists(WEBLOGIC_WEBSOCKET) && !testClassExists(HK2)) {
                         logger.warn("***************************************************************************************************");
                         logger.warn("WebLogic WebSocket detected and will be deployed under the hardcoded path <<application-name>>/ws/*");
                         logger.warn("***************************************************************************************************");
