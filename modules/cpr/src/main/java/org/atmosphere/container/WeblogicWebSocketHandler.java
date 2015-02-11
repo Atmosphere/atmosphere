@@ -75,7 +75,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         // TODO: Dangerous
         webSocketConnection.getWebSocketContext().getServletContext().setAttribute(webSocketConnection.toString(), webSocket);
 
-        AtmosphereRequest ar = AtmosphereRequest.cloneRequest(request.get(), true, false, true, config.getInitParameter(PROPERTY_SESSION_CREATE, true));
+        AtmosphereRequest ar = AtmosphereRequest.cloneRequest(request.get(), true, true, true, config.getInitParameter(PROPERTY_SESSION_CREATE, true));
         // https://github.com/Atmosphere/atmosphere/issues/1854
         // We need to force processing of the query string.
         ar.queryString(ar.getQueryString());
