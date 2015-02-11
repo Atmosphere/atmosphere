@@ -95,7 +95,7 @@ public class AtmosphereServlet extends HttpServlet {
                                         "or set org.atmosphere.servlet to the current value");
                         String name = sc.getInitParameter(ApplicationConfig.SERVLET_NAME);
                         if (name == null) {
-                            name = "AtmosphereServlet.class.getSimpleName()";
+                            name = AtmosphereServlet.class.getSimpleName();
                         }
                         framework = (AtmosphereFramework) sc.getServletContext().getAttribute(name);
                     } else {
