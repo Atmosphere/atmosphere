@@ -74,6 +74,9 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         webSocketConnection.getWebSocketContext().getServletContext().setAttribute(webSocketConnection.toString(), webSocket);
 
         AtmosphereRequest ar = AtmosphereRequest.cloneRequest(request.get(), true, false, true);
+        // https://github.com/Atmosphere/atmosphere/issues/1854
+        // We need to force processing of the query string.
+        ar.queryString(ar.getQueryString());
         request.set(null);
         try {
             webSocketProcessor.open(webSocket, ar, AtmosphereResponse.newInstance(config, ar, webSocket));
