@@ -1176,7 +1176,7 @@ public class AtmosphereFramework {
                 }
             }
 
-            logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR, interceptors);
+            logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         }
         initInterceptors();
     }
