@@ -70,11 +70,13 @@ public class AnnotationUtil {
     }
 
     public static void interceptors(AtmosphereFramework framework, Class<? extends AtmosphereInterceptor>[] interceptors, List<AtmosphereInterceptor> l) {
-        for (Class i : interceptors) {
-            try {
-                l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
-            } catch (Throwable e) {
-                logger.warn("", e);
+        for (Class<? extends AtmosphereInterceptor> i : interceptors) {
+            if (!framework.excludedInterceptors().contains(i.getName())){
+                try {
+                    l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
+                } catch (Throwable e) {
+                    logger.warn("", e);
+                }
             }
         }
     }
