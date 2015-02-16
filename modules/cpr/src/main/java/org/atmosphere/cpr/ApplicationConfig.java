@@ -833,5 +833,11 @@ public interface ApplicationConfig {
      * Value: AtmosphereServlet
      */
     String SERVLET_NAME = "org.atmosphere.servlet";
+    /**
+     * Try to read a HTTP GET body.
+     * Default: false <br>
+     * Value: org.atmosphere.util.IOUtils.readGetBody
+     */
+    String READ_GET_BODY = "org.atmosphere.util.IOUtils.readGetBody";
 }
 
