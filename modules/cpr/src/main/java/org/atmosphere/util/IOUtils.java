@@ -16,10 +16,12 @@
 package org.atmosphere.util;
 
 import org.atmosphere.config.service.DeliverTo;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.MeteorServlet;
@@ -132,6 +134,12 @@ public class IOUtils {
 
     public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {
         final StringBuilder stringBuilder = new StringBuilder();
+
+        boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
+        if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
+            return stringBuilder;
+        }
+
         AtmosphereRequest request = r.getRequest();
         if (request.body().isEmpty()) {
             BufferedReader bufferedReader = null;
@@ -184,6 +192,12 @@ public class IOUtils {
 
     public static byte[] readEntirelyAsByte(AtmosphereResource r) throws IOException {
         AtmosphereRequest request = r.getRequest();
+
+        boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
+        if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
+            return new byte[0];
+        }
+
         AtmosphereRequest.Body body = request.body();
         if (request.body().isEmpty()) {
             BufferedInputStream bufferedStream = null;
