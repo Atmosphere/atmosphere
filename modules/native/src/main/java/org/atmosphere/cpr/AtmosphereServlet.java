@@ -15,18 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
-
-import java.io.IOException;
-import java.util.Enumeration;
-
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
-
 import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
@@ -38,6 +26,17 @@ import org.jboss.servlet.http.HttpEvent;
 import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.servlet.Servlet;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServlet;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Enumeration;
+
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
  * This servlet supports native Comet support with Tomcat 6, 7 and JBoss Web 3.x
@@ -298,7 +297,8 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
             synchronized (framework.asyncSupport) {
                 if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)
-                        && !framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
+                        && !framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)
+                        && !framework.asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
                     AsyncSupport current = framework.asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
                     framework.asyncSupport = new JBossWebCometSupport(framework.config);
