@@ -447,7 +447,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         if (r != null && !r.isCancelled() && !AtmosphereResourceImpl.class.cast(r).getAndSetInClosingPhase()){
             logger.trace("Finishing lifecycle for AtmosphereResource {}", r.uuid());
             final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
-            synchronized (impl) {
                 try {
                     if (impl.isCancelled()) {
                         logger.debug("{} is already cancelled", impl.uuid());
@@ -463,7 +462,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
                     if (!e.isClosedByClient()) {
                         if (cancelled) {
-                            e.setCancelled(true);
+                            e.setCancelled(cancelled);
                         } else {
                             e.setIsResumedOnTimeout(true);
                             Broadcaster b = r.getBroadcaster();
@@ -498,7 +497,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         impl._destroy();
                     }
                 }
-            }
             return true;
         } else {
             logger.trace("AtmosphereResource {} was already cancelled or gc", r != null ? r.uuid() : "null");
@@ -523,7 +521,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
                         if (atmosphereHandler != null) {
-                            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                            synchronized (r) {
+                                atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                            }
                         }
                     }
                 } catch (IOException ex) {
