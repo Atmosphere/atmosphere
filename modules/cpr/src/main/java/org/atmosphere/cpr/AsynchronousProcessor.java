@@ -513,6 +513,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
         AtmosphereRequest req = r.getRequest(false);
         try {
+            // Rely on isInScope instead of synchronization https://github.com/Atmosphere/atmosphere/issues/1865
             if (r.isInScope()) {
                 String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
                 r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
@@ -520,10 +521,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
                         AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
-                        if (atmosphereHandler != null) {
-                            synchronized (r) {
-                                atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
-                            }
+                        if (atmosphereHandler != null && r.isInScope()) {
+                            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
                         }
                     }
                 } catch (IOException ex) {
