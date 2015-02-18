@@ -95,7 +95,7 @@ public class MeteorServlet extends AtmosphereServlet {
                     r.addFilter(f);
                 }
                 framework().getBroadcasterFactory().remove(delegateMapping);
-                framework.addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
+                framework().addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
             }
         }
     }
@@ -120,9 +120,9 @@ public class MeteorServlet extends AtmosphereServlet {
             r.addFilterClassName(filterClass, filterName);
             if (mapping == null) {
                 mapping = Broadcaster.ROOT_MASTER;
-                framework.getBroadcasterFactory().remove(Broadcaster.ROOT_MASTER);
+                framework().getBroadcasterFactory().remove(Broadcaster.ROOT_MASTER);
             }
-            framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
+            framework().addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
         }
     }
 

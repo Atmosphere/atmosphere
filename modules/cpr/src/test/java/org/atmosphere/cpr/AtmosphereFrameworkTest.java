@@ -139,7 +139,7 @@ public class AtmosphereFrameworkTest {
         public void init(ServletConfig config) throws ServletException {
 
             super.init(config);
-            framework.setBroadcasterFactory(new MyBroadcasterFactory());
+            framework().setBroadcasterFactory(new MyBroadcasterFactory());
         }
 
     }

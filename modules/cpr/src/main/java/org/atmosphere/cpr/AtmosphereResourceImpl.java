@@ -953,7 +953,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
 
-        if (uuid != null ? !uuid.equals(that.uuid) : that.uuid != null) return false;
+        if ((uuid != null ? !uuid.equals(that.uuid) : that.uuid != null) && that.transport.equals(transport())) return false;
 
         return true;
     }
