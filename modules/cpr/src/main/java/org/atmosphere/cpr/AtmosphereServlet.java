@@ -36,9 +36,7 @@ import java.io.IOException;
 public class AtmosphereServlet extends HttpServlet {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
-    protected AtmosphereFramework framework;
-    protected boolean isFilter;
-    protected boolean autoDetectHandlers;
+    protected final AtmosphereFrameworkInitializer initializer;
 
     /**
      * Create an Atmosphere Servlet.
@@ -63,16 +61,12 @@ public class AtmosphereServlet extends HttpServlet {
      * @param autoDetectHandlers
      */
     public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
-        this.isFilter = isFilter;
-        this.autoDetectHandlers = autoDetectHandlers;
+        initializer = new AtmosphereFrameworkInitializer(isFilter, autoDetectHandlers);
     }
 
     @Override
     public void destroy() {
-        if (framework != null) {
-            framework.destroy();
-            framework = null;
-        }
+        initializer.destroy();
     }
 
     @Override
@@ -82,45 +76,16 @@ public class AtmosphereServlet extends HttpServlet {
     }
 
     protected AtmosphereServlet configureFramework(ServletConfig sc) throws ServletException {
-        if (framework == null) {
-            if (sc.getServletContext().getMajorVersion() > 2) {
-                try {
-                    framework = (AtmosphereFramework) sc.getServletContext()
-                            .getAttribute(sc.getServletContext().getServletRegistration(sc.getServletName()).getName());
-                } catch (Exception ex) {
-                    // Equinox throw an exception (NPE)
-                    // WebLogic Crap => https://github.com/Atmosphere/atmosphere/issues/1569
-                    if (UnsupportedOperationException.class.isAssignableFrom(ex.getClass())) {
-                        logger.warn("WebLogic 12c unable to retrieve Servlet. Please make sure your servlet-name is 'AtmosphereServlet' " +
-                                        "or set org.atmosphere.servlet to the current value");
-                        String name = sc.getInitParameter(ApplicationConfig.SERVLET_NAME);
-                        if (name == null) {
-                            name = AtmosphereServlet.class.getSimpleName();
-                        }
-                        framework = (AtmosphereFramework) sc.getServletContext().getAttribute(name);
-                    } else {
-                        logger.trace("", ex);
-                    }
-                }
-            }
-
-            if (framework == null) {
-                framework = newAtmosphereFramework();
-            }
-        }
-        framework.init(sc);
+        initializer.configureFramework(sc);
         return this;
     }
 
     protected AtmosphereFramework newAtmosphereFramework() {
-        return new AtmosphereFramework(isFilter, autoDetectHandlers);
+        return initializer.newAtmosphereFramework();
     }
 
     public AtmosphereFramework framework() {
-        if (framework == null) {
-            framework = newAtmosphereFramework();
-        }
-        return framework;
+       return initializer.framework();
     }
 
     /**
@@ -218,6 +183,6 @@ public class AtmosphereServlet extends HttpServlet {
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        framework().doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
     }
 }
