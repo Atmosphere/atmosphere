@@ -481,7 +481,7 @@ public class ManagedAtmosphereHandlerTest {
         // Open connection
         AtmosphereRequest request = new AtmosphereRequest.Builder()
                 .pathInfo("/heartbeat")
-                .method("POST")
+                .method("GET")
                 .build();
 
         request.header(X_ATMOSPHERE_TRANSPORT, WEBSOCKET_TRANSPORT);
