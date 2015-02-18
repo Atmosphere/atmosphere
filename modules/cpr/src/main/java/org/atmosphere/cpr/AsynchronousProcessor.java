@@ -444,59 +444,59 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @return true if the operation was executed.
      */
     public boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
-        if (r != null && !r.isCancelled() && !AtmosphereResourceImpl.class.cast(r).getAndSetInClosingPhase()){
+        if (r != null && !r.isCancelled() && !AtmosphereResourceImpl.class.cast(r).getAndSetInClosingPhase()) {
             logger.trace("Finishing lifecycle for AtmosphereResource {}", r.uuid());
             final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
-                try {
-                    if (impl.isCancelled()) {
-                        logger.debug("{} is already cancelled", impl.uuid());
-                        return false;
-                    }
+            try {
+                if (impl.isCancelled()) {
+                    logger.debug("{} is already cancelled", impl.uuid());
+                    return false;
+                }
 
-                    AtmosphereResourceEventImpl e = impl.getAtmosphereResourceEvent();
-                    // https://github.com/Atmosphere/atmosphere/issues/1756
-                    // Do not go inside Atmosphere once undeployed to avoid all kind of issues.
-                    if (config.framework().isDestroyed()) {
-                        cancelled = true;
-                    }
+                AtmosphereResourceEventImpl e = impl.getAtmosphereResourceEvent();
+                // https://github.com/Atmosphere/atmosphere/issues/1756
+                // Do not go inside Atmosphere once undeployed to avoid all kind of issues.
+                if (config.framework().isDestroyed()) {
+                    cancelled = true;
+                }
 
-                    if (!e.isClosedByClient()) {
-                        if (cancelled) {
-                            e.setCancelled(cancelled);
-                        } else {
-                            e.setIsResumedOnTimeout(true);
-                            Broadcaster b = r.getBroadcaster();
-                            if (b instanceof DefaultBroadcaster) {
-                                ((DefaultBroadcaster) b).broadcastOnResume(r);
-                            }
-
-                            // TODO: Was it there for legacy reason?
-                            // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
+                if (!e.isClosedByClient()) {
+                    if (cancelled) {
+                        e.setCancelled(cancelled);
+                    } else {
+                        e.setIsResumedOnTimeout(true);
+                        Broadcaster b = r.getBroadcaster();
+                        if (b instanceof DefaultBroadcaster) {
+                            ((DefaultBroadcaster) b).broadcastOnResume(r);
                         }
-                    }
-                    invokeAtmosphereHandler(impl);
-                } catch (Throwable ex) {
-                    // Something wrong happened, ignore the exception
-                    logger.error("Failed to cancel resource: {}", impl.uuid(), ex);
-                } finally {
-                    try {
-                        impl.notifyListeners();
-                        try {
-                            impl.getResponse(false).getOutputStream().close();
-                        } catch (Throwable t) {
-                            try {
-                                impl.getResponse(false).getWriter().close();
-                            } catch (Throwable t2) {
-                            }
-                        }
-                        impl.setIsInScope(false);
-                        impl.cancel();
-                    } catch (Throwable t) {
-                        logger.debug("completeLifecycle", t);
-                    } finally {
-                        impl._destroy();
+
+                        // TODO: Was it there for legacy reason?
+                        // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
                     }
                 }
+                invokeAtmosphereHandler(impl);
+            } catch (Throwable ex) {
+                // Something wrong happened, ignore the exception
+                logger.error("Failed to cancel resource: {}", impl.uuid(), ex);
+            } finally {
+                try {
+                    impl.notifyListeners();
+                    try {
+                        impl.getResponse(false).getOutputStream().close();
+                    } catch (Throwable t) {
+                        try {
+                            impl.getResponse(false).getWriter().close();
+                        } catch (Throwable t2) {
+                        }
+                    }
+                    impl.setIsInScope(false);
+                    impl.cancel();
+                } catch (Throwable t) {
+                    logger.debug("completeLifecycle", t);
+                } finally {
+                    impl._destroy();
+                }
+            }
             return true;
         } else {
             logger.trace("AtmosphereResource {} was already cancelled or gc", r != null ? r.uuid() : "null");
