@@ -888,13 +888,13 @@ public class DefaultBroadcaster implements Broadcaster {
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
                 logger.trace("If you are using Tomcat 7.0.22 and lower, you're most probably hitting http://is.gd/NqicFT");
                 logger.trace("", t);
+                lostCandidate = true;
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(r, false);
                 config.getBroadcasterFactory().removeAllAtmosphereResource(r);
                 event.setCancelled(true);
                 event.setThrowable(t);
                 r.setIsInScope(false);
-                lostCandidate = true;
                 return;
             }
 
