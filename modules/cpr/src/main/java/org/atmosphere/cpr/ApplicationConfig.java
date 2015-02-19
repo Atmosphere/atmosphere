@@ -829,8 +829,8 @@ public interface ApplicationConfig {
     String BYTECODE_PROCESSOR = "org.atmosphere.cpr.annotation.useBytecodeProcessor";
     /**
      * The web.xml servlet-name.
-     * Default: null <br>
-     * Value: AtmosphereServlet
+     * Default: AtmosphereServlet <br>
+     * Value: org.atmosphere.servlet
      */
     String SERVLET_NAME = "org.atmosphere.servlet";
     /**
@@ -839,5 +839,13 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.util.IOUtils.readGetBody
      */
     String READ_GET_BODY = "org.atmosphere.util.IOUtils.readGetBody";
+    /**
+     * If a I/O exception occurs during a flush() or flushBuffer() exception, cache the bytes that was previously written.
+     * When the server buffer the bytes, the bytes may or may not been properly written to the client and those will be lost if you set that
+     * value to false. If the bytes where properly written, the bytes may be cached and may be sent twice to the client.
+     * Default: true <br>
+     * Value: org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException
+     */
+    String CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION = "org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException";
 }
 

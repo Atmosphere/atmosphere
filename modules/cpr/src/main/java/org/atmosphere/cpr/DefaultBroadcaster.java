@@ -108,6 +108,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private boolean backwardCompatible = false;
     private LifecycleHandler lifecycleHandler;
     private Future<?> currentLifecycleTask;
+    private boolean cacheOnIOFlushException = true;
 
     public DefaultBroadcaster() {
     }
@@ -141,6 +142,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
         initialized.set(true);
         backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
+        cacheOnIOFlushException = config.getInitParameter(ApplicationConfig.CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION, true);
         return this;
     }
 
@@ -801,8 +803,9 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.debug("Invalid AtmosphereResource state {}. The connection has been remotely" +
                         " closed and message {} will be added to the configured BroadcasterCache for later retrieval", r.uuid(), event.getMessage());
                 logger.trace("If you are using Tomcat 7.0.22 and lower, you're most probably hitting http://is.gd/NqicFT");
-                logger.trace("", t);
-                lostCandidate = true;
+                logger.trace("ApplicationConfig.CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION {}", cacheOnIOFlushException, t);
+
+                lostCandidate =  cacheOnIOFlushException ? cacheOnIOFlushException : cacheMessageOnIOException(t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(r, false);
                 config.getBroadcasterFactory().removeAllAtmosphereResource(r);
@@ -852,6 +855,15 @@ public class DefaultBroadcaster implements Broadcaster {
             }
             token.destroy();
         }
+    }
+
+    protected boolean cacheMessageOnIOException(Throwable cause){
+        for (StackTraceElement element : cause.getStackTrace()) {
+            if (element.getMethodName().equals("flush") || element.getMethodName().equals("flushBuffer")) {
+                return false;
+            }
+        }
+        return true;
     }
 
     protected boolean checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
