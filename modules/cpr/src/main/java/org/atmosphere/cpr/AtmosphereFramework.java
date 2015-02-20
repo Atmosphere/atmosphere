@@ -1007,7 +1007,7 @@ public class AtmosphereFramework {
         String s = config.getInitParameter(BROADCASTER_WAIT_TIME);
 
         logger.info("Default Broadcaster Class: {}", broadcasterClassName);
-        logger.info("Broadcaster Shared resources {}", config.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false));
+        logger.info("Broadcaster Shared List Resources: {}", config.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false));
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
 
