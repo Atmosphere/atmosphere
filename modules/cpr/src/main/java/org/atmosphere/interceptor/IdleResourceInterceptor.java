@@ -74,7 +74,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     protected void idleResources() {
         if (logger.isTraceEnabled()) {
-            logger.trace("{} monitoring {} AtmosphereResources", config.resourcesFactory().findAll());
+            logger.trace("{} monitoring {} AtmosphereResources", getClass().getSimpleName(), config.resourcesFactory().findAll().size());
         }
 
         for (AtmosphereResource r : config.resourcesFactory().findAll()) {
