@@ -47,8 +47,10 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected final AtmosphereFrameworkInitializer initializer;
+    // Backward compat with 2.2.5-
     protected AtmosphereFramework framework;
-
+    protected boolean isFilter;
+    protected boolean autoDetectHandlers;
     /**
      * Create an Atmosphere Servlet.
      */
@@ -73,6 +75,8 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
      */
     public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
         initializer = new AtmosphereFrameworkInitializer(isFilter, autoDetectHandlers);
+        this.autoDetectHandlers = autoDetectHandlers;
+        this.isFilter = isFilter;
     }
 
     @Override

@@ -39,6 +39,8 @@ public class AtmosphereServlet extends HttpServlet {
     protected final AtmosphereFrameworkInitializer initializer;
     // Backward compat with 2.2.5-
     protected AtmosphereFramework framework;
+    protected boolean isFilter;
+    protected boolean autoDetectHandlers;
 
     /**
      * Create an Atmosphere Servlet.
