@@ -109,6 +109,7 @@ import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_WAIT_TIME;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCAST_FILTER_CLASSES;
 import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
@@ -981,6 +982,16 @@ public class AtmosphereFramework {
 
     private void info() {
 
+        if (logger.isTraceEnabled()) {
+            Enumeration<String> e = servletConfig.getInitParameterNames();
+            logger.trace("Configured init-params");
+            String n;
+            while (e.hasMoreElements()) {
+                n = e.nextElement();
+                logger.trace("\t{} = {}", n, servletConfig.getInitParameter(n));
+            }
+        }
+
         logger.info("Using EndpointMapper {}", endpointMapper.getClass());
         for (String i : broadcasterFilters) {
             logger.info("Using BroadcastFilter: {}", i);
@@ -996,6 +1007,7 @@ public class AtmosphereFramework {
         String s = config.getInitParameter(BROADCASTER_WAIT_TIME);
 
         logger.info("Default Broadcaster Class: {}", broadcasterClassName);
+        logger.info("Broadcaster Shared resources {}", config.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false));
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
 
