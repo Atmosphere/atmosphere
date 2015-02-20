@@ -764,7 +764,7 @@ public interface ApplicationConfig {
      * Default: ' '<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.paddingChar
      */
-    String HEARTBEAT_PADDING_CHAR= "org.atmosphere.interceptor.HeartbeatInterceptor.paddingChar";
+    String HEARTBEAT_PADDING_CHAR = "org.atmosphere.interceptor.HeartbeatInterceptor.paddingChar";
     /**
      * The heartbeat frequency, in seconds.
      * <p/>
@@ -814,7 +814,7 @@ public interface ApplicationConfig {
      *
      * @see {@see https://github.com/Atmosphere/atmosphere/issues/1695}
      */
-    String DISABLE_ATMOSPHERE_INITIALIZER =  "org.atmosphere.cpr.AtmosphereInitializer.disabled";
+    String DISABLE_ATMOSPHERE_INITIALIZER = "org.atmosphere.cpr.AtmosphereInitializer.disabled";
     /**
      * Disable Google Analytics.
      * Default: true (enabled) <br>
@@ -847,5 +847,15 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException
      */
     String CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION = "org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException";
+    /**
+     * Share between Broadcaster the same List of {@link BroadcasterListener} and {@link BroadcasterLifeCyclePolicyListener}.
+     * Setting the value to true may significantly reduce the memory used by those listeners if a lot of Broadcaster are created.
+     *
+     * Listeners MUST be Thread-Safe to use that feature.
+     * <p/>
+     * Default: false <br>
+     * Value: org.atmosphere.cpr.Broadcaster.sharedListenerStats
+     */
+    String BROADCASTER_SHAREABLE_LISTENERS = "org.atmosphere.cpr.Broadcaster.sharedListenerStats";
 }
 

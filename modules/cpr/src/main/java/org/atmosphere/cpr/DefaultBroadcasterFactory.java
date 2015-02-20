@@ -57,8 +57,8 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     protected int defaultPolicyInteger = -1;
 
     private final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
-    private final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
     private AtmosphereConfig config;
+    private final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
 
     public DefaultBroadcasterFactory(){
     }
@@ -154,6 +154,8 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             }
 
             addBroadcasterListener(lifeCycleListener);
+            b.addBroadcasterListener(lifeCycleListener);
+
             logger.trace("Broadcaster {} was created {}", id, b);
 
             notifyOnPostCreate(b);

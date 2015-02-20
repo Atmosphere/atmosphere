@@ -208,7 +208,7 @@ public class AtmosphereFramework {
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone = false;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
-    protected final List<BroadcasterListener> broadcasterListeners = new ArrayList<BroadcasterListener>();
+    protected final List<BroadcasterListener> broadcasterListeners = Collections.synchronizedList(new ArrayList<BroadcasterListener>());
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
     protected boolean webSocketProtocolInitialized = false;
     protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<AtmosphereHandlerWrapper>();

@@ -45,10 +45,15 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 
+import static org.atmosphere.cpr.ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE_STRATEGY;
+import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_WAIT_TIME;
+import static org.atmosphere.cpr.ApplicationConfig.CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 import static org.atmosphere.cpr.ApplicationConfig.OUT_OF_ORDER_BROADCAST;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.ApplicationConfig.WRITE_TIMEOUT;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
 import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 
@@ -109,6 +114,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private LifecycleHandler lifecycleHandler;
     private Future<?> currentLifecycleTask;
     private boolean cacheOnIOFlushException = true;
+    protected boolean sharedListeners = false;
 
     public DefaultBroadcaster() {
     }
@@ -119,9 +125,9 @@ public class DefaultBroadcaster implements Broadcaster {
         this.config = config;
 
         bc = createBroadcasterConfig(config);
-        String s = config.getInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY);
+        String s = config.getInitParameter(BROADCASTER_CACHE_STRATEGY);
         if (s != null) {
-            logger.warn("{} is no longer supported. Use BroadcastInterceptor instead. By default the original message will be cached.", ApplicationConfig.BROADCASTER_CACHE_STRATEGY);
+            logger.warn("{} is no longer supported. Use BroadcastInterceptor instead. By default the original message will be cached.", BROADCASTER_CACHE_STRATEGY);
         }
         s = config.getInitParameter(OUT_OF_ORDER_BROADCAST);
         if (s != null) {
@@ -133,7 +139,7 @@ public class DefaultBroadcaster implements Broadcaster {
             waitTime = Integer.valueOf(s);
         }
 
-        s = config.getInitParameter(ApplicationConfig.WRITE_TIMEOUT);
+        s = config.getInitParameter(WRITE_TIMEOUT);
         if (s != null) {
             writeTimeoutInSecond = Integer.valueOf(s);
         }
@@ -141,8 +147,9 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.trace("{} supports Out Of Order Broadcast: {}", name, outOfOrderBroadcastSupported.get());
         }
         initialized.set(true);
-        backwardCompatible = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
-        cacheOnIOFlushException = config.getInitParameter(ApplicationConfig.CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION, true);
+        backwardCompatible = Boolean.parseBoolean(config.getInitParameter(BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
+        cacheOnIOFlushException = config.getInitParameter(CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION, true);
+        sharedListeners = config.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false);
         return this;
     }
 
@@ -190,6 +197,7 @@ public class DefaultBroadcaster implements Broadcaster {
             delayedBroadcast.clear();
             broadcasterListeners.clear();
             writeQueues.clear();
+            lifeCycleListeners.clear();
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }
@@ -345,7 +353,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Broadcaster addBroadcasterListener(BroadcasterListener b) {
-        if (!broadcasterListeners.contains(b)) {
+        if (!sharedListeners && !broadcasterListeners.contains(b)) {
             broadcasterListeners.add(b);
         }
         return this;
@@ -1394,7 +1402,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyBroadcastListener() {
-        for (BroadcasterListener b : broadcasterListeners) {
+        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
+        for (BroadcasterListener b : l) {
             try {
                 b.onComplete(this);
             } catch (Exception ex) {
@@ -1404,7 +1413,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyOnAddAtmosphereResourceListener(AtmosphereResource r) {
-        for (BroadcasterListener b : broadcasterListeners) {
+        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
+        for (BroadcasterListener b : l) {
             try {
                 b.onAddAtmosphereResource(this, r);
             } catch (Exception ex) {
@@ -1414,7 +1424,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyOnRemoveAtmosphereResourceListener(AtmosphereResource r) {
-        for (BroadcasterListener b : broadcasterListeners) {
+        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
+        for (BroadcasterListener b : l) {
             try {
                 b.onRemoveAtmosphereResource(this, r);
             } catch (Exception ex) {
@@ -1424,7 +1435,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyOnMessage(Deliver deliver) {
-        for (BroadcasterListener b : broadcasterListeners) {
+        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
+        for (BroadcasterListener b : l) {
             try {
                 b.onMessage(this, deliver);
             } catch (Exception ex) {
@@ -1658,7 +1670,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     boolean notifyOnPreDestroy() {
-        for (BroadcasterListener l : broadcasterListeners) {
+        Collection<BroadcasterListener> b = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
+        for (BroadcasterListener l : b) {
             try {
                 l.onPreDestroy(this);
             } catch (RuntimeException ex) {
