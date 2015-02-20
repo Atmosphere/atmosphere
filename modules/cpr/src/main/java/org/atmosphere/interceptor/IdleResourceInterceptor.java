@@ -73,6 +73,10 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     protected void idleResources() {
+        if (logger.isTraceEnabled()) {
+            logger.trace("{} monitoring {} AtmosphereResources", config.resourcesFactory().findAll());
+        }
+
         for (AtmosphereResource r : config.resourcesFactory().findAll()) {
             AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
             try {
@@ -84,6 +88,11 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                 }
 
                 long l = (Long) req.getAttribute(MAX_INACTIVE);
+
+                if (logger.isTraceEnabled() && l > 0) {
+                    logger.trace("Expiring {} in ", r.uuid(), System.currentTimeMillis() - l);
+                }
+
                 if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime ) {
                     try {
                         req.setAttribute(MAX_INACTIVE, (long) -1);
