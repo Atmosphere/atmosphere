@@ -66,6 +66,8 @@ public class AtmosphereServlet extends HttpServlet {
      */
     public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
         initializer = new AtmosphereFrameworkInitializer(isFilter, autoDetectHandlers);
+        this.autoDetectHandlers = autoDetectHandlers;
+        this.isFilter = isFilter;
     }
 
     @Override
