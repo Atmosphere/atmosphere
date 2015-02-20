@@ -47,6 +47,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected final AtmosphereFrameworkInitializer initializer;
+    protected AtmosphereFramework framework;
 
     /**
      * Create an Atmosphere Servlet.
@@ -91,6 +92,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
     protected AtmosphereServlet configureFramework(ServletConfig sc, boolean init) throws ServletException {
         initializer.configureFramework(sc, init, true);
+        framework = initializer.framework();
         return this;
     }
 

@@ -37,6 +37,8 @@ public class AtmosphereServlet extends HttpServlet {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected final AtmosphereFrameworkInitializer initializer;
+    // Backward compat with 2.2.5-
+    protected AtmosphereFramework framework;
 
     /**
      * Create an Atmosphere Servlet.
@@ -81,6 +83,7 @@ public class AtmosphereServlet extends HttpServlet {
 
     protected AtmosphereServlet configureFramework(ServletConfig sc, boolean init) throws ServletException {
         initializer.configureFramework(sc, init, false);
+        framework = initializer.framework();
         return this;
     }
 
