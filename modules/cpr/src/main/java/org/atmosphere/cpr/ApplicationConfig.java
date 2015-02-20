@@ -854,8 +854,8 @@ public interface ApplicationConfig {
      * Listeners MUST be Thread-Safe to use that feature.
      * <p/>
      * Default: false <br>
-     * Value: org.atmosphere.cpr.Broadcaster.sharedListenerStats
+     * Value: org.atmosphere.cpr.Broadcaster.sharedListenersList
      */
-    String BROADCASTER_SHAREABLE_LISTENERS = "org.atmosphere.cpr.Broadcaster.sharedListenerStats";
+    String BROADCASTER_SHAREABLE_LISTENERS = "org.atmosphere.cpr.Broadcaster.sharedListenersList";
 }
 
