@@ -101,7 +101,10 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
     }
 
     protected AtmosphereFramework newAtmosphereFramework() {
-        return initializer.newAtmosphereFramework();
+        framework = initializer.newAtmosphereFramework();
+        // Backward compat
+        framework.setUseNativeImplementation(true);
+        return framework;
     }
 
     public AtmosphereFramework framework() {
