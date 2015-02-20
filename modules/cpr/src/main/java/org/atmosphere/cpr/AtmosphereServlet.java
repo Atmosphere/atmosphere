@@ -76,7 +76,11 @@ public class AtmosphereServlet extends HttpServlet {
     }
 
     protected AtmosphereServlet configureFramework(ServletConfig sc) throws ServletException {
-        initializer.configureFramework(sc);
+        return configureFramework(sc, true);
+    }
+
+    protected AtmosphereServlet configureFramework(ServletConfig sc, boolean init) throws ServletException {
+        initializer.configureFramework(sc, init, false);
         return this;
     }
 

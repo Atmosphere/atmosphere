@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 
-class AtmosphereFrameworkInitializer {
+public class AtmosphereFrameworkInitializer {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFrameworkInitializer.class);
 
     protected AtmosphereFramework framework;
@@ -33,7 +33,11 @@ class AtmosphereFrameworkInitializer {
         this.autoDetectHandlers = autoDetectHandlers;
     }
 
-    protected AtmosphereFrameworkInitializer configureFramework(ServletConfig sc) throws ServletException {
+    public AtmosphereFrameworkInitializer configureFramework(ServletConfig sc) throws ServletException {
+        return configureFramework(sc, true, false);
+    }
+
+    public AtmosphereFrameworkInitializer configureFramework(ServletConfig sc, boolean init, boolean useNative) throws ServletException {
         if (framework == null) {
             if (sc.getServletContext().getMajorVersion() > 2) {
                 try {
@@ -44,7 +48,7 @@ class AtmosphereFrameworkInitializer {
                     // WebLogic Crap => https://github.com/Atmosphere/atmosphere/issues/1569
                     if (UnsupportedOperationException.class.isAssignableFrom(ex.getClass())) {
                         logger.warn("WebLogic 12c unable to retrieve Servlet. Please make sure your servlet-name is 'AtmosphereServlet' " +
-                                        "or set org.atmosphere.servlet to the current value");
+                                "or set org.atmosphere.servlet to the current value");
                         String name = sc.getInitParameter(ApplicationConfig.SERVLET_NAME);
                         if (name == null) {
                             name = AtmosphereServlet.class.getSimpleName();
@@ -60,8 +64,8 @@ class AtmosphereFrameworkInitializer {
                 framework = newAtmosphereFramework();
             }
         }
-        framework.setUseNativeImplementation(true);
-        framework.init(sc);
+        framework.setUseNativeImplementation(useNative);
+        if (init) framework.init(sc);
         return this;
     }
 
