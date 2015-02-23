@@ -19,7 +19,6 @@ import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
 import org.atmosphere.container.JBossWebCometSupport;
-import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.jboss.servlet.http.HttpEvent;
@@ -306,7 +305,6 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         if (!initializer.framework().isCometSupportSpecified && !initializer.framework().isCometSupportConfigured.getAndSet(true)) {
             synchronized (initializer.framework().asyncSupport) {
                 if (!initializer.framework().asyncSupport.getClass().equals(JBossWebCometSupport.class)
-                        && !initializer.framework().asyncSupport.getClass().equals(JBossWebSocketSupport.class)
                         && !initializer.framework().asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
                     AsyncSupport current = initializer.framework().asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
@@ -320,10 +318,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         }
 
         boolean isWebSocket = req.getHeader("Upgrade") == null ? false : true;
-        if (isWebSocket && initializer.framework().asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
-            logger.trace("Dispatching websocket event: " + httpEvent);
-            ((JBossWebSocketSupport) initializer.framework().asyncSupport).dispatch(httpEvent);
-        } else if (isWebSocket && initializer.framework().asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
+        if (isWebSocket && initializer.framework().asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
         	logger.trace("Dispatching websocket event: " + httpEvent);
             ((JBossAsyncSupportWithWebSocket) initializer.framework().asyncSupport).dispatch(httpEvent);
         } else {
