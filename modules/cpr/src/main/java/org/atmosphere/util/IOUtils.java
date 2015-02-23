@@ -245,7 +245,7 @@ public class IOUtils {
                 logger.error("", e);
             }
         } else if (body.hasBytes()) {
-            return Arrays.copyOfRange(body.asBytes(), body.byteOffset(), body.byteLength());
+            return Arrays.copyOfRange(body.asBytes(), body.byteOffset(), body.byteOffset() + body.byteLength());
         }
         throw new IllegalStateException("No body " + r);
     }
