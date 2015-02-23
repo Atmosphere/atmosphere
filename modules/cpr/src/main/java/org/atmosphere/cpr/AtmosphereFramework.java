@@ -885,7 +885,6 @@ public class AtmosphereFramework {
             asyncSupport.init(servletConfig);
             initAtmosphereHandler(servletConfig);
             configureAtmosphereInterceptor(servletConfig);
-
             analytics();
 
             // http://java.net/jira/browse/ATMOSPHERE-157
