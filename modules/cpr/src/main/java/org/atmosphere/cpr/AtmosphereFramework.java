@@ -869,8 +869,6 @@ public class AtmosphereFramework {
 
             installAnnotationProcessor(servletConfig);
 
-            configureAtmosphereInterceptor(servletConfig);
-
             autoConfigureService(servletConfig.getServletContext());
 
             // Reconfigure in case an annotation changed the default.
@@ -886,7 +884,9 @@ public class AtmosphereFramework {
             configureWebDotXmlAtmosphereHandler(servletConfig);
             asyncSupport.init(servletConfig);
             initAtmosphereHandler(servletConfig);
-            analytics();
+            configureAtmosphereInterceptor(servletConfig);
+
+//            analytics();
 
             // http://java.net/jira/browse/ATMOSPHERE-157
             if (sc.getServletContext() != null) {
