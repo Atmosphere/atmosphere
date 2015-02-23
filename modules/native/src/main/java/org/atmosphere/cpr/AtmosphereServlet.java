@@ -19,7 +19,6 @@ import org.apache.catalina.CometEvent;
 import org.apache.catalina.CometProcessor;
 import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
 import org.atmosphere.container.JBossWebCometSupport;
-import org.atmosphere.container.JBossWebSocketSupport;
 import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.TomcatCometSupport;
 import org.jboss.servlet.http.HttpEvent;
@@ -337,7 +336,6 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
             synchronized (framework.asyncSupport) {
                 if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)
-                        && !framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)
                         && !framework.asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
                     AsyncSupport current = framework.asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
@@ -351,10 +349,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         }
 
         boolean isWebSocket = req.getHeader("Upgrade") == null ? false : true;
-        if (isWebSocket && framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
-            logger.trace("Dispatching websocket event: " + httpEvent);
-            ((JBossWebSocketSupport) framework.asyncSupport).dispatch(httpEvent);
-        } else if (isWebSocket && framework.asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
+        if (isWebSocket && framework.asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
         	logger.trace("Dispatching websocket event: " + httpEvent);
             ((JBossAsyncSupportWithWebSocket) framework.asyncSupport).dispatch(httpEvent);
         } else {
