@@ -886,7 +886,7 @@ public class AtmosphereFramework {
             initAtmosphereHandler(servletConfig);
             configureAtmosphereInterceptor(servletConfig);
 
-//            analytics();
+            analytics();
 
             // http://java.net/jira/browse/ATMOSPHERE-157
             if (sc.getServletContext() != null) {
