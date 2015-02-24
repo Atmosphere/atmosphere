@@ -34,10 +34,10 @@ public class AtmosphereFrameworkInitializer {
     }
 
     public AtmosphereFrameworkInitializer configureFramework(ServletConfig sc) throws ServletException {
-        return configureFramework(sc, true, false);
+        return configureFramework(sc, true, false, AtmosphereFramework.class);
     }
 
-    public AtmosphereFrameworkInitializer configureFramework(ServletConfig sc, boolean init, boolean useNative) throws ServletException {
+    public AtmosphereFrameworkInitializer configureFramework(ServletConfig sc, boolean init, boolean useNative, Class<? extends AtmosphereFramework> frameworkClass) throws ServletException {
         if (framework == null) {
             if (sc.getServletContext().getMajorVersion() > 2) {
                 try {
@@ -61,7 +61,7 @@ public class AtmosphereFrameworkInitializer {
             }
 
             if (framework == null) {
-                framework = newAtmosphereFramework();
+                framework = newAtmosphereFramework(frameworkClass);
             }
         }
         framework.setUseNativeImplementation(useNative);
@@ -69,13 +69,21 @@ public class AtmosphereFrameworkInitializer {
         return this;
     }
 
-    protected AtmosphereFramework newAtmosphereFramework() {
-        return new AtmosphereFramework(isFilter, autoDetectHandlers);
+    protected AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass) {
+        AtmosphereFramework framework;
+        try {
+            framework = (AtmosphereFramework) frameworkClass.getDeclaredConstructor(
+                    new Class[]{Boolean.class,Boolean.class}).newInstance(isFilter, autoDetectHandlers);
+        } catch (Exception e) {
+            framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
+        }
+
+        return framework;
     }
 
     public AtmosphereFramework framework() {
         if (framework == null) {
-            framework = newAtmosphereFramework();
+            framework = newAtmosphereFramework(AtmosphereFramework.class);
         }
         return framework;
     }
