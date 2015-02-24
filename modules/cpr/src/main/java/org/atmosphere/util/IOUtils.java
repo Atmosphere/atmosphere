@@ -137,6 +137,7 @@ public class IOUtils {
 
         boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
         if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
+            logger.warn("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
             return stringBuilder;
         }
 
@@ -195,6 +196,7 @@ public class IOUtils {
 
         boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
         if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
+            logger.warn("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
             return new byte[0];
         }
 
