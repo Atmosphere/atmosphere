@@ -74,6 +74,6 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
 
     @Override
     public String toString() {
-        return "@MMeteorService Interceptor";
+        return "@MeteorService Interceptor";
     }
 }
