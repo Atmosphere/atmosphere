@@ -1150,11 +1150,6 @@ public class AtmosphereFramework {
         if (s == null || !"true".equalsIgnoreCase(s)) {
             logger.info("Installing Default AtmosphereInterceptors");
 
-            s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
-            if (s != null) {
-                excludedInterceptors.addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
-            }
-
             // We must reposition
             LinkedList<AtmosphereInterceptor> copy = null;
             if (!interceptors.isEmpty()) {
@@ -1449,6 +1444,11 @@ public class AtmosphereFramework {
         s = sc.getInitParameter(ApplicationConfig.DEFAULT_SERIALIZER);
         if (s != null) {
             defaultSerializerClassName = s;
+        }
+
+        s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
+        if (s != null) {
+            excludedInterceptors.addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
         }
     }
 
