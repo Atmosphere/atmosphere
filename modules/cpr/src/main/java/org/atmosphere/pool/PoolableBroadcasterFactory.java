@@ -31,11 +31,17 @@ import static org.atmosphere.cpr.ApplicationConfig.POOLEABLE_PROVIDER;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKED_BROADCASTER;
 
 /**
- * This class use a {@link org.atmosphere.pool.PoolableProvider} to retrieve instance of {@link Broadcaster}. This class
+ * This class uses a {@link org.atmosphere.pool.PoolableProvider} to retrieve instance of {@link Broadcaster}. This class
  * doesn't validate the id of the Broadcaster [{@link Broadcaster#setID(String)}] and can return a Broadcaster
- * with an already created. By default, this factory doesn't keep trace of created Broadcasters hence a new pooled Broadcaster will always
- * be returned unless {@link #trackPooledBroadcaster(boolean)} is set to true.
+ * with was already created under that name. Set {@link #trackPooledBroadcaster(boolean)} or {@link org.atmosphere.cpr.ApplicationConfig#SUPPORT_TRACKED_BROADCASTER} to true to track duplication but
+ * be aware it can significantly reduce performance. Use the {@link org.atmosphere.cpr.DefaultBroadcasterFactory} is recommended
+ * under that scenario.
+ * <p></p>
+ * By default, this factory doesn't keep trace of created Broadcasters hence a new pooled Broadcaster will always
+ * be returned unless {@link #trackPooledBroadcaster(boolean)} or {@link org.atmosphere.cpr.ApplicationConfig#SUPPORT_TRACKED_BROADCASTER}
+ * is set to true.
  * <p/>
+ * This Factory has been designed for application.
  * </p>
  * This factory is usefull when an application needs a short-lived {@link Broadcaster}.
  *
