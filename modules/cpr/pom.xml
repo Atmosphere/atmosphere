@@ -69,6 +69,7 @@
                             org.atmosphere.inject*,
                             org.atmosphere.handler*,
                             org.atmosphere.interceptor*,
+                            org.atmosphere.pool*,
                             org.atmosphere.util*,
                             org.atmosphere.websocket*,
                             org.atmosphere.lifecycle*,
