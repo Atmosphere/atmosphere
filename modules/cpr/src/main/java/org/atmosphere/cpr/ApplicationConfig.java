@@ -850,12 +850,42 @@ public interface ApplicationConfig {
     /**
      * Share between Broadcaster the same List of {@link BroadcasterListener} and {@link BroadcasterLifeCyclePolicyListener}.
      * Setting the value to true may significantly reduce the memory used by those listeners if a lot of Broadcaster are created.
-     *
+     * <p/>
      * Listeners MUST be Thread-Safe to use that feature.
      * <p/>
      * Default: false <br>
      * Value: org.atmosphere.cpr.Broadcaster.sharedListenersList
      */
     String BROADCASTER_SHAREABLE_LISTENERS = "org.atmosphere.cpr.Broadcaster.sharedListenersList";
+    /**
+     * When the {@link org.atmosphere.pool.PoolableBroadcasterFactory} is enabled, set to true
+     * for tracking created {@link org.atmosphere.cpr.Broadcaster} and their associated id, preventing duplicate.
+     * <p/>
+     * Default: false
+     * Value:org.atmosphere.pool.trackPooledBroadcaster
+     */
+    String SUPPORT_TRACKED_BROADCASTER = "org.atmosphere.pool.trackPooledBroadcaster";
+    /**
+     * The {@link org.atmosphere.pool.PoolableProvider} used by the {@lin PoolableBroadcasterFactory}
+     * <p/>
+     * Default: org.atmosphere.pool.UnboundedApachePoolableProvider
+     * Value: org.atmosphere.pool.poolableProvider
+     */
+    String POOLEABLE_PROVIDER = "org.atmosphere.pool.poolableProvider";
+
+    /**
+     * The size of the pool powering {@link org.atmosphere.pool.BoundedApachePoolableProvider}
+     * <p/>
+     * Default: 200
+     * Value: org.atmosphere.pool.BoundedApachePoolableProvider.size
+     */
+    String BROADCASTER_FACTORY_POOL_SIZE = "org.atmosphere.pool.BoundedApachePoolableProvider.size";
+    /**
+     * The time, in second, to wait for a new object from the {@link org.atmosphere.pool.BoundedApachePoolableProvider}
+     * <p/>
+     * Default: 10 seconds
+     * Value: org.atmosphere.pool.BoundedApachePoolableProvider.waitingTime
+     */
+    String BROADCASTER_FACTORY_EMPTY_WAIT_TIME_IN_SECONDS = "org.atmosphere.pool.BoundedApachePoolableProvider.waitingTime";
 }
 

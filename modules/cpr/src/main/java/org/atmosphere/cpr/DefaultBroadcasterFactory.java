@@ -47,7 +47,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
-    private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
+    protected final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
 
     protected Class<? extends Broadcaster> clazz;
 
@@ -56,15 +56,15 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
     protected int defaultPolicyInteger = -1;
 
-    protected static final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
     protected AtmosphereConfig config;
     protected final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
+    public static final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
 
     public DefaultBroadcasterFactory(){
     }
 
     @Deprecated
-    protected DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+    public DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
         config = c;
         configure(broadcasterLifeCyclePolicy);
@@ -180,17 +180,17 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     }
 
     @Override
-    public final <T extends Broadcaster> T lookup(Class<T> c, Object id) {
+    public <T extends Broadcaster> T lookup(Class<T> c, Object id) {
         return lookup(c, id, false);
     }
 
     @Override
-    public final Broadcaster lookup(Object id) {
+    public Broadcaster lookup(Object id) {
         return lookup(clazz, id, false);
     }
 
     @Override
-    public final Broadcaster lookup(Object id, boolean createIfNull) {
+    public Broadcaster lookup(Object id, boolean createIfNull) {
         return lookup(clazz, id, createIfNull);
     }
 

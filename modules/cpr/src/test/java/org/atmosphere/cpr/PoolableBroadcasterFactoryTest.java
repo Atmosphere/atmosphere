@@ -20,6 +20,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.UUID;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -29,14 +30,14 @@ import java.util.concurrent.atomic.AtomicInteger;
 import static org.testng.Assert.assertEquals;
 
 /**
- * Unit tests for the {@link DefaultBroadcasterFactory}.
+ * Unit tests for the {@link PoolableBroadcasterFactory}.
  *
  * @author Jason Burgess
  */
 public class PoolableBroadcasterFactoryTest {
 
     private AtmosphereConfig config;
-    private DefaultBroadcasterFactory factory;
+    private PoolableBroadcasterFactory factory;
 
     @BeforeMethod
     public void setUp() throws Exception {
@@ -63,13 +64,26 @@ public class PoolableBroadcasterFactoryTest {
     }
 
     @Test
+    public void testAddRemove() {
+        Broadcaster result = factory.get();
+        assert result != null;
+        assert result instanceof DefaultBroadcaster;
+
+        result.destroy();
+        Broadcaster result2 = factory.get();
+
+        assert result2 != null;
+        assert result2 instanceof DefaultBroadcaster;
+        assertEquals(result2, result);
+    }
+
+    @Test
     public void concurrentLookupTest() throws InterruptedException {
         String id = "id";
-        final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         final CountDownLatch latch = new CountDownLatch(100);
         final AtomicInteger created = new AtomicInteger();
 
-        f.addBroadcasterListener(new BroadcasterListenerAdapter() {
+        factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
@@ -87,13 +101,14 @@ public class PoolableBroadcasterFactoryTest {
             }
         });
 
+        final ConcurrentLinkedQueue c = new ConcurrentLinkedQueue();
         ExecutorService r = Executors.newCachedThreadPool();
         try {
             for (int i = 0; i < 100; i++) {
                 r.submit(new Runnable() {
                     @Override
                     public void run() {
-                        f.lookup("name" + UUID.randomUUID().toString(), true);
+                        c.add(factory.lookup("name" + UUID.randomUUID().toString(), true));
                     }
                 });
             }
@@ -103,19 +118,18 @@ public class PoolableBroadcasterFactoryTest {
         latch.await();
 
         try {
-            assertEquals(f.lookupAll().size(), 100);
+            assertEquals(c.size(), 100);
             assertEquals(created.get(), 100);
         } finally {
-            f.destroy();
+            factory.destroy();
         }
     }
 
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
-        final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         final CountDownLatch latch = new CountDownLatch(1000);
         final AtomicInteger created = new AtomicInteger();
-        f.addBroadcasterListener(new BroadcasterListenerAdapter() {
+        factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
@@ -133,6 +147,7 @@ public class PoolableBroadcasterFactoryTest {
             }
         });
 
+        final ConcurrentLinkedQueue c = new ConcurrentLinkedQueue();
         ExecutorService r = Executors.newCachedThreadPool();
         try {
             for (int i = 0; i < 1000; i++) {
@@ -140,7 +155,7 @@ public class PoolableBroadcasterFactoryTest {
                     @Override
                     public void run() {
                         try {
-                            f.get(TestBroadcaster.class, new String("me"));
+                            c.add(factory.get(new String("me")));
                         } catch (IllegalStateException ex) {
                             latch.countDown();
                         }
@@ -154,23 +169,11 @@ public class PoolableBroadcasterFactoryTest {
         latch.await(10, TimeUnit.SECONDS);
         try {
             assertEquals(latch.getCount(), 0);
-            assertEquals(f.lookupAll().size(), 1);
-            assertEquals(created.get(), 1);
-            assertEquals(TestBroadcaster.instance.get(), 1);
+            assertEquals(c.size(), 1000);
+            assertEquals(created.get(), 1000);
         } finally {
-            f.destroy();
+            factory.destroy();
         }
 
-        assertEquals(TestBroadcaster.instance.get(), 1);
-
-    }
-
-    public final static class TestBroadcaster extends DefaultBroadcaster {
-
-        public static AtomicInteger instance = new AtomicInteger();
-
-        public TestBroadcaster() {
-            instance.incrementAndGet();
-        }
     }
 }

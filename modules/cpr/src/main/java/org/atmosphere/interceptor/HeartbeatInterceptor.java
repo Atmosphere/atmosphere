@@ -180,9 +180,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
         // Check heartbeat
         if (clientHeartbeatFrequencyInSeconds > 0) {
-            byte[] body;
+            byte[] body = new byte[0];
             try {
-                body = IOUtils.readEntirelyAsByte(r);
+                if (!request.getMethod().equalsIgnoreCase("GET")) {
+                    body = IOUtils.readEntirelyAsByte(r);
+                }
             } catch (IOException e) {
                 logger.warn("", e);
                 cancelF(request);

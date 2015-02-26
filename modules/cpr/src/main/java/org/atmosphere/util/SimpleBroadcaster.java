@@ -60,7 +60,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     protected void start() {
         if (!started.getAndSet(true)) {
-            setID(name);
             bc.getBroadcasterCache().start();
         }
     }
