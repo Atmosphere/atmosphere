@@ -49,16 +49,16 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     private final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
 
-    private Class<? extends Broadcaster> clazz;
+    protected Class<? extends Broadcaster> clazz;
 
-    private BroadcasterLifeCyclePolicy policy =
+    protected BroadcasterLifeCyclePolicy policy =
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
     protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
     protected int defaultPolicyInteger = -1;
 
-    private final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
-    private AtmosphereConfig config;
-    private final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
+    protected static final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
+    protected AtmosphereConfig config;
+    protected final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
 
     public DefaultBroadcasterFactory(){
     }
@@ -76,7 +76,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         configure(broadcasterLifeCyclePolicy);
     }
 
-    private void configure(String broadcasterLifeCyclePolicy) {
+    protected void configure(String broadcasterLifeCyclePolicy) {
 
         int maxIdleTime = 5 * 60 * 1000;
         String s = config.getInitParameter(ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY_IDLETIME);
@@ -112,17 +112,17 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     }
 
     @Override
-    public synchronized final Broadcaster get() {
+    public synchronized Broadcaster get() {
         return get(clazz.getSimpleName() + "-" + config.uuidProvider().generateUuid());
     }
 
     @Override
-    public final Broadcaster get(Object id) {
+    public Broadcaster get(Object id) {
         return get(clazz, id);
     }
 
     @Override
-    public final <T extends Broadcaster> T get(Class<T> c, Object id) {
+    public <T extends Broadcaster> T get(Class<T> c, Object id) {
 
         if (id == null) {
             throw new NullPointerException("id is null");
@@ -134,7 +134,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         return lookup(c, id, true, true);
     }
 
-    private <T extends Broadcaster> T createBroadcaster(Class<T> c, Object id) throws BroadcasterCreationException {
+    protected <T extends Broadcaster> T createBroadcaster(Class<T> c, Object id) throws BroadcasterCreationException {
         try {
             T b = config.framework().newClassInstance(c, c);
             b.initialize(id.toString(), legacyBroadcasterURI, config);
@@ -303,12 +303,6 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             } catch (Exception ex) {
                 logger.warn("onPostCreate", ex);
             }
-        }
-    }
-
-    public static final class BroadcasterCreationException extends RuntimeException {
-        public BroadcasterCreationException(Throwable t) {
-            super(t);
         }
     }
 

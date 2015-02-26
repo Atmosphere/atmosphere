@@ -154,4 +154,11 @@ public interface BroadcasterFactory {
      */
     BroadcasterFactory removeBroadcasterListener(BroadcasterListener b);
 
+
+    public static final class BroadcasterCreationException extends RuntimeException {
+        public BroadcasterCreationException(Throwable t) {
+            super(t);
+        }
+    }
+
 }
