@@ -285,6 +285,19 @@ public class DefaultBroadcaster implements Broadcaster {
         bc.broadcasterID(name);
     }
 
+    /**
+     * Rename this Broadcaster without invoking it's associated {@link org.atmosphere.cpr.BroadcasterFactory}. This
+     * method must be carefully used as it could easily create memory leak as the Broadcaster won't be removed
+     * from its {@link org.atmosphere.cpr.BroadcasterFactory}.
+     *
+     * @param id the new name
+     * @return this;
+     */
+    public Broadcaster rename(String id) {
+        this.name = id;
+        return this;
+    }
+
     @Override
     public String getID() {
         return name;
@@ -479,7 +492,6 @@ public class DefaultBroadcaster implements Broadcaster {
         if (!started.getAndSet(true)) {
             bc.getBroadcasterCache().start();
 
-            setID(name);
             // Only start if we know a child haven't started them.
             if (notifierFuture == null && asyncWriteFuture == null) {
                 spawnReactor();
