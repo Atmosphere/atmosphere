@@ -231,8 +231,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                                                      AtmosphereHandlerWrapper handlerWrapper,
                                                      AtmosphereRequest req, AtmosphereResponse res) {
 
-        config.getBroadcasterFactory().add(handlerWrapper.broadcaster, handlerWrapper.broadcaster.getID());
-
         // Check Broadcaster state. If destroyed, replace it.
         Broadcaster b = handlerWrapper.broadcaster;
         if (b.isDestroyed()) {
@@ -382,8 +380,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getRequestURI(), config.handlers());
             throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + req.getRequestURI());
         }
-        config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
-                atmosphereHandlerWrapper.broadcaster.getID());
+
         return atmosphereHandlerWrapper;
     }
 
