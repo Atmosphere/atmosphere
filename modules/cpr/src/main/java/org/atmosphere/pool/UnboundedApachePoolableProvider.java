@@ -67,7 +67,11 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
     @Override
     public PoolableProvider returnBroadcaster(Broadcaster b) {
         logger.info("Return Object {} now at size {}", b, count.getAndDecrement());
-        genericObjectPool.returnObject(b);
+        try {
+            genericObjectPool.returnObject(b);
+        } catch (IllegalStateException ex) {
+            logger.trace("", ex);
+        }
         return this;
     }
 
