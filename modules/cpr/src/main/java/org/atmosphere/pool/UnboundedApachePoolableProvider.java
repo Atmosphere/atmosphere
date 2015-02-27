@@ -66,7 +66,7 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
 
     @Override
     public PoolableProvider returnBroadcaster(Broadcaster b) {
-        logger.info("Return Object {} now at size {}", b, count.getAndDecrement());
+        logger.trace("Return Object {} now at size {}", b, count.getAndDecrement());
         try {
             genericObjectPool.returnObject(b);
         } catch (IllegalStateException ex) {
@@ -79,7 +79,7 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
 
         @Override
         public Broadcaster create() {
-            logger.info("Creating Object {}", count.getAndIncrement());
+            logger.trace("Creating Object {}", count.getAndIncrement());
             return PoolableBroadcasterFactory.class.cast(config.getBroadcasterFactory()).createBroadcaster();
         }
 
