@@ -543,5 +543,6 @@
         <client-version>2.2.4</client-version>
         <compat-version>2.0.1</compat-version>
         <shiro-version>1.2.2</shiro-version>
+        <commons-pool2>2.3</commons-pool2>
     </properties>
 </project>
