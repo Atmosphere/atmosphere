@@ -85,7 +85,16 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -121,13 +130,13 @@ import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
-import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.INJECT_LIBARY;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
@@ -1192,38 +1201,28 @@ public class AtmosphereFramework {
         }
     }
 
-    private static class InterceptorComparator implements Comparator<AtmosphereInterceptor>
-    {
+    private static class InterceptorComparator implements Comparator<AtmosphereInterceptor> {
         @Override
-        public int compare(AtmosphereInterceptor i1, AtmosphereInterceptor i2)
-        {
+        public int compare(AtmosphereInterceptor i1, AtmosphereInterceptor i2) {
             InvokationOrder.PRIORITY p1, p2;
 
-            if (i1 instanceof InvokationOrder)
-            {
+            if (i1 instanceof InvokationOrder) {
                 p1 = ((InvokationOrder) i1).priority();
-            }
-            else
-            {
+            } else {
                 p1 = InvokationOrder.PRIORITY.AFTER_DEFAULT;
             }
 
-            if (i2 instanceof InvokationOrder)
-            {
+            if (i2 instanceof InvokationOrder) {
                 p2 = ((InvokationOrder) i2).priority();
-            }
-            else
-            {
+            } else {
                 p2 = InvokationOrder.PRIORITY.AFTER_DEFAULT;
             }
 
             int orderResult = 0;
 
-            switch (p1)
-            {
+            switch (p1) {
                 case AFTER_DEFAULT:
-                    switch (p2)
-                    {
+                    switch (p2) {
                         case BEFORE_DEFAULT:
                         case FIRST_BEFORE_DEFAULT:
                             orderResult = -1;
@@ -1232,8 +1231,7 @@ public class AtmosphereFramework {
                     break;
 
                 case BEFORE_DEFAULT:
-                    switch (p2)
-                    {
+                    switch (p2) {
                         case AFTER_DEFAULT:
                             orderResult = 1;
                             break;
@@ -1244,8 +1242,7 @@ public class AtmosphereFramework {
                     break;
 
                 case FIRST_BEFORE_DEFAULT:
-                    switch (p2)
-                    {
+                    switch (p2) {
                         case AFTER_DEFAULT:
                         case BEFORE_DEFAULT:
                             orderResult = 1;
@@ -1258,12 +1255,9 @@ public class AtmosphereFramework {
         }
     }
 
-    public void initHandlerInterceptors(LinkedList<AtmosphereInterceptor> l)
-    {
-        if (l != null)
-        {
-            for(AtmosphereInterceptor c : l)
-            {
+    public void initHandlerInterceptors(LinkedList<AtmosphereInterceptor> l) {
+        if (l != null) {
+            for (AtmosphereInterceptor c : l) {
                 c.configure(config);
             }
 
@@ -1273,12 +1267,10 @@ public class AtmosphereFramework {
         }
     }
 
-    protected void initInterceptors()
-    {
+    protected void initInterceptors() {
         initGlobalInterceptors();
 
-        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values())
-        {
+        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
             initHandlerInterceptors(w.interceptors);
         }
     }
@@ -1638,7 +1630,7 @@ public class AtmosphereFramework {
     protected AtmosphereObjectFactory lookupDefaultObjectFactoryType() {
 
         if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass()
-                                                                                                         .getName())) return objectFactory;
+                .getName())) return objectFactory;
 
         for (String b : objectFactoryType) {
             try {
@@ -1653,7 +1645,7 @@ public class AtmosphereFramework {
         }
 
         if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass()
-                                                                                                        .getName())) {
+                .getName())) {
             try {
                 IOUtils.loadClass(getClass(), INJECT_LIBARY);
                 objectFactory = new InjectableObjectFactory();
@@ -2534,8 +2526,7 @@ public class AtmosphereFramework {
             logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
 
             //need insert this new interceptor into all the existing handlers
-            for(AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values())
-            {
+            for (AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values()) {
                 wrapper.interceptors.add(c);
 
                 Collections.sort(wrapper.interceptors, new InterceptorComparator());
@@ -2906,10 +2897,10 @@ public class AtmosphereFramework {
      */
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this)
-                                 .registerWebSocketHandler(path,
-                                                           new WebSocketProcessor.WebSocketHandlerProxy(
-                                                                   broadcasterFactory.lookup(path, true).getClass(),
-                                                                   handler, interceptors));
+                .registerWebSocketHandler(path,
+                        new WebSocketProcessor.WebSocketHandlerProxy(
+                                broadcasterFactory.lookup(path, true).getClass(),
+                                handler, interceptors));
         addAtmosphereHandler(path, h, l);
         return this;
     }
@@ -3221,6 +3212,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link AtmosphereResourceSessionFactory}
+     *
      * @return the AtmosphereResourceSessionFactory
      */
     public synchronized AtmosphereResourceSessionFactory sessionFactory() {
@@ -3238,14 +3230,16 @@ public class AtmosphereFramework {
 
     /**
      * Return true is the {@link #destroy()} method has been invoked.
+     *
      * @return true is the {@link #destroy()} method has been invoked.
      */
-    public boolean isDestroyed(){
+    public boolean isDestroyed() {
         return isDestroyed.get();
     }
 
     /**
      * Add a {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     *
      * @param l {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      * @return this;
      */
@@ -3256,9 +3250,10 @@ public class AtmosphereFramework {
 
     /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
-      * @return  {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     *
+     * @return {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      */
-    public List<AtmosphereFrameworkListener> frameworkListeners(){
+    public List<AtmosphereFrameworkListener> frameworkListeners() {
         return frameworkListeners;
     }
 
@@ -3304,6 +3299,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     *
      * @return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
      */
     public List<AtmosphereResourceListener> atmosphereResourceListeners() {
@@ -3312,6 +3308,7 @@ public class AtmosphereFramework {
 
     /**
      * Add a {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     *
      * @param atmosphereResourceListener a {@link org.atmosphere.cpr.AtmosphereResourceListener}
      * @return this
      */
@@ -3322,6 +3319,7 @@ public class AtmosphereFramework {
 
     /**
      * Set a {@link java.util.UUID} like implementation for generating random UUID String
+     *
      * @param uuidProvider
      * @return this
      */
@@ -3332,9 +3330,10 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link org.atmosphere.util.UUIDProvider}
-     * @return  {@link org.atmosphere.util.UUIDProvider}
+     *
+     * @return {@link org.atmosphere.util.UUIDProvider}
      */
-    public UUIDProvider uuidProvider(){
+    public UUIDProvider uuidProvider() {
         return uuidProvider;
     }
 
