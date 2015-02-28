@@ -978,7 +978,8 @@ public class AtmosphereFramework {
             logger.info("Using BroadcastFilter: {}", i);
         }
 
-        if (broadcasterCacheClassName == null || DefaultBroadcasterCache.class.getName().equals(broadcasterCacheClassName)) {
+        if (broadcasterCacheClassName == null || DefaultBroadcasterCache.class.getName().equals(
+                broadcasterCacheClassName)) {
             logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                     "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
         } else {
@@ -1357,7 +1358,8 @@ public class AtmosphereFramework {
                     w.broadcaster = broadcasterFactory.get(w.mapping);
                 } else {
                     if (broadcasterCacheClassName != null
-                            && w.broadcaster.getBroadcasterConfig().getBroadcasterCache().getClass().getName().equals(DefaultBroadcasterCache.class.getName())) {
+                            && w.broadcaster.getBroadcasterConfig().getBroadcasterCache().getClass().getName().equals(
+                            DefaultBroadcasterCache.class.getName())) {
                         BroadcasterCache cache = newClassInstance(BroadcasterCache.class,
                                 (Class<BroadcasterCache>) IOUtils.loadClass(getClass(), broadcasterCacheClassName));
                         cache.configure(config);
@@ -1635,7 +1637,8 @@ public class AtmosphereFramework {
 
     protected AtmosphereObjectFactory lookupDefaultObjectFactoryType() {
 
-        if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass().getName())) return objectFactory;
+        if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass()
+                                                                                                         .getName())) return objectFactory;
 
         for (String b : objectFactoryType) {
             try {
@@ -1649,7 +1652,8 @@ public class AtmosphereFramework {
             }
         }
 
-        if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass().getName())) {
+        if (objectFactory == null || DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass()
+                                                                                                        .getName())) {
             try {
                 IOUtils.loadClass(getClass(), INJECT_LIBARY);
                 objectFactory = new InjectableObjectFactory();
@@ -2528,6 +2532,14 @@ public class AtmosphereFramework {
             positionInterceptor(p, c, interceptors);
 
             logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
+
+            //need insert this new interceptor into all the existing handlers
+            for(AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values())
+            {
+                wrapper.interceptors.add(c);
+
+                Collections.sort(wrapper.interceptors, new InterceptorComparator());
+            }
         }
         return this;
     }
@@ -2894,8 +2906,10 @@ public class AtmosphereFramework {
      */
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this)
-                .registerWebSocketHandler(path,
-                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(), handler, interceptors));
+                                 .registerWebSocketHandler(path,
+                                                           new WebSocketProcessor.WebSocketHandlerProxy(
+                                                                   broadcasterFactory.lookup(path, true).getClass(),
+                                                                   handler, interceptors));
         addAtmosphereHandler(path, h, l);
         return this;
     }
