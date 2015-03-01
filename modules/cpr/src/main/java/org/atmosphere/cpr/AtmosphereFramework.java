@@ -987,8 +987,7 @@ public class AtmosphereFramework {
             logger.info("Using BroadcastFilter: {}", i);
         }
 
-        if (broadcasterCacheClassName == null || DefaultBroadcasterCache.class.getName().equals(
-                broadcasterCacheClassName)) {
+        if (broadcasterCacheClassName == null || DefaultBroadcasterCache.class.getName().equals(broadcasterCacheClassName)) {
             logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                     "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
         } else {
@@ -2898,9 +2897,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this)
                 .registerWebSocketHandler(path,
-                        new WebSocketProcessor.WebSocketHandlerProxy(
-                                broadcasterFactory.lookup(path, true).getClass(),
-                                handler, interceptors));
+                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(),handler, interceptors));
         addAtmosphereHandler(path, h, l);
         return this;
     }
