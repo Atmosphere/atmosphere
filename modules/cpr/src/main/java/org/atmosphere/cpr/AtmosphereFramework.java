@@ -2075,7 +2075,7 @@ public class AtmosphereFramework {
             configureRequestResponse(req, res);
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
-            boolean isJBoss = ex.getMessage().startsWith("JBoss failed");
+            boolean isJBoss = ex.getMessage() == null ? false : ex.getMessage().startsWith("JBoss failed");
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || isJBoss)) {
                 if (!isFilter) {
                     logger.warn("Failed using comet support: {}, error: {} Is the NIO or APR Connector enabled?", asyncSupport.getClass().getName(),
