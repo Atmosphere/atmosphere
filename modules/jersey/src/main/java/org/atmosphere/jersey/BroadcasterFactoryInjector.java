@@ -169,6 +169,11 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
                 _get().removeBroadcasterListener(b);
                 return this;
             }
+
+            @Override
+            public Collection<BroadcasterListener> broadcasterListeners() {
+                return _get().broadcasterListeners();
+            }
         }
     }
 }

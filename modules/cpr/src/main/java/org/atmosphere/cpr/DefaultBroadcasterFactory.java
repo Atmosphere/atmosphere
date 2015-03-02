@@ -60,7 +60,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     protected final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
     public static final URI legacyBroadcasterURI = URI.create("http://127.0.0.0");
 
-    public DefaultBroadcasterFactory(){
+    public DefaultBroadcasterFactory() {
     }
 
     @Deprecated
@@ -324,5 +324,15 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             b.removeBroadcasterListener(l);
         }
         return this;
+    }
+
+    /**
+     * Return all {@link BroadcasterListener}.
+     *
+     * @return {@link BroadcasterListener}
+     */
+    @Override
+    public Collection<BroadcasterListener> broadcasterListeners() {
+        return broadcasterListeners;
     }
 }

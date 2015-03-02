@@ -224,5 +224,10 @@ public class AtmosphereFrameworkTest {
         public BroadcasterFactory removeBroadcasterListener(BroadcasterListener b) {
             return this;
         }
+
+        @Override
+        public Collection<BroadcasterListener> broadcasterListeners() {
+            return null;
+        }
     }
 }

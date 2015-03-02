@@ -80,7 +80,7 @@ public class DefaultBroadcaster implements Broadcaster {
             new ConcurrentLinkedQueue<AtmosphereResource>();
     protected BroadcasterConfig bc;
     protected final BlockingQueue<Deliver> messages = new LinkedBlockingQueue<Deliver>();
-    protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
+    protected Collection<BroadcasterListener> broadcasterListeners;
 
     protected final AtomicBoolean started = new AtomicBoolean(false);
     protected final AtomicBoolean initialized = new AtomicBoolean(false);
@@ -150,6 +150,13 @@ public class DefaultBroadcaster implements Broadcaster {
         backwardCompatible = Boolean.parseBoolean(config.getInitParameter(BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR));
         cacheOnIOFlushException = config.getInitParameter(CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION, true);
         sharedListeners = config.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false);
+
+        if (sharedListeners) {
+            broadcasterListeners = config.getBroadcasterFactory().broadcasterListeners();
+        } else {
+            broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
+        }
+
         return this;
     }
 
@@ -374,7 +381,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public Broadcaster removeBroadcasterListener(BroadcasterListener b) {
-        broadcasterListeners.remove(b);
+        if (!sharedListeners) broadcasterListeners.remove(b);
         return this;
     }
 
@@ -1414,8 +1421,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyBroadcastListener() {
-        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
-        for (BroadcasterListener b : l) {
+        for (BroadcasterListener b : broadcasterListeners) {
             try {
                 b.onComplete(this);
             } catch (Exception ex) {
@@ -1425,8 +1431,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyOnAddAtmosphereResourceListener(AtmosphereResource r) {
-        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
-        for (BroadcasterListener b : l) {
+        for (BroadcasterListener b : broadcasterListeners) {
             try {
                 b.onAddAtmosphereResource(this, r);
             } catch (Exception ex) {
@@ -1436,8 +1441,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyOnRemoveAtmosphereResourceListener(AtmosphereResource r) {
-        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
-        for (BroadcasterListener b : l) {
+        for (BroadcasterListener b : broadcasterListeners) {
             try {
                 b.onRemoveAtmosphereResource(this, r);
             } catch (Exception ex) {
@@ -1447,8 +1451,7 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected void notifyOnMessage(Deliver deliver) {
-        Collection<BroadcasterListener> l = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
-        for (BroadcasterListener b : l) {
+        for (BroadcasterListener b : broadcasterListeners) {
             try {
                 b.onMessage(this, deliver);
             } catch (Exception ex) {
@@ -1682,10 +1685,9 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     boolean notifyOnPreDestroy() {
-        Collection<BroadcasterListener> b = sharedListeners ? config.framework().broadcasterListeners() : broadcasterListeners;
-        for (BroadcasterListener l : b) {
+        for (BroadcasterListener b : broadcasterListeners) {
             try {
-                l.onPreDestroy(this);
+                b.onPreDestroy(this);
             } catch (RuntimeException ex) {
                 if (BroadcasterListener.BroadcastListenerException.class.isAssignableFrom(ex.getClass())) {
                     logger.trace("onPreDestroy", ex);
@@ -1697,7 +1699,7 @@ public class DefaultBroadcaster implements Broadcaster {
         return false;
     }
 
-    public ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners() {
+    public Collection<BroadcasterListener> broadcasterListeners() {
         return broadcasterListeners;
     }
 

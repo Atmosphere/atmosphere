@@ -27,9 +27,10 @@ public interface BroadcasterFactory {
 
     /**
      * Configure the factory
-     * @param clazz {@link org.atmosphere.cpr.Broadcaster}
+     *
+     * @param clazz                      {@link org.atmosphere.cpr.Broadcaster}
      * @param broadcasterLifeCyclePolicy {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
-     * @param c {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @param c                          {@link org.atmosphere.cpr.AtmosphereConfig}
      */
     public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c);
 
@@ -153,6 +154,13 @@ public interface BroadcasterFactory {
      * @return this
      */
     BroadcasterFactory removeBroadcasterListener(BroadcasterListener b);
+
+    /**
+     * Return all {@link org.atmosphere.cpr.BroadcasterListener}
+     *
+     * @return {@link org.atmosphere.cpr.BroadcasterListener}
+     */
+    Collection<BroadcasterListener> broadcasterListeners();
 
 
     public static final class BroadcasterCreationException extends RuntimeException {
