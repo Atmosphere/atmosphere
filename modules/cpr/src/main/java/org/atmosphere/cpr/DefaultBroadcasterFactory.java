@@ -109,6 +109,8 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         } else {
             logger.warn("Unsupported BroadcasterLifeCyclePolicy policy {}", broadcasterLifeCyclePolicy);
         }
+
+        broadcasterListeners.add(lifeCycleListener);
     }
 
     @Override
@@ -152,9 +154,6 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             for (BroadcasterListener l : broadcasterListeners) {
                 b.addBroadcasterListener(l);
             }
-
-            addBroadcasterListener(lifeCycleListener);
-            b.addBroadcasterListener(lifeCycleListener);
 
             logger.trace("Broadcaster {} was created {}", id, b);
 
