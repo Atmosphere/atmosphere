@@ -18,6 +18,7 @@ Using another framework? Look at the list of supported [extensions](https://gith
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
+
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
 
@@ -41,7 +42,7 @@ The Atmosphere Framework ships with many examples describing how to implement We
       </dependency>
 ```
       
-Where atmosphere-module can be: jersey, runtime (main module), guice, redis, hazelcast, jms, jgroups or gwt. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
+Where atmosphere-module can be: sockjs, kafka, jersey, runtime (main module), spring, guice, redis, hazelcast, jms, rabbitmq, jgroups or gwt. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
 #### Jump directly inside the code: WebSockets, Server-Sent Events (SSE), Long-Polling, JSONP and HTTP Streaming!
 
@@ -70,5 +71,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 [![Build Status](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/badge/icon)](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/)
 
 [![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)]
+
+@Copyright 2015 [Async-IO.org](http://async-io.org)
 
 
