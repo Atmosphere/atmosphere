@@ -90,7 +90,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                 long l = (Long) req.getAttribute(MAX_INACTIVE);
 
                 if (logger.isTraceEnabled() && l > 0) {
-                    logger.trace("Expiring {} in ", r.uuid(), System.currentTimeMillis() - l);
+                    logger.trace("Expiring {} in {}", r.uuid(), System.currentTimeMillis() - l);
                 }
 
                 if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime ) {
