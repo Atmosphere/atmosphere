@@ -105,7 +105,7 @@ import org.atmosphere.handler.OnMessage;
 
 @ManagedService(path = "/echo")
 public class Echo {
-    @onMessage
+    @Message
     public void onMessage(AtmosphereResponse res, String m) {
         res.write("Echo: " + m);
     }
