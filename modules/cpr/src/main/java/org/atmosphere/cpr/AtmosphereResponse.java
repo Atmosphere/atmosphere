@@ -512,20 +512,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
                 @Override
                 public void write(int i) throws java.io.IOException {
-                    // Prevent StackOverflow
-                    boolean b = forceAsyncIOWriter;
-                    try {
-                        validAsyncIOWriter();
-                        writeStatusAndHeaders();
-
-                        forceAsyncIOWriter = false;
-                        asyncIOWriter.write(AtmosphereResponse.this, new byte[]{(byte) i});
-                    } catch (IOException e) {
-                        handleException(e);
-                        throw e;
-                    } finally {
-                        forceAsyncIOWriter = b;
-                    }
+                    write(new byte[]{(byte) i});
                 }
 
                 @Override
