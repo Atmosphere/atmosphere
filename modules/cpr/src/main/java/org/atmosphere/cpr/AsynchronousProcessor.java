@@ -198,7 +198,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         //Unit test mock the request and will throw NPE.
         boolean skipAtmosphereHandler = req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
                 ? (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
-
         if (!skipAtmosphereHandler) {
             try {
                 handlerWrapper.atmosphereHandler.onRequest(resource);

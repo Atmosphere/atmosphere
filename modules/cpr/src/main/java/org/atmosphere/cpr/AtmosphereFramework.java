@@ -130,13 +130,13 @@ import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
+import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.INJECT_LIBARY;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
@@ -3209,7 +3209,6 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link AtmosphereResourceSessionFactory}
-     *
      * @return the AtmosphereResourceSessionFactory
      */
     public synchronized AtmosphereResourceSessionFactory sessionFactory() {
@@ -3227,7 +3226,6 @@ public class AtmosphereFramework {
 
     /**
      * Return true is the {@link #destroy()} method has been invoked.
-     *
      * @return true is the {@link #destroy()} method has been invoked.
      */
     public boolean isDestroyed() {
@@ -3236,7 +3234,6 @@ public class AtmosphereFramework {
 
     /**
      * Add a {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
-     *
      * @param l {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      * @return this;
      */
@@ -3247,7 +3244,6 @@ public class AtmosphereFramework {
 
     /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
-     *
      * @return {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      */
     public List<AtmosphereFrameworkListener> frameworkListeners() {
@@ -3296,7 +3292,6 @@ public class AtmosphereFramework {
 
     /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
-     *
      * @return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
      */
     public List<AtmosphereResourceListener> atmosphereResourceListeners() {
@@ -3305,7 +3300,6 @@ public class AtmosphereFramework {
 
     /**
      * Add a {@link org.atmosphere.cpr.AtmosphereResourceListener}
-     *
      * @param atmosphereResourceListener a {@link org.atmosphere.cpr.AtmosphereResourceListener}
      * @return this
      */
@@ -3316,7 +3310,6 @@ public class AtmosphereFramework {
 
     /**
      * Set a {@link java.util.UUID} like implementation for generating random UUID String
-     *
      * @param uuidProvider
      * @return this
      */
@@ -3327,7 +3320,6 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link org.atmosphere.util.UUIDProvider}
-     *
      * @return {@link org.atmosphere.util.UUIDProvider}
      */
     public UUIDProvider uuidProvider() {
