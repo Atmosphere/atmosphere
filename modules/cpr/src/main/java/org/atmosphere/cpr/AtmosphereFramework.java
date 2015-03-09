@@ -1224,7 +1224,7 @@ public class AtmosphereFramework {
                     switch (p2) {
                         case BEFORE_DEFAULT:
                         case FIRST_BEFORE_DEFAULT:
-                            orderResult = -1;
+                            orderResult = 1;
                             break;
                     }
                     break;
@@ -1232,10 +1232,10 @@ public class AtmosphereFramework {
                 case BEFORE_DEFAULT:
                     switch (p2) {
                         case AFTER_DEFAULT:
-                            orderResult = 1;
+                            orderResult = -1;
                             break;
                         case FIRST_BEFORE_DEFAULT:
-                            orderResult = -1;
+                            orderResult = 1;
                             break;
                     }
                     break;
@@ -1244,7 +1244,7 @@ public class AtmosphereFramework {
                     switch (p2) {
                         case AFTER_DEFAULT:
                         case BEFORE_DEFAULT:
-                            orderResult = 1;
+                            orderResult = -1;
                             break;
                     }
                     break;
