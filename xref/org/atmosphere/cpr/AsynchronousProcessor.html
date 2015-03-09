@@ -444,83 +444,83 @@
 <a class="jxr_linenumber" name="L436" href="#L436">436</a>         <strong class="jxr_keyword">if</strong> (r != <strong class="jxr_keyword">null</strong> &amp;&amp; !r.isCancelled() &amp;&amp; !AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).getAndSetInClosingPhase()){
 <a class="jxr_linenumber" name="L437" href="#L437">437</a>             logger.trace(<span class="jxr_string">"Finishing lifecycle for AtmosphereResource {}"</span>, r.uuid());
 <a class="jxr_linenumber" name="L438" href="#L438">438</a>             <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> impl = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r);
-<a class="jxr_linenumber" name="L439" href="#L439">439</a>             <strong class="jxr_keyword">synchronized</strong> (impl) {
-<a class="jxr_linenumber" name="L440" href="#L440">440</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L441" href="#L441">441</a>                     <strong class="jxr_keyword">if</strong> (impl.isCancelled()) {
-<a class="jxr_linenumber" name="L442" href="#L442">442</a>                         logger.debug(<span class="jxr_string">"{} is already cancelled"</span>, impl.uuid());
-<a class="jxr_linenumber" name="L443" href="#L443">443</a>                         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L444" href="#L444">444</a>                     }
-<a class="jxr_linenumber" name="L445" href="#L445">445</a> 
-<a class="jxr_linenumber" name="L446" href="#L446">446</a>                     <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a> e = impl.getAtmosphereResourceEvent();
-<a class="jxr_linenumber" name="L447" href="#L447">447</a>                     <em class="jxr_comment">// https://github.com/Atmosphere/atmosphere/issues/1756</em>
-<a class="jxr_linenumber" name="L448" href="#L448">448</a>                     <em class="jxr_comment">// Do not go inside Atmosphere once undeployed to avoid all kind of issues.</em>
-<a class="jxr_linenumber" name="L449" href="#L449">449</a>                     <strong class="jxr_keyword">if</strong> (config.framework().isDestroyed()) {
-<a class="jxr_linenumber" name="L450" href="#L450">450</a>                         cancelled = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L451" href="#L451">451</a>                     }
-<a class="jxr_linenumber" name="L452" href="#L452">452</a> 
-<a class="jxr_linenumber" name="L453" href="#L453">453</a>                     <strong class="jxr_keyword">if</strong> (!e.isClosedByClient()) {
-<a class="jxr_linenumber" name="L454" href="#L454">454</a>                         <strong class="jxr_keyword">if</strong> (cancelled) {
-<a class="jxr_linenumber" name="L455" href="#L455">455</a>                             e.setCancelled(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L456" href="#L456">456</a>                         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L457" href="#L457">457</a>                             e.setIsResumedOnTimeout(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L458" href="#L458">458</a>                             <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = r.getBroadcaster();
-<a class="jxr_linenumber" name="L459" href="#L459">459</a>                             <strong class="jxr_keyword">if</strong> (b instanceof DefaultBroadcaster) {
-<a class="jxr_linenumber" name="L460" href="#L460">460</a>                                 ((<a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a>) b).broadcastOnResume(r);
-<a class="jxr_linenumber" name="L461" href="#L461">461</a>                             }
-<a class="jxr_linenumber" name="L462" href="#L462">462</a> 
-<a class="jxr_linenumber" name="L463" href="#L463">463</a>                             <em class="jxr_comment">// TODO: Was it there for legacy reason?</em>
-<a class="jxr_linenumber" name="L464" href="#L464">464</a>                             <em class="jxr_comment">// impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());</em>
-<a class="jxr_linenumber" name="L465" href="#L465">465</a>                         }
-<a class="jxr_linenumber" name="L466" href="#L466">466</a>                     }
-<a class="jxr_linenumber" name="L467" href="#L467">467</a>                     invokeAtmosphereHandler(impl);
-<a class="jxr_linenumber" name="L468" href="#L468">468</a>                 } <strong class="jxr_keyword">catch</strong> (Throwable ex) {
-<a class="jxr_linenumber" name="L469" href="#L469">469</a>                     <em class="jxr_comment">// Something wrong happened, ignore the exception</em>
-<a class="jxr_linenumber" name="L470" href="#L470">470</a>                     logger.error(<span class="jxr_string">"Failed to cancel resource: {}"</span>, impl.uuid(), ex);
-<a class="jxr_linenumber" name="L471" href="#L471">471</a>                 } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="L472" href="#L472">472</a>                     <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L473" href="#L473">473</a>                         impl.notifyListeners();
-<a class="jxr_linenumber" name="L474" href="#L474">474</a>                         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L475" href="#L475">475</a>                             impl.getResponse(false).getOutputStream().close();
-<a class="jxr_linenumber" name="L476" href="#L476">476</a>                         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="L477" href="#L477">477</a>                             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L478" href="#L478">478</a>                                 impl.getResponse(false).getWriter().close();
-<a class="jxr_linenumber" name="L479" href="#L479">479</a>                             } <strong class="jxr_keyword">catch</strong> (Throwable t2) {
-<a class="jxr_linenumber" name="L480" href="#L480">480</a>                             }
-<a class="jxr_linenumber" name="L481" href="#L481">481</a>                         }
-<a class="jxr_linenumber" name="L482" href="#L482">482</a>                         impl.setIsInScope(false);
-<a class="jxr_linenumber" name="L483" href="#L483">483</a>                         impl.cancel();
-<a class="jxr_linenumber" name="L484" href="#L484">484</a>                     } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="L485" href="#L485">485</a>                         logger.debug(<span class="jxr_string">"completeLifecycle"</span>, t);
-<a class="jxr_linenumber" name="L486" href="#L486">486</a>                     } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="L487" href="#L487">487</a>                         impl._destroy();
-<a class="jxr_linenumber" name="L488" href="#L488">488</a>                     }
-<a class="jxr_linenumber" name="L489" href="#L489">489</a>                 }
-<a class="jxr_linenumber" name="L490" href="#L490">490</a>             }
-<a class="jxr_linenumber" name="L491" href="#L491">491</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L492" href="#L492">492</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L493" href="#L493">493</a>             logger.trace(<span class="jxr_string">"AtmosphereResource {} was already cancelled or gc"</span>, r != <strong class="jxr_keyword">null</strong> ? r.uuid() : <span class="jxr_string">"null"</span>);
-<a class="jxr_linenumber" name="L494" href="#L494">494</a>             <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L495" href="#L495">495</a>         }
-<a class="jxr_linenumber" name="L496" href="#L496">496</a>     }
-<a class="jxr_linenumber" name="L497" href="#L497">497</a> 
-<a class="jxr_linenumber" name="L498" href="#L498">498</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L499" href="#L499">499</a> <em class="jxr_javadoccomment">     * Invoke the associated {@link AtmosphereHandler}. This method must be synchronized on an AtmosphereResource.</em>
-<a class="jxr_linenumber" name="L500" href="#L500">500</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L501" href="#L501">501</a> <em class="jxr_javadoccomment">     * @param r a {@link AtmosphereResourceImpl}</em>
-<a class="jxr_linenumber" name="L502" href="#L502">502</a> <em class="jxr_javadoccomment">     * @throws IOException</em>
-<a class="jxr_linenumber" name="L503" href="#L503">503</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L504" href="#L504">504</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> invokeAtmosphereHandler(<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> r) <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="L505" href="#L505">505</a>         <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req = r.getRequest(false);
-<a class="jxr_linenumber" name="L506" href="#L506">506</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L507" href="#L507">507</a>             <strong class="jxr_keyword">if</strong> (r.isInScope()) {
-<a class="jxr_linenumber" name="L508" href="#L508">508</a>                 String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
-<a class="jxr_linenumber" name="L509" href="#L509">509</a>                 r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
-<a class="jxr_linenumber" name="L510" href="#L510">510</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L511" href="#L511">511</a>                     <strong class="jxr_keyword">if</strong> (disableOnEvent == <strong class="jxr_keyword">null</strong> || !disableOnEvent.equals(String.valueOf(<strong class="jxr_keyword">true</strong>))) {
-<a class="jxr_linenumber" name="L512" href="#L512">512</a>                         <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler = r.getAtmosphereHandler();
-<a class="jxr_linenumber" name="L513" href="#L513">513</a> 
-<a class="jxr_linenumber" name="L514" href="#L514">514</a>                         <strong class="jxr_keyword">if</strong> (atmosphereHandler != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L515" href="#L515">515</a>                             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+<a class="jxr_linenumber" name="L439" href="#L439">439</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L440" href="#L440">440</a>                     <strong class="jxr_keyword">if</strong> (impl.isCancelled()) {
+<a class="jxr_linenumber" name="L441" href="#L441">441</a>                         logger.debug(<span class="jxr_string">"{} is already cancelled"</span>, impl.uuid());
+<a class="jxr_linenumber" name="L442" href="#L442">442</a>                         <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L443" href="#L443">443</a>                     }
+<a class="jxr_linenumber" name="L444" href="#L444">444</a> 
+<a class="jxr_linenumber" name="L445" href="#L445">445</a>                     <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a> e = impl.getAtmosphereResourceEvent();
+<a class="jxr_linenumber" name="L446" href="#L446">446</a>                     <em class="jxr_comment">// https://github.com/Atmosphere/atmosphere/issues/1756</em>
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>                     <em class="jxr_comment">// Do not go inside Atmosphere once undeployed to avoid all kind of issues.</em>
+<a class="jxr_linenumber" name="L448" href="#L448">448</a>                     <strong class="jxr_keyword">if</strong> (config.framework().isDestroyed()) {
+<a class="jxr_linenumber" name="L449" href="#L449">449</a>                         cancelled = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L450" href="#L450">450</a>                     }
+<a class="jxr_linenumber" name="L451" href="#L451">451</a> 
+<a class="jxr_linenumber" name="L452" href="#L452">452</a>                     <strong class="jxr_keyword">if</strong> (!e.isClosedByClient()) {
+<a class="jxr_linenumber" name="L453" href="#L453">453</a>                         <strong class="jxr_keyword">if</strong> (cancelled) {
+<a class="jxr_linenumber" name="L454" href="#L454">454</a>                             e.setCancelled(cancelled);
+<a class="jxr_linenumber" name="L455" href="#L455">455</a>                         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L456" href="#L456">456</a>                             e.setIsResumedOnTimeout(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L457" href="#L457">457</a>                             <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = r.getBroadcaster();
+<a class="jxr_linenumber" name="L458" href="#L458">458</a>                             <strong class="jxr_keyword">if</strong> (b instanceof DefaultBroadcaster) {
+<a class="jxr_linenumber" name="L459" href="#L459">459</a>                                 ((<a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a>) b).broadcastOnResume(r);
+<a class="jxr_linenumber" name="L460" href="#L460">460</a>                             }
+<a class="jxr_linenumber" name="L461" href="#L461">461</a> 
+<a class="jxr_linenumber" name="L462" href="#L462">462</a>                             <em class="jxr_comment">// TODO: Was it there for legacy reason?</em>
+<a class="jxr_linenumber" name="L463" href="#L463">463</a>                             <em class="jxr_comment">// impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());</em>
+<a class="jxr_linenumber" name="L464" href="#L464">464</a>                         }
+<a class="jxr_linenumber" name="L465" href="#L465">465</a>                     }
+<a class="jxr_linenumber" name="L466" href="#L466">466</a>                     invokeAtmosphereHandler(impl);
+<a class="jxr_linenumber" name="L467" href="#L467">467</a>                 } <strong class="jxr_keyword">catch</strong> (Throwable ex) {
+<a class="jxr_linenumber" name="L468" href="#L468">468</a>                     <em class="jxr_comment">// Something wrong happened, ignore the exception</em>
+<a class="jxr_linenumber" name="L469" href="#L469">469</a>                     logger.error(<span class="jxr_string">"Failed to cancel resource: {}"</span>, impl.uuid(), ex);
+<a class="jxr_linenumber" name="L470" href="#L470">470</a>                 } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="L471" href="#L471">471</a>                     <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L472" href="#L472">472</a>                         impl.notifyListeners();
+<a class="jxr_linenumber" name="L473" href="#L473">473</a>                         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L474" href="#L474">474</a>                             impl.getResponse(false).getOutputStream().close();
+<a class="jxr_linenumber" name="L475" href="#L475">475</a>                         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L476" href="#L476">476</a>                             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L477" href="#L477">477</a>                                 impl.getResponse(false).getWriter().close();
+<a class="jxr_linenumber" name="L478" href="#L478">478</a>                             } <strong class="jxr_keyword">catch</strong> (Throwable t2) {
+<a class="jxr_linenumber" name="L479" href="#L479">479</a>                             }
+<a class="jxr_linenumber" name="L480" href="#L480">480</a>                         }
+<a class="jxr_linenumber" name="L481" href="#L481">481</a>                         impl.setIsInScope(false);
+<a class="jxr_linenumber" name="L482" href="#L482">482</a>                         impl.cancel();
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>                     } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L484" href="#L484">484</a>                         logger.debug(<span class="jxr_string">"completeLifecycle"</span>, t);
+<a class="jxr_linenumber" name="L485" href="#L485">485</a>                     } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="L486" href="#L486">486</a>                         impl._destroy();
+<a class="jxr_linenumber" name="L487" href="#L487">487</a>                     }
+<a class="jxr_linenumber" name="L488" href="#L488">488</a>                 }
+<a class="jxr_linenumber" name="L489" href="#L489">489</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L490" href="#L490">490</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L491" href="#L491">491</a>             logger.trace(<span class="jxr_string">"AtmosphereResource {} was already cancelled or gc"</span>, r != <strong class="jxr_keyword">null</strong> ? r.uuid() : <span class="jxr_string">"null"</span>);
+<a class="jxr_linenumber" name="L492" href="#L492">492</a>             <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L493" href="#L493">493</a>         }
+<a class="jxr_linenumber" name="L494" href="#L494">494</a>     }
+<a class="jxr_linenumber" name="L495" href="#L495">495</a> 
+<a class="jxr_linenumber" name="L496" href="#L496">496</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L497" href="#L497">497</a> <em class="jxr_javadoccomment">     * Invoke the associated {@link AtmosphereHandler}. This method must be synchronized on an AtmosphereResource.</em>
+<a class="jxr_linenumber" name="L498" href="#L498">498</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L499" href="#L499">499</a> <em class="jxr_javadoccomment">     * @param r a {@link AtmosphereResourceImpl}</em>
+<a class="jxr_linenumber" name="L500" href="#L500">500</a> <em class="jxr_javadoccomment">     * @throws IOException</em>
+<a class="jxr_linenumber" name="L501" href="#L501">501</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L502" href="#L502">502</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> invokeAtmosphereHandler(<a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> r) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L503" href="#L503">503</a>         <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req = r.getRequest(false);
+<a class="jxr_linenumber" name="L504" href="#L504">504</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L505" href="#L505">505</a>             <strong class="jxr_keyword">if</strong> (r.isInScope()) {
+<a class="jxr_linenumber" name="L506" href="#L506">506</a>                 String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
+<a class="jxr_linenumber" name="L507" href="#L507">507</a>                 r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
+<a class="jxr_linenumber" name="L508" href="#L508">508</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L509" href="#L509">509</a>                     <strong class="jxr_keyword">if</strong> (disableOnEvent == <strong class="jxr_keyword">null</strong> || !disableOnEvent.equals(String.valueOf(<strong class="jxr_keyword">true</strong>))) {
+<a class="jxr_linenumber" name="L510" href="#L510">510</a>                         <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> atmosphereHandler = r.getAtmosphereHandler();
+<a class="jxr_linenumber" name="L511" href="#L511">511</a> 
+<a class="jxr_linenumber" name="L512" href="#L512">512</a>                         <strong class="jxr_keyword">if</strong> (atmosphereHandler != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L513" href="#L513">513</a>                             <strong class="jxr_keyword">synchronized</strong> (r) {
+<a class="jxr_linenumber" name="L514" href="#L514">514</a>                                 atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+<a class="jxr_linenumber" name="L515" href="#L515">515</a>                             }
 <a class="jxr_linenumber" name="L516" href="#L516">516</a>                         }
 <a class="jxr_linenumber" name="L517" href="#L517">517</a>                     }
 <a class="jxr_linenumber" name="L518" href="#L518">518</a>                 } <strong class="jxr_keyword">catch</strong> (IOException ex) {

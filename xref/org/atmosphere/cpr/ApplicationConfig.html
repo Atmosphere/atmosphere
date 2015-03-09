@@ -824,8 +824,28 @@
 <a class="jxr_linenumber" name="L816" href="#L816">816</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.annotation.useBytecodeProcessor</em>
 <a class="jxr_linenumber" name="L817" href="#L817">817</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L818" href="#L818">818</a>     String BYTECODE_PROCESSOR = <span class="jxr_string">"org.atmosphere.cpr.annotation.useBytecodeProcessor"</span>;
-<a class="jxr_linenumber" name="L819" href="#L819">819</a> }
-<a class="jxr_linenumber" name="L820" href="#L820">820</a> 
+<a class="jxr_linenumber" name="L819" href="#L819">819</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L820" href="#L820">820</a> <em class="jxr_javadoccomment">     * The web.xml servlet-name.</em>
+<a class="jxr_linenumber" name="L821" href="#L821">821</a> <em class="jxr_javadoccomment">     * Default: AtmosphereServlet &lt;br&gt;</em>
+<a class="jxr_linenumber" name="L822" href="#L822">822</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.servlet</em>
+<a class="jxr_linenumber" name="L823" href="#L823">823</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L824" href="#L824">824</a>     String SERVLET_NAME = <span class="jxr_string">"org.atmosphere.servlet"</span>;
+<a class="jxr_linenumber" name="L825" href="#L825">825</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L826" href="#L826">826</a> <em class="jxr_javadoccomment">     * Try to read a HTTP GET body.</em>
+<a class="jxr_linenumber" name="L827" href="#L827">827</a> <em class="jxr_javadoccomment">     * Default: false &lt;br&gt;</em>
+<a class="jxr_linenumber" name="L828" href="#L828">828</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.util.IOUtils.readGetBody</em>
+<a class="jxr_linenumber" name="L829" href="#L829">829</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L830" href="#L830">830</a>     String READ_GET_BODY = <span class="jxr_string">"org.atmosphere.util.IOUtils.readGetBody"</span>;
+<a class="jxr_linenumber" name="L831" href="#L831">831</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L832" href="#L832">832</a> <em class="jxr_javadoccomment">     * If a I/O exception occurs during a flush() or flushBuffer() exception, cache the bytes that was previously written.</em>
+<a class="jxr_linenumber" name="L833" href="#L833">833</a> <em class="jxr_javadoccomment">     * When the server buffer the bytes, the bytes may or may not been properly written to the client and those will be lost if you set that</em>
+<a class="jxr_linenumber" name="L834" href="#L834">834</a> <em class="jxr_javadoccomment">     * value to false. If the bytes where properly written, the bytes may be cached and may be sent twice to the client.</em>
+<a class="jxr_linenumber" name="L835" href="#L835">835</a> <em class="jxr_javadoccomment">     * Default: true &lt;br&gt;</em>
+<a class="jxr_linenumber" name="L836" href="#L836">836</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException</em>
+<a class="jxr_linenumber" name="L837" href="#L837">837</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L838" href="#L838">838</a>     String CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION = <span class="jxr_string">"org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException"</span>;
+<a class="jxr_linenumber" name="L839" href="#L839">839</a> }
+<a class="jxr_linenumber" name="L840" href="#L840">840</a> 
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

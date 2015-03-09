@@ -2083,7 +2083,7 @@
 <a class="jxr_linenumber" name="L2075" href="#L2075">2075</a>             configureRequestResponse(req, res);
 <a class="jxr_linenumber" name="L2076" href="#L2076">2076</a>             a = asyncSupport.service(req, res);
 <a class="jxr_linenumber" name="L2077" href="#L2077">2077</a>         } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
-<a class="jxr_linenumber" name="L2078" href="#L2078">2078</a>             <strong class="jxr_keyword">boolean</strong> isJBoss = ex.getMessage().startsWith(<span class="jxr_string">"JBoss failed"</span>);
+<a class="jxr_linenumber" name="L2078" href="#L2078">2078</a>             <strong class="jxr_keyword">boolean</strong> isJBoss = ex.getMessage() == <strong class="jxr_keyword">null</strong> ? false : ex.getMessage().startsWith(<span class="jxr_string">"JBoss failed"</span>);
 <a class="jxr_linenumber" name="L2079" href="#L2079">2079</a>             <strong class="jxr_keyword">if</strong> (ex.getMessage() != <strong class="jxr_keyword">null</strong> &amp;&amp; (ex.getMessage().startsWith(<span class="jxr_string">"Tomcat failed"</span>) || isJBoss)) {
 <a class="jxr_linenumber" name="L2080" href="#L2080">2080</a>                 <strong class="jxr_keyword">if</strong> (!isFilter) {
 <a class="jxr_linenumber" name="L2081" href="#L2081">2081</a>                     logger.warn(<span class="jxr_string">"Failed using comet support: {}, error: {} Is the NIO or APR Connector enabled?"</span>, asyncSupport.getClass().getName(),
