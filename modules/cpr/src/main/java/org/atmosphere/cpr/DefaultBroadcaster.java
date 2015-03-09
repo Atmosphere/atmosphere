@@ -712,6 +712,18 @@ public class DefaultBroadcaster implements Broadcaster {
             if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
                 if (r.isResumed() || r.isCancelled()) {
                     logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), deliver.message);
+
+                    /**
+                     * https://github.com/Atmosphere/atmosphere/issues/1886
+                     * Before caching the message, double check if the client has reconnected, and if true, send the
+                     * cached message.
+                     */
+                    AtmosphereResource r2 = config.resourcesFactory().find(r.uuid());
+                    if (r2 != null && r2.isSuspended() && r.hashCode() != r2.hashCode()) {
+                        // Prevent other Broadcast to happens
+                        removeAtmosphereResource(r2);
+                        checkCachedAndPush(r2, r2.getAtmosphereResourceEvent());
+                    }
                     return;
                 }
             }
