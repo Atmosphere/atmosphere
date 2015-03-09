@@ -764,6 +764,7 @@ public class DefaultBroadcaster implements Broadcaster {
                      * cached message.
                      */
                     AtmosphereResource r2 = AtmosphereResourceFactory.getDefault().find(r.uuid());
+                    logger.trace("Found an AtmosphereResource {} in state {}", r2, r.isSuspended());
                     if (r2 != null && r2.isSuspended() && r.hashCode() != r2.hashCode()) {
                         // Prevent other Broadcast to happens
                         removeAtmosphereResource(r2);
