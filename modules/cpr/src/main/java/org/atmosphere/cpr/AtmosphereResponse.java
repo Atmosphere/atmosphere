@@ -26,6 +26,7 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
+
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -37,6 +38,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -436,9 +438,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     @Override
     public Collection<String> getHeaderNames() {
-        Set<String> s = headers.keySet();
         Collection<String> r = _r().getHeaderNames();
+        Set<String> s = headers.keySet();
         if (r != null && !r.isEmpty()) {
+            // detach the keyset from the original hashmap
+            s = new HashSet<String>(s);
             s.addAll(r);
         }
 
