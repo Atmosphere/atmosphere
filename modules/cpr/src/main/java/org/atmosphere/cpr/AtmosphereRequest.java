@@ -80,7 +80,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean queryComputed = false;
     private boolean cookieComputed = false;
-    private volatile BufferedReader voidReader; 
+    private volatile BufferedReader voidReader;
     private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
     private AtomicBoolean streamSet = new AtomicBoolean();
     private AtomicBoolean readerSet = new AtomicBoolean();
@@ -92,7 +92,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
         this.b = b;
     }
-    
+
     private BufferedReader getVoidReader() {
     	if (voidReader == null) {
     		voidReader = new BufferedReader(new StringReader(""), 5);
@@ -1063,6 +1063,16 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     /**
+     * Return a subset of the attributes set on this AtmosphereRequest, set locally by the framework or by an application. Attributes added using this method
+     * won't be propagated to the original, container-only, native request object.
+     *
+     * @return a {@link Map<String,Object>}
+     */
+    public Map<String, Object> localAttributes() {
+        return b.localAttributes;
+    }
+
+    /**
      * {@inheritDoc}
      */
     @Override
@@ -1513,7 +1523,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         public NoOpsRequest(boolean throwExceptionOnCloned) {
             this.throwExceptionOnCloned = throwExceptionOnCloned;
         }
-        
+
         private BufferedReader getVoidReader() {
         	if (voidReader == null) {
         		voidReader = new BufferedReader(new StringReader(""));

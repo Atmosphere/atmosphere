@@ -330,9 +330,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
         try {
 
-            Method invokedMethod = (Method) request.getAttribute(getClass().getName());
-            request.removeAttribute(getClass().getName());
-
+            Method invokedMethod = (Method) request.localAttributes().remove(getClass().getName());
             if (invokedMethod != null) {
                 for (MethodInfo m : onRuntimeMethod) {
                     if (invokedMethod.equals(m.method)) {
@@ -366,7 +364,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
                 if (invokedMethod == null) {
                     if (m.method.getParameterTypes().length == 2) {
-                        request.setAttribute(getClass().getName(), m.method);
+                        request.localAttributes().put(getClass().getName(), m.method);
                         objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
                     } else {
                         objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
