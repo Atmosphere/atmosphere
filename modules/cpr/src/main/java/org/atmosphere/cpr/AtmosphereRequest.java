@@ -94,10 +94,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     }
 
     private BufferedReader getVoidReader() {
-    	if (voidReader == null) {
-    		voidReader = new BufferedReader(new StringReader(""), 5);
-    	}
-    	return voidReader;
+        if (voidReader == null) {
+            voidReader = new BufferedReader(new StringReader(""), 5);
+        }
+        return voidReader;
     }
 
     private ServletInputStream configureStream() {
@@ -539,7 +539,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             configureReader();
             return br == null ? (isNotNoOps() ? b.request.getReader() : getVoidReader()) : br;
         } else if (b.body.hasString()) {
-           br = new BufferedReader(new StringReader(body().asString()));
+            br = new BufferedReader(new StringReader(body().asString()));
         } else if (b.body.hasBytes()) {
             br = new BufferedReader(new StringReader(new String(body().asBytes(), body().byteOffset(), body().length)));
         }
@@ -947,7 +947,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     public boolean isAsyncSupported() {
         try {
             return b.request.isAsyncSupported();
-        } catch(Exception ex) {
+        } catch (Exception ex) {
             // Servlet 2.5 incompatible API.
             logger.trace("", ex);
             return false;
@@ -1055,7 +1055,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private static Object attributeWithoutException(HttpServletRequest request, String attribute) {
         try {
             return request.getAttribute(attribute);
-        } catch(NullPointerException ex) {
+        } catch (NullPointerException ex) {
             // https://github.com/Atmosphere/atmosphere/issues/1732
             logger.trace("Unexpected NPE", ex);
             return "";
@@ -1153,7 +1153,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
-        private Set<Cookie> cookies =  Collections.synchronizedSet(new HashSet<Cookie>());
+        private Set<Cookie> cookies = Collections.synchronizedSet(new HashSet<Cookie>());
         private final Set<Locale> locales = Collections.synchronizedSet(new HashSet<Locale>());
         private Principal principal = null;
         private String authType = null;
@@ -1525,10 +1525,10 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         private BufferedReader getVoidReader() {
-        	if (voidReader == null) {
-        		voidReader = new BufferedReader(new StringReader(""));
-        	}
-        	return voidReader;
+            if (voidReader == null) {
+                voidReader = new BufferedReader(new StringReader(""));
+            }
+            return voidReader;
         }
 
         @Override
@@ -1907,7 +1907,6 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
         return b.request(request).build();
     }
-
 
 
     /**
