@@ -20,6 +20,7 @@ import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
 import org.atmosphere.lifecycle.LifecycleHandler;
+import org.atmosphere.pool.PoolableBroadcasterFactory;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -115,6 +116,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private Future<?> currentLifecycleTask;
     private boolean cacheOnIOFlushException = true;
     protected boolean sharedListeners = false;
+    protected boolean candidateForPoolable;
 
     public DefaultBroadcaster() {
     }
@@ -157,6 +159,8 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
         }
 
+        candidateForPoolable = PoolableBroadcasterFactory.class.isAssignableFrom(config.getBroadcasterFactory().getClass());
+
         return this;
     }
 
@@ -176,37 +180,39 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public synchronized void destroy() {
-
-        if (notifyOnPreDestroy()) return;
-
-        if (destroyed.getAndSet(true)) return;
-
         try {
-            logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Policy was {}", getID(), policy);
-            logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Resources are {}", getID(), resources);
+            logger.trace("Broadcaster {} will be pooled: {}", getID(), candidateForPoolable);
+            if (!candidateForPoolable) {
+                if (notifyOnPreDestroy()) return;
+
+                if (destroyed.getAndSet(true)) return;
+
+                logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Policy was {}", getID(), policy);
+                logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Resources are {}", getID(), resources);
+
+                started.set(false);
+
+                releaseExternalResources();
+                killReactiveThreads();
+
+                if (bc != null) {
+                    bc.destroy();
+                }
+                lifeCycleListeners.clear();
+                delayedBroadcast.clear();
+                if (!sharedListeners) {
+                    broadcasterListeners.clear();
+                }
+            }
 
             if (config.getBroadcasterFactory() != null) {
                 config.getBroadcasterFactory().remove(this, this.getID());
             }
 
-            started.set(false);
-
-            releaseExternalResources();
-            killReactiveThreads();
-
-            if (bc != null) {
-                bc.destroy();
-            }
-
             resources.clear();
             broadcastOnResume.clear();
             messages.clear();
-            delayedBroadcast.clear();
-            if (!sharedListeners) {
-                broadcasterListeners.clear();
-            }
             writeQueues.clear();
-            lifeCycleListeners.clear();
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }

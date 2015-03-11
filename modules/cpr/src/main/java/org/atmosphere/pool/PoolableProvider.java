@@ -24,7 +24,7 @@ import org.atmosphere.inject.AtmosphereConfigAware;
  *
  * @author Jeanfrancois Arcand
  */
-public interface PoolableProvider<T extends Broadcaster> extends AtmosphereConfigAware {
+public interface PoolableProvider<T extends Broadcaster, U> extends AtmosphereConfigAware {
 
     /**
      * Return a {@link org.atmosphere.cpr.Broadcaster}
@@ -40,4 +40,21 @@ public interface PoolableProvider<T extends Broadcaster> extends AtmosphereConfi
      */
     PoolableProvider returnBroadcaster(T b);
 
+    /**
+     * The current Pool Size
+     * @return current Pool size
+     */
+    long poolSize();
+
+    /**
+     * Current number of active Broadcaster borrowed from the pool
+     */
+    long activeBroadcaster();
+
+    /**
+     * Return the current native pool implementation. For example, the GenericObjectPool from Apache Common
+     * will be returned if the {@link org.atmosphere.pool.UnboundedApachePoolableProvider} is used.
+     * @return the current native pool implementation
+     */
+    U implementation();
 }

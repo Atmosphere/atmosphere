@@ -146,12 +146,46 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
         return createBroadcaster(clazz, "POOLED");
     }
 
+    /**
+     * Set to true to enable tracking of {@link org.atmosphere.cpr.Broadcaster#getID()} duplication. Enabling this
+     * feature will significantly reduce the performance of the {@link org.atmosphere.pool.PoolableProvider}. Use the
+     * {@link org.atmosphere.cpr.DefaultBroadcasterFactory} if you need to track's duplication.
+     *
+     * @param trackPooledBroadcaster
+     * @return
+     */
     public PoolableBroadcasterFactory trackPooledBroadcaster(boolean trackPooledBroadcaster) {
         this.trackPooledBroadcaster = trackPooledBroadcaster;
         return this;
     }
 
+    /**
+     * Return true is {@link Broadcaster} instance are tracked, e.g stored in a Collection for duplicate id.
+     *
+     * @return {@link Broadcaster} instance are tracked, e.g stored in a Collection for duplicate id.
+     */
     public boolean trackPooledBroadcaster() {
         return trackPooledBroadcaster;
+    }
+
+    /**
+     * The current {@link org.atmosphere.pool.PoolableProvider}
+     *
+     * @return current {@link org.atmosphere.pool.PoolableProvider}
+     */
+    public PoolableProvider poolableProvider() {
+        return poolableProvider;
+    }
+
+    /**
+     * Set the implementation of {@link org.atmosphere.pool.PoolableProvider}
+     *
+     * @param poolableProvider the implementation of {@link org.atmosphere.pool.PoolableProvider}
+     * @return this
+     */
+    public PoolableBroadcasterFactory poolableProvider(PoolableProvider poolableProvider) {
+        this.poolableProvider = poolableProvider;
+        this.poolableProvider.configure(config);
+        return this;
     }
 }

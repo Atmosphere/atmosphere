@@ -15,7 +15,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.pool.BoundedApachePoolableProvider;
 import org.atmosphere.pool.PoolableBroadcasterFactory;
+import org.atmosphere.pool.UnboundedApachePoolableProvider;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -28,6 +30,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 
 /**
  * Unit tests for the {@link PoolableBroadcasterFactory}.
@@ -44,6 +47,7 @@ public class PoolableBroadcasterFactoryTest {
         AtmosphereFramework f = new AtmosphereFramework();
         config = f.getAtmosphereConfig();
         factory = new PoolableBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        factory.poolableProvider(new BoundedApachePoolableProvider());
         f.setBroadcasterFactory(factory);
     }
 
@@ -101,7 +105,7 @@ public class PoolableBroadcasterFactoryTest {
             }
         });
 
-        final ConcurrentLinkedQueue c = new ConcurrentLinkedQueue();
+        final ConcurrentLinkedQueue<Broadcaster> c = new ConcurrentLinkedQueue<Broadcaster>();
         ExecutorService r = Executors.newCachedThreadPool();
         try {
             for (int i = 0; i < 100; i++) {
@@ -120,15 +124,27 @@ public class PoolableBroadcasterFactoryTest {
         try {
             assertEquals(c.size(), 100);
             assertEquals(created.get(), 100);
+
+            for (Broadcaster b: c) {
+                b.destroy();
+            }
+
+            assertNotNull(factory.lookup("name" + UUID.randomUUID().toString(), true).broadcast("test"));
+
+            assertEquals(factory.poolableProvider().poolSize(), 100);
+
         } finally {
             factory.destroy();
         }
+
+
     }
 
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
         final CountDownLatch latch = new CountDownLatch(1000);
         final AtomicInteger created = new AtomicInteger();
+        factory.poolableProvider(new UnboundedApachePoolableProvider());
         factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
@@ -147,7 +163,7 @@ public class PoolableBroadcasterFactoryTest {
             }
         });
 
-        final ConcurrentLinkedQueue c = new ConcurrentLinkedQueue();
+        final ConcurrentLinkedQueue<Broadcaster> c = new ConcurrentLinkedQueue<Broadcaster>();
         ExecutorService r = Executors.newCachedThreadPool();
         try {
             for (int i = 0; i < 1000; i++) {
@@ -171,6 +187,16 @@ public class PoolableBroadcasterFactoryTest {
             assertEquals(latch.getCount(), 0);
             assertEquals(c.size(), 1000);
             assertEquals(created.get(), 1000);
+
+            for (Broadcaster b: c) {
+                b.destroy();
+            }
+
+            assertNotNull(factory.lookup("name" + UUID.randomUUID().toString(), true).broadcast("test"));
+
+            assertEquals(factory.poolableProvider().poolSize(), 1000);
+
+
         } finally {
             factory.destroy();
         }
