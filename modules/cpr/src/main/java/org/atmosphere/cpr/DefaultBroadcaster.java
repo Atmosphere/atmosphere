@@ -202,7 +202,9 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcastOnResume.clear();
             messages.clear();
             delayedBroadcast.clear();
-            broadcasterListeners.clear();
+            if (!sharedListeners) {
+                broadcasterListeners.clear();
+            }
             writeQueues.clear();
             lifeCycleListeners.clear();
         } catch (Throwable t) {
