@@ -1397,10 +1397,6 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
-        if (resources.isEmpty()) {
-            config.getBroadcasterFactory().add(this, name);
-        }
-
         boolean wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
         if (!wasResumed && isAtmosphereResourceValid(r)) {
             logger.trace("Associating AtmosphereResource {} with Broadcaster {}", r.uuid(), getID());
