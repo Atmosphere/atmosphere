@@ -205,14 +205,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
 
-            if (config.getBroadcasterFactory() != null) {
-                config.getBroadcasterFactory().remove(this, this.getID());
-            }
-
             resources.clear();
             broadcastOnResume.clear();
             messages.clear();
             writeQueues.clear();
+
+            if (config.getBroadcasterFactory() != null) {
+                config.getBroadcasterFactory().remove(this, this.getID());
+            }
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
         }
