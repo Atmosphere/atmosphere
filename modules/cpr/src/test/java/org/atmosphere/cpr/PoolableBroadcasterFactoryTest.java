@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.apache.commons.pool2.impl.GenericObjectPool;
+import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.atmosphere.pool.BoundedApachePoolableProvider;
 import org.atmosphere.pool.PoolableBroadcasterFactory;
 import org.atmosphere.pool.UnboundedApachePoolableProvider;
@@ -31,6 +33,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit tests for the {@link PoolableBroadcasterFactory}.
@@ -79,6 +82,19 @@ public class PoolableBroadcasterFactoryTest {
         assert result2 != null;
         assert result2 instanceof DefaultBroadcaster;
         assertEquals(result2, result);
+    }
+
+    @Test
+    public void testImplementation() {
+        assertNotNull(factory.poolableProvider());
+        assertNotNull(factory.poolableProvider().implementation());
+        assertEquals(factory.poolableProvider().implementation().getClass(), GenericObjectPool.class);
+        GenericObjectPool nativePool = (GenericObjectPool) factory.poolableProvider().implementation();
+        assertTrue(nativePool.getLifo());
+        GenericObjectPoolConfig c = new GenericObjectPoolConfig();
+        c.setMaxTotal(1);
+        nativePool.setConfig(c);
+        assertEquals(1, nativePool.getMaxTotal());
     }
 
     @Test

@@ -50,7 +50,7 @@ import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKED_BROADCASTER;
 public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(PoolableBroadcasterFactory.class);
-    private PoolableProvider poolableProvider;
+    private PoolableProvider<? extends Broadcaster,?> poolableProvider;
     private final static String POOLED_ID = "POOLED";
     private final static Collection emptyCollection = Collections.emptySet();
     private boolean trackPooledBroadcaster = false;
@@ -173,7 +173,7 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
      *
      * @return current {@link org.atmosphere.pool.PoolableProvider}
      */
-    public PoolableProvider poolableProvider() {
+    public PoolableProvider<? extends Broadcaster, ?> poolableProvider() {
         return poolableProvider;
     }
 
@@ -183,7 +183,7 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
      * @param poolableProvider the implementation of {@link org.atmosphere.pool.PoolableProvider}
      * @return this
      */
-    public PoolableBroadcasterFactory poolableProvider(PoolableProvider poolableProvider) {
+    public PoolableBroadcasterFactory poolableProvider(PoolableProvider<? extends Broadcaster, ?> poolableProvider) {
         this.poolableProvider = poolableProvider;
         this.poolableProvider.configure(config);
         return this;
