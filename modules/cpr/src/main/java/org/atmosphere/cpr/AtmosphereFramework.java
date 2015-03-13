@@ -1771,9 +1771,9 @@ public class AtmosphereFramework {
 
     protected void loadMetaService() {
         try {
-            final Map<String, MetaServiceAction> config = (Map<String, MetaServiceAction>) servletConfig.getServletContext().getAttribute(AtmosphereFramework.MetaServiceAction.class.getName());
+            Map<String, MetaServiceAction> config = (Map<String, MetaServiceAction>) servletConfig.getServletContext().getAttribute(AtmosphereFramework.MetaServiceAction.class.getName());
             if (config == null) {
-                IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+                config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
             }
 
             for (final Map.Entry<String, MetaServiceAction> action : config.entrySet()) {
