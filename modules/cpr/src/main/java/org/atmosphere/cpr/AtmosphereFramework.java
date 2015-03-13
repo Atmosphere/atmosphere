@@ -113,6 +113,7 @@ import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_SHAREABLE_LISTENE
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_WAIT_TIME;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCAST_FILTER_CLASSES;
 import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
+import static org.atmosphere.cpr.ApplicationConfig.META_SERVICE_PATH;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_ATMOSPHERE_XML;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_BLOCKING_COMETSUPPORT;
@@ -207,6 +208,7 @@ public class AtmosphereFramework {
     protected boolean autoDetectHandlers = true;
     private boolean hasNewWebSocketProtocol = false;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
+    protected String metaServicePath = META_SERVICE;
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone = false;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
@@ -1448,6 +1450,10 @@ public class AtmosphereFramework {
         s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
         if (s != null) {
             atmosphereDotXmlPath = s;
+        }
+        s = sc.getInitParameter(META_SERVICE_PATH);
+        if (s != null) {
+            metaServicePath = s;
         }
         s = sc.getInitParameter(ApplicationConfig.HANDLER_MAPPING_REGEX);
         if (s != null) {

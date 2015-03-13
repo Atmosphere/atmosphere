@@ -887,5 +887,11 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.pool.BoundedApachePoolableProvider.waitingTime
      */
     String BROADCASTER_FACTORY_EMPTY_WAIT_TIME_IN_SECONDS = "org.atmosphere.pool.BoundedApachePoolableProvider.waitingTime";
+    /**
+     * The path to the org.atmosphere.cpr.AtmosphereFramework configuration file
+     * Default: META-INF/services
+     * Value: org.atmosphere.cpr.metaServicePath
+     */
+    String META_SERVICE_PATH = "org.atmosphere.cpr.metaServicePath";
 }
 
