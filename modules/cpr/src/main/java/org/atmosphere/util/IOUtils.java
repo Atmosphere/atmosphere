@@ -49,6 +49,7 @@ import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import static org.atmosphere.cpr.AtmosphereFramework.META_SERVICE;
 import static org.atmosphere.cpr.HeaderConfig.FORCE_BINARY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMO_BINARY;
 
@@ -380,10 +381,10 @@ public class IOUtils {
         AtmosphereFramework.MetaServiceAction action = AtmosphereFramework.MetaServiceAction.INSTALL;
 
         try {
-            is = AtmosphereFramework.class.getClassLoader().getResourceAsStream("META-INF/services/" + path);
+            is = AtmosphereFramework.class.getClassLoader().getResourceAsStream(META_SERVICE + path);
 
             if (is == null) {
-                logger.info("META-INF/services/{} not found in class loader", path);
+                logger.trace("META-INF/services/{} not found in class loader", AtmosphereFramework.META_SERVICE, path);
                 return b;
             }
 
@@ -402,8 +403,9 @@ public class IOUtils {
                     b.put(line, action);
                 }
             }
+            logger.info("Successfully loaded and installed {}", META_SERVICE + path);
         } catch (IOException e) {
-            logger.debug("Unable to read META-INF/services/{} from class loader", path, e);
+            logger.trace("Unable to read META-INF/services/{} from class loader", path, e);
         } finally {
             close(is, reader);
         }

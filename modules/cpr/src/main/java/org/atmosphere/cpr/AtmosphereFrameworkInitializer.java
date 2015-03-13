@@ -15,11 +15,14 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import java.util.Map;
 
 public class AtmosphereFrameworkInitializer {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFrameworkInitializer.class);
@@ -61,7 +64,7 @@ public class AtmosphereFrameworkInitializer {
             }
 
             if (framework == null) {
-                framework = newAtmosphereFramework(frameworkClass);
+                framework = newAtmosphereFramework(frameworkClass, isFilter, autoDetectHandlers);
             }
         }
         framework.setUseNativeImplementation(useNative);
@@ -70,20 +73,43 @@ public class AtmosphereFrameworkInitializer {
     }
 
     protected AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass) {
+        return AtmosphereFrameworkInitializer.newAtmosphereFramework(frameworkClass, isFilter, autoDetectHandlers);
+    }
+
+    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers) {
         AtmosphereFramework framework;
         try {
-            framework = (AtmosphereFramework) frameworkClass.getDeclaredConstructor(
-                    new Class[]{Boolean.class,Boolean.class}).newInstance(isFilter, autoDetectHandlers);
+            framework = frameworkClass.getDeclaredConstructor(
+                    new Class[]{boolean.class, boolean.class}).newInstance(isFilter, autoDetectHandlers);
         } catch (Exception e) {
+            logger.error("", e);
             framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
         }
 
         return framework;
     }
 
+    public static AtmosphereFramework newAtmosphereFramework(ServletContext sc, boolean isFilter, boolean autoDetectHandlers) {
+        try {
+            final Map<String, AtmosphereFramework.MetaServiceAction> config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+            sc.setAttribute(AtmosphereFramework.MetaServiceAction.class.getName(), config);
+
+            for (final Map.Entry<String, AtmosphereFramework.MetaServiceAction> action : config.entrySet()) {
+                final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
+                if (AtmosphereFramework.class.isAssignableFrom(c)) {
+                    logger.info("Found a definition of AtmosphereFramework {}", c);
+                    return newAtmosphereFramework(c, isFilter, autoDetectHandlers);
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("", ex);
+        }
+        return newAtmosphereFramework(AtmosphereFramework.class, isFilter, autoDetectHandlers);
+    }
+
     public AtmosphereFramework framework() {
         if (framework == null) {
-            framework = newAtmosphereFramework(AtmosphereFramework.class);
+            framework = newAtmosphereFramework(AtmosphereFramework.class, isFilter, autoDetectHandlers);
         }
         return framework;
     }

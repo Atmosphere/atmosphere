@@ -166,6 +166,7 @@ public class AtmosphereFramework {
     public static final String DEFAULT_ATMOSPHERE_CONFIG_PATH = "/META-INF/atmosphere.xml";
     public static final String DEFAULT_LIB_PATH = "/WEB-INF/lib/";
     public static final String DEFAULT_HANDLER_PATH = "/WEB-INF/classes/";
+    public static final String META_SERVICE = "META-INF/services/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*_~=@;\\?]+";
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
@@ -431,6 +432,8 @@ public class AtmosphereFramework {
                     fwk.setAndConfigureAtmosphereResourceFactory(fwk.newClassInstance(AtmosphereResourceFactory.class, c));
                 } else if (AtmosphereFrameworkListener.class.isAssignableFrom(c)) {
                     fwk.frameworkListener(fwk.newClassInstance(AtmosphereFrameworkListener.class, c));
+                } else if (AtmosphereFramework.class.isAssignableFrom(c)) {
+                    // No OPS
                 } else {
                     logger.warn("{} is not a framework service that could be installed", c.getName());
                 }
@@ -1768,7 +1771,11 @@ public class AtmosphereFramework {
 
     protected void loadMetaService() {
         try {
-            final Map<String, MetaServiceAction> config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+            final Map<String, MetaServiceAction> config = (Map<String, MetaServiceAction>) servletConfig.getServletContext().getAttribute(AtmosphereFramework.MetaServiceAction.class.getName());
+            if (config == null) {
+                IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+            }
+
             for (final Map.Entry<String, MetaServiceAction> action : config.entrySet()) {
                 final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
                 action.getValue().apply(this, c);

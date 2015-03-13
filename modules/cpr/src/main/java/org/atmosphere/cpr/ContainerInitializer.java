@@ -19,7 +19,6 @@ import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 
-import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletRegistration;
@@ -27,7 +26,6 @@ import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
 import javax.servlet.annotation.HandlesTypes;
 import javax.servlet.http.HttpServletRequest;
-
 import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
@@ -44,7 +42,8 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
  */
 
 @HandlesTypes({})
-public class AtmosphereInitializer implements ServletContainerInitializer {
+public class ContainerInitializer implements javax.servlet.ServletContainerInitializer {
+
     @Override
     public void onStartup(Set<Class<?>> classes, final ServletContext c) throws ServletException {
         c.log("Initializing AtmosphereFramework");
@@ -56,7 +55,7 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
             	continue;
             }
             if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName()))  {
-                final AtmosphereFramework framework = new AtmosphereFramework(false, true);
+                final AtmosphereFramework framework = AtmosphereFrameworkInitializer.newAtmosphereFramework(c, false, true);
                 // Hack to make jsr356 works. Pretty ugly.
                 DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
                 List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
@@ -105,7 +104,7 @@ public class AtmosphereInitializer implements ServletContainerInitializer {
                         boolean sessionSupport = Boolean.valueOf(s);
                         if (sessionSupport && c.getMajorVersion() > 2) {
                             c.addListener(SessionSupport.class);
-                            c.log("AtmosphereFramework : Installed "+SessionSupport.class);
+                            c.log("AtmosphereFramework : Installed "+ SessionSupport.class);
                         }
                     }
                 } catch (Throwable t) {
