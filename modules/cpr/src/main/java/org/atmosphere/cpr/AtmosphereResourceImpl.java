@@ -83,6 +83,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean suspended = new AtomicBoolean();
     private WebSocket webSocket;
     private final AtomicBoolean inClosingPhase = new AtomicBoolean();
+    private boolean closeOnCancel = false;
 
     public AtmosphereResourceImpl() {
     }
@@ -137,6 +138,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         }
         transport = configureTransport();
+        closeOnCancel = config.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
         return this;
     }
 
@@ -781,7 +783,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 if (asyncSupport != null) asyncSupport.action(this);
                 // We must close the underlying WebSocket as well.
                 if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
-                    AtmosphereResponse.class.cast(response).close();
+                    if (closeOnCancel) {
+                        AtmosphereResponse.class.cast(response).close();
+                    }
                     AtmosphereResponse.class.cast(response).destroy();
                 }
 
