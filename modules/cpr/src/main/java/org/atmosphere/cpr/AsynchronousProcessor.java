@@ -54,12 +54,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
     private final long closingTime;
     private final boolean isServlet30;
+    private boolean closeOnCancel = false;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
         mapper = config.framework().endPointMapper();
         closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         isServlet30 = Servlet30CometSupport.class.isAssignableFrom(this.getClass());
+        closeOnCancel = config.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
     }
 
     @Override
@@ -478,6 +480,17 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             } finally {
                 try {
                     impl.notifyListeners();
+                    // Legacy code #1894 that may breaks Jersey when set to false on some old server.
+                    if (closeOnCancel) {
+                        try {
+                            impl.getResponse(false).getOutputStream().close();
+                        } catch (Throwable t) {
+                            try {
+                                impl.getResponse(false).getWriter().close();
+                            } catch (Throwable t2) {
+                            }
+                        }
+                    }
                     impl.setIsInScope(false);
                     impl.cancel();
                 } catch (Throwable t) {
