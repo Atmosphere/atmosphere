@@ -24,6 +24,9 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.util.Map;
 
+import static org.atmosphere.cpr.ApplicationConfig.META_SERVICE_PATH;
+import static org.atmosphere.cpr.AtmosphereFramework.META_SERVICE;
+
 public class AtmosphereFrameworkInitializer {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFrameworkInitializer.class);
 
@@ -90,14 +93,17 @@ public class AtmosphereFrameworkInitializer {
     }
 
     public static AtmosphereFramework newAtmosphereFramework(ServletContext sc, boolean isFilter, boolean autoDetectHandlers) {
+
+        String metaServicePath = sc.getInitParameter(META_SERVICE_PATH) == null ? META_SERVICE : sc.getInitParameter(META_SERVICE_PATH);
         try {
-            final Map<String, AtmosphereFramework.MetaServiceAction> config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+            final Map<String, AtmosphereFramework.MetaServiceAction> config =
+                    IOUtils.readServiceFile(metaServicePath + AtmosphereFramework.class.getName());
             sc.setAttribute(AtmosphereFramework.MetaServiceAction.class.getName(), config);
 
             for (final Map.Entry<String, AtmosphereFramework.MetaServiceAction> action : config.entrySet()) {
                 final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
                 if (AtmosphereFramework.class.isAssignableFrom(c)) {
-                    logger.info("Found a definition of AtmosphereFramework {}", c);
+                    logger.info("Found a definition of AtmosphereFramework {} under {}", c, metaServicePath);
                     return newAtmosphereFramework(c, isFilter, autoDetectHandlers);
                 }
             }

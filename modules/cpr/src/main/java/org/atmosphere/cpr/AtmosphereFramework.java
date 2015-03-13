@@ -1779,7 +1779,7 @@ public class AtmosphereFramework {
         try {
             Map<String, MetaServiceAction> config = (Map<String, MetaServiceAction>) servletConfig.getServletContext().getAttribute(AtmosphereFramework.MetaServiceAction.class.getName());
             if (config == null) {
-                config = IOUtils.readServiceFile(AtmosphereFramework.class.getName());
+                config = IOUtils.readServiceFile(metaServicePath + AtmosphereFramework.class.getName());
             }
 
             for (final Map.Entry<String, MetaServiceAction> action : config.entrySet()) {
