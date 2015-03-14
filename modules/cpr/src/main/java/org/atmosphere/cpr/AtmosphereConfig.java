@@ -106,11 +106,15 @@ public class AtmosphereConfig {
      * Return the value of the init params defined in web.xml or application.xml.
      *
      * @param name the name
-     * @return the list of init params defined in web.xml or application.xml
+     * @return the value for the init parameter if defined
      */
     public String getInitParameter(String name) {
         try {
-            return framework.getServletConfig().getInitParameter(name);
+        	String value=framework.getServletConfig().getInitParameter(name);
+        	if(value==null) {
+        		value=framework.getServletContext().getInitParameter(name);
+        	}
+        	return value;
         } catch (Throwable ex) {
             // Don't fail if Tomcat crash on startup with an NPE
             return null;
@@ -120,7 +124,7 @@ public class AtmosphereConfig {
     /**
      * Return all init param.
      *
-     * @return
+     * @return the list of init params defined in web.xml or application.xml for the servlet
      */
     public Enumeration<String> getInitParameterNames() {
         return framework().getServletConfig().getInitParameterNames();
