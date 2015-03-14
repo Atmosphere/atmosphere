@@ -1499,6 +1499,7 @@ public class DefaultBroadcaster implements Broadcaster {
         } else {
             logger.trace("Unable to remove {} from {}", r.uuid(), getID());
         }
+        r.removeBroadcaster(this);
 
         if (!removed) return this;
 
