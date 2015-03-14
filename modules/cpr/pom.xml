@@ -56,7 +56,6 @@
                             *,
                         </Import-Package>
                         <Export-Package>
-                            org.atmosphere.annotation*,
                             org.atmosphere.cache*,
                             org.atmosphere.client*,
                             org.atmosphere.config*,
