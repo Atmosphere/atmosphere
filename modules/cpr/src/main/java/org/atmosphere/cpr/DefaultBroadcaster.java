@@ -853,10 +853,10 @@ public class DefaultBroadcaster implements Broadcaster {
                 logger.trace("If you are using Tomcat 7.0.22 and lower, you're most probably hitting http://is.gd/NqicFT");
                 logger.trace("ApplicationConfig.CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION {}", cacheOnIOFlushException, t);
 
-                lostCandidate =  cacheOnIOFlushException ? cacheOnIOFlushException : cacheMessageOnIOException(t);
+                lostCandidate = cacheOnIOFlushException ? cacheOnIOFlushException : cacheMessageOnIOException(t);
                 // The Request/Response associated with the AtmosphereResource has already been written and commited
                 removeAtmosphereResource(r, false);
-                config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+                r.removeFromAllBroadcasters();
                 event.setCancelled(true);
                 event.setThrowable(t);
                 r.setIsInScope(false);
@@ -905,7 +905,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected boolean cacheMessageOnIOException(Throwable cause){
+    protected boolean cacheMessageOnIOException(Throwable cause) {
         for (StackTraceElement element : cause.getStackTrace()) {
             if (element.getMethodName().equals("flush") || element.getMethodName().equals("flushBuffer")) {
                 return false;
@@ -1423,6 +1423,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void notifyAndAdd(AtmosphereResource r) {
         resources.add(r);
+        r.addBroadcaster(this);
         notifyOnAddAtmosphereResourceListener(r);
     }
 

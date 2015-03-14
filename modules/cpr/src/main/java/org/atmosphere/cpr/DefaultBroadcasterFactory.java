@@ -235,6 +235,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         }
     }
 
+    @Deprecated
     @Override
     public void removeAllAtmosphereResource(AtmosphereResource r) {
         // Remove inside all Broadcaster as well.

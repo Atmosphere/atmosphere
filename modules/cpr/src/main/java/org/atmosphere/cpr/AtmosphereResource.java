@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -137,20 +138,50 @@ public interface AtmosphereResource {
     AtmosphereConfig getAtmosphereConfig();
 
     /**
-     * Return the current {@link Broadcaster}.
+     * Return the first added {@link Broadcaster}.
      *
      * @return the current {@link Broadcaster}
      */
     Broadcaster getBroadcaster();
 
     /**
-     * Set the current {@link Broadcaster}. If null, a new Broadcaster will be created with {@link Broadcaster.SCOPE#REQUEST}
-     * if that resource hasn't been suspended yet.
+     * Return an unmodifiable list of {@link Broadcaster}s associated with this resource
+     *
+     * @return an unmodifiable list of {@link Broadcaster}
+     */
+    List<Broadcaster> broadcasters();
+
+    /**
+     * Remove this {@link org.atmosphere.cpr.AtmosphereResource} from all {@link org.atmosphere.cpr.Broadcaster}
+     *
+     * @return this
+     */
+    public AtmosphereResource removeFromAllBroadcasters();
+
+    /**
+     * Set the first {@link Broadcaster} associated with this resource. This {@link org.atmosphere.cpr.Broadcaster}
+     * will be returned when {@link #getBroadcaster()} is invoked.
      *
      * @param broadcaster
      * @return this
      */
     AtmosphereResource setBroadcaster(Broadcaster broadcaster);
+
+    /**
+     * Add/Associate a {@link org.atmosphere.cpr.Broadcaster} with this resource.
+     *
+     * @param broadcaster
+     * @return this
+     */
+    AtmosphereResource addBroadcaster(Broadcaster broadcaster);
+
+    /**
+     * Remove a {@link org.atmosphere.cpr.Broadcaster} with this resource.
+     *
+     * @param broadcaster
+     * @return this
+     */
+    AtmosphereResource removeBroadcaster(Broadcaster broadcaster);
 
     /**
      * Set the {@link Serializer} to use when {@link AtmosphereResource#write} execute the operation.

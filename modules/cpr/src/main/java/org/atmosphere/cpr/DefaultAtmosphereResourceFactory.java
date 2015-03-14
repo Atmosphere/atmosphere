@@ -257,7 +257,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
         logger.trace("Removing: {}", uuid);
         AtmosphereResource r = resources.remove(uuid);
         if (r != null) {
-            r.getAtmosphereConfig().getBroadcasterFactory().removeAllAtmosphereResource(r);
+            r.removeFromAllBroadcasters();
         }
         return r;
     }
@@ -290,19 +290,13 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      *
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}
+     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereResourceFactory#find(String)}.broadcasters() instead
      */
     @Override
+    @Deprecated
     public Set<Broadcaster> broadcasters(String uuid) {
-        Collection<Broadcaster> l = broadcasterFactory.lookupAll();
-        Set<Broadcaster> h = new HashSet<Broadcaster>();
-        for (Broadcaster b : l) {
-            for (AtmosphereResource r : b.getAtmosphereResources()) {
-                if (r.uuid().equalsIgnoreCase(uuid)) {
-                    h.add(b);
-                }
-            }
-        }
-        return h;
+        AtmosphereResource r = find(uuid);
+        return new HashSet<Broadcaster>(r.broadcasters());
     }
 
     /**

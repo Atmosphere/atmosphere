@@ -124,7 +124,9 @@ public interface BroadcasterFactory {
      * Remove all instances of {@link AtmosphereResource} from all registered {@link Broadcaster}s.
      *
      * @param r an void {@link AtmosphereResource}
+     *
      */
+    @Deprecated
     void removeAllAtmosphereResource(AtmosphereResource r);
 
     /**

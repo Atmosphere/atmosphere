@@ -82,7 +82,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
             try {
                 if (req.getAttribute(MAX_INACTIVE) == null) {
                     logger.error("Invalid state {}", r);
-                    config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+                    r.removeFromAllBroadcasters();
                     config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     continue;
                 }
@@ -109,7 +109,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                             AsynchronousProcessor.class.cast(config.framework().getAsyncSupport()).endRequest(AtmosphereResourceImpl.class.cast(r), true);
                         }
                     } finally {
-                        config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+                        r.removeFromAllBroadcasters();
                         config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     }
                 }
