@@ -44,6 +44,7 @@ public class AtmosphereConfig {
     private boolean supportSession;
     private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
+    private boolean useServletContextParameters;
     private AtmosphereFramework framework;
     private Map<String, Object> properties = new HashMap<String, Object>();
     protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
@@ -51,6 +52,8 @@ public class AtmosphereConfig {
 
     public AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
+        String value=framework.getServletContext().getInitParameter(ApplicationConfig.USE_SERVLET_CONTEXT_PARAMETERS);
+        useServletContextParameters=value!=null && Boolean.valueOf(value);
     }
 
     public List<AtmosphereHandlerConfig> getAtmosphereHandlerConfig() {
@@ -111,7 +114,7 @@ public class AtmosphereConfig {
     public String getInitParameter(String name) {
         try {
         	String value=framework.getServletConfig().getInitParameter(name);
-        	if(value==null) {
+        	if(value==null && useServletContextParameters) {
         		value=framework.getServletContext().getInitParameter(name);
         	}
         	return value;
