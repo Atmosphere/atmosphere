@@ -81,8 +81,8 @@ public class AtmosphereResourceStateRecoveryTest {
         recovery.configure(config);
         recovery.inspect(r);
         r.suspend();
-        r.close();
         r.getBroadcaster().removeAtmosphereResource(r);
+        r.close();
         assertEquals(recovery.states().size(), 1);
     }
 
