@@ -47,7 +47,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
             filters(a.broadcastFilters(), framework);
 
             Class<?>[] interceptors = a.interceptors();
-            List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
             for (Class i : interceptors) {
                 try {
                     AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.class, i);
@@ -57,13 +57,13 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
                 }
             }
 
-            if (a.path().contains("{")) {
-                framework.interceptors().add(framework.newClassInstance(AtmosphereInterceptor.class, AtmosphereHandlerServiceInterceptor.class));
-            }
-
             AtmosphereInterceptor aa = listeners(a.listeners(), framework);
             if (aa != null) {
                 l.add(aa);
+            }
+
+            if (a.path().contains("{")) {
+                l.addFirst(framework.newClassInstance(AtmosphereInterceptor.class, AtmosphereHandlerServiceInterceptor.class));
             }
 
             framework.sessionSupport(a.supportSession());

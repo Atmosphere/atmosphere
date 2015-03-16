@@ -26,7 +26,6 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
 import java.util.LinkedList;
-import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
@@ -43,7 +42,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
         try {
             ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
             r.setServletClassName(annotatedClass.getName());
-            List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
 
             MeteorService m = annotatedClass.getAnnotation(MeteorService.class);
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
@@ -61,7 +60,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
             AnnotationUtil.interceptors(framework, m.interceptors(), l);
 
             if (m.path().contains("{")) {
-                framework.interceptors().add(framework.newClassInstance(AtmosphereInterceptor.class, MeteorServiceInterceptor.class));
+                l.addFirst(framework.newClassInstance(AtmosphereInterceptor.class, MeteorServiceInterceptor.class));
             }
             framework.addAtmosphereHandler(mapping, r, broadcaster(framework, m.broadcaster(), m.path()), l);
         } catch (Throwable e) {
