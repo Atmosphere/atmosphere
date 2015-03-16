@@ -900,5 +900,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel
      */
     java.lang.String CLOSE_STREAM_ON_CANCEL = "org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel";
+    
+    /**
+     * Use init parameters specified for servlet context in addition to servlet config
+     * Default: false
+     * Value: org.atmosphere.cpr.AtmosphereConfig.getInitParameter
+     */
+    java.lang.String USE_SERVLET_CONTEXT_PARAMETERS = "org.atmosphere.cpr.AtmosphereConfig.getInitParameter";
 }
 
