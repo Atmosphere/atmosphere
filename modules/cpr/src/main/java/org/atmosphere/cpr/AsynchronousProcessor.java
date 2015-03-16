@@ -179,18 +179,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             resource.forceBinaryWrite(Boolean.valueOf(v));
         }
 
-        // Globally defined
-        Action a = invokeInterceptors(config.framework().interceptors(), resource, tracing);
+        // handler interceptor lists
+        Action a = invokeInterceptors(handlerWrapper.interceptors, resource, tracing);
         if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
             return a;
-        }
-
-        if (a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-            // Per AtmosphereHandler
-            a = invokeInterceptors(handlerWrapper.interceptors, resource, tracing);
-            if (a.type() != Action.TYPE.CONTINUE) {
-                return a;
-            }
         }
 
         // Remap occured.
@@ -215,10 +207,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 resource.onThrowable(t);
                 throw t;
             }
-            postInterceptors(handlerWrapper.interceptors, resource);
         }
 
-        postInterceptors(config.framework().interceptors(), resource);
+        postInterceptors(handlerWrapper.interceptors, resource);
 
         Action action = resource.action();
         if (supportSession() && allowSessionTimeoutRemoval() && action.type().equals(Action.TYPE.SUSPEND)) {
