@@ -2925,7 +2925,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this)
                 .registerWebSocketHandler(path,
-                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(),handler, interceptors));
+                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(), handler, interceptors));
         addAtmosphereHandler(path, h, l);
         return this;
     }
@@ -3237,6 +3237,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link AtmosphereResourceSessionFactory}
+     *
      * @return the AtmosphereResourceSessionFactory
      */
     public synchronized AtmosphereResourceSessionFactory sessionFactory() {
@@ -3254,6 +3255,7 @@ public class AtmosphereFramework {
 
     /**
      * Return true is the {@link #destroy()} method has been invoked.
+     *
      * @return true is the {@link #destroy()} method has been invoked.
      */
     public boolean isDestroyed() {
@@ -3262,6 +3264,7 @@ public class AtmosphereFramework {
 
     /**
      * Add a {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     *
      * @param l {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      * @return this;
      */
@@ -3272,6 +3275,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     *
      * @return {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      */
     public List<AtmosphereFrameworkListener> frameworkListeners() {
@@ -3320,6 +3324,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     *
      * @return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
      */
     public List<AtmosphereResourceListener> atmosphereResourceListeners() {
@@ -3328,6 +3333,7 @@ public class AtmosphereFramework {
 
     /**
      * Add a {@link org.atmosphere.cpr.AtmosphereResourceListener}
+     *
      * @param atmosphereResourceListener a {@link org.atmosphere.cpr.AtmosphereResourceListener}
      * @return this
      */
@@ -3338,6 +3344,7 @@ public class AtmosphereFramework {
 
     /**
      * Set a {@link java.util.UUID} like implementation for generating random UUID String
+     *
      * @param uuidProvider
      * @return this
      */
@@ -3348,6 +3355,7 @@ public class AtmosphereFramework {
 
     /**
      * Return the {@link org.atmosphere.util.UUIDProvider}
+     *
      * @return {@link org.atmosphere.util.UUIDProvider}
      */
     public UUIDProvider uuidProvider() {
