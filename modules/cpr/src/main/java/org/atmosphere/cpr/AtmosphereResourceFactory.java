@@ -168,7 +168,7 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}
      * @deprecated Use {@link org.atmosphere.cpr.AtmosphereResourceFactory#find(String)}.broadcasters() instead
-q     */
+     */
     @Deprecated
     Set<Broadcaster> broadcasters(String uuid);
 
