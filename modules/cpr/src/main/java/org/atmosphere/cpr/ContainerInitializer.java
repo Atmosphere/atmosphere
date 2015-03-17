@@ -26,7 +26,6 @@ import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
 import javax.servlet.annotation.HandlesTypes;
 import javax.servlet.http.HttpServletRequest;
-import java.util.Enumeration;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -64,19 +63,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 int size = c.getServerInfo().contains("WebLogic") ? 1 : 0;
 
                 if (l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
-                    framework.setAsyncSupport(new JSR356AsyncSupport(new AtmosphereConfig(framework) {
-                        public ServletContext getServletContext() {
-                            return c;
-                        }
-
-                        public String getInitParameter(String name) {
-                            return c.getInitParameter(name);
-                        }
-
-                        public Enumeration<String> getInitParameterNames() {
-                            return c.getInitParameterNames();
-                        }
-                    }));
+                    framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig()));
                 }
 
                 try {

@@ -49,7 +49,7 @@ public class AtmosphereConfig {
     protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
     protected List<StartupHook> startUpHook = new ArrayList<StartupHook>();
 
-    public AtmosphereConfig(AtmosphereFramework framework) {
+    protected AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
     }
 
