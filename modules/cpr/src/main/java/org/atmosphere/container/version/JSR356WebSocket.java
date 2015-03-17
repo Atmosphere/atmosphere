@@ -159,7 +159,7 @@ public class JSR356WebSocket extends WebSocket {
         @Override
         public void onResult(SendResult result) {
             semaphore.release();
-            if (!result.isOK() || result.getException() != null) {
+            if (!result.isOK() || result.getException() != null && r != null) {
                 logger.trace("WebSocket {} failed to write {}", r, message);
                 Broadcaster b = r.getBroadcaster();
                 b.getBroadcasterConfig().getBroadcasterCache().addToCache(b.getID(), r.uuid(), new BroadcastMessage(message));

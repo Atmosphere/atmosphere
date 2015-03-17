@@ -153,19 +153,21 @@ public class BroadcasterListenerTest {
         static AtomicInteger count = new AtomicInteger();
 
         @Override
-        public void onRequest(AtmosphereResource e) throws IOException {
+        public void onRequest(AtmosphereResource r) throws IOException {
             try {
-                e.suspend();
-                e.getBroadcaster().broadcast("test1").get();
-                e.resume();
+                Broadcaster b = r.getBroadcaster();
+                r.suspend();
+                b.broadcast("test1").get();
+                r.resume();
 
-                ((AtmosphereResourceImpl) e).reset();
+                ((AtmosphereResourceImpl) r).reset();
 
-                e.getBroadcaster().broadcast("test2").get();
-                e.getBroadcaster().broadcast("test3").get();
-                e.getBroadcaster().broadcast("test4").get();
+                b.broadcast("test2").get();
+                b.broadcast("test3").get();
+                b.broadcast("test4").get();
 
-                e.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                r.setBroadcaster(b);
+                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                     @Override
                     public void onBroadcast(AtmosphereResourceEvent event) {
                         if (List.class.isAssignableFrom(event.getMessage().getClass())) {
@@ -173,7 +175,7 @@ public class BroadcasterListenerTest {
                         }
                     }
                 }).suspend();
-                e.getBroadcaster().destroy();
+                b.destroy();
             } catch (InterruptedException e1) {
                 e1.printStackTrace();
             } catch (ExecutionException e1) {
