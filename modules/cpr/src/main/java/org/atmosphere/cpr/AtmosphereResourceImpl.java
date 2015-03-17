@@ -841,10 +841,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public void _destroy() {
         try {
+            // TODO: Remove with Atmosphere 3
+            // Legacy https://github.com/Atmosphere/atmosphere/issues/1885
+            Broadcaster b = getBroadcaster();
             if (!isCancelled.get()) {
                 removeFromAllBroadcasters();
             }
             broadcasters.clear();
+
+            broadcasters.add(b);
             unregister();
             removeEventListeners();
         } catch (Throwable t) {
