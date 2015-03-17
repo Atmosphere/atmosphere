@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -78,6 +79,11 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         for (AtmosphereResource r : config.resourcesFactory().findAll()) {
+
+            if (Utils.pollableTransport(r.transport())) {
+                continue;
+            }
+
             AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
             try {
                 if (req.getAttribute(MAX_INACTIVE) == null) {
@@ -131,7 +137,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
-        if (maxInactiveTime > 0) {
+        if (maxInactiveTime > 0 && !Utils.pollableTransport(r.transport())) {
             AtmosphereResourceImpl.class.cast(r).getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis());
         }
         return Action.CONTINUE;
