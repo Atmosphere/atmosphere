@@ -83,7 +83,9 @@ public class AtmosphereInterceptorTest {
                 AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
                 return Action.CONTINUE;
             }
-
+            @Override
+            public void destroy() {
+            }
             @Override
             public void postInspect(AtmosphereResource r) {
             }
@@ -99,7 +101,9 @@ public class AtmosphereInterceptorTest {
             @Override
             public void configure(AtmosphereConfig config) {
             }
-
+            @Override
+            public void destroy() {
+            }
             @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
@@ -117,7 +121,9 @@ public class AtmosphereInterceptorTest {
             @Override
             public void configure(AtmosphereConfig config) {
             }
-
+            @Override
+            public void destroy() {
+            }
             @Override
             public Action inspect(AtmosphereResource r) {
                 // Default is CREATED
@@ -139,7 +145,9 @@ public class AtmosphereInterceptorTest {
             @Override
             public void configure(AtmosphereConfig config) {
             }
-
+            @Override
+            public void destroy() {
+            }
             @Override
             public Action inspect(AtmosphereResource r) {
                 return Action.CANCELLED;
@@ -160,7 +168,9 @@ public class AtmosphereInterceptorTest {
             @Override
             public void configure(AtmosphereConfig config) {
             }
-
+            @Override
+            public void destroy() {
+            }
             @Override
             public Action inspect(AtmosphereResource r) {
                 return Action.CREATED;

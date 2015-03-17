@@ -18,7 +18,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.websocket.WebSocket;
-import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -26,10 +25,13 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import javax.servlet.ServletOutputStream;
-
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.*;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -104,6 +106,11 @@ public class AtmosphereResourceTest {
             @Override
             public void postInspect(AtmosphereResource r) {
             }
+
+            @Override
+            public void destroy() {
+
+            }
         });
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
@@ -143,6 +150,10 @@ public class AtmosphereResourceTest {
                 } finally {
                     suspended.countDown();
                 }
+            }
+
+            @Override
+            public void destroy() {
             }
 
             @Override

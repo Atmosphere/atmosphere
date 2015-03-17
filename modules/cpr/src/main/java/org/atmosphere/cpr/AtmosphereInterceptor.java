@@ -44,4 +44,9 @@ public interface AtmosphereInterceptor extends AtmosphereConfigAware {
      * @param r a {@link AtmosphereResource}
      */
     void postInspect(AtmosphereResource r);
+
+    /**
+     * Clean the AtmosphereInterceptor when removed or when the Atmosphere is undeployed.
+     */
+    void destroy();
 }

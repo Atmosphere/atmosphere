@@ -43,6 +43,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
 import static org.atmosphere.cpr.ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS;
@@ -79,6 +80,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private byte[] paddingBytes = "X".getBytes();
     private boolean resumeOnHeartbeat;
     private int heartbeatFrequencyInSeconds = 60;
+    private AtmosphereConfig config;
+    private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     /**
      * Heartbeat from client disabled by default.
@@ -165,6 +168,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
         logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", new String[]
                 {new String(paddingBytes), String.valueOf(heartbeatFrequencyInSeconds), String.valueOf(clientHeartbeatFrequencyInSeconds)});
+
+        this.config = config;
     }
 
     private static class Clock extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
@@ -374,4 +379,14 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     public String toString() {
         return "Heartbeat Interceptor Support";
     }
+
+    @Override
+    public void destroy() {
+        if (destroyed.getAndSet(true)) return;
+
+        for(AtmosphereResource r: config.resourcesFactory().findAll()) {
+            cancelF(r.getRequest());
+        }
+    }
+
 }

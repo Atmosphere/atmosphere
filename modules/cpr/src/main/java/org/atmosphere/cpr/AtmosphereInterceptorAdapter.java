@@ -43,6 +43,10 @@ public abstract class AtmosphereInterceptorAdapter implements AtmosphereIntercep
     }
 
     @Override
+    public void destroy() {
+    }
+
+    @Override
     public PRIORITY priority() {
         return InvokationOrder.AFTER_DEFAULT;
     }

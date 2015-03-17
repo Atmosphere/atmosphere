@@ -132,13 +132,13 @@ import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
-import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.INJECT_LIBARY;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
@@ -514,6 +514,13 @@ public class AtmosphereFramework {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
         config = new AtmosphereConfig(this);
+    }
+
+    /**
+     * Create an instance of {@link org.atmosphere.cpr.AtmosphereConfig}
+     */
+    protected AtmosphereConfig newAtmosphereConfig() {
+        return new AtmosphereConfig(this);
     }
 
     /**
@@ -1759,16 +1766,27 @@ public class AtmosphereFramework {
         endpointMapper.configure(config);
     }
 
+    protected void closeAtmosphereResource() {
+        for (AtmosphereResource r : config.resourcesFactory().findAll()) {
+            try {
+                r.close();
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
+        }
+    }
+
     public AtmosphereFramework destroy() {
 
         if (isDestroyed.getAndSet(true)) return this;
 
         onPreDestroy();
 
+        closeAtmosphereResource();
+        destroyInterceptors();
+
         // Invoke ShutdownHook.
         config.destroy();
-
-        ExecutorsFactory.reset(config);
 
         BroadcasterFactory factory = broadcasterFactory;
         if (factory != null) {
@@ -1791,11 +1809,27 @@ public class AtmosphereFramework {
 
         WebSocketProcessorFactory.getDefault().destroy();
 
+        ExecutorsFactory.reset(config);
+
         resetStates();
 
         onPostDestroy();
 
         return this;
+    }
+
+    protected void destroyInterceptors() {
+        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
+            if (w.interceptors != null) {
+                for (AtmosphereInterceptor i : w.interceptors) {
+                    try {
+                        i.destroy();
+                    } catch (Throwable ex) {
+                        logger.warn("", ex);
+                    }
+                }
+            }
+        }
     }
 
     public AtmosphereFramework resetStates() {

@@ -107,6 +107,11 @@ public class AtmosphereRequestTest {
             @Override
             public void postInspect(AtmosphereResource r) {
             }
+
+            @Override
+            public void destroy() {
+
+            }
         });
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
@@ -143,6 +148,11 @@ public class AtmosphereRequestTest {
 
             @Override
             public void postInspect(AtmosphereResource r) {
+            }
+
+            @Override
+            public void destroy() {
+
             }
         });
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
@@ -181,6 +191,11 @@ public class AtmosphereRequestTest {
             @Override
             public void postInspect(AtmosphereResource r) {
             }
+
+            @Override
+            public void destroy() {
+
+            }
         });
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
@@ -217,6 +232,10 @@ public class AtmosphereRequestTest {
 
             @Override
             public void postInspect(AtmosphereResource r) {
+            }
+            @Override
+            public void destroy() {
+
             }
         });
         framework.doCometSupport(request, AtmosphereResponse.newInstance());

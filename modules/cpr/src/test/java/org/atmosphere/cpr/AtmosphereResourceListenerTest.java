@@ -125,7 +125,9 @@ public class AtmosphereResourceListenerTest {
             @Override
             public void configure(AtmosphereConfig config) {
             }
-
+            @Override
+            public void destroy() {
+            }
             @Override
             public Action inspect(AtmosphereResource r) {
                 r.addEventListener(listener).suspend();
@@ -178,7 +180,9 @@ public class AtmosphereResourceListenerTest {
             @Override
             public void configure(AtmosphereConfig config) {
             }
-
+            @Override
+            public void destroy() {
+            }
             @Override
             public Action inspect(AtmosphereResource r) {
                 r.addEventListener(listener).suspend();

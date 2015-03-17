@@ -59,7 +59,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     private BroadcasterFactory factory;
     private ScheduledExecutorService stateTracker;
     private long timeout = 5 * 1000 * 60;
-    private Future<?> f;
+    private Future<?> trackerFuture;
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -77,7 +77,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
     public AtmosphereResourceStateRecovery timeout(long timeout){
         this.timeout = timeout;
-        f.cancel(false);
+        trackerFuture.cancel(false);
         startStateTracker();
         return this;
     }
@@ -87,7 +87,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     }
 
     protected void startStateTracker() {
-        f = stateTracker.scheduleAtFixedRate(new Runnable() {
+        trackerFuture = stateTracker.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 long now = System.currentTimeMillis();
@@ -191,6 +191,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
     @Override
     public void postInspect(AtmosphereResource r) {
+    }
+
+    @Override
+    public void destroy() {
+        trackerFuture.cancel(true);
     }
 
     public final class B extends BroadcasterListenerAdapter {

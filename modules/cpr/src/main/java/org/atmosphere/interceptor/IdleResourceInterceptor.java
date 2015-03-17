@@ -148,5 +148,10 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
         return InvokationOrder.BEFORE_DEFAULT;
     }
 
+    @Override
+    public void destroy() {
+        future.cancel(true);
+    }
+
 }
 

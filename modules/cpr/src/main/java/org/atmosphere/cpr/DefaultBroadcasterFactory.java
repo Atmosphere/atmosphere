@@ -283,7 +283,6 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         while (e.hasMoreElements()) {
             try {
                 b = e.nextElement();
-                b.resumeAll();
                 bc = b.getBroadcasterConfig();
                 bc.forceDestroy();
                 b.destroy();

@@ -163,6 +163,10 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
         }
     }
 
+    @Override
+    public void destroy() {
+    }
+
     public String toString() {
         return "Atmosphere LifeCycle";
     }
