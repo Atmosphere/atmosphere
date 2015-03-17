@@ -150,7 +150,9 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public void destroy() {
-        future.cancel(true);
+        if (future != null) {
+            future.cancel(true);
+        }
     }
 
 }
