@@ -44,6 +44,7 @@ public class AtmosphereConfig {
     private boolean supportSession;
     private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
+    private boolean useServletContextParameters;
     private AtmosphereFramework framework;
     private Map<String, Object> properties = new HashMap<String, Object>();
     protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
@@ -51,6 +52,8 @@ public class AtmosphereConfig {
 
     protected AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
+        String value=framework.getServletContext().getInitParameter(ApplicationConfig.USE_SERVLET_CONTEXT_PARAMETERS);
+        useServletContextParameters=value!=null && Boolean.valueOf(value);
     }
 
     public List<AtmosphereHandlerConfig> getAtmosphereHandlerConfig() {
@@ -106,11 +109,15 @@ public class AtmosphereConfig {
      * Return the value of the init params defined in web.xml or application.xml.
      *
      * @param name the name
-     * @return the list of init params defined in web.xml or application.xml
+     * @return the value for the init parameter if defined
      */
     public String getInitParameter(String name) {
         try {
-            return framework.getServletConfig().getInitParameter(name);
+        	String value=framework.getServletConfig().getInitParameter(name);
+        	if(value==null && useServletContextParameters) {
+        		value=framework.getServletContext().getInitParameter(name);
+        	}
+        	return value;
         } catch (Throwable ex) {
             // Don't fail if Tomcat crash on startup with an NPE
             return null;
@@ -120,7 +127,7 @@ public class AtmosphereConfig {
     /**
      * Return all init param.
      *
-     * @return
+     * @return the list of init params defined in web.xml or application.xml for the servlet
      */
     public Enumeration<String> getInitParameterNames() {
         return framework().getServletConfig().getInitParameterNames();
