@@ -498,7 +498,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     @Override
     public AtmosphereResource removeBroadcaster(Broadcaster broadcaster) {
-        broadcasters.remove(broadcaster);
+        /**
+         * For legacy reason, never remove the last Broadcaster to prevent side effect.
+         * This must be revisited in Atmosphere 3.0
+         */
+        if (broadcasters.size() > 1) {
+            broadcasters.remove(broadcaster);
+        }
         return this;
     }
 
