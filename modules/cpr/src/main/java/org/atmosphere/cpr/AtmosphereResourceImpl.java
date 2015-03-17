@@ -865,7 +865,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     ",\n\t isResumed=" + isResumed() +
                     ",\n\t isCancelled=" + isCancelled() +
                     ",\n\t isSuspended=" + isSuspended() +
-                    ",\n\t broadcasters=" + broadcasters +
+                    ",\n\t broadcasters=" + getBroadcaster().getID() +
                     ",\n\t isClosedByClient=" + (event != null ? event.isClosedByClient() : false) +
                     ",\n\t isClosedByApplication=" + (event != null ? event.isClosedByApplication() : false) +
                     ",\n\t action=" + action +
