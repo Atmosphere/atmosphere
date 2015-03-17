@@ -44,7 +44,6 @@ public class AtmosphereConfig {
     private boolean supportSession;
     private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
-    private boolean useServletContextParameters;
     private AtmosphereFramework framework;
     private Map<String, Object> properties = new HashMap<String, Object>();
     protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
@@ -52,8 +51,6 @@ public class AtmosphereConfig {
 
     protected AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
-        String value=framework.getServletContext().getInitParameter(ApplicationConfig.USE_SERVLET_CONTEXT_PARAMETERS);
-        useServletContextParameters=value!=null && Boolean.valueOf(value);
     }
 
     public List<AtmosphereHandlerConfig> getAtmosphereHandlerConfig() {
@@ -113,11 +110,7 @@ public class AtmosphereConfig {
      */
     public String getInitParameter(String name) {
         try {
-        	String value=framework.getServletConfig().getInitParameter(name);
-        	if(value==null && useServletContextParameters) {
-        		value=framework.getServletContext().getInitParameter(name);
-        	}
-        	return value;
+            return framework.getServletConfig().getInitParameter(name);
         } catch (Throwable ex) {
             // Don't fail if Tomcat crash on startup with an NPE
             return null;

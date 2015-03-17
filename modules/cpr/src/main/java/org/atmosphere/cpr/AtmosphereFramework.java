@@ -125,6 +125,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.ApplicationConfig.USE_SERVLET_CONTEXT_PARAMETERS;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
 import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
@@ -513,7 +514,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework(boolean isFilter, boolean autoDetectHandlers) {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
-        config = new AtmosphereConfig(this);
+        config = newAtmosphereConfig();
     }
 
     /**
@@ -944,6 +945,10 @@ public class AtmosphereFramework {
         ServletConfig servletConfig;
 
         if (wrap) {
+
+            String value = sc.getServletContext().getInitParameter(USE_SERVLET_CONTEXT_PARAMETERS);
+            final boolean useServletContextParameters = value != null && Boolean.valueOf(value);
+
             servletConfig = new ServletConfig() {
 
                 AtomicBoolean done = new AtomicBoolean();
@@ -959,7 +964,11 @@ public class AtmosphereFramework {
                 public String getInitParameter(String name) {
                     String param = initParams.get(name);
                     if (param == null) {
-                        return sc.getInitParameter(name);
+                        param = sc.getInitParameter(name);
+
+                        if (param == null && useServletContextParameters) {
+                            param = sc.getServletContext().getInitParameter(name);
+                        }
                     }
                     return param;
                 }
