@@ -41,7 +41,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
-    private final static Class<Injectable<?>>[] defaultInjectables = new Class[]{
+    public final static Class<Injectable<?>>[] DEFAULT_ATMOSPHERE_INJECTABLE = new Class[]{
             AtmosphereConfigInjectable.class,
             AtmosphereFrameworkInjectable.class,
             AtmosphereResourceFactoryInjectable.class,
@@ -56,7 +56,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
-        for (Class<Injectable<?>> i : defaultInjectables) {
+        for (Class<Injectable<?>> i : DEFAULT_ATMOSPHERE_INJECTABLE) {
             try {
                 injectables.add(i.newInstance());
             } catch (Exception e) {
