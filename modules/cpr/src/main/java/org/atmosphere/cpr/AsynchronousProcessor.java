@@ -202,6 +202,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 ? (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
         if (!skipAtmosphereHandler) {
             try {
+                logger.trace("\t Last: {}", handlerWrapper.atmosphereHandler.getClass().getName());
                 handlerWrapper.atmosphereHandler.onRequest(resource);
             } catch (IOException t) {
                 resource.onThrowable(t);
