@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedList;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
@@ -66,7 +67,7 @@ public class AtmosphereServiceProcessor implements Processor<Object> {
 
                 String mapping = a.path();
 
-                AnnotationUtil.interceptors(framework, a.interceptors(), l);
+                AnnotationUtil.interceptors(framework, Arrays.asList(a.interceptors()), l);
 
                 if (!a.dispatch()) {
                     AtmosphereHandler proxy = new AtmosphereServletProcessor() {

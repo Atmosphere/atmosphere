@@ -26,6 +26,7 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
@@ -56,7 +57,7 @@ public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHand
                 l.add(aa);
             }
 
-            AnnotationUtil.interceptors(framework, m.interceptors(), l);
+            AnnotationUtil.interceptors(framework, Arrays.asList(m.interceptors()), l);
 
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);

@@ -240,29 +240,31 @@ public class AtmosphereFramework {
     protected Class<Serializer> defaultSerializerClass;
     protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<AtmosphereFrameworkListener>();
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
-    protected final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
+    public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = new LinkedList() {
+        {
             // Add CORS support
-            CorsInterceptor.class,
+            add(CorsInterceptor.class);
             // Default Interceptor
-            CacheHeadersInterceptor.class,
+            add(CacheHeadersInterceptor.class);
             // WebKit & IE Padding
-            PaddingAtmosphereInterceptor.class,
+            add(PaddingAtmosphereInterceptor.class);
             // Android 2.3.x streaming support
-            AndroidAtmosphereInterceptor.class,
+            add(AndroidAtmosphereInterceptor.class);
             // Heartbeat
-            HeartbeatInterceptor.class,
+            add(HeartbeatInterceptor.class);
             // Add SSE support
-            SSEAtmosphereInterceptor.class,
+            add(SSEAtmosphereInterceptor.class);
             // ADD JSONP support
-            JSONPAtmosphereInterceptor.class,
+            add(JSONPAtmosphereInterceptor.class);
             // ADD Tracking ID Handshake
-            JavaScriptProtocol.class,
+            add(JavaScriptProtocol.class);
             // WebSocket and suspend
-            WebSocketMessageSuspendInterceptor.class,
+            add(WebSocketMessageSuspendInterceptor.class);
             // OnDisconnect
-            OnDisconnectInterceptor.class,
+            add(OnDisconnectInterceptor.class);
             // Idle connection
-            IdleResourceInterceptor.class
+            add(IdleResourceInterceptor.class);
+        }
     };
 
     /**
@@ -1191,7 +1193,7 @@ public class AtmosphereFramework {
                 interceptors.clear();
             }
 
-            for (Class<? extends AtmosphereInterceptor> a : defaultInterceptors) {
+            for (Class<? extends AtmosphereInterceptor> a : DEFAULT_ATMOSPHERE_INTERCEPTORS) {
                 if (!excludedInterceptors.contains(a.getName())) {
                     interceptors.add(newAInterceptor(a));
                 } else {
@@ -3092,7 +3094,7 @@ public class AtmosphereFramework {
     }
 
     /**
-     * Exclude an {@link AtmosphereInterceptor} from being added, at startup, by Atmosphere. The default's {@link #defaultInterceptors}
+     * Exclude an {@link AtmosphereInterceptor} from being added, at startup, by Atmosphere. The default's {@link #DEFAULT_ATMOSPHERE_INTERCEPTORS}
      * are candidates for being excluded.
      *
      * @param interceptor an {@link AtmosphereInterceptor} class name
@@ -3186,7 +3188,7 @@ public class AtmosphereFramework {
     }
 
     public Class<? extends AtmosphereInterceptor>[] defaultInterceptors() {
-        return defaultInterceptors;
+        return (Class<? extends AtmosphereInterceptor>[]) DEFAULT_ATMOSPHERE_INTERCEPTORS.toArray();
     }
 
     public AtmosphereResourceFactory atmosphereFactory() {

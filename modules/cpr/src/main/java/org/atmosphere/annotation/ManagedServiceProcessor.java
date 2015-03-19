@@ -17,7 +17,6 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.managed.ManagedAtmosphereHandler;
-import org.atmosphere.config.managed.ManagedServiceInterceptor;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -27,6 +26,7 @@ import org.atmosphere.cpr.BroadcasterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -48,6 +48,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
 
             List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            AnnotationUtil.defaultInterceptors(framework, l);
 
             atmosphereConfig(a.atmosphereConfig(), framework);
             filters(a.broadcastFilters(), framework);
@@ -60,8 +61,6 @@ public class ManagedServiceProcessor implements Processor<Object> {
             Object c = framework.newClassInstance(Object.class, aClass);
             AtmosphereHandler handler = framework.newClassInstance(ManagedAtmosphereHandler.class,
                     ManagedAtmosphereHandler.class).configure(framework.getAtmosphereConfig(), c);
-            // MUST BE ADDED FIRST, ALWAYS!
-            l.add(framework.newClassInstance(AtmosphereInterceptor.class, ManagedServiceInterceptor.class));
 
             framework.filterManipulator(new BroadcasterConfig.FilterManipulator() {
                 @Override
@@ -82,8 +81,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
                 }
             });
 
-            AnnotationUtil.defaultInterceptors(framework, l);
-            AnnotationUtil.interceptors(framework, a.interceptors(), l);
+            AnnotationUtil.interceptors(framework, Arrays.asList(a.interceptors()), l);
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
         } catch (Throwable e) {
             logger.warn("", e);
