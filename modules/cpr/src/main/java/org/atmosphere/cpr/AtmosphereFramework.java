@@ -2616,9 +2616,10 @@ public class AtmosphereFramework {
 
             //need insert this new interceptor into all the existing handlers
             for (AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values()) {
-                wrapper.interceptors.add(c);
-
-                Collections.sort(wrapper.interceptors, new InterceptorComparator());
+                if (!checkDuplicate(wrapper.interceptors, c.getClass())) {
+                    wrapper.interceptors.add(c);
+                    Collections.sort(wrapper.interceptors, new InterceptorComparator());
+                }
             }
         }
         return this;
@@ -2657,9 +2658,32 @@ public class AtmosphereFramework {
         }
     }
 
-    private boolean checkDuplicate(AtmosphereInterceptor c) {
-        for (AtmosphereInterceptor i : interceptors) {
-            if (i.getClass().equals(c.getClass()))
+    /**
+     * <p>
+     * Checks if an instance of the specified {@link AtmosphereInterceptor} implementation exists in the
+     * {@link #interceptors}.
+     * </p>
+     *
+     * @param c the implementation
+     * @return {@code true} if an instance of the same interceptor's class already exists in  {@link #interceptors}, {@code false} otherwise
+     */
+    private boolean checkDuplicate(final AtmosphereInterceptor c) {
+        return checkDuplicate(interceptors, c.getClass());
+    }
+
+    /**
+     * <p>
+     * Checks in the specified list if there is at least one instance of the given
+     * {@link AtmosphereInterceptor interceptor} implementation class.
+     * </p>
+     *
+     * @param interceptorList the interceptors
+     * @param c the interceptor class
+     * @return {@code true} if an instance of the class already exists in the list, {@code false} otherwise
+     */
+    private boolean checkDuplicate(final List<AtmosphereInterceptor> interceptorList, Class<? extends AtmosphereInterceptor> c) {
+        for (final AtmosphereInterceptor i : interceptorList) {
+            if (i.getClass().equals(c))
                 return false;
         }
         return true;

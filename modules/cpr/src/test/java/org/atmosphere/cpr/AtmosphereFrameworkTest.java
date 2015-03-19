@@ -21,15 +21,60 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequestWrapper;
+import java.io.IOException;
 import java.util.Collection;
 import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 
 public class AtmosphereFrameworkTest {
+
+    /**
+     * <p>
+     * Test interceptor installation through meta service file declaration.
+     * </p>
+     *
+     * @throws Exception if test fails
+     */
+    @Test
+    public void testInterceptorInstalledByMetaService() throws Exception {
+        final AtmosphereFramework framework = new AtmosphereFramework();
+        framework.addAtmosphereHandler("/*", mock(AtmosphereHandler.class));
+
+        // Where the file describing the interceptor to install is stored
+        framework.metaServicePath = "META-INF/test-services/";
+        framework.init();
+        final AsynchronousProcessor processor = new AsynchronousProcessor(framework.getAtmosphereConfig()) {
+            @Override
+            public org.atmosphere.cpr.Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                return action(req, res);
+            }
+        };
+
+        framework.setAsyncSupport(processor);
+        final AtomicReference<Object> value = new AtomicReference<Object>();
+
+        // Intercepts interceptor call
+        final AtmosphereRequest r = new AtmosphereRequest.Builder().request(new HttpServletRequestWrapper(new AtmosphereRequest.NoOpsRequest()) {
+            @Override
+            public void setAttribute(String name, Object o) {
+                if (MyInterceptor.class.getName().equals(name)) {
+                    value.set(o);
+                }
+                super.setAttribute(name, o);
+            }
+        }).build();
+        processor.action(r, AtmosphereResponse.newInstance());
+        assertNotNull(value.get());
+
+        // The interceptor must be installed and called one time.
+        assertEquals(1, value.get());
+    }
 
     @Test
     public void testBroadcasterFactory() throws Exception {
@@ -43,7 +88,6 @@ public class AtmosphereFrameworkTest {
         AtmosphereFramework f = new AtmosphereFramework();
         f.init();
         assertNotNull(ServletContextFactory.getDefault().getServletContext());
-
     }
 
     @Test
@@ -144,7 +188,36 @@ public class AtmosphereFrameworkTest {
 
     }
 
-    public final static class MyBroadcasterFactory implements BroadcasterFactory {
+    /**
+     * An interceptor for {@link #testInterceptorInstalledByMetaService()}.
+     */
+    public static final class MyInterceptor implements AtmosphereInterceptor {
+
+        /**
+         * Counts number of calls.
+         */
+        private int call;
+
+        @Override
+        public Action inspect(final AtmosphereResource r) {
+            r.getRequest().setAttribute(MyInterceptor.class.getName(), ++call);
+            return Action.CONTINUE;
+        }
+
+        @Override
+        public void postInspect(final AtmosphereResource r) {
+        }
+
+        @Override
+        public void destroy() {
+        }
+
+        @Override
+        public void configure(final AtmosphereConfig config) {
+        }
+    }
+
+    public static final class MyBroadcasterFactory implements BroadcasterFactory {
 
         @Override
         public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
