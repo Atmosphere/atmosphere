@@ -122,8 +122,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         boolean polling = Utils.pollableTransport(resource.transport());
         boolean webSocketMessage = Utils.webSocketMessage(resource);
 
-        if (!webSocketMessage) {
-            if (onReadyMethod != null && !polling) {
+        if (!webSocketMessage && !polling) {
+            if (onReadyMethod != null ) {
                 resource.addEventListener(new OnSuspend() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
@@ -133,7 +133,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 });
             }
 
-            if (onResumeMethod != null && !polling) {
+            if (onResumeMethod != null) {
                 resource.addEventListener(new OnResume() {
                     @Override
                     public void onResume(AtmosphereResourceEvent event) {
