@@ -315,8 +315,18 @@ public class AtmosphereFramework {
 
         @Override
         public String toString() {
-            return "AtmosphereHandlerWrapper{ atmosphereHandler=" + atmosphereHandler + ", broadcaster=" +
-                    broadcaster + " }";
+
+            StringBuilder b = new StringBuilder();
+            for (int i =0; i < interceptors.size(); i++) {
+                b.append("\n\t").append(i).append(": ").append(interceptors.get(i).getClass().getName());
+            }
+
+            return "\n atmosphereHandler"
+                    + "\n\t" + atmosphereHandler
+                    + "\n interceptors" +
+                    b.toString()
+                    + "\n broadcaster"
+                    + "\t" + broadcaster;
         }
     }
 
@@ -1078,6 +1088,13 @@ public class AtmosphereFramework {
 
         logger.info("\n\n\tFor Atmosphere Framework Commercial Support, visit \n\t{} " +
                 "or send an email to {}\n", "http://www.async-io.org/", "support@async-io.org");
+
+        if (logger.isTraceEnabled()) {
+            for (Entry<String, AtmosphereHandlerWrapper> e : atmosphereHandlers.entrySet()) {
+                logger.trace("\nConfigured AtmosphereHandler {}\n", e.getKey());
+                logger.trace("{}", e.getValue());
+            }
+        }
 
         Universe.broadcasterFactory(broadcasterFactory);
     }
