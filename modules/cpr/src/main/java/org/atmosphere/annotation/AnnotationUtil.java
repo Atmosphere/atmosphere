@@ -37,7 +37,7 @@ public class AnnotationUtil {
 
     public static final Logger logger = LoggerFactory.getLogger(AnnotationUtil.class);
 
-    private static final List<Class<? extends AtmosphereInterceptor>> mangedDefaultInterceptors = new LinkedList<Class<? extends AtmosphereInterceptor>>() {
+    private static final List<Class<? extends AtmosphereInterceptor>> MANAGED_ATMOSPHERE_INTERCEPTORS = new LinkedList<Class<? extends AtmosphereInterceptor>>() {
         {
             add(AtmosphereResourceLifecycleInterceptor.class);
             add(TrackMessageSizeInterceptor.class);
@@ -71,7 +71,7 @@ public class AnnotationUtil {
     }
 
     public static void defaultInterceptors(AtmosphereFramework framework, List<AtmosphereInterceptor> l) {
-        interceptors(framework, mangedDefaultInterceptors, l, false);
+        interceptors(framework, MANAGED_ATMOSPHERE_INTERCEPTORS, l, false);
     }
 
     public static void interceptors(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
@@ -93,7 +93,7 @@ public class AnnotationUtil {
     }
 
     public static boolean checkDefault(Class<? extends AtmosphereInterceptor> i) {
-        return !mangedDefaultInterceptors.contains(i) && !AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(i);
+        return !MANAGED_ATMOSPHERE_INTERCEPTORS.contains(i) && !AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(i);
     }
 
     public static AtmosphereInterceptor listeners(final Class<? extends AtmosphereResourceEventListener>[] listeners, final AtmosphereFramework framework) {
