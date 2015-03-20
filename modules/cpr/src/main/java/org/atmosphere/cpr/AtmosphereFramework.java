@@ -2616,10 +2616,10 @@ public class AtmosphereFramework {
 
             //need insert this new interceptor into all the existing handlers
             for (AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values()) {
-                if (!checkDuplicate(wrapper.interceptors, c.getClass())) {
+//                if (!checkDuplicate(wrapper.interceptors, c.getClass())) {
                     wrapper.interceptors.add(c);
                     Collections.sort(wrapper.interceptors, new InterceptorComparator());
-                }
+//                }
             }
         }
         return this;
