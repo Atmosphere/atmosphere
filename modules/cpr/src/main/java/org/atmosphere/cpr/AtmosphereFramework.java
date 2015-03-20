@@ -292,7 +292,7 @@ public class AtmosphereFramework {
         public final AtmosphereHandler atmosphereHandler;
         public Broadcaster broadcaster;
         public String mapping;
-        public LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
+        public final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
         public boolean create;
 
         public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, AtmosphereHandler atmosphereHandler, String mapping) {
@@ -317,7 +317,7 @@ public class AtmosphereFramework {
         public String toString() {
 
             StringBuilder b = new StringBuilder();
-            for (int i =0; i < interceptors.size(); i++) {
+            for (int i = 0; i < interceptors.size(); i++) {
                 b.append("\n\t").append(i).append(": ").append(interceptors.get(i).getClass().getName());
             }
 
@@ -571,15 +571,9 @@ public class AtmosphereFramework {
         if (!mapping.startsWith("/")) {
             mapping = "/" + mapping;
         }
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
-        w.interceptors = LinkedList.class.isAssignableFrom(l.getClass()) ? LinkedList.class.cast(l) : new LinkedList<AtmosphereInterceptor>(l);
-        addMapping(mapping, w);
+        createWrapperAndConfigureHandler(h, mapping, l);
 
-        initServletProcessor(h);
-
-        if (isInit) {
-            initHandlerInterceptors(w.interceptors);
-        } else {
+        if (!isInit) {
             logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
             logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
             if (l.size() > 0) {
@@ -589,6 +583,68 @@ public class AtmosphereFramework {
             }
         }
         return this;
+    }
+
+    /**
+     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
+     * This API is exposed to allow embedding an Atmosphere application.
+     *
+     * @param mapping     The servlet mapping (servlet path)
+     * @param h           implementation of an {@link AtmosphereHandler}
+     * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler
+     * @param l           A list of {@link AtmosphereInterceptor}s
+     */
+    public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster, List<AtmosphereInterceptor> l) {
+        if (!mapping.startsWith("/")) {
+            mapping = "/" + mapping;
+        }
+
+        createWrapperAndConfigureHandler(h, mapping, l).broadcaster = broadcaster;
+
+        if (!isInit) {
+            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
+                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+        } else {
+            logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
+                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+        }
+
+        if (l.size() > 0) {
+            logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
+        }
+        return this;
+    }
+
+
+    /**
+     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
+     * This API is exposed to allow embedding an Atmosphere application.
+     *
+     * @param mapping       The servlet mapping (servlet path)
+     * @param h             implementation of an {@link AtmosphereHandler}
+     * @param broadcasterId The {@link Broadcaster#getID} value.
+     * @param l             A list of {@link AtmosphereInterceptor}
+     */
+    public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, String broadcasterId, List<AtmosphereInterceptor> l) {
+        if (!mapping.startsWith("/")) {
+            mapping = "/" + mapping;
+        }
+
+        createWrapperAndConfigureHandler(h, mapping, l).broadcaster.setID(broadcasterId);
+
+        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
+        if (l.size() > 0) {
+            logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
+        }
+        return this;
+    }
+
+    protected AtmosphereHandlerWrapper createWrapperAndConfigureHandler(AtmosphereHandler h, String mapping, List<AtmosphereInterceptor> l) {
+        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
+        addMapping(mapping, w);
+        addInterceptorToWrapper(w, l);
+        initServletProcessor(h);
+        return w;
     }
 
     /**
@@ -617,33 +673,6 @@ public class AtmosphereFramework {
         return this;
     }
 
-    /**
-     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
-     * This API is exposed to allow embedding an Atmosphere application.
-     *
-     * @param mapping       The servlet mapping (servlet path)
-     * @param h             implementation of an {@link AtmosphereHandler}
-     * @param broadcasterId The {@link Broadcaster#getID} value.
-     * @param l             An attay of {@link AtmosphereInterceptor}
-     */
-    public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, String broadcasterId, List<AtmosphereInterceptor> l) {
-        if (!mapping.startsWith("/")) {
-            mapping = "/" + mapping;
-        }
-
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
-        w.broadcaster.setID(broadcasterId);
-        w.interceptors = LinkedList.class.isAssignableFrom(l.getClass()) ? LinkedList.class.cast(l) : new LinkedList<AtmosphereInterceptor>(l);
-
-        initServletProcessor(h);
-
-        addMapping(mapping, w);
-        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
-        if (l.size() > 0) {
-            logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
-        }
-        return this;
-    }
 
     /**
      * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
@@ -668,39 +697,6 @@ public class AtmosphereFramework {
         } catch (ServletException e) {
             throw new RuntimeException(e);
         }
-    }
-
-    /**
-     * Add an {@link AtmosphereHandler} serviced by the {@link Servlet}.
-     * This API is exposed to allow embedding an Atmosphere application.
-     *
-     * @param mapping     The servlet mapping (servlet path)
-     * @param h           implementation of an {@link AtmosphereHandler}
-     * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler
-     * @param l           A list of {@link AtmosphereInterceptor}s
-     */
-    public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster, List<AtmosphereInterceptor> l) {
-        if (!mapping.startsWith("/")) {
-            mapping = "/" + mapping;
-        }
-
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(h, broadcaster);
-        w.interceptors = LinkedList.class.isAssignableFrom(l.getClass()) ? LinkedList.class.cast(l) : new LinkedList<AtmosphereInterceptor>(l);
-
-        addMapping(mapping, w);
-        initServletProcessor(h);
-        if (!isInit) {
-            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
-                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
-        } else {
-            logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
-                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
-        }
-
-        if (l.size() > 0) {
-            logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
-        }
-        return this;
     }
 
     /**
@@ -1203,13 +1199,6 @@ public class AtmosphereFramework {
         if (s == null || !"true".equalsIgnoreCase(s)) {
             logger.info("Installing Default AtmosphereInterceptors");
 
-            // We must reposition
-            LinkedList<AtmosphereInterceptor> copy = null;
-            if (!interceptors.isEmpty()) {
-                copy = new LinkedList<AtmosphereInterceptor>(interceptors);
-                interceptors.clear();
-            }
-
             for (Class<? extends AtmosphereInterceptor> a : DEFAULT_ATMOSPHERE_INTERCEPTORS) {
                 if (!excludedInterceptors.contains(a.getName())) {
                     interceptors.add(newAInterceptor(a));
@@ -1217,16 +1206,9 @@ public class AtmosphereFramework {
                     logger.info("Dropping Interceptor {}", a.getName());
                 }
             }
-
-            if (copy != null) {
-                for (AtmosphereInterceptor i : copy) {
-                    interceptor(i);
-                }
-            }
-
             logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
         }
-        initInterceptors();
+        addDefaultOrAppInterceptors();
     }
 
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
@@ -1239,12 +1221,6 @@ public class AtmosphereFramework {
             logger.warn("", ex);
         }
         return ai;
-    }
-
-    protected void initGlobalInterceptors() {
-        for (AtmosphereInterceptor i : interceptors) {
-            i.configure(config);
-        }
     }
 
     private static class InterceptorComparator implements Comparator<AtmosphereInterceptor> {
@@ -1298,30 +1274,6 @@ public class AtmosphereFramework {
             }
 
             return orderResult;
-        }
-    }
-
-    public void initHandlerInterceptors(LinkedList<AtmosphereInterceptor> l) {
-        if (l != null) {
-            for (AtmosphereInterceptor c : l) {
-                c.configure(config);
-            }
-
-            for (final AtmosphereInterceptor i : interceptors) {
-                if (checkDuplicate(l, i.getClass())) {
-                    l.add(i);
-                }
-            }
-
-            Collections.sort(l, new InterceptorComparator());
-        }
-    }
-
-    protected void initInterceptors() {
-        initGlobalInterceptors();
-
-        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
-            initHandlerInterceptors(w.interceptors);
         }
     }
 
@@ -2012,7 +1964,8 @@ public class AtmosphereFramework {
                             }
                         }
                     }
-                    wrapper.interceptors = l;
+                    addInterceptorToWrapper(wrapper, l);
+
                     if (l.size() > 0) {
                         logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, atmoHandler.getClassName());
                     }
@@ -2600,65 +2553,46 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
-        boolean found = false;
-        for (AtmosphereInterceptor interceptor : interceptors) {
-            if (interceptor.getClass().equals(c.getClass())) {
-                found = true;
-                break;
-            }
-        }
-
-        if (isInit) {
-            c.configure(config);
-        }
-
-        if (!found) {
-            InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(c.getClass()) ? InvokationOrder.class.cast(c).priority() : InvokationOrder.AFTER_DEFAULT;
-            positionInterceptor(p, c, interceptors);
-
-            logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
-
-            //need insert this new interceptor into all the existing handlers
-            for (AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values()) {
-                if (checkDuplicate(wrapper.interceptors, c.getClass())) {
-                    wrapper.interceptors.add(c);
-                    Collections.sort(wrapper.interceptors, new InterceptorComparator());
-                }
-            }
+        if (!checkDuplicate(c)) {
+            interceptors.add(c);
+            addInterceptorToAllWrappers(c);
         }
         return this;
     }
 
-    protected void positionInterceptor(InvokationOrder.PRIORITY p, AtmosphereInterceptor c, LinkedList<AtmosphereInterceptor> interceptors) {
-        switch (p) {
-            case AFTER_DEFAULT:
+    protected void addDefaultOrAppInterceptors() {
+        for (AtmosphereInterceptor c : interceptors) {
+            addInterceptorToAllWrappers(c);
+        }
+    }
 
-                interceptors.remove(c);
-                if (!checkDuplicate(c)) return;
+    protected void addInterceptorToAllWrappers(AtmosphereInterceptor c) {
+        c.configure(config);
+        InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(c.getClass()) ? InvokationOrder.class.cast(c).priority() : InvokationOrder.AFTER_DEFAULT;
 
-                interceptors.addLast(c);
-                break;
-            case BEFORE_DEFAULT:
+        logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
+        //need insert this new interceptor into all the existing handlers
+        for (AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values()) {
+            addInterceptorToWrapper(wrapper, c);
+        }
+    }
 
-                interceptors.remove(c);
-                if (!checkDuplicate(c)) return;
+    protected void addInterceptorToWrapper(AtmosphereHandlerWrapper wrapper, AtmosphereInterceptor c) {
+        if (!checkDuplicate(wrapper.interceptors, c.getClass())) {
+            wrapper.interceptors.add(c);
+            Collections.sort(wrapper.interceptors, new InterceptorComparator());
+        }
+    }
 
-                int pos = executeFirstSet ? 1 : 0;
-                this.interceptors.add(pos, c);
-                break;
-            case FIRST_BEFORE_DEFAULT:
-                if (executeFirstSet) {
-                    logger.warn("More than one AtmosphereInterceptor are defined to execute before the defaults. {} will be added before {}", c, interceptors.get(0));
-                }
+    protected void addInterceptorToWrapper(AtmosphereHandlerWrapper wrapper, List<AtmosphereInterceptor> interceptors) {
 
-                interceptors.remove(c);
+        for (AtmosphereInterceptor c: this.interceptors) {
+            addInterceptorToWrapper(wrapper, c);
+        }
 
-                if (!checkDuplicate(c)) return;
-
-                logger.info("AtmosphereInterceptor {} will always be executed first", c);
-                interceptors.addFirst(c);
-                executeFirstSet = true;
-                break;
+        for (AtmosphereInterceptor c : interceptors) {
+            addInterceptorToWrapper(wrapper, c);
+            c.configure(config);
         }
     }
 
@@ -2682,16 +2616,16 @@ public class AtmosphereFramework {
      * </p>
      *
      * @param interceptorList the interceptors
-     * @param c the interceptor class
+     * @param c               the interceptor class
      * @return {@code false} if an instance of the class already exists in the list, {@code true} otherwise
      */
     private boolean checkDuplicate(final List<AtmosphereInterceptor> interceptorList, Class<? extends AtmosphereInterceptor> c) {
         for (final AtmosphereInterceptor i : interceptorList) {
             if (i.getClass().equals(c)) {
-                return false;
+                return true;
             }
         }
-        return true;
+        return false;
     }
 
     /**

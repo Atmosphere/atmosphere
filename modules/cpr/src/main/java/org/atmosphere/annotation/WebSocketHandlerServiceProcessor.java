@@ -66,7 +66,9 @@ public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHand
             framework.getAtmosphereConfig().startupHook(new AtmosphereConfig.StartupHook() {
                 @Override
                 public void started(AtmosphereFramework framework) {
-                    framework.initHandlerInterceptors(l);
+                    for (AtmosphereInterceptor c: l) {
+                        framework.interceptor(c);
+                    }
                 }
             });
         } catch (Throwable e) {
