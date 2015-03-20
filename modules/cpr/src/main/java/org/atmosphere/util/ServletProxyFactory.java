@@ -41,7 +41,7 @@ public class ServletProxyFactory {
                 .addMethodHandler("getServerInfo", new MethodHandler(){
                     @Override
                     public Object handle(Object clazz, Method method, Object[] methodObjects) {
-                        return "Undefined";
+                        return "Undefined/0.0";
                     }
                 })
                 .addMethodHandler("getMajorVersion", new MethodHandler() {
