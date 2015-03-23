@@ -55,7 +55,6 @@ public class ExecutorsFactory {
     public static ExecutorService getMessageDispatcher(final AtmosphereConfig config, final String name) {
         final boolean shared = config.framework().isShareExecutorServices();
 
-        boolean isExecutorShared = shared ? true : false;
         if (!shared || config.properties().get(BROADCASTER_THREAD_POOL) == null) {
             int numberOfMessageProcessingThread = DEFAULT_MESSAGE_THREAD;
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
@@ -63,7 +62,7 @@ public class ExecutorsFactory {
                 numberOfMessageProcessingThread = Integer.parseInt(s);
             }
 
-            if (isExecutorShared && numberOfMessageProcessingThread == 1) {
+            if (shared && numberOfMessageProcessingThread == 1) {
                 logger.warn("Not enough numberOfMessageProcessingThread for a shareable thread pool {}, " +
                         "Setting it to a newCachedThreadPool", numberOfMessageProcessingThread);
                 numberOfMessageProcessingThread = -1;
@@ -128,7 +127,6 @@ public class ExecutorsFactory {
     public static ExecutorService getAsyncOperationExecutor(final AtmosphereConfig config, final String name) {
         final boolean shared = config.framework().isShareExecutorServices();
 
-        boolean isAsyncExecutorShared = shared ? true : false;
         if (!shared || config.properties().get(ASYNC_WRITE_THREAD_POOL) == null) {
             int numberOfAsyncThread = DEFAULT_ASYNC_THREAD;
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
@@ -136,7 +134,7 @@ public class ExecutorsFactory {
                 numberOfAsyncThread = Integer.parseInt(s);
             }
 
-            if (isAsyncExecutorShared && numberOfAsyncThread == 1) {
+            if (shared && numberOfAsyncThread == 1) {
                 logger.warn("Not enough numberOfAsyncThread for a shareable thread pool {}, " +
                         "Setting it to a newCachedThreadPool", numberOfAsyncThread);
                 numberOfAsyncThread = -1;
