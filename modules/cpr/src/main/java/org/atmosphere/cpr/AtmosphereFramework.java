@@ -926,7 +926,9 @@ public class AtmosphereFramework {
                 }
             });
 
-            info();
+            if (logger.isInfoEnabled()) {
+                info();
+            }
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
