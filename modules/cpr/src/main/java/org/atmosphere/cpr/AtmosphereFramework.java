@@ -1041,9 +1041,8 @@ public class AtmosphereFramework {
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
 
-        BroadcasterConfig bc = broadcasterFactory.lookup(Broadcaster.ROOT_MASTER, true).getBroadcasterConfig();
-        if (bc.getExecutorService() != null) {
-            ExecutorService executorService = bc.getExecutorService();
+        ExecutorService executorService = ExecutorsFactory.getMessageDispatcher(config, Broadcaster.ROOT_MASTER);
+        if (executorService != null) {
             if (ThreadPoolExecutor.class.isAssignableFrom(executorService.getClass())) {
                 long max = ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize();
                 logger.info("Messaging Thread Pool Size: {}",
@@ -1053,11 +1052,11 @@ public class AtmosphereFramework {
             }
         }
 
-        if (bc.getAsyncWriteService() != null) {
-            ExecutorService asyncWriteService = bc.getAsyncWriteService();
-            if (ThreadPoolExecutor.class.isAssignableFrom(asyncWriteService.getClass())) {
+        executorService = ExecutorsFactory.getAsyncOperationExecutor(config, Broadcaster.ROOT_MASTER);
+        if (executorService != null) {
+            if (ThreadPoolExecutor.class.isAssignableFrom(executorService.getClass())) {
                 logger.info("Async I/O Thread Pool Size: {}",
-                        ThreadPoolExecutor.class.cast(asyncWriteService).getMaximumPoolSize());
+                        ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize());
             } else {
                 logger.info("Async I/O ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
             }
