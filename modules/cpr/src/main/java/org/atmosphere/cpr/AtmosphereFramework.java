@@ -925,8 +925,9 @@ public class AtmosphereFramework {
                     AtmosphereFramework.this.destroy();
                 }
             });
-
-            info();
+            if (logger.isInfoEnabled()) {
+            	info();
+            }
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
@@ -1041,27 +1042,30 @@ public class AtmosphereFramework {
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
 
-        BroadcasterConfig bc = broadcasterFactory.lookup(Broadcaster.ROOT_MASTER, true).getBroadcasterConfig();
-        if (bc.getExecutorService() != null) {
-            ExecutorService executorService = bc.getExecutorService();
-            if (ThreadPoolExecutor.class.isAssignableFrom(executorService.getClass())) {
-                long max = ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize();
-                logger.info("Messaging Thread Pool Size: {}",
-                        ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize() == 2147483647 ? "Unlimited" : max);
-            } else {
-                logger.info("Messaging ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
+        Iterator<Broadcaster> bcIter = broadcasterFactory.lookupAll().iterator();
+        if (bcIter.hasNext()) {
+        	BroadcasterConfig bc = bcIter.next().getBroadcasterConfig();
+            if (bc.getExecutorService() != null) {
+                ExecutorService executorService = bc.getExecutorService();
+                if (ThreadPoolExecutor.class.isAssignableFrom(executorService.getClass())) {
+                    long max = ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize();
+                    logger.info("Messaging Thread Pool Size: {}",
+                            ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize() == 2147483647 ? "Unlimited" : max);
+                } else {
+                    logger.info("Messaging ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
+                }
+            }
+            if (bc.getAsyncWriteService() != null) {
+                ExecutorService asyncWriteService = bc.getAsyncWriteService();
+                if (ThreadPoolExecutor.class.isAssignableFrom(asyncWriteService.getClass())) {
+                    logger.info("Async I/O Thread Pool Size: {}",
+                            ThreadPoolExecutor.class.cast(asyncWriteService).getMaximumPoolSize());
+                } else {
+                    logger.info("Async I/O ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
+                }
             }
         }
 
-        if (bc.getAsyncWriteService() != null) {
-            ExecutorService asyncWriteService = bc.getAsyncWriteService();
-            if (ThreadPoolExecutor.class.isAssignableFrom(asyncWriteService.getClass())) {
-                logger.info("Async I/O Thread Pool Size: {}",
-                        ThreadPoolExecutor.class.cast(asyncWriteService).getMaximumPoolSize());
-            } else {
-                logger.info("Async I/O ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
-            }
-        }
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
         logger.info("Using AtmosphereResurceFactory: {}", arFactory.getClass().getName());
         logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
