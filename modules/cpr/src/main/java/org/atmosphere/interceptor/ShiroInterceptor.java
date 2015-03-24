@@ -44,7 +44,7 @@ public class ShiroInterceptor extends AtmosphereInterceptorAdapter {
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
-        if (r.getRequest().attributes().containsKey(FrameworkConfig.SECURITY_SUBJECT) == false) {
+        if (r.getRequest().localAttributes().containsKey(FrameworkConfig.SECURITY_SUBJECT) == false) {
             try {
                 Subject currentUser = null;
                 if (r.transport().equals(TRANSPORT.WEBSOCKET)) {

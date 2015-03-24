@@ -753,7 +753,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     /**
      * Return the locally added attributes.
      *
-     * @return
+     * @deprecated Use {@link #localAttributes()}
+     * @return the locally added attributes
      */
     public Map<String, Object> attributes() {
         return b.localAttributes;
