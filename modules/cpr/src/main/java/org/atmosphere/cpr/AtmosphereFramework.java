@@ -1754,7 +1754,7 @@ public class AtmosphereFramework {
     protected void closeAtmosphereResource() {
         for (AtmosphereResource r : config.resourcesFactory().findAll()) {
             try {
-                r.close();
+                r.resume().close();
             } catch (IOException e) {
                 logger.trace("", e);
             }
