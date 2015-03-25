@@ -61,6 +61,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private AtmosphereResponse response;
     private final Action action = new Action();
     protected final List<Broadcaster> broadcasters = new CopyOnWriteArrayList<Broadcaster>();
+    protected Broadcaster broadcaster;
     private AtmosphereConfig config;
     protected AsyncSupport asyncSupport;
     private Serializer serializer;
@@ -120,7 +121,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
-        broadcasters.add(broadcaster);
+        this.broadcaster = broadcaster;
+        uniqueBroadcaster(broadcaster);
 
         String s = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
         if (s == null) {
@@ -389,7 +391,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 skipCreation = true;
             }
 
-            Broadcaster broadcaster = broadcasters.get(0);
+            Broadcaster broadcaster = getBroadcaster();
 
             // Null means SCOPE=REQUEST set by a Meteor
             if (!skipCreation && (broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
@@ -451,7 +453,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     protected Broadcaster getBroadcaster(boolean autoCreate) {
-        Broadcaster broadcaster = broadcasters.size() == 0 ? null : broadcasters.get(0);
         if (broadcaster == null) {
             throw new IllegalStateException("No Broadcaster associated with this AtmosphereResource.");
         }
@@ -480,33 +481,37 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     @Override
-    public AtmosphereResourceImpl setBroadcaster(Broadcaster broadcaster) {
-        // For legacy
-        if (broadcasters.size() == 0) {
-            broadcasters.add(broadcaster);
-        } else {
-            broadcasters.set(0, broadcaster);
-        }
-        return this;
+    public AtmosphereResource setBroadcaster(Broadcaster broadcaster) {
+        this.broadcaster = broadcaster;
+        return uniqueBroadcaster(broadcaster);
     }
 
     @Override
     public AtmosphereResource addBroadcaster(Broadcaster broadcaster) {
-        broadcasters.add(broadcaster);
-        return this;
+        return uniqueBroadcaster(broadcaster);
     }
 
     @Override
     public AtmosphereResource removeBroadcaster(Broadcaster broadcaster) {
-        /**
-         * For legacy reason, never remove the last Broadcaster to prevent side effect.
-         * This must be revisited in Atmosphere 3.0
-         */
-        if (broadcasters.size() > 1) {
-            broadcasters.remove(broadcaster);
-        }
+        broadcasters.remove(broadcaster);
         return this;
     }
+
+    protected AtmosphereResource uniqueBroadcaster(Broadcaster newB) {
+        if (newB == null) {
+            return this;
+        }
+        // TODO: performance bottleneck
+        for (Broadcaster b: broadcasters) {
+            if (b.getID() != null && b.getID().equalsIgnoreCase(newB.getID())) {
+                logger.trace("Duplicate Broadcaster {}", newB);
+                return this;
+            }
+        }
+        broadcasters.add(newB);
+        return this;
+    }
+
 
     @Override
     public AtmosphereConfig getAtmosphereConfig() {
@@ -679,8 +684,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     @Override
-    public AtmosphereResource removeFromAllBroadcasters(){
-        for (Broadcaster b: broadcasters) {
+    public AtmosphereResource removeFromAllBroadcasters() {
+        for (Broadcaster b : broadcasters) {
             try {
                 b.removeAtmosphereResource(this);
             } catch (Exception ex) {
@@ -757,7 +762,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             }
         }
 
-        if(e.getResource() != null) {
+        if (e.getResource() != null) {
             config.framework().notifyDestroyed(e.getResource().uuid());
         }
     }
@@ -841,15 +846,11 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public void _destroy() {
         try {
-            // TODO: Remove with Atmosphere 3
-            // Legacy https://github.com/Atmosphere/atmosphere/issues/1885
-            Broadcaster b = getBroadcaster();
             if (!isCancelled.get()) {
                 removeFromAllBroadcasters();
             }
             broadcasters.clear();
 
-            broadcasters.add(b);
             unregister();
             removeEventListeners();
         } catch (Throwable t) {
@@ -1013,7 +1014,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return uuid != null ? uuid.hashCode() : 0;
     }
 
-    public boolean getAndSetInClosingPhase(){
+    public boolean getAndSetInClosingPhase() {
         return inClosingPhase.getAndSet(true);
     }
 }
