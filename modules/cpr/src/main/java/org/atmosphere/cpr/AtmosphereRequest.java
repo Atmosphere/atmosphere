@@ -91,6 +91,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (b.request == null) b.request(new NoOpsRequest());
 
         this.b = b;
+        this.uuid = resource() !=  null ? resource().uuid() : "0";
     }
 
     private BufferedReader getVoidReader() {
@@ -1091,6 +1092,19 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         } else {
             return b.contentLength.intValue();
         }
+    }
+
+    /**
+     * Return the underlying {@link AtmosphereResource#uuid()}. May return "0" if no {@link org.atmosphere.cpr.AtmosphereResource}
+     * is associated with this object.
+     *
+     * @return the underlying {@link AtmosphereResource#uuid()}
+     */
+    public String uuid() {
+        if  (uuid == "0") {
+            this.uuid = resource() !=  null ? resource().uuid() : "0";
+        }
+        return uuid;
     }
 
     public void destroy() {
