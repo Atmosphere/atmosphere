@@ -34,7 +34,6 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
-import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -63,7 +62,6 @@ public class PathTest {
     @BeforeMethod
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
-        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
         framework.addAnnotationPackage(AtmosphereHandlerPath.class);
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
 
@@ -425,7 +423,7 @@ public class PathTest {
         assertEquals(r.get(), "/singleton/ws/bar");
     }
 
-    @ManagedService(path = "/pathVar/{a}/pathTest/{b}", broadcaster = SimpleBroadcaster.class)
+    @ManagedService(path = "/pathVar/{a}/pathTest/{b}")
     public final static class PathVar {
 
 
