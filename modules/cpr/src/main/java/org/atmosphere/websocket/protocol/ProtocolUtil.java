@@ -15,38 +15,47 @@
  */
 package org.atmosphere.websocket.protocol;
 
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.FrameworkConfig;
+
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.FrameworkConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 public class ProtocolUtil {
-	private final static Logger logger = LoggerFactory.getLogger(ProtocolUtil.class);
 
-	protected static AtmosphereRequest.Builder constructRequest(AtmosphereResource resource, String pathInfo, String requestURI,
-			String methodType, String contentType, boolean destroyable) {
-		AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
-		Map<String, Object> m = attributes(request);
+    protected static AtmosphereRequest.Builder constructRequest(AtmosphereResource resource,
+                                                                String pathInfo,
+                                                                String requestURI,
+                                                                String methodType,
+                                                                String contentType,
+                                                                boolean destroyable) {
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
+        Map<String, Object> m = attributes(request);
 
-		// We need to create a new AtmosphereRequest as WebSocket message may
-		// arrive concurrently on the same connection.
-		AtmosphereRequest.Builder b = (new AtmosphereRequest.Builder().request(request).method(methodType)
-				.contentType(contentType == null ? request.getContentType() : contentType).attributes(m).pathInfo(pathInfo)
-				.contextPath(request.getContextPath()).servletPath(request.getServletPath()).requestURI(requestURI)
-				.requestURL(request.requestURL()).destroyable(destroyable).headers(request.headersMap()).session(resource.session()));
-		return b;
-	}
+        // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
+        AtmosphereRequest.Builder b = (new AtmosphereRequest.Builder()
+                .request(request)
+                .method(methodType)
+                .contentType(contentType == null ? request.getContentType() : contentType)
+                .attributes(m)
+                .pathInfo(pathInfo)
+                .contextPath(request.getContextPath())
+                .servletPath(request.getServletPath())
+                .requestURI(requestURI)
+                .requestURL(request.requestURL())
+                .destroyable(destroyable)
+                .headers(request.headersMap())
+                .session(resource.session()));
+        return b;
+    }
 
-	private static Map<String, Object> attributes(AtmosphereRequest request) {
-		Map<String, Object> m = new ConcurrentHashMap<String, Object>();
-		m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
+    private static Map<String, Object> attributes(AtmosphereRequest request) {
+        Map<String, Object> m = new ConcurrentHashMap<String, Object>();
+        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 		Map<String, Object> LocalAttributes = request.localAttributes();
 		Set<Entry<String, Object>> entrySet = LocalAttributes.entrySet();
 		synchronized (LocalAttributes) {
@@ -56,6 +65,7 @@ public class ProtocolUtil {
 				}
 			}
 		}
-		return m;
-	}
+        
+        return m;
+    }
 }
