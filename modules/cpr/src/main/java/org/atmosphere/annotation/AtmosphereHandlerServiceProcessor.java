@@ -25,8 +25,8 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
@@ -75,6 +75,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
                 IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
             }
 
+            AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(a.interceptors()), l);
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
         } catch (Throwable e) {
