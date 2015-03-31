@@ -63,7 +63,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     protected ByteBuffer bb = ByteBuffer.allocate(8192);
     protected CharBuffer cb = CharBuffer.allocate(8192);
     protected String uuid = "NUll";
-    protected final AtomicBoolean openProcessed = new AtomicBoolean();
     protected final CountDownLatch openLatch = new CountDownLatch(1);
     protected final int timeForExecutingOpenInSeconds;
 
@@ -344,7 +343,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     protected WebSocket markAsOpenProcessed(){
-        openProcessed.set(false);
         openLatch.countDown();
         return this;
     }
