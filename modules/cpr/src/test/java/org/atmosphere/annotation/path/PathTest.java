@@ -24,8 +24,10 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
@@ -367,8 +369,34 @@ public class PathTest {
 
     }
 
+    public final static class MyInterceptor implements AtmosphereInterceptor {
+
+        private static int invokationCount = 0;
+
+        @Override
+        public Action inspect(AtmosphereResource r) {
+            invokationCount++;
+            return Action.CONTINUE;
+        }
+
+        @Override
+        public void postInspect(AtmosphereResource r) {
+
+        }
+
+        @Override
+        public void destroy() {
+
+        }
+
+        @Override
+        public void configure(AtmosphereConfig config) {
+
+        }
+    }
+
     @Singleton
-    @WebSocketHandlerService(path = "/singleton/ws/{g}")
+    @WebSocketHandlerService(path = "/singleton/ws/{g}", interceptors = MyInterceptor.class)
     public final static class SingletonWebSocketHandlerPath extends WebSocketHandlerAdapter {
 
         public SingletonWebSocketHandlerPath() {
@@ -393,6 +421,7 @@ public class PathTest {
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         assertEquals(instanceCount, 0);
         assertNotNull(r.get());
+        assertEquals(MyInterceptor.invokationCount, 1);
         assertEquals(r.get(), "/singleton/ws/bar");
     }
 

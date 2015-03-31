@@ -29,7 +29,6 @@ import javax.servlet.ServletException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
-import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutionException;
 
@@ -188,7 +187,7 @@ public class WebSocketHandlerTest {
     private void registerWebSocketHandler(String path, WebSocketHandler w) {
         WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework).registerWebSocketHandler(path,
-                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w, new ArrayList<AtmosphereInterceptor>()));
+                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w));
     }
 
 
