@@ -18,7 +18,6 @@ package org.atmosphere.websocket.protocol;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -57,7 +56,6 @@ public class ProtocolUtil {
 
     private static Map<String, Object> attributes(AtmosphereRequest request) {
         Map<String, Object> m = new ConcurrentHashMap<String, Object>();
-        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
         /***
          * This is quite ugly, but the some server may allow null attribute and that break ConcurrentHashMap
          */

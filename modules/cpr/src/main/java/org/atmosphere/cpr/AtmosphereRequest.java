@@ -1247,7 +1247,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         }
 
         public Builder attributes(Map<String, Object> attributes) {
-            localAttributes = Collections.synchronizedMap(attributes);
+            localAttributes = ConcurrentHashMap.class.isAssignableFrom(attributes.getClass()) ? attributes : Collections.synchronizedMap(attributes);
             return this;
         }
 
