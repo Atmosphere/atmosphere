@@ -71,7 +71,6 @@ import static org.atmosphere.cpr.FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE;
 public class DefaultBroadcaster implements Broadcaster {
     public static final int POLLING_DEFAULT = 100;
     public static final String CACHED = DefaultBroadcaster.class.getName() + ".messagesCached";
-    public static final String ASYNC_TOKEN = DefaultBroadcaster.class.getName() + ".token";
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcaster.class);
     private static final String DESTROYED = "This Broadcaster has been destroyed and cannot be used {} by invoking {}";
@@ -114,6 +113,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected int waitTime = POLLING_DEFAULT;
     private boolean backwardCompatible = false;
     private boolean cacheOnIOFlushException = true;
+    protected final String usingTokenIdForAttribute = UUID.randomUUID().toString();
 
     public DefaultBroadcaster() {
     }
@@ -890,7 +890,7 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 request.setAttribute(getID(), token.future);
                 request.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
-                request.setAttribute(ASYNC_TOKEN, token);
+                request.setAttribute(usingTokenIdForAttribute, token);
 
                 if (willBeResumed && !r.atmosphereResourceEventListener().isEmpty()) {
                     listeners.addAll(r.atmosphereResourceEventListener());
@@ -947,7 +947,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
             try {
                 request.removeAttribute(getID());
-                request.removeAttribute(ASYNC_TOKEN);
+                request.removeAttribute(usingTokenIdForAttribute);
             } catch (NullPointerException ex) {
                 logger.trace("NPE after the message has been written for {}", r.uuid());
             }
@@ -1159,7 +1159,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         if (notifyAndCache) {
-            cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(ASYNC_TOKEN), notifyAndCache);
+            cacheLostMessage(r, (AsyncWriteToken) r.getRequest(false).getAttribute(usingTokenIdForAttribute), notifyAndCache);
         }
 
         /**
@@ -1189,26 +1189,12 @@ public class DefaultBroadcaster implements Broadcaster {
      *
      * @param r {@link AtmosphereResource}
      */
-    public void cacheLostMessage(AtmosphereResource r) {
-        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
-        try {
-            cacheLostMessage(r, (AsyncWriteToken) request.getAttribute(ASYNC_TOKEN));
-        } finally {
-            request.removeAttribute(ASYNC_TOKEN);
-        }
-    }
-
-    /**
-     * Cache the message because an unexpected exception occurred.
-     *
-     * @param r {@link AtmosphereResource}
-     */
     public void cacheLostMessage(AtmosphereResource r, boolean force) {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         try {
-            cacheLostMessage(r, (AsyncWriteToken) request.getAttribute(ASYNC_TOKEN), force);
+            cacheLostMessage(r, (AsyncWriteToken) request.getAttribute(usingTokenIdForAttribute), force);
         } finally {
-            request.removeAttribute(ASYNC_TOKEN);
+            request.removeAttribute(usingTokenIdForAttribute);
         }
     }
 
