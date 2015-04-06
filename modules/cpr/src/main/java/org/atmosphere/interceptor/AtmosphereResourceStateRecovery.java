@@ -282,7 +282,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
                 List<Object> t = cache.retrieveFromCache(b.getID(), r.uuid());
 
-                cachedMessages = b.getBroadcasterConfig().applyFilters(r, t);
+                t = b.getBroadcasterConfig().applyFilters(r, t);
+                if (t.size() > 0) {
+                    logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                    cachedMessages.addAll(t);
+                }
             } else {
                 logger.trace("Broadcaster {} is no longer available for {}", broadcasterID, r);
             }
