@@ -265,6 +265,18 @@ public class IOUtils {
         return servletPath;
     }
 
+    public static String guestRawServletPath(AtmosphereConfig config) {
+        String servletPath = "";
+        try {
+            // TODO: pick up the first one, will fail if there are two
+            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
+        return servletPath;
+    }
+
+
     /**
      * Used to remove trailing slash and wildcard from a servlet path.<br/><br/>
      * Examples :<br/>

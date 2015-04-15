@@ -24,7 +24,6 @@ import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.glassfish.grizzly.http.HttpRequestPacket;
 import org.glassfish.grizzly.websockets.DataFrame;
 import org.glassfish.grizzly.websockets.DefaultWebSocket;
 import org.glassfish.grizzly.websockets.WebSocket;
@@ -48,7 +47,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
     public Grizzly2WebSocketSupport(AtmosphereConfig config) {
         super(config);
         application = new Grizzly2WebSocketApplication(config);
-        WebSocketEngine.getEngine().register(config.getServletContext().getContextPath(), IOUtils.guestServletPath(config), application);
+        WebSocketEngine.getEngine().register(config.getServletContext().getContextPath(), IOUtils.guestRawServletPath(config), application);
     }
 
 
