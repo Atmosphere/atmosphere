@@ -347,30 +347,35 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                       final AtmosphereResource r,
                                       final AtmosphereRequest request,
                                       final AtmosphereResponse response) {
-        request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
-            @Override
-            public Object call() throws Exception {
-                synchronized (r) {
-                    if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
-                        try {
-                            logger.trace("Heartbeat for Resource {}", r);
-                            response.write(paddingBytes, false);
-                            if (Utils.resumableTransport(r.transport()) && resumeOnHeartbeat) {
-                                r.resume();
-                            } else {
-                                response.flushBuffer();
+
+        try {
+            request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
+                @Override
+                public Object call() throws Exception {
+                    synchronized (r) {
+                        if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
+                            try {
+                                logger.trace("Heartbeat for Resource {}", r);
+                                response.write(paddingBytes, false);
+                                if (Utils.resumableTransport(r.transport()) && resumeOnHeartbeat) {
+                                    r.resume();
+                                } else {
+                                    response.flushBuffer();
+                                }
+                            } catch (Throwable t) {
+                                logger.trace("{}", r.uuid(), t);
+                                cancelF(request);
                             }
-                        } catch (Throwable t) {
-                            logger.trace("{}", r.uuid(), t);
+                        } else {
                             cancelF(request);
                         }
-                    } else {
-                        cancelF(request);
                     }
+                    return null;
                 }
-                return null;
-            }
-        }, interval, TimeUnit.SECONDS));
+            }, interval, TimeUnit.SECONDS));
+        } catch (Throwable t) {
+            logger.warn("", t);
+        }
 
         return this;
     }
@@ -384,7 +389,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     public void destroy() {
         if (destroyed.getAndSet(true)) return;
 
-        for(AtmosphereResource r: config.resourcesFactory().findAll()) {
+        for (AtmosphereResource r : config.resourcesFactory().findAll()) {
             cancelF(r.getRequest());
         }
     }
