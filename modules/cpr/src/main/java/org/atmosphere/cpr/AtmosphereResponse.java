@@ -462,6 +462,9 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     public void flushBuffer() throws IOException {
         try {
             response.flushBuffer();
+        } catch (NullPointerException ex) {
+           //https://github.com/Atmosphere/atmosphere/issues/1943
+            handleException(ex);
         } catch (IOException ex) {
             handleException(ex);
             throw ex;
