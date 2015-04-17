@@ -19,6 +19,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocolStream;
@@ -95,6 +96,8 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
         }
 
         AtmosphereRequest request = resource.getRequest();
+        request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.STREAMING_HTTP_OVER_WEBSOCKET);
+
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
         list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).reader(r).build());
 
@@ -111,6 +114,8 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
         }
 
         AtmosphereRequest request = resource.getRequest();
+        request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.STREAMING_HTTP_OVER_WEBSOCKET);
+
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
         list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).inputStream(stream).build());
 

@@ -131,6 +131,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
 
         AtmosphereRequest request = resource.getRequest(false);
+        request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 
         if (!resource.isInScope()) return Collections.emptyList();
 

@@ -107,6 +107,10 @@ public interface FrameworkConfig {
      */
     String SIMPLE_HTTP_OVER_WEBSOCKET = "polling-websocket-message";
     /**
+     * The {@link org.atmosphere.websocket.protocol.StreamingHttpProtocol}.
+     */
+    String STREAMING_HTTP_OVER_WEBSOCKET = "streaming-websocket-message";
+    /**
      * Cancel suspending a connection.
      */
     String CANCEL_SUSPEND_OPERATION = "doNotSuspend";
