@@ -111,7 +111,7 @@ public interface FrameworkConfig {
      */
     String SIMPLE_HTTP_OVER_WEBSOCKET = "polling-websocket-message";
     /**
-     * The SimpleHttpProtocol.
+     * The {@link org.atmosphere.websocket.protocol.StreamingHttpProtocol}.
      */
     String STREAMING_HTTP_OVER_WEBSOCKET = "streaming-websocket-message";
     /**
