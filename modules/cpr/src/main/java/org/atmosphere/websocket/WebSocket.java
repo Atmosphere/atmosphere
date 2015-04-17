@@ -31,6 +31,10 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -60,6 +64,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     protected ByteBuffer bb = ByteBuffer.allocate(8192);
     protected CharBuffer cb = CharBuffer.allocate(8192);
     protected String uuid = "NUll";
+    private Map<String,Object> attributesAtWebSocketOpen;
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
@@ -110,6 +115,26 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         this.r = r;
         if (r != null) uuid = r.uuid();
         return this;
+    }
+
+    /**
+     * Copy {@link AtmosphereRequest#attributes()} that where set when the websocket was opened.
+     *
+     * @return this.
+     */
+    public WebSocket shiftAttributes(){
+        Map<String,Object> m = new HashMap<String, Object>();
+        m.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).attributes());
+        attributesAtWebSocketOpen = Collections.unmodifiableMap(m);
+        return this;
+    }
+
+    /**
+     * Return the attribute that was set during the websocket's open operation.
+     * @return
+     */
+    public Map<String,Object> attributes() {
+        return attributesAtWebSocketOpen;
     }
 
     /**

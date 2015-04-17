@@ -113,7 +113,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         }
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, pathInfo, requestURI, methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(message).build());
+        list.add(constructRequest(webSocket, pathInfo, requestURI, methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(message).build());
 
         return list;
     }
@@ -133,7 +133,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         if (!resource.isInScope()) return Collections.emptyList();
 
         List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
-        list.add(constructRequest(resource, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());
+        list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());
 
         return list;
     }

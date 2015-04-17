@@ -16,23 +16,22 @@
 package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.websocket.WebSocket;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtocolUtil {
 
-    protected static AtmosphereRequest.Builder constructRequest(AtmosphereResource resource,
+    protected static AtmosphereRequest.Builder constructRequest(WebSocket websocket,
                                                                 String pathInfo,
                                                                 String requestURI,
                                                                 String methodType,
                                                                 String contentType,
                                                                 boolean destroyable) {
-        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
-        Map<String, Object> m = attributes(request);
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(websocket.resource()).getRequest(false);
+        Map<String, Object> m = attributes(websocket);
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
         AtmosphereRequest.Builder b = (new AtmosphereRequest.Builder()
@@ -47,18 +46,13 @@ public class ProtocolUtil {
                 .requestURL(request.requestURL())
                 .destroyable(destroyable)
                 .headers(request.headersMap())
-                .session(resource.session()));
+                .session(websocket.resource().session()));
         return b;
     }
 
-    private static Map<String, Object> attributes(AtmosphereRequest request) {
+    private static Map<String, Object> attributes(WebSocket websocket) {
         Map<String, Object> m = new ConcurrentHashMap<String, Object>();
-        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
-        for (Map.Entry<String, Object> e : request.attributes().entrySet()) {
-            if (e.getKey() != null) {
-                m.put(e.getKey(), e.getValue());
-            }
-        }
+        m.putAll(websocket.attributes());
         return m;
     }
 }
