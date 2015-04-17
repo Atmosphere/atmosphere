@@ -31,11 +31,12 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_WAIT_ON_OPEN;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
@@ -64,7 +65,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     protected CharBuffer cb = CharBuffer.allocate(8192);
     protected String uuid = "NUll";
     protected final CountDownLatch openLatch = new CountDownLatch(1);
-    protected final int timeForExecutingOpenInSeconds;
+    private Map<String,Object> attributesAtWebSocketOpen;
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
@@ -74,7 +75,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             binaryWrite = false;
         }
         this.config = config;
-        timeForExecutingOpenInSeconds = config.getInitParameter(WEBSOCKET_WAIT_ON_OPEN, 2);
     }
 
     public AtmosphereConfig config() {
@@ -116,6 +116,26 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         this.r = r;
         if (r != null) uuid = r.uuid();
         return this;
+    }
+
+    /**
+     * Copy {@link AtmosphereRequest#localAttributes()} that where set when the websocket was opened.
+     *
+     * @return this.
+     */
+    public WebSocket shiftAttributes(){
+        Map<String,Object> m = new HashMap<String, Object>();
+        m.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes());
+        attributesAtWebSocketOpen = Collections.unmodifiableMap(m);
+        return this;
+    }
+
+    /**
+     * Return the attribute that was set during the websocket's open operation.
+     * @return
+     */
+    public Map<String,Object> attributes() {
+        return attributesAtWebSocketOpen;
     }
 
     /**
@@ -340,15 +360,5 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         response.addHeader(X_ATMOSPHERE_ERROR, WebSocket.NOT_SUPPORTED);
         response.sendError(501, WebSocket.NOT_SUPPORTED);
         logger.trace("{} for request {}", WebSocket.NOT_SUPPORTED, request);
-    }
-
-    protected WebSocket markAsOpenProcessed(){
-        openLatch.countDown();
-        return this;
-    }
-
-    public boolean awaitForOpenProcessed() throws InterruptedException {
-        openLatch.await(timeForExecutingOpenInSeconds, TimeUnit.SECONDS);
-        return true;
     }
 }

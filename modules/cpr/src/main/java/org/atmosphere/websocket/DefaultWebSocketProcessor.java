@@ -265,7 +265,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 AtmosphereResourceEventImpl.class.cast(r.getAtmosphereResourceEvent()).setCancelled(true);
                 AsynchronousProcessor.class.cast(framework.getAsyncSupport()).completeLifecycle(r, true);
             }
-            webSocket.markAsOpenProcessed();
+            webSocket.shiftAttributes();
         }
     }
 
