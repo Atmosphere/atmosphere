@@ -117,11 +117,18 @@ public class JSR356Endpoint extends Endpoint {
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
         Map<String, String> headers = new HashMap<String, String>();
+        // TODO: We don't support multi map header, which cause => https://github.com/Atmosphere/atmosphere/issues/1945
         for (Map.Entry<String, List<String>> e : handshakeRequest.getHeaders().entrySet()) {
             headers.put(e.getKey(), e.getValue().size() > 0 ? e.getValue().get(0) : "");
         }
 
-        String servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
+        // Force WebSocket. Hack for https://github.com/Atmosphere/atmosphere/issues/1944
+        headers.put("Connection", "Upgrade");
+
+        String servletPath = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
+        if (servletPath == null) {
+            servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
+        }
 
         URI uri = session.getRequestURI();
         String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
