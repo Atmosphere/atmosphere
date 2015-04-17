@@ -50,9 +50,10 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
             String disableSwitchValue = reg.getValue().getInitParameter(ApplicationConfig.DISABLE_ATMOSPHERE_INITIALIZER);
             // check if AtmosphereInitializer is disabled via web.xml see: https://github.com/Atmosphere/atmosphere/issues/1695
             if (Boolean.parseBoolean(disableSwitchValue)){
-            	c.log("container managed initialization disabled for servlet: "+reg.getValue().getName());
+            	c.log("Container managed initialization disabled for servlet: "+reg.getValue().getName());
             	continue;
             }
+
             if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName()))  {
                 final AtmosphereFramework framework = AtmosphereFrameworkInitializer.newAtmosphereFramework(c, false, true);
                 // Hack to make jsr356 works. Pretty ugly.
@@ -62,8 +63,14 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 // Don't use WebLogic Native WebSocket support if JSR356 is available
                 int size = c.getServerInfo().contains("WebLogic") ? 1 : 0;
 
-                if (l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
-                    framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig()));
+                String s = reg.getValue().getInitParameter(ApplicationConfig.PROPERTY_COMET_SUPPORT);
+                boolean force = false;
+                if (s != null && s.equals(JSR356AsyncSupport.class.getName())) {
+                    force = true;
+                }
+
+                if (force || l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
+                    framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                 }
 
                 try {
@@ -86,7 +93,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 }
 
                 try {
-                    String s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
+                    s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
                     if (s != null) {
                         boolean sessionSupport = Boolean.valueOf(s);
                         if (sessionSupport && c.getMajorVersion() > 2) {

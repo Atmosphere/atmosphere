@@ -1429,7 +1429,7 @@ public class AtmosphereFramework {
             useStreamForFlushingComments = Boolean.parseBoolean(s);
         }
         s = sc.getInitParameter(PROPERTY_COMET_SUPPORT);
-        if (s != null && !reconfigure) {
+        if (asyncSupport == null && s != null && !reconfigure) {
             asyncSupport = new DefaultAsyncSupportResolver(config).newCometSupport(s);
             isCometSupportSpecified = true;
         }

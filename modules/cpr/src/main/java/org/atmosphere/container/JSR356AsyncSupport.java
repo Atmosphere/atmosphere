@@ -23,6 +23,7 @@ import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletContext;
 import javax.websocket.DeploymentException;
 import javax.websocket.HandshakeResponse;
 import javax.websocket.server.HandshakeRequest;
@@ -34,15 +35,19 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
     private static final Logger logger = LoggerFactory.getLogger(JSR356AsyncSupport.class);
     private static final String PATH = "/{path";
     private final AtmosphereConfigurator configurator;
-
+    
     public JSR356AsyncSupport(AtmosphereConfig config) {
+        this(config, config.getServletContext());
+    }
+
+    public JSR356AsyncSupport(AtmosphereConfig config, ServletContext ctx) {
         super(config);
-        ServerContainer container = (ServerContainer) config.getServletContext().getAttribute(ServerContainer.class.getName());
+        ServerContainer container = (ServerContainer) ctx.getAttribute(ServerContainer.class.getName());
 
         if (container == null) {
             String minVersion = "1.7+";
-            if (config.getServletContext().getServerInfo().contains("WebLogic")) {
-                logger.error("{} must use JDK 1.8+ with WebSocket", config.getServletContext().getServerInfo());
+            if (ctx.getServerInfo().contains("WebLogic")) {
+                logger.error("{} must use JDK 1.8+ with WebSocket", ctx.getServerInfo());
                 minVersion = "1.8+";
             }
             throw new IllegalStateException("ServerContainer is null. Make sure you are using " + minVersion + " and your server has websocket support enabled");
