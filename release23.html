@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/html">
+<head>
+    <meta charset='utf-8'>
+    <meta http-equiv="X-UA-Compatible" content="chrome=1">
+    <meta name="keywords" content="Java,WebSockets,Server Side Events,AJAX,JavaScript">
+    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
+    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen"/>
+    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print"/>
+    <!--[if lt IE 9]>
+    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
+    <title>Async-IO.org: Powering the Atmosphere Framework</title>
+</head>
+
+<body>
+<div id="container">
+    <div class="inner">
+
+        <header>
+            <div class="asyncIO">
+                <div class="asyncIO-left">
+                    <br>
+
+                    <div style="text-align: center;">
+                        <a href="http://async-io.org"><img title="logo" alt="" src="./images/AsyncIO.png"/></a>
+                    </div>
+                </div>
+                <div class="asyncIO-right">
+                    <h1>The Atmosphere Framework 2.3.0 released!</h1>
+
+                    <h2><strong>Cross-Framework and Cross-Browser Asynchronous Framework for Real Time Applications on
+                        the JVM</strong>
+                    </h2>
+
+                </div>
+            </div>
+
+        </header>
+
+        <section id="main_content">
+            <h2>The Async-IO dev team are pleased to announce the release of <a
+                    href="https://github.com/Atmosphere/atmosphere">The Atmosphere Framework 2.3.0!</a> You can
+                download it <a href="./download.html">here</a></h2>
+
+            <p>More than 8 months of work now available! Besides all of the performance and easy of use improvements made since Atmosphere 2.3, version 2.3
+                comes
+                with a host of <a
+                        href="https://github.com/Atmosphere/atmosphere/issues?labels=2.3.0%2CEnhancement&page=1&state=closed">improvements
+                    and new features</a> and
+                <a href="https://github.com/Atmosphere/atmosphere/issues?labels=2.3.0&state=closed">139 fixed issues</a> since
+                our last release!
+                Those changes alone makes it worth upgrading! Atmosphere 2.3 has also been optimized for our flagship
+                product: <a href="AtmospherePro.html">Atmosphere Pro 2.0</a>, which is a must have when going in production!
+
+            </p>
+
+            <p>
+                Highlights:
+                <ul>
+                <li>Atmosphere now fully supports CDI, Spring or Guice and also ships with
+                native support for javax.inject.Inject in case you don't want to use those heavyweight frameworks.</li>
+                <li>Apache Kafka is now natively supported</li>
+                <li>A new Poolable BroadcasterFactory for high throughput when many Broadcasters are used</li>
+                <li>Overall <a href="https://github.com/Atmosphere/atmosphere/issues?q=label%3APerformance+is%3Aclosed">Performance</a> improved and Cleaner <a href="https://github.com/Atmosphere/atmosphere/issues?q=label%3A%22API+Changes%22+is%3Aclosed">API</a></li>
+                </ul>
+            </p>
+
+            <p>
+                Atmosphere 3.0.0 is our next major release and targeted for <a href="https://github.com/Atmosphere/atmosphere/issues?q=label%3APerformance+is%3Aclosed">October 2015</a>
+            </p>
+
+            <p align="center">
+                <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack
+                alt="Atmosphere Stack"/>
+            </p>
+
+            <h2>Atmosphere 2.3.0: Stability and Performance!</h2>
+
+            <h3>I/O Frameworks and Servers</h3>
+
+            <p>Tomcat 5+/6+/7+/8+, Jetty 5+/6+/7+/8+/9+ (including upcoming 9.3.x),
+                Undertow/Wildfly 8+, JBoss 6+/7+, GlassFish 3+/4+
+                WebLogic 12+, WebSphere 8+, Netty 3+, Vert.x 2+ and Play 2+</p>
+
+            <h3>Scary number of Frameworks supported</h3>
+
+            <p>Atmosphere 2.3 is natively supported in PrimeFaces, Apache Wicket, Grails, Spring's Reactor,
+                GWT, Jersey, Vaadin, RichFaces, Apache CFX, Apache Tuscany, Apache Tapestry etc. </p>
+
+            <a>Atmosphere 2.3 also can be used with any Servlet based framework like Jersey 2.x,RestEasy, Apache Wink,
+                framework like SocksJs, Socket.IO, Cloud solutions like Kafka, Hazelcast, Redis, JGroups or JMS for
+                extreme scaling! You can download and read more those extensions <a href="https://github.com/Atmosphere/atmosphere-extensions/">here</a></p>
+
+            <h3>JavaScript Client: You have choice! Node.js included!!</h3>
+
+            <p>atmosphere.js Socket.IO, SocksJS, JQuery, NPM and Twitter's Bower Support also included!</p>
+
+            <h3>JVM Client: wAsync: Android, Node.js and Atmosphere altogether!</h3>
+
+            <p>Atmosphere 2.3 now ships with a new performance improved <a
+                    href="https://github.com/Atmosphere/wasync">wAsync</a> 2.1.0. wAsync supports Android, Node.js and
+                Atmosphere.</p>
+
+            <h3>Several Samples: Pick the one you like to get started</h3>
+
+            <p>Get started <a href="https://github.com/Atmosphere/atmosphere/wiki">documentations</a>. Many easy to use
+                <a href="https://github.com/Atmosphere/atmosphere-samples">Samples! are available as
+                    wel!!</a></p>
+
+            <h3>Get it now!</h3>
+
+            <p>The Atmosphere Framework 2.3. Stack contains the following components</p>
+            <ul>
+                <li><a href="https://github.com/Atmosphere/atmosphere">runtime</a>: Server side components</li>
+                <li><a href="https://github.com/Atmosphere/atmosphere-extensions">extensions</a>: Extensions</li>
+                <li><a href="https://github.com/Atmosphere/atmosphere-stomp">STOMP</a>: Stomp Protocol Support</li>
+                <li><a href="https://github.com/Atmosphere/atmosphere-javascript">javascript</a>: client side library for Atmosphere</li>
+                <li><a href="https://github.com/Atmosphere/wasync">wAsync</a>: Java client side library for Atmosphere</li>
+                <li><a href="https://github.com/Atmosphere/nettosphere">NettoSphere</a>: server side server running on top of the Netty Framework</li>
+                <li><a href="https://github.com/Atmosphere/atmosphere-vertx">VertoSphere</a>: server side server running on top of the Vert.x Framework</li>
+                <li><a href="https://github.com/Atmosphere/atmosphere-play">Playtosphere</a>: server side server running on top of the Play! Framework</li>
+            </ul>
+        </section>
+        <footer>
+            <p>©2015. All Rights Reserved - <a href="http://async-io.org">Async-IO.org</a>. Follow us on <a
+                    href="http://twitter.com/asyncio">Twitter</a></p>
+        </footer>
+
+        <script type="text/javascript">
+            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
+            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
+        </script>
+        <script type="text/javascript">
+            try {
+                var pageTracker = _gat._getTracker("UA-31990725-2");
+                pageTracker._trackPageview();
+            } catch (err) {
+            }
+        </script>
+
+    </div>
+</div>
+</body>
+</html>
