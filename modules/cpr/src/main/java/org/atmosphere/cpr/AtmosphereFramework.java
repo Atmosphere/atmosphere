@@ -2556,7 +2556,9 @@ public class AtmosphereFramework {
     public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
         if (!checkDuplicate(c)) {
             interceptors.add(c);
-            addInterceptorToAllWrappers(c);
+            if (isInit) {
+                addInterceptorToAllWrappers(c);
+            }
         }
         return this;
     }
