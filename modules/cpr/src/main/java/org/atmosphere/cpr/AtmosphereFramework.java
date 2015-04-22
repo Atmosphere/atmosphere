@@ -1163,11 +1163,13 @@ public class AtmosphereFramework {
                         } finally {
                             logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
                             if (newVersion.compareTo(Version.getRawVersion()) > 0) {
-                                String msg = "\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}";
                                 if (nextAvailable) {
-                                    msg = "\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}";
+                                    logger.info("\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}", newVersion, nextMajorRelease);
+                                } else {
+                                    logger.info("\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}", newVersion);
                                 }
-                                logger.info(msg, newVersion, nextMajorRelease);
+                            } else if (nextAvailable) {
+                                logger.info("\n\n\tAtmosphere Framework Updates:\n\tMajor Update available (new features): {}", nextMajorRelease);
                             }
                             try {
                                 in.close();
