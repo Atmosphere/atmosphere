@@ -1142,7 +1142,7 @@ public class AtmosphereFramework {
                         String inputLine;
                         String newVersion = Version.getRawVersion();
                         String clientVersion = "2.2.11";
-                        String nextMajorRelease = "2.4.0";
+                        String nextMajorRelease = null;
                         boolean nextAvailable = false;
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
