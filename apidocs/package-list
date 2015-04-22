@@ -1,4 +1,3 @@
-org.atmosphere
 org.atmosphere.annotation
 org.atmosphere.cache
 org.atmosphere.client
@@ -9,9 +8,12 @@ org.atmosphere.container
 org.atmosphere.container.version
 org.atmosphere.cpr
 org.atmosphere.handler
+org.atmosphere.inject
 org.atmosphere.interceptor
 org.atmosphere.jersey
 org.atmosphere.jersey.util
+org.atmosphere.lifecycle
+org.atmosphere.pool
 org.atmosphere.util
 org.atmosphere.util.analytics
 org.atmosphere.util.annotation

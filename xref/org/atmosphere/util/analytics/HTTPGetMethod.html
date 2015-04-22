@@ -7,7 +7,7 @@
 <body>
 <div id="overview"><a href="../../../../../apidocs/org/atmosphere/util/analytics/HTTPGetMethod.html">View Javadoc</a></div><pre>
 <a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2014 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2015 Async-IO.org</em>
 <a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -67,9 +67,9 @@
 <a class="jxr_linenumber" name="L59" href="#L59">59</a>              urlConnection = openURLConnection(url);
 <a class="jxr_linenumber" name="L60" href="#L60">60</a>              urlConnection.setInstanceFollowRedirects(<strong class="jxr_keyword">true</strong>);
 <a class="jxr_linenumber" name="L61" href="#L61">61</a>              urlConnection.setRequestMethod(GET_METHOD_NAME);
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>              urlConnection.setRequestProperty(<span class="jxr_string">"User-agent"</span>, uaName + <span class="jxr_string">" ("</span>
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>                      + osString + <span class="jxr_string">")"</span>);
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>  
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>              urlConnection.setRequestProperty(<span class="jxr_string">"User-agent"</span>, uaName + <span class="jxr_string">" ("</span> + osString + <span class="jxr_string">")"</span>);
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>  
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>              logger.debug(<span class="jxr_string">"Sending Server's information to Atmosphere's Google Analytics {} {}"</span>, urlString, uaName + <span class="jxr_string">" ("</span> + osString + <span class="jxr_string">")"</span>);
 <a class="jxr_linenumber" name="L65" href="#L65">65</a>              urlConnection.connect();
 <a class="jxr_linenumber" name="L66" href="#L66">66</a>              <strong class="jxr_keyword">int</strong> responseCode = getResponseCode(urlConnection);
 <a class="jxr_linenumber" name="L67" href="#L67">67</a>              <strong class="jxr_keyword">if</strong> (responseCode != HttpURLConnection.HTTP_OK) {
@@ -97,13 +97,12 @@
 <a class="jxr_linenumber" name="L89" href="#L89">89</a>  
 <a class="jxr_linenumber" name="L90" href="#L90">90</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> logMessage(String message) {
 <a class="jxr_linenumber" name="L91" href="#L91">91</a>          logger.trace(<span class="jxr_string">"{}"</span>, message);
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>  
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>      }
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>  
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> logError(String errorMesssage) {
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>          logger.trace(<span class="jxr_string">"{}"</span>, errorMesssage);
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>      }
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>  }
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>      }
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>  
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> logError(String errorMesssage) {
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>          logger.trace(<span class="jxr_string">"{}"</span>, errorMesssage);
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>      }
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>  }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

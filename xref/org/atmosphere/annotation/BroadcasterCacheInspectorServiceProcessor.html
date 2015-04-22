@@ -7,7 +7,7 @@
 <body>
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/annotation/BroadcasterCacheInspectorServiceProcessor.html">View Javadoc</a></div><pre>
 <a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2014 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2015 Async-IO.org</em>
 <a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -27,24 +27,23 @@
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.AtmosphereAnnotation;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.BroadcasterCacheInspectorService;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcasterCache;
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  @AtmosphereAnnotation(BroadcasterCacheInspectorService.<strong class="jxr_keyword">class</strong>)
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/annotation/BroadcasterCacheInspectorServiceProcessor.html">BroadcasterCacheInspectorServiceProcessor</a> <strong class="jxr_keyword">implements</strong> Processor&lt;BroadcasterCache&gt; {
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(BroadcasterCacheInspectorServiceProcessor.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>      @Override
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> handle(<a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework, Class&lt;BroadcasterCache&gt; annotatedClass) {
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>          <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>              framework.addBroadcasterCacheInjector((BroadcasterCacheInspector) framework.newClassInstance(BroadcasterCache.<strong class="jxr_keyword">class</strong>, annotatedClass));
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>          } <strong class="jxr_keyword">catch</strong> (Throwable e) {
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>              logger.warn(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>          }
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>      }
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>  }
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  @AtmosphereAnnotation(BroadcasterCacheInspectorService.<strong class="jxr_keyword">class</strong>)
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/annotation/BroadcasterCacheInspectorServiceProcessor.html">BroadcasterCacheInspectorServiceProcessor</a> <strong class="jxr_keyword">implements</strong> Processor&lt;BroadcasterCacheInspector&gt; {
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(BroadcasterCacheInspectorServiceProcessor.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>      @Override
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> handle(<a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework, Class&lt;BroadcasterCacheInspector&gt; annotatedClass) {
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>          <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>              framework.addBroadcasterCacheInjector(framework.newClassInstance(BroadcasterCacheInspector.<strong class="jxr_keyword">class</strong>, annotatedClass));
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>          } <strong class="jxr_keyword">catch</strong> (Throwable e) {
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>              logger.warn(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>          }
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>      }
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

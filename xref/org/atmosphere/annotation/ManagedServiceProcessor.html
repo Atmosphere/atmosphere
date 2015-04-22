@@ -7,7 +7,7 @@
 <body>
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/annotation/ManagedServiceProcessor.html">View Javadoc</a></div><pre>
 <a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2014 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2015 Async-IO.org</em>
 <a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -25,16 +25,16 @@
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.AtmosphereAnnotation;
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.managed.ManagedAtmosphereHandler;
-<a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.managed.ManagedServiceInterceptor;
-<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.ManagedService;
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereHandler;
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereInterceptor;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcastFilter;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcasterConfig;
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.config.service.ManagedService;
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereHandler;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereInterceptor;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcastFilter;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.BroadcasterConfig;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Arrays;
 <a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.LinkedList;
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> java.util.List;
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  
@@ -56,54 +56,46 @@
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>              framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>  
 <a class="jxr_linenumber" name="L50" href="#L50">50</a>              List&lt;AtmosphereInterceptor&gt; l = <strong class="jxr_keyword">new</strong> LinkedList&lt;AtmosphereInterceptor&gt;();
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>              atmosphereConfig(a.atmosphereConfig(), framework);
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>              filters(a.broadcastFilters(), framework);
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>  
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>              <a href="../../../org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a> aa = listeners(a.listeners(), framework);
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>              <strong class="jxr_keyword">if</strong> (aa != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>                  l.add(aa);
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>              }
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>  
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>              Object c = framework.newClassInstance(Object.<strong class="jxr_keyword">class</strong>, aClass);
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>              <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> handler = framework.newClassInstance(ManagedAtmosphereHandler.<strong class="jxr_keyword">class</strong>,
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>                      ManagedAtmosphereHandler.<strong class="jxr_keyword">class</strong>).configure(framework.getAtmosphereConfig(), c);
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>              <em class="jxr_comment">// MUST BE ADDED FIRST, ALWAYS!</em>
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>              l.add(framework.newClassInstance(AtmosphereInterceptor.<strong class="jxr_keyword">class</strong>, ManagedServiceInterceptor.<strong class="jxr_keyword">class</strong>));
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>  
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>              framework.filterManipulator(<strong class="jxr_keyword">new</strong> BroadcasterConfig.FilterManipulator() {
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>                  @Override
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>                  <strong class="jxr_keyword">public</strong> Object unwrap(Object o) {
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>                      <strong class="jxr_keyword">if</strong> (o != <strong class="jxr_keyword">null</strong> &amp;&amp; ManagedAtmosphereHandler.Managed.<strong class="jxr_keyword">class</strong>.isAssignableFrom(o.getClass())) {
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>                          o = ManagedAtmosphereHandler.Managed.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(o).object();
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>                      }
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>                      <strong class="jxr_keyword">return</strong> o;
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>                  }
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>  
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>                  @Override
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>                  <strong class="jxr_keyword">public</strong> BroadcastFilter.BroadcastAction wrap(BroadcastFilter.BroadcastAction a, <strong class="jxr_keyword">boolean</strong> wasWrapped) {
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>                      <strong class="jxr_keyword">if</strong> (wasWrapped) {
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>                          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> BroadcastFilter.BroadcastAction(a.action(), <strong class="jxr_keyword">new</strong> ManagedAtmosphereHandler.Managed(a.message()));
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>                      } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>                          <strong class="jxr_keyword">return</strong> a;
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>                      }
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>                  }
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>              });
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>  
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>              Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereInterceptor&gt;[] interceptors = a.interceptors();
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>              <strong class="jxr_keyword">for</strong> (Class i : interceptors) {
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>                  <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>                      l.add(framework.newClassInstance(AtmosphereInterceptor.<strong class="jxr_keyword">class</strong>, i));
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>                  } <strong class="jxr_keyword">catch</strong> (Throwable e) {
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>                      logger.warn(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>                  }
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>              }
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>              framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>          } <strong class="jxr_keyword">catch</strong> (Throwable e) {
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>              logger.warn(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>          }
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>      }
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>  }
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>              AnnotationUtil.defaultManagedServiceInterceptors(framework, l);
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>              atmosphereConfig(a.atmosphereConfig(), framework);
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>              filters(a.broadcastFilters(), framework);
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>              <a href="../../../org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a> aa = listeners(a.listeners(), framework);
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>              <strong class="jxr_keyword">if</strong> (aa != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>                  l.add(aa);
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>              }
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>  
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>              Object c = framework.newClassInstance(Object.<strong class="jxr_keyword">class</strong>, aClass);
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>              <a href="../../../org/atmosphere/cpr/AtmosphereHandler.html">AtmosphereHandler</a> handler = framework.newClassInstance(ManagedAtmosphereHandler.<strong class="jxr_keyword">class</strong>,
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>                      ManagedAtmosphereHandler.<strong class="jxr_keyword">class</strong>).configure(framework.getAtmosphereConfig(), c);
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>  
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>              framework.filterManipulator(<strong class="jxr_keyword">new</strong> BroadcasterConfig.FilterManipulator() {
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>                  @Override
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>                  <strong class="jxr_keyword">public</strong> Object unwrap(Object o) {
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>                      <strong class="jxr_keyword">if</strong> (o != <strong class="jxr_keyword">null</strong> &amp;&amp; ManagedAtmosphereHandler.Managed.<strong class="jxr_keyword">class</strong>.isAssignableFrom(o.getClass())) {
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>                          o = ManagedAtmosphereHandler.Managed.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(o).object();
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>                      }
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>                      <strong class="jxr_keyword">return</strong> o;
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>                  }
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>  
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>                  @Override
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>                  <strong class="jxr_keyword">public</strong> BroadcastFilter.BroadcastAction wrap(BroadcastFilter.BroadcastAction a, <strong class="jxr_keyword">boolean</strong> wasWrapped) {
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>                      <strong class="jxr_keyword">if</strong> (wasWrapped) {
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>                          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> BroadcastFilter.BroadcastAction(a.action(), <strong class="jxr_keyword">new</strong> ManagedAtmosphereHandler.Managed(a.message()));
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>                      } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>                          <strong class="jxr_keyword">return</strong> a;
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>                      }
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>                  }
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>              });
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>  
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>              AnnotationUtil.interceptorsForManagedService(framework, Arrays.asList(a.interceptors()), l);
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>              framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>          } <strong class="jxr_keyword">catch</strong> (Throwable e) {
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>              logger.warn(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>          }
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>      }
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>  }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

@@ -7,7 +7,7 @@
 <body>
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/cache/SessionBroadcasterCache.html">View Javadoc</a></div><pre>
 <a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2014 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2015 Async-IO.org</em>
 <a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -24,7 +24,7 @@
 <a class="jxr_linenumber" name="L16" href="#L16">16</a>  
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.cache;
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  
-<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceFactory;
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  
@@ -56,7 +56,7 @@
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>          <strong class="jxr_keyword">if</strong> (uuid.equals(NULL)) <strong class="jxr_keyword">return</strong> cacheMessage;
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>  
 <a class="jxr_linenumber" name="L50" href="#L50">50</a>          <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>              HttpSession session = AtmosphereResourceFactory.getDefault().find(uuid).session();
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>              HttpSession session = config.resourcesFactory().find(uuid).session();
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>              <strong class="jxr_keyword">if</strong> (session == <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L53" href="#L53">53</a>                  logger.error(ERROR_MESSAGE);
 <a class="jxr_linenumber" name="L54" href="#L54">54</a>                  <strong class="jxr_keyword">return</strong> cacheMessage;
@@ -78,25 +78,32 @@
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>  
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>          List&lt;Object&gt; result = <strong class="jxr_keyword">new</strong> ArrayList&lt;Object&gt;();
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>          <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>              HttpSession session = AtmosphereResourceFactory.getDefault().find(uuid).session();
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>              <strong class="jxr_keyword">if</strong> (session == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>                  logger.error(ERROR_MESSAGE);
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>                  <strong class="jxr_keyword">return</strong> result;
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>              }
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>  
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>              String cacheHeaderTimeStr = (String)session.getAttribute(broadcasterId);
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>              <strong class="jxr_keyword">if</strong> (cacheHeaderTimeStr == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> result;
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>              Long cacheHeaderTime = Long.valueOf(cacheHeaderTimeStr);
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>              <strong class="jxr_keyword">if</strong> (cacheHeaderTime == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> result;
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>  
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>              <strong class="jxr_keyword">return</strong> get(cacheHeaderTime);
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>          } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>              logger.trace(<span class="jxr_string">""</span>, ex);
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>              logger.warn(<span class="jxr_string">"The Session has been invalidated. Unable to retrieve cached messages"</span>);
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>              <strong class="jxr_keyword">return</strong> Collections.emptyList();
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>          }
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>      }
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>  }
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>              <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r = config.resourcesFactory().find(uuid);
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>  
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>              <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>                  logger.trace(<span class="jxr_string">"Invalid UUID {}"</span>, uuid);
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>                  <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>              }
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>  
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>              HttpSession session = r.session();
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>              <strong class="jxr_keyword">if</strong> (session == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>                  logger.error(ERROR_MESSAGE);
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>                  <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>              }
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>  
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>              String cacheHeaderTimeStr = (String)session.getAttribute(broadcasterId);
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>              <strong class="jxr_keyword">if</strong> (cacheHeaderTimeStr == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>              Long cacheHeaderTime = Long.valueOf(cacheHeaderTimeStr);
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>              <strong class="jxr_keyword">if</strong> (cacheHeaderTime == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> result;
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>  
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>              <strong class="jxr_keyword">return</strong> get(cacheHeaderTime);
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>          } <strong class="jxr_keyword">catch</strong> (IllegalStateException ex) {
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>              logger.trace(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>              logger.warn(<span class="jxr_string">"The Session has been invalidated. Unable to retrieve cached messages"</span>);
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>              <strong class="jxr_keyword">return</strong> Collections.emptyList();
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>          }
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>      }
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>  }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

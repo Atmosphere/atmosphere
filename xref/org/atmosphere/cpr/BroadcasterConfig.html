@@ -7,7 +7,7 @@
 <body>
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/cpr/BroadcasterConfig.html">View Javadoc</a></div><pre>
 <a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2014 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2015 Async-IO.org</em>
 <a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -99,7 +99,7 @@
 <a class="jxr_linenumber" name="L91" href="#L91">91</a>  <em class="jxr_javadoccomment">     * @param asyncWriteService</em>
 <a class="jxr_linenumber" name="L92" href="#L92">92</a>  <em class="jxr_javadoccomment">     * @param scheduler</em>
 <a class="jxr_linenumber" name="L93" href="#L93">93</a>  <em class="jxr_javadoccomment">     * @param config</em>
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>  <em class="jxr_javadoccomment">     * @param name</em>
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>  <em class="jxr_javadoccomment">     * @param broadcasterId</em>
 <a class="jxr_linenumber" name="L95" href="#L95">95</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L96" href="#L96">96</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a>(ExecutorService executorService, ExecutorService asyncWriteService,
 <a class="jxr_linenumber" name="L97" href="#L97">97</a>                               ScheduledExecutorService scheduler, <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config, String broadcasterId) {
@@ -134,7 +134,7 @@
 <a class="jxr_linenumber" name="L126" href="#L126">126</a>                 broadcasterCache = config.framework().newClassInstance(BroadcasterCache.<strong class="jxr_keyword">class</strong>,
 <a class="jxr_linenumber" name="L127" href="#L127">127</a>                         (Class&lt;BroadcasterCache&gt;) IOUtils.loadClass(getClass(), className));
 <a class="jxr_linenumber" name="L128" href="#L128">128</a>                 configureSharedCacheExecutor();
-<a class="jxr_linenumber" name="L129" href="#L129">129</a>                 broadcasterCache.configure(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>                 broadcasterCache.configure(config);
 <a class="jxr_linenumber" name="L130" href="#L130">130</a>             }
 <a class="jxr_linenumber" name="L131" href="#L131">131</a> 
 <a class="jxr_linenumber" name="L132" href="#L132">132</a>             <strong class="jxr_keyword">for</strong> (BroadcasterCacheInspector b : config.framework().inspectors()) {

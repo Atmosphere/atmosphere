@@ -7,7 +7,7 @@
 <body>
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/cpr/Broadcaster.html">View Javadoc</a></div><pre>
 <a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2014 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2015 Async-IO.org</em>
 <a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -269,48 +269,55 @@
 <a class="jxr_linenumber" name="L261" href="#L261">261</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBroadcasterLifeCyclePolicy(<a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a> policy);
 <a class="jxr_linenumber" name="L262" href="#L262">262</a> 
 <a class="jxr_linenumber" name="L263" href="#L263">263</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L264" href="#L264">264</a> <em class="jxr_javadoccomment">     * Add a {@link BroadcasterLifeCyclePolicyListener}.</em>
+<a class="jxr_linenumber" name="L264" href="#L264">264</a> <em class="jxr_javadoccomment">     * Get the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}.</em>
 <a class="jxr_linenumber" name="L265" href="#L265">265</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L266" href="#L266">266</a> <em class="jxr_javadoccomment">     * @param b a {@link BroadcasterLifeCyclePolicyListener}</em>
+<a class="jxr_linenumber" name="L266" href="#L266">266</a> <em class="jxr_javadoccomment">     * @return {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}</em>
 <a class="jxr_linenumber" name="L267" href="#L267">267</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L268" href="#L268">268</a>     <strong class="jxr_keyword">void</strong> addBroadcasterLifeCyclePolicyListener(<a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicyListener.html">BroadcasterLifeCyclePolicyListener</a> b);
+<a class="jxr_linenumber" name="L268" href="#L268">268</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a> getBroadcasterLifeCyclePolicy();
 <a class="jxr_linenumber" name="L269" href="#L269">269</a> 
 <a class="jxr_linenumber" name="L270" href="#L270">270</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L271" href="#L271">271</a> <em class="jxr_javadoccomment">     * Remove a {@link BroadcasterLifeCyclePolicyListener}.</em>
+<a class="jxr_linenumber" name="L271" href="#L271">271</a> <em class="jxr_javadoccomment">     * Add a {@link BroadcasterLifeCyclePolicyListener}.</em>
 <a class="jxr_linenumber" name="L272" href="#L272">272</a> <em class="jxr_javadoccomment">     *</em>
 <a class="jxr_linenumber" name="L273" href="#L273">273</a> <em class="jxr_javadoccomment">     * @param b a {@link BroadcasterLifeCyclePolicyListener}</em>
 <a class="jxr_linenumber" name="L274" href="#L274">274</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L275" href="#L275">275</a>     <strong class="jxr_keyword">void</strong> removeBroadcasterLifeCyclePolicyListener(<a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicyListener.html">BroadcasterLifeCyclePolicyListener</a> b);
+<a class="jxr_linenumber" name="L275" href="#L275">275</a>     <strong class="jxr_keyword">void</strong> addBroadcasterLifeCyclePolicyListener(<a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicyListener.html">BroadcasterLifeCyclePolicyListener</a> b);
 <a class="jxr_linenumber" name="L276" href="#L276">276</a> 
 <a class="jxr_linenumber" name="L277" href="#L277">277</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L278" href="#L278">278</a> <em class="jxr_javadoccomment">     * Return true if this {@link Broadcaster} has been destroyed.</em>
+<a class="jxr_linenumber" name="L278" href="#L278">278</a> <em class="jxr_javadoccomment">     * Remove a {@link BroadcasterLifeCyclePolicyListener}.</em>
 <a class="jxr_linenumber" name="L279" href="#L279">279</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L280" href="#L280">280</a> <em class="jxr_javadoccomment">     * @return true if this {@link Broadcaster} has been destroyed</em>
+<a class="jxr_linenumber" name="L280" href="#L280">280</a> <em class="jxr_javadoccomment">     * @param b a {@link BroadcasterLifeCyclePolicyListener}</em>
 <a class="jxr_linenumber" name="L281" href="#L281">281</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L282" href="#L282">282</a>     <strong class="jxr_keyword">boolean</strong> isDestroyed();
+<a class="jxr_linenumber" name="L282" href="#L282">282</a>     <strong class="jxr_keyword">void</strong> removeBroadcasterLifeCyclePolicyListener(<a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicyListener.html">BroadcasterLifeCyclePolicyListener</a> b);
 <a class="jxr_linenumber" name="L283" href="#L283">283</a> 
 <a class="jxr_linenumber" name="L284" href="#L284">284</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L285" href="#L285">285</a> <em class="jxr_javadoccomment">     * Await for available {@link AtmosphereResource} before broadcasting. This method will block until</em>
-<a class="jxr_linenumber" name="L286" href="#L286">286</a> <em class="jxr_javadoccomment">     * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} gets invoked.</em>
-<a class="jxr_linenumber" name="L287" href="#L287">287</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L288" href="#L288">288</a>     Future&lt;Object&gt; awaitAndBroadcast(Object t, <strong class="jxr_keyword">long</strong> time, TimeUnit timeUnit);
-<a class="jxr_linenumber" name="L289" href="#L289">289</a> 
-<a class="jxr_linenumber" name="L290" href="#L290">290</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L291" href="#L291">291</a> <em class="jxr_javadoccomment">     * Add a {@link BroadcasterListener}.</em>
-<a class="jxr_linenumber" name="L292" href="#L292">292</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L293" href="#L293">293</a> <em class="jxr_javadoccomment">     * @param b a {@link BroadcasterListener}</em>
-<a class="jxr_linenumber" name="L294" href="#L294">294</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="L295" href="#L295">295</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L296" href="#L296">296</a>     <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> addBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b);
-<a class="jxr_linenumber" name="L297" href="#L297">297</a> 
-<a class="jxr_linenumber" name="L298" href="#L298">298</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L299" href="#L299">299</a> <em class="jxr_javadoccomment">     * Remove a {@link BroadcasterListener}.</em>
-<a class="jxr_linenumber" name="L300" href="#L300">300</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L301" href="#L301">301</a> <em class="jxr_javadoccomment">     * @param b a {@link BroadcasterListener}</em>
-<a class="jxr_linenumber" name="L302" href="#L302">302</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="L303" href="#L303">303</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L304" href="#L304">304</a>     <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> removeBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b);
-<a class="jxr_linenumber" name="L305" href="#L305">305</a> }
+<a class="jxr_linenumber" name="L285" href="#L285">285</a> <em class="jxr_javadoccomment">     * Return true if this {@link Broadcaster} has been destroyed.</em>
+<a class="jxr_linenumber" name="L286" href="#L286">286</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L287" href="#L287">287</a> <em class="jxr_javadoccomment">     * @return true if this {@link Broadcaster} has been destroyed</em>
+<a class="jxr_linenumber" name="L288" href="#L288">288</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L289" href="#L289">289</a>     <strong class="jxr_keyword">boolean</strong> isDestroyed();
+<a class="jxr_linenumber" name="L290" href="#L290">290</a> 
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L292" href="#L292">292</a> <em class="jxr_javadoccomment">     * Await for available {@link AtmosphereResource} before broadcasting. This method will block until</em>
+<a class="jxr_linenumber" name="L293" href="#L293">293</a> <em class="jxr_javadoccomment">     * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} gets invoked.</em>
+<a class="jxr_linenumber" name="L294" href="#L294">294</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>     Future&lt;Object&gt; awaitAndBroadcast(Object t, <strong class="jxr_keyword">long</strong> time, TimeUnit timeUnit);
+<a class="jxr_linenumber" name="L296" href="#L296">296</a> 
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L298" href="#L298">298</a> <em class="jxr_javadoccomment">     * Add a {@link BroadcasterListener}.</em>
+<a class="jxr_linenumber" name="L299" href="#L299">299</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L300" href="#L300">300</a> <em class="jxr_javadoccomment">     * @param b a {@link BroadcasterListener}</em>
+<a class="jxr_linenumber" name="L301" href="#L301">301</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="L302" href="#L302">302</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>     <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> addBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b);
+<a class="jxr_linenumber" name="L304" href="#L304">304</a> 
+<a class="jxr_linenumber" name="L305" href="#L305">305</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L306" href="#L306">306</a> <em class="jxr_javadoccomment">     * Remove a {@link BroadcasterListener}.</em>
+<a class="jxr_linenumber" name="L307" href="#L307">307</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L308" href="#L308">308</a> <em class="jxr_javadoccomment">     * @param b a {@link BroadcasterListener}</em>
+<a class="jxr_linenumber" name="L309" href="#L309">309</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="L310" href="#L310">310</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>     <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> removeBroadcasterListener(<a href="../../../org/atmosphere/cpr/BroadcasterListener.html">BroadcasterListener</a> b);
+<a class="jxr_linenumber" name="L312" href="#L312">312</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

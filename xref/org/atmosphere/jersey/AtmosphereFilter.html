@@ -7,7 +7,7 @@
 <body>
 <div id="overview"><a href="../../../../apidocs/org/atmosphere/jersey/AtmosphereFilter.html">View Javadoc</a></div><pre>
 <a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
-<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2014 Jeanfrancois Arcand</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2015 Async-IO.org</em>
 <a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
 <a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
 <a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
@@ -606,14 +606,14 @@
 <a class="jxr_linenumber" name="L598" href="#L598">598</a> 
 <a class="jxr_linenumber" name="L599" href="#L599">599</a>             <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = ar.getBroadcaster();
 <a class="jxr_linenumber" name="L600" href="#L600">600</a>             Object msg = o;
-<a class="jxr_linenumber" name="L601" href="#L601">601</a>             String returnMsg = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L601" href="#L601">601</a>             Object returnMsg = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L602" href="#L602">602</a>             <em class="jxr_comment">// Something went wrong if null.</em>
 <a class="jxr_linenumber" name="L603" href="#L603">603</a>             <strong class="jxr_keyword">if</strong> (o instanceof Broadcastable) {
 <a class="jxr_linenumber" name="L604" href="#L604">604</a>                 <strong class="jxr_keyword">if</strong> (((Broadcastable) o).getBroadcaster() != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L605" href="#L605">605</a>                     b = ((Broadcastable) o).getBroadcaster();
 <a class="jxr_linenumber" name="L606" href="#L606">606</a>                 }
 <a class="jxr_linenumber" name="L607" href="#L607">607</a>                 msg = ((Broadcastable) o).getMessage();
-<a class="jxr_linenumber" name="L608" href="#L608">608</a>                 returnMsg = ((Broadcastable) o).getResponseMessage().toString();
+<a class="jxr_linenumber" name="L608" href="#L608">608</a>                 returnMsg = ((Broadcastable) o).getResponseMessage();
 <a class="jxr_linenumber" name="L609" href="#L609">609</a>             }
 <a class="jxr_linenumber" name="L610" href="#L610">610</a> 
 <a class="jxr_linenumber" name="L611" href="#L611">611</a>             <strong class="jxr_keyword">if</strong> (action == Action.RESUME_ON_BROADCAST) {
