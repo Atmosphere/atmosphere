@@ -1141,20 +1141,33 @@ public class AtmosphereFramework {
 
                         String inputLine;
                         String newVersion = Version.getRawVersion();
-                        String clientVersion = "2.2.3";
+                        String clientVersion = "2.2.11";
+                        String nextMajorRelease = null;
+                        boolean nextAvailable = false;
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
-                                if (inputLine.startsWith("ATMO22_VERSION=")) {
-                                    newVersion = inputLine.substring("ATMO22_VERSION=".length());
+                                if (inputLine.startsWith("ATMO30_VERSION=")) {
+                                    newVersion = inputLine.substring("ATMO30_VERSION=".length());
                                 } else if (inputLine.startsWith("CLIENT3_VERSION=")) {
                                     clientVersion = inputLine.substring("CLIENT3_VERSION=".length());
                                     break;
+                                } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
+                                    nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
+                                    if (nextMajorRelease.compareTo(Version.getRawVersion()) > 0 
+                                        && nextMajorRelease.toLowerCase().indexOf("rc") == -1 
+                                        && nextMajorRelease.toLowerCase().indexOf("beta") == -1) {
+                                        nextAvailable = true;
+                                    }
                                 }
                             }
                         } finally {
                             logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
-                            if (newVersion.compareTo(Version.getRawVersion()) != 0) {
-                                logger.info("\n\n\tCurrent version of Atmosphere {} \n\tNewest version of Atmosphere available {}\n\n", Version.getRawVersion(), newVersion);
+                            if (newVersion.compareTo(Version.getRawVersion()) > 0) {
+                                String msg = "\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}";
+                                if (nextAvailable) {
+                                    msg = "\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}";
+                                }
+                                logger.info(msg, newVersion, nextMajorRelease);
                             }
                             try {
                                 in.close();
