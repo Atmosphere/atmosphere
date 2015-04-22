@@ -17,7 +17,6 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.WebSocketHandlerService;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
@@ -33,6 +32,7 @@ import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.broadcasterClass;
 import static org.atmosphere.annotation.AnnotationUtil.filters;
 import static org.atmosphere.annotation.AnnotationUtil.listeners;
+import static org.atmosphere.cpr.AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER;
 
 @AtmosphereAnnotation(WebSocketHandlerService.class)
 public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHandler> {
@@ -57,20 +57,15 @@ public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHand
                 l.add(aa);
             }
 
-            AnnotationUtil.interceptors(framework, Arrays.asList(m.interceptors()), l);
+            AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(m.interceptors()), l);
 
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());
             WebSocketProcessor p = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework);
+
+            framework.addAtmosphereHandler(m.path(), REFLECTOR_ATMOSPHEREHANDLER, l);
+
             p.registerWebSocketHandler(m.path(), new WebSocketProcessor.WebSocketHandlerProxy(broadcasterClass(framework, m.broadcaster()),
-                    framework.newClassInstance(WebSocketHandler.class, annotatedClass), l));
-            framework.getAtmosphereConfig().startupHook(new AtmosphereConfig.StartupHook() {
-                @Override
-                public void started(AtmosphereFramework framework) {
-                    for (AtmosphereInterceptor c: l) {
-                        framework.interceptor(c);
-                    }
-                }
-            });
+                    framework.newClassInstance(WebSocketHandler.class, annotatedClass)));
         } catch (Throwable e) {
             logger.warn("", e);
         }

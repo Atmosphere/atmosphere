@@ -58,7 +58,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
                 l.add(aa);
             }
 
-            AnnotationUtil.interceptors(framework, Arrays.asList(m.interceptors()), l);
+            AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(m.interceptors()), l);
 
             if (m.path().contains("{")) {
                 l.addFirst(framework.newClassInstance(AtmosphereInterceptor.class, MeteorServiceInterceptor.class));

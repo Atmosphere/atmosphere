@@ -70,15 +70,15 @@ public class AnnotationUtil {
         }
     }
 
-    public static void defaultInterceptors(AtmosphereFramework framework, List<AtmosphereInterceptor> l) {
-        interceptors(framework, MANAGED_ATMOSPHERE_INTERCEPTORS, l, false);
+    public static void defaultManagedServiceInterceptors(AtmosphereFramework framework, List<AtmosphereInterceptor> l) {
+        interceptorsForManagedService(framework, MANAGED_ATMOSPHERE_INTERCEPTORS, l, false);
     }
 
-    public static void interceptors(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
-        interceptors(framework, interceptors, l, true);
+    public static void interceptorsForManagedService(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
+        interceptorsForManagedService(framework, interceptors, l, true);
     }
 
-    public static void interceptors(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l, boolean checkDuplicate) {
+    public static void interceptorsForManagedService(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l, boolean checkDuplicate) {
         for (Class<? extends AtmosphereInterceptor> i : interceptors) {
             if (!framework.excludedInterceptors().contains(i.getName())
                     && (!checkDuplicate || checkDefault(i))) {
@@ -92,9 +92,25 @@ public class AnnotationUtil {
         }
     }
 
+    public static void interceptorsForHandler(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
+        for (Class<? extends AtmosphereInterceptor> i : interceptors) {
+            if (!framework.excludedInterceptors().contains(i.getName())
+                    && (!AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(i))) {
+                try {
+                    logger.info("Adding {}", i);
+                    l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
+                } catch (Throwable e) {
+                    logger.warn("", e);
+                }
+            }
+        }
+    }
+
     public static boolean checkDefault(Class<? extends AtmosphereInterceptor> i) {
         return !MANAGED_ATMOSPHERE_INTERCEPTORS.contains(i) && !AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(i);
     }
+
+
 
     public static AtmosphereInterceptor listeners(final Class<? extends AtmosphereResourceEventListener>[] listeners, final AtmosphereFramework framework) {
         if (listeners.length > 0) {

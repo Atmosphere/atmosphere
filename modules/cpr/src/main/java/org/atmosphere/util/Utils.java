@@ -116,7 +116,6 @@ public final class Utils {
     public final static boolean pollableTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case POLLING:
-            case UNDEFINED:
             case CLOSE:
             case AJAX:
                 return true;

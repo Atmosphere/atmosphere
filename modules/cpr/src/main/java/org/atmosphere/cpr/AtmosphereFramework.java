@@ -1444,7 +1444,7 @@ public class AtmosphereFramework {
             useStreamForFlushingComments = Boolean.parseBoolean(s);
         }
         s = sc.getInitParameter(PROPERTY_COMET_SUPPORT);
-        if (s != null && !reconfigure) {
+        if (asyncSupport == null && s != null && !reconfigure) {
             asyncSupport = new DefaultAsyncSupportResolver(config).newCometSupport(s);
             isCometSupportSpecified = true;
         }
@@ -2571,7 +2571,9 @@ public class AtmosphereFramework {
     public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
         if (!checkDuplicate(c)) {
             interceptors.add(c);
-            addInterceptorToAllWrappers(c);
+            if (isInit) {
+                addInterceptorToAllWrappers(c);
+            }
         }
         return this;
     }
@@ -2966,7 +2968,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h, List<AtmosphereInterceptor> l) {
         WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this)
                 .registerWebSocketHandler(path,
-                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(), handler, interceptors));
+                        new WebSocketProcessor.WebSocketHandlerProxy(broadcasterFactory.lookup(path, true).getClass(), handler));
         addAtmosphereHandler(path, h, l);
         return this;
     }

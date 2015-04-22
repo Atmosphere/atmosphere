@@ -33,10 +33,10 @@ import java.util.Set;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 
 /**
- * Initializer for the AtmosphereFramework per servlet instance, 
+ * Initializer for the AtmosphereFramework per servlet instance,
  * this initializer is called during web-application startup lifecycle (since Servlet 3.0).
- * If you need to disable automatic initialization take a look at the following switch: 
- * 
+ * If you need to disable automatic initialization take a look at the following switch:
+ * <p/>
  * {@link org.atmosphere.cpr.ApplicationConfig}.DISABLE_ATMOSPHERE_INITIALIZER}
  */
 
@@ -49,11 +49,12 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
         for (Map.Entry<String, ? extends ServletRegistration> reg : c.getServletRegistrations().entrySet()) {
             String disableSwitchValue = reg.getValue().getInitParameter(ApplicationConfig.DISABLE_ATMOSPHERE_INITIALIZER);
             // check if AtmosphereInitializer is disabled via web.xml see: https://github.com/Atmosphere/atmosphere/issues/1695
-            if (Boolean.parseBoolean(disableSwitchValue)){
-            	c.log("container managed initialization disabled for servlet: "+reg.getValue().getName());
-            	continue;
+            if (Boolean.parseBoolean(disableSwitchValue)) {
+                c.log("Container managed initialization disabled for servlet: " + reg.getValue().getName());
+                continue;
             }
-            if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName()))  {
+
+            if (c.getAttribute(reg.getKey()) == null && IOUtils.isAtmosphere(reg.getValue().getClassName())) {
                 final AtmosphereFramework framework = AtmosphereFrameworkInitializer.newAtmosphereFramework(c, false, true);
                 // Hack to make jsr356 works. Pretty ugly.
                 DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
@@ -62,8 +63,19 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 // Don't use WebLogic Native WebSocket support if JSR356 is available
                 int size = c.getServerInfo().contains("WebLogic") ? 1 : 0;
 
-                if (l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
-                    framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig()));
+                String s = reg.getValue().getInitParameter(ApplicationConfig.PROPERTY_COMET_SUPPORT);
+                boolean force = false;
+                if (s != null && s.equals(JSR356AsyncSupport.class.getName())) {
+                    force = true;
+                }
+
+                if (force || l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
+                    try {
+                        framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
+                    } catch (IllegalStateException ex) {
+                        // Let it fail so fallback can occurs.
+                        c.log("Unable to initialize websocket support", ex);
+                    }
                 }
 
                 try {
@@ -82,20 +94,20 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                         }
                     });
                 } catch (Throwable t) {
-                	c.log("AtmosphereFramework : Unable to install WebSocket Session Creator", t);
+                    c.log("AtmosphereFramework : Unable to install WebSocket Session Creator", t);
                 }
 
                 try {
-                    String s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
+                    s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
                     if (s != null) {
                         boolean sessionSupport = Boolean.valueOf(s);
                         if (sessionSupport && c.getMajorVersion() > 2) {
                             c.addListener(SessionSupport.class);
-                            c.log("AtmosphereFramework : Installed "+ SessionSupport.class);
+                            c.log("AtmosphereFramework : Installed " + SessionSupport.class);
                         }
                     }
                 } catch (Throwable t) {
-                	c.log("AtmosphereFramework : SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", t);
+                    c.log("AtmosphereFramework : SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", t);
                 }
 
                 c.setAttribute(reg.getKey(), framework);

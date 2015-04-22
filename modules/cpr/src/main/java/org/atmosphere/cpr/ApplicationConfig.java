@@ -907,16 +907,5 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.AtmosphereConfig.getInitParameter
      */
     String USE_SERVLET_CONTEXT_PARAMETERS = "org.atmosphere.cpr.AtmosphereConfig.getInitParameter";
-    /**
-     * The time, in seconds, to wait for a websocket to execute the open operation and allow websocket's messages to
-     * start being processed. Normally the open is executed sequentially, e.g. the open is executed and then messages
-     * starts being sent by the client, but it is also allowed to send messages during the open processing. For Atmosphere
-     * to work correct, we must wait for the open to be executed before receiving messages. If your application doesn't use
-     * request's attributes, you can set that value to 0.
-     *
-     * Default: 2 seconds
-     * Value: org.atmosphere.websocket.waitOnOpenBeforeExecutingMessages
-     */
-    java.lang.String WEBSOCKET_WAIT_ON_OPEN = "org.atmosphere.websocket.waitOnOpenBeforeExecutingMessages";
 }
 

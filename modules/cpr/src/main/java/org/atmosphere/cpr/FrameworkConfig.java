@@ -67,7 +67,7 @@ public interface FrameworkConfig {
      */
     String JERSEY_CONTAINER = "com.sun.jersey.spi.container.servlet.ServletContainer";
     /**
-     * A request attribute used to lookup the {@link AtmosphereNativeCometServlet}. This attribute is for framework integrators and not recommend for normal applications.
+     * A request attribute used to lookup the {@link AtmosphereServlet}. This attribute is for framework integrators and not recommend for normal applications.
      */
     String ATMOSPHERE_SERVLET = "org.atmosphere.cpr.AtmosphereServlet";
     /**
@@ -111,7 +111,7 @@ public interface FrameworkConfig {
      */
     String SIMPLE_HTTP_OVER_WEBSOCKET = "polling-websocket-message";
     /**
-     * The SimpleHttpProtocol.
+     * The {@link org.atmosphere.websocket.protocol.StreamingHttpProtocol}.
      */
     String STREAMING_HTTP_OVER_WEBSOCKET = "streaming-websocket-message";
     /**

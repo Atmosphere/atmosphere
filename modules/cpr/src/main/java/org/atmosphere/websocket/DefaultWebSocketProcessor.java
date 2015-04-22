@@ -216,10 +216,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
                 }
                 proxy = postProcessMapping(webSocket, request, handler);
-                AtmosphereResourceImpl.class.cast(webSocket.resource()).action().type(asynchronousProcessor.invokeInterceptors(handler.interceptors(), webSocket.resource(), 0).type());
             }
 
-            // We must dispatch to execute AtmosphereInterceptor
             dispatch(webSocket, request, response);
 
             if (proxy != null) {
@@ -267,7 +265,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 AtmosphereResourceEventImpl.class.cast(r.getAtmosphereResourceEvent()).setCancelled(true);
                 AsynchronousProcessor.class.cast(framework.getAsyncSupport()).completeLifecycle(r, true);
             }
-            webSocket.markAsOpenProcessed();
+            webSocket.shiftAttributes();
         }
     }
 
@@ -304,9 +302,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                 boolean singleton = w.proxied.getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
                                     registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(),
-                                            framework.newClassInstance(WebSocketHandler.class, w.proxied.getClass()), w.interceptors()));
+                                            framework.newClassInstance(WebSocketHandler.class, w.proxied.getClass())));
                                 } else {
-                                    registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(), w, w.interceptors()));
+                                    registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(), w));
                                 }
                                 p = handlers.get(path);
                             } catch (Throwable e) {
@@ -389,15 +387,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             return;
         }
 
-        WebSocketHandlerProxy proxy = WebSocketHandlerProxy.class.cast(webSocketHandler);
-        if (a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-            // Per AtmosphereHandler
-            a = asynchronousProcessor.invokeInterceptors(proxy.interceptors(), resource, tracing);
-            if (a.type() != Action.TYPE.CONTINUE) {
-                return;
-            }
-        }
-
         //Unit test mock the request and will throw NPE.
         boolean skipAtmosphereHandler = request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
                 ? (Boolean) request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
@@ -416,7 +405,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 resource.onThrowable(t);
                 throw t;
             }
-            asynchronousProcessor.postInterceptors(proxy.interceptors(), resource);
         }
         request.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
 

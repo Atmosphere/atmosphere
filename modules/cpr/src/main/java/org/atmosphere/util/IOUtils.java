@@ -137,7 +137,7 @@ public class IOUtils {
 
         boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
         if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
-            logger.warn("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
+            logger.debug("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
             return stringBuilder;
         }
 
@@ -196,7 +196,7 @@ public class IOUtils {
 
         boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
         if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
-            logger.warn("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
+            logger.debug("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
             return new byte[0];
         }
 
@@ -264,6 +264,18 @@ public class IOUtils {
         }
         return servletPath;
     }
+
+    public static String guestRawServletPath(AtmosphereConfig config) {
+        String servletPath = "";
+        try {
+            // TODO: pick up the first one, will fail if there are two
+            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
+        return servletPath;
+    }
+
 
     /**
      * Used to remove trailing slash and wildcard from a servlet path.<br/><br/>

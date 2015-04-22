@@ -48,7 +48,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
 
             List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
-            AnnotationUtil.defaultInterceptors(framework, l);
+            AnnotationUtil.defaultManagedServiceInterceptors(framework, l);
 
             atmosphereConfig(a.atmosphereConfig(), framework);
             filters(a.broadcastFilters(), framework);
@@ -81,7 +81,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
                 }
             });
 
-            AnnotationUtil.interceptors(framework, Arrays.asList(a.interceptors()), l);
+            AnnotationUtil.interceptorsForManagedService(framework, Arrays.asList(a.interceptors()), l);
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
         } catch (Throwable e) {
             logger.warn("", e);

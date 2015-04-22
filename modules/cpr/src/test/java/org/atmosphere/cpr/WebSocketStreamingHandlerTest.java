@@ -32,7 +32,6 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.Reader;
 import java.nio.CharBuffer;
-import java.util.ArrayList;
 import java.util.Enumeration;
 import java.util.concurrent.ExecutionException;
 
@@ -97,7 +96,7 @@ public class WebSocketStreamingHandlerTest {
 
         WebSocketProcessorFactory.getDefault()
                         .getWebSocketProcessor(framework).registerWebSocketHandler(path,
-                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w, new ArrayList<AtmosphereInterceptor>()));
+                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w));
     }
 
     @Test

@@ -26,7 +26,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtocolUtil {
-    private final static Logger logger = LoggerFactory.getLogger(ProtocolUtil.class);
 
     protected static AtmosphereRequest.Builder constructRequest(WebSocket webSocket,
                                                                 String pathInfo,
@@ -58,13 +57,7 @@ public class ProtocolUtil {
 
     private static Map<String, Object> attributes(WebSocket webSocket, AtmosphereRequest request) {
         Map<String, Object> m = new ConcurrentHashMap<String, Object>();
-        try {
-            if ( webSocket.awaitForOpenProcessed() ) {
-                m.putAll(request.localAttributes());
-            }
-        } catch (InterruptedException e) {
-            logger.warn("Unable to retrieve native request attributes {}", webSocket);
-        }
+        m.putAll(webSocket.attributes());
         return m;
     }
 }
