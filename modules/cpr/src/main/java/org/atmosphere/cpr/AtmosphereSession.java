@@ -36,12 +36,12 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class AtmosphereSession {
 
-    private final Logger logger = LoggerFactory.getLogger(AtmosphereSession.class);
-    private final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
-    private String uuid;
-    private final Semaphore latch = new Semaphore(1);
-    private BroadcasterListenerAdapter broadcasterListener;
-    private Broadcaster[] relatedBroadcasters;
+    protected final Logger logger = LoggerFactory.getLogger(AtmosphereSession.class);
+    protected final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
+    protected String uuid;
+    protected final Semaphore latch = new Semaphore(1);
+    protected BroadcasterListenerAdapter broadcasterListener;
+    protected Broadcaster[] relatedBroadcasters;
 
     public AtmosphereSession(final AtmosphereResource r, Broadcaster... broadcasters) {
         this.uuid = r.uuid();
