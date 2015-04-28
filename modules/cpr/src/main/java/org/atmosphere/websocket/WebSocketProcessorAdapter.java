@@ -32,7 +32,7 @@ public class WebSocketProcessorAdapter implements WebSocketProcessor {
 
     @Override
     public boolean handshake(HttpServletRequest request) {
-        return false;
+        return true;
     }
 
     @Override
