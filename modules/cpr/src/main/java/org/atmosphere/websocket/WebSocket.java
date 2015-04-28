@@ -64,7 +64,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     protected ByteBuffer bb = ByteBuffer.allocate(8192);
     protected CharBuffer cb = CharBuffer.allocate(8192);
     protected String uuid = "NUll";
-    protected final CountDownLatch openLatch = new CountDownLatch(1);
     private Map<String,Object> attributesAtWebSocketOpen;
 
     public WebSocket(AtmosphereConfig config) {
