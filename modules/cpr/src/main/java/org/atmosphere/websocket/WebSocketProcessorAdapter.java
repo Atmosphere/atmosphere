@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Jeanfrancois Arcand
+ * Copyright 20145 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -24,6 +24,10 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 
+/**
+ * Simple Adapter fpr {@link WebSocketProcessor}
+ * @author Jenafrancois Arcand
+ */
 public class WebSocketProcessorAdapter implements WebSocketProcessor {
     @Override
     public WebSocketProcessor configure(AtmosphereConfig config) {
