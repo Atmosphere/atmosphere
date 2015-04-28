@@ -183,8 +183,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (framework.getAtmosphereConfig().handlers().size() == 0) {
             synchronized (framework) {
                 if (handlers.size() == 0) {
-                    logger.error("No AtmosphereHandler or WebSocketHandler installed.");
-                    throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
+                    logger.warn("No AtmosphereHandler or WebSocketHandler installed. Adding a default one.");
                 }
                 framework.addAtmosphereHandler(ROOT_MASTER, REFLECTOR_ATMOSPHEREHANDLER);
             }
