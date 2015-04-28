@@ -27,10 +27,17 @@ public class WebSocketProcessorServiceProcessor implements Processor<WebSocketPr
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessorServiceProcessor.class);
 
+    private boolean hasBeenSet;
+
     @Override
     public void handle(AtmosphereFramework framework, Class<WebSocketProcessor> annotatedClass) {
         try {
-            framework.setWebsocketProcessorClassName(annotatedClass.getName());
+            if (!hasBeenSet) {
+                hasBeenSet = true;
+                framework.setWebsocketProcessorClassName(annotatedClass.getName());
+            } else {
+                logger.warn("WebSocketProcessor already configured");
+            }
         } catch (Throwable e) {
             logger.warn("", e);
         }
