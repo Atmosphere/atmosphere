@@ -57,7 +57,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     private AtmosphereResource r;
     protected long lastWrite = 0;
     protected boolean binaryWrite;
-    private final ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
     private WebSocketHandler webSocketHandler;
@@ -163,6 +162,10 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
 
     protected byte[] transform(AtmosphereResponse response, byte[] b, int offset, int length) throws IOException {
         AsyncIOWriter a = response.getAsyncIOWriter();
+        // NOTE #1961 for now, create a new buffer par transform call and release it after the transform call.
+        //      Alternatively, we may cache the buffer in thread-local and use it while this thread invokes
+        //      multiple writes and release it when this thread invokes the close method.
+        ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
         try {
             response.asyncIOWriter(buffer);
             invokeInterceptor(response, b, offset, length);
@@ -309,7 +312,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         try {
             bb.clear();
             cb.clear();
-            buffer.close(r);
+            // NOTE #1961 if the buffer is cached at thread-local, it needs to be released here.
         } catch (Exception ex) {
             logger.trace("", ex);
         }
