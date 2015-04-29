@@ -674,7 +674,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         boolean isClosedByClient =  r == null ? true : r.getAtmosphereResourceEvent().isClosedByClient();
         try {
             if (r != null) {
-                asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(webSocket.resource()), true);
+                asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(r), true);
             }
         } finally {
             if (!isClosedByClient) {
