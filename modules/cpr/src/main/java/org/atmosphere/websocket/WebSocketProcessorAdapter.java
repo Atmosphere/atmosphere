@@ -26,7 +26,8 @@ import java.io.Reader;
 
 /**
  * Simple Adapter fpr {@link WebSocketProcessor}
- * @author Jenafrancois Arcand
+ *
+ * @author Jeanfrancois Arcand
  */
 public class WebSocketProcessorAdapter implements WebSocketProcessor {
     @Override

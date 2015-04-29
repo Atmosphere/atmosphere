@@ -84,7 +84,7 @@ import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYP
  *
  * @author Jeanfrancois Arcand
  */
-public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializable {
+public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializable, WebSocketPingPongListener {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultWebSocketProcessor.class);
 
@@ -107,7 +107,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public DefaultWebSocketProcessor() {
     }
 
-    public  WebSocketProcessor configure(AtmosphereConfig config) {
+    public WebSocketProcessor configure(AtmosphereConfig config) {
         this.framework = config.framework();
         this.webSocketProtocol = framework.getWebSocketProtocol();
 
@@ -900,4 +900,23 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return invokeInterceptors;
     }
 
+    @Override
+    public void onPong(WebSocket webSocket, byte[] payload, int offset, int length) {
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
+
+        if (webSocketHandler != null &&
+                WebSocketPingPongListener.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+            WebSocketPingPongListener.class.cast(webSocketHandler.proxied()).onPong(webSocket, payload, offset, length);
+        }
+    }
+
+    @Override
+    public void onPing(WebSocket webSocket, byte[] payload, int offset, int length) {
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
+
+        if (webSocketHandler != null &&
+                WebSocketPingPongListener.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+            WebSocketPingPongListener.class.cast(webSocketHandler.proxied()).onPing(webSocket, payload, offset, length);
+        }
+    }
 }
