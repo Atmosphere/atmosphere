@@ -1056,7 +1056,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
 
     private static Object attributeWithoutException(HttpServletRequest request, String attribute) {
         try {
-            return request.getAttribute(attribute) == null ? "" : request.getAttribute(attribute);
+            return request.getAttribute(attribute);
         } catch (NullPointerException ex) {
             // https://github.com/Atmosphere/atmosphere/issues/1732
             logger.trace("Unexpected NPE", ex);
