@@ -1157,7 +1157,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
-        private Map<String, Object> localAttributes = new ConcurrentHashMap<String, Object>();
+        private Map<String, Object> localAttributes = Collections.synchronizedMap(new HashMap<String, Object>());
         private InputStream inputStream;
         private Reader reader;
         private String remoteAddr = "";
