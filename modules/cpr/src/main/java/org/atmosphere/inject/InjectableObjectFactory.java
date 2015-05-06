@@ -86,17 +86,29 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
-        Method[] methods = defaultType.getMethods();
+        Method[] methods = defaultType.getDeclaredMethods();
         for (Method m : methods) {
             if (m.isAnnotationPresent(PostConstruct.class)) {
                 try {
                     m.invoke(instance);
+                    break;
                 } catch (InvocationTargetException e) {
                     throw new RuntimeException(e);
                 }
             }
         }
 
+        methods = defaultType.getMethods();
+        for (Method m : methods) {
+            if (m.isAnnotationPresent(PostConstruct.class)) {
+                try {
+                    m.invoke(instance);
+                    return;
+                } catch (InvocationTargetException e) {
+                    throw new RuntimeException(e);
+                }
+            }
+        }
     }
 
     /**
@@ -115,6 +127,19 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     if (c.supportedType(field.getType())) {
                         field.set(instance, c.injectable(framework.getAtmosphereConfig()));
                         break;
+                    }
+                }
+            }
+        }
+
+        fields = defaultType.getFields();
+        for (Field field : fields) {
+            field.setAccessible(true);
+            if (field.isAnnotationPresent(Inject.class)) {
+                for (Injectable c : injectables) {
+                    if (c.supportedType(field.getType())) {
+                        field.set(instance, c.injectable(framework.getAtmosphereConfig()));
+                        return;
                     }
                 }
             }
