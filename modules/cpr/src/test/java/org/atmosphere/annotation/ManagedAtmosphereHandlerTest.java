@@ -47,6 +47,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.annotation.PostConstruct;
 import javax.inject.Inject;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
@@ -107,7 +108,7 @@ public class ManagedAtmosphereHandlerTest {
 
             @Override
             public String getInitParameter(String name) {
-                return ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS.equals(name) ? "10": null;
+                return ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS.equals(name) ? "10" : null;
             }
 
             @Override
@@ -565,6 +566,55 @@ public class ManagedAtmosphereHandlerTest {
         r.get().resume();
         assertNotNull(message.get());
         assertEquals(message.get(), framework.metaBroadcaster().toString());
+
+    }
+
+    @ManagedService(path = "/postConstruct")
+    public final static class PostConstructAnnotation {
+
+        @Inject
+        private AtmosphereFramework framework;
+
+        @PostConstruct
+        private void postConstruct() {
+            message.set("postConstruct");
+        }
+
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(resource);
+            resource.addEventListener(new OnSuspend() {
+                @Override
+                public void onSuspend(AtmosphereResourceEvent event) {
+                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/postConstruct").method("POST").body("message").build();
+
+                    try {
+                        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+                    } catch (IOException e) {
+                        e.printStackTrace();
+                    } catch (ServletException e) {
+                        e.printStackTrace();
+                    }
+                }
+            }).suspend();
+
+        }
+
+        @Message
+        public void message(String s) {
+            message.set(message.get() + s);
+        }
+    }
+
+    @Test
+    public void testPostConstruct() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/postConstruct").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+        assertNotNull(message.get());
+        assertEquals(message.get(), "postConstructmessage");
 
     }
 }
