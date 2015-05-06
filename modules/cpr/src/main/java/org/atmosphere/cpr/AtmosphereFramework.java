@@ -1222,8 +1222,9 @@ public class AtmosphereFramework {
             }
 
             if (broadcasterFactoryClassName != null) {
-                broadcasterFactory = newClassInstance(BroadcasterFactory.class,
-                        (Class<BroadcasterFactory>) IOUtils.loadClass(getClass(), broadcasterFactoryClassName));
+                if (broadcasterFactory == null)
+                    broadcasterFactory = newClassInstance(BroadcasterFactory.class,
+                            (Class<BroadcasterFactory>) IOUtils.loadClass(getClass(), broadcasterFactoryClassName));
             }
 
             if (broadcasterFactory == null) {
