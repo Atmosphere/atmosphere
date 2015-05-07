@@ -91,7 +91,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         if (b.request == null) b.request(new NoOpsRequest());
 
         this.b = b;
-        this.uuid = resource() !=  null ? resource().uuid() : "0";
+        this.uuid = resource() != null ? resource().uuid() : "0";
     }
 
     private BufferedReader getVoidReader() {
@@ -754,8 +754,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     /**
      * Return the locally added attributes.
      *
-     * @deprecated Use {@link #localAttributes()}
      * @return the locally added attributes
+     * @deprecated Use {@link #localAttributes()}
      */
     public Map<String, Object> attributes() {
         return b.localAttributes;
@@ -803,6 +803,13 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         } catch (NullPointerException ex) {
             // GLASSFISH http://java.net/jira/browse/GLASSFISH-18856
             return b.request.getSession(create);
+        } catch (RuntimeException ex) {
+            // https://github.com/Atmosphere/atmosphere/issues/1974
+            logger.trace("", ex);
+            if (ex.getMessage() != null || ex.getMessage().contains("SESN0007E")) {
+                return null;
+            }
+            throw ex;
         }
     }
 
@@ -1101,8 +1108,8 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
      * @return the underlying {@link AtmosphereResource#uuid()}
      */
     public String uuid() {
-        if  (uuid == "0") {
-            this.uuid = resource() !=  null ? resource().uuid() : "0";
+        if (uuid == "0") {
+            this.uuid = resource() != null ? resource().uuid() : "0";
         }
         return uuid;
     }
