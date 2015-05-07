@@ -135,15 +135,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             return new Action();
         }
 
-        // https://github.com/Atmosphere/atmosphere/issues/1637
-        if (isServlet30 && (!req.isAsyncSupported() && !Utils.closeMessage(req))) {
-            logger.error("Invalid request state. <async-supported>true</async-supported> must be defined for ALL Servlets and Filters  declarations in web.xml {}", req.getRequestURL().toString());
-            res.setStatus(501);
-            res.addHeader(X_ATMOSPHERE_ERROR, "<async-supported>true</async-supported> must be defined for ALL Servlets and Filters  declarations in web.xml.");
-            res.flushBuffer();
-            return new Action();
-        }
-
         if (config.handlers().isEmpty()) {
             logger.error("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
             throw new AtmosphereMappingException("No AtmosphereHandler found. Make sure you define it inside WEB-INF/atmosphere.xml or annotate using @___Service");
