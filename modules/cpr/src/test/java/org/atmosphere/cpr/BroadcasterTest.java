@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.ExecutorsFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -63,6 +64,7 @@ public class BroadcasterTest {
         broadcaster.destroy();
         atmosphereHandler.value.set(new HashSet());
         config.getBroadcasterFactory().destroy();
+        ExecutorsFactory.reset(config);
     }
 
     @Test

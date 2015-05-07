@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -73,6 +74,11 @@ public class UrlMappingTest {
                 return new Action(Action.TYPE.CREATED);
             }
         };
+    }
+
+    @AfterMethod
+    public void unSet() throws Exception {
+        framework.destroy();
     }
 
     @Test

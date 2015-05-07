@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -63,6 +64,11 @@ public class CookieTest {
                 return null;
             }
         });
+    }
+
+    @AfterMethod
+    public void unSet() throws Exception {
+        framework.destroy();
     }
 
     @Test
