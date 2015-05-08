@@ -85,19 +85,7 @@ public class IOUtils {
         final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
         switch (deliverTo) {
             case RESOURCE:
-                if (o != null) {
-                    try {
-                        synchronized (r) {
-                            if (String.class.isAssignableFrom(o.getClass())) {
-                                r.write(o.toString()).getResponse().flushBuffer();
-                            } else if (byte[].class.isAssignableFrom(o.getClass())) {
-                                r.write((byte[]) o).getResponse().flushBuffer();
-                            }
-                        }
-                    } catch (Exception ex) {
-                        logger.warn("", ex);
-                    }
-                }
+                r.getBroadcaster().broadcast(o, r);
                 break;
             case BROADCASTER:
                 r.getBroadcaster().broadcast(o);
