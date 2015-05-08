@@ -52,6 +52,7 @@ public class ExecutorsFactory {
             Class.forName("java.util.concurrent.ForkJoinPool");
             useForkJoinPool = true;
         } catch (ClassNotFoundException e) {
+            logger.warn("Unable to instantiate the java.util.concurrent.ForkJoinPool For best performance, please install JDK 1.7+.");
             useForkJoinPool = false;
         }
     }
