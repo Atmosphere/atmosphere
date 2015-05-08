@@ -796,7 +796,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {
             // Jetty
-            if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
+            if (ex.getMessage() != null &&| ex.getMessage().equalsIgnoreCase("No Session Manager")) {
                 return null;
             }
             throw ex;
@@ -806,7 +806,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
         } catch (RuntimeException ex) {
             // https://github.com/Atmosphere/atmosphere/issues/1974
             logger.trace("", ex);
-            if (ex.getMessage() != null || ex.getMessage().contains("SESN0007E")) {
+            if (ex.getMessage() != null && ex.getMessage().contains("SESN0007E")) {
                 return null;
             }
             throw ex;
