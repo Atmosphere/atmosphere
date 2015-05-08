@@ -84,7 +84,7 @@ import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYP
  *
  * @author Jeanfrancois Arcand
  */
-public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializable {
+public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializable, WebSocketPingPongListener {
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultWebSocketProcessor.class);
 
@@ -107,7 +107,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public DefaultWebSocketProcessor() {
     }
 
-    public  WebSocketProcessor configure(AtmosphereConfig config) {
+    public WebSocketProcessor configure(AtmosphereConfig config) {
         this.framework = config.framework();
         this.webSocketProtocol = framework.getWebSocketProtocol();
 
@@ -183,8 +183,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (framework.getAtmosphereConfig().handlers().size() == 0) {
             synchronized (framework) {
                 if (handlers.size() == 0) {
-                    logger.error("No AtmosphereHandler or WebSocketHandler installed.");
-                    throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + request.getRequestURI());
+                    logger.warn("No AtmosphereHandler or WebSocketHandler installed. Adding a default one.");
                 }
                 framework.addAtmosphereHandler(ROOT_MASTER, REFLECTOR_ATMOSPHEREHANDLER);
             }
@@ -670,9 +669,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     public void executeClose(WebSocket webSocket, int closeCode) {
-        boolean isClosedByClient = webSocket.resource() == null ? true : webSocket.resource().getAtmosphereResourceEvent().isClosedByClient();
+        AtmosphereResource r = webSocket.resource();
+
+        boolean isClosedByClient =  r == null ? true : r.getAtmosphereResourceEvent().isClosedByClient();
         try {
-            asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(webSocket.resource()), true);
+            if (r != null) {
+                asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(r), true);
+            }
         } finally {
             if (!isClosedByClient) {
                 notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent(closeCode, CLOSE, webSocket));
@@ -901,4 +904,23 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         return invokeInterceptors;
     }
 
+    @Override
+    public void onPong(WebSocket webSocket, byte[] payload, int offset, int length) {
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
+
+        if (webSocketHandler != null &&
+                WebSocketPingPongListener.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+            WebSocketPingPongListener.class.cast(webSocketHandler.proxied()).onPong(webSocket, payload, offset, length);
+        }
+    }
+
+    @Override
+    public void onPing(WebSocket webSocket, byte[] payload, int offset, int length) {
+        WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
+
+        if (webSocketHandler != null &&
+                WebSocketPingPongListener.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+            WebSocketPingPongListener.class.cast(webSocketHandler.proxied()).onPing(webSocket, payload, offset, length);
+        }
+    }
 }

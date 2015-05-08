@@ -1334,7 +1334,7 @@ public class AtmosphereFramework {
                 broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
             }
 
-            if (broadcasterFactoryClassName != null) {
+            if (broadcasterFactoryClassName != null && broadcasterFactory == null) {
                 broadcasterFactory = newClassInstance(BroadcasterFactory.class,
                         (Class<BroadcasterFactory>) IOUtils.loadClass(getClass(), broadcasterFactoryClassName));
                 Class<? extends Broadcaster> bc =

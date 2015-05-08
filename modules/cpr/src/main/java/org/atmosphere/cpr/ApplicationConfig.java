@@ -907,5 +907,11 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.AtmosphereConfig.getInitParameter
      */
     String USE_SERVLET_CONTEXT_PARAMETERS = "org.atmosphere.cpr.AtmosphereConfig.getInitParameter";
+    /**
+     * Use {@link ForkJoinPool} for dispatching messages and executing async I/O) operation
+     * Default: true
+     * Value: org.atmosphere.useForkJoinPool
+     */
+    String USE_FORJOINPOOL = "org.atmosphere.useForkJoinPool";
 }
 

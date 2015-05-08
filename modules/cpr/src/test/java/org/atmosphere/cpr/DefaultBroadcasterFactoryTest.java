@@ -15,7 +15,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.SimpleBroadcaster;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -42,6 +44,13 @@ public class DefaultBroadcasterFactoryTest {
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+    }
+
+    @AfterMethod
+    public void unSet() throws Exception {
+        config.destroy();
+        ExecutorsFactory.reset(config);
+        factory.destroy();
     }
 
     @Test

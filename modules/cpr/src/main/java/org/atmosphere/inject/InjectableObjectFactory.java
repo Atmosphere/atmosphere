@@ -86,17 +86,23 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
-        Method[] methods = defaultType.getMethods();
+        injectMethods(defaultType.getDeclaredMethods(), instance);
+        injectMethods(defaultType.getMethods(), instance);
+
+    }
+
+    private <U> void injectMethods(Method[] methods, U instance) throws IllegalAccessException {
         for (Method m : methods) {
             if (m.isAnnotationPresent(PostConstruct.class)) {
                 try {
+                    m.setAccessible(true);
                     m.invoke(instance);
+                    break;
                 } catch (InvocationTargetException e) {
                     throw new RuntimeException(e);
                 }
             }
         }
-
     }
 
     /**
@@ -107,19 +113,22 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
-        Field[] fields = defaultType.getDeclaredFields();
+        injectFields(defaultType.getDeclaredFields(), instance, framework);
+        injectFields(defaultType.getFields(), instance, framework);
+    }
+
+    private <U>  void injectFields(Field[] fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
         for (Field field : fields) {
-            field.setAccessible(true);
             if (field.isAnnotationPresent(Inject.class)) {
                 for (Injectable c : injectables) {
                     if (c.supportedType(field.getType())) {
+                        field.setAccessible(true);
                         field.set(instance, c.injectable(framework.getAtmosphereConfig()));
                         break;
                     }
                 }
             }
         }
-
     }
 
     public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable) {

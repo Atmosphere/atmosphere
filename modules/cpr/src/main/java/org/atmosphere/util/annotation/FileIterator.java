@@ -131,6 +131,8 @@ public final class FileIterator {
      * Add the specified files in reverse order.
      */
     private void addReverse(final File[] files) {
+        if (files == null) return;
+
         for (int i = files.length - 1; i >=0; --i) {
             stack.add(files[i]);
         }
