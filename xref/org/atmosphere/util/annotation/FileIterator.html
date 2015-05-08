@@ -139,12 +139,14 @@
 <a class="jxr_linenumber" name="L131" href="#L131">131</a> <em class="jxr_javadoccomment">     * Add the specified files in reverse order.</em>
 <a class="jxr_linenumber" name="L132" href="#L132">132</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> addReverse(<strong class="jxr_keyword">final</strong> File[] files) {
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = files.length - 1; i &gt;=0; --i) {
-<a class="jxr_linenumber" name="L135" href="#L135">135</a>             stack.add(files[i]);
-<a class="jxr_linenumber" name="L136" href="#L136">136</a>         }
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>     }
-<a class="jxr_linenumber" name="L138" href="#L138">138</a> 
-<a class="jxr_linenumber" name="L139" href="#L139">139</a> }
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>         <strong class="jxr_keyword">if</strong> (files == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L135" href="#L135">135</a> 
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = files.length - 1; i &gt;=0; --i) {
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>             stack.add(files[i]);
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>         }
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>     }
+<a class="jxr_linenumber" name="L140" href="#L140">140</a> 
+<a class="jxr_linenumber" name="L141" href="#L141">141</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>
