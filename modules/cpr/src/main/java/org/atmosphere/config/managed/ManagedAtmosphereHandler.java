@@ -205,7 +205,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else {
             Object o;
             if (msg != null) {
-                if (Managed.class.isAssignableFrom(msg.getClass())) {
+                if (r.getBroadcaster().getBroadcasterConfig().hasFilters() && Managed.class.isAssignableFrom(msg.getClass())) {
                     Object newMsg = Managed.class.cast(msg).o;
                     event.setMessage(newMsg);
                     // No method matched. Give a last chance by trying to decode the proxiedInstance.
