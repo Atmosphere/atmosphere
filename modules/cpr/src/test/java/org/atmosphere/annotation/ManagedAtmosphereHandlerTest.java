@@ -577,6 +577,7 @@ public class ManagedAtmosphereHandlerTest {
 
         @PostConstruct
         private void postConstruct() {
+            if (message.get() == "postConstruct")   message.set("error");
             message.set("postConstruct");
         }
 

@@ -27,7 +27,10 @@ import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 /**
  * Support injection of Atmosphere's Internal object using {@link }
@@ -86,12 +89,13 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
-        injectMethods(defaultType.getDeclaredMethods(), instance);
-        injectMethods(defaultType.getMethods(), instance);
-
+        Set<Method> methods = new HashSet<Method>();
+        methods.addAll(Arrays.asList(defaultType.getDeclaredMethods()));
+        methods.addAll(Arrays.asList(defaultType.getMethods()));
+        injectMethods(methods, instance);
     }
 
-    private <U> void injectMethods(Method[] methods, U instance) throws IllegalAccessException {
+    private <U> void injectMethods(Set<Method> methods, U instance) throws IllegalAccessException {
         for (Method m : methods) {
             if (m.isAnnotationPresent(PostConstruct.class)) {
                 try {
@@ -113,11 +117,13 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
-        injectFields(defaultType.getDeclaredFields(), instance, framework);
-        injectFields(defaultType.getFields(), instance, framework);
+        Set<Field> fields = new HashSet<Field>();
+        fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
+        fields.addAll(Arrays.asList(defaultType.getFields()));
+        injectFields(fields, instance, framework);
     }
 
-    private <U>  void injectFields(Field[] fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
+    private <U>  void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
                 for (Injectable c : injectables) {
