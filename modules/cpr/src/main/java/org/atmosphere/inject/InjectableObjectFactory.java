@@ -26,42 +26,35 @@ import javax.inject.Inject;
 import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
+import java.util.LinkedList;
+import java.util.ServiceLoader;
 import java.util.Set;
 
 /**
- * Support injection of Atmosphere's Internal object using {@link }
- * {@link org.atmosphere.cpr.AtmosphereConfig},{@link AtmosphereFramework,{@link AtmosphereFramework,{@link org.atmosphere.cpr.BroadcasterFactory,
+ * Support injection of Atmosphere's Internal object using
+ * {@link org.atmosphere.cpr.AtmosphereConfig},{@link AtmosphereFramework},{@link org.atmosphere.cpr.BroadcasterFactory,
  * {@link org.atmosphere.cpr.AtmosphereResourceFactory } ,{@link org.atmosphere.cpr.DefaultMetaBroadcaster } and
- * {@link org.atmosphere.cpr.AtmosphereResourceSessionFactory }
+ * {@link org.atmosphere.cpr.AtmosphereResourceSessionFactory } and classes implementing the {@link Injectable} defined inside
+ * META_INF/services/org.atmosphere.inject.Inject
  *
  * @author Jeanfrancois Arcand
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
-
-    public final static Class<Injectable<?>>[] DEFAULT_ATMOSPHERE_INJECTABLE = new Class[]{
-            AtmosphereConfigInjectable.class,
-            AtmosphereFrameworkInjectable.class,
-            AtmosphereResourceFactoryInjectable.class,
-            AtmosphereResourceSessionFactoryInjectable.class,
-            BroadcasterFactoryInjectable.class,
-            MetaBroadcasterInjectable.class
-    };
-
-    private final List<Injectable<?>> injectables = new ArrayList<Injectable<?>>();
+    private final static ServiceLoader<Injectable> injectableServiceLoader = ServiceLoader.load(Injectable.class);
+    private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private AtmosphereConfig config;
 
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
-        for (Class<Injectable<?>> i : DEFAULT_ATMOSPHERE_INJECTABLE) {
+        for (Injectable i : injectableServiceLoader) {
             try {
-                injectables.add(i.newInstance());
+                logger.debug("Adding class {} as injectable", i.getClass());
+                injectables.addLast(i);
             } catch (Exception e) {
                 logger.error("", e);
             }
@@ -123,7 +116,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         injectFields(fields, instance, framework);
     }
 
-    private <U>  void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
+    private <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
                 for (Injectable c : injectables) {
@@ -145,6 +138,23 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     @Override
     public String toString() {
         return InjectableObjectFactory.class.getName();
+    }
+
+    /**
+     * Use this method to retrieve available {@link Injectable}. This method is for application that inject their
+     * own {@link Injectable} and needs already constructed classes.
+     *
+     * @param u the class
+     * @param <U> the type
+     * @return the class if exists, null if not
+     */
+    public <U> U getInjectable(Class<U> u) {
+        for (Injectable c : injectables) {
+            if (c.supportedType(u)) {
+                return (U) c.injectable(config);
+            }
+        }
+        return null;
     }
 
 }
