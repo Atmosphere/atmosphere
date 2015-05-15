@@ -205,18 +205,20 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else {
             Object o;
             if (msg != null) {
-                if (r.getBroadcaster().getBroadcasterConfig().hasFilters() && Managed.class.isAssignableFrom(msg.getClass())) {
+                if (Managed.class.isAssignableFrom(msg.getClass())) {
                     Object newMsg = Managed.class.cast(msg).o;
                     event.setMessage(newMsg);
-                    // No method matched. Give a last chance by trying to decode the proxiedInstance.
+                    // encoding might be needed again since BroadcasterFilter might have modified message body
                     // This makes application development more simpler.
                     // Chaining of encoder is not supported.
                     // TODO: This could be problematic with String + method
-                    for (MethodInfo m : onRuntimeMethod) {
-                        o = Invoker.encode(encoders.get(m.method), newMsg);
-                        if (o != null) {
-                            event.setMessage(o);
-                            break;
+                    if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
+                        for (MethodInfo m : onRuntimeMethod) {
+                            o = Invoker.encode(encoders.get(m.method), newMsg);
+                            if (o != null) {
+                                event.setMessage(o);
+                                break;
+                            }
                         }
                     }
                 } else {
