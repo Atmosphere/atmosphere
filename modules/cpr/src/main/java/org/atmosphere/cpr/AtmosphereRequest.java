@@ -794,7 +794,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {
             // Jetty
-            if (ex.getMessage() != null || ex.getMessage().equalsIgnoreCase("No Session Manager")) {
+            if (ex.getMessage() != null && ex.getMessage().equals("No SessionManager")) {
                 return null;
             }
             throw ex;
