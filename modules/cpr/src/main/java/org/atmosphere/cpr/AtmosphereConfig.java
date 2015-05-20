@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.util.UUIDProvider;
+import org.atmosphere.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -330,6 +331,15 @@ public class AtmosphereConfig {
      */
     public UUIDProvider uuidProvider() {
         return framework.uuidProvider();
+    }
+
+    /**
+     * Return the {@link WebSocketFactory}
+     *
+     * @return the {@link WebSocketFactory}
+     */
+    public WebSocketFactory websocketFactory() {
+        return framework.webSocketFactory();
     }
 
     /**

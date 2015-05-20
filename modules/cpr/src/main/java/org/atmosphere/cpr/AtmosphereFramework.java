@@ -55,8 +55,10 @@ import org.atmosphere.util.Version;
 import org.atmosphere.util.analytics.FocusPoint;
 import org.atmosphere.util.analytics.JGoogleAnalyticsTracker;
 import org.atmosphere.util.analytics.ModuleDetection;
+import org.atmosphere.websocket.DefaultWebSocketFactory;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketFactory;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
@@ -266,6 +268,7 @@ public class AtmosphereFramework {
             add(IdleResourceInterceptor.class);
         }
     };
+    private WebSocketFactory webSocketFactory;
 
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}.
@@ -448,6 +451,8 @@ public class AtmosphereFramework {
                     fwk.setAndConfigureAtmosphereResourceFactory(fwk.newClassInstance(AtmosphereResourceFactory.class, c));
                 } else if (AtmosphereFrameworkListener.class.isAssignableFrom(c)) {
                     fwk.frameworkListener(fwk.newClassInstance(AtmosphereFrameworkListener.class, c));
+                } else if (WebSocketFactory.class.isAssignableFrom(c)) {
+                    fwk.webSocketFactory(fwk.newClassInstance(WebSocketFactory.class, c));
                 } else if (AtmosphereFramework.class.isAssignableFrom(c)) {
                     // No OPS
                 } else {
@@ -1153,9 +1158,9 @@ public class AtmosphereFramework {
                                     break;
                                 } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
                                     nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
-                                    if (nextMajorRelease.compareTo(Version.getRawVersion()) > 0 
-                                        && nextMajorRelease.toLowerCase().indexOf("rc") == -1 
-                                        && nextMajorRelease.toLowerCase().indexOf("beta") == -1) {
+                                    if (nextMajorRelease.compareTo(Version.getRawVersion()) > 0
+                                            && nextMajorRelease.toLowerCase().indexOf("rc") == -1
+                                            && nextMajorRelease.toLowerCase().indexOf("beta") == -1) {
                                         nextAvailable = true;
                                     }
                                 }
@@ -2604,7 +2609,7 @@ public class AtmosphereFramework {
 
     protected void addInterceptorToWrapper(AtmosphereHandlerWrapper wrapper, List<AtmosphereInterceptor> interceptors) {
 
-        for (AtmosphereInterceptor c: this.interceptors) {
+        for (AtmosphereInterceptor c : this.interceptors) {
             addInterceptorToWrapper(wrapper, c);
         }
 
@@ -3198,14 +3203,32 @@ public class AtmosphereFramework {
 
     private AtmosphereFramework configureAtmosphereResourceFactory() {
         if (arFactory != null) return this;
-        try {
-            arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
-        } catch (InstantiationException e) {
-            logger.error("", e);
-        } catch (IllegalAccessException e) {
-            logger.error("", e);
+
+        synchronized(this) {
+            try {
+                arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
+            } catch (InstantiationException e) {
+                logger.error("", e);
+            } catch (IllegalAccessException e) {
+                logger.error("", e);
+            }
+            arFactory.configure(config);
         }
-        arFactory.configure(config);
+        return this;
+    }
+
+    private AtmosphereFramework configureWebSocketFactory() {
+        if (webSocketFactory != null) return this;
+
+        synchronized(this) {
+            try {
+                webSocketFactory = newClassInstance(WebSocketFactory.class, DefaultWebSocketFactory.class);
+            } catch (InstantiationException e) {
+                logger.error("", e);
+            } catch (IllegalAccessException e) {
+                logger.error("", e);
+            }
+        }
         return this;
     }
 
@@ -3403,6 +3426,29 @@ public class AtmosphereFramework {
      */
     public UUIDProvider uuidProvider() {
         return uuidProvider;
+    }
+
+    /**
+     * Return the {@link WebSocketFactory}
+     *
+     * @return the {@link WebSocketFactory}
+     */
+    public WebSocketFactory webSocketFactory() {
+        if (webSocketFactory == null) {
+            configureWebSocketFactory();
+        }
+        return webSocketFactory;
+    }
+
+    /**
+     * Configure the {@link WebSocketFactory}
+     *
+     * @param webSocketFactory the {@link WebSocketFactory}
+     * @return this
+     */
+    public AtmosphereFramework webSocketFactory(WebSocketFactory webSocketFactory) {
+        this.webSocketFactory = webSocketFactory;
+        return this;
     }
 
 }

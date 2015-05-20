@@ -22,6 +22,7 @@ import org.atmosphere.config.service.Message;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
 import org.atmosphere.config.service.Ready;
+import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
@@ -36,13 +37,18 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResourceSessionFactory;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.BroadcasterFactory;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.DefaultMetaBroadcaster;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.MetaBroadcaster;
+import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.ExcludeSessionBroadcaster;
 import org.atmosphere.util.SimpleBroadcaster;
+import org.atmosphere.websocket.WebSocket;
+import org.atmosphere.websocket.WebSocketFactory;
+import org.atmosphere.websocket.WebSocketHandlerAdapter;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -53,9 +59,11 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.BufferedReader;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.Reader;
 import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicReference;
@@ -73,6 +81,38 @@ public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
     private static final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
     private static final AtomicReference<String> message = new AtomicReference<String>();
+
+
+    public final class ArrayBaseWebSocket extends WebSocket {
+
+        private final OutputStream outputStream;
+
+        public ArrayBaseWebSocket(OutputStream outputStream) {
+            super(framework.getAtmosphereConfig());
+            this.outputStream = outputStream;
+        }
+
+        @Override
+        public boolean isOpen() {
+            return true;
+        }
+
+        @Override
+        public WebSocket write(String s) throws IOException {
+            outputStream.write(s.getBytes());
+            return this;
+        }
+
+        @Override
+        public WebSocket write(byte[] b, int offset, int length) throws IOException {
+            outputStream.write(b, offset, length);
+            return this;
+        }
+
+        @Override
+        public void close() {
+        }
+    }
 
     @BeforeMethod
     public void create() throws Throwable {
@@ -577,7 +617,7 @@ public class ManagedAtmosphereHandlerTest {
 
         @PostConstruct
         private void postConstruct() {
-            if (message.get() == "postConstruct")   message.set("error");
+            if (message.get() == "postConstruct") message.set("error");
             message.set("postConstruct");
         }
 
@@ -617,5 +657,32 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(message.get());
         assertEquals(message.get(), "postConstructmessage");
 
+    }
+
+    @WebSocketHandlerService(path = "/websocketfactory")
+    public final static class WebSocketfactoryTest extends WebSocketHandlerAdapter {
+
+        @Inject
+        public WebSocketFactory factory;
+
+        @Override
+        public void onOpen(WebSocket webSocket) throws IOException {
+            WebSocket w = factory.find(webSocket.resource().uuid());
+            r.set(w == null ? null : webSocket.resource());
+        }
+    }
+
+    @Test
+    public void testWebSocketFactory() throws IOException, ServletException {
+
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/websocketfactory").build();
+        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+
+        assertNotNull(r.get());
     }
 }

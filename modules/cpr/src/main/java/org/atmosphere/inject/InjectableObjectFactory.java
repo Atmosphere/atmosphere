@@ -54,7 +54,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         for (Injectable i : injectableServiceLoader) {
             try {
                 logger.debug("Adding class {} as injectable", i.getClass());
-                injectables.addLast(i);
+                injectables.addFirst(i);
             } catch (Exception e) {
                 logger.error("", e);
             }
