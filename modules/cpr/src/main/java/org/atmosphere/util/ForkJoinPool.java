@@ -33,22 +33,22 @@ public class ForkJoinPool extends AbstractExecutorService {
 
     private final static Logger logger = LoggerFactory.getLogger(ForkJoinPool.class);
 
-    private final java.util.concurrent.ForkJoinPool forkJoinPool;
+    private final org.atmosphere.util.chmv8.ForkJoinPool forkJoinPool;
 
     public ForkJoinPool() {
         forkJoinPool =
-                new java.util.concurrent.ForkJoinPool(Runtime.getRuntime().availableProcessors(),
-                    new java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory() {
+                new org.atmosphere.util.chmv8.ForkJoinPool(Runtime.getRuntime().availableProcessors(),
+                    new org.atmosphere.util.chmv8.ForkJoinPool.ForkJoinWorkerThreadFactory() {
 
                         @Override
-                        public java.util.concurrent.ForkJoinWorkerThread newThread(java.util.concurrent.ForkJoinPool pool) {
+                        public org.atmosphere.util.chmv8.ForkJoinWorkerThread newThread(org.atmosphere.util.chmv8.ForkJoinPool pool) {
                             return new AtmosphereThreadFactoryJoin(pool);
                         }
                     }, null, true);
         logger.info("Using ForkJoinPool. Set the {} to -1 to fully use its power.", ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
     }
 
-    public java.util.concurrent.ForkJoinPool pool() {
+    public org.atmosphere.util.chmv8.ForkJoinPool pool() {
         return forkJoinPool;
     }
 
@@ -82,10 +82,10 @@ public class ForkJoinPool extends AbstractExecutorService {
         forkJoinPool.execute(command);
     }
 
-    private final class AtmosphereThreadFactoryJoin extends java.util.concurrent.ForkJoinWorkerThread {
+    private final class AtmosphereThreadFactoryJoin extends org.atmosphere.util.chmv8.ForkJoinWorkerThread {
         private final AtomicInteger count = new AtomicInteger();
 
-        protected AtmosphereThreadFactoryJoin(java.util.concurrent.ForkJoinPool pool) {
+        protected AtmosphereThreadFactoryJoin(org.atmosphere.util.chmv8.ForkJoinPool pool) {
             super(pool);
             setName("Atmosphere-ForkJoinThreadShared-" + count.getAndIncrement());
         }
