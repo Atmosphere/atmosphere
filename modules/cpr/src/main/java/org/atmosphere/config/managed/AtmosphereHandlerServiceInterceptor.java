@@ -44,10 +44,10 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
                         boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
                         if (!singleton) {
                             config.framework().addAtmosphereHandler(path, config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass()),
-                                    config.getBroadcasterFactory().lookup(m.broadcaster(), path, true), w.interceptors);
+                                    config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
                         } else {
                             config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
-                                    config.getBroadcasterFactory().lookup(m.broadcaster(), path, true), w.interceptors);
+                                    config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
                         }
                         request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                     } catch (Throwable e) {

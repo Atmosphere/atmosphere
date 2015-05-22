@@ -54,10 +54,10 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
                                     r.setServlet(config.framework().newClassInstance(Servlet.class, s.getClass()));
                                     r.init(config);
                                     config.framework().addAtmosphereHandler(path, r,
-                                            config.getBroadcasterFactory().lookup(m.broadcaster(), path, true), w.interceptors);
+                                            config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
                                 } else {
                                     config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
-                                            config.getBroadcasterFactory().lookup(m.broadcaster(), path, true), w.interceptors);
+                                            config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
                                 }
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                             } catch (Throwable e) {

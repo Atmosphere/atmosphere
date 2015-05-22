@@ -20,7 +20,6 @@ import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.AnnotatedProxy;
@@ -46,7 +45,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                 // ManagedService
                 if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
                     AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-                    ManagedAnnotation a = managed(ap, request.resource());
+                    ManagedAnnotation a = managed(ap, w.broadcaster.getClass());
                     if (a != null) {
                         String targetPath = a.path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
@@ -85,7 +84,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         return config.framework().newClassInstance(AnnotatedProxy.class, ManagedAtmosphereHandler.class);
     }
 
-    protected ManagedAnnotation managed(AnnotatedProxy ap, AtmosphereResource r){
+    protected ManagedAnnotation managed(AnnotatedProxy ap, final Class<? extends Broadcaster> aClass){
         final ManagedService a = ap.target().getClass().getAnnotation(ManagedService.class);
         if (a == null) return null;
 
@@ -97,7 +96,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
             @Override
             public Class<? extends Broadcaster> broadcaster() {
-                return a.broadcaster();
+                return aClass;
             }
         };
     }
