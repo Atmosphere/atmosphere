@@ -242,13 +242,18 @@ public class AtmosphereConfig {
     }
 
     /**
-     * Add a {@link StartupHook}.
+     * Add a {@link StartupHook}. If the {@link AtmosphereFramework#isInit} return true, the
+     * StartupHook will be executed immediately.
      *
      * @param s a {@link StartupHook}
      * @return this
      */
     public AtmosphereConfig startupHook(StartupHook s) {
-        startUpHook.add(s);
+        if (framework().isInit) {
+            s.started(framework);
+        } else {
+            startUpHook.add(s);
+        }
         return this;
     }
 
