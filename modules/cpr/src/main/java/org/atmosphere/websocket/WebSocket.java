@@ -355,7 +355,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      */
     abstract public void close();
 
-    protected String uuid() {
+    public String uuid() {
         return uuid;
     }
 
