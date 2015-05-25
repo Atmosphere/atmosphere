@@ -134,8 +134,9 @@ public class PoolableBroadcasterFactoryTest {
 
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(c.size(), 100);
+            assertEquals(created.get(), c.size());
             assertEquals(created.get(), 100);
+            assertEquals(c.size(), 100);
 
             for (Broadcaster b : c) {
                 b.destroy();
