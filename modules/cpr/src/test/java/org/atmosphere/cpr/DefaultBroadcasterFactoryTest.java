@@ -235,12 +235,13 @@ public class DefaultBroadcasterFactoryTest {
         });
 
         ExecutorService r = Executors.newCachedThreadPool();
+        final String me = new String("me");
         for (int i = 0; i < 1000; i++) {
             r.submit(new Runnable() {
                 @Override
                 public void run() {
                     try {
-                        f.get(TestBroadcaster.class, new String("me"));
+                        f.get(TestBroadcaster.class, me);
                     } catch (IllegalStateException ex) {
                         latch.countDown();
                     }
