@@ -181,11 +181,7 @@ public class PoolableBroadcasterFactoryTest {
             r.submit(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        c.add(factory.get(new String("me")));
-                    } catch (IllegalStateException ex) {
-                        latch.countDown();
-                    }
+                    c.add(factory.get(new String("me")));
                 }
             });
 
