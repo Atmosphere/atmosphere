@@ -20,6 +20,8 @@ import org.apache.commons.pool2.impl.GenericObjectPoolConfig;
 import org.atmosphere.pool.BoundedApachePoolableProvider;
 import org.atmosphere.pool.PoolableBroadcasterFactory;
 import org.atmosphere.pool.UnboundedApachePoolableProvider;
+import org.atmosphere.util.ExecutorsFactory;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -52,6 +54,13 @@ public class PoolableBroadcasterFactoryTest {
         factory = new PoolableBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         factory.poolableProvider(new BoundedApachePoolableProvider());
         f.setBroadcasterFactory(factory);
+    }
+
+    @AfterMethod
+    public void unSet() throws Exception {
+        config.destroy();
+        ExecutorsFactory.reset(config);
+        factory.destroy();
     }
 
     @Test
