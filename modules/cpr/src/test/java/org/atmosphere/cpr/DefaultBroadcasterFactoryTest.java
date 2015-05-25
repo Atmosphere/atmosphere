@@ -193,21 +193,17 @@ public class DefaultBroadcasterFactoryTest {
         });
 
         ExecutorService r = Executors.newCachedThreadPool();
-        try {
-            for (int i = 0; i < 100; i++) {
-                r.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        f.lookup("name" + UUID.randomUUID().toString(), true);
-                    }
-                });
-            }
-        } finally {
-            r.shutdown();
+        for (int i = 0; i < 100; i++) {
+            r.submit(new Runnable() {
+                @Override
+                public void run() {
+                    f.lookup("name" + UUID.randomUUID().toString(), true);
+                }
+            });
         }
-        latch.await();
 
         try {
+            latch.await(30, TimeUnit.SECONDS);
             assertEquals(f.lookupAll().size(), 100);
             assertEquals(created.get(), 100);
         } finally {
@@ -254,8 +250,8 @@ public class DefaultBroadcasterFactoryTest {
 
         }
 
-        latch.await(30, TimeUnit.SECONDS);
         try {
+            latch.await(30, TimeUnit.SECONDS);
             assertEquals(latch.getCount(), 0);
             assertEquals(f.lookupAll().size(), 1);
             assertEquals(created.get(), 1);
