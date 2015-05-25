@@ -147,8 +147,8 @@ public class PoolableBroadcasterFactoryTest {
 
         } finally {
             factory.destroy();
+            r.shutdownNow();
         }
-
 
     }
 
@@ -203,6 +203,7 @@ public class PoolableBroadcasterFactoryTest {
 
         } finally {
             factory.destroy();
+            r.shutdownNow();
         }
 
     }

@@ -239,24 +239,17 @@ public class DefaultBroadcasterFactoryTest {
         });
 
         ExecutorService r = Executors.newCachedThreadPool();
-        try {
-            for (int i = 0; i < 1000; i++) {
-                r.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            f.get(TestBroadcaster.class, new String("me"));
-                        } catch (IllegalStateException ex) {
-                            latch.countDown();
-                        }
-                    }
-                });
+        for (int i = 0; i < 1000; i++) {
+            r.submit(new Runnable() {
+                @Override
+                public void run() {
+                    f.get(TestBroadcaster.class, new String("me"));
+                }
+            });
 
-            }
-        } finally {
-            r.shutdown();
         }
-        latch.await(10, TimeUnit.SECONDS);
+
+        latch.await(30, TimeUnit.SECONDS);
         try {
             assertEquals(latch.getCount(), 0);
             assertEquals(f.lookupAll().size(), 1);
@@ -264,6 +257,7 @@ public class DefaultBroadcasterFactoryTest {
             assertEquals(TestBroadcaster.instance.get(), 1);
         } finally {
             f.destroy();
+            r.shutdownNow();
         }
 
         assertEquals(TestBroadcaster.instance.get(), 1);
