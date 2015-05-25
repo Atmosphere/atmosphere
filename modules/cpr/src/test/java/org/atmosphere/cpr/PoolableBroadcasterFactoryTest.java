@@ -131,7 +131,7 @@ public class PoolableBroadcasterFactoryTest {
                 }
             });
         }
-        latch.await(20, TimeUnit.SECONDS);
+        assertTrue(latch.await(20, TimeUnit.SECONDS));
 
         try {
             assertEquals(c.size(), 100);
@@ -186,7 +186,7 @@ public class PoolableBroadcasterFactoryTest {
             });
 
         }
-        latch.await(20, TimeUnit.SECONDS);
+        assertTrue(latch.await(20, TimeUnit.SECONDS));
         try {
             assertEquals(latch.getCount(), 0);
             assertEquals(c.size(), 1000);
