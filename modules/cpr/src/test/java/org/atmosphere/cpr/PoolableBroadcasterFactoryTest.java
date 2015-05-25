@@ -179,11 +179,12 @@ public class PoolableBroadcasterFactoryTest {
 
         final ConcurrentLinkedQueue<Broadcaster> c = new ConcurrentLinkedQueue<Broadcaster>();
         ExecutorService r = Executors.newCachedThreadPool();
+        final String me = new String("me");
         for (int i = 0; i < 1000; i++) {
             r.submit(new Runnable() {
                 @Override
                 public void run() {
-                    c.add(factory.get(new String("me")));
+                    c.add(factory.get(me));
                 }
             });
 
