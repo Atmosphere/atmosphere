@@ -25,12 +25,14 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 public class AtmosphereFrameworkTest {
 
@@ -302,5 +304,21 @@ public class AtmosphereFrameworkTest {
         public Collection<BroadcasterListener> broadcasterListeners() {
             return null;
         }
+    }
+
+    @Test
+    public void testIsInit() throws ServletException {
+        AtmosphereFramework f = new AtmosphereFramework();
+        f.init();
+
+        final AtomicBoolean b = new AtomicBoolean();
+        f.getAtmosphereConfig().startupHook(new AtmosphereConfig.StartupHook() {
+                    @Override
+                    public void started(AtmosphereFramework framework) {
+                        b.set(true);
+                    }
+                });
+
+        assertTrue(b.get());
     }
 }

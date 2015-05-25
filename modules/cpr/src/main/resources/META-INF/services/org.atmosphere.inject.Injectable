@@ -1,0 +1,7 @@
+org.atmosphere.inject.AtmosphereConfigInjectable
+org.atmosphere.inject.AtmosphereFrameworkInjectable
+org.atmosphere.inject.AtmosphereResourceFactoryInjectable
+org.atmosphere.inject.AtmosphereResourceSessionFactoryInjectable
+org.atmosphere.inject.BroadcasterFactoryInjectable
+org.atmosphere.inject.MetaBroadcasterInjectable
+org.atmosphere.inject.WebSocketFactoryInjectable

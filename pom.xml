@@ -11,7 +11,7 @@
     <artifactId>atmosphere-project</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
-    <version>2.3.2-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
@@ -105,7 +105,7 @@
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>2.3.2</version>
+                <version>3.0.0</version>
                 <configuration>
                     <source>1.6</source>
                     <target>1.6</target>

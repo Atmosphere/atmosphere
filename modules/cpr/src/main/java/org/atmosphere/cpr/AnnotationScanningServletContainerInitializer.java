@@ -35,6 +35,7 @@ import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.UUIDProviderService;
+import org.atmosphere.config.service.WebSocketFactoryService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
@@ -64,6 +65,7 @@ import java.util.Set;
         BroadcasterFactoryService.class,
         BroadcasterService.class,
         MeteorService.class,
+        WebSocketFactoryService.class,
         WebSocketHandlerService.class,
         WebSocketProtocolService.class,
         AtmosphereInterceptorService.class,

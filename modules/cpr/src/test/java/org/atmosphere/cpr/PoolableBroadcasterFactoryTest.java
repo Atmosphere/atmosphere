@@ -123,17 +123,13 @@ public class PoolableBroadcasterFactoryTest {
 
         final ConcurrentLinkedQueue<Broadcaster> c = new ConcurrentLinkedQueue<Broadcaster>();
         ExecutorService r = Executors.newCachedThreadPool();
-        try {
-            for (int i = 0; i < 100; i++) {
-                r.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        c.add(factory.lookup("name" + UUID.randomUUID().toString(), true));
-                    }
-                });
-            }
-        } finally {
-            r.shutdown();
+        for (int i = 0; i < 100; i++) {
+            r.submit(new Runnable() {
+                @Override
+                public void run() {
+                    c.add(factory.lookup("name" + UUID.randomUUID().toString(), true));
+                }
+            });
         }
         latch.await();
 
@@ -141,7 +137,7 @@ public class PoolableBroadcasterFactoryTest {
             assertEquals(c.size(), 100);
             assertEquals(created.get(), 100);
 
-            for (Broadcaster b: c) {
+            for (Broadcaster b : c) {
                 b.destroy();
             }
 
@@ -181,22 +177,18 @@ public class PoolableBroadcasterFactoryTest {
 
         final ConcurrentLinkedQueue<Broadcaster> c = new ConcurrentLinkedQueue<Broadcaster>();
         ExecutorService r = Executors.newCachedThreadPool();
-        try {
-            for (int i = 0; i < 1000; i++) {
-                r.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            c.add(factory.get(new String("me")));
-                        } catch (IllegalStateException ex) {
-                            latch.countDown();
-                        }
+        for (int i = 0; i < 1000; i++) {
+            r.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        c.add(factory.get(new String("me")));
+                    } catch (IllegalStateException ex) {
+                        latch.countDown();
                     }
-                });
+                }
+            });
 
-            }
-        } finally {
-            r.shutdown();
         }
         latch.await(10, TimeUnit.SECONDS);
         try {
@@ -204,7 +196,7 @@ public class PoolableBroadcasterFactoryTest {
             assertEquals(c.size(), 1000);
             assertEquals(created.get(), 1000);
 
-            for (Broadcaster b: c) {
+            for (Broadcaster b : c) {
                 b.destroy();
             }
 

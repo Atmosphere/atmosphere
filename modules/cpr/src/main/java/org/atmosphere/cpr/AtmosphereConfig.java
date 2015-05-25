@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.util.UUIDProvider;
+import org.atmosphere.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -241,13 +242,18 @@ public class AtmosphereConfig {
     }
 
     /**
-     * Add a {@link StartupHook}.
+     * Add a {@link StartupHook}. If the {@link AtmosphereFramework#isInit} return true, the
+     * StartupHook will be executed immediately.
      *
      * @param s a {@link StartupHook}
      * @return this
      */
     public AtmosphereConfig startupHook(StartupHook s) {
-        startUpHook.add(s);
+        if (framework().isInit) {
+            s.started(framework);
+        } else {
+            startUpHook.add(s);
+        }
         return this;
     }
 
@@ -330,6 +336,15 @@ public class AtmosphereConfig {
      */
     public UUIDProvider uuidProvider() {
         return framework.uuidProvider();
+    }
+
+    /**
+     * Return the {@link WebSocketFactory}
+     *
+     * @return the {@link WebSocketFactory}
+     */
+    public WebSocketFactory websocketFactory() {
+        return framework.webSocketFactory();
     }
 
     /**

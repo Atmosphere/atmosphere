@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceSessionFactory;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.MetaBroadcaster;
+import org.atmosphere.websocket.WebSocketFactory;
 
 import javax.enterprise.context.ApplicationScoped;
 import javax.enterprise.inject.Produces;
@@ -65,6 +66,11 @@ public class AtmosphereProducers implements AtmosphereConfigAware {
     @Produces
     public MetaBroadcaster getMetaBroadcaster() {
         return config.metaBroadcaster();
+    }
+
+    @Produces
+    public WebSocketFactory getWebSocketFactory() {
+        return config.websocketFactory();
     }
 
 }

@@ -35,6 +35,7 @@ import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.UUIDProviderService;
+import org.atmosphere.config.service.WebSocketFactoryService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
@@ -79,6 +80,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             BroadcasterFactoryService.class,
             BroadcasterService.class,
             MeteorService.class,
+            WebSocketFactoryService.class,
             WebSocketHandlerService.class,
             WebSocketProtocolService.class,
             AtmosphereInterceptorService.class,
@@ -96,6 +98,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             AtmosphereFrameworkListenerService.class,
             AtmosphereResourceListenerService.class,
             UUIDProviderService.class
+
     };
 
     private AnnotationProcessor delegate;
