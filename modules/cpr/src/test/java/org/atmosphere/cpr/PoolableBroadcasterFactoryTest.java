@@ -133,7 +133,7 @@ public class PoolableBroadcasterFactoryTest {
         }
 
         try {
-            assertTrue(latch.await(20, TimeUnit.SECONDS));\
+            assertTrue(latch.await(20, TimeUnit.SECONDS));
             assertEquals(c.size(), 100);
             assertEquals(created.get(), 100);
 
