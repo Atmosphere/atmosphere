@@ -133,9 +133,11 @@ public class PoolableBroadcasterFactoryTest {
         }
 
         try {
-            latch.await(20, TimeUnit.SECONDS);
-            assertEquals(c.size(), 100);
+            assertTrue(latch.await(20, TimeUnit.SECONDS));
+            assertEquals(created.get(), c.size());
+
             assertEquals(created.get(), 100);
+            assertEquals(c.size(), 100);
 
             for (Broadcaster b : c) {
                 b.destroy();
@@ -187,7 +189,7 @@ public class PoolableBroadcasterFactoryTest {
 
         }
         try {
-            latch.await(20, TimeUnit.SECONDS);
+            assertTrue(latch.await(20, TimeUnit.SECONDS));
             assertEquals(latch.getCount(), 0);
             assertEquals(c.size(), 1000);
             assertEquals(created.get(), 1000);
