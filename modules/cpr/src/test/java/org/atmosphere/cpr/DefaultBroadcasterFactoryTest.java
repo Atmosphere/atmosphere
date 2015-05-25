@@ -243,7 +243,11 @@ public class DefaultBroadcasterFactoryTest {
             r.submit(new Runnable() {
                 @Override
                 public void run() {
-                    f.get(TestBroadcaster.class, new String("me"));
+                    try {
+                        f.get(TestBroadcaster.class, new String("me"));
+                    } catch (IllegalStateException ex) {
+                        latch.countDown();
+                    }
                 }
             });
 
