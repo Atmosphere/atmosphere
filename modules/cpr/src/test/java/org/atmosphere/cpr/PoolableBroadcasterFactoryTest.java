@@ -131,9 +131,9 @@ public class PoolableBroadcasterFactoryTest {
                 }
             });
         }
-        latch.await(20, TimeUnit.SECONDS);
 
         try {
+            latch.await(20, TimeUnit.SECONDS);
             assertEquals(c.size(), 100);
             assertEquals(created.get(), 100);
 
@@ -181,17 +181,13 @@ public class PoolableBroadcasterFactoryTest {
             r.submit(new Runnable() {
                 @Override
                 public void run() {
-                    try {
-                        c.add(factory.get(new String("me")));
-                    } catch (IllegalStateException ex) {
-                        latch.countDown();
-                    }
+                    c.add(factory.get(new String("me")));
                 }
             });
 
         }
-        latch.await(20, TimeUnit.SECONDS);
         try {
+            latch.await(20, TimeUnit.SECONDS);
             assertEquals(latch.getCount(), 0);
             assertEquals(c.size(), 1000);
             assertEquals(created.get(), 1000);
