@@ -109,14 +109,15 @@ public class PoolableBroadcasterFactoryTest {
     @Test
     public void concurrentLookupTest() throws InterruptedException {
         String id = "id";
-        final CountDownLatch latch = new CountDownLatch(100);
+        final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger created = new AtomicInteger();
 
         factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
+                if (created.get() == 100)
+                    latch.countDown();
             }
 
             @Override
@@ -164,14 +165,15 @@ public class PoolableBroadcasterFactoryTest {
 
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
-        final CountDownLatch latch = new CountDownLatch(1000);
+        final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger created = new AtomicInteger();
         factory.poolableProvider(new UnboundedApachePoolableProvider());
         factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
+                if (created.get() == 1000)
+                    latch.countDown();
             }
 
             @Override

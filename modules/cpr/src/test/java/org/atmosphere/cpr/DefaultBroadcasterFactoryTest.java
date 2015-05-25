@@ -172,14 +172,15 @@ public class DefaultBroadcasterFactoryTest {
     public void concurrentLookupTest() throws InterruptedException {
         String id = "id";
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
-        final CountDownLatch latch = new CountDownLatch(100);
+        final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger created = new AtomicInteger();
 
         f.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
+                if (created.get() == 100)
+                    latch.countDown();
             }
 
             @Override
@@ -214,13 +215,14 @@ public class DefaultBroadcasterFactoryTest {
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
-        final CountDownLatch latch = new CountDownLatch(1000);
+        final CountDownLatch latch = new CountDownLatch(1);
         final AtomicInteger created = new AtomicInteger();
         f.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
+                if (created.get() == 1000)
+                    latch.countDown();
             }
 
             @Override
