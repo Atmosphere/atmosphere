@@ -172,15 +172,13 @@ public class DefaultBroadcasterFactoryTest {
     public void concurrentLookupTest() throws InterruptedException {
         String id = "id";
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(100);
         final AtomicInteger created = new AtomicInteger();
 
         f.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                if (created.get() == 100)
-                    latch.countDown();
             }
 
             @Override
@@ -200,6 +198,7 @@ public class DefaultBroadcasterFactoryTest {
                 @Override
                 public void run() {
                     f.lookup("name" + UUID.randomUUID().toString(), true);
+                    latch.countDown();
                 }
             });
         }
@@ -215,14 +214,12 @@ public class DefaultBroadcasterFactoryTest {
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(1000);
         final AtomicInteger created = new AtomicInteger();
         f.addBroadcasterListener(new BroadcasterListenerAdapter() {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                if (created.get() == 1000)
-                    latch.countDown();
             }
 
             @Override
@@ -244,7 +241,7 @@ public class DefaultBroadcasterFactoryTest {
                 public void run() {
                     try {
                         f.get(TestBroadcaster.class, me);
-                    } catch (IllegalStateException ex) {
+                    } finally {
                         latch.countDown();
                     }
                 }
