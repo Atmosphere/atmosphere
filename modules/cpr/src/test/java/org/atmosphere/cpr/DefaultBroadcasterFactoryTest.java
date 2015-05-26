@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit tests for the {@link org.atmosphere.cpr.DefaultBroadcasterFactory}.
@@ -178,7 +179,6 @@ public class DefaultBroadcasterFactoryTest {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
             }
 
             @Override
@@ -198,12 +198,12 @@ public class DefaultBroadcasterFactoryTest {
                 @Override
                 public void run() {
                     f.lookup("name" + UUID.randomUUID().toString(), true);
+                    latch.countDown();
                 }
             });
         }
-
         try {
-            latch.await(30, TimeUnit.SECONDS);
+            assertTrue(latch.await(20, TimeUnit.SECONDS));
             assertEquals(f.lookupAll().size(), 100);
             assertEquals(created.get(), 100);
         } finally {
@@ -220,7 +220,6 @@ public class DefaultBroadcasterFactoryTest {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
             }
 
             @Override
@@ -242,7 +241,7 @@ public class DefaultBroadcasterFactoryTest {
                 public void run() {
                     try {
                         f.get(TestBroadcaster.class, me);
-                    } catch (IllegalStateException ex) {
+                    } finally {
                         latch.countDown();
                     }
                 }
@@ -251,7 +250,7 @@ public class DefaultBroadcasterFactoryTest {
         }
 
         try {
-            latch.await(30, TimeUnit.SECONDS);
+            assertTrue(latch.await(20, TimeUnit.SECONDS));
             assertEquals(latch.getCount(), 0);
             assertEquals(f.lookupAll().size(), 1);
             assertEquals(created.get(), 1);

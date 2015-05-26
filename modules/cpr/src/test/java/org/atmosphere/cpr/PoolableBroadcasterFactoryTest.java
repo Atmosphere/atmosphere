@@ -116,7 +116,6 @@ public class PoolableBroadcasterFactoryTest {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
             }
 
             @Override
@@ -137,14 +136,13 @@ public class PoolableBroadcasterFactoryTest {
                 @Override
                 public void run() {
                     c.add(factory.lookup("name" + UUID.randomUUID().toString(), true));
+                    latch.countDown();
                 }
             });
         }
 
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(created.get(), c.size());
-
             assertEquals(created.get(), 100);
             assertEquals(c.size(), 100);
 
@@ -172,7 +170,6 @@ public class PoolableBroadcasterFactoryTest {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
             }
 
             @Override
@@ -194,6 +191,7 @@ public class PoolableBroadcasterFactoryTest {
                 @Override
                 public void run() {
                     c.add(factory.get(me));
+                    latch.countDown();
                 }
             });
 
