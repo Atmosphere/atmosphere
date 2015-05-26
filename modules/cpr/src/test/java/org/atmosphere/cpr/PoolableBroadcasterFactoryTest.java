@@ -131,11 +131,13 @@ public class PoolableBroadcasterFactoryTest {
 
         final ConcurrentLinkedQueue<Broadcaster> c = new ConcurrentLinkedQueue<Broadcaster>();
         ExecutorService r = Executors.newCachedThreadPool();
+        final AtomicInteger count = new AtomicInteger();
         for (int i = 0; i < 100; i++) {
             r.submit(new Runnable() {
                 @Override
                 public void run() {
                     c.add(factory.lookup("name" + UUID.randomUUID().toString(), true));
+                    count.getAndIncrement();
                     if (created.get() == 100)
                         latch.countDown();
                 }
@@ -144,7 +146,7 @@ public class PoolableBroadcasterFactoryTest {
 
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(created.get(), c.size());
+            assertEquals(created.get(), count.get());
             assertEquals(created.get(), 100);
             assertEquals(c.size(), 100);
 
