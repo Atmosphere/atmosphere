@@ -109,7 +109,7 @@ public class PoolableBroadcasterFactoryTest {
     @Test
     public void concurrentLookupTest() throws InterruptedException {
         String id = "id";
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(100);
         final AtomicInteger created = new AtomicInteger();
 
         factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
@@ -131,22 +131,18 @@ public class PoolableBroadcasterFactoryTest {
 
         final ConcurrentLinkedQueue<Broadcaster> c = new ConcurrentLinkedQueue<Broadcaster>();
         ExecutorService r = Executors.newCachedThreadPool();
-        final AtomicInteger count = new AtomicInteger();
         for (int i = 0; i < 100; i++) {
             r.submit(new Runnable() {
                 @Override
                 public void run() {
                     c.add(factory.lookup("name" + UUID.randomUUID().toString(), true));
-                    count.getAndIncrement();
-                    if (created.get() == 100)
-                        latch.countDown();
+                    latch.countDown();
                 }
             });
         }
 
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(created.get(), count.get());
             assertEquals(created.get(), 100);
             assertEquals(c.size(), 100);
 
@@ -167,7 +163,7 @@ public class PoolableBroadcasterFactoryTest {
 
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
-        final CountDownLatch latch = new CountDownLatch(1);
+        final CountDownLatch latch = new CountDownLatch(1000);
         final AtomicInteger created = new AtomicInteger();
         factory.poolableProvider(new UnboundedApachePoolableProvider());
         factory.addBroadcasterListener(new BroadcasterListenerAdapter() {
@@ -195,8 +191,7 @@ public class PoolableBroadcasterFactoryTest {
                 @Override
                 public void run() {
                     c.add(factory.get(me));
-                    if (created.get() == 1000)
-                        latch.countDown();
+                    latch.countDown();
                 }
             });
 
