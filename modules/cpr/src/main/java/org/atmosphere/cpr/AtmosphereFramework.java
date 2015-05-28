@@ -444,9 +444,9 @@ public class AtmosphereFramework {
                 } else if (BroadcasterConfig.FilterManipulator.class.isAssignableFrom(c)) {
                     fwk.filterManipulators.add(fwk.newClassInstance(BroadcasterConfig.FilterManipulator.class, c));
                 } else if (WebSocketProtocol.class.isAssignableFrom(c)) {
-                    fwk.webSocketProtocolClassName = WebSocketProtocol.class.getName();
+                    fwk.webSocketProtocolClassName = c.getName();
                 } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
-                    fwk.webSocketProcessorClassName = WebSocketProcessor.class.getName();
+                    fwk.webSocketProcessorClassName = c.getName();
                 } else if (AtmosphereResourceFactory.class.isAssignableFrom(c)) {
                     fwk.setAndConfigureAtmosphereResourceFactory(fwk.newClassInstance(AtmosphereResourceFactory.class, c));
                 } else if (AtmosphereFrameworkListener.class.isAssignableFrom(c)) {
