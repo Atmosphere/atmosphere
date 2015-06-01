@@ -81,21 +81,25 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
     }
 
     void paths(ServletContext sc) {
-        Map<String, ? extends ServletRegistration> m = config.getServletContext().getServletRegistrations();
+        try {
+            Map<String, ? extends ServletRegistration> m = config.getServletContext().getServletRegistrations();
 
-        ServletRegistration sr =  m.get(config.getServletConfig().getServletName());
+            ServletRegistration sr = m.get(config.getServletConfig().getServletName());
 
-        if (sr != null) {
-            for(String mapping : sr.getMappings()) {
-                if (mapping.contains("*")) {
-                    mapping = mapping.replace("*", AtmosphereFramework.MAPPING_REGEX);
+            if (sr != null) {
+                for (String mapping : sr.getMappings()) {
+                    if (mapping.contains("*")) {
+                        mapping = mapping.replace("*", AtmosphereFramework.MAPPING_REGEX);
+                    }
+
+                    if (mapping.endsWith("/")) {
+                        mapping = mapping + AtmosphereFramework.MAPPING_REGEX;
+                    }
+                    paths.put(mapping, Boolean.TRUE);
                 }
-
-                if (mapping.endsWith("/")) {
-                    mapping = mapping + AtmosphereFramework.MAPPING_REGEX;
-                }
-                paths.put(mapping, Boolean.TRUE);
             }
+        } catch (Exception ex) {
+            logger.error("{}", ex);
         }
     }
 
