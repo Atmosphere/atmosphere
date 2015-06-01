@@ -39,6 +39,9 @@ public class ModuleDetection {
         modules.put("nettosphere", "org.atmosphere.nettosphere.BridgeRuntime");
         modules.put("jersey2", "org.glassfish.jersey.servlet.ServletContainer");
         modules.put("swaggersocket", "com.wordnik.swaggersocket.server.SwaggerSocketProtocolInterceptor");
+        modules.put("richfaces", "org.ajax4jsf.Filter");
+        modules.put("grails", "org.grails.plugins.atmosphere_meteor.MeteorHandlerArtefactHandler");
+
     }
 
     public final static String detect() {
