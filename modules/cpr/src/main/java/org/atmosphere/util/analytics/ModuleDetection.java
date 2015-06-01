@@ -37,7 +37,8 @@ public class ModuleDetection {
         modules.put("scalatra", "org.scalatra.ScalatraServlet");
         modules.put("eventPush", "org.grails.plugin.platform.events.push.EventsPushHandler");
         modules.put("nettosphere", "org.atmosphere.nettosphere.BridgeRuntime");
-
+        modules.put("jersey2", "org.glassfish.jersey.servlet.ServletContainer");
+        modules.put("swaggersocket", "com.wordnik.swaggersocket.server.SwaggerSocketProtocolInterceptor");
     }
 
     public final static String detect() {
