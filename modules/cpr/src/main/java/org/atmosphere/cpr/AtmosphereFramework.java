@@ -1125,30 +1125,30 @@ public class AtmosphereFramework {
         if (!config.getInitParameter(ApplicationConfig.ANALYTICS, true)) return;
 
         final String container = getServletContext().getServerInfo();
-        if (allowAllClassesScan) {
-            Thread t = new Thread() {
-                public void run() {
-                    try {
-                        logger.debug("Retrieving Atmosphere's latest version from http://async-io.org/version.html");
-                        HttpURLConnection urlConnection = (HttpURLConnection)
-                                URI.create("http://async-io.org/version.html").toURL().openConnection();
-                        urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
-                        urlConnection.setRequestProperty("Connection", "keep-alive");
-                        urlConnection.setRequestProperty("Cache-Control", "max-age=0");
-                        urlConnection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                        urlConnection.setRequestProperty("Accept-Language", "en-US,en;q=0.8");
-                        urlConnection.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                        urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                        urlConnection.setInstanceFollowRedirects(true);
+        Thread t = new Thread() {
+            public void run() {
+                try {
+                    logger.debug("Retrieving Atmosphere's latest version from http://async-io.org/version.html");
+                    HttpURLConnection urlConnection = (HttpURLConnection)
+                            URI.create("http://async-io.org/version.html").toURL().openConnection();
+                    urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
+                    urlConnection.setRequestProperty("Connection", "keep-alive");
+                    urlConnection.setRequestProperty("Cache-Control", "max-age=0");
+                    urlConnection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                    urlConnection.setRequestProperty("Accept-Language", "en-US,en;q=0.8");
+                    urlConnection.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
+                    urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
+                    urlConnection.setInstanceFollowRedirects(true);
 
-                        BufferedReader in = new BufferedReader(new InputStreamReader(
-                                urlConnection.getInputStream()));
+                    BufferedReader in = new BufferedReader(new InputStreamReader(
+                            urlConnection.getInputStream()));
 
-                        String inputLine;
-                        String newVersion = Version.getRawVersion();
-                        String clientVersion = "2.2.11";
-                        String nextMajorRelease = null;
-                        boolean nextAvailable = false;
+                    String inputLine;
+                    String newVersion = Version.getRawVersion();
+                    String clientVersion = "2.2.11";
+                    String nextMajorRelease = null;
+                    boolean nextAvailable = false;
+                    if (newVersion.indexOf("SNAPSHOT") == -1) {
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
                                 if (inputLine.startsWith("ATMO23_VERSION=")) {
@@ -1182,17 +1182,17 @@ public class AtmosphereFramework {
                             }
                             urlConnection.disconnect();
                         }
-
-                        JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
-                        tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
-
-                    } catch (Throwable e) {
                     }
+
+                    JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
+                    tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
+
+                } catch (Throwable e) {
                 }
-            };
-            t.setDaemon(true);
-            t.start();
-        }
+            }
+        };
+        t.setDaemon(true);
+        t.start();
     }
 
     /**
@@ -3204,7 +3204,7 @@ public class AtmosphereFramework {
     private AtmosphereFramework configureAtmosphereResourceFactory() {
         if (arFactory != null) return this;
 
-        synchronized(this) {
+        synchronized (this) {
             try {
                 arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
             } catch (InstantiationException e) {
@@ -3220,7 +3220,7 @@ public class AtmosphereFramework {
     private AtmosphereFramework configureWebSocketFactory() {
         if (webSocketFactory != null) return this;
 
-        synchronized(this) {
+        synchronized (this) {
             try {
                 webSocketFactory = newClassInstance(WebSocketFactory.class, DefaultWebSocketFactory.class);
             } catch (InstantiationException e) {
