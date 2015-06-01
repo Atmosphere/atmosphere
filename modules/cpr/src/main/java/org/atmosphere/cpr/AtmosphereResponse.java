@@ -57,6 +57,19 @@ import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RE
  */
 public class AtmosphereResponse extends HttpServletResponseWrapper {
 
+    private final static boolean servlet30;
+
+    static {
+        Exception exception = null;
+        try {
+            Class.forName("javax.servlet.AsyncContext");
+        } catch (Exception ex) {
+            exception = ex;
+        } finally {
+            servlet30 = exception == null;
+        }
+    }
+
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResponse.class);
     private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers;
@@ -402,7 +415,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         if (name.equalsIgnoreCase("content-type")) {
             s = headers.get("Content-Type");
 
-            if (s == null) {
+            if (s == null && servlet30) {
                 s = _r().getHeader(name);
             }
 
@@ -410,7 +423,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         }
 
         s = headers.get(name);
-        if (s == null) {
+        if (s == null && servlet30) {
             s = _r().getHeader(name);
         }
 
@@ -428,9 +441,11 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
         }
         s.add(h);
 
-        Collection<String> r = _r().getHeaders(name);
-        if (r != null && !r.isEmpty()) {
-            s.addAll(r);
+        if (servlet30) {
+            Collection<String> r = _r().getHeaders(name);
+            if (r != null && !r.isEmpty()) {
+                s.addAll(r);
+            }
         }
 
         return Collections.unmodifiableList(s);
@@ -438,7 +453,13 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
 
     @Override
     public Collection<String> getHeaderNames() {
-        Collection<String> r = _r().getHeaderNames();
+
+        Collection<String> r = null;
+
+        if (servlet30) {
+            r = _r().getHeaderNames();
+        }
+
         Set<String> s = headers.keySet();
         if (r != null && !r.isEmpty()) {
             // detach the keyset from the original hashmap

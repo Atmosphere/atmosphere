@@ -782,7 +782,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
 
                 if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
-                    AtmosphereRequest.class.cast(req).destroy();
+                    if (closeOnCancel) {
+                        AtmosphereRequest.class.cast(req).destroy();
+                    }
                 }
                 event.destroy();
             }

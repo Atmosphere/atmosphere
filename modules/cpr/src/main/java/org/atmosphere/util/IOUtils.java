@@ -257,8 +257,21 @@ public class IOUtils {
         String servletPath = "";
         try {
             // TODO: pick up the first one, will fail if there are two
+            // This won't work with Servlet 2.5.
             servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
             servletPath = getCleanedServletPath(servletPath);
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
+        return servletPath;
+    }
+
+    public static String guestRawServletPath(AtmosphereConfig config) {
+        String servletPath = "";
+        try {
+            // TODO: pick up the first one, will fail if there are two
+            // This won't work with Servlet 2.5.
+            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
         } catch (Exception ex) {
             logger.trace("", ex);
         }
