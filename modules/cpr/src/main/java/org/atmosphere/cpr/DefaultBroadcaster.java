@@ -1189,6 +1189,20 @@ public class DefaultBroadcaster implements Broadcaster {
      *
      * @param r {@link AtmosphereResource}
      */
+    public void cacheLostMessage(AtmosphereResource r) {
+        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        try {
+            cacheLostMessage(r, (AsyncWriteToken) request.getAttribute(usingTokenIdForAttribute));
+        } finally {
+            request.removeAttribute(usingTokenIdForAttribute);
+        }
+    }
+
+    /**
+     * Cache the message because an unexpected exception occurred.
+     *
+     * @param r {@link AtmosphereResource}
+     */
     public void cacheLostMessage(AtmosphereResource r, boolean force) {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
         try {
