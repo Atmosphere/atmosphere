@@ -52,6 +52,7 @@
                             org.jboss.vfs*;resolution:=optional,
                             javax.servlet*;version="${servlet-version-range}",
                             javax.websocket*;resolution:=optional,
+                            javax.enterprise*;resolution:=optional,
                             javax.inject*;resolution:=optional,
                             weblogic.websocket*;resolution:=optional,
                             *,
