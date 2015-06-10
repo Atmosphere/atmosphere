@@ -32,6 +32,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -54,6 +55,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
+
+import javax.inject.Inject;
 
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnClose;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnResume;
@@ -114,6 +117,15 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         populateDecoders();
         return this;
     }
+    
+    // ARF should be obtained other way
+    @Inject
+	AtmosphereResourceFactory atmosphereResourceFactory;
+	
+	private AtmosphereResource getHandshakeResource(AtmosphereRequest req) {
+		String uuid = (String) req.getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+		return atmosphereResourceFactory.find(uuid);
+	}
 
     @Override
     public void onRequest(final AtmosphereResource resource) throws IOException {
@@ -167,7 +179,13 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
             MethodInfo.EncoderObject e = message(resource, body);
             if (e != null && e.encodedObject != null) {
-                IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);
+            	if ( e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE) {
+					AtmosphereResource res = getHandshakeResource(resource.getRequest());
+					IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, res);			
+				}
+				else {
+					IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);					
+				}
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
