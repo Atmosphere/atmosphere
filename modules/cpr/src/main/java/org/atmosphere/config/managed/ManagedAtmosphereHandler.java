@@ -32,6 +32,7 @@ import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
@@ -85,6 +86,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Method onResumeMethod;
     private AtmosphereConfig config;
     private boolean pathParams = false;
+    private AtmosphereResourceFactory resourcesFactory;
 
     final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
     final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
@@ -107,6 +109,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.onResumeMethod = populate(c, Resume.class);
         this.config = config;
         this.pathParams = pathParams(c);
+        this.resourcesFactory = config.resourcesFactory();
 
         scanForReaderOrInputStream();
 
@@ -167,7 +170,11 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
             MethodInfo.EncoderObject e = message(resource, body);
             if (e != null && e.encodedObject != null) {
-                IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, resource);
+                AtmosphereResource r = resource;
+                if ( e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE && !resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
+                    r = resourcesFactory.find(resource.uuid());
+                }
+                IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, r);
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
