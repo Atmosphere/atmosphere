@@ -17,6 +17,7 @@ org.atmosphere.pool
 org.atmosphere.util
 org.atmosphere.util.analytics
 org.atmosphere.util.annotation
+org.atmosphere.util.chmv8
 org.atmosphere.util.uri
 org.atmosphere.websocket
 org.atmosphere.websocket.protocol

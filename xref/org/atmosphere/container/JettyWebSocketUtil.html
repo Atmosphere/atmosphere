@@ -51,7 +51,7 @@
 <a class="jxr_linenumber" name="L43" href="#L43">43</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> doService(<a href="../../../org/atmosphere/cpr/AsynchronousProcessor.html">AsynchronousProcessor</a> cometSupport,
 <a class="jxr_linenumber" name="L44" href="#L44">44</a>                                           <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req,
 <a class="jxr_linenumber" name="L45" href="#L45">45</a>                                           <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res,
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>                                           WebSocketFactory webSocketFactory) <strong class="jxr_keyword">throws</strong> IOException, ServletException {
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>                                           <a href="../../../org/atmosphere/websocket/WebSocketFactory.html">WebSocketFactory</a> webSocketFactory) <strong class="jxr_keyword">throws</strong> IOException, ServletException {
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>  
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>          Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
 <a class="jxr_linenumber" name="L49" href="#L49">49</a>          <strong class="jxr_keyword">if</strong> (b == <strong class="jxr_keyword">null</strong>) b = Boolean.FALSE;
@@ -87,7 +87,7 @@
 <a class="jxr_linenumber" name="L79" href="#L79">79</a>          }
 <a class="jxr_linenumber" name="L80" href="#L80">80</a>      }
 <a class="jxr_linenumber" name="L81" href="#L81">81</a>  
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> WebSocketFactory getFactory(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor) {
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/websocket/WebSocketFactory.html">WebSocketFactory</a> getFactory(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config, <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor) {
 <a class="jxr_linenumber" name="L83" href="#L83">83</a>  
 <a class="jxr_linenumber" name="L84" href="#L84">84</a>          <strong class="jxr_keyword">final</strong> AtomicBoolean useBuildInSession = <strong class="jxr_keyword">new</strong> AtomicBoolean(config.isSupportSession());
 <a class="jxr_linenumber" name="L85" href="#L85">85</a>          <em class="jxr_comment">// Override the value.</em>
@@ -96,7 +96,7 @@
 <a class="jxr_linenumber" name="L88" href="#L88">88</a>              useBuildInSession.set(Boolean.valueOf(s));
 <a class="jxr_linenumber" name="L89" href="#L89">89</a>          }
 <a class="jxr_linenumber" name="L90" href="#L90">90</a>  
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>          WebSocketFactory webSocketFactory = <strong class="jxr_keyword">new</strong> WebSocketFactory(<strong class="jxr_keyword">new</strong> WebSocketFactory.Acceptor() {
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>          <a href="../../../org/atmosphere/websocket/WebSocketFactory.html">WebSocketFactory</a> webSocketFactory = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/websocket/WebSocketFactory.html">WebSocketFactory</a>(<strong class="jxr_keyword">new</strong> WebSocketFactory.Acceptor() {
 <a class="jxr_linenumber" name="L92" href="#L92">92</a>              <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> checkOrigin(HttpServletRequest request, String origin) {
 <a class="jxr_linenumber" name="L93" href="#L93">93</a>                  <em class="jxr_comment">// Allow all origins</em>
 <a class="jxr_linenumber" name="L94" href="#L94">94</a>                  logger.trace(<span class="jxr_string">"WebSocket-checkOrigin request {} with origin {}"</span>, request.getRequestURI(), origin);

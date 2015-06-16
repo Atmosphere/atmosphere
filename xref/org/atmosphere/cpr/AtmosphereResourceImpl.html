@@ -839,193 +839,195 @@
 <a class="jxr_linenumber" name="L831" href="#L831">831</a>                 }
 <a class="jxr_linenumber" name="L832" href="#L832">832</a> 
 <a class="jxr_linenumber" name="L833" href="#L833">833</a>                 <strong class="jxr_keyword">if</strong> (AtmosphereRequest.<strong class="jxr_keyword">class</strong>.isAssignableFrom(req.getClass())) {
-<a class="jxr_linenumber" name="L834" href="#L834">834</a>                     AtmosphereRequest.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(req).destroy();
-<a class="jxr_linenumber" name="L835" href="#L835">835</a>                 }
-<a class="jxr_linenumber" name="L836" href="#L836">836</a>                 event.destroy();
-<a class="jxr_linenumber" name="L837" href="#L837">837</a>             }
-<a class="jxr_linenumber" name="L838" href="#L838">838</a>         } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="L839" href="#L839">839</a>             unregister();
-<a class="jxr_linenumber" name="L840" href="#L840">840</a>         }
-<a class="jxr_linenumber" name="L841" href="#L841">841</a>     }
-<a class="jxr_linenumber" name="L842" href="#L842">842</a> 
-<a class="jxr_linenumber" name="L843" href="#L843">843</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> unregister() {
-<a class="jxr_linenumber" name="L844" href="#L844">844</a>         config.resourcesFactory().remove(uuid);
-<a class="jxr_linenumber" name="L845" href="#L845">845</a>     }
-<a class="jxr_linenumber" name="L846" href="#L846">846</a> 
-<a class="jxr_linenumber" name="L847" href="#L847">847</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> _destroy() {
-<a class="jxr_linenumber" name="L848" href="#L848">848</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L849" href="#L849">849</a>             <strong class="jxr_keyword">if</strong> (!isCancelled.get()) {
-<a class="jxr_linenumber" name="L850" href="#L850">850</a>                 removeFromAllBroadcasters();
-<a class="jxr_linenumber" name="L851" href="#L851">851</a>             }
-<a class="jxr_linenumber" name="L852" href="#L852">852</a>             broadcasters.clear();
-<a class="jxr_linenumber" name="L853" href="#L853">853</a> 
-<a class="jxr_linenumber" name="L854" href="#L854">854</a>             unregister();
-<a class="jxr_linenumber" name="L855" href="#L855">855</a>             removeEventListeners();
-<a class="jxr_linenumber" name="L856" href="#L856">856</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="L857" href="#L857">857</a>             logger.trace(<span class="jxr_string">"destroyResource"</span>, t);
-<a class="jxr_linenumber" name="L858" href="#L858">858</a>         } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="L859" href="#L859">859</a>             unregister();
-<a class="jxr_linenumber" name="L860" href="#L860">860</a>             webSocket = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L861" href="#L861">861</a>         }
-<a class="jxr_linenumber" name="L862" href="#L862">862</a>     }
-<a class="jxr_linenumber" name="L863" href="#L863">863</a> 
-<a class="jxr_linenumber" name="L864" href="#L864">864</a>     @Override
-<a class="jxr_linenumber" name="L865" href="#L865">865</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="L866" href="#L866">866</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L867" href="#L867">867</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResource{"</span> +
-<a class="jxr_linenumber" name="L868" href="#L868">868</a>                     <span class="jxr_string">"\n\t uuid="</span> + uuid +
-<a class="jxr_linenumber" name="L869" href="#L869">869</a>                     <span class="jxr_string">",\n\t transport="</span> + transport() +
-<a class="jxr_linenumber" name="L870" href="#L870">870</a>                     <span class="jxr_string">",\n\t isInScope="</span> + isInScope +
-<a class="jxr_linenumber" name="L871" href="#L871">871</a>                     <span class="jxr_string">",\n\t isResumed="</span> + isResumed() +
-<a class="jxr_linenumber" name="L872" href="#L872">872</a>                     <span class="jxr_string">",\n\t isCancelled="</span> + isCancelled() +
-<a class="jxr_linenumber" name="L873" href="#L873">873</a>                     <span class="jxr_string">",\n\t isSuspended="</span> + isSuspended() +
-<a class="jxr_linenumber" name="L874" href="#L874">874</a>                     <span class="jxr_string">",\n\t broadcasters="</span> + getBroadcaster().getID() +
-<a class="jxr_linenumber" name="L875" href="#L875">875</a>                     <span class="jxr_string">",\n\t isClosedByClient="</span> + (event != <strong class="jxr_keyword">null</strong> ? event.isClosedByClient() : false) +
-<a class="jxr_linenumber" name="L876" href="#L876">876</a>                     <span class="jxr_string">",\n\t isClosedByApplication="</span> + (event != <strong class="jxr_keyword">null</strong> ? event.isClosedByApplication() : false) +
-<a class="jxr_linenumber" name="L877" href="#L877">877</a>                     <span class="jxr_string">",\n\t action="</span> + action +
-<a class="jxr_linenumber" name="L878" href="#L878">878</a>                     '}';
-<a class="jxr_linenumber" name="L879" href="#L879">879</a>         } <strong class="jxr_keyword">catch</strong> (NullPointerException ex) {
-<a class="jxr_linenumber" name="L880" href="#L880">880</a>             <em class="jxr_comment">// Prevent logger</em>
-<a class="jxr_linenumber" name="L881" href="#L881">881</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResourceImpl{"</span> + uuid + <span class="jxr_string">"}"</span>;
-<a class="jxr_linenumber" name="L882" href="#L882">882</a>         }
-<a class="jxr_linenumber" name="L883" href="#L883">883</a>     }
-<a class="jxr_linenumber" name="L884" href="#L884">884</a> 
-<a class="jxr_linenumber" name="L885" href="#L885">885</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> disableSuspend(<strong class="jxr_keyword">boolean</strong> disableSuspend) {
-<a class="jxr_linenumber" name="L886" href="#L886">886</a>         <strong class="jxr_keyword">this</strong>.disableSuspend = disableSuspend;
-<a class="jxr_linenumber" name="L887" href="#L887">887</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L888" href="#L888">888</a>     }
-<a class="jxr_linenumber" name="L889" href="#L889">889</a> 
-<a class="jxr_linenumber" name="L890" href="#L890">890</a>     @Override
-<a class="jxr_linenumber" name="L891" href="#L891">891</a>     <strong class="jxr_keyword">public</strong> HttpSession session(<strong class="jxr_keyword">boolean</strong> create) {
-<a class="jxr_linenumber" name="L892" href="#L892">892</a>         <strong class="jxr_keyword">if</strong> (config.isSupportSession() &amp;&amp; session == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L893" href="#L893">893</a>             <em class="jxr_comment">// http://java.net/jira/browse/GLASSFISH-18856</em>
-<a class="jxr_linenumber" name="L894" href="#L894">894</a>             session = req.getSession(create);
-<a class="jxr_linenumber" name="L895" href="#L895">895</a>         }
-<a class="jxr_linenumber" name="L896" href="#L896">896</a>         <strong class="jxr_keyword">return</strong> session;
-<a class="jxr_linenumber" name="L897" href="#L897">897</a>     }
-<a class="jxr_linenumber" name="L898" href="#L898">898</a> 
-<a class="jxr_linenumber" name="L899" href="#L899">899</a>     @Override
-<a class="jxr_linenumber" name="L900" href="#L900">900</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() <strong class="jxr_keyword">throws</strong> IOException {
-<a class="jxr_linenumber" name="L901" href="#L901">901</a>         event.setCloseByApplication(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L902" href="#L902">902</a>         notifyListeners();
-<a class="jxr_linenumber" name="L903" href="#L903">903</a>         cancel();
-<a class="jxr_linenumber" name="L904" href="#L904">904</a>         <strong class="jxr_keyword">if</strong> (webSocket != <strong class="jxr_keyword">null</strong> &amp;&amp; webSocket.isOpen()) {
-<a class="jxr_linenumber" name="L905" href="#L905">905</a>             webSocket.close();
-<a class="jxr_linenumber" name="L906" href="#L906">906</a>         }
-<a class="jxr_linenumber" name="L907" href="#L907">907</a>     }
-<a class="jxr_linenumber" name="L908" href="#L908">908</a> 
-<a class="jxr_linenumber" name="L909" href="#L909">909</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> dirtyClose() {
-<a class="jxr_linenumber" name="L910" href="#L910">910</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L911" href="#L911">911</a>             event.setCancelled(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L912" href="#L912">912</a>             notifyListeners();
-<a class="jxr_linenumber" name="L913" href="#L913">913</a>             cancel();
-<a class="jxr_linenumber" name="L914" href="#L914">914</a>             <strong class="jxr_keyword">if</strong> (webSocket != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L915" href="#L915">915</a>                 webSocket.close();
-<a class="jxr_linenumber" name="L916" href="#L916">916</a>             }
-<a class="jxr_linenumber" name="L917" href="#L917">917</a>         } <strong class="jxr_keyword">catch</strong> (IOException ex) {
-<a class="jxr_linenumber" name="L918" href="#L918">918</a>             logger.trace(<span class="jxr_string">""</span>, ex);
-<a class="jxr_linenumber" name="L919" href="#L919">919</a>         }
-<a class="jxr_linenumber" name="L920" href="#L920">920</a>     }
-<a class="jxr_linenumber" name="L921" href="#L921">921</a> 
-<a class="jxr_linenumber" name="L922" href="#L922">922</a>     @Override
-<a class="jxr_linenumber" name="L923" href="#L923">923</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> forceBinaryWrite(<strong class="jxr_keyword">boolean</strong> forceBinaryWrite) {
-<a class="jxr_linenumber" name="L924" href="#L924">924</a>         <strong class="jxr_keyword">this</strong>.forceBinaryWrite = forceBinaryWrite;
-<a class="jxr_linenumber" name="L925" href="#L925">925</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L926" href="#L926">926</a>     }
-<a class="jxr_linenumber" name="L927" href="#L927">927</a> 
-<a class="jxr_linenumber" name="L928" href="#L928">928</a>     @Override
-<a class="jxr_linenumber" name="L929" href="#L929">929</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> forceBinaryWrite() {
-<a class="jxr_linenumber" name="L930" href="#L930">930</a>         <strong class="jxr_keyword">return</strong> forceBinaryWrite;
-<a class="jxr_linenumber" name="L931" href="#L931">931</a>     }
-<a class="jxr_linenumber" name="L932" href="#L932">932</a> 
-<a class="jxr_linenumber" name="L933" href="#L933">933</a>     @Override
-<a class="jxr_linenumber" name="L934" href="#L934">934</a>     <strong class="jxr_keyword">public</strong> HttpSession session() {
-<a class="jxr_linenumber" name="L935" href="#L935">935</a>         <strong class="jxr_keyword">return</strong> session(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L936" href="#L936">936</a>     }
-<a class="jxr_linenumber" name="L937" href="#L937">937</a> 
-<a class="jxr_linenumber" name="L938" href="#L938">938</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> session(HttpSession session) {
-<a class="jxr_linenumber" name="L939" href="#L939">939</a>         <strong class="jxr_keyword">this</strong>.session = session;
-<a class="jxr_linenumber" name="L940" href="#L940">940</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L941" href="#L941">941</a>     }
-<a class="jxr_linenumber" name="L942" href="#L942">942</a> 
-<a class="jxr_linenumber" name="L943" href="#L943">943</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> cloneState(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="L944" href="#L944">944</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResourceEventListener l : AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).atmosphereResourceEventListener()) {
-<a class="jxr_linenumber" name="L945" href="#L945">945</a>             addEventListener(l);
-<a class="jxr_linenumber" name="L946" href="#L946">946</a>         }
-<a class="jxr_linenumber" name="L947" href="#L947">947</a>         AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).session(r.session());
-<a class="jxr_linenumber" name="L948" href="#L948">948</a>         <strong class="jxr_keyword">boolean</strong> isFirst = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L949" href="#L949">949</a>         <strong class="jxr_keyword">for</strong> (Broadcaster b : broadcasters) {
-<a class="jxr_linenumber" name="L950" href="#L950">950</a>             <strong class="jxr_keyword">if</strong> (isFirst) {
-<a class="jxr_linenumber" name="L951" href="#L951">951</a>                 isFirst = false;
-<a class="jxr_linenumber" name="L952" href="#L952">952</a>                 setBroadcaster(b);
-<a class="jxr_linenumber" name="L953" href="#L953">953</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L954" href="#L954">954</a>                 addBroadcaster(b);
-<a class="jxr_linenumber" name="L955" href="#L955">955</a>             }
-<a class="jxr_linenumber" name="L956" href="#L956">956</a>         }
-<a class="jxr_linenumber" name="L957" href="#L957">957</a>         atmosphereHandler(r.getAtmosphereHandler());
-<a class="jxr_linenumber" name="L958" href="#L958">958</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L959" href="#L959">959</a>     }
-<a class="jxr_linenumber" name="L960" href="#L960">960</a> 
-<a class="jxr_linenumber" name="L961" href="#L961">961</a>     <strong class="jxr_keyword">public</strong> ConcurrentLinkedQueue&lt;AtmosphereResourceEventListener&gt; listeners() {
-<a class="jxr_linenumber" name="L962" href="#L962">962</a>         <strong class="jxr_keyword">return</strong> listeners;
-<a class="jxr_linenumber" name="L963" href="#L963">963</a>     }
-<a class="jxr_linenumber" name="L964" href="#L964">964</a> 
-<a class="jxr_linenumber" name="L965" href="#L965">965</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L966" href="#L966">966</a> <em class="jxr_javadoccomment">     * Disable invocation of {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and</em>
-<a class="jxr_linenumber" name="L967" href="#L967">967</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)}. You normally disable those events</em>
-<a class="jxr_linenumber" name="L968" href="#L968">968</a> <em class="jxr_javadoccomment">     * after the first onSuspend has been called so all transports behave the same way.</em>
-<a class="jxr_linenumber" name="L969" href="#L969">969</a> <em class="jxr_javadoccomment">     * &lt;br/&gt;</em>
-<a class="jxr_linenumber" name="L970" href="#L970">970</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEventListener} marked with {@link org.atmosphere.interceptor.AllowInterceptor} will not</em>
-<a class="jxr_linenumber" name="L971" href="#L971">971</a> <em class="jxr_javadoccomment">     * be affected by this property.</em>
-<a class="jxr_linenumber" name="L972" href="#L972">972</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L973" href="#L973">973</a> <em class="jxr_javadoccomment">     * @param disableSuspendEvent</em>
-<a class="jxr_linenumber" name="L974" href="#L974">974</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="L975" href="#L975">975</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L976" href="#L976">976</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> disableSuspendEvent(<strong class="jxr_keyword">boolean</strong> disableSuspendEvent) {
-<a class="jxr_linenumber" name="L977" href="#L977">977</a>         <strong class="jxr_keyword">this</strong>.disableSuspendEvent = disableSuspendEvent;
-<a class="jxr_linenumber" name="L978" href="#L978">978</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L979" href="#L979">979</a>     }
-<a class="jxr_linenumber" name="L980" href="#L980">980</a> 
-<a class="jxr_linenumber" name="L981" href="#L981">981</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L982" href="#L982">982</a> <em class="jxr_javadoccomment">     * Return true if {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and</em>
-<a class="jxr_linenumber" name="L983" href="#L983">983</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)} events are disabled.</em>
-<a class="jxr_linenumber" name="L984" href="#L984">984</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L985" href="#L985">985</a> <em class="jxr_javadoccomment">     * @return true if disabled</em>
-<a class="jxr_linenumber" name="L986" href="#L986">986</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L987" href="#L987">987</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> disableSuspendEvent() {
-<a class="jxr_linenumber" name="L988" href="#L988">988</a>         <strong class="jxr_keyword">return</strong> disableSuspendEvent;
-<a class="jxr_linenumber" name="L989" href="#L989">989</a>     }
-<a class="jxr_linenumber" name="L990" href="#L990">990</a> 
-<a class="jxr_linenumber" name="L991" href="#L991">991</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket() {
-<a class="jxr_linenumber" name="L992" href="#L992">992</a>         <strong class="jxr_keyword">return</strong> webSocket;
-<a class="jxr_linenumber" name="L993" href="#L993">993</a>     }
-<a class="jxr_linenumber" name="L994" href="#L994">994</a> 
-<a class="jxr_linenumber" name="L995" href="#L995">995</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> webSocket(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket) {
-<a class="jxr_linenumber" name="L996" href="#L996">996</a>         <strong class="jxr_keyword">this</strong>.webSocket = webSocket;
-<a class="jxr_linenumber" name="L997" href="#L997">997</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L998" href="#L998">998</a>     }
-<a class="jxr_linenumber" name="L999" href="#L999">999</a> 
-<a class="jxr_linenumber" name="L1000" href="#L1000">1000</a>     @Override
-<a class="jxr_linenumber" name="L1001" href="#L1001">1001</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
-<a class="jxr_linenumber" name="L1002" href="#L1002">1002</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L1003" href="#L1003">1003</a>         <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong> || getClass() != o.getClass()) <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L1004" href="#L1004">1004</a> 
-<a class="jxr_linenumber" name="L1005" href="#L1005">1005</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> that = (AtmosphereResourceImpl) o;
+<a class="jxr_linenumber" name="L834" href="#L834">834</a>                     <strong class="jxr_keyword">if</strong> (closeOnCancel) {
+<a class="jxr_linenumber" name="L835" href="#L835">835</a>                         AtmosphereRequest.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(req).destroy();
+<a class="jxr_linenumber" name="L836" href="#L836">836</a>                     }
+<a class="jxr_linenumber" name="L837" href="#L837">837</a>                 }
+<a class="jxr_linenumber" name="L838" href="#L838">838</a>                 event.destroy();
+<a class="jxr_linenumber" name="L839" href="#L839">839</a>             }
+<a class="jxr_linenumber" name="L840" href="#L840">840</a>         } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="L841" href="#L841">841</a>             unregister();
+<a class="jxr_linenumber" name="L842" href="#L842">842</a>         }
+<a class="jxr_linenumber" name="L843" href="#L843">843</a>     }
+<a class="jxr_linenumber" name="L844" href="#L844">844</a> 
+<a class="jxr_linenumber" name="L845" href="#L845">845</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> unregister() {
+<a class="jxr_linenumber" name="L846" href="#L846">846</a>         config.resourcesFactory().remove(uuid);
+<a class="jxr_linenumber" name="L847" href="#L847">847</a>     }
+<a class="jxr_linenumber" name="L848" href="#L848">848</a> 
+<a class="jxr_linenumber" name="L849" href="#L849">849</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> _destroy() {
+<a class="jxr_linenumber" name="L850" href="#L850">850</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L851" href="#L851">851</a>             <strong class="jxr_keyword">if</strong> (!isCancelled.get()) {
+<a class="jxr_linenumber" name="L852" href="#L852">852</a>                 removeFromAllBroadcasters();
+<a class="jxr_linenumber" name="L853" href="#L853">853</a>             }
+<a class="jxr_linenumber" name="L854" href="#L854">854</a>             broadcasters.clear();
+<a class="jxr_linenumber" name="L855" href="#L855">855</a> 
+<a class="jxr_linenumber" name="L856" href="#L856">856</a>             unregister();
+<a class="jxr_linenumber" name="L857" href="#L857">857</a>             removeEventListeners();
+<a class="jxr_linenumber" name="L858" href="#L858">858</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L859" href="#L859">859</a>             logger.trace(<span class="jxr_string">"destroyResource"</span>, t);
+<a class="jxr_linenumber" name="L860" href="#L860">860</a>         } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="L861" href="#L861">861</a>             unregister();
+<a class="jxr_linenumber" name="L862" href="#L862">862</a>             webSocket = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L863" href="#L863">863</a>         }
+<a class="jxr_linenumber" name="L864" href="#L864">864</a>     }
+<a class="jxr_linenumber" name="L865" href="#L865">865</a> 
+<a class="jxr_linenumber" name="L866" href="#L866">866</a>     @Override
+<a class="jxr_linenumber" name="L867" href="#L867">867</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="L868" href="#L868">868</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L869" href="#L869">869</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResource{"</span> +
+<a class="jxr_linenumber" name="L870" href="#L870">870</a>                     <span class="jxr_string">"\n\t uuid="</span> + uuid +
+<a class="jxr_linenumber" name="L871" href="#L871">871</a>                     <span class="jxr_string">",\n\t transport="</span> + transport() +
+<a class="jxr_linenumber" name="L872" href="#L872">872</a>                     <span class="jxr_string">",\n\t isInScope="</span> + isInScope +
+<a class="jxr_linenumber" name="L873" href="#L873">873</a>                     <span class="jxr_string">",\n\t isResumed="</span> + isResumed() +
+<a class="jxr_linenumber" name="L874" href="#L874">874</a>                     <span class="jxr_string">",\n\t isCancelled="</span> + isCancelled() +
+<a class="jxr_linenumber" name="L875" href="#L875">875</a>                     <span class="jxr_string">",\n\t isSuspended="</span> + isSuspended() +
+<a class="jxr_linenumber" name="L876" href="#L876">876</a>                     <span class="jxr_string">",\n\t broadcasters="</span> + getBroadcaster().getID() +
+<a class="jxr_linenumber" name="L877" href="#L877">877</a>                     <span class="jxr_string">",\n\t isClosedByClient="</span> + (event != <strong class="jxr_keyword">null</strong> ? event.isClosedByClient() : false) +
+<a class="jxr_linenumber" name="L878" href="#L878">878</a>                     <span class="jxr_string">",\n\t isClosedByApplication="</span> + (event != <strong class="jxr_keyword">null</strong> ? event.isClosedByApplication() : false) +
+<a class="jxr_linenumber" name="L879" href="#L879">879</a>                     <span class="jxr_string">",\n\t action="</span> + action +
+<a class="jxr_linenumber" name="L880" href="#L880">880</a>                     '}';
+<a class="jxr_linenumber" name="L881" href="#L881">881</a>         } <strong class="jxr_keyword">catch</strong> (NullPointerException ex) {
+<a class="jxr_linenumber" name="L882" href="#L882">882</a>             <em class="jxr_comment">// Prevent logger</em>
+<a class="jxr_linenumber" name="L883" href="#L883">883</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AtmosphereResourceImpl{"</span> + uuid + <span class="jxr_string">"}"</span>;
+<a class="jxr_linenumber" name="L884" href="#L884">884</a>         }
+<a class="jxr_linenumber" name="L885" href="#L885">885</a>     }
+<a class="jxr_linenumber" name="L886" href="#L886">886</a> 
+<a class="jxr_linenumber" name="L887" href="#L887">887</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> disableSuspend(<strong class="jxr_keyword">boolean</strong> disableSuspend) {
+<a class="jxr_linenumber" name="L888" href="#L888">888</a>         <strong class="jxr_keyword">this</strong>.disableSuspend = disableSuspend;
+<a class="jxr_linenumber" name="L889" href="#L889">889</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L890" href="#L890">890</a>     }
+<a class="jxr_linenumber" name="L891" href="#L891">891</a> 
+<a class="jxr_linenumber" name="L892" href="#L892">892</a>     @Override
+<a class="jxr_linenumber" name="L893" href="#L893">893</a>     <strong class="jxr_keyword">public</strong> HttpSession session(<strong class="jxr_keyword">boolean</strong> create) {
+<a class="jxr_linenumber" name="L894" href="#L894">894</a>         <strong class="jxr_keyword">if</strong> (config.isSupportSession() &amp;&amp; session == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L895" href="#L895">895</a>             <em class="jxr_comment">// http://java.net/jira/browse/GLASSFISH-18856</em>
+<a class="jxr_linenumber" name="L896" href="#L896">896</a>             session = req.getSession(create);
+<a class="jxr_linenumber" name="L897" href="#L897">897</a>         }
+<a class="jxr_linenumber" name="L898" href="#L898">898</a>         <strong class="jxr_keyword">return</strong> session;
+<a class="jxr_linenumber" name="L899" href="#L899">899</a>     }
+<a class="jxr_linenumber" name="L900" href="#L900">900</a> 
+<a class="jxr_linenumber" name="L901" href="#L901">901</a>     @Override
+<a class="jxr_linenumber" name="L902" href="#L902">902</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L903" href="#L903">903</a>         event.setCloseByApplication(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L904" href="#L904">904</a>         notifyListeners();
+<a class="jxr_linenumber" name="L905" href="#L905">905</a>         cancel();
+<a class="jxr_linenumber" name="L906" href="#L906">906</a>         <strong class="jxr_keyword">if</strong> (webSocket != <strong class="jxr_keyword">null</strong> &amp;&amp; webSocket.isOpen()) {
+<a class="jxr_linenumber" name="L907" href="#L907">907</a>             webSocket.close();
+<a class="jxr_linenumber" name="L908" href="#L908">908</a>         }
+<a class="jxr_linenumber" name="L909" href="#L909">909</a>     }
+<a class="jxr_linenumber" name="L910" href="#L910">910</a> 
+<a class="jxr_linenumber" name="L911" href="#L911">911</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> dirtyClose() {
+<a class="jxr_linenumber" name="L912" href="#L912">912</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L913" href="#L913">913</a>             event.setCancelled(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L914" href="#L914">914</a>             notifyListeners();
+<a class="jxr_linenumber" name="L915" href="#L915">915</a>             cancel();
+<a class="jxr_linenumber" name="L916" href="#L916">916</a>             <strong class="jxr_keyword">if</strong> (webSocket != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L917" href="#L917">917</a>                 webSocket.close();
+<a class="jxr_linenumber" name="L918" href="#L918">918</a>             }
+<a class="jxr_linenumber" name="L919" href="#L919">919</a>         } <strong class="jxr_keyword">catch</strong> (IOException ex) {
+<a class="jxr_linenumber" name="L920" href="#L920">920</a>             logger.trace(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="L921" href="#L921">921</a>         }
+<a class="jxr_linenumber" name="L922" href="#L922">922</a>     }
+<a class="jxr_linenumber" name="L923" href="#L923">923</a> 
+<a class="jxr_linenumber" name="L924" href="#L924">924</a>     @Override
+<a class="jxr_linenumber" name="L925" href="#L925">925</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> forceBinaryWrite(<strong class="jxr_keyword">boolean</strong> forceBinaryWrite) {
+<a class="jxr_linenumber" name="L926" href="#L926">926</a>         <strong class="jxr_keyword">this</strong>.forceBinaryWrite = forceBinaryWrite;
+<a class="jxr_linenumber" name="L927" href="#L927">927</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L928" href="#L928">928</a>     }
+<a class="jxr_linenumber" name="L929" href="#L929">929</a> 
+<a class="jxr_linenumber" name="L930" href="#L930">930</a>     @Override
+<a class="jxr_linenumber" name="L931" href="#L931">931</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> forceBinaryWrite() {
+<a class="jxr_linenumber" name="L932" href="#L932">932</a>         <strong class="jxr_keyword">return</strong> forceBinaryWrite;
+<a class="jxr_linenumber" name="L933" href="#L933">933</a>     }
+<a class="jxr_linenumber" name="L934" href="#L934">934</a> 
+<a class="jxr_linenumber" name="L935" href="#L935">935</a>     @Override
+<a class="jxr_linenumber" name="L936" href="#L936">936</a>     <strong class="jxr_keyword">public</strong> HttpSession session() {
+<a class="jxr_linenumber" name="L937" href="#L937">937</a>         <strong class="jxr_keyword">return</strong> session(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L938" href="#L938">938</a>     }
+<a class="jxr_linenumber" name="L939" href="#L939">939</a> 
+<a class="jxr_linenumber" name="L940" href="#L940">940</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> session(HttpSession session) {
+<a class="jxr_linenumber" name="L941" href="#L941">941</a>         <strong class="jxr_keyword">this</strong>.session = session;
+<a class="jxr_linenumber" name="L942" href="#L942">942</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L943" href="#L943">943</a>     }
+<a class="jxr_linenumber" name="L944" href="#L944">944</a> 
+<a class="jxr_linenumber" name="L945" href="#L945">945</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> cloneState(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L946" href="#L946">946</a>         <strong class="jxr_keyword">for</strong> (AtmosphereResourceEventListener l : AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).atmosphereResourceEventListener()) {
+<a class="jxr_linenumber" name="L947" href="#L947">947</a>             addEventListener(l);
+<a class="jxr_linenumber" name="L948" href="#L948">948</a>         }
+<a class="jxr_linenumber" name="L949" href="#L949">949</a>         AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).session(r.session());
+<a class="jxr_linenumber" name="L950" href="#L950">950</a>         <strong class="jxr_keyword">boolean</strong> isFirst = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L951" href="#L951">951</a>         <strong class="jxr_keyword">for</strong> (Broadcaster b : broadcasters) {
+<a class="jxr_linenumber" name="L952" href="#L952">952</a>             <strong class="jxr_keyword">if</strong> (isFirst) {
+<a class="jxr_linenumber" name="L953" href="#L953">953</a>                 isFirst = false;
+<a class="jxr_linenumber" name="L954" href="#L954">954</a>                 setBroadcaster(b);
+<a class="jxr_linenumber" name="L955" href="#L955">955</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L956" href="#L956">956</a>                 addBroadcaster(b);
+<a class="jxr_linenumber" name="L957" href="#L957">957</a>             }
+<a class="jxr_linenumber" name="L958" href="#L958">958</a>         }
+<a class="jxr_linenumber" name="L959" href="#L959">959</a>         atmosphereHandler(r.getAtmosphereHandler());
+<a class="jxr_linenumber" name="L960" href="#L960">960</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L961" href="#L961">961</a>     }
+<a class="jxr_linenumber" name="L962" href="#L962">962</a> 
+<a class="jxr_linenumber" name="L963" href="#L963">963</a>     <strong class="jxr_keyword">public</strong> ConcurrentLinkedQueue&lt;AtmosphereResourceEventListener&gt; listeners() {
+<a class="jxr_linenumber" name="L964" href="#L964">964</a>         <strong class="jxr_keyword">return</strong> listeners;
+<a class="jxr_linenumber" name="L965" href="#L965">965</a>     }
+<a class="jxr_linenumber" name="L966" href="#L966">966</a> 
+<a class="jxr_linenumber" name="L967" href="#L967">967</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L968" href="#L968">968</a> <em class="jxr_javadoccomment">     * Disable invocation of {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and</em>
+<a class="jxr_linenumber" name="L969" href="#L969">969</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)}. You normally disable those events</em>
+<a class="jxr_linenumber" name="L970" href="#L970">970</a> <em class="jxr_javadoccomment">     * after the first onSuspend has been called so all transports behave the same way.</em>
+<a class="jxr_linenumber" name="L971" href="#L971">971</a> <em class="jxr_javadoccomment">     * &lt;br/&gt;</em>
+<a class="jxr_linenumber" name="L972" href="#L972">972</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEventListener} marked with {@link org.atmosphere.interceptor.AllowInterceptor} will not</em>
+<a class="jxr_linenumber" name="L973" href="#L973">973</a> <em class="jxr_javadoccomment">     * be affected by this property.</em>
+<a class="jxr_linenumber" name="L974" href="#L974">974</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L975" href="#L975">975</a> <em class="jxr_javadoccomment">     * @param disableSuspendEvent</em>
+<a class="jxr_linenumber" name="L976" href="#L976">976</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="L977" href="#L977">977</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L978" href="#L978">978</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> disableSuspendEvent(<strong class="jxr_keyword">boolean</strong> disableSuspendEvent) {
+<a class="jxr_linenumber" name="L979" href="#L979">979</a>         <strong class="jxr_keyword">this</strong>.disableSuspendEvent = disableSuspendEvent;
+<a class="jxr_linenumber" name="L980" href="#L980">980</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L981" href="#L981">981</a>     }
+<a class="jxr_linenumber" name="L982" href="#L982">982</a> 
+<a class="jxr_linenumber" name="L983" href="#L983">983</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L984" href="#L984">984</a> <em class="jxr_javadoccomment">     * Return true if {@link AtmosphereResourceEventListener#onSuspend(AtmosphereResourceEvent)} and</em>
+<a class="jxr_linenumber" name="L985" href="#L985">985</a> <em class="jxr_javadoccomment">     * {@link AtmosphereResourceEventListener#onPreSuspend(AtmosphereResourceEvent)} events are disabled.</em>
+<a class="jxr_linenumber" name="L986" href="#L986">986</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L987" href="#L987">987</a> <em class="jxr_javadoccomment">     * @return true if disabled</em>
+<a class="jxr_linenumber" name="L988" href="#L988">988</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L989" href="#L989">989</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> disableSuspendEvent() {
+<a class="jxr_linenumber" name="L990" href="#L990">990</a>         <strong class="jxr_keyword">return</strong> disableSuspendEvent;
+<a class="jxr_linenumber" name="L991" href="#L991">991</a>     }
+<a class="jxr_linenumber" name="L992" href="#L992">992</a> 
+<a class="jxr_linenumber" name="L993" href="#L993">993</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket() {
+<a class="jxr_linenumber" name="L994" href="#L994">994</a>         <strong class="jxr_keyword">return</strong> webSocket;
+<a class="jxr_linenumber" name="L995" href="#L995">995</a>     }
+<a class="jxr_linenumber" name="L996" href="#L996">996</a> 
+<a class="jxr_linenumber" name="L997" href="#L997">997</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> webSocket(<a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket) {
+<a class="jxr_linenumber" name="L998" href="#L998">998</a>         <strong class="jxr_keyword">this</strong>.webSocket = webSocket;
+<a class="jxr_linenumber" name="L999" href="#L999">999</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1000" href="#L1000">1000</a>     }
+<a class="jxr_linenumber" name="L1001" href="#L1001">1001</a> 
+<a class="jxr_linenumber" name="L1002" href="#L1002">1002</a>     @Override
+<a class="jxr_linenumber" name="L1003" href="#L1003">1003</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> equals(Object o) {
+<a class="jxr_linenumber" name="L1004" href="#L1004">1004</a>         <strong class="jxr_keyword">if</strong> (<strong class="jxr_keyword">this</strong> == o) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L1005" href="#L1005">1005</a>         <strong class="jxr_keyword">if</strong> (o == <strong class="jxr_keyword">null</strong> || getClass() != o.getClass()) <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="L1006" href="#L1006">1006</a> 
-<a class="jxr_linenumber" name="L1007" href="#L1007">1007</a>         <strong class="jxr_keyword">if</strong> (uuid != <strong class="jxr_keyword">null</strong> ? !uuid.equals(that.uuid) : that.uuid != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L1007" href="#L1007">1007</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> that = (AtmosphereResourceImpl) o;
 <a class="jxr_linenumber" name="L1008" href="#L1008">1008</a> 
-<a class="jxr_linenumber" name="L1009" href="#L1009">1009</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L1010" href="#L1010">1010</a>     }
-<a class="jxr_linenumber" name="L1011" href="#L1011">1011</a> 
-<a class="jxr_linenumber" name="L1012" href="#L1012">1012</a>     @Override
-<a class="jxr_linenumber" name="L1013" href="#L1013">1013</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
-<a class="jxr_linenumber" name="L1014" href="#L1014">1014</a>         <strong class="jxr_keyword">return</strong> uuid != <strong class="jxr_keyword">null</strong> ? uuid.hashCode() : 0;
-<a class="jxr_linenumber" name="L1015" href="#L1015">1015</a>     }
-<a class="jxr_linenumber" name="L1016" href="#L1016">1016</a> 
-<a class="jxr_linenumber" name="L1017" href="#L1017">1017</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> getAndSetInClosingPhase() {
-<a class="jxr_linenumber" name="L1018" href="#L1018">1018</a>         <strong class="jxr_keyword">return</strong> inClosingPhase.getAndSet(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L1019" href="#L1019">1019</a>     }
-<a class="jxr_linenumber" name="L1020" href="#L1020">1020</a> }
+<a class="jxr_linenumber" name="L1009" href="#L1009">1009</a>         <strong class="jxr_keyword">if</strong> (uuid != <strong class="jxr_keyword">null</strong> ? !uuid.equals(that.uuid) : that.uuid != <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L1010" href="#L1010">1010</a> 
+<a class="jxr_linenumber" name="L1011" href="#L1011">1011</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L1012" href="#L1012">1012</a>     }
+<a class="jxr_linenumber" name="L1013" href="#L1013">1013</a> 
+<a class="jxr_linenumber" name="L1014" href="#L1014">1014</a>     @Override
+<a class="jxr_linenumber" name="L1015" href="#L1015">1015</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> hashCode() {
+<a class="jxr_linenumber" name="L1016" href="#L1016">1016</a>         <strong class="jxr_keyword">return</strong> uuid != <strong class="jxr_keyword">null</strong> ? uuid.hashCode() : 0;
+<a class="jxr_linenumber" name="L1017" href="#L1017">1017</a>     }
+<a class="jxr_linenumber" name="L1018" href="#L1018">1018</a> 
+<a class="jxr_linenumber" name="L1019" href="#L1019">1019</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> getAndSetInClosingPhase() {
+<a class="jxr_linenumber" name="L1020" href="#L1020">1020</a>         <strong class="jxr_keyword">return</strong> inClosingPhase.getAndSet(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L1021" href="#L1021">1021</a>     }
+<a class="jxr_linenumber" name="L1022" href="#L1022">1022</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

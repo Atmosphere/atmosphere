@@ -804,7 +804,7 @@
 <a class="jxr_linenumber" name="L796" href="#L796">796</a>             <strong class="jxr_keyword">return</strong> b.request.getSession(create);
 <a class="jxr_linenumber" name="L797" href="#L797">797</a>         } <strong class="jxr_keyword">catch</strong> (java.lang.IllegalStateException ex) {
 <a class="jxr_linenumber" name="L798" href="#L798">798</a>             <em class="jxr_comment">// Jetty</em>
-<a class="jxr_linenumber" name="L799" href="#L799">799</a>             <strong class="jxr_keyword">if</strong> (ex.getMessage() != <strong class="jxr_keyword">null</strong> &amp;&amp; ex.getMessage().equalsIgnoreCase(<span class="jxr_string">"No Session Manager"</span>)) {
+<a class="jxr_linenumber" name="L799" href="#L799">799</a>             <strong class="jxr_keyword">if</strong> (ex.getMessage() != <strong class="jxr_keyword">null</strong> &amp;&amp; ex.getMessage().equals(<span class="jxr_string">"No SessionManager"</span>)) {
 <a class="jxr_linenumber" name="L800" href="#L800">800</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L801" href="#L801">801</a>             }
 <a class="jxr_linenumber" name="L802" href="#L802">802</a>             <strong class="jxr_keyword">throw</strong> ex;
