@@ -150,7 +150,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                if (useServlet30Async && !useNativeIfPossible) {
+                if (testClassExists(JSR356_WEBSOCKET)) {
+                    add(JSR356AsyncSupport.class);
+                } else if (useServlet30Async && !useNativeIfPossible) {
 
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7Servlet30SupportWithWebSocket.class);
@@ -173,9 +175,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         logger.warn("***************************************************************************************************");
                         add(WebLogicServlet30WithWebSocket.class);
                     }
-
-                    if (testClassExists(JSR356_WEBSOCKET))
-                        add(JSR356AsyncSupport.class);
                 } else {
                     if (testClassExists(TOMCAT_WEBSOCKET))
                         add(Tomcat7AsyncSupportWithWebSocket.class);
@@ -194,11 +193,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
                     if (testClassExists(JBOSS_AS7_WEBSOCKET))
                         add(JBossAsyncSupportWithWebSocket.class);
-
-                    if (isEmpty()) {
-                        if (testClassExists(JSR356_WEBSOCKET))
-                            add(JSR356AsyncSupport.class);
-                    }
                 }
             }
         };
@@ -276,7 +270,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         useServlet30Async = testClassExists(SERVLET_30);
 
         if (!defaultToBlocking) {
-            List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
+            List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(true, useServlet30Async);
 
             if (!l.isEmpty()) {
                 cs = resolveWebSocket(l);
