@@ -99,10 +99,10 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
             HttpServletRequest r = originalRequest(session);
             if (r != null) {
                 // We close except the session which we can still reach.
-                request = AtmosphereRequest.cloneRequest(r, true, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+                request = AtmosphereRequest.cloneRequest(r, true, false, false);
             } else {
                 // Bad Bad Bad
-                request = AtmosphereRequest.cloneRequest(r, true, true, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+                request = AtmosphereRequest.cloneRequest(r, true, true, false);
             }
         }
 
