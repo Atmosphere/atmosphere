@@ -43,11 +43,11 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     static {
         Exception ex = null;
         try {
-            Class.forName("org.eclipse.jetty.http2.server.HTTP2ServerConnection");
+            Class.forName("org.eclipse.jetty.websocket.api.WebSocketFrameListener");
         } catch (ClassNotFoundException e) {
             ex = e;
         } finally {
-            jetty93Up = ex == null ? false : true;
+            jetty93Up = ex == null ? true : false;
         }
     }
 
