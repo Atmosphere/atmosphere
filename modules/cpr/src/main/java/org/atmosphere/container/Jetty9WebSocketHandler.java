@@ -23,19 +23,33 @@ import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.eclipse.jetty.websocket.api.Session;
 import org.eclipse.jetty.websocket.api.WebSocketListener;
+import org.eclipse.jetty.websocket.servlet.ServletUpgradeRequest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.Field;
 
 public class Jetty9WebSocketHandler implements WebSocketListener {
 
     private static final Logger logger = LoggerFactory.getLogger(Jetty9WebSocketHandler.class);
 
-    private final AtmosphereRequest request;
+    private AtmosphereRequest request;
     private final AtmosphereFramework framework;
     private final WebSocketProcessor webSocketProcessor;
     private WebSocket webSocket;
+    private static final boolean jetty93Up;
+
+    static {
+        Exception ex = null;
+        try {
+            Class.forName("org.eclipse.jetty.http2.server.HTTP2ServerConnection");
+        } catch (ClassNotFoundException e) {
+            ex = e;
+        } finally {
+            jetty93Up = ex == null ? false : true;
+        }
+    }
 
     public Jetty9WebSocketHandler(HttpServletRequest request, AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
@@ -73,6 +87,25 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
     public void onWebSocketConnect(Session session) {
         logger.trace("WebSocket.onOpen.");
         webSocket = new Jetty9WebSocket(session, framework.getAtmosphereConfig());
+
+        /**
+         * https://github.com/Atmosphere/atmosphere/issues/1998
+         * The Original Jetty Request will be recycled, hence we must loads its content in memory. We can't do that before
+         * as it break Jetty 9.3.0 upgrade process.
+         *
+         * This is a performance regression from 9.2 as we need to clone again the request. 9.3.0+ should use jsr 356!
+         */
+        if (jetty93Up) {
+            HttpServletRequest r = originalRequest(session);
+            if (r != null) {
+                // We close except the session which we can still reach.
+                request = AtmosphereRequest.cloneRequest(r, true, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+            } else {
+                // Bad Bad Bad
+                request = AtmosphereRequest.cloneRequest(r, true, true, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+            }
+        }
+
         try {
             webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
         } catch (Exception e) {
@@ -91,4 +124,23 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
         logger.trace("WebSocket.onMessage (bytes)");
         webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
     }
+
+    private HttpServletRequest originalRequest(Session session) {
+        try {
+            // Oh boy...
+            ServletUpgradeRequest request = (ServletUpgradeRequest) session.getUpgradeRequest();
+            Field[] fields = ServletUpgradeRequest.class.getDeclaredFields();
+            for (Field f : fields) {
+                f.setAccessible(true);
+                Object o = f.get(request);
+                if (o instanceof HttpServletRequest) {
+                    return HttpServletRequest.class.cast(o);
+                }
+            }
+        } catch (Exception ex) {
+            logger.error("", ex);
+        }
+        return null;
+    }
+
 }
