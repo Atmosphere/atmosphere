@@ -820,7 +820,7 @@ public interface ApplicationConfig {
      * Default: true (enabled) <br>
      * Value: org.atmosphere.cpr.AtmosphereFramework.analytics
      */
-    String ANALYTICS = "org.atmosphere.cpr.AtmosphereFramework.analytics.analytics";
+    String ANALYTICS = "org.atmosphere.cpr.AtmosphereFramework.analytics";
     /**
      * For use of (@link BytecodeBasedAnnotationProcessor}
      * Default: false
