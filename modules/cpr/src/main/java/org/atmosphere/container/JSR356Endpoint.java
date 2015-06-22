@@ -101,15 +101,6 @@ public class JSR356Endpoint extends Endpoint {
 
         if (framework.isDestroyed()) return;
 
-        if (!webSocketProcessor.handshake(request)) {
-            try {
-                session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Handshake not accepted."));
-            } catch (IOException e) {
-                logger.trace("", e);
-            }
-            return;
-        }
-
         if (!session.isOpen()) {
             logger.trace("Session Closed {}", session);
             return;
@@ -215,6 +206,15 @@ public class JSR356Endpoint extends Endpoint {
                     })
                     .build()
                     .queryString(session.getQueryString());
+
+            if (!webSocketProcessor.handshake(request)) {
+                try {
+                    session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Handshake not accepted."));
+                } catch (IOException e) {
+                    logger.trace("", e);
+                }
+                return;
+            }
 
             // TODO: Fix this crazy code.
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "false");
