@@ -687,7 +687,7 @@ public class DefaultBroadcaster implements Broadcaster {
         deliver.message = finalMsg;
 
         // We cache first, and if the broadcast succeed, we will remove it.
-        AtmosphereResource cache = deliver.type != Deliver.TYPE.RESOURCE ? null : deliver.resource;
+        AtmosphereResource cache = deliver.type == Deliver.TYPE.ALL ? null : deliver.resource;
         deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache != null ? cache.uuid() : BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
 
         if (resources.isEmpty()) {
