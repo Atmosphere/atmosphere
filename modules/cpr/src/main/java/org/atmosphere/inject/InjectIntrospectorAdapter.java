@@ -17,29 +17,33 @@ package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 
-import javax.inject.Inject;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 
 /**
- * An Injectable class allow the {@link InjectableObjectFactory} to assign a value to a field annotated with the
- * {@link Inject} annotation.
+ * Adapter class for {@link InjectIntrospector}
  *
- * @param <T> the Object to inject.
+ * @param <T>
  * @author Jeanfrancois Arcand
  */
-public interface Injectable<T> {
+public abstract class InjectIntrospectorAdapter<T> implements InjectIntrospector {
 
-    /**
-     * Return true if this class support injection of this type.
-     * @param t the field
-     * @return true if this class support injection
-     */
-    boolean supportedType(Type t);
+    @Override
+    public void introspectField(Field f) {
+    }
 
-    /**
-     * Returns an instance of the T
-     * @param config the {@link AtmosphereConfig}
-     * @return Return an instance of the T
-     */
-    T injectable(AtmosphereConfig config);
+    @Override
+    public void introspectMethod(Method m, Object instance) {
+    }
+
+    @Override
+    public boolean supportedType(Type t) {
+        return false;
+    }
+
+    @Override
+    public Object injectable(AtmosphereConfig config) {
+        return null;
+    }
 }
