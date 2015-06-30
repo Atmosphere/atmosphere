@@ -36,6 +36,7 @@ import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResourceSessionFactory;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultMetaBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -55,6 +56,7 @@ import org.testng.annotations.Test;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -685,4 +687,36 @@ public class ManagedAtmosphereHandlerTest {
 
         assertNotNull(r.get());
     }
+
+    @ManagedService(path = "/named")
+    public final static class NamedService {
+
+        @Inject
+        @Named("/test")
+        private Broadcaster broadcaster;
+
+        @Get
+        public void get(AtmosphereResource resource) {
+            resource.setBroadcaster(broadcaster);
+            r.set(resource);
+        }
+
+        @Message
+        public void message(String s) {
+            message.set(message.get() + s);
+        }
+    }
+
+    @Test
+    public void testNamed() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/named").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+        assertNotNull(r.get().getBroadcaster());
+        assertEquals(r.get().getBroadcaster().getID(), "/test");
+
+    }
+
 }

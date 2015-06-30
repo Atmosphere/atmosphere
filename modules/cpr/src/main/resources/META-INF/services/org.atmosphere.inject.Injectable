@@ -6,3 +6,4 @@ org.atmosphere.inject.BroadcasterFactoryInjectable
 org.atmosphere.inject.MetaBroadcasterInjectable
 org.atmosphere.inject.WebSocketFactoryInjectable
 org.atmosphere.inject.PostConstructIntrospector
+org.atmosphere.inject.BroadcasterIntrospector
