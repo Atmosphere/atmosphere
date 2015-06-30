@@ -28,7 +28,7 @@ import java.lang.reflect.Type;
  * @author Jeanfrancois Arcand
  */
 public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcaster> {
-    private String name;
+    private String name = Broadcaster.ROOT_MASTER;
 
     @Override
     public boolean supportedType(Type t) {
