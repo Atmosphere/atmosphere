@@ -299,6 +299,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
                                 boolean singleton = w.proxied.getClass().getAnnotation(Singleton.class) != null;
+
                                 if (!singleton) {
                                     registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(),
                                             framework.newClassInstance(WebSocketHandler.class, w.proxied.getClass())));

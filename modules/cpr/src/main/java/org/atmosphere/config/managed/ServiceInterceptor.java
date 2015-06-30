@@ -18,7 +18,6 @@ package org.atmosphere.config.managed;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
-import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -34,7 +33,7 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
 
     protected AtmosphereConfig config;
     protected boolean wildcardMapping = false;
-    protected boolean needInjection = false;
+    protected boolean runtimeInjection = false;
     protected InjectableObjectFactory injectableFactory;
 
     public ServiceInterceptor() {
@@ -47,45 +46,50 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
                 ? InjectableObjectFactory.class.cast(config.framework().objectFactory()) : null;
 
         optimizeMapping();
-        if (wildcardMapping && injectableFactory != null) {
-            needInjection();
+        if (config.properties().get(FrameworkConfig.NEED_RUNTIME_INJECTION) != null) {
+            runtimeInjection = true;
         }
     }
 
-    protected void needInjection() {
+    protected void inject(Object object, Class clazz) {
         try {
-            Class.forName("javax.inject.Named");
-
-            for (AtmosphereFramework.AtmosphereHandlerWrapper w : config.handlers().values()) {
-                Class<? extends AtmosphereHandler> h = w.atmosphereHandler.getClass();
-                if (h.isAnnotationPresent(javax.inject.Named.class)) {
-                    needInjection = true;
-                }
-            }
-        } catch (Exception ex) {
-            logger.trace("", ex);
-            needInjection = false;
-        }
-    }
-
-    protected void inject(Object object, Class clazz, String path) {
-        try {
-            config.properties().put(Thread.currentThread().getName(), path);
             injectableFactory.injectAtmosphereInternalObject(object, clazz, config.framework());
         } catch (IllegalAccessException e) {
-           logger.error("", e);
+            logger.error("", e);
         }
     }
 
     @Override
     public Action inspect(AtmosphereResource r) {
-        if (!wildcardMapping) return Action.CONTINUE;
+        try {
+            if (!wildcardMapping) return Action.CONTINUE;
 
-        mapAnnotatedService(r.getRequest(), (AtmosphereFramework.AtmosphereHandlerWrapper)
-                r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER));
+            mapAnnotatedService(r.getRequest(), (AtmosphereFramework.AtmosphereHandlerWrapper)
+                    r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER));
 
-        return Action.CONTINUE;
+            return Action.CONTINUE;
+        } finally {
+            if (runtimeInjection) {
+                inject(r);
+            }
+        }
     }
+
+    private void inject(AtmosphereResource r) {
+        Object injectIn = injectIn(r);
+
+        if (injectIn != null) {
+            String name = Thread.currentThread().getName() + AtmosphereResource.class.getSimpleName();
+            try {
+                config.properties().put(name, r);
+                inject(injectIn, injectIn.getClass());
+            } finally {
+                config.properties().remove(name);
+            }
+        }
+    }
+
+    protected abstract Object injectIn(AtmosphereResource r);
 
     protected void optimizeMapping() {
         for (String w : config.handlers().keySet()) {

@@ -18,6 +18,7 @@ package org.atmosphere.inject;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
+import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,6 +46,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     private final static ServiceLoader<Injectable> injectableServiceLoader = ServiceLoader.load(Injectable.class);
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
+    private final LinkedList<InjectIntrospector<?>> runtimeIntrospectors = new LinkedList<InjectIntrospector<?>>();
+
     private AtmosphereConfig config;
 
     @Override
@@ -53,16 +56,21 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         for (Injectable i : injectableServiceLoader) {
             try {
                 logger.debug("Adding class {} as injectable", i.getClass());
-                injectables.addFirst(i);
                 if (InjectIntrospector.class.isAssignableFrom(i.getClass())) {
-                    introspectors.addFirst(InjectIntrospector.class.cast(i));
+                    InjectIntrospector<?> ii = InjectIntrospector.class.cast(i);
+
+                    introspectors.addFirst(ii);
+                    if (ii.when().equals(InjectIntrospector.WHEN.RUNTIME)) {
+                        config.properties().put(FrameworkConfig.NEED_RUNTIME_INJECTION, true);
+                        runtimeIntrospectors.addFirst(ii);
+                        continue;
+                    }
                 }
+                injectables.addFirst(i);
             } catch (Exception e) {
                 logger.error("", e);
             }
         }
-
-
     }
 
     @Override
@@ -117,7 +125,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
-                for (Injectable c : injectables) {
+                LinkedList<? extends Injectable> list = framework.initialized() ? runtimeIntrospectors : injectables;
+                for (Injectable c : list) {
 
                     if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
                         InjectIntrospector.class.cast(c).introspectField(field);

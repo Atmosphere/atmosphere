@@ -193,7 +193,7 @@ public final class Utils {
     public static Object invoke(final Object proxiedInstance, Method m, Object o) {
         if (m != null) {
             try {
-                return m.invoke(proxiedInstance, o == null ? new Object[]{} : new Object[]{o});
+                return m.invoke(proxiedInstance, (o == null || m.getParameterTypes().length == 0) ? new Object[]{} : new Object[]{o});
             } catch (IllegalAccessException e) {
                 LOGGER.debug("", e);
             } catch (InvocationTargetException e) {

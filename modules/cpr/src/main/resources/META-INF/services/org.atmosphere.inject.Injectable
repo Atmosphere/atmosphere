@@ -7,3 +7,6 @@ org.atmosphere.inject.MetaBroadcasterInjectable
 org.atmosphere.inject.WebSocketFactoryInjectable
 org.atmosphere.inject.PostConstructIntrospector
 org.atmosphere.inject.BroadcasterIntrospector
+org.atmosphere.inject.AtmosphereResourceIntrospector
+org.atmosphere.inject.AtmosphereRequestIntrospector
+org.atmosphere.inject.AtmosphereResponsetIntrospector

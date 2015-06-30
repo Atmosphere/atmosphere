@@ -17,9 +17,11 @@ package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.Singleton;
-import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -34,7 +36,12 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceInterceptor.class);
 
-    protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
+    @Override
+    protected Object injectIn(AtmosphereResource r) {
+        return r.getAtmosphereHandler();
+    }
+
+    protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // AtmosphereHandlerService
@@ -42,13 +49,18 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
                 if (m != null) {
                     try {
                         boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
+                        AtmosphereHandler newW = w.atmosphereHandler;
+
                         if (!singleton) {
-                            config.framework().addAtmosphereHandler(path, config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass()),
-                                    config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
-                        } else {
-                            config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
-                                    config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
+                            newW = config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass());
                         }
+
+                        if (runtimeInjection) {
+                            AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(newW);
+                        }
+
+                        config.framework().addAtmosphereHandler(path, newW,
+                                config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
                         request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                     } catch (Throwable e) {
                         logger.warn("Unable to create AtmosphereHandler", e);

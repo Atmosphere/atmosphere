@@ -30,15 +30,19 @@ import java.lang.reflect.Type;
 public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcaster> {
     private String name = Broadcaster.ROOT_MASTER;
 
+    public WHEN when() {
+        return WHEN.RUNTIME;
+    }
+
     @Override
     public boolean supportedType(Type t) {
         return (t instanceof Class) && Broadcaster.class.isAssignableFrom((Class) t);
     }
 
     @Override
-    public Object injectable(AtmosphereConfig config) {
+    public Broadcaster injectable(AtmosphereConfig config) {
 
-        String s = (String) config.properties().remove(Thread.currentThread().getName());
+        String s = (String) config.properties().get(Thread.currentThread().getName() + ".PATH");
         if (s != null) {
             name = s;
         }

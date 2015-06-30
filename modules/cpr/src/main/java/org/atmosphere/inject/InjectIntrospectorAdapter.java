@@ -29,6 +29,10 @@ import java.lang.reflect.Type;
  */
 public abstract class InjectIntrospectorAdapter<T> implements InjectIntrospector {
 
+    public WHEN when() {
+        return WHEN.DEPLOY;
+    }
+
     @Override
     public void introspectField(Field f) {
     }
@@ -43,7 +47,7 @@ public abstract class InjectIntrospectorAdapter<T> implements InjectIntrospector
     }
 
     @Override
-    public Object injectable(AtmosphereConfig config) {
+    public T injectable(AtmosphereConfig config) {
         return null;
     }
 }

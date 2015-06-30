@@ -459,31 +459,87 @@ public class PathTest {
     }
 
     @ManagedService(path = "/inject/{inject}")
-     public final static class InjectRuntime {
+    public final static class InjectRuntime {
 
-         public InjectRuntime() {
+        public InjectRuntime() {
+            ++instanceCount;
+        }
+
+        @Inject
+        @Named("/{inject}")
+        private Broadcaster b;
+
+        @Get
+        public void get(AtmosphereResource resource) {
+            r.set(b.getID());
+        }
+    }
+
+    @Test
+    public void testNamedInjection() throws IOException, ServletException {
+        instanceCount = 0;
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inject/b123").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(instanceCount, 1);
+        assertNotNull(r.get());
+        assertEquals(r.get(), "/inject/b123");
+
+    }
+
+    @ManagedService(path = "/resource/{inject}")
+    public final static class InjectAtmosphereResource {
+
+        public InjectAtmosphereResource() {
+            ++instanceCount;
+        }
+
+        @Inject
+        private AtmosphereResource resource;
+
+        @Get
+        public void get() {
+            r.set(resource.getRequest().getPathInfo());
+        }
+    }
+
+    @Test
+    public void testAtmosphereResourceInjection() throws IOException, ServletException {
+        instanceCount = 0;
+
+        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/resource/b123").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        assertEquals(instanceCount, 1);
+        assertNotNull(r.get());
+        assertEquals(r.get(), "/resource/b123");
+
+    }
+
+    @ManagedService(path = "/request/{inject}")
+     public final static class InjectAtmosphereRequest {
+
+         public InjectAtmosphereRequest() {
              ++instanceCount;
          }
 
          @Inject
-         @Named("/{inject}")
-         private Broadcaster b;
+         private AtmosphereRequest request;
 
          @Get
-         public void get(AtmosphereResource resource) {
-             r.set(b.getID());
+         public void get() {
+             r.set(request.getPathInfo());
          }
      }
 
-     @Test
-     public void testNamedInjection() throws IOException, ServletException {
+     @Test (enabled = false)
+     public void testAtmosphereRequestInjection() throws IOException, ServletException {
          instanceCount = 0;
 
-         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inject/b123").method("GET").build();
+         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/request/b123").method("GET").build();
          framework.doCometSupport(request, AtmosphereResponse.newInstance());
          assertEquals(instanceCount, 1);
          assertNotNull(r.get());
-         assertEquals(r.get(), "/inject/b123");
+         assertEquals(r.get(), "/request/b123");
 
      }
 }

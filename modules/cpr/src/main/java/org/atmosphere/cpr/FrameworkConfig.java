@@ -17,6 +17,8 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereRequest.NoOpsRequest;
+import org.atmosphere.inject.InjectIntrospector;
+import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.websocket.WebSocketProcessor;
 
@@ -187,4 +189,8 @@ public interface FrameworkConfig {
      * The current installed {@link org.atmosphere.cpr.BroadcasterFactory}
      */
     String BROADCASTER_FACTORY = BroadcasterFactory.class.getName();
+    /**
+     * Need runtime injection
+     */
+    String NEED_RUNTIME_INJECTION = InjectIntrospector.WHEN.DEPLOY.getClass().getName();
 }
