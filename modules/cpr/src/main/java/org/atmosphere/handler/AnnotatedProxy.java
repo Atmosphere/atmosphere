@@ -40,6 +40,13 @@ public interface AnnotatedProxy extends AtmosphereHandler {
     boolean pathParams();
 
     /**
+     * Return true if {@link javax.inject.Named} are supported.
+     *
+     * @return true if {@link javax.inject.Named} are supported.
+     */
+    public boolean needInjection();
+
+    /**
      * Configure the proxy.
      * @param config
      * @param c

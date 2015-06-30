@@ -87,6 +87,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private AtmosphereConfig config;
     private boolean pathParams = false;
     private AtmosphereResourceFactory resourcesFactory;
+    private boolean needInjection = false;
 
     final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
     final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
@@ -110,6 +111,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         this.config = config;
         this.pathParams = pathParams(c);
         this.resourcesFactory = config.resourcesFactory();
+        this.needInjection = needInjection(c);
 
         scanForReaderOrInputStream();
 
@@ -250,11 +252,31 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return pathParams;
     }
 
+    @Override
+    public boolean needInjection() {
+        return needInjection;
+    }
+
     protected boolean pathParams(Object o) {
         for (Field field : o.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(PathParam.class)) {
                 return true;
             }
+        }
+        return false;
+    }
+
+    protected boolean needInjection(Object o) {
+        try {
+            Class.forName("javax.inject.Named");
+
+            for (Field field : o.getClass().getDeclaredFields()) {
+                if (field.isAnnotationPresent(javax.inject.Named.class)) {
+                    return true;
+                }
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
         }
         return false;
     }

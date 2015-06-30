@@ -114,7 +114,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         injectFields(fields, instance, framework);
     }
 
-    private <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
+    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
                 for (Injectable c : injectables) {
@@ -128,7 +128,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                         field.set(instance, c.injectable(framework.getAtmosphereConfig()));
                         break;
                     }
-                }
+                 }
             }
         }
     }
@@ -159,5 +159,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
         return null;
     }
+
+
 
 }

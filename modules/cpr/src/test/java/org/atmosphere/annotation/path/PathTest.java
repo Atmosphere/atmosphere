@@ -33,6 +33,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
@@ -41,6 +42,8 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.inject.Inject;
+import javax.inject.Named;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
@@ -454,4 +457,33 @@ public class PathTest {
         assertEquals(r.get(), "aaa#b123");
 
     }
+
+    @ManagedService(path = "/inject/{inject}")
+     public final static class InjectRuntime {
+
+         public InjectRuntime() {
+             ++instanceCount;
+         }
+
+         @Inject
+         @Named("/{inject}")
+         private Broadcaster b;
+
+         @Get
+         public void get(AtmosphereResource resource) {
+             r.set(b.getID());
+         }
+     }
+
+     @Test
+     public void testNamedInjection() throws IOException, ServletException {
+         instanceCount = 0;
+
+         AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inject/b123").method("GET").build();
+         framework.doCometSupport(request, AtmosphereResponse.newInstance());
+         assertEquals(instanceCount, 1);
+         assertNotNull(r.get());
+         assertEquals(r.get(), "/inject/b123");
+
+     }
 }

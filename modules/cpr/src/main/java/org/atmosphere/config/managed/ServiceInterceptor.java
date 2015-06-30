@@ -18,16 +18,24 @@ package org.atmosphere.config.managed;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.interceptor.InvokationOrder;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
+    private final Logger logger = LoggerFactory.getLogger(ServiceInterceptor.class);
+
     protected AtmosphereConfig config;
     protected boolean wildcardMapping = false;
+    protected boolean needInjection = false;
+    protected InjectableObjectFactory injectableFactory;
 
     public ServiceInterceptor() {
     }
@@ -35,7 +43,37 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
+        this.injectableFactory = InjectableObjectFactory.class.isAssignableFrom(config.framework().objectFactory().getClass())
+                ? InjectableObjectFactory.class.cast(config.framework().objectFactory()) : null;
+
         optimizeMapping();
+        if (wildcardMapping && injectableFactory != null) {
+            needInjection();
+        }
+    }
+
+    protected void needInjection() {
+        try {
+            Class.forName("javax.inject.Named");
+
+            for (AtmosphereFramework.AtmosphereHandlerWrapper w : config.handlers().values()) {
+                Class<? extends AtmosphereHandler> h = w.atmosphereHandler.getClass();
+                if (h.isAnnotationPresent(javax.inject.Named.class)) {
+                    needInjection = true;
+                }
+            }
+        } catch (Exception ex) {
+            logger.trace("", ex);
+            needInjection = false;
+        }
+    }
+
+    protected void inject(Object object, Class clazz) {
+        try {
+            injectableFactory.injectAtmosphereInternalObject(object, clazz, config.framework());
+        } catch (IllegalAccessException e) {
+            e.printStackTrace();
+        }
     }
 
     @Override

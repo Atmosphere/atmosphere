@@ -39,6 +39,10 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
 
+    // No Ops.
+    protected void needInjection() {
+    }
+
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
@@ -59,6 +63,10 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
                                     if (h.pathParams()) {
                                         prepareForPathInjection(path, targetPath, o);
+                                    }
+
+                                    if (h.needInjection()) {
+                                        inject(o, o.getClass());
                                     }
 
                                     config.framework().addAtmosphereHandler(path, h,
