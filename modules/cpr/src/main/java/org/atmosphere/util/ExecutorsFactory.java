@@ -220,18 +220,18 @@ public class ExecutorsFactory {
         if (e != null) {
             e.shutdown();
         }
-        config.properties().put(ASYNC_WRITE_THREAD_POOL, null);
+        config.properties().remove(ASYNC_WRITE_THREAD_POOL);
 
         e = (ExecutorService) config.properties().get(SCHEDULER_THREAD_POOL);
         if (e != null) {
             e.shutdown();
         }
-        config.properties().put(SCHEDULER_THREAD_POOL, null);
+        config.properties().remove(SCHEDULER_THREAD_POOL);
 
         e = (ExecutorService) config.properties().get(BROADCASTER_THREAD_POOL);
         if (e != null) {
             e.shutdown();
         }
-        config.properties().put(BROADCASTER_THREAD_POOL, null);
+        config.properties().remove(BROADCASTER_THREAD_POOL);
     }
 }

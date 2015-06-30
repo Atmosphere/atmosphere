@@ -68,11 +68,12 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
         }
     }
 
-    protected void inject(Object object, Class clazz) {
+    protected void inject(Object object, Class clazz, String path) {
         try {
+            config.properties().put(Thread.currentThread().getName(), path);
             injectableFactory.injectAtmosphereInternalObject(object, clazz, config.framework());
         } catch (IllegalAccessException e) {
-            e.printStackTrace();
+           logger.error("", e);
         }
     }
 

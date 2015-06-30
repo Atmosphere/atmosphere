@@ -66,7 +66,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                     }
 
                                     if (h.needInjection()) {
-                                        inject(o, o.getClass());
+                                        inject(o, o.getClass(), path);
                                     }
 
                                     config.framework().addAtmosphereHandler(path, h,

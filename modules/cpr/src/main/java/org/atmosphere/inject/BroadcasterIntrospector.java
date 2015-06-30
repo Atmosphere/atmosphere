@@ -37,6 +37,12 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
 
     @Override
     public Object injectable(AtmosphereConfig config) {
+
+        String s = (String) config.properties().remove(Thread.currentThread().getName());
+        if (s != null) {
+            name = s;
+        }
+
         return config.getBroadcasterFactory().lookup(name, true);
     }
 
@@ -44,6 +50,10 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
     public void introspectField(Field f) {
         if (f.isAnnotationPresent(Named.class)) {
             name = f.getAnnotation(Named.class).value();
+            // Avoid creating unnecessary Broadcaster instance
+            if (name.contains("{")) {
+                name = Broadcaster.ROOT_MASTER;
+            }
         }
     }
 }

@@ -33,11 +33,13 @@ public class PostConstructIntrospector extends InjectIntrospectorAdapter<PostCon
     public void introspectMethod(Method m, Object instance) {
         if (!m.isAnnotationPresent(PostConstruct.class)) return;
 
-        m.setAccessible(true);
         try {
+            m.setAccessible(true);
             m.invoke(instance);
         } catch (Exception e) {
             logger.error("", e);
+        } finally {
+            m.setAccessible(false);
         }
     }
 }
