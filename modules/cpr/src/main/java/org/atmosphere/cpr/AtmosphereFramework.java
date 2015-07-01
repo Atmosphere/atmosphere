@@ -155,7 +155,7 @@ import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 
 /**
  * The {@link AtmosphereFramework} is the entry point for the framework. This class can be used to from Servlet/filter
- * to dispatch {@link AtmosphereRequestImpl} and {@link AtmosphereResponseImpl}. The framework can also be configured using
+ * to dispatch {@link AtmosphereRequest} and {@link AtmosphereResponse}. The framework can also be configured using
  * the setXXX method. The life cycle of this class is
  * <blockquote><pre>
  * AtmosphereFramework f = new AtmosphereFramework();
@@ -2178,9 +2178,9 @@ public class AtmosphereFramework {
     }
 
     /**
-     * Configure some attributes on the {@link AtmosphereRequestImpl}.
+     * Configure some attributes on the {@link AtmosphereRequest}.
      *
-     * @param req {@link AtmosphereRequestImpl}
+     * @param req {@link AtmosphereRequest}
      */
     public AtmosphereFramework configureRequestResponse(AtmosphereRequest req, AtmosphereResponse res) throws UnsupportedEncodingException {
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);

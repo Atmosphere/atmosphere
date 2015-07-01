@@ -44,8 +44,8 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
 
 /**
- * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequestImpl}
- * and {@link AtmosphereResponseImpl}.
+ * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequest}
+ * and {@link AtmosphereResponse}.
  *
  * @author Jeanfrancois Arcand
  */
@@ -104,7 +104,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
-     * @param req               The {@link AtmosphereRequestImpl}
+     * @param req               The {@link AtmosphereRequest}
      * @param response          The {@link AtmosphereResource}
      * @param asyncSupport      The {@link AsyncSupport}
      * @param atmosphereHandler The {@link AtmosphereHandler}
@@ -549,9 +549,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Check if the {@link AtmosphereRequestImpl} still is valid.
+     * Check if the {@link AtmosphereRequest} still is valid.
      *
-     * @return true if the {@link AtmosphereRequestImpl} still is valid
+     * @return true if the {@link AtmosphereRequest} still is valid
      */
     public boolean isInScope() {
         return isInScope.get();

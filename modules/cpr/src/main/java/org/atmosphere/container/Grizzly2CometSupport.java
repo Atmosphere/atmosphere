@@ -108,7 +108,7 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
     /**
      * Resume the underlying response,
      *
-     * @param req an {@link AtmosphereRequestImpl}
+     * @param req an {@link AtmosphereRequest}
      * @param ctx a {@link org.glassfish.grizzly.comet.CometContext}
      */
     private void resume(AtmosphereRequest req, CometContext ctx) {
@@ -167,7 +167,7 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
 
     /**
      * Void {@link org.glassfish.grizzly.comet.CometHandler}, which delegate the processing of the
-     * {@link AtmosphereRequestImpl} to an {@link org.atmosphere.cpr.AtmosphereResourceImpl}.
+     * {@link AtmosphereRequest} to an {@link org.atmosphere.cpr.AtmosphereResourceImpl}.
      */
     private class VoidCometHandler implements CometHandler {
 

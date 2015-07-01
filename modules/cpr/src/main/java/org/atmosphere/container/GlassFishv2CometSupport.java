@@ -109,7 +109,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
     /**
      * Resume the underlying response.
      *
-     * @param req an {@link AtmosphereRequestImpl}
+     * @param req an {@link AtmosphereRequest}
      * @param ctx a {@link CometContext}
      */
     private void resume(AtmosphereRequest req, CometContext ctx) {
@@ -152,7 +152,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
 
     /**
      * Void {@link CometHandler}, which delegate the processing of the
-     * {@link AtmosphereResponseImpl} to an {@link AtmosphereResource}.
+     * {@link AtmosphereResponse} to an {@link AtmosphereResource}.
      */
     private class VoidCometHandler implements CometHandler {
 

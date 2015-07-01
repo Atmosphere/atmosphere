@@ -33,7 +33,7 @@ public interface EndpointMapper<U> extends AtmosphereConfigAware {
     /**
      * Mape the request to its associated endpoint.
      *
-     * @param req      an {@link AtmosphereRequestImpl}
+     * @param req      an {@link AtmosphereRequest}
      * @param handlers a map used for mapping the request to.
      * @return U the result, or null if not mapped
      */

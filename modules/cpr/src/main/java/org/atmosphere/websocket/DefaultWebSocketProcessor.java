@@ -559,8 +559,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     /**
      * Dispatch to request/response to the {@link org.atmosphere.cpr.AsyncSupport} implementation as it was a normal HTTP request.
      *
-     * @param request a {@link AtmosphereRequestImpl}
-     * @param r       a {@link AtmosphereResponseImpl}
+     * @param request a {@link AtmosphereRequest}
+     * @param r       a {@link AtmosphereResponse}
      */
     public final void dispatch(WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse r) {
         if (request == null) return;

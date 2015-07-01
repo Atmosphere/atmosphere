@@ -26,7 +26,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Add proper header for Nginx's buffering http://wiki.nginx.org/HttpProxyModule#proxy_buffering
  * <br/>
- * This interceptor set the 'X-Accel-Buffering : No' on the {@link AtmosphereResponseImpl} before it gets suspended.
+ * This interceptor set the 'X-Accel-Buffering : No' on the {@link AtmosphereResponse} before it gets suspended.
  *
  * @author Jeanfrancois Arcand
  */

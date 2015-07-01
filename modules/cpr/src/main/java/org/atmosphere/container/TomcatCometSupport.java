@@ -66,8 +66,8 @@ public class TomcatCometSupport extends AsynchronousProcessor {
     /**
      * Invoked by the Tomcat AIO when a Comet request gets detected.
      *
-     * @param req the {@link AtmosphereRequestImpl}
-     * @param res the {@link AtmosphereResponseImpl}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */

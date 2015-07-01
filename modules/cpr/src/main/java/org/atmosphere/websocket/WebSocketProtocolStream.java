@@ -42,7 +42,7 @@ public interface WebSocketProtocolStream extends WebSocketProtocol {
      *
      * @param webSocket The {@link org.atmosphere.websocket.WebSocket} connection
      * @param r         a {@link java.io.Reader}
-     * @return a List of {@link AtmosphereRequestImpl}
+     * @return a List of {@link AtmosphereRequest}
      */
     List<AtmosphereRequest> onTextStream(WebSocket webSocket, Reader r);
 
@@ -58,7 +58,7 @@ public interface WebSocketProtocolStream extends WebSocketProtocol {
      *
      * @param webSocket The {@link WebSocket} connection
      * @param stream    a {@link Reader}
-     * @return a List of {@link AtmosphereRequestImpl}
+     * @return a List of {@link AtmosphereRequest}
      */
     List<AtmosphereRequest> onBinaryStream(WebSocket webSocket, InputStream stream);
 }

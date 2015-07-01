@@ -891,7 +891,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
      * Wrap an {@link HttpServletResponse}
      *
      * @param response {@link HttpServletResponse}
-     * @return an {@link AtmosphereResponseImpl}
+     * @return an {@link AtmosphereResponse}
      */
     public final static AtmosphereResponse wrap(HttpServletResponse response) {
         return new Builder().response(response).build();

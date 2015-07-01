@@ -18,7 +18,7 @@ package org.atmosphere.cpr;
 import java.io.IOException;
 
 /**
- * An Asynchronous I/O Writer is used by a {@link AtmosphereResponseImpl} when writing data.
+ * An Asynchronous I/O Writer is used by a {@link AtmosphereResponse} when writing data.
  *
  * @author Jeanfrancois Arcand
  */

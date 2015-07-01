@@ -173,16 +173,16 @@ public interface AtmosphereResponse extends HttpServletResponse {
     AtmosphereResponse asyncIOWriter(AsyncIOWriter asyncIOWriter);
 
     /**
-     * Return the associated {@link AtmosphereRequestImpl}.
+     * Return the associated {@link AtmosphereRequest}.
      *
-     * @return the associated {@link AtmosphereRequestImpl}
+     * @return the associated {@link AtmosphereRequest}
      */
     AtmosphereRequest request();
 
     /**
-     * Set the associated {@link AtmosphereRequestImpl}.
+     * Set the associated {@link AtmosphereRequest}.
      *
-     * @param atmosphereRequest a {@link AtmosphereRequestImpl}
+     * @param atmosphereRequest a {@link AtmosphereRequest}
      * @return this
      */
     AtmosphereResponse request(AtmosphereRequest atmosphereRequest);

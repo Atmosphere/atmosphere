@@ -41,7 +41,7 @@ public interface WebSocketProtocol extends AtmosphereConfigAware {
      *
      * @param webSocket The {@link WebSocket} connection
      * @param data      The Websocket message
-     * @return a List of {@link AtmosphereRequestImpl}
+     * @return a List of {@link AtmosphereRequest}
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
 
@@ -58,7 +58,7 @@ public interface WebSocketProtocol extends AtmosphereConfigAware {
      * @param webSocket The {@link WebSocket} connection
      * @param offset    offset message index
      * @param length    length of the message.
-     * @return a List of {@link AtmosphereRequestImpl}
+     * @return a List of {@link AtmosphereRequest}
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 

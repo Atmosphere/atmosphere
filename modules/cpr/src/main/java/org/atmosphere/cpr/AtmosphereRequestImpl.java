@@ -63,10 +63,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
 /**
- * An Atmosphere request representation. An {@link AtmosphereRequestImpl} is a two-way communication channel between the
+ * An Atmosphere request representation. An {@link AtmosphereRequest} is a two-way communication channel between the
  * client and the server. If the {@link AtmosphereRequestImpl#isDestroyable()} is set to false, or if its
  * associated {@link AtmosphereResource} has been suspended, this object can be re-used at any moment between requests.
- * You can use its associated {@link AtmosphereResponseImpl} to write bytes at any moment, making this object bi-directional.
+ * You can use its associated {@link AtmosphereResponse} to write bytes at any moment, making this object bi-directional.
  * <br/>
  *
  * @author Jeanfrancois Arcand
@@ -1308,7 +1308,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      * Wrap an {@link HttpServletRequest}.
      *
      * @param request {@link HttpServletRequest}
-     * @return an {@link AtmosphereRequestImpl}
+     * @return an {@link AtmosphereRequest}
      */
     public final static AtmosphereRequest wrap(HttpServletRequest request) {
         // Do not rewrap.
@@ -1332,7 +1332,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      * is not destroyable.
      *
      * @param request {@link HttpServletRequest}
-     * @return an {@link AtmosphereRequestImpl}
+     * @return an {@link AtmosphereRequest}
      */
     public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable, boolean createSession) {
         Builder b;

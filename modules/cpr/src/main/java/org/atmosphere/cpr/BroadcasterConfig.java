@@ -442,7 +442,7 @@ public class BroadcasterConfig {
     }
 
     /**
-     * Invoke {@link BroadcastFilter}s in the order they were added, with a unique {@link AtmosphereRequestImpl}.
+     * Invoke {@link BroadcastFilter}s in the order they were added, with a unique {@link AtmosphereRequest}.
      *
      * @param r       {@link AtmosphereResource}
      * @param message the broadcasted object.

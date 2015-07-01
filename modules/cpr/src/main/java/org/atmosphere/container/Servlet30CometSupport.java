@@ -83,8 +83,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
      * Suspend the connection by invoking {@link AtmosphereRequestImpl#startAsync()}
      *
      * @param action The {@link org.atmosphere.cpr.Action}
-     * @param req    the {@link AtmosphereRequestImpl}
-     * @param res    the {@link AtmosphereResponseImpl}
+     * @param req    the {@link AtmosphereRequest}
+     * @param res    the {@link AtmosphereResponse}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
