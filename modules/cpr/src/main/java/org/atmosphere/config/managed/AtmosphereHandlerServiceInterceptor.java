@@ -20,7 +20,6 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
@@ -35,11 +34,6 @@ import org.slf4j.LoggerFactory;
 public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceInterceptor.class);
-
-    @Override
-    protected Object injectIn(AtmosphereResource r) {
-        return r.getAtmosphereHandler();
-    }
 
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {

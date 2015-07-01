@@ -15,11 +15,18 @@
  */
 package org.atmosphere.util;
 
+import org.atmosphere.config.managed.ManagedAtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereObjectFactory;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.handler.AnnotatedProxy;
+import org.atmosphere.handler.ReflectorServletProcessor;
+import org.atmosphere.inject.InjectableObjectFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -202,5 +209,45 @@ public final class Utils {
         }
         LOGGER.trace("No Method Mapped for {}", o);
         return null;
+    }
+
+    public static final void inject(AtmosphereResource r) throws IllegalAccessException {
+        AtmosphereConfig config = r.getAtmosphereConfig();
+
+        // No Injectable supports Injection
+        if (config.properties().get(FrameworkConfig.NEED_RUNTIME_INJECTION) == null) {
+            return;
+        }
+
+        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+            return;
+        }
+
+        Object injectIn = injectIn(r);
+        if (injectIn != null) {
+            String name = Thread.currentThread().getName() + AtmosphereResource.class.getSimpleName();
+            try {
+                config.properties().put(name, r);
+                inject(injectIn, injectIn.getClass(), config);
+            } finally {
+                config.properties().remove(name);
+            }
+        }
+    }
+
+    private static final void inject(Object object, Class clazz, AtmosphereConfig config) throws IllegalAccessException {
+        InjectableObjectFactory.class.cast(config.framework().objectFactory()).injectAtmosphereInternalObject(object, clazz, config.framework());
+    }
+
+    public static final Object injectIn(AtmosphereResource r) {
+        AtmosphereHandler h = r.getAtmosphereHandler();
+        if (ManagedAtmosphereHandler.class.isAssignableFrom(h.getClass())) {
+            return AnnotatedProxy.class.cast(h).target();
+        } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
+            return ReflectorServletProcessor.class.cast(h).getServlet();
+        } else {
+            return h;
+        }
     }
 }

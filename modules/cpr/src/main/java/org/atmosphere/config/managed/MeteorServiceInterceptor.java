@@ -19,7 +19,6 @@ import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.ReflectorServletProcessor;
@@ -37,11 +36,6 @@ import javax.servlet.Servlet;
 public class MeteorServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(MeteorServiceInterceptor.class);
-
-    @Override
-    protected Object injectIn(AtmosphereResource r) {
-        return ReflectorServletProcessor.class.cast(r.getAtmosphereHandler()).getServlet();
-    }
 
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {

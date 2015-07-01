@@ -45,15 +45,6 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
     protected void namedInjection() {
     }
 
-    @Override
-    protected Object injectIn(AtmosphereResource r) {
-        AnnotatedProxy ap = AnnotatedProxy.class.cast(r.getAtmosphereHandler());
-
-        if (ap == null) return null;
-
-        return ap.target();
-    }
-
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {

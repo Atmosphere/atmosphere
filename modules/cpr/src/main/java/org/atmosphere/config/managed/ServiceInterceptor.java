@@ -23,8 +23,8 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.interceptor.InvokationOrder;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,7 +34,6 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     protected AtmosphereConfig config;
     protected boolean wildcardMapping = false;
     protected boolean runtimeInjection = false;
-    protected InjectableObjectFactory injectableFactory;
 
     public ServiceInterceptor() {
     }
@@ -42,21 +41,8 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
-        this.injectableFactory = InjectableObjectFactory.class.isAssignableFrom(config.framework().objectFactory().getClass())
-                ? InjectableObjectFactory.class.cast(config.framework().objectFactory()) : null;
 
         optimizeMapping();
-        if (config.properties().get(FrameworkConfig.NEED_RUNTIME_INJECTION) != null) {
-            runtimeInjection = true;
-        }
-    }
-
-    protected void inject(Object object, Class clazz) {
-        try {
-            injectableFactory.injectAtmosphereInternalObject(object, clazz, config.framework());
-        } catch (IllegalAccessException e) {
-            logger.error("", e);
-        }
     }
 
     @Override
@@ -69,27 +55,13 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
 
             return Action.CONTINUE;
         } finally {
-            if (runtimeInjection) {
-                inject(r);
-            }
-        }
-    }
-
-    private void inject(AtmosphereResource r) {
-        Object injectIn = injectIn(r);
-
-        if (injectIn != null) {
-            String name = Thread.currentThread().getName() + AtmosphereResource.class.getSimpleName();
             try {
-                config.properties().put(name, r);
-                inject(injectIn, injectIn.getClass());
-            } finally {
-                config.properties().remove(name);
+                Utils.inject(r);
+            } catch (IllegalAccessException e) {
+                logger.error("", e);
             }
         }
     }
-
-    protected abstract Object injectIn(AtmosphereResource r);
 
     protected void optimizeMapping() {
         for (String w : config.handlers().keySet()) {
