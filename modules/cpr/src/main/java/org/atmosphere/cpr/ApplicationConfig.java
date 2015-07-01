@@ -894,7 +894,7 @@ public interface ApplicationConfig {
      */
     String META_SERVICE_PATH = "org.atmosphere.cpr.metaServicePath";
     /**
-     * Close the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()} when {@link org.atmosphere.cpr.AtmosphereResource#close()}
+     * Close the {@link AtmosphereResponseImpl#getOutputStream()} when {@link org.atmosphere.cpr.AtmosphereResource#close()}
      * gets invoked, or when the underlying server close the connection.
      * Default: false
      * Value: org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel

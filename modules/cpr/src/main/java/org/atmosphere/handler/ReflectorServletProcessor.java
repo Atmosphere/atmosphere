@@ -18,6 +18,7 @@ package org.atmosphere.handler;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.util.AtmosphereFilterChain;
@@ -47,7 +48,7 @@ import java.util.Map;
 /**
  * An implementation of {@link AtmosphereHandler} using the {@link AtmosphereServletProcessor} that delegate the {@link AtmosphereHandler#onRequest}
  * to a set of {@link FilterChain} and {@link Servlet#service(javax.servlet.ServletRequest, javax.servlet.ServletResponse)}
- * and store the {@link AtmosphereResource} as a {@link org.atmosphere.cpr.AtmosphereRequest#getAttribute(String)} attribute named
+ * and store the {@link AtmosphereResource} as a {@link AtmosphereRequestImpl#getAttribute(String)} attribute named
  * {@link org.atmosphere.cpr.FrameworkConfig#ATMOSPHERE_RESOURCE}. The {@link AtmosphereResource} can later be retrieved
  * and used to suspend/resume and broadcast.
  *

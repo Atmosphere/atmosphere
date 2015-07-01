@@ -62,7 +62,7 @@ public class AtmosphereFrameworkTest {
         final AtomicReference<Object> value = new AtomicReference<Object>();
 
         // Intercepts interceptor call
-        final AtmosphereRequest r = new AtmosphereRequest.Builder().request(new HttpServletRequestWrapper(new AtmosphereRequest.NoOpsRequest()) {
+        final AtmosphereRequest r = new AtmosphereRequestImpl.Builder().request(new HttpServletRequestWrapper(new AtmosphereRequestImpl.NoOpsRequest()) {
             @Override
             public void setAttribute(String name, Object o) {
                 if (MyInterceptor.class.getName().equals(name)) {
@@ -71,7 +71,7 @@ public class AtmosphereFrameworkTest {
                 super.setAttribute(name, o);
             }
         }).build();
-        processor.action(r, AtmosphereResponse.newInstance());
+        processor.action(r, AtmosphereResponseImpl.newInstance());
         assertNotNull(value.get());
 
         // The interceptor must be installed and called one time.

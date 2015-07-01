@@ -19,6 +19,7 @@ import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
@@ -41,7 +42,8 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
             if (config.handlers().get(path) == null) {
                 // MeteorService
                 if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    Servlet s = ReflectorServletProcessor.class.cast(w.atmosphereHandler).getServlet();
+                    ReflectorServletProcessor r = ReflectorServletProcessor.class.cast(w.atmosphereHandler);
+                    Servlet s = r.getServlet();
                     MeteorService m = s.getClass().getAnnotation(MeteorService.class);
                     if (m != null) {
                         String targetPath = m.path();
@@ -49,16 +51,17 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
                             try {
                                 boolean singleton = s.getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
-                                    ReflectorServletProcessor r =
-                                            config.framework().newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
+                                    r = config.framework().newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
                                     r.setServlet(config.framework().newClassInstance(Servlet.class, s.getClass()));
                                     r.init(config);
-                                    config.framework().addAtmosphereHandler(path, r,
-                                            config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
-                                } else {
-                                    config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
-                                            config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
                                 }
+
+                                config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
+
+                                AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(r);
+
+                                config.framework().addAtmosphereHandler(path, r,
+                                        config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                             } catch (Throwable e) {
                                 logger.warn("Unable to create AtmosphereHandler", e);

@@ -46,7 +46,7 @@ public class Invoker {
         Object objectToEncode = null;
         boolean hasMatch = false;
         try {
-            objectToEncode = method.invoke(objectToInvoke, parameters);
+            objectToEncode = method.invoke(objectToInvoke, method.getParameterTypes().length == 0 ? new Object[]{} : parameters);
             hasMatch = true;
         } catch (IllegalAccessException e) {
             logger.trace("", e);

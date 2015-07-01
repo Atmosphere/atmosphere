@@ -26,10 +26,12 @@ import org.atmosphere.cpr.AsyncIOWriterAdapter;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -115,9 +117,9 @@ public class EncoderDecoderTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/f").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/f").method("POST").body("message").build();
                     try {
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -143,9 +145,9 @@ public class EncoderDecoderTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/g").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/g").method("POST").body("message").build();
                     try {
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -171,7 +173,7 @@ public class EncoderDecoderTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/h").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/h").method("POST").body("message").build();
                     try {
                         event.getResource().addEventListener(new OnBroadcast() {
                             @Override
@@ -179,7 +181,7 @@ public class EncoderDecoderTest {
                                 latch.get().countDown();
                             }
                         });
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
                     } catch (IOException e) {
                         e.printStackTrace();
@@ -217,8 +219,8 @@ public class EncoderDecoderTest {
     @Test
     public void testMessage() throws IOException, ServletException, InterruptedException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/f").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/f").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -229,8 +231,8 @@ public class EncoderDecoderTest {
     @Test
     public void testDecoder() throws IOException, ServletException, InterruptedException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/g").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/g").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -241,8 +243,8 @@ public class EncoderDecoderTest {
     @Test
     public void testEncoder() throws IOException, ServletException, InterruptedException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/h").method("GET").build();
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/h").method("GET").build();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
         final AtomicReference<String> ref = new AtomicReference();
 
         response.asyncIOWriter(new AsyncIOWriterAdapter() {

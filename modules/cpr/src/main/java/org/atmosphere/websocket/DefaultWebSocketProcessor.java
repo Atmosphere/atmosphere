@@ -30,6 +30,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
@@ -299,6 +300,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
                                 boolean singleton = w.proxied.getClass().getAnnotation(Singleton.class) != null;
+
                                 if (!singleton) {
                                     registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(),
                                             framework.newClassInstance(WebSocketHandler.class, w.proxied.getClass())));
@@ -333,7 +335,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 asyncExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
+                        AtmosphereResponse w = new AtmosphereResponseImpl(webSocket, r, destroyable);
                         try {
                             dispatch(webSocket, r, w);
                         } finally {
@@ -350,6 +352,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(webSocket.resource());
         if (impl != null) {
             impl.getRequest(false).setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
+
+            try {
+                Utils.inject(impl);
+            } catch (IllegalAccessException e) {
+                logger.warn("", e);
+            }
+
         }
         return WebSocketHandlerProxy.class.cast(webSocket.webSocketHandler());
     }
@@ -546,7 +555,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResource r = webSocket.resource();
         if (r != null) {
             webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                    new AtmosphereResponse.Builder()
+                    new AtmosphereResponseImpl.Builder()
                             .request(r != null ? AtmosphereResourceImpl.class.cast(r).getRequest(false) : null)
                             .status(500)
                             .statusMessage("Server Error").build()));
@@ -567,7 +576,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } catch (Throwable e) {
             logger.warn("Failed invoking AtmosphereFramework.doCometSupport()", e);
             webSocketProtocol.onError(webSocket, new WebSocketException(e,
-                    new AtmosphereResponse.Builder()
+                    new AtmosphereResponseImpl.Builder()
                             .request(request)
                             .status(500)
                             .statusMessage("Server Error").build()));
@@ -671,7 +680,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public void executeClose(WebSocket webSocket, int closeCode) {
         AtmosphereResource r = webSocket.resource();
 
-        boolean isClosedByClient =  r == null ? true : r.getAtmosphereResourceEvent().isClosedByClient();
+        boolean isClosedByClient = r == null ? true : r.getAtmosphereResourceEvent().isClosedByClient();
         try {
             if (r != null) {
                 asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(r), true);

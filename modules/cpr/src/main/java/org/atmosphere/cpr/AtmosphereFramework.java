@@ -2338,7 +2338,7 @@ public class AtmosphereFramework {
     }
 
     /**
-     * <tt>true</tt> if Atmosphere uses {@link AtmosphereResponse#getOutputStream()}
+     * <tt>true</tt> if Atmosphere uses {@link AtmosphereResponseImpl#getOutputStream()}
      * by default for write operation.
      *
      * @return the useStreamForFlushingComments
@@ -2352,7 +2352,7 @@ public class AtmosphereFramework {
     }
 
     /**
-     * Set to <tt>true</tt> so Atmosphere uses {@link AtmosphereResponse#getOutputStream()}
+     * Set to <tt>true</tt> so Atmosphere uses {@link AtmosphereResponseImpl#getOutputStream()}
      * by default for write operation. Default is false.
      *
      * @param useStreamForFlushingComments the useStreamForFlushingComments to set

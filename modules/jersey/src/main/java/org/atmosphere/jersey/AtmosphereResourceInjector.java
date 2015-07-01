@@ -18,11 +18,11 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
-import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 
 import javax.ws.rs.core.Context;
 import java.lang.reflect.InvocationHandler;
@@ -49,8 +49,8 @@ abstract class AtmosphereResourceInjector extends BaseInjectableProvider {
 
             if (pt.getActualTypeArguments().length != 2) return false;
 
-            if (pt.getActualTypeArguments()[0] != AtmosphereRequest.class) return false;
-            if (pt.getActualTypeArguments()[1] != AtmosphereResponse.class) return false;
+            if (pt.getActualTypeArguments()[0] != AtmosphereRequestImpl.class) return false;
+            if (pt.getActualTypeArguments()[1] != AtmosphereResponseImpl.class) return false;
 
             return true;
         }

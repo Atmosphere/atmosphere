@@ -20,6 +20,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
@@ -109,7 +110,7 @@ public class JettyWebSocketUtil {
                     throw new IllegalStateException();
                 }
 
-                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, useBuildInSession.get(), isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
+                return new JettyWebSocketHandler(AtmosphereRequestImpl.cloneRequest(request, false, useBuildInSession.get(), isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
                         config.framework(), webSocketProcessor);
             }
         });

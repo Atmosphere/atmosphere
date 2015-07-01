@@ -116,8 +116,8 @@ public class WebSocketProcessorTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         framework.getBroadcasterFactory().lookup("/*").broadcast("yoBroadcast").get();
 
@@ -149,8 +149,8 @@ public class WebSocketProcessorTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
 
         assertEquals(url.get(), "http://127.0.0.1:8080");
@@ -185,8 +185,8 @@ public class WebSocketProcessorTest {
                     }
                 });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         framework.getBroadcasterFactory().lookup("/*").broadcast("yoBroadcast").get();
 
@@ -224,8 +224,8 @@ public class WebSocketProcessorTest {
         Set<Cookie> c = new HashSet<Cookie>();
         c.add(new Cookie("yo", "man"));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().cookies(c).pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());
@@ -264,8 +264,8 @@ public class WebSocketProcessorTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Disconnect", DISCONNECT, w));
 
@@ -306,8 +306,8 @@ public class WebSocketProcessorTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
 
         assertFalse(closed.get());
     }
@@ -341,8 +341,8 @@ public class WebSocketProcessorTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
 
@@ -401,8 +401,8 @@ public class WebSocketProcessorTest {
             }
         }));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         framework.getBroadcasterFactory().lookup("/*").broadcast("yoBroadcast").get();
 
@@ -440,9 +440,9 @@ public class WebSocketProcessorTest {
         Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.WEBSOCKET_TRANSPORT);
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").build();
         request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, null);
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
 
         final AtomicBoolean dirtyDisconnect = new AtomicBoolean();
         request.setAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, w.resource().uuid());
@@ -459,7 +459,7 @@ public class WebSocketProcessorTest {
         });
         request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, null);
 
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertTrue(dirtyDisconnect.get());

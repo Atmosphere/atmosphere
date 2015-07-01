@@ -96,8 +96,8 @@ public class DefaultBroadcasterTest {
 
         final AtmosphereResourceImpl ar = new AtmosphereResourceImpl(new AtmosphereFramework().getAtmosphereConfig(),
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 new AR());
 

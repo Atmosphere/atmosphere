@@ -20,8 +20,10 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -78,7 +80,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     /**
-     * Suspend the connection by invoking {@link AtmosphereRequest#startAsync()}
+     * Suspend the connection by invoking {@link AtmosphereRequestImpl#startAsync()}
      *
      * @param action The {@link org.atmosphere.cpr.Action}
      * @param req    the {@link AtmosphereRequest}

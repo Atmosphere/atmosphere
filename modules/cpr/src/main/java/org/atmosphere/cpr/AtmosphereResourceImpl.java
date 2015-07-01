@@ -823,16 +823,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 action.type(Action.TYPE.CANCELLED);
                 if (asyncSupport != null) asyncSupport.action(this);
                 // We must close the underlying WebSocket as well.
-                if (AtmosphereResponse.class.isAssignableFrom(response.getClass())) {
+                if (AtmosphereResponseImpl.class.isAssignableFrom(response.getClass())) {
                     if (closeOnCancel) {
-                        AtmosphereResponse.class.cast(response).close();
+                        AtmosphereResponseImpl.class.cast(response).close();
                     }
-                    AtmosphereResponse.class.cast(response).destroy();
+                    AtmosphereResponseImpl.class.cast(response).destroy();
                 }
 
-                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                if (AtmosphereRequestImpl.class.isAssignableFrom(req.getClass())) {
                     if (closeOnCancel) {
-                        AtmosphereRequest.class.cast(req).destroy();
+                        AtmosphereRequestImpl.class.cast(req).destroy();
                     }
                 }
                 event.destroy();

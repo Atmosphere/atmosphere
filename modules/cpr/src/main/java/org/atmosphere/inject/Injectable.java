@@ -17,11 +17,29 @@ package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 
+import javax.inject.Inject;
 import java.lang.reflect.Type;
 
+/**
+ * An Injectable class allow the {@link InjectableObjectFactory} to assign a value to a field annotated with the
+ * {@link Inject} annotation.
+ *
+ * @param <T> the Object to inject.
+ * @author Jeanfrancois Arcand
+ */
 public interface Injectable<T> {
 
-    boolean supportedType(Type type);
+    /**
+     * Return true if this class support injection of this type.
+     * @param t the field
+     * @return true if this class support injection
+     */
+    boolean supportedType(Type t);
 
+    /**
+     * Returns an instance of the T
+     * @param config the {@link AtmosphereConfig}
+     * @return Return an instance of the T
+     */
     T injectable(AtmosphereConfig config);
 }

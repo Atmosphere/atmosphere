@@ -16,6 +16,7 @@
 package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.websocket.WebSocket;
@@ -27,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtocolUtil {
 
-    protected static AtmosphereRequest.Builder constructRequest(WebSocket webSocket,
+    protected static AtmosphereRequestImpl.Builder constructRequest(WebSocket webSocket,
                                                                 String pathInfo,
                                                                 String requestURI,
                                                                 String methodType,
@@ -39,7 +40,7 @@ public class ProtocolUtil {
         Map<String, Object> m = attributes(webSocket, request);
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
-        AtmosphereRequest.Builder b = (new AtmosphereRequest.Builder()
+        AtmosphereRequestImpl.Builder b = (new AtmosphereRequestImpl.Builder()
                 .request(request)
                 .method(methodType)
                 .contentType(contentType == null ? request.getContentType() : contentType)

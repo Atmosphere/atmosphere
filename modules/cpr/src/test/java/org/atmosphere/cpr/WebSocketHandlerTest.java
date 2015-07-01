@@ -23,6 +23,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.inject.Inject;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -35,6 +36,7 @@ import java.util.concurrent.ExecutionException;
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.fail;
 
 public class WebSocketHandlerTest {
@@ -82,8 +84,8 @@ public class WebSocketHandlerTest {
                 .getWebSocketProcessor(framework);
         registerWebSocketHandler("/*", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
 
         assertEquals(b.toString(), "yoWebSocket");
@@ -97,9 +99,9 @@ public class WebSocketHandlerTest {
                 .getWebSocketProcessor(framework);
         registerWebSocketHandler("/a", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/abcd").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/abcd").build();
         try {
-            processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+            processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
             fail();
         } catch (Exception ex) {
             assertEquals(ex.getClass(), AtmosphereMappingException.class);
@@ -116,14 +118,14 @@ public class WebSocketHandlerTest {
         registerWebSocketHandler("/a", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
         registerWebSocketHandler("/b", new WebSocketProcessor.WebSocketHandlerProxy(new EchoHandler()));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("a").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
         assertEquals(b.toString(), "a");
 
-        request = new AtmosphereRequest.Builder().destroyable(false).body("b").pathInfo("/b").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "b");
 
         // The WebSocketHandler is shared.
@@ -145,15 +147,15 @@ public class WebSocketHandlerTest {
             }
         }));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("a").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
         assertEquals(b.toString(), "a");
         ByteArrayOutputStream b2 = new ByteArrayOutputStream();
         final WebSocket w2 = new ArrayBaseWebSocket(b2);
-        request = new AtmosphereRequest.Builder().destroyable(false).body("b").pathInfo("/b").build();
-        processor.open(w2, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
+        processor.open(w2, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w2, "b");
 
         // The WebSocketHandler is shared.
@@ -161,6 +163,10 @@ public class WebSocketHandlerTest {
     }
 
     public static class EchoHandler implements WebSocketHandler {
+
+        @Inject
+        private AtmosphereRequest request;
+
         @Override
         public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException {
             webSocket.write(data, offset, length);
@@ -184,10 +190,25 @@ public class WebSocketHandlerTest {
         }
     }
 
-    private void registerWebSocketHandler(String path, WebSocketHandler w) {
+    private void registerWebSocketHandler(String path, WebSocketProcessor.WebSocketHandlerProxy w) {
         WebSocketProcessorFactory.getDefault()
-                .getWebSocketProcessor(framework).registerWebSocketHandler(path,
-                new WebSocketProcessor.WebSocketHandlerProxy(framework.getBroadcasterFactory().lookup(path, true).getClass(), w));
+                .getWebSocketProcessor(framework).registerWebSocketHandler(path, w);
+    }
+
+    @Test
+    public void testInjection() throws IOException, ServletException, ExecutionException, InterruptedException {
+        EchoHandler e = new EchoHandler();
+        ByteArrayOutputStream b = new ByteArrayOutputStream();
+        final WebSocket w = new ArrayBaseWebSocket(b);
+        final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
+                .getWebSocketProcessor(framework);
+        registerWebSocketHandler("/*", new WebSocketProcessor.WebSocketHandlerProxy(e));
+
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
+        processor.invokeWebSocketProtocol(w, "yoWebSocket");
+
+        assertNotNull(e.request);
     }
 
 

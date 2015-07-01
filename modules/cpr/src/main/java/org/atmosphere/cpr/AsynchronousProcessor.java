@@ -507,6 +507,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                         AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
                         if (atmosphereHandler != null && r.isInScope()) {
+
+                            try {
+                                Utils.inject(r);
+                            } catch (IllegalAccessException e) {
+                                logger.warn("",e);
+                            }
+
                             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
                         }
                     }

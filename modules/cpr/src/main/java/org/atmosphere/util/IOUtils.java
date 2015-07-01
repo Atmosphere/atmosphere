@@ -20,6 +20,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
@@ -169,7 +170,7 @@ public class IOUtils {
                 }
             }
         } else {
-            AtmosphereRequest.Body body = request.body();
+            AtmosphereRequestImpl.Body body = request.body();
             try {
                 stringBuilder.append(body.hasString() ? body.asString() : new String(body.asBytes(), body.byteOffset(), body.byteLength(), request.getCharacterEncoding()));
             } catch (UnsupportedEncodingException e) {
@@ -188,7 +189,7 @@ public class IOUtils {
             return new byte[0];
         }
 
-        AtmosphereRequest.Body body = request.body();
+        AtmosphereRequestImpl.Body body = request.body();
         if (request.body().isEmpty()) {
             BufferedInputStream bufferedStream = null;
             ByteArrayOutputStream bbIS = new ByteArrayOutputStream();

@@ -216,11 +216,11 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      */
     @Override
     public AtmosphereResource create(AtmosphereConfig config, String uuid) {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
                 noOps,
-                AtmosphereRequest.newInstance(),
+                AtmosphereRequestImpl.newInstance(),
                 response,
                 config.framework().getAsyncSupport(),
                 noOpsHandler);
@@ -236,7 +236,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      */
     @Override
     public AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request) {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
                 noOps,

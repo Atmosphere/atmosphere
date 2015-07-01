@@ -19,7 +19,8 @@ import org.atmosphere.container.version.JSR356WebSocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
@@ -100,15 +101,6 @@ public class JSR356Endpoint extends Endpoint {
     public void onOpen(Session session, final EndpointConfig endpointConfig) {
 
         if (framework.isDestroyed()) return;
-
-        if (!webSocketProcessor.handshake(request)) {
-            try {
-                session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Handshake not accepted."));
-            } catch (IOException e) {
-                logger.trace("", e);
-            }
-            return;
-        }
 
         if (!session.isOpen()) {
             logger.trace("Session Closed {}", session);
@@ -192,7 +184,7 @@ public class JSR356Endpoint extends Endpoint {
                 }
             }
 
-            request = new AtmosphereRequest.Builder()
+            request = new AtmosphereRequestImpl.Builder()
                     .requestURI(uri.getPath())
                     .requestURL(requestURL)
                     .headers(headers)
@@ -216,10 +208,19 @@ public class JSR356Endpoint extends Endpoint {
                     .build()
                     .queryString(session.getQueryString());
 
+            if (!webSocketProcessor.handshake(request)) {
+                try {
+                    session.close(new CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, "Handshake not accepted."));
+                } catch (IOException e) {
+                    logger.trace("", e);
+                }
+                return;
+            }
+
             // TODO: Fix this crazy code.
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "false");
 
-            webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+            webSocketProcessor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
 
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 

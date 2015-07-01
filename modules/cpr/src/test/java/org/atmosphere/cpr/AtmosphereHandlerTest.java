@@ -106,8 +106,8 @@ public class AtmosphereHandlerTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         r.get().resume();
 
         assertTrue(e.get().isResuming());
@@ -123,7 +123,7 @@ public class AtmosphereHandlerTest {
         atmosphereHandler = new AR();
 
         final AtomicReference<byte[]> ref = new AtomicReference<byte[]>();
-        AtmosphereResponse r = AtmosphereResponse.newInstance();
+        AtmosphereResponse r = AtmosphereResponseImpl.newInstance();
         r.asyncIOWriter(new AsyncIOWriterAdapter() {
             @Override
             public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
@@ -133,7 +133,7 @@ public class AtmosphereHandlerTest {
         });
         ar = new AtmosphereResourceImpl(f.getAtmosphereConfig(),
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 r,
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);

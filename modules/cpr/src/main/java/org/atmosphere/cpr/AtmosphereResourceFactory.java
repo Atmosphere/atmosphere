@@ -128,7 +128,7 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
      *
      * @param config  an {@link AtmosphereConfig}
      * @param uuid    a String representing a UUID
-     * @param request a {@link org.atmosphere.cpr.AtmosphereRequest}
+     * @param request a {@link AtmosphereRequest}
      * @return
      */
     AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request);

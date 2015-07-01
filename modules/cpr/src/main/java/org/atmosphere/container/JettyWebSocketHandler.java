@@ -18,7 +18,7 @@ package org.atmosphere.container;
 import org.atmosphere.container.version.Jetty8WebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -101,7 +101,7 @@ public class JettyWebSocketHandler implements org.eclipse.jetty.websocket.WebSoc
     public void onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
         logger.trace("WebSocket.onOpen {}", connection);
         try {
-            webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+            webSocketProcessor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
         } catch (Exception e) {
             logger.warn("Failed to connect to WebSocket", e);
         }

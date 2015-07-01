@@ -25,9 +25,9 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class contains information about the current state of the {@link AtmosphereFramework}. You can also
@@ -46,7 +46,7 @@ public class AtmosphereConfig {
     private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
     private AtmosphereFramework framework;
-    private Map<String, Object> properties = new HashMap<String, Object>();
+    private final Map<String, Object> properties = new ConcurrentHashMap<String, Object>();
     protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
     protected List<StartupHook> startUpHook = new ArrayList<StartupHook>();
 
@@ -372,7 +372,7 @@ public class AtmosphereConfig {
         sessionTimeoutRemovalAllowed = config.sessionTimeoutRemovalAllowed;
         throwExceptionOnCloned = config.throwExceptionOnCloned;
         framework = config.framework;
-        properties = config.properties;
+        properties.putAll(config.properties);
         shutdownHooks = config.shutdownHooks;
         startUpHook = config.startUpHook;
         return this;

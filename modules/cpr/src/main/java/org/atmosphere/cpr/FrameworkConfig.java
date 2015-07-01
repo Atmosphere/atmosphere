@@ -16,7 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
-import org.atmosphere.cpr.AtmosphereRequest.NoOpsRequest;
+import org.atmosphere.inject.InjectIntrospector;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.websocket.WebSocketProcessor;
 
@@ -145,11 +145,11 @@ public interface FrameworkConfig {
     /**
      * Throw Exception from cloned request.
      */
-    String THROW_EXCEPTION_ON_CLONED_REQUEST = NoOpsRequest.class.getName() + ".throwExceptionOnClonedRequest";
+    String THROW_EXCEPTION_ON_CLONED_REQUEST = AtmosphereRequestImpl.NoOpsRequest.class.getName() + ".throwExceptionOnClonedRequest";
     /**
      * The subject for the current request.
      */
-    String SECURITY_SUBJECT = AtmosphereRequest.class.getName() + ".subject";
+    String SECURITY_SUBJECT = AtmosphereRequestImpl.class.getName() + ".subject";
     /**
      * The {@link javax.servlet.AsyncContext}.
      */
@@ -187,4 +187,8 @@ public interface FrameworkConfig {
      * The current installed {@link org.atmosphere.cpr.BroadcasterFactory}
      */
     String BROADCASTER_FACTORY = BroadcasterFactory.class.getName();
+    /**
+     * Need runtime injection
+     */
+    String NEED_RUNTIME_INJECTION = InjectIntrospector.WHEN.DEPLOY.getClass().getName();
 }

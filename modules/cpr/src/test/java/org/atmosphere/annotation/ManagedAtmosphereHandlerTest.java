@@ -30,12 +30,15 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResourceSessionFactory;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultMetaBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
@@ -55,6 +58,7 @@ import org.testng.annotations.Test;
 
 import javax.annotation.PostConstruct;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
@@ -176,8 +180,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testGet() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         r.get().resume();
 
         assertNotNull(r.get());
@@ -195,8 +199,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testPost() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/b").method("POST").body("test").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/b").method("POST").body("test").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
 
@@ -205,8 +209,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testBinaryPost() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/b").method("POST").body("test".getBytes()).build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/b").method("POST").body("test".getBytes()).build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
 
@@ -224,8 +228,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testDelete() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/c").method("DELETE").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/c").method("DELETE").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
     }
@@ -242,8 +246,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testPut() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/d").method("PUT").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/d").method("PUT").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
     }
@@ -257,10 +261,10 @@ public class ManagedAtmosphereHandlerTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/e").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/e").method("POST").body("message").build();
 
                     try {
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -280,8 +284,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testMessage() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/e").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/e").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -298,10 +302,10 @@ public class ManagedAtmosphereHandlerTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/k").method("POST").body("message").build();
 
                     try {
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -321,8 +325,8 @@ public class ManagedAtmosphereHandlerTest {
 
     @Test
     public void testMessageWithResource() throws IOException, ServletException {
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/k").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/k").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -346,9 +350,9 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testSuspend() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/j").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/j").method("GET").build();
         request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
     }
 
@@ -381,9 +385,9 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testPriority() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/priority").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/priority").method("GET").build();
         request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(framework.getAtmosphereHandlers().get("/priority").interceptors.getFirst().toString(), "XXX");
 
         assertNotNull(r.get());
@@ -407,9 +411,9 @@ public class ManagedAtmosphereHandlerTest {
     public void testOverrideBroadcaster() throws IOException, ServletException {
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/override").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/override").method("GET").build();
         request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertNotNull(r.get());
         assertEquals(r.get().getBroadcaster().getClass().getName(), SimpleBroadcaster.class.getName());
@@ -424,10 +428,10 @@ public class ManagedAtmosphereHandlerTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/readerInjection").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/readerInjection").method("POST").body("message").build();
 
                     try {
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -451,8 +455,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testReaderMessage() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/readerInjection").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/readerInjection").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -468,10 +472,10 @@ public class ManagedAtmosphereHandlerTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inputStreamInjection").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/inputStreamInjection").method("POST").body("message").build();
 
                     try {
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -494,8 +498,8 @@ public class ManagedAtmosphereHandlerTest {
 
     @Test
     public void testInputStreamMessage() throws IOException, ServletException {
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/inputStreamInjection").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/inputStreamInjection").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -520,29 +524,29 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testHeartbeat() throws IOException, ServletException {
         // Open connection
-        AtmosphereRequest request = new AtmosphereRequest.Builder()
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder()
                 .pathInfo("/heartbeat")
                 .method("GET")
                 .build();
 
         request.header(X_ATMOSPHERE_TRANSPORT, WEBSOCKET_TRANSPORT);
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         // Check suspend
         final AtmosphereResource res = r.get();
         assertNotNull(res);
 
         // Send heartbeat
-        request = new AtmosphereRequest.Builder()
+        request = new AtmosphereRequestImpl.Builder()
                 .pathInfo("/heartbeat")
                 .method("POST")
                 .body(Heartbeat.paddingData)
                 .build();
         request.header(X_ATMOSPHERE_TRANSPORT, WEBSOCKET_TRANSPORT);
         request.setAttribute(HeartbeatInterceptor.INTERCEPTOR_ADDED, "");
-        res.initialize(res.getAtmosphereConfig(), res.getBroadcaster(), request, AtmosphereResponse.newInstance(), framework.getAsyncSupport(), res.getAtmosphereHandler());
+        res.initialize(res.getAtmosphereConfig(), res.getBroadcaster(), request, AtmosphereResponseImpl.newInstance(), framework.getAsyncSupport(), res.getAtmosphereHandler());
         request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, res);
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(message.get());
         assertEquals(message.get(), Heartbeat.paddingData);
     }
@@ -571,10 +575,10 @@ public class ManagedAtmosphereHandlerTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/injectAnnotation").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/injectAnnotation").method("POST").body("message").build();
 
                     try {
-                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponse.newInstance());
+                        event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -600,8 +604,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testInjectAnnotation() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/injectAnnotation").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/injectAnnotation").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -627,10 +631,10 @@ public class ManagedAtmosphereHandlerTest {
             resource.addEventListener(new OnSuspend() {
                 @Override
                 public void onSuspend(AtmosphereResourceEvent event) {
-                    AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/postConstruct").method("POST").body("message").build();
+                    AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/postConstruct").method("POST").body("message").build();
 
                     try {
-                        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+                        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
                     } catch (IOException e) {
                         e.printStackTrace();
                     } catch (ServletException e) {
@@ -650,8 +654,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testPostConstruct() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/postConstruct").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/postConstruct").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
@@ -680,9 +684,41 @@ public class ManagedAtmosphereHandlerTest {
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
                 .getWebSocketProcessor(framework);
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/websocketfactory").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/websocketfactory").build();
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
 
         assertNotNull(r.get());
     }
+
+    @ManagedService(path = "/named")
+    public final static class NamedService {
+
+        @Inject
+        @Named("/test")
+        private Broadcaster broadcaster;
+
+        @Get
+        public void get(AtmosphereResource resource) {
+            resource.setBroadcaster(broadcaster);
+            r.set(resource);
+        }
+
+        @Message
+        public void message(String s) {
+            message.set(message.get() + s);
+        }
+    }
+
+    @Test
+    public void testNamed() throws IOException, ServletException {
+
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/named").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
+        assertNotNull(r.get());
+        r.get().resume();
+        assertNotNull(r.get().getBroadcaster());
+        assertEquals(r.get().getBroadcaster().getID(), "/test");
+
+    }
+
 }
