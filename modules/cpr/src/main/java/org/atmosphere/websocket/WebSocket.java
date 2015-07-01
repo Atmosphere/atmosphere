@@ -96,7 +96,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         return this;
     }
 
-    protected WebSocketHandler webSocketHandler() {
+    public WebSocketHandler webSocketHandler() {
         return webSocketHandler;
     }
 

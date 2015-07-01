@@ -25,7 +25,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
@@ -353,6 +352,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(webSocket.resource());
         if (impl != null) {
             impl.getRequest(false).setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
+
+            try {
+                Utils.inject(impl);
+            } catch (IllegalAccessException e) {
+                logger.warn("", e);
+            }
+
         }
         return WebSocketHandlerProxy.class.cast(webSocket.webSocketHandler());
     }
@@ -674,7 +680,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     public void executeClose(WebSocket webSocket, int closeCode) {
         AtmosphereResource r = webSocket.resource();
 
-        boolean isClosedByClient =  r == null ? true : r.getAtmosphereResourceEvent().isClosedByClient();
+        boolean isClosedByClient = r == null ? true : r.getAtmosphereResourceEvent().isClosedByClient();
         try {
             if (r != null) {
                 asynchronousProcessor.endRequest(AtmosphereResourceImpl.class.cast(r), true);

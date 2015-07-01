@@ -15,15 +15,6 @@
 */
 package org.atmosphere.websocket;
 
-import static org.mockito.Mockito.mock;
-
-import java.io.IOException;
-import java.util.Arrays;
-import java.util.Enumeration;
-
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -32,6 +23,13 @@ import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import java.io.IOException;
+import java.util.Arrays;
+import java.util.Enumeration;
+
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertFalse;
 
 /**
@@ -138,6 +136,7 @@ public class WebSocketTest {
             return corrupted;
         }
     }
+
     private static class DummyInterceptor implements AsyncIOInterceptor {
         private long time;
 

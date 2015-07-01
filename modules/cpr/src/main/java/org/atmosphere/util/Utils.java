@@ -17,6 +17,7 @@ package org.atmosphere.util;
 
 import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -27,6 +28,7 @@ import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.inject.InjectableObjectFactory;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -242,7 +244,9 @@ public final class Utils {
 
     public static final Object injectIn(AtmosphereResource r) {
         AtmosphereHandler h = r.getAtmosphereHandler();
-        if (ManagedAtmosphereHandler.class.isAssignableFrom(h.getClass())) {
+        if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
+            return WebSocketProcessor.WebSocketHandlerProxy.class.cast(AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler()).proxied();
+        } else if (ManagedAtmosphereHandler.class.isAssignableFrom(h.getClass())) {
             return AnnotatedProxy.class.cast(h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
             return ReflectorServletProcessor.class.cast(h).getServlet();
