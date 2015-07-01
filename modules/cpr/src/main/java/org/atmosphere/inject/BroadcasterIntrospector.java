@@ -44,7 +44,7 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
 
         String s = (String) config.properties().get(Thread.currentThread().getName() + ".PATH");
         if (s != null) {
-            name = s;
+            name = name.substring(0, name.indexOf("{")) + s;
         }
 
         return config.getBroadcasterFactory().lookup(name, true);
@@ -54,10 +54,6 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
     public void introspectField(Field f) {
         if (f.isAnnotationPresent(Named.class)) {
             name = f.getAnnotation(Named.class).value();
-            // Avoid creating unnecessary Broadcaster instance
-            if (name.contains("{")) {
-                name = Broadcaster.ROOT_MASTER;
-            }
         }
     }
 }

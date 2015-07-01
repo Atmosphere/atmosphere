@@ -42,18 +42,23 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
                 AtmosphereHandlerService m = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class);
                 if (m != null) {
                     try {
-                        boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
-                        AtmosphereHandler newW = w.atmosphereHandler;
+                        String targetPath = m.path();
+                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                            boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
+                            AtmosphereHandler newW = w.atmosphereHandler;
 
-                        if (!singleton) {
-                            newW = config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass());
+                            if (!singleton) {
+                                newW = config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass());
+                            }
+
+                            config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
+
+                            AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(newW);
+
+                            config.framework().addAtmosphereHandler(path, newW,
+                                    config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
+                            request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                         }
-
-                        AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(newW);
-
-                        config.framework().addAtmosphereHandler(path, newW,
-                                config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
-                        request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                     } catch (Throwable e) {
                         logger.warn("Unable to create AtmosphereHandler", e);
                     }

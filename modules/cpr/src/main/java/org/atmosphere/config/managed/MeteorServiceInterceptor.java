@@ -56,6 +56,8 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
                                     r.init(config);
                                 }
 
+                                config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
+
                                 AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(r);
 
                                 config.framework().addAtmosphereHandler(path, r,

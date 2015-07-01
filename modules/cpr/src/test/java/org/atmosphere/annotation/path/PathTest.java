@@ -485,7 +485,7 @@ public class PathTest {
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
-        assertEquals(r.get(), "/inject/b123");
+        assertEquals(r.get(), "/b123");
 
     }
 

@@ -63,7 +63,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                     final Object o = config.framework().newClassInstance(Object.class, AnnotatedProxy.class.cast(w.atmosphereHandler).target().getClass());
                                     ap.configure(config, o);
                                 }
-                                config.properties().put(Thread.currentThread().getName() + ".PATH", path);
+                                config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
 
                                 if (ap.pathParams()) {
                                     prepareForPathInjection(path, targetPath, ap.target());
