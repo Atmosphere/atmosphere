@@ -26,6 +26,12 @@ import java.util.Locale;
 import java.util.Map;
 
 /**
+ * An Atmosphere's response representation. An AtmosphereResponse can be used to construct a bi-directional asynchronous
+ * application. If the underlying transport is a WebSocket or if its associated {@link AtmosphereResource} has been
+ * suspended, this object can be used to write message back to the client at any moment.
+ * <br/>
+ * This object can delegate the write operation to {@link AsyncIOWriter}.
+ *
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereResponse extends HttpServletResponse {
