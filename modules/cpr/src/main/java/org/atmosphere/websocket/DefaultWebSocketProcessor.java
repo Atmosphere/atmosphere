@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
@@ -557,7 +558,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     /**
      * Dispatch to request/response to the {@link org.atmosphere.cpr.AsyncSupport} implementation as it was a normal HTTP request.
      *
-     * @param request a {@link AtmosphereRequest}
+     * @param request a {@link AtmosphereRequestImpl}
      * @param r       a {@link AtmosphereResponse}
      */
     public final void dispatch(WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse r) {

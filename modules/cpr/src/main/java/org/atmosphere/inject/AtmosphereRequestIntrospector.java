@@ -57,7 +57,7 @@ public class AtmosphereRequestIntrospector extends InjectIntrospectorAdapter<Atm
 
                     @Override
                     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                        return method.invoke(r, args);
+                        return method.invoke(request, args);
                     }
                 });
     }

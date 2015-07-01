@@ -25,7 +25,6 @@ import javax.servlet.ServletException;
 
 import java.io.IOException;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.ExecutionException;
@@ -94,7 +93,7 @@ public class QueryStringTest {
         queryStrings.put("b", new String[]{"d"});
         queryStrings.put("c", new String[]{"f"});
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().queryStrings(queryStrings).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryStrings(queryStrings).pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();
@@ -126,7 +125,7 @@ public class QueryStringTest {
         });
         String s = "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.3-javascript&X-Atmosphere-Transport=long-polling&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().queryString(s).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString(s).pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();
@@ -158,7 +157,7 @@ public class QueryStringTest {
         });
         String s = "&Content-Type=text/x-gwt-rpc;%20charset=UTF-8&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.3-javascript&X-Atmosphere-Transport=long-polling&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().queryString(s).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString(s).pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();

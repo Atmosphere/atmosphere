@@ -220,7 +220,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
                 noOps,
-                AtmosphereRequest.newInstance(),
+                AtmosphereRequestImpl.newInstance(),
                 response,
                 config.framework().getAsyncSupport(),
                 noOpsHandler);
@@ -231,7 +231,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      *
      * @param config an {@link AtmosphereConfig}
      * @param uuid   a String representing a UUID
-     * @param request a {@link AtmosphereRequest}
+     * @param request a {@link AtmosphereRequestImpl}
      * @return
      */
     @Override

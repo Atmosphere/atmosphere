@@ -104,7 +104,7 @@ public class AtmosphereFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        AtmosphereRequest req = AtmosphereRequest.wrap((HttpServletRequest) request);
+        AtmosphereRequest req = AtmosphereRequestImpl.wrap((HttpServletRequest) request);
         AtmosphereResponse res = AtmosphereResponse.wrap((HttpServletResponse) response);
         Action a = null;
 

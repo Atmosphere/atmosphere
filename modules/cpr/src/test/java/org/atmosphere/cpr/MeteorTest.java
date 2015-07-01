@@ -84,7 +84,7 @@ public class MeteorTest {
         };
         framework.addAtmosphereHandler("/a", new ReflectorServletProcessor(s));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         framework.interceptor(new AtmosphereInterceptorAdapter() {
             @Override
             public Action inspect(AtmosphereResource r) {
@@ -109,7 +109,7 @@ public class MeteorTest {
         };
         framework.addAtmosphereHandler("/a", new ReflectorServletProcessor(s));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         framework.interceptor(new AtmosphereInterceptorAdapter() {
             @Override
             public Action inspect(AtmosphereResource r) {

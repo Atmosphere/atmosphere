@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -107,7 +108,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
     /**
      * Resume the underlying response.
      *
-     * @param req an {@link AtmosphereRequest}
+     * @param req an {@link AtmosphereRequestImpl}
      * @param ctx a {@link CometContext}
      */
     private void resume(AtmosphereRequest req, CometContext ctx) {

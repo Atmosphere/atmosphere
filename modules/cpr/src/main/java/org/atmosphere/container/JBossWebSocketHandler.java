@@ -15,10 +15,10 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.container.version.Grizzly2WebSocket;
 import org.atmosphere.container.version.JBossWebSocket;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -31,8 +31,6 @@ import org.atmosphere.jboss.websockets.frame.TextFrame;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 /**
@@ -68,7 +66,7 @@ public class JBossWebSocketHandler extends WebSocketServlet {
             throw new IOException();
         }
 
-        AtmosphereRequest r = AtmosphereRequest.wrap(socket.getServletRequest());
+        AtmosphereRequest r = AtmosphereRequestImpl.wrap(socket.getServletRequest());
         webSocket = new JBossWebSocket(socket, config);
         webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
     }

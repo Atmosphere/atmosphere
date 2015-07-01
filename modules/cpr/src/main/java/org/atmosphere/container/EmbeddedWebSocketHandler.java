@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
@@ -98,7 +99,7 @@ public class EmbeddedWebSocketHandler {
         if (webSocket == null) {
             webSocket = new ArrayBaseWebSocket();
             webSockets.put(inputStream, webSocket);
-            AtmosphereRequest request = AtmosphereRequest.newInstance()
+            AtmosphereRequest request = AtmosphereRequestImpl.newInstance()
                     .header("Connection", "Upgrade")
                     .header("Upgrade", "websocket")
                     .pathInfo(requestURI);

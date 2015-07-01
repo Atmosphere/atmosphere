@@ -20,7 +20,7 @@ import org.atmosphere.inject.AtmosphereConfigAware;
 /**
  * Intercept the dispatch of {@link AtmosphereResource} before they get dispatched to {@link AtmosphereHandler}s.
  * An implementation of this class can intercept the dispatch and modify the AtmosphereResource and its
- * associated {@link AtmosphereRequest} and {@link AtmosphereResponse}.
+ * associated {@link AtmosphereRequestImpl} and {@link AtmosphereResponse}.
  * <p/>
  * This class can be used to implement custom protocols like Server-Sent Events, Socket.IO, etc.
  *

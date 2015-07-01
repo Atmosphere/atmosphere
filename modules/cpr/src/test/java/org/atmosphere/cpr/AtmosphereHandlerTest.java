@@ -106,7 +106,7 @@ public class AtmosphereHandlerTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         r.get().resume();
 
@@ -133,7 +133,7 @@ public class AtmosphereHandlerTest {
         });
         ar = new AtmosphereResourceImpl(f.getAtmosphereConfig(),
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 r,
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);

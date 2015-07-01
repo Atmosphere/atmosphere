@@ -100,7 +100,7 @@ public class ConcurrentBroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(broadcaster.getBroadcasterConfig().getAtmosphereConfig(),
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -313,7 +313,7 @@ public class ConcurrentBroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(broadcaster.getBroadcasterConfig().getAtmosphereConfig(),
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -349,7 +349,7 @@ public class ConcurrentBroadcasterTest {
     AtmosphereResource newAR(AtmosphereHandler a) {
         return new AtmosphereResourceImpl(broadcaster.getBroadcasterConfig().getAtmosphereConfig(),
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 a);

@@ -67,7 +67,7 @@ public class BroadcasterLifecyclePolicyTest {
         AR ah = new AR();
 
         framework.addAtmosphereHandler("/*", ah, b).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         b.removeAtmosphereResource(ah.resource);
 
@@ -82,7 +82,7 @@ public class BroadcasterLifecyclePolicyTest {
         AR ah = new AR();
 
         framework.addAtmosphereHandler("/*", ah, b).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         b.removeAtmosphereResource(ah.resource);
 
@@ -97,7 +97,7 @@ public class BroadcasterLifecyclePolicyTest {
         AR ah = new AR();
 
         framework.addAtmosphereHandler("/*", ah, b).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         b.removeAtmosphereResource(ah.resource);
 
@@ -115,7 +115,7 @@ public class BroadcasterLifecyclePolicyTest {
         AR ah = new AR();
 
         framework.addAtmosphereHandler("/*", ah, b).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         b.removeAtmosphereResource(ah.resource);
 
@@ -135,7 +135,7 @@ public class BroadcasterLifecyclePolicyTest {
         AR ah = new AR();
 
         framework.addAtmosphereHandler("/*", ah, b).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         b.removeAtmosphereResource(ah.resource);
 
@@ -155,7 +155,7 @@ public class BroadcasterLifecyclePolicyTest {
         AR ah = new AR();
 
         framework.addAtmosphereHandler("/*", ah, b).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         b.latch.await();

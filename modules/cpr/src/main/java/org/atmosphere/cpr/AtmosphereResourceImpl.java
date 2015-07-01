@@ -44,7 +44,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.CLOSE;
 
 /**
- * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequest}
+ * {@link AtmosphereResource} implementation for supporting {@link AtmosphereRequestImpl}
  * and {@link AtmosphereResponse}.
  *
  * @author Jeanfrancois Arcand
@@ -104,7 +104,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      *
      * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
-     * @param req               The {@link AtmosphereRequest}
+     * @param req               The {@link AtmosphereRequestImpl}
      * @param response          The {@link AtmosphereResource}
      * @param asyncSupport      The {@link AsyncSupport}
      * @param atmosphereHandler The {@link AtmosphereHandler}
@@ -549,9 +549,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     /**
-     * Check if the {@link AtmosphereRequest} still is valid.
+     * Check if the {@link AtmosphereRequestImpl} still is valid.
      *
-     * @return true if the {@link AtmosphereRequest} still is valid
+     * @return true if the {@link AtmosphereRequestImpl} still is valid
      */
     public boolean isInScope() {
         return isInScope.get();
@@ -830,9 +830,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     AtmosphereResponse.class.cast(response).destroy();
                 }
 
-                if (AtmosphereRequest.class.isAssignableFrom(req.getClass())) {
+                if (AtmosphereRequestImpl.class.isAssignableFrom(req.getClass())) {
                     if (closeOnCancel) {
-                        AtmosphereRequest.class.cast(req).destroy();
+                        AtmosphereRequestImpl.class.cast(req).destroy();
                     }
                 }
                 event.destroy();

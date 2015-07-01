@@ -87,7 +87,7 @@ public class AtmosphereRequestTest {
         qs.put("Content-Type", new String[]{"application/xml"});
         qs.put("X-Atmosphere-Transport", new String[]{"long-polling"});
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().queryStrings(qs).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryStrings(qs).pathInfo("/a").build();
 
         final AtomicReference<String> e = new AtomicReference<String>();
         final AtomicReference<String> e2 = new AtomicReference<String>();
@@ -131,7 +131,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().queryString("a=b").pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString("a=b").pathInfo("/a").build();
 
         final AtomicReference<String> e = new AtomicReference<String>();
 
@@ -172,7 +172,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         request.queryString("a=b");
 
         final AtomicReference<String> e = new AtomicReference<String>();
@@ -214,7 +214,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         request.queryString("a=b&X-Atmosphere-Transport=websocket");
 
         final AtomicReference<String> e = new AtomicReference<String>();
@@ -264,7 +264,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
 
         assertEquals(e.get().getCharacterEncoding(), "utf-8");
@@ -272,7 +272,7 @@ public class AtmosphereRequestTest {
 
     @Test
     public void testRequestBodyString() throws IOException, ServletException {
-        final AtomicReference<AtmosphereRequest.Body> e = new AtomicReference<AtmosphereRequest.Body>();
+        final AtomicReference<AtmosphereRequestImpl.Body> e = new AtomicReference<AtmosphereRequestImpl.Body>();
         framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
             @Override
             public void onRequest(AtmosphereResource resource) throws IOException {
@@ -284,7 +284,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").body("test").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
 
         assertNotNull(e.get());
@@ -296,7 +296,7 @@ public class AtmosphereRequestTest {
 
     @Test
     public void testRequestBodyBytes() throws IOException, ServletException {
-        final AtomicReference<AtmosphereRequest.Body> e = new AtomicReference<AtmosphereRequest.Body>();
+        final AtomicReference<AtmosphereRequestImpl.Body> e = new AtomicReference<AtmosphereRequestImpl.Body>();
         framework.addAtmosphereHandler("/a", new AbstractReflectorAtmosphereHandler() {
             @Override
             public void onRequest(AtmosphereResource resource) throws IOException {
@@ -308,7 +308,7 @@ public class AtmosphereRequestTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").body("test".getBytes()).build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test".getBytes()).build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
 
         assertNotNull(e.get());

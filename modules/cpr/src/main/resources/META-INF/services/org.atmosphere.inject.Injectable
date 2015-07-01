@@ -9,4 +9,4 @@ org.atmosphere.inject.PostConstructIntrospector
 org.atmosphere.inject.BroadcasterIntrospector
 org.atmosphere.inject.AtmosphereResourceIntrospector
 org.atmosphere.inject.AtmosphereRequestIntrospector
-org.atmosphere.inject.AtmosphereResponsetIntrospector
+org.atmosphere.inject.AtmosphereResponseIntrospector

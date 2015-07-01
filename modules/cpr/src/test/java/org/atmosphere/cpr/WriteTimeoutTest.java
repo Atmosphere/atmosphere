@@ -60,7 +60,7 @@ public class WriteTimeoutTest {
         atmosphereHandler = new AR(latch);
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -86,7 +86,7 @@ public class WriteTimeoutTest {
         atmosphereHandler = new AR(null);
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);

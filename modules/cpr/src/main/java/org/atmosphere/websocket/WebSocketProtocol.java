@@ -16,6 +16,7 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.List;
@@ -40,7 +41,7 @@ public interface WebSocketProtocol extends AtmosphereConfigAware {
      *
      * @param webSocket The {@link WebSocket} connection
      * @param data      The Websocket message
-     * @return a List of {@link AtmosphereRequest}
+     * @return a List of {@link AtmosphereRequestImpl}
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, String data);
 
@@ -57,7 +58,7 @@ public interface WebSocketProtocol extends AtmosphereConfigAware {
      * @param webSocket The {@link WebSocket} connection
      * @param offset    offset message index
      * @param length    length of the message.
-     * @return a List of {@link AtmosphereRequest}
+     * @return a List of {@link AtmosphereRequestImpl}
      */
     List<AtmosphereRequest> onMessage(WebSocket webSocket, byte[] data, int offset, int length);
 

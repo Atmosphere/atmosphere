@@ -37,6 +37,7 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.websocket.WebSocket;
@@ -147,7 +148,7 @@ public class TomcatWebSocketUtil {
                 isDestroyable = true;
             }
             StreamInbound inbound = new TomcatWebSocketHandler(
-                    AtmosphereRequest.cloneRequest(req, true, useBuildInSession, isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
+                    AtmosphereRequestImpl.cloneRequest(req, true, useBuildInSession, isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
                     config.framework(), webSocketProcessor);
             facade.doUpgrade(inbound);
             return new Action(Action.TYPE.CREATED);

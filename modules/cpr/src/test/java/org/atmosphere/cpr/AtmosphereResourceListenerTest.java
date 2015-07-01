@@ -73,7 +73,7 @@ public class AtmosphereResourceListenerTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
 
         final AtomicReference<Boolean> suspended = new AtomicReference<Boolean>();
         final AtomicReference<Boolean> resumed = new AtomicReference<Boolean>();
@@ -165,7 +165,7 @@ public class AtmosphereResourceListenerTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
 
         final AtomicReference<Boolean> closed = new AtomicReference<Boolean>();
 

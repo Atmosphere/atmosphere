@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
@@ -104,7 +105,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
     /**
      * Resume the underlying response.
      *
-     * @param req an {@link AtmosphereRequest}
+     * @param req an {@link AtmosphereRequestImpl}
      * @param ctx a {@link CometContext}
      */
     private void resume(AtmosphereRequest req, CometContext ctx) {
@@ -157,7 +158,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
 
     /**
      * Void {@link CometHandler}, which delegate the processing of the
-     * {@link AtmosphereRequest} to an {@link org.atmosphere.cpr.AtmosphereResourceImpl}.
+     * {@link AtmosphereRequestImpl} to an {@link org.atmosphere.cpr.AtmosphereResourceImpl}.
      */
     private class VoidCometHandler implements CometHandler {
 

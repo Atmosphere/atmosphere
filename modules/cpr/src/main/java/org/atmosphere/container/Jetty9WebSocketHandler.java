@@ -18,6 +18,7 @@ package org.atmosphere.container;
 import org.atmosphere.container.version.Jetty9WebSocket;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -61,8 +62,8 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
 
     private AtmosphereRequest cloneRequest(final HttpServletRequest request) {
         try {
-            AtmosphereRequest r = AtmosphereRequest.wrap(request);
-            return AtmosphereRequest.cloneRequest(r, false, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+            AtmosphereRequest r = AtmosphereRequestImpl.wrap(request);
+            return AtmosphereRequestImpl.cloneRequest(r, false, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
         } catch (Exception ex) {
             logger.error("", ex);
             throw new RuntimeException("Invalid WebSocket Request");
@@ -101,10 +102,10 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
             HttpServletRequest r = originalRequest(session);
             if (r != null) {
                 // We close except the session which we can still reach.
-                request = AtmosphereRequest.cloneRequest(r, true, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+                request = AtmosphereRequestImpl.cloneRequest(r, true, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
             } else {
                 // Bad Bad Bad
-                request = AtmosphereRequest.cloneRequest(r, true, true, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+                request = AtmosphereRequestImpl.cloneRequest(r, true, true, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
             }
         }
 

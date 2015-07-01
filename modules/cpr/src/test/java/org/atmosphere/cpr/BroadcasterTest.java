@@ -51,7 +51,7 @@ public class BroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                AtmosphereRequest.newInstance(),
+                AtmosphereRequestImpl.newInstance(),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -161,19 +161,19 @@ public class BroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         AtmosphereResource ar2 = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         AtmosphereResource ar3 = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);

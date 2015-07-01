@@ -25,7 +25,7 @@ public interface AsyncSupportListener {
     /**
      * Invoked when an {@link AtmosphereResource} gets suspended.
      *
-     * @param request  an {@link AtmosphereRequest}
+     * @param request  an {@link AtmosphereRequestImpl}
      * @param response an {@link AtmosphereResponse}
      */
     void onSuspend(AtmosphereRequest request, AtmosphereResponse response);
@@ -33,7 +33,7 @@ public interface AsyncSupportListener {
     /**
      * Invoked when an {@link AtmosphereResource} gets resumed.
      *
-     * @param request  an {@link AtmosphereRequest}
+     * @param request  an {@link AtmosphereRequestImpl}
      * @param response an {@link AtmosphereResponse}
      */
     void onResume(AtmosphereRequest request, AtmosphereResponse response);
@@ -41,7 +41,7 @@ public interface AsyncSupportListener {
     /**
      * Invoked when an {@link AtmosphereResource} times out.
      *
-     * @param request  an {@link AtmosphereRequest}
+     * @param request  an {@link AtmosphereRequestImpl}
      * @param response an {@link AtmosphereResponse}
      */
     void onTimeout(AtmosphereRequest request, AtmosphereResponse response);
@@ -49,7 +49,7 @@ public interface AsyncSupportListener {
     /**
      * Invoked when an {@link AtmosphereResource} gets closed.
      *
-     * @param request  an {@link AtmosphereRequest}
+     * @param request  an {@link AtmosphereRequestImpl}
      * @param response an {@link AtmosphereResponse}
      */
     void onClose(AtmosphereRequest request, AtmosphereResponse response);
@@ -57,7 +57,7 @@ public interface AsyncSupportListener {
     /**
      * Invoked when an {@link AtmosphereResource} gets destroyed.
      *
-     * @param request  an {@link AtmosphereRequest}
+     * @param request  an {@link AtmosphereRequestImpl}
      * @param response an {@link AtmosphereResponse}
      */
     void onDestroyed(AtmosphereRequest request, AtmosphereResponse response);

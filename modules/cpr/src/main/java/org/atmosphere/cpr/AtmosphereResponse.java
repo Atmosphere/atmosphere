@@ -676,18 +676,18 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     }
 
     /**
-     * Return the associated {@link AtmosphereRequest}.
+     * Return the associated {@link AtmosphereRequestImpl}.
      *
-     * @return the associated {@link AtmosphereRequest}
+     * @return the associated {@link AtmosphereRequestImpl}
      */
     public AtmosphereRequest request() {
         return atmosphereRequest;
     }
 
     /**
-     * Set the associated {@link AtmosphereRequest}.
+     * Set the associated {@link AtmosphereRequestImpl}.
      *
-     * @param atmosphereRequest a {@link AtmosphereRequest}
+     * @param atmosphereRequest a {@link AtmosphereRequestImpl}
      * @return this
      */
     public AtmosphereResponse request(AtmosphereRequest atmosphereRequest) {

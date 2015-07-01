@@ -85,7 +85,7 @@ public class WebSocketStreamingHandlerTest {
                 .getWebSocketProcessor(framework);
         registerWebSocketHandler("/*", new EchoHandler());
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
 
@@ -107,7 +107,7 @@ public class WebSocketStreamingHandlerTest {
                 .getWebSocketProcessor(framework);
         registerWebSocketHandler("/a", new EchoHandler());
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("yoComet").pathInfo("/abcd").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/abcd").build();
         try {
             processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
             fail();
@@ -126,13 +126,13 @@ public class WebSocketStreamingHandlerTest {
         registerWebSocketHandler("/a", new EchoHandler());
         registerWebSocketHandler("/b", new EchoHandler());
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("a").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
         assertEquals(b.toString(), "a");
 
-        request = new AtmosphereRequest.Builder().destroyable(false).body("b").pathInfo("/b").build();
+        request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "b");
 
@@ -155,14 +155,14 @@ public class WebSocketStreamingHandlerTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().destroyable(false).body("a").pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("a").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
         assertEquals(b.toString(), "a");
         ByteArrayOutputStream b2 = new ByteArrayOutputStream();
         final WebSocket w2 = new ArrayBaseWebSocket(b2);
-        request = new AtmosphereRequest.Builder().destroyable(false).body("b").pathInfo("/b").build();
+        request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
         processor.open(w2, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w2, "b");
 

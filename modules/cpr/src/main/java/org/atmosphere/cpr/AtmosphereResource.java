@@ -117,9 +117,9 @@ public interface AtmosphereResource {
     AtmosphereResource suspend(long timeout, TimeUnit timeunit);
 
     /**
-     * Return the underlying {@link AtmosphereRequest} request.
+     * Return the underlying {@link AtmosphereRequestImpl} request.
      *
-     * @return {@link AtmosphereRequest} the underlying request.
+     * @return {@link AtmosphereRequestImpl} the underlying request.
      */
     AtmosphereRequest getRequest();
 
@@ -322,7 +322,7 @@ public interface AtmosphereResource {
      *
      * @param config            The {@link org.atmosphere.cpr.AtmosphereConfig}
      * @param broadcaster       The {@link org.atmosphere.cpr.Broadcaster}.
-     * @param req               The {@link AtmosphereRequest}
+     * @param req               The {@link AtmosphereRequestImpl}
      * @param response          The {@link AtmosphereResource}
      * @param asyncSupport      The {@link AsyncSupport}
      * @param atmosphereHandler The {@link AtmosphereHandler}

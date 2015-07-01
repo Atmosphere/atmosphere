@@ -16,7 +16,7 @@
 package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.ThreadLocalInvoker;
@@ -30,7 +30,7 @@ import java.lang.reflect.Type;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereResponsetIntrospector extends InjectIntrospectorAdapter<AtmosphereResponse> {
+public class AtmosphereResponseIntrospector extends InjectIntrospectorAdapter<AtmosphereResponse> {
 
     public WHEN when() {
         return WHEN.RUNTIME;
@@ -51,7 +51,7 @@ public class AtmosphereResponsetIntrospector extends InjectIntrospectorAdapter<A
        final AtmosphereResponse response = r.getResponse();
 
         return (AtmosphereResponse) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{AtmosphereRequest.class}, new ThreadLocalInvoker() {
+                new Class[]{AtmosphereRequestImpl.class}, new ThreadLocalInvoker() {
                     {
                         set(response);
                     }

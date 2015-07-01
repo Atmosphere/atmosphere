@@ -86,7 +86,7 @@ public class AtmosphereResourceTest {
             }
         });
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
 
         final AtomicReference<String> e = new AtomicReference<String>();
         final AtomicReference<String> e2 = new AtomicReference<String>();
@@ -129,7 +129,7 @@ public class AtmosphereResourceTest {
             }
         });
 
-        final AtmosphereRequest parentRequest = new AtmosphereRequest.Builder().pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
+        final AtmosphereRequest parentRequest = new AtmosphereRequestImpl.Builder().pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         final CountDownLatch suspended = new CountDownLatch(1);
 
         framework.interceptor(new AtmosphereInterceptor() {
@@ -177,7 +177,7 @@ public class AtmosphereResourceTest {
         Map<String, Object> m = new HashMap<String, Object>();
         m.put(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, parentRequest.resource().uuid());
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
 
         framework.doCometSupport(request, AtmosphereResponse.newInstance().request(request));
@@ -197,7 +197,7 @@ public class AtmosphereResourceTest {
     public void testHashCode(){
         String uuid = UUID.randomUUID().toString();
 
-        AtmosphereRequest request = AtmosphereRequest.newInstance();
+        AtmosphereRequest request = AtmosphereRequestImpl.newInstance();
         request.setAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,uuid);
         AtmosphereResponse response = AtmosphereResponse.newInstance(request);
 

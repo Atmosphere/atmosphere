@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -118,7 +119,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     }
 
     /**
-     * Copy {@link AtmosphereRequest#localAttributes()} that where set when the websocket was opened.
+     * Copy {@link AtmosphereRequestImpl#localAttributes()} that where set when the websocket was opened.
      *
      * @return this.
      */

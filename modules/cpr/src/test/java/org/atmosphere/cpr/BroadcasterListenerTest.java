@@ -97,7 +97,7 @@ public class BroadcasterListenerTest {
     @Test
     public void testGet() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new AR()).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertTrue(completed.get());
         assertTrue(postCreated.get());
@@ -110,7 +110,7 @@ public class BroadcasterListenerTest {
     public void testOnBroadcast() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertEquals(BAR.count.get(), 1);
     }
@@ -119,7 +119,7 @@ public class BroadcasterListenerTest {
     public void testOnRemove() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertEquals(BAR.count.get(), 1);
     }
@@ -130,7 +130,7 @@ public class BroadcasterListenerTest {
 
         Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
-        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertEquals(BAR.count.get(), 1);
         assertTrue(onMessage.get());
@@ -143,7 +143,7 @@ public class BroadcasterListenerTest {
         Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, UUID.randomUUID().toString());
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
-        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertEquals(CachedAR.count.get(), 3);
     }

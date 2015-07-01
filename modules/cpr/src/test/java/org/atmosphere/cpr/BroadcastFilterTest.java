@@ -49,7 +49,7 @@ public class BroadcastFilterTest {
         atmosphereHandler = new AR();
         HashMap<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
-        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 req,
@@ -101,7 +101,7 @@ public class BroadcastFilterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
+                mock(AtmosphereRequestImpl.class),
                 AtmosphereResponse.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
@@ -236,7 +236,7 @@ public class BroadcastFilterTest {
     public void testMultipleMessageLengthFilter() throws ExecutionException, InterruptedException {
         HashMap<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
-        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         for (int i = 0; i < 10; i++) {
             broadcaster.addAtmosphereResource(new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
                     broadcaster,
@@ -255,7 +255,7 @@ public class BroadcastFilterTest {
     public void testSetMultipleMessageLengthFilter() throws ExecutionException, InterruptedException {
         HashMap<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
-        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         Set<AtmosphereResource> s = new HashSet<AtmosphereResource>();
         s.add(ar);
         for (int i = 0; i < 10; i++) {

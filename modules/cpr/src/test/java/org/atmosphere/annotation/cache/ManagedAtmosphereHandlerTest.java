@@ -21,6 +21,7 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -101,7 +102,7 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testBroadcasterCache() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/cache").method("GET").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/cache").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
         assertEquals(framework.getBroadcasterFactory().lookup("/*", true).getBroadcasterConfig().getBroadcasterCache().getClass(), UUIDBroadcasterCache.class);
 

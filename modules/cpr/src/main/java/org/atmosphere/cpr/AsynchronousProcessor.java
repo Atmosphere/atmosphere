@@ -98,7 +98,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * The returned value, of type {@link Action}, tells the proprietary Comet {@link Servlet} to suspended or not the
      * current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link AtmosphereRequest}
+     * @param request  the {@link AtmosphereRequestImpl}
      * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
@@ -111,7 +111,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     /**
      * Invoke the {@link AtmosphereHandler#onRequest} method.
      *
-     * @param req the {@link AtmosphereRequest}
+     * @param req the {@link AtmosphereRequestImpl}
      * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
@@ -374,7 +374,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * decide to resume the {@link AtmosphereResponse}. The returned value, of type {@link Action}, tells the
      * proprietary Comet {@link Servlet} to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param request  the {@link AtmosphereRequest}
+     * @param request  the {@link AtmosphereRequestImpl}
      * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
@@ -404,7 +404,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * out the {@link AtmosphereResponse}. The returned value, of type {@link Action}, tells the proprietary
      * Comet {@link Servlet} to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
      *
-     * @param req the {@link AtmosphereRequest}
+     * @param req the {@link AtmosphereRequestImpl}
      * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException
@@ -533,7 +533,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * All proprietary Comet based {@link Servlet} must invoke the cancelled method when the underlying WebServer
      * detect that the client closed the connection.
      *
-     * @param req the {@link AtmosphereRequest}
+     * @param req the {@link AtmosphereRequestImpl}
      * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
      * @throws java.io.IOException

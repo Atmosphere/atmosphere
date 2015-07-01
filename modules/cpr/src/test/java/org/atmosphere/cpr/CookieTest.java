@@ -97,7 +97,7 @@ public class CookieTest {
         Set<Cookie> c = new HashSet<Cookie>();
         c.add(new Cookie("yo", "man"));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().cookies(c).pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponse.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();
@@ -140,7 +140,7 @@ public class CookieTest {
         a.setPath("/ya");
         c.add(a);
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().cookies(c).pathInfo("/a").build();
         AtmosphereResponse response = AtmosphereResponse.newInstance().delegateToNativeResponse(false);
         response.destroyable(false);
         framework.doCometSupport(request, response);
