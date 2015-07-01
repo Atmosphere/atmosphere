@@ -112,7 +112,7 @@ public class AtmosphereResourceTest {
 
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertEquals(e.get(), e2.get());
     }
@@ -164,7 +164,7 @@ public class AtmosphereResourceTest {
         new Thread() {
             public void run() {
                 try {
-                    framework.doCometSupport(parentRequest, AtmosphereResponse.newInstance().request(parentRequest));
+                    framework.doCometSupport(parentRequest, AtmosphereResponseImpl.newInstance().request(parentRequest));
                 } catch (IOException e) {
                     e.printStackTrace();
                 } catch (ServletException e) {
@@ -180,7 +180,7 @@ public class AtmosphereResourceTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();
         request.setAttribute(FrameworkConfig.WEBSOCKET_MESSAGE, "true");
 
-        framework.doCometSupport(request, AtmosphereResponse.newInstance().request(request));
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance().request(request));
 
         AtmosphereResource r = parentRequest.resource();
         Broadcaster b = r.getBroadcaster();
@@ -199,7 +199,7 @@ public class AtmosphereResourceTest {
 
         AtmosphereRequest request = AtmosphereRequestImpl.newInstance();
         request.setAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID,uuid);
-        AtmosphereResponse response = AtmosphereResponse.newInstance(request);
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance(request);
 
         AtmosphereResourceImpl res0 = new AtmosphereResourceImpl();
         res0.initialize(framework.getAtmosphereConfig(),
@@ -226,7 +226,7 @@ public class AtmosphereResourceTest {
 
     @Test
     public void testCloseResponseOutputStream() throws IOException {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
         AsyncIOWriter writer = mock(AsyncIOWriter.class);
         AsyncIOWriter wswriter = mock(WebSocket.class);
 
@@ -245,7 +245,7 @@ public class AtmosphereResourceTest {
 
     @Test
     public void testCloseResponseWriter() throws IOException {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
         AsyncIOWriter writer = mock(AsyncIOWriter.class);
         AsyncIOWriter wswriter = mock(WebSocket.class);
 

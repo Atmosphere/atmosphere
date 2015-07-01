@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
@@ -139,7 +140,7 @@ public class CustomAnnotationTest {
     public void testGet() throws IOException, ServletException {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/z").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         r.get().resume();
 
         assertNotNull(r.get());

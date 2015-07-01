@@ -73,14 +73,14 @@ public interface AtmosphereResource {
     boolean isCancelled();
 
     /**
-     * Complete the {@link AtmosphereResponse} and finish/commit it. If the {@link AtmosphereResponse} is in the
+     * Complete the {@link AtmosphereResponseImpl} and finish/commit it. If the {@link AtmosphereResponseImpl} is in the
      * process of being resumed, invoking this method has no effect.
      */
     AtmosphereResource resume();
 
     /**
-     * Suspend the {@link AtmosphereResponse} indefinitely.
-     * Suspending a {@link AtmosphereResponse} will tell the underlying container to avoid recycling objects associated
+     * Suspend the {@link AtmosphereResponseImpl} indefinitely.
+     * Suspending a {@link AtmosphereResponseImpl} will tell the underlying container to avoid recycling objects associated
      * with the current instance, and also to avoid committing a response.
      * <p/>
      * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
@@ -89,28 +89,28 @@ public interface AtmosphereResource {
     AtmosphereResource suspend();
 
     /**
-     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will tell the underlying
+     * Suspend the {@link AtmosphereResponseImpl}. Suspending a {@link AtmosphereResponseImpl} will tell the underlying
      * container to avoid recycling objects associated with the current instance, and also to avoid committing response.
      * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
      * returns true) has no effect.
      * <p/>
      *
-     * @param timeout The maximum amount of time, in milliseconds, a {@link AtmosphereResponse} can be suspended. When
-     *                the timeout expires, the {@link AtmosphereResponse} will be automatically resumed and committed.
-     *                Usage of any methods of a {@link AtmosphereResponse} that times out will throw an {@link IllegalStateException}.
+     * @param timeout The maximum amount of time, in milliseconds, a {@link AtmosphereResponseImpl} can be suspended. When
+     *                the timeout expires, the {@link AtmosphereResponseImpl} will be automatically resumed and committed.
+     *                Usage of any methods of a {@link AtmosphereResponseImpl} that times out will throw an {@link IllegalStateException}.
      */
     AtmosphereResource suspend(long timeout);
 
     /**
-     * Suspend the {@link AtmosphereResponse}. Suspending a {@link AtmosphereResponse} will tell the underlying
+     * Suspend the {@link AtmosphereResponseImpl}. Suspending a {@link AtmosphereResponseImpl} will tell the underlying
      * container to avoid recycling objects associated with the current instance, and also to avoid committing response.
      * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
      * returns true) has no effect.
      * <p/>
      *
-     * @param timeout  The maximum amount of time a {@link AtmosphereResponse} can be suspended. When the timeout
-     *                 expires, the {@link AtmosphereResponse} will be automatically resumed and committed. Usage of any
-     *                 methods of a {@link AtmosphereResponse} that times out will throw an {@link IllegalStateException}.
+     * @param timeout  The maximum amount of time a {@link AtmosphereResponseImpl} can be suspended. When the timeout
+     *                 expires, the {@link AtmosphereResponseImpl} will be automatically resumed and committed. Usage of any
+     *                 methods of a {@link AtmosphereResponseImpl} that times out will throw an {@link IllegalStateException}.
      * @param timeunit The time unit of the timeout value
      */
 
@@ -124,9 +124,9 @@ public interface AtmosphereResource {
     AtmosphereRequest getRequest();
 
     /**
-     * Return the {@link AtmosphereResponse}.
+     * Return the {@link AtmosphereResponseImpl}.
      *
-     * @return {@link AtmosphereResponse} the underlying response.
+     * @return {@link AtmosphereResponseImpl} the underlying response.
      */
     AtmosphereResponse getResponse();
 

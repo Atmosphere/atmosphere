@@ -98,7 +98,7 @@ public class CookieTest {
         c.add(new Cookie("yo", "man"));
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().cookies(c).pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());
@@ -141,7 +141,7 @@ public class CookieTest {
         c.add(a);
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().cookies(c).pathInfo("/a").build();
-        AtmosphereResponse response = AtmosphereResponse.newInstance().delegateToNativeResponse(false);
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance().delegateToNativeResponse(false);
         response.destroyable(false);
         framework.doCometSupport(request, response);
 

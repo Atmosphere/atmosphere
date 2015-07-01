@@ -49,7 +49,7 @@ public class ExcludeSessionBroadcasterTest {
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
-                AtmosphereResponse.newInstance(),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 

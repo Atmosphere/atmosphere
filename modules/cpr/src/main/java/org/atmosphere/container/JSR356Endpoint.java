@@ -20,7 +20,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
@@ -220,7 +220,7 @@ public class JSR356Endpoint extends Endpoint {
             // TODO: Fix this crazy code.
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "false");
 
-            webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+            webSocketProcessor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
 
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 

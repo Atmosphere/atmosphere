@@ -81,7 +81,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      * Create an {@link AtmosphereResourceImpl}
      *
      * @param config  an {@link AtmosphereConfig}
-     * @param request an {@link AtmosphereResponse}
+     * @param request an {@link AtmosphereResponseImpl}
      * @param a       {@link AsyncSupport}
      * @return an {@link AtmosphereResourceImpl}
      */
@@ -106,7 +106,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      *
      * @param config      an {@link AtmosphereConfig}
      * @param broadcaster a {@link Broadcaster}
-     * @param response    an {@link AtmosphereResponse}
+     * @param response    an {@link AtmosphereResponseImpl}
      * @param a           {@link AsyncSupport}
      * @param handler     an {@link AtmosphereHandler}
      * @return an {@link AtmosphereResourceImpl}
@@ -126,7 +126,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      *
      * @param config      an {@link AtmosphereConfig}
      * @param broadcaster a {@link Broadcaster}
-     * @param response    an {@link AtmosphereResponse}
+     * @param response    an {@link AtmosphereResponseImpl}
      * @param a           {@link AsyncSupport}
      * @param handler     an {@link AtmosphereHandler}
      * @param t           an {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}
@@ -160,7 +160,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      *
      * @param config      an {@link AtmosphereConfig}
      * @param broadcaster a {@link Broadcaster}
-     * @param response    an {@link AtmosphereResponse}
+     * @param response    an {@link AtmosphereResponseImpl}
      * @param a           {@link AsyncSupport}
      * @param handler     an {@link AtmosphereHandler}
      * @return an {@link AtmosphereResourceImpl}
@@ -188,7 +188,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      * Create an {@link AtmosphereResourceImpl}.
      *
      * @param config   an {@link AtmosphereConfig}
-     * @param response an {@link AtmosphereResponse}
+     * @param response an {@link AtmosphereResponseImpl}
      * @param a        {@link AsyncSupport}
      * @return an {@link AtmosphereResourceImpl}
      */
@@ -216,7 +216,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      */
     @Override
     public AtmosphereResource create(AtmosphereConfig config, String uuid) {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
                 noOps,
@@ -236,7 +236,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      */
     @Override
     public AtmosphereResource create(AtmosphereConfig config, String uuid, AtmosphereRequest request) {
-        AtmosphereResponse response = AtmosphereResponse.newInstance();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
         return create(config,
                 noOps,

@@ -29,6 +29,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
@@ -121,7 +122,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         try {
 
             AtmosphereRequest r = AtmosphereRequestImpl.wrap(dws.getRequest());
-            AtmosphereResponse response = AtmosphereResponse.newInstance(config, r, webSocket);
+            AtmosphereResponse response = AtmosphereResponseImpl.newInstance(config, r, webSocket);
             config.framework().configureRequestResponse(r, response);
             try {
                 // Stupid Stupid Stupid

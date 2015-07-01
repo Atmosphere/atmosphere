@@ -66,7 +66,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
  * An Atmosphere request representation. An {@link AtmosphereRequestImpl} is a two-way communication channel between the
  * client and the server. If the {@link AtmosphereRequestImpl#isDestroyable()} is set to false, or if its
  * associated {@link AtmosphereResource} has been suspended, this object can be re-used at any moment between requests.
- * You can use its associated {@link AtmosphereResponse} to write bytes at any moment, making this object bi-directional.
+ * You can use its associated {@link AtmosphereResponseImpl} to write bytes at any moment, making this object bi-directional.
  * <br/>
  *
  * @author Jeanfrancois Arcand

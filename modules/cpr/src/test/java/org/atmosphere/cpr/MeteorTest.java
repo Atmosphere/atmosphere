@@ -93,7 +93,7 @@ public class MeteorTest {
             }
 
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertNotNull(meteor.get());
     }
@@ -117,7 +117,7 @@ public class MeteorTest {
             }
 
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertNull(meteor.get());
     }

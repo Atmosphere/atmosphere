@@ -25,14 +25,10 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsyncIOInterceptor;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
-import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.testng.Assert;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -99,8 +95,8 @@ public class WebSocketTest {
         ws.interceptor(new DummyInterceptor(500));
         ws.interceptor(new DummyInterceptor(10));
         
-        AtmosphereResponse response1 = AtmosphereResponse.newInstance();
-        AtmosphereResponse response2 = AtmosphereResponse.newInstance();
+        AtmosphereResponse response1 = AtmosphereResponseImpl.newInstance();
+        AtmosphereResponse response2 = AtmosphereResponseImpl.newInstance();
         
         Worker worker1 = new Worker(ws, response1);
         Worker worker2 = new Worker(ws, response2);

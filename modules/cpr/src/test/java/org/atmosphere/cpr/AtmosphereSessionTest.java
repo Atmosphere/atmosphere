@@ -85,7 +85,7 @@ public class AtmosphereSessionTest {
         });
         final String qs = "&X-Atmosphere-tracking-id=c8834462-c46e-4dad-a22f-b86aabe3f883&X-Atmosphere-Framework=2.0.4-javascript&X-Atmosphere-Transport=sse&X-Atmosphere-TrackMessageSize=true&X-atmo-protocol=true&_=1380799455333";
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString(qs).pathInfo("/acquire").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         latch.await(10, TimeUnit.SECONDS);
         assertNull(session.get().acquire());
@@ -110,7 +110,7 @@ public class AtmosphereSessionTest {
         });
 
         request = new AtmosphereRequestImpl.Builder().queryString(qs).pathInfo("/acquire").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance(request));
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance(request));
 
         _latch.await(10, TimeUnit.SECONDS);
 
@@ -121,7 +121,7 @@ public class AtmosphereSessionTest {
                 try {
                     Thread.sleep(1000);
                     AtmosphereRequest request = new AtmosphereRequestImpl.Builder().queryString(qs).pathInfo("/acquire").build();
-                    framework.doCometSupport(request, AtmosphereResponse.newInstance(request));
+                    framework.doCometSupport(request, AtmosphereResponseImpl.newInstance(request));
                 } catch (Exception e) {
                     e.printStackTrace();
                 }

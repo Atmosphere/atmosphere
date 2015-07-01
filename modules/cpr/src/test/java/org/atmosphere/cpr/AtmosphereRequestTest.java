@@ -113,7 +113,7 @@ public class AtmosphereRequestTest {
 
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertEquals(e.get(), "application/xml");
         assertEquals(e2.get().toLowerCase(), "long_polling");
@@ -155,7 +155,7 @@ public class AtmosphereRequestTest {
 
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertEquals(e.get(), "a=b");
     }
@@ -197,7 +197,7 @@ public class AtmosphereRequestTest {
 
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertEquals(e.get(), "a=b");
     }
@@ -238,7 +238,7 @@ public class AtmosphereRequestTest {
 
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertEquals(e.get(), "a=b");
     }
@@ -265,7 +265,7 @@ public class AtmosphereRequestTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance().delegateToNativeResponse(false));
 
         assertEquals(e.get().getCharacterEncoding(), "utf-8");
     }
@@ -285,7 +285,7 @@ public class AtmosphereRequestTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance().delegateToNativeResponse(false));
 
         assertNotNull(e.get());
         assertTrue(e.get().hasString());
@@ -309,7 +309,7 @@ public class AtmosphereRequestTest {
         });
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test".getBytes()).build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance().delegateToNativeResponse(false));
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance().delegateToNativeResponse(false));
 
         assertNotNull(e.get());
         assertTrue(e.get().hasBytes());

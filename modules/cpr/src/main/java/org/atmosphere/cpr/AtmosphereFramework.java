@@ -155,7 +155,7 @@ import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 
 /**
  * The {@link AtmosphereFramework} is the entry point for the framework. This class can be used to from Servlet/filter
- * to dispatch {@link AtmosphereRequestImpl} and {@link AtmosphereResponse}. The framework can also be configured using
+ * to dispatch {@link AtmosphereRequestImpl} and {@link AtmosphereResponseImpl}. The framework can also be configured using
  * the setXXX method. The life cycle of this class is
  * <blockquote><pre>
  * AtmosphereFramework f = new AtmosphereFramework();
@@ -2338,7 +2338,7 @@ public class AtmosphereFramework {
     }
 
     /**
-     * <tt>true</tt> if Atmosphere uses {@link AtmosphereResponse#getOutputStream()}
+     * <tt>true</tt> if Atmosphere uses {@link AtmosphereResponseImpl#getOutputStream()}
      * by default for write operation.
      *
      * @return the useStreamForFlushingComments
@@ -2352,7 +2352,7 @@ public class AtmosphereFramework {
     }
 
     /**
-     * Set to <tt>true</tt> so Atmosphere uses {@link AtmosphereResponse#getOutputStream()}
+     * Set to <tt>true</tt> so Atmosphere uses {@link AtmosphereResponseImpl#getOutputStream()}
      * by default for write operation. Default is false.
      *
      * @param useStreamForFlushingComments the useStreamForFlushingComments to set

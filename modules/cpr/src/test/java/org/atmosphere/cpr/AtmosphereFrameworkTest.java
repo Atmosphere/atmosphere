@@ -71,7 +71,7 @@ public class AtmosphereFrameworkTest {
                 super.setAttribute(name, o);
             }
         }).build();
-        processor.action(r, AtmosphereResponse.newInstance());
+        processor.action(r, AtmosphereResponseImpl.newInstance());
         assertNotNull(value.get());
 
         // The interceptor must be installed and called one time.

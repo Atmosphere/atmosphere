@@ -96,10 +96,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     /**
      * All proprietary Comet based {@link Servlet} must invoke the suspended method when the first request comes in.
      * The returned value, of type {@link Action}, tells the proprietary Comet {@link Servlet} to suspended or not the
-     * current {@link AtmosphereResponse}.
+     * current {@link AtmosphereResponseImpl}.
      *
      * @param request  the {@link AtmosphereRequestImpl}
-     * @param response the {@link AtmosphereResponse}
+     * @param response the {@link AtmosphereResponseImpl}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
@@ -112,7 +112,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * Invoke the {@link AtmosphereHandler#onRequest} method.
      *
      * @param req the {@link AtmosphereRequestImpl}
-     * @param res the {@link AtmosphereResponse}
+     * @param res the {@link AtmosphereResponseImpl}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
@@ -355,7 +355,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     /**
      * Return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      *
-     * @param req the {@link AtmosphereResponse}
+     * @param req the {@link AtmosphereResponseImpl}
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
      * @throws javax.servlet.ServletException
      */
@@ -371,11 +371,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
     /**
      * All proprietary Comet based {@link Servlet} must invoke the resume method when the Atmosphere's application
-     * decide to resume the {@link AtmosphereResponse}. The returned value, of type {@link Action}, tells the
-     * proprietary Comet {@link Servlet} to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
+     * decide to resume the {@link AtmosphereResponseImpl}. The returned value, of type {@link Action}, tells the
+     * proprietary Comet {@link Servlet} to resume (again), suspended or do nothing with the current {@link AtmosphereResponseImpl}.
      *
      * @param request  the {@link AtmosphereRequestImpl}
-     * @param response the {@link AtmosphereResponse}
+     * @param response the {@link AtmosphereResponseImpl}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
@@ -401,11 +401,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
     /**
      * All proprietary Comet based {@link Servlet} must invoke the timedout method when the underlying WebServer time
-     * out the {@link AtmosphereResponse}. The returned value, of type {@link Action}, tells the proprietary
-     * Comet {@link Servlet} to resume (again), suspended or do nothing with the current {@link AtmosphereResponse}.
+     * out the {@link AtmosphereResponseImpl}. The returned value, of type {@link Action}, tells the proprietary
+     * Comet {@link Servlet} to resume (again), suspended or do nothing with the current {@link AtmosphereResponseImpl}.
      *
      * @param req the {@link AtmosphereRequestImpl}
-     * @param res the {@link AtmosphereResponse}
+     * @param res the {@link AtmosphereResponseImpl}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
@@ -534,7 +534,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * detect that the client closed the connection.
      *
      * @param req the {@link AtmosphereRequestImpl}
-     * @param res the {@link AtmosphereResponse}
+     * @param res the {@link AtmosphereResponseImpl}
      * @return action the Action operation.
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException

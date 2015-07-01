@@ -28,6 +28,7 @@ import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -151,7 +152,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
 
     /**
      * Void {@link CometHandler}, which delegate the processing of the
-     * {@link AtmosphereResponse} to an {@link AtmosphereResource}.
+     * {@link AtmosphereResponseImpl} to an {@link AtmosphereResource}.
      */
     private class VoidCometHandler implements CometHandler {
 

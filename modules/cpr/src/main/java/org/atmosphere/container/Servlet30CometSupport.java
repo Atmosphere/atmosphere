@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -83,7 +84,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
      *
      * @param action The {@link org.atmosphere.cpr.Action}
      * @param req    the {@link AtmosphereRequestImpl}
-     * @param res    the {@link AtmosphereResponse}
+     * @param res    the {@link AtmosphereResponseImpl}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */

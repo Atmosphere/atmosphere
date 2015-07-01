@@ -19,7 +19,7 @@ import org.atmosphere.container.version.JBossWebSocket;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.jboss.as.websockets.WebSocket;
@@ -68,7 +68,7 @@ public class JBossWebSocketHandler extends WebSocketServlet {
 
         AtmosphereRequest r = AtmosphereRequestImpl.wrap(socket.getServletRequest());
         webSocket = new JBossWebSocket(socket, config);
-        webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
+        webSocketProcessor.open(webSocket, r, AtmosphereResponseImpl.newInstance(config, r, webSocket));
     }
 
     @Override

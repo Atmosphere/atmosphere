@@ -27,6 +27,7 @@ import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -69,7 +70,7 @@ public class Tomcat7CometSupport extends AsynchronousProcessor {
      * Invoked by the Tomcat AIO when a Comet request gets detected.
      *
      * @param req the {@link AtmosphereRequestImpl}
-     * @param res the {@link AtmosphereResponse}
+     * @param res the {@link AtmosphereResponseImpl}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */

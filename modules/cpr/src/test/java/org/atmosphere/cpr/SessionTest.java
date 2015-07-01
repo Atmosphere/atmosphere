@@ -47,7 +47,7 @@ public class SessionTest {
     @Test
     public void basicAtmosphereResourceSessionTest() throws IOException, ServletException, ExecutionException, InterruptedException {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().build();
-        AtmosphereResponse response = new AtmosphereResponse.Builder().build();    
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder().build();
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
 
         AtmosphereResource r = config.resourcesFactory().create(new AtmosphereFramework().getAtmosphereConfig(),
@@ -63,7 +63,7 @@ public class SessionTest {
         assertNotNull(r.session());
 
         request = new AtmosphereRequestImpl.Builder().session(new FakeHttpSession("-1", null, System.currentTimeMillis(), -1)).build();
-        response = new AtmosphereResponse.Builder().build();
+        response = new AtmosphereResponseImpl.Builder().build();
         r = config.resourcesFactory().create(new AtmosphereFramework().getAtmosphereConfig(),
                 request,
                 response,
@@ -82,7 +82,7 @@ public class SessionTest {
 
         HttpServletRequest httpRequest = new NoOpsRequest();
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().request(httpRequest).session(httpRequest.getSession(true)).build();
-        AtmosphereResponse response = new AtmosphereResponse.Builder().build();
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder().build();
         AtmosphereResource r = config.resourcesFactory().create(config, request, response, mock(AsyncSupport.class));
 
         request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, r);

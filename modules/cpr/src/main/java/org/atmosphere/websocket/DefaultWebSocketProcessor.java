@@ -31,6 +31,7 @@ import org.atmosphere.cpr.AtmosphereResourceEventImpl;
 import org.atmosphere.cpr.AtmosphereResourceEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.DefaultEndpointMapper;
@@ -335,7 +336,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 asyncExecutor.execute(new Runnable() {
                     @Override
                     public void run() {
-                        AtmosphereResponse w = new AtmosphereResponse(webSocket, r, destroyable);
+                        AtmosphereResponse w = new AtmosphereResponseImpl(webSocket, r, destroyable);
                         try {
                             dispatch(webSocket, r, w);
                         } finally {
@@ -548,7 +549,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         AtmosphereResource r = webSocket.resource();
         if (r != null) {
             webSocketHandler.onError(webSocket, new WebSocketException(ex,
-                    new AtmosphereResponse.Builder()
+                    new AtmosphereResponseImpl.Builder()
                             .request(r != null ? AtmosphereResourceImpl.class.cast(r).getRequest(false) : null)
                             .status(500)
                             .statusMessage("Server Error").build()));
@@ -559,7 +560,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
      * Dispatch to request/response to the {@link org.atmosphere.cpr.AsyncSupport} implementation as it was a normal HTTP request.
      *
      * @param request a {@link AtmosphereRequestImpl}
-     * @param r       a {@link AtmosphereResponse}
+     * @param r       a {@link AtmosphereResponseImpl}
      */
     public final void dispatch(WebSocket webSocket, final AtmosphereRequest request, final AtmosphereResponse r) {
         if (request == null) return;
@@ -569,7 +570,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         } catch (Throwable e) {
             logger.warn("Failed invoking AtmosphereFramework.doCometSupport()", e);
             webSocketProtocol.onError(webSocket, new WebSocketException(e,
-                    new AtmosphereResponse.Builder()
+                    new AtmosphereResponseImpl.Builder()
                             .request(request)
                             .status(500)
                             .statusMessage("Server Error").build()));

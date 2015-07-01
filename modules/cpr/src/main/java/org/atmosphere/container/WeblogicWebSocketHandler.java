@@ -20,7 +20,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
@@ -82,7 +82,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         ar.queryString(ar.getQueryString());
         request.set(null);
         try {
-            webSocketProcessor.open(webSocket, ar, AtmosphereResponse.newInstance(config, ar, webSocket));
+            webSocketProcessor.open(webSocket, ar, AtmosphereResponseImpl.newInstance(config, ar, webSocket));
         } catch (IOException e) {
             logger.error("{}", e);
         }

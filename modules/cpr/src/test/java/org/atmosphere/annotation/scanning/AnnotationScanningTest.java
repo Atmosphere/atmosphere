@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResourceListener;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.BeforeMethod;
@@ -87,7 +88,7 @@ public class AnnotationScanningTest {
     @Test
     public void testAnnotation() throws IOException, ServletException {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         AsynchronousProcessor.class.cast(framework.getAsyncSupport()).endRequest((AtmosphereResourceImpl)request.resource(), true);
 
         assertTrue(suspended.get());

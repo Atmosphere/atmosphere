@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -88,7 +89,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
      * Implement this method to get invoked every time a new {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)}
      * occurs.
      *
-     * @param response an {@link AtmosphereResponse}
+     * @param response an {@link AtmosphereResponseImpl}
      * @param message  a message of type T
      */
     abstract public void onMessage(AtmosphereResponse response, T message) throws IOException;
@@ -96,7 +97,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
     /**
      * This method will be invoked during the process of resuming a connection. By default this method does nothing.
      *
-     * @param response an {@link AtmosphereResponse}.
+     * @param response an {@link AtmosphereResponseImpl}.
      * @throws IOException
      */
     public void onResume(AtmosphereResponse response) throws IOException {
@@ -106,7 +107,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
      * This method will be invoked when a suspended connection times out, e.g no activity has occurred for the
      * specified time used when suspending. By default this method does nothing.
      *
-     * @param response an {@link AtmosphereResponse}.
+     * @param response an {@link AtmosphereResponseImpl}.
      * @throws IOException
      */
     public void onTimeout(AtmosphereResponse response) throws IOException {
@@ -116,7 +117,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
      * This method will be invoked when the underlying WebServer detects a connection has been closed. Please
      * note that not all WebServer supports that features (see Atmosphere's WIKI for help). By default this method does nothing.
      *
-     * @param response an {@link AtmosphereResponse}.
+     * @param response an {@link AtmosphereResponseImpl}.
      * @throws IOException
      */
     public void onDisconnect(AtmosphereResponse response) throws IOException {

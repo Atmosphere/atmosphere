@@ -196,7 +196,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponse.wrap(res));
+        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
     }
 
     /**
@@ -229,7 +229,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
             }
         }
 
-        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponse.wrap(res));
+        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
 
         String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         if (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT)) {
@@ -261,7 +261,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
             }
         }
 
-        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponse.wrap(res));
+        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
 
         // https://github.com/Atmosphere/atmosphere/issues/920
         String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
@@ -323,7 +323,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
             ((JBossAsyncSupportWithWebSocket) initializer.framework().asyncSupport).dispatch(httpEvent);
         } else {
             logger.trace("Dispatching comet event: " + httpEvent);
-            initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponse.wrap(res));
+            initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
         }
     }
 

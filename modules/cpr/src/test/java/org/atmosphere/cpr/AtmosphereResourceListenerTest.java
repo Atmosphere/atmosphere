@@ -144,7 +144,7 @@ public class AtmosphereResourceListenerTest {
                 r.resume();
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
 
         assertTrue(preSuspended.get());
@@ -203,7 +203,7 @@ public class AtmosphereResourceListenerTest {
                 }
             }
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertTrue(closed.get());
     }
 }

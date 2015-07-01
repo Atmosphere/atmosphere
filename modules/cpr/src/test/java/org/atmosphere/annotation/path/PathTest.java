@@ -34,6 +34,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.websocket.WebSocket;
@@ -112,7 +113,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/test").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/test");
@@ -147,7 +148,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/ah/test2").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/ah/test2");
@@ -182,7 +183,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a/b/test2").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/a/b/test2");
@@ -207,7 +208,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/foo/bar/yo").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/foo/bar/yo");
@@ -236,7 +237,7 @@ public class PathTest {
                 .getWebSocketProcessor(framework);
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/ws/bar").method("GET").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/ws/bar");
@@ -292,7 +293,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/singleton/managed/yes").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 0);
         assertNotNull(r.get());
         assertEquals(r.get(), "/singleton/managed/yes");
@@ -328,7 +329,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/singleton/atmospherehandler/yes").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 0);
         assertNotNull(r.get());
         assertEquals(r.get(), "/singleton/atmospherehandler/yes");
@@ -364,7 +365,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/singleton/meteor/test2").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 0);
         assertNotNull(r.get());
         assertEquals(r.get(), "/singleton/meteor/test2");
@@ -420,7 +421,7 @@ public class PathTest {
                 .getWebSocketProcessor(framework);
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/singleton/ws/bar").method("GET").build();
-        processor.open(w, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, w));
+        processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         assertEquals(instanceCount, 0);
         assertNotNull(r.get());
         assertEquals(MyInterceptor.invokationCount, 1);
@@ -443,7 +444,7 @@ public class PathTest {
 
         @Get
         public void get(AtmosphereResource resource) {
-            r.set(a+"#"+b1);
+            r.set(a + "#" + b1);
         }
     }
 
@@ -452,7 +453,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/pathVar/aaa/pathTest/b123").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "aaa#b123");
@@ -481,7 +482,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/inject/b123").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/inject/b123");
@@ -509,7 +510,7 @@ public class PathTest {
         instanceCount = 0;
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/resource/b123").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/resource/b123");
@@ -517,30 +518,58 @@ public class PathTest {
     }
 
     @ManagedService(path = "/request/{inject}")
-     public final static class InjectAtmosphereRequest {
+    public final static class InjectAtmosphereRequest {
 
-         public InjectAtmosphereRequest() {
-             ++instanceCount;
-         }
+        public InjectAtmosphereRequest() {
+            ++instanceCount;
+        }
 
-         @Inject
-         private AtmosphereRequest request;
+        @Inject
+        private AtmosphereRequest request;
 
-         @Get
-         public void get() {
-             r.set(request.getPathInfo());
-         }
-     }
+        @Get
+        public void get() {
+            r.set(request.getPathInfo());
+        }
+    }
 
-     @Test (enabled = true)
-     public void testAtmosphereRequestInjection() throws IOException, ServletException {
-         instanceCount = 0;
+    @Test(enabled = true)
+    public void testAtmosphereRequestInjection() throws IOException, ServletException {
+        instanceCount = 0;
 
-         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/request/b123").method("GET").build();
-         framework.doCometSupport(request, AtmosphereResponse.newInstance());
-         assertEquals(instanceCount, 1);
-         assertNotNull(r.get());
-         assertEquals(r.get(), "/request/b123");
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/request/b123").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
+        assertEquals(instanceCount, 1);
+        assertNotNull(r.get());
+        assertEquals(r.get(), "/request/b123");
 
-     }
+    }
+
+    @ManagedService(path = "/response/{inject}")
+    public final static class InjectAtmosphereResponse {
+
+        public InjectAtmosphereResponse() {
+            ++instanceCount;
+        }
+
+        @Inject
+        private AtmosphereResponse response;
+
+        @Get
+        public void get() {
+            r.set(response.request().getPathInfo());
+        }
+    }
+
+    @Test(enabled = true)
+    public void testAtmosphereResponsetInjection() throws IOException, ServletException {
+        instanceCount = 0;
+
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/response/b123").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
+        assertEquals(instanceCount, 1);
+        assertNotNull(r.get());
+        assertEquals(r.get(), "/response/b123");
+
+    }
 }

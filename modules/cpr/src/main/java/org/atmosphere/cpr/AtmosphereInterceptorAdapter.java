@@ -19,7 +19,7 @@ import org.atmosphere.interceptor.InvokationOrder;
 
 /**
  * A Simple {@link AtmosphereInterceptor} that creates an {@link AtmosphereInterceptorWriter} and sets it as
- * the default {@link AsyncIOWriter} on an {@link AtmosphereResponse}.
+ * the default {@link AsyncIOWriter} on an {@link AtmosphereResponseImpl}.
  *
  * @author Jeanfrancois Arcand
  */

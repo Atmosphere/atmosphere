@@ -53,11 +53,11 @@ public interface AsyncSupport<E extends AtmosphereResource> {
     public void init(ServletConfig sc) throws ServletException;
 
     /**
-     * Serve the {@link AtmosphereRequestImpl} and the {@link AtmosphereResponse} and return
+     * Serve the {@link AtmosphereRequestImpl} and the {@link AtmosphereResponseImpl} and return
      * the appropriate {@link Action}.
      *
      * @param req the {@link AtmosphereRequestImpl}
-     * @param res the {@link AtmosphereResponse}
+     * @param res the {@link AtmosphereResponseImpl}
      * @return the {@link Action} that was manipulated by the {@link AtmosphereHandler}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException

@@ -16,7 +16,6 @@
 package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.ThreadLocalInvoker;
@@ -48,17 +47,17 @@ public class AtmosphereResponseIntrospector extends InjectIntrospectorAdapter<At
         if (r == null) {
             return null;
         }
-       final AtmosphereResponse response = r.getResponse();
+        final AtmosphereResponse response = r.getResponse();
 
         return (AtmosphereResponse) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{AtmosphereRequestImpl.class}, new ThreadLocalInvoker() {
+                new Class[]{AtmosphereResponse.class}, new ThreadLocalInvoker() {
                     {
                         set(response);
                     }
 
                     @Override
                     public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                        return method.invoke(r, args);
+                        return method.invoke(response, args);
                     }
                 });
     }

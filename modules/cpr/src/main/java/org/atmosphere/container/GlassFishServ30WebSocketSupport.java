@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
@@ -137,7 +138,7 @@ public class GlassFishServ30WebSocketSupport extends Servlet30CometSupport {
                 AtmosphereRequest r = AtmosphereRequestImpl.wrap(g2WebSocket.getUpgradeRequest());
                 org.atmosphere.websocket.WebSocket webSocket = new Grizzly2WebSocket(g2WebSocket, config);
                 g2WebSocket.getUpgradeRequest().setAttribute("grizzly.webSocket", webSocket);
-                webSocketProcessor.open(webSocket, r, AtmosphereResponse.newInstance(config, r, webSocket));
+                webSocketProcessor.open(webSocket, r, AtmosphereResponseImpl.newInstance(config, r, webSocket));
             } catch (Exception e) {
                 LOGGER.warn("failed to connect to web socket", e);
             }
