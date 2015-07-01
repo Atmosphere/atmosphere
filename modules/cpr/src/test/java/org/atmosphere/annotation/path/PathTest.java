@@ -572,4 +572,32 @@ public class PathTest {
         assertEquals(r.get(), "/response/b123");
 
     }
+
+    @ManagedService(path = "/resourceEvent/{inject}")
+    public final static class InjectAtmosphereResourceEvent{
+
+        public InjectAtmosphereResourceEvent() {
+            ++instanceCount;
+        }
+
+        @Inject
+        private AtmosphereResourceEvent event;
+
+        @Get
+        public void get() {
+            r.set(event.getResource().getRequest().getPathInfo());
+        }
+    }
+
+    @Test(enabled = true)
+    public void testAtmosphereResourceEventInjection() throws IOException, ServletException {
+        instanceCount = 0;
+
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/resourceEvent/b123").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
+        assertEquals(instanceCount, 1);
+        assertNotNull(r.get());
+        assertEquals(r.get(), "/resourceEvent/b123");
+
+    }
 }
