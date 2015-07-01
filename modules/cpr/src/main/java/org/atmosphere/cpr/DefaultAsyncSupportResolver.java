@@ -150,49 +150,58 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                if (testClassExists(JSR356_WEBSOCKET)) {
-                    add(JSR356AsyncSupport.class);
-                } else if (useServlet30Async && !useNativeIfPossible) {
+                if (useServlet30Async && !useNativeIfPossible) {
 
-                    if (testClassExists(TOMCAT_WEBSOCKET))
-                        add(Tomcat7Servlet30SupportWithWebSocket.class);
 
-                    if (testClassExists(JETTY_9))
-                        add(Jetty9AsyncSupportWithWebSocket.class);
+                    if (testClassExists(JSR356_WEBSOCKET)) {
+                        add(JSR356AsyncSupport.class);
+                    } else {
 
-                    if (testClassExists(JETTY_8))
-                        add(JettyServlet30AsyncSupportWithWebSocket.class);
+                        if (testClassExists(TOMCAT_WEBSOCKET))
+                            add(Tomcat7Servlet30SupportWithWebSocket.class);
 
-                    if (testClassExists(GRIZZLY2_WEBSOCKET))
-                        add(GlassFishServ30WebSocketSupport.class);
+                        if (testClassExists(JETTY_9))
+                            add(Jetty9AsyncSupportWithWebSocket.class);
 
-                    if (testClassExists(GRIZZLY_WEBSOCKET))
-                        add(GrizzlyServlet30WebSocketSupport.class);
+                        if (testClassExists(JETTY_8))
+                            add(JettyServlet30AsyncSupportWithWebSocket.class);
 
-                    if (testClassExists(WEBLOGIC_WEBSOCKET) && !testClassExists(HK2)) {
-                        logger.warn("***************************************************************************************************");
-                        logger.warn("WebLogic WebSocket detected and will be deployed under the hardcoded path <<application-name>>/ws/*");
-                        logger.warn("***************************************************************************************************");
-                        add(WebLogicServlet30WithWebSocket.class);
+                        if (testClassExists(GRIZZLY2_WEBSOCKET))
+                            add(GlassFishServ30WebSocketSupport.class);
+
+                        if (testClassExists(GRIZZLY_WEBSOCKET))
+                            add(GrizzlyServlet30WebSocketSupport.class);
+
+                        if (testClassExists(WEBLOGIC_WEBSOCKET) && !testClassExists(HK2)) {
+                            logger.warn("***************************************************************************************************");
+                            logger.warn("WebLogic WebSocket detected and will be deployed under the hardcoded path <<application-name>>/ws/*");
+                            logger.warn("***************************************************************************************************");
+                            add(WebLogicServlet30WithWebSocket.class);
+                        }
                     }
                 } else {
-                    if (testClassExists(TOMCAT_WEBSOCKET))
-                        add(Tomcat7AsyncSupportWithWebSocket.class);
+                    if (testClassExists(JSR356_WEBSOCKET)) {
+                        add(JSR356AsyncSupport.class);
+                    } else {
+                        if (testClassExists(TOMCAT_WEBSOCKET))
+                            add(Tomcat7AsyncSupportWithWebSocket.class);
 
-                    if (testClassExists(JETTY_9))
-                        add(Jetty9AsyncSupportWithWebSocket.class);
+                        if (testClassExists(JETTY_9))
+                            add(Jetty9AsyncSupportWithWebSocket.class);
 
-                    if (testClassExists(JETTY_8))
-                        add(JettyAsyncSupportWithWebSocket.class);
+                        if (testClassExists(JETTY_8))
+                            add(JettyAsyncSupportWithWebSocket.class);
 
-                    if (testClassExists(GRIZZLY_WEBSOCKET))
-                        add(GlassFishWebSocketSupport.class);
+                        if (testClassExists(GRIZZLY_WEBSOCKET))
+                            add(GlassFishWebSocketSupport.class);
 
-                    if (testClassExists(GRIZZLY2_WEBSOCKET))
-                        add(Grizzly2WebSocketSupport.class);
+                        if (testClassExists(GRIZZLY2_WEBSOCKET))
+                            add(Grizzly2WebSocketSupport.class);
 
-                    if (testClassExists(JBOSS_AS7_WEBSOCKET))
-                        add(JBossAsyncSupportWithWebSocket.class);
+                        if (testClassExists(JBOSS_AS7_WEBSOCKET))
+                            add(JBossAsyncSupportWithWebSocket.class);
+                    }
+
                 }
             }
         };
@@ -270,7 +279,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         useServlet30Async = testClassExists(SERVLET_30);
 
         if (!defaultToBlocking) {
-            List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(true, useServlet30Async);
+            List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
 
             if (!l.isEmpty()) {
                 cs = resolveWebSocket(l);
