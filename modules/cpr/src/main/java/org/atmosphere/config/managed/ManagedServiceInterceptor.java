@@ -69,9 +69,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                     prepareForPathInjection(path, targetPath, ap.target());
                                 }
 
-                                if (runtimeInjection) {
-                                    AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(ap);
-                                }
+                                AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(ap);
 
                                 config.framework().addAtmosphereHandler(path, ap,
                                         config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);

@@ -56,9 +56,7 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
                                     r.init(config);
                                 }
 
-                                if (runtimeInjection) {
-                                    AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(r);
-                                }
+                                AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(r);
 
                                 config.framework().addAtmosphereHandler(path, r,
                                         config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);

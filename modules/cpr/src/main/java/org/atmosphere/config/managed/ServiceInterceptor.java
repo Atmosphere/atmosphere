@@ -33,7 +33,6 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
 
     protected AtmosphereConfig config;
     protected boolean wildcardMapping = false;
-    protected boolean runtimeInjection = false;
 
     public ServiceInterceptor() {
     }

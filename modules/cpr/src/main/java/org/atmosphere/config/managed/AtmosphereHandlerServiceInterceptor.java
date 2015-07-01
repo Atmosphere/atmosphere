@@ -49,9 +49,7 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
                             newW = config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass());
                         }
 
-                        if (runtimeInjection) {
-                            AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(newW);
-                        }
+                        AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(newW);
 
                         config.framework().addAtmosphereHandler(path, newW,
                                 config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
