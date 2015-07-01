@@ -116,16 +116,20 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
+        apply(instance, defaultType, framework, false);
+    }
+
+    private <U> void apply(U instance, Class<U> defaultType, AtmosphereFramework framework, boolean requestScoped) throws IllegalAccessException {
         Set<Field> fields = new HashSet<Field>();
         fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
         fields.addAll(Arrays.asList(defaultType.getFields()));
-        injectFields(fields, instance, framework);
+        injectFields(fields, instance, framework, requestScoped);
     }
 
-    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework) throws IllegalAccessException {
+    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, boolean requestScoped) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
-                LinkedList<? extends Injectable> list = framework.initialized() ? runtimeIntrospectors : injectables;
+                LinkedList<? extends Injectable> list = requestScoped ? runtimeIntrospectors : injectables;
                 for (Injectable c : list) {
 
                     if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
@@ -141,7 +145,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                         }
                         break;
                     }
-                 }
+                }
             }
         }
     }
@@ -173,6 +177,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         return null;
     }
 
-
-
+    public void requestScoped(Object instance, Class defaultType, AtmosphereFramework framework) throws IllegalAccessException {
+        apply(instance, defaultType, framework, true);
+    }
 }

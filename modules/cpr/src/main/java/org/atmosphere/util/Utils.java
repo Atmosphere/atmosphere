@@ -239,7 +239,7 @@ public final class Utils {
     }
 
     private static final void inject(Object object, Class clazz, AtmosphereConfig config) throws IllegalAccessException {
-        InjectableObjectFactory.class.cast(config.framework().objectFactory()).injectAtmosphereInternalObject(object, clazz, config.framework());
+        InjectableObjectFactory.class.cast(config.framework().objectFactory()).requestScoped(object, clazz, config.framework());
     }
 
     public static final Object injectIn(AtmosphereResource r) {
