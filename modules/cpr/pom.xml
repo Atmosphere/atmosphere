@@ -66,6 +66,7 @@
                             org.atmosphere.container*,
                             org.atmosphere.cpr*,
                             org.atmosphere.inject*,
+                            org.atmosphere.inject.annotation*,
                             org.atmosphere.handler*,
                             org.atmosphere.interceptor*,
                             org.atmosphere.pool*,

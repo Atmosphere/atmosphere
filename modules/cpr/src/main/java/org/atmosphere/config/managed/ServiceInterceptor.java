@@ -28,6 +28,8 @@ import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Named;
+
 public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     private final Logger logger = LoggerFactory.getLogger(ServiceInterceptor.class);
 
@@ -107,6 +109,9 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
             reMap = true;
             config.getBroadcasterFactory().remove(b.getID());
         }
+
+        request.localAttributes().put(Named.class.getName(), path);
+
         mapAnnotatedService(reMap, path, request, w);
     }
 

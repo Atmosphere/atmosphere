@@ -16,10 +16,12 @@
 package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.inject.annotation.ApplicationScoped;
 import org.atmosphere.websocket.WebSocketFactory;
 
 import java.lang.reflect.Type;
 
+@ApplicationScoped
 public class WebSocketFactoryInjectable implements Injectable<WebSocketFactory> {
     @Override
     public boolean supportedType(Type t) {

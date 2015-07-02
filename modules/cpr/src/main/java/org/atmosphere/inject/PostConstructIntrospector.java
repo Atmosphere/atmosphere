@@ -15,6 +15,8 @@
  */
 package org.atmosphere.inject;
 
+import org.atmosphere.inject.annotation.ApplicationScoped;
+import org.atmosphere.inject.annotation.RequestScoped;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -26,6 +28,8 @@ import java.lang.reflect.Method;
  *
  * @author Jeanfrancois Arcand
  */
+@ApplicationScoped
+@RequestScoped
 public class PostConstructIntrospector extends InjectIntrospectorAdapter<PostConstruct> {
     private final Logger logger = LoggerFactory.getLogger(PostConstructIntrospector.class);
 

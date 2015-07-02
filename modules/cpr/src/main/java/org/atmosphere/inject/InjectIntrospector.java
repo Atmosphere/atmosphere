@@ -15,11 +15,14 @@
  */
 package org.atmosphere.inject;
 
+import org.atmosphere.cpr.AtmosphereResource;
+
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 
 /**
- * An Injectable class allow the {@link InjectableObjectFactory} inspwect fields and methods before they get injected or executed.
+ * An Injectable class allow the {@link InjectableObjectFactory} to inspect fields and methods before they get injected or executed.
+ * This interface supports application scoped {@link @ApplicationScoped} and request scoped {@link @RequestScoped} injection.
  *
  * @param <T> the Object to inject.
  * @author Jeanfrancois Arcand
@@ -27,12 +30,6 @@ import java.lang.reflect.Method;
 public interface InjectIntrospector<T> extends Injectable {
 
     public enum WHEN { DEPLOY, RUNTIME }
-
-    /**
-     *
-     *
-     */
-    WHEN when();
 
     /**
      * Introspect the field
@@ -48,4 +45,12 @@ public interface InjectIntrospector<T> extends Injectable {
      * @param instance the object to invoke the method on
      */
     void introspectMethod(Method m, Object instance);
+
+    /**
+     * Returns an instance of the T
+     * @param resource the {@link AtmosphereResource}
+     * @return Return an instance of the T
+     */
+    T injectable(AtmosphereResource resource);
+
 }

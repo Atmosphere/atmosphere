@@ -25,6 +25,7 @@ import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Named;
 import javax.servlet.Servlet;
 
 /**
@@ -56,7 +57,7 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
                                     r.init(config);
                                 }
 
-                                config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
+                                request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
 
                                 AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(r);
 

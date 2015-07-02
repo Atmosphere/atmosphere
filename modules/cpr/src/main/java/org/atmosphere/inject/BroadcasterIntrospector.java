@@ -15,8 +15,9 @@
  */
 package org.atmosphere.inject;
 
-import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.inject.annotation.RequestScoped;
 import org.atmosphere.util.ThreadLocalInvoker;
 
 import javax.inject.Named;
@@ -30,12 +31,9 @@ import java.lang.reflect.Type;
  *
  * @author Jeanfrancois Arcand
  */
+@RequestScoped
 public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcaster> {
     private String name = Broadcaster.ROOT_MASTER;
-
-    public WHEN when() {
-        return WHEN.RUNTIME;
-    }
 
     @Override
     public boolean supportedType(Type t) {
@@ -43,14 +41,14 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
     }
 
     @Override
-    public Broadcaster injectable(AtmosphereConfig config) {
+    public Broadcaster injectable(AtmosphereResource r) {
 
-        String s = (String) config.properties().get(Thread.currentThread().getName() + ".PATH");
+        String s = (String) r.getRequest().getAttribute(Named.class.getName());
         if (s != null) {
             name = name.substring(0, name.indexOf("{")) + s;
         }
 
-        final Broadcaster broadcaster = config.getBroadcasterFactory().lookup(name, true);
+        final Broadcaster broadcaster = r.getAtmosphereConfig().getBroadcasterFactory().lookup(name, true);
 
         return (Broadcaster) Proxy.newProxyInstance(this.getClass().getClassLoader(),
                 new Class[]{Broadcaster.class}, new ThreadLocalInvoker() {

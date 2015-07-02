@@ -13,24 +13,23 @@
  * License for the specific language governing permissions and limitations under
  * the License.
  */
-package org.atmosphere.inject;
+package org.atmosphere.inject.annotation;
 
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.MetaBroadcaster;
-import org.atmosphere.inject.annotation.ApplicationScoped;
+import org.atmosphere.inject.Injectable;
 
-import java.lang.reflect.Type;
+import java.lang.annotation.Documented;
+import java.lang.annotation.ElementType;
+import java.lang.annotation.Retention;
+import java.lang.annotation.RetentionPolicy;
+import java.lang.annotation.Target;
 
-@ApplicationScoped
-public class MetaBroadcasterInjectable implements Injectable<MetaBroadcaster> {
-
-    @Override
-    public boolean supportedType(Type t) {
-        return (t instanceof Class) && MetaBroadcaster.class.isAssignableFrom((Class) t);
-    }
-
-    @Override
-    public MetaBroadcaster injectable(AtmosphereConfig config) {
-        return config.metaBroadcaster();
-    }
+/**
+ * An annotation for {@link Injectable} used to decide when the injection must happens.
+ *
+ * @author Jeanfrancois Arcand
+ */
+@Target({ElementType.TYPE})
+@Retention(RetentionPolicy.RUNTIME)
+@Documented
+public @interface ApplicationScoped {
 }

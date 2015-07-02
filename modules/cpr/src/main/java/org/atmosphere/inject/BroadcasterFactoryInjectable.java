@@ -17,9 +17,11 @@ package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.inject.annotation.ApplicationScoped;
 
 import java.lang.reflect.Type;
 
+@ApplicationScoped
 public class BroadcasterFactoryInjectable implements Injectable<BroadcasterFactory> {
 
     @Override
