@@ -15,8 +15,8 @@
  */
 package org.atmosphere.inject;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.inject.annotation.RequestScoped;
 import org.atmosphere.util.ThreadLocalInvoker;
 
 import java.lang.reflect.Method;
@@ -28,11 +28,8 @@ import java.lang.reflect.Type;
  *
  * @author Jeanfrancois Arcand
  */
+@RequestScoped
 public class AtmosphereResourceIntrospector extends InjectIntrospectorAdapter<AtmosphereResource> {
-
-    public WHEN when() {
-        return WHEN.RUNTIME;
-    }
 
     @Override
     public boolean supportedType(Type t) {
@@ -40,13 +37,7 @@ public class AtmosphereResourceIntrospector extends InjectIntrospectorAdapter<At
     }
 
     @Override
-    public AtmosphereResource injectable(AtmosphereConfig config) {
-
-        final AtmosphereResource r = (AtmosphereResource) config.properties().get(Thread.currentThread().getName() + AtmosphereResource.class.getSimpleName());
-        if (r == null) {
-            return null;
-        }
-
+    public AtmosphereResource injectable(final AtmosphereResource r) {
         return (AtmosphereResource) Proxy.newProxyInstance(this.getClass().getClassLoader(),
                 new Class[]{AtmosphereResource.class}, new ThreadLocalInvoker() {
                     {

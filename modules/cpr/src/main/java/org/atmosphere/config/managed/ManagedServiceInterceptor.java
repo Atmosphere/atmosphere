@@ -28,6 +28,7 @@ import org.atmosphere.handler.AnnotatedProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Named;
 import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,7 +64,8 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                     final Object o = config.framework().newClassInstance(Object.class, AnnotatedProxy.class.cast(w.atmosphereHandler).target().getClass());
                                     ap.configure(config, o);
                                 }
-                                config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
+
+                                request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
 
                                 if (ap.pathParams()) {
                                     prepareForPathInjection(path, targetPath, ap.target());

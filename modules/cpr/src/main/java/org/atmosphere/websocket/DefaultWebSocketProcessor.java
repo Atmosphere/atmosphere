@@ -43,6 +43,7 @@ import org.atmosphere.websocket.protocol.StreamingHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Named;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.ByteArrayInputStream;
@@ -302,11 +303,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                 boolean singleton = w.proxied.getClass().getAnnotation(Singleton.class) != null;
 
                                 if (!singleton) {
-                                    registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(),
-                                            framework.newClassInstance(WebSocketHandler.class, w.proxied.getClass())));
-                                } else {
-                                    registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(), w));
+                                    w = new WebSocketHandlerProxy(a.broadcaster(),
+                                            framework.newClassInstance(WebSocketHandler.class, w.proxied.getClass()));
                                 }
+
+                                registerWebSocketHandler(path, new WebSocketHandlerProxy(a.broadcaster(), w));
+                                request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
+
                                 p = handlers.get(path);
                             } catch (Throwable e) {
                                 logger.warn("Unable to create WebSocketHandler", e);

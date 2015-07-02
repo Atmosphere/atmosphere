@@ -38,6 +38,7 @@ import java.lang.reflect.Method;
 import java.util.Enumeration;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.FrameworkConfig.NEED_RUNTIME_INJECTION;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
@@ -217,7 +218,7 @@ public final class Utils {
         AtmosphereConfig config = r.getAtmosphereConfig();
 
         // No Injectable supports Injection
-        if (config.properties().get(FrameworkConfig.NEED_RUNTIME_INJECTION) == null) {
+        if (config.properties().get(NEED_RUNTIME_INJECTION) == null) {
             return;
         }
 
@@ -228,18 +229,12 @@ public final class Utils {
 
         Object injectIn = injectIn(r);
         if (injectIn != null) {
-            String name = Thread.currentThread().getName() + AtmosphereResource.class.getSimpleName();
-            try {
-                config.properties().put(name, r);
-                inject(injectIn, injectIn.getClass(), config);
-            } finally {
-                config.properties().remove(name);
-            }
+            inject(injectIn, injectIn.getClass(), r);
         }
     }
 
-    private static final void inject(Object object, Class clazz, AtmosphereConfig config) throws IllegalAccessException {
-        InjectableObjectFactory.class.cast(config.framework().objectFactory()).requestScoped(object, clazz, config.framework());
+    private static final void inject(Object object, Class clazz, AtmosphereResource r) throws IllegalAccessException {
+        InjectableObjectFactory.class.cast(r.getAtmosphereConfig().framework().objectFactory()).requestScoped(object, clazz, r);
     }
 
     public static final Object injectIn(AtmosphereResource r) {

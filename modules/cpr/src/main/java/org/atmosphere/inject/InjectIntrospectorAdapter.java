@@ -16,6 +16,7 @@
 package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResource;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
@@ -27,10 +28,11 @@ import java.lang.reflect.Type;
  * @param <T>
  * @author Jeanfrancois Arcand
  */
-public abstract class InjectIntrospectorAdapter<T> implements InjectIntrospector {
+public class InjectIntrospectorAdapter<T> implements InjectIntrospector {
 
-    public WHEN when() {
-        return WHEN.DEPLOY;
+    @Override
+    public boolean supportedType(Type t) {
+        return false;
     }
 
     @Override
@@ -42,12 +44,13 @@ public abstract class InjectIntrospectorAdapter<T> implements InjectIntrospector
     }
 
     @Override
-    public boolean supportedType(Type t) {
-        return false;
+    public Object injectable(AtmosphereResource resource) {
+        return null;
     }
 
     @Override
     public T injectable(AtmosphereConfig config) {
         return null;
     }
+
 }

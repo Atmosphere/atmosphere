@@ -18,7 +18,10 @@ package org.atmosphere.inject;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.inject.annotation.ApplicationScoped;
+import org.atmosphere.inject.annotation.RequestScoped;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +49,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     private final static ServiceLoader<Injectable> injectableServiceLoader = ServiceLoader.load(Injectable.class);
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
-    private final LinkedList<InjectIntrospector<?>> runtimeIntrospectors = new LinkedList<InjectIntrospector<?>>();
+    private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
 
     private AtmosphereConfig config;
 
@@ -60,13 +63,17 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     InjectIntrospector<?> ii = InjectIntrospector.class.cast(i);
 
                     introspectors.addFirst(ii);
-                    if (ii.when().equals(InjectIntrospector.WHEN.RUNTIME)) {
+                    if (i.getClass().isAnnotationPresent(RequestScoped.class)) {
                         config.properties().put(FrameworkConfig.NEED_RUNTIME_INJECTION, true);
-                        runtimeIntrospectors.addFirst(ii);
-                        continue;
+                        requestScopedIntrospectors.addFirst(ii);
                     }
                 }
-                injectables.addFirst(i);
+
+                if (i.getClass().isAnnotationPresent(ApplicationScoped.class) ||
+                        // For backward compatibility with 2.2+
+                        (!i.getClass().isAnnotationPresent(RequestScoped.class) && !i.getClass().isAnnotationPresent(RequestScoped.class)) ) {
+                    injectables.addFirst(i);
+                }
             } catch (Exception e) {
                 logger.error("", e);
             }
@@ -116,21 +123,16 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
-        apply(instance, defaultType, framework, false);
-    }
-
-    private <U> void apply(U instance, Class<U> defaultType, AtmosphereFramework framework, boolean requestScoped) throws IllegalAccessException {
         Set<Field> fields = new HashSet<Field>();
         fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
         fields.addAll(Arrays.asList(defaultType.getFields()));
-        injectFields(fields, instance, framework, requestScoped);
+        injectFields(fields, instance, framework, injectables);
     }
 
-    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, boolean requestScoped) throws IllegalAccessException {
+    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
-                LinkedList<? extends Injectable> list = requestScoped ? runtimeIntrospectors : injectables;
-                for (Injectable c : list) {
+                for (Injectable c : injectable) {
 
                     if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
                         InjectIntrospector.class.cast(c).introspectField(field);
@@ -177,7 +179,28 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         return null;
     }
 
-    public void requestScoped(Object instance, Class defaultType, AtmosphereFramework framework) throws IllegalAccessException {
-        apply(instance, defaultType, framework, true);
+    public void requestScoped(Object instance, Class defaultType, AtmosphereResource r) throws IllegalAccessException {
+        Set<Field> fields = new HashSet<Field>();
+        fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
+        fields.addAll(Arrays.asList(defaultType.getFields()));
+
+        for (Field field : fields) {
+            if (field.isAnnotationPresent(Inject.class)) {
+                for (InjectIntrospector c : requestScopedIntrospectors) {
+
+                    InjectIntrospector.class.cast(c).introspectField(field);
+
+                    if (c.supportedType(field.getType())) {
+                        try {
+                            field.setAccessible(true);
+                            field.set(instance, c.injectable(r));
+                        } finally {
+                            field.setAccessible(false);
+                        }
+                        break;
+                    }
+                }
+            }
+        }
     }
 }
