@@ -56,7 +56,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
-        for (Injectable i : injectableServiceLoader) {
+        for (Injectable<?> i : injectableServiceLoader) {
             try {
                 logger.debug("Adding class {} as injectable", i.getClass());
                 if (InjectIntrospector.class.isAssignableFrom(i.getClass())) {
@@ -78,6 +78,15 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 logger.error("", e);
             }
         }
+
+        // Inject into injectable
+        for (Injectable<?> i : injectables) {
+            try {
+                injectInjectable(i, i.getClass(), config.framework());
+            } catch (IllegalAccessException e) {
+                logger.error("", e);
+            }
+        }
     }
 
     @Override
@@ -86,7 +95,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
         U instance = defaultType.newInstance();
 
-        injectAtmosphereInternalObject(instance, defaultType, config.framework());
+        injectInjectable(instance, defaultType, config.framework());
         postConstructExecution(instance, defaultType);
 
         return instance;
@@ -122,7 +131,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @param <U>
      * @throws IllegalAccessException
      */
-    public <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
+    public <U> void injectInjectable(U instance, Class<? extends U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
         Set<Field> fields = new HashSet<Field>();
         fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
         fields.addAll(Arrays.asList(defaultType.getFields()));
@@ -133,12 +142,12 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
                 for (Injectable c : injectable) {
-
-                    if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
-                        InjectIntrospector.class.cast(c).introspectField(field);
-                    }
-
                     if (c.supportedType(field.getType())) {
+
+                        if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
+                            InjectIntrospector.class.cast(c).introspectField(field);
+                        }
+
                         try {
                             field.setAccessible(true);
                             field.set(instance, c.injectable(framework.getAtmosphereConfig()));
