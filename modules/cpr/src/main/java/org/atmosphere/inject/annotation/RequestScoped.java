@@ -26,6 +26,8 @@ import java.lang.annotation.Target;
 /**
  * An annotation for {@link InjectIntrospector} used to decide when the injection must happens.
  *
+ * Classes using this annotation must be Thread safe.
+ *
  * @author Jeanfrancois Arcand
  */
 @Target({ElementType.TYPE})
