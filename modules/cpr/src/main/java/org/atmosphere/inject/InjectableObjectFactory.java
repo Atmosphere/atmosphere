@@ -197,7 +197,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             if (field.isAnnotationPresent(Inject.class)) {
                 for (InjectIntrospector c : requestScopedIntrospectors) {
 
-                    InjectIntrospector.class.cast(c).introspectField(field);
+                    c.introspectField(field);
 
                     if (c.supportedType(field.getType())) {
                         try {
