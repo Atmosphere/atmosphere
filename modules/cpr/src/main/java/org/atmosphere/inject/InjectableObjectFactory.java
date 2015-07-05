@@ -71,7 +71,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
                 if (i.getClass().isAnnotationPresent(ApplicationScoped.class) ||
                         // For backward compatibility with 2.2+
-                        (!i.getClass().isAnnotationPresent(RequestScoped.class) && !i.getClass().isAnnotationPresent(RequestScoped.class)) ) {
+                        (!i.getClass().isAnnotationPresent(RequestScoped.class) && !i.getClass().isAnnotationPresent(RequestScoped.class))) {
                     injectables.addFirst(i);
                 }
             } catch (Exception e) {
@@ -96,20 +96,37 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         U instance = defaultType.newInstance();
 
         injectInjectable(instance, defaultType, config.framework());
-        postConstructExecution(instance, defaultType);
+        applyMethods(instance, defaultType);
 
         return instance;
     }
 
     /**
-     * Execute {@PostConstruct} method.
+     * Apply {@link Injectable} and {@link InjectIntrospector} to a class already constructed.
+     *
+     * @param instance the instance to inject to.
+     * @return
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
+    /* @Override */
+    public <T> T inject(T instance) throws InstantiationException, IllegalAccessException {
+
+        injectInjectable(instance, instance.getClass(), config.framework());
+        applyMethods(instance, (Class<T>) instance.getClass());
+
+        return instance;
+    }
+
+    /**
+     * Execute {@link InjectIntrospector#introspectMethod}
      *
      * @param instance    the requested object.
      * @param defaultType the type of the requested object
      * @param <U>
      * @throws IllegalAccessException
      */
-    public <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
+    public <U> void applyMethods(U instance, Class<U> defaultType) throws IllegalAccessException {
         Set<Method> methods = new HashSet<Method>();
         methods.addAll(Arrays.asList(defaultType.getDeclaredMethods()));
         methods.addAll(Arrays.asList(defaultType.getMethods()));
