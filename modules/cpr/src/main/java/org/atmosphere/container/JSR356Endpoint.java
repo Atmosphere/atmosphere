@@ -195,6 +195,7 @@ public class JSR356Endpoint extends Endpoint {
                     .servletPath(servletPath)
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo)
+                    .destroyable(false)
                     .userPrincipal(session.getUserPrincipal())
                     .build()
                     .queryString(session.getQueryString());
