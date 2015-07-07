@@ -40,7 +40,7 @@ The Atmosphere Framework ships with many examples describing how to implement We
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.3.1</version>
+         <version>2.3.3</version>
       </dependency>
 ```
       
