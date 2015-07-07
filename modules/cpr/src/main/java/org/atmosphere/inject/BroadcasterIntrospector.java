@@ -49,8 +49,9 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
         }
 
         String s = (String) r.getRequest().getAttribute(Named.class.getName());
-        if (s != null) {
-            named = named.substring(0, named.indexOf("{")) + s;
+        int indx = named.indexOf("{");
+        if (s != null && indx != -1) {
+            named = named.substring(0, indx) + s;
         }
 
         final Broadcaster broadcaster = r.getAtmosphereConfig().getBroadcasterFactory().lookup(named, true);
