@@ -52,7 +52,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                 // ManagedService
                 if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
                     AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-                    ManagedAnnotation a = managed(ap, w.broadcaster.getClass());
+                    ManagedAnnotation a = managed(ap, request.resource());
                     if (a != null) {
                         String targetPath = a.path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
@@ -92,7 +92,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         return config.framework().newClassInstance(AnnotatedProxy.class, ManagedAtmosphereHandler.class);
     }
 
-    protected ManagedAnnotation managed(AnnotatedProxy ap, final Class<? extends Broadcaster> aClass) {
+    protected ManagedAnnotation managed(AnnotatedProxy ap, final AtmosphereResource r){
         final ManagedService a = ap.target().getClass().getAnnotation(ManagedService.class);
         if (a == null) return null;
 
@@ -104,7 +104,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
             @Override
             public Class<? extends Broadcaster> broadcaster() {
-                return aClass;
+                return r.getBroadcaster().getClass();
             }
         };
     }
