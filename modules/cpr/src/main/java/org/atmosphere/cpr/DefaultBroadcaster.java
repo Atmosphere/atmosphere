@@ -28,9 +28,11 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -686,13 +688,28 @@ public class DefaultBroadcaster implements Broadcaster {
 
         deliver.message = finalMsg;
 
+        Map<String, CacheMessage> cacheForSet = deliver.type == Deliver.TYPE.SET ? new HashMap<String, CacheMessage>() : null;
         // We cache first, and if the broadcast succeed, we will remove it.
-        AtmosphereResource cache = deliver.type == Deliver.TYPE.ALL ? null : deliver.resource;
-        deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache != null ? cache.uuid() : BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
+        switch (deliver.type) {
+            case ALL:
+                deliver.cache = bc.getBroadcasterCache().addToCache(getID(), BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
+                break;
+            case RESOURCE:
+                deliver.cache = bc.getBroadcasterCache().addToCache(getID(), deliver.resource.uuid(), new BroadcastMessage(deliver.originalMessage));
+                break;
+            case SET:
+                for (AtmosphereResource r : deliver.resources) {
+                    cacheForSet.put(r.uuid(), bc.getBroadcasterCache().addToCache(getID(), r.uuid(), new BroadcastMessage(deliver.originalMessage)));
+                }
+                break;
+        }
 
         if (resources.isEmpty()) {
             logger.trace("No resource available for {} and message {}", getID(), finalMsg);
             entryDone(deliver.future);
+            if (cacheForSet != null) {
+                cacheForSet.clear();
+            }
             return;
         }
 
@@ -739,7 +756,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         if (endBroadcast(deliver, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
+                            queueWriteIO(r, new Deliver(r, deliver, cacheForSet.remove(r.uuid())), count);
                         }
                     }
                     break;
@@ -748,6 +765,9 @@ public class DefaultBroadcaster implements Broadcaster {
             deliver.message = prevMessage;
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
+            if (cacheForSet != null) {
+                cacheForSet.clear();
+            }
         }
     }
 
