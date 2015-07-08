@@ -77,6 +77,10 @@ public class Deliver implements Serializable {
         this(TYPE.RESOURCE, e.originalMessage, e.message, r, e.future, e.cache, e.writeLocally, null, e.async);
     }
 
+    public Deliver(AtmosphereResource r, Deliver e, CacheMessage cacheMessage) {
+        this(TYPE.RESOURCE, e.originalMessage, e.message, r, e.future, cacheMessage, e.writeLocally, null, e.async);
+    }
+
     public Deliver(Object message, Set<AtmosphereResource> resources, BroadcasterFuture<?> future, Object originalMessage) {
         this(TYPE.SET, originalMessage, message, null, future, null, true, resources, true);
     }
