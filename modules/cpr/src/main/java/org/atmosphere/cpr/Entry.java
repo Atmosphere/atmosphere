@@ -56,13 +56,17 @@ public class Entry {
         this.async = async;
     }
 
-
     public Entry(Object message, AtmosphereResource r, BroadcasterFuture<?> future, Object originalMessage) {
         this(TYPE.RESOURCE, originalMessage, message, r, future, null, true, null, true);
     }
 
     public Entry(Object message, BroadcasterFuture<?> future, Object originalMessage) {
         this(TYPE.ALL, originalMessage, message, null, future, null, true, null, true);
+    }
+
+
+    public Entry(AtmosphereResource r, Entry e, CacheMessage cache) {
+        this(TYPE.RESOURCE, e.originalMessage, e.message, r, e.future, cache, e.writeLocally, null, e.async);
     }
 
     public Entry(AtmosphereResource r, Entry e) {

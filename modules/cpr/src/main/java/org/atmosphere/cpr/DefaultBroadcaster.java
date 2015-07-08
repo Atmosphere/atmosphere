@@ -28,9 +28,11 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -678,11 +680,27 @@ public class DefaultBroadcaster implements Broadcaster {
         entry.message = finalMsg;
 
         // We cache first, and if the broadcast succeed, we will remove it.
-        AtmosphereResource cache = entry.type == Entry.TYPE.ALL ? null : entry.resource;
-        entry.cache = bc.getBroadcasterCache().addToCache(getID(), cache, new BroadcastMessage(entry.originalMessage));
+        Map<String, CacheMessage> cacheForSet = entry.type == Entry.TYPE.SET ? new HashMap<String, CacheMessage>() : null;
+        switch (entry.type) {
+            case ALL:
+                entry.cache = bc.getBroadcasterCache().addToCache(getID(), null, new BroadcastMessage(entry.originalMessage));
+                break;
+            case RESOURCE:
+                entry.cache = bc.getBroadcasterCache().addToCache(getID(), entry.resource, new BroadcastMessage(entry.originalMessage));
+                break;
+            case SET:
+                for (AtmosphereResource r : entry.resources) {
+                    cacheForSet.put(r.uuid(), bc.getBroadcasterCache().addToCache(getID(), r, new BroadcastMessage(entry.originalMessage)));
+                }
+                break;
+        }
 
         if (resources.isEmpty()) {
+            logger.trace("No resource available for {} and message {}", getID(), finalMsg);
             entryDone(entry.future);
+            if (cacheForSet != null) {
+                cacheForSet.clear();
+            }
             return;
         }
 
@@ -737,7 +755,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
 
                         if (entry.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Entry(r, entry) : entry);
+                            queueWriteIO(r, new Entry(r, entry, cacheForSet.remove(r.uuid())));
                         }
                     }
                     break;
@@ -746,6 +764,9 @@ public class DefaultBroadcaster implements Broadcaster {
             entry.message = prevMessage;
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
+            if (cacheForSet != null) {
+                cacheForSet.clear();
+            }
         }
     }
 
@@ -904,7 +925,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     for (AtmosphereResourceEventListener e : listeners) {
                         e.onBroadcast(event);
                     }
-                // Listener wil be called later
+                    // Listener wil be called later
                 } else if (!event.isResumedOnTimeout()) {
                     r.notifyListeners();
                 }
@@ -1458,7 +1479,7 @@ public class DefaultBroadcaster implements Broadcaster {
             return this;
         }
 
-        boolean removed= resources.remove(r);
+        boolean removed = resources.remove(r);
         if (removed) {
             if (r.isSuspended()) {
                 logger.trace("Excluded from {} : {}", getID(), r.uuid());
