@@ -150,9 +150,25 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      */
     public <U> void injectInjectable(U instance, Class<? extends U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
         Set<Field> fields = new HashSet<Field>();
-        fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
-        fields.addAll(Arrays.asList(defaultType.getFields()));
+        fields.addAll(getInheritedPrivateFields(defaultType));
+
         injectFields(fields, instance, framework, injectables);
+    }
+
+    private Set<Field> getInheritedPrivateFields(Class<?> type) {
+        Set<Field> result = new HashSet<Field>();
+
+        Class<?> i = type;
+        while (i != null && i != Object.class) {
+            for (Field field : i.getDeclaredFields()) {
+                if (!field.isSynthetic()) {
+                    result.add(field);
+                }
+            }
+            i = i.getSuperclass();
+        }
+
+        return result;
     }
 
     public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
