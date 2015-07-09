@@ -747,10 +747,11 @@ public class DefaultBroadcaster implements Broadcaster {
                     for (AtmosphereResource r : entry.resources) {
                         entry.message = beforeProcessingMessage;
                         deliverMessage = perRequestFilter(r, entry);
+                        CacheMessage cacheMsg = cacheForSet.remove(r.uuid());
 
                         if (!deliverMessage || entry.message == null) {
                             logger.debug("Skipping broadcast delivery {} for resource {} ", entry.message, r.uuid());
-                            bc.getBroadcasterCache().clearCache(getID(), r, entry.cache);
+                            bc.getBroadcasterCache().clearCache(getID(), r, cacheMsg);
                             continue;
                         }
 
