@@ -681,7 +681,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliver.message = beforeProcessingMessage;
                         boolean deliverMessage = perRequestFilter(r, deliver);
 
-                        if (endBroadcast(deliver, deliverMessage)) continue;
+                        if (endBroadcast(deliver, r, deliver.cache, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
                             queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
@@ -691,7 +691,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 case RESOURCE:
                     boolean deliverMessage = perRequestFilter(deliver.resource, deliver);
 
-                    if (endBroadcast(deliver, deliverMessage)) return;
+                    if (endBroadcast(deliver, deliver.resource, deliver.cache,  deliverMessage)) return;
 
                     if (deliver.writeLocally) {
                         queueWriteIO(deliver.resource, deliver, new AtomicInteger(1));
@@ -704,10 +704,12 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliver.message = beforeProcessingMessage;
                         deliverMessage = perRequestFilter(r, deliver);
 
-                        if (endBroadcast(deliver, deliverMessage)) continue;
+                        CacheMessage cacheMsg = cacheForSet.remove(r.uuid());
+
+                        if (endBroadcast(deliver, r, cacheMsg, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
-                            queueWriteIO(r, new Deliver(r, deliver, cacheForSet.remove(r.uuid())), count);
+                            queueWriteIO(r, new Deliver(r, deliver, cacheMsg), count);
                         }
                     }
                     break;
@@ -722,10 +724,10 @@ public class DefaultBroadcaster implements Broadcaster {
         }
     }
 
-    protected boolean endBroadcast(Deliver deliver, boolean deliverMessage) {
+    protected boolean endBroadcast(Deliver deliver, AtmosphereResource r, CacheMessage cacheMsg, boolean deliverMessage) {
         if (!deliverMessage || deliver.message == null) {
             logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource != null ? deliver.resource.uuid() : "null");
-            bc.getBroadcasterCache().clearCache(getID(), deliver.resource != null ? deliver.resource.uuid() : BroadcasterCache.NULL, deliver.cache);
+            bc.getBroadcasterCache().clearCache(getID(), r.uuid(), cacheMsg);
             entryDone(deliver.future);
 
             return true;
@@ -857,7 +859,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 return;
             }
 
-            bc.getBroadcasterCache().clearCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, token.cache);
+            bc.getBroadcasterCache().clearCache(getID(), r.uuid(), token.cache);
             try {
                 request.setAttribute(getID(), token.future);
                 request.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
