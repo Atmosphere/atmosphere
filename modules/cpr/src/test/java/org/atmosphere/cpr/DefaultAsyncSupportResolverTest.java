@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
@@ -84,7 +85,7 @@ public class DefaultAsyncSupportResolverTest {
     public void testAsyncSupportClassNotFoundDefaultsToBlockingIOIfServlet30IsNotAvailable(){
         boolean useNativeIfPossible = false;
         boolean defaultToBlocking = false;
-        boolean useServlet30Async = false;
+        boolean useServlet30Async = true;
 
         // FIXME: interface method argument mismatch for AsyncSupportResolver.resolve
         // Interface:                   final boolean useNativeIfPossible, final boolean defaultToBlocking, final boolean useWebsocketIfPossible
@@ -101,10 +102,13 @@ public class DefaultAsyncSupportResolverTest {
         doReturn(null)
                 .when(defaultAsyncSupportResolver)
                 .resolveNativeCometSupport(anyList());
+        doReturn(false)
+                .when(defaultAsyncSupportResolver)
+                .testClassExists(DefaultAsyncSupportResolver.SERVLET_30);
 
         Assert.assertEquals(
                 defaultAsyncSupportResolver.resolve(useNativeIfPossible, defaultToBlocking, useServlet30Async).getClass(),
-                Servlet30CometSupport.class);
+                BlockingIOCometSupport.class);
     }
 
     class InvalidAsyncSupportClass implements AsyncSupport{
