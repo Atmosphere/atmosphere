@@ -1,10 +1,3 @@
-/**
- * Copyright (c) Acando AS. All rights reserved.
- * <p>
- * Licensed under the iKnowBase license. You may not use this
- * file except in compliance with the License. Contact Acando
- * AS, Oslo, Norway, to obtain a copy of the license.
- */
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.Servlet30CometSupport;
