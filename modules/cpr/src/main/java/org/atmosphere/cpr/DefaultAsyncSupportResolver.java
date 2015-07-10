@@ -227,17 +227,15 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * The class has to have a visible constructor with the signature (@link {AtmosphereConfig}).
      *
      * @param targetClass
-     * @return an instance of the specified class
+     * @return an instance of the specified class or null if the class cannot be instantiated
      */
     public AsyncSupport newCometSupport(final Class<? extends AsyncSupport> targetClass) {
         try {
             return (AsyncSupport) targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                     .newInstance(config);
         } catch (final Exception e) {
-            logger.error("Failed to create comet support class: {}, error: {}", targetClass, e);
-            logger.error("Switching to BlockingIO");
-
-            return new BlockingIOCometSupport(config);
+            logger.warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
+            return null; // All callers are expected to handle null return value
         }
     }
 
