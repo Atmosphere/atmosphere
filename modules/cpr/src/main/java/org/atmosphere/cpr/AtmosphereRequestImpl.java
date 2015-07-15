@@ -935,7 +935,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
-        private Map<String, Object> localAttributes = Collections.synchronizedMap(new HashMap<String, Object>());
+        private Map<String, Object> localAttributes = new ConcurrentHashMap<String, Object>();
         private InputStream inputStream;
         private Reader reader;
         private String remoteAddr = "";
@@ -1025,7 +1025,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         public Builder attributes(Map<String, Object> attributes) {
-            localAttributes = ConcurrentHashMap.class.isAssignableFrom(attributes.getClass()) ? attributes : Collections.synchronizedMap(attributes);
+            localAttributes = ConcurrentHashMap.class.isAssignableFrom(attributes.getClass()) ? attributes : new ConcurrentHashMap<String, Object>(attributes);
             return this;
         }
 
