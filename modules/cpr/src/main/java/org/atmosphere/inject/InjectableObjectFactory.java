@@ -184,6 +184,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                         try {
                             field.setAccessible(true);
                             field.set(instance, c.injectable(framework.getAtmosphereConfig()));
+                        } catch (Exception ex) {
+                            logger.warn("Injectable {} failed to inject", c, ex);
                         } finally {
                             field.setAccessible(false);
                         }
