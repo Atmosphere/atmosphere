@@ -185,6 +185,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             field.setAccessible(true);
                             Object o = c.injectable(framework.getAtmosphereConfig());
 
+                            if (o == null) continue;
+
                             if (field.getType().equals(Boolean.TYPE)) {
                                 field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
                             } else {
