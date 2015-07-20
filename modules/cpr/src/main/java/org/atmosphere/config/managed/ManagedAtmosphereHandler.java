@@ -74,7 +74,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
-    private List<MethodInfo> onRuntimeMethod;
+    protected List<MethodInfo> onRuntimeMethod;
     private Method onHeartbeatMethod;
     private Method onDisconnectMethod;
     private Method onTimeoutMethod;
@@ -85,8 +85,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Method onReadyMethod;
     private Method onResumeMethod;
     private AtmosphereConfig config;
-    private boolean pathParams = false;
-    private AtmosphereResourceFactory resourcesFactory;
+    protected boolean pathParams = false;
+    protected AtmosphereResourceFactory resourcesFactory;
 
     final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
     final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
@@ -259,7 +259,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return false;
     }
 
-    private Method populate(Object c, Class<? extends Annotation> annotation) {
+    protected Method populate(Object c, Class<? extends Annotation> annotation) {
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(annotation)) {
                 return m;
@@ -268,7 +268,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
-    private List<MethodInfo> populateMessage(Object c, Class<? extends Annotation> annotation) {
+    protected List<MethodInfo> populateMessage(Object c, Class<? extends Annotation> annotation) {
         ArrayList<MethodInfo> methods = new ArrayList<MethodInfo>();
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(annotation)) {

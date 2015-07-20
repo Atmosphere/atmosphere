@@ -15,7 +15,6 @@
  */
 package org.atmosphere.inject;
 
-import org.atmosphere.config.service.PathParam;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
@@ -237,19 +236,22 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         fields.addAll(getInheritedPrivateFields(defaultType));
 
         for (Field field : fields) {
-            if (field.isAnnotationPresent(Inject.class) || field.isAnnotationPresent(PathParam.class)) {
-                for (InjectIntrospector c : requestScopedIntrospectors) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
 
-                    c.introspectField(field);
+                for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
+                    if (field.isAnnotationPresent(annotation)) {
 
-                    if (c.supportedType(field.getType())) {
-                        try {
-                            field.setAccessible(true);
-                            field.set(instance, c.injectable(r));
-                        } finally {
-                            field.setAccessible(false);
+                        c.introspectField(field);
+
+                        if (c.supportedType(field.getType())) {
+                            try {
+                                field.setAccessible(true);
+                                field.set(instance, c.injectable(r));
+                            } finally {
+                                field.setAccessible(false);
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }

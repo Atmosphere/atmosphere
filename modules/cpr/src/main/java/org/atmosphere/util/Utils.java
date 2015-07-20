@@ -15,7 +15,6 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -241,7 +240,7 @@ public final class Utils {
         AtmosphereHandler h = r.getAtmosphereHandler();
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
             return WebSocketProcessor.WebSocketHandlerProxy.class.cast(AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler()).proxied();
-        } else if (ManagedAtmosphereHandler.class.isAssignableFrom(h.getClass())) {
+        } else if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
             return AnnotatedProxy.class.cast(h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
             return ReflectorServletProcessor.class.cast(h).getServlet();

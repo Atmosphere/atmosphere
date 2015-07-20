@@ -17,6 +17,7 @@ package org.atmosphere.inject.annotation;
 
 import org.atmosphere.inject.InjectIntrospector;
 
+import javax.inject.Inject;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -34,4 +35,7 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 @Documented
 public @interface RequestScoped {
+
+    Class<?>[] value() default { Inject.class };
+
 }

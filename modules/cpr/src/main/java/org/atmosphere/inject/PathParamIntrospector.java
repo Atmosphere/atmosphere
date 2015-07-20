@@ -17,26 +17,24 @@ package org.atmosphere.inject;
 
 import org.atmosphere.config.service.PathParam;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.inject.annotation.RequestScoped;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Named;
 import java.lang.reflect.Field;
 import java.lang.reflect.Type;
 import java.util.HashMap;
 import java.util.Map;
 
 /**
- * {@link Broadcaster} and {@link Named} injection support.
+ * {@link PathParam} injection support.
  *
  * @author Jeanfrancois Arcand
  */
-@RequestScoped
+@RequestScoped({PathParam.class})
 public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
     private final Logger logger = LoggerFactory.getLogger(PathParamIntrospector.class);
-    private final ThreadLocal<String> pathLocal = new ThreadLocal<String>();
+    protected final ThreadLocal<String> pathLocal = new ThreadLocal<String>();
 
     @Override
     public boolean supportedType(Type t) {
@@ -47,6 +45,8 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
     public String injectable(AtmosphereResource r) {
         String named = pathLocal.get();
         String[] paths = (String[]) r.getRequest().getAttribute(PathParam.class.getName());
+
+        if (paths == null || paths.length != 2) return null;
 
         /* first, split paths at slashes and map {{parameter names}} to values from pathLocal */
         logger.debug("Path: {}, targetPath: {}", pathLocal, paths[1]);

@@ -59,7 +59,9 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                 }
 
                                 request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
-                                request.localAttributes().put(PathParam.class.getName(), new String[]{path, targetPath});
+                                if (ap.pathParams()) {
+                                    request.localAttributes().put(PathParam.class.getName(), new String[]{path, targetPath});
+                                }
 
                                 AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(ap);
 
