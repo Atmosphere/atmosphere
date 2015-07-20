@@ -33,7 +33,7 @@ import java.lang.reflect.Type;
  */
 @RequestScoped
 public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcaster> {
-    private final ThreadLocal<String> name = new ThreadLocal<String>();
+    private final ThreadLocal<String> nameLocal = new ThreadLocal<String>();
 
     @Override
     public boolean supportedType(Type t) {
@@ -42,7 +42,7 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
 
     @Override
     public Broadcaster injectable(AtmosphereResource r) {
-        String named = name.get();
+        String named = nameLocal.get();
 
         if (named == null) {
             named = Broadcaster.ROOT_MASTER;
@@ -72,7 +72,12 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
     @Override
     public void introspectField(Field f) {
         if (f.isAnnotationPresent(Named.class)) {
-            name.set(f.getAnnotation(Named.class).value());
+            String name = f.getAnnotation(Named.class).value();
+
+            if (name.isEmpty()) {
+                name = f.getName();
+            }
+            nameLocal.set(name);
         }
     }
 }
