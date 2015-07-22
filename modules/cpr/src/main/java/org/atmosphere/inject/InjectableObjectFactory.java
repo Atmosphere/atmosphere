@@ -28,11 +28,13 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.ServiceLoader;
 import java.util.Set;
+
+import static org.atmosphere.util.Utils.getInheritedPrivateFields;
+import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
 
 /**
  * Support injection of Atmosphere's Internal object using
@@ -128,8 +130,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      */
     public <U> void applyMethods(U instance, Class<U> defaultType) throws IllegalAccessException {
         Set<Method> methods = new HashSet<Method>();
-        methods.addAll(Arrays.asList(defaultType.getDeclaredMethods()));
-        methods.addAll(Arrays.asList(defaultType.getMethods()));
+        methods.addAll(getInheritedPrivateMethod(defaultType));
         injectMethods(methods, instance);
     }
 
@@ -153,22 +154,6 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         fields.addAll(getInheritedPrivateFields(defaultType));
 
         injectFields(fields, instance, framework, injectables);
-    }
-
-    private Set<Field> getInheritedPrivateFields(Class<?> type) {
-        Set<Field> result = new HashSet<Field>();
-
-        Class<?> i = type;
-        while (i != null && i != Object.class) {
-            for (Field field : i.getDeclaredFields()) {
-                if (!field.isSynthetic()) {
-                    result.add(field);
-                }
-            }
-            i = i.getSuperclass();
-        }
-
-        return result;
     }
 
     public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {

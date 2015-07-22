@@ -32,9 +32,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.FrameworkConfig.NEED_RUNTIME_INJECTION;
@@ -247,5 +250,37 @@ public final class Utils {
         } else {
             return h;
         }
+    }
+
+    public final static Set<Field> getInheritedPrivateFields(Class<?> type) {
+        Set<Field> result = new HashSet<Field>();
+
+        Class<?> i = type;
+        while (i != null && i != Object.class) {
+            for (Field field : i.getDeclaredFields()) {
+                if (!field.isSynthetic()) {
+                    result.add(field);
+                }
+            }
+            i = i.getSuperclass();
+        }
+
+        return result;
+    }
+
+    public final static Set<Method> getInheritedPrivateMethod(Class<?> type) {
+        Set<Method> result = new HashSet<>();
+
+        Class<?> i = type;
+        while (i != null && i != Object.class) {
+            for (Method m : i.getDeclaredMethods()) {
+                if (!m.isSynthetic()) {
+                    result.add(m);
+                }
+            }
+            i = i.getSuperclass();
+        }
+
+        return result;
     }
 }
