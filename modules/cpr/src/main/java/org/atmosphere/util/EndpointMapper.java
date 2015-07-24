@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,8 +15,9 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.Map;
 
@@ -27,9 +28,7 @@ import java.util.Map;
  * @param <U>
  * @Jeanfrancois Arcand
  */
-public interface EndpointMapper<U> {
-
-    public void configure(AtmosphereConfig config);
+public interface EndpointMapper<U> extends AtmosphereConfigAware {
 
     /**
      * Mape the request to its associated endpoint.

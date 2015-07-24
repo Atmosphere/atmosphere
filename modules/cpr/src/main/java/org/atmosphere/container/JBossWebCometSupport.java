@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,15 +22,19 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.util.ExecutorsFactory;
 import org.jboss.servlet.http.HttpEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
@@ -51,7 +55,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
 
     public JBossWebCometSupport(AtmosphereConfig config) {
         super(config);
-        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM) ;
+        Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM);
         closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
         try {
             Class.forName(HttpEvent.class.getName());
@@ -63,8 +67,8 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     /**
      * Invoked by the Tomcat AIO when a Comet request gets detected.
      *
-     * @param req the {@link org.atmosphere.cpr.AtmosphereRequest}
-     * @param res the {@link org.atmosphere.cpr.AtmosphereResponse}
+     * @param req the {@link AtmosphereRequest}
+     * @param res the {@link AtmosphereResponse}
      * @throws java.io.IOException
      * @throws javax.servlet.ServletException
      */
@@ -101,9 +105,9 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                     // TODO: Must implement the same functionality using a Scheduler
                 }
             } else if (action.type() == Action.TYPE.RESUME) {
-                event.close();
+                close(event);
             } else {
-                event.close();
+                close(event);
             }
         } else if (event.getType() == HttpEvent.EventType.READ) {
             // Not implemented
@@ -118,13 +122,21 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                event.close();
+                close(event);
             }
         } else if (event.getType() == HttpEvent.EventType.TIMEOUT) {
             action = timedout(req, res);
-            event.close();
+            close(event);
         }
         return action;
+    }
+
+    private void close(HttpEvent event) {
+        try {
+            event.close();
+        } catch (Exception ex) {
+            logger.trace("event.close", ex);
+        }
     }
 
     @Override
@@ -136,7 +148,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
             if (event == null) {
                 return action;
             }
-            event.close();
+            close(event);
         }
         return action;
     }
@@ -145,20 +157,29 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     public void action(AtmosphereResourceImpl r) {
         super.action(r);
         if (r.action().type() == Action.TYPE.RESUME && r.isInScope()) {
-            complete(r);
+            HttpEvent event = (HttpEvent) r.getRequest(false).getAttribute(HTTP_EVENT);
+            if (event != null && !r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
+                close(event);
+            }
         }
     }
 
     @Override
     public AsyncSupport complete(AtmosphereResourceImpl r) {
-        try {
-            HttpEvent event = (HttpEvent) r.getRequest(false).getAttribute(HTTP_EVENT);
-            // Resume without closing the underlying suspended connection.
-            if (event != null) {
-                event.close();
+        final HttpEvent event = (HttpEvent) r.getRequest(false).getAttribute(HTTP_EVENT);
+        // Prevent Deadlock
+        // https://github.com/Atmosphere/atmosphere/issues/1782
+        if (event != null) {
+            if (!r.isResumed()) {
+                ExecutorsFactory.getScheduler(config).schedule(new Runnable() {
+                    @Override
+                    public void run() {
+                        close(event);
+                    }
+                }, 500, TimeUnit.MILLISECONDS);
+            } else {
+                close(event);
             }
-        } catch (IOException ex) {
-            logger.debug("", ex);
         }
         return this;
     }

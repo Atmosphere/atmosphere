@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,10 +16,13 @@
 package org.atmosphere.util;
 
 import org.atmosphere.config.service.DeliverTo;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.MeteorServlet;
@@ -71,10 +74,10 @@ public class IOUtils {
      * Delivers the given message according to the specified {@link org.atmosphere.config.service.DeliverTo configuration).
      * </p>
      *
-     * @param o the message
-     * @param deliverConfig the annotation state
+     * @param o              the message
+     * @param deliverConfig  the annotation state
      * @param defaultDeliver the strategy applied if deliverConfig is {@code null}
-     * @param r the resource
+     * @param r              the resource
      */
     public static void deliver(final Object o,
                                final DeliverTo deliverConfig,
@@ -83,19 +86,7 @@ public class IOUtils {
         final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
         switch (deliverTo) {
             case RESOURCE:
-                if (o != null) {
-                    try {
-                        synchronized (r) {
-                            if (String.class.isAssignableFrom(o.getClass())) {
-                                r.write(o.toString()).getResponse().flushBuffer();
-                            } else if (byte[].class.isAssignableFrom(o.getClass())) {
-                                r.write((byte[]) o).getResponse().flushBuffer();
-                            }
-                        }
-                    } catch (Exception ex) {
-                        logger.warn("", ex);
-                    }
-                }
+                r.getBroadcaster().broadcast(o, r);
                 break;
             case BROADCASTER:
                 r.getBroadcaster().broadcast(o);
@@ -109,7 +100,7 @@ public class IOUtils {
         }
     }
 
-    public static Object readEntirely(AtmosphereResource r) {
+    public static Object readEntirely(AtmosphereResource r) throws IOException {
         AtmosphereRequest request = r.getRequest();
         return isBodyBinary(request) ? readEntirelyAsByte(r) : readEntirelyAsString(r).toString();
     }
@@ -130,8 +121,15 @@ public class IOUtils {
         }
     }
 
-    public static StringBuilder readEntirelyAsString(AtmosphereResource r) {
+    public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {
         final StringBuilder stringBuilder = new StringBuilder();
+
+        boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
+        if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
+            logger.debug("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
+            return stringBuilder;
+        }
+
         AtmosphereRequest request = r.getRequest();
         if (request.body().isEmpty()) {
             BufferedReader bufferedReader = null;
@@ -162,8 +160,6 @@ public class IOUtils {
                 } else {
                     stringBuilder.append("");
                 }
-            } catch (IOException ex) {
-                logger.warn("", ex);
             } finally {
                 if (bufferedReader != null) {
                     try {
@@ -174,7 +170,7 @@ public class IOUtils {
                 }
             }
         } else {
-            AtmosphereRequest.Body body = request.body();
+            AtmosphereRequestImpl.Body body = request.body();
             try {
                 stringBuilder.append(body.hasString() ? body.asString() : new String(body.asBytes(), body.byteOffset(), body.byteLength(), request.getCharacterEncoding()));
             } catch (UnsupportedEncodingException e) {
@@ -184,9 +180,16 @@ public class IOUtils {
         return stringBuilder;
     }
 
-    public static byte[] readEntirelyAsByte(AtmosphereResource r) {
+    public static byte[] readEntirelyAsByte(AtmosphereResource r) throws IOException {
         AtmosphereRequest request = r.getRequest();
-        AtmosphereRequest.Body body = request.body();
+
+        boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
+        if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
+            logger.debug("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
+            return new byte[0];
+        }
+
+        AtmosphereRequestImpl.Body body = request.body();
         if (request.body().isEmpty()) {
             BufferedInputStream bufferedStream = null;
             ByteArrayOutputStream bbIS = new ByteArrayOutputStream();
@@ -216,8 +219,6 @@ public class IOUtils {
                 } else {
                     bbIS.write("".getBytes());
                 }
-            } catch (IOException ex) {
-                logger.warn("", ex);
             } finally {
                 if (bufferedStream != null) {
                     try {
@@ -235,7 +236,7 @@ public class IOUtils {
                 logger.error("", e);
             }
         } else if (body.hasBytes()) {
-            return Arrays.copyOfRange(body.asBytes(), body.byteOffset(), body.byteLength());
+            return Arrays.copyOfRange(body.asBytes(), body.byteOffset(), body.byteOffset() + body.byteLength());
         }
         throw new IllegalStateException("No body " + r);
     }
@@ -245,6 +246,7 @@ public class IOUtils {
         String servletPath = "";
         try {
             // TODO: pick up the first one, will fail if there are two
+            // This won't work with Servlet 2.5.
             servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
             servletPath = getCleanedServletPath(servletPath);
         } catch (Exception ex) {
@@ -252,6 +254,19 @@ public class IOUtils {
         }
         return servletPath;
     }
+
+    public static String guestRawServletPath(AtmosphereConfig config) {
+        String servletPath = "";
+        try {
+            // TODO: pick up the first one, will fail if there are two
+            // This won't work with Servlet 2.5.
+            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
+        } catch (Exception ex) {
+            logger.trace("", ex);
+        }
+        return servletPath;
+    }
+
 
     /**
      * Used to remove trailing slash and wildcard from a servlet path.<br/><br/>
@@ -263,6 +278,9 @@ public class IOUtils {
      * @return Servlet mapping without trailing slash and wildcard
      */
     public static String getCleanedServletPath(String fullServletPath) {
+
+        if (fullServletPath.equalsIgnoreCase("/*")) return "";
+
         Matcher matcher = SERVLET_PATH_PATTERN.matcher(fullServletPath);
 
         // It should not happen if the servlet path is valid
@@ -365,10 +383,10 @@ public class IOUtils {
         AtmosphereFramework.MetaServiceAction action = AtmosphereFramework.MetaServiceAction.INSTALL;
 
         try {
-            is = AtmosphereFramework.class.getClassLoader().getResourceAsStream("META-INF/services/" + path);
+            is = AtmosphereFramework.class.getClassLoader().getResourceAsStream(path);
 
             if (is == null) {
-                logger.warn("META-INF/services/{} not found in class loader", path);
+                logger.trace("META-INF/services/{} not found in class loader", path);
                 return b;
             }
 
@@ -387,8 +405,9 @@ public class IOUtils {
                     b.put(line, action);
                 }
             }
+            logger.info("Successfully loaded and installed {}", path);
         } catch (IOException e) {
-            logger.debug("Unable to read META-INF/services/{} from class loader", path, e);
+            logger.trace("Unable to read META-INF/services/{} from class loader", path, e);
         } finally {
             close(is, reader);
         }

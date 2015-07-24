@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,8 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.config.AtmosphereHandlerConfig;
+import org.atmosphere.util.UUIDProvider;
+import org.atmosphere.websocket.WebSocketFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -23,9 +25,9 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import java.util.ArrayList;
 import java.util.Enumeration;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * This class contains information about the current state of the {@link AtmosphereFramework}. You can also
@@ -38,17 +40,17 @@ public class AtmosphereConfig {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereConfig.class);
 
-    private final List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
+    private List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
 
     private boolean supportSession;
     private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
-    private final AtmosphereFramework framework;
-    private final Map<String, Object> properties = new HashMap<String, Object>();
-    protected final List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
-    protected final List<StartupHook> startUpHook = new ArrayList<StartupHook>();
+    private AtmosphereFramework framework;
+    private final Map<String, Object> properties = new ConcurrentHashMap<String, Object>();
+    protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
+    protected List<StartupHook> startUpHook = new ArrayList<StartupHook>();
 
-    public AtmosphereConfig(AtmosphereFramework framework) {
+    protected AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
     }
 
@@ -105,7 +107,7 @@ public class AtmosphereConfig {
      * Return the value of the init params defined in web.xml or application.xml.
      *
      * @param name the name
-     * @return the list of init params defined in web.xml or application.xml
+     * @return the value for the init parameter if defined
      */
     public String getInitParameter(String name) {
         try {
@@ -119,7 +121,7 @@ public class AtmosphereConfig {
     /**
      * Return all init param.
      *
-     * @return
+     * @return the list of init params defined in web.xml or application.xml for the servlet
      */
     public Enumeration<String> getInitParameterNames() {
         return framework().getServletConfig().getInitParameterNames();
@@ -142,7 +144,7 @@ public class AtmosphereConfig {
     public void setSupportSession(boolean supportSession) {
         this.supportSession = supportSession;
     }
-    
+
     /**
      * Allow HTTP session timeout removal when session support is active
      *
@@ -240,18 +242,24 @@ public class AtmosphereConfig {
     }
 
     /**
-     * Add a {@link StartupHook}.
+     * Add a {@link StartupHook}. If the {@link AtmosphereFramework#isInit} return true, the
+     * StartupHook will be executed immediately.
      *
      * @param s a {@link StartupHook}
      * @return this
      */
     public AtmosphereConfig startupHook(StartupHook s) {
-        startUpHook.add(s);
+        if (framework().isInit) {
+            s.started(framework);
+        } else {
+            startUpHook.add(s);
+        }
         return this;
     }
 
     /**
      * Return an init-param, or its default value.
+     *
      * @param key
      * @param defaultValue
      * @return an init-param, or its default value.
@@ -266,6 +274,7 @@ public class AtmosphereConfig {
 
     /**
      * Return an init-param, or its default value.
+     *
      * @param key
      * @param defaultValue
      * @return an init-param, or its default value.
@@ -279,29 +288,64 @@ public class AtmosphereConfig {
     }
 
     /**
+     * Return an init-param, or its default value.
+     *
+     * @param key
+     * @param defaultValue
+     * @return an init-param, or its default value.
+     */
+    public int getInitParameter(String key, int defaultValue) {
+        String s = getInitParameter(key);
+        if (s == null) {
+            return defaultValue;
+        }
+        return Integer.valueOf(s);
+    }
+
+    /**
      * Return the {@link AtmosphereResourceFactory}
+     *
      * @return the AtmosphereResourceFactory
      */
-    public AtmosphereResourceFactory resourcesFactory(){
+    public AtmosphereResourceFactory resourcesFactory() {
         return framework.atmosphereFactory();
     }
 
     /**
-     * Return the {@link org.atmosphere.cpr.MetaBroadcaster}
+     * Return the {@link DefaultMetaBroadcaster}
+     *
      * @return the MetaBroadcaster
      */
-    public MetaBroadcaster metaBroadcaster(){
+    public MetaBroadcaster metaBroadcaster() {
         return framework.metaBroadcaster();
     }
 
     /**
      * Return the {@link AtmosphereResourceSessionFactory}
+     *
      * @return the AtmosphereResourceSessionFactory
      */
-    public AtmosphereResourceSessionFactory sessionFactory(){
+    public AtmosphereResourceSessionFactory sessionFactory() {
         return framework.sessionFactory();
     }
 
+    /**
+     * Return the {@link org.atmosphere.util.UUIDProvider}
+     *
+     * @return {@link org.atmosphere.util.UUIDProvider}
+     */
+    public UUIDProvider uuidProvider() {
+        return framework.uuidProvider();
+    }
+
+    /**
+     * Return the {@link WebSocketFactory}
+     *
+     * @return the {@link WebSocketFactory}
+     */
+    public WebSocketFactory websocketFactory() {
+        return framework.webSocketFactory();
+    }
 
     /**
      * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An
@@ -319,5 +363,18 @@ public class AtmosphereConfig {
     public static interface StartupHook {
 
         void started(AtmosphereFramework framework);
+    }
+
+    public AtmosphereConfig populate(AtmosphereConfig config) {
+        atmosphereHandlerConfig = config.atmosphereHandlerConfig;
+
+        supportSession = config.supportSession;
+        sessionTimeoutRemovalAllowed = config.sessionTimeoutRemovalAllowed;
+        throwExceptionOnCloned = config.throwExceptionOnCloned;
+        framework = config.framework;
+        properties.putAll(config.properties);
+        shutdownHooks = config.shutdownHooks;
+        startUpHook = config.startUpHook;
+        return this;
     }
 }

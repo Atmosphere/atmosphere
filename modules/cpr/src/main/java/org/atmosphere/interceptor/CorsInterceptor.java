@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -40,7 +40,7 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
     public void configure(AtmosphereConfig config) {
         String ac = config.getInitParameter(ApplicationConfig.DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER);
         if (ac != null) {
-            enableAccessControl = Boolean.parseBoolean(ac);
+            enableAccessControl = !Boolean.parseBoolean(ac);
         }
     }
 
@@ -63,7 +63,7 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
         if ("OPTIONS".equals(req.getMethod())) {
             res.setHeader("Access-Control-Allow-Methods", "OPTIONS, GET, POST");
             res.setHeader("Access-Control-Allow-Headers",
-                    "Origin, Content-Type, AuthToken, X-Atmosphere-Framework, "
+                    "Origin, Content-Type, AuthToken, X-Atmosphere-Framework, X-Requested-With, "
                             + EXPOSE_HEADERS
                             + ", X-Atmosphere-Transport, X-Atmosphere-TrackMessageSize, X-atmo-protocol");
             res.setHeader("Access-Control-Max-Age", "-1");

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -27,11 +27,13 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.Collection;
 import java.util.List;
 import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
 import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
@@ -52,12 +54,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
     private final long closingTime;
     private final boolean isServlet30;
+    private boolean closeOnCancel = false;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
         mapper = config.framework().endPointMapper();
         closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         isServlet30 = Servlet30CometSupport.class.isAssignableFrom(this.getClass());
+        closeOnCancel = config.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
     }
 
     @Override
@@ -115,19 +119,18 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      */
     Action action(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
-        if (!Utils.properProtocol(req) || (Utils.webSocketEnabled(req) && !supportWebSocket())) {
-            logger.error("Invalid request state. Websocket protocol not supported");
+        if (!Utils.properProtocol(req)) {
+            logger.debug("Invalid request state.");
             res.setStatus(501);
             res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
             res.flushBuffer();
             return new Action();
         }
 
-        // https://github.com/Atmosphere/atmosphere/issues/1637
-        if (isServlet30 && (!req.isAsyncSupported() && !Utils.closeMessage(req))) {
-            logger.error("Invalid request state. <async-supported>true</async-supported> must be defined for ALL Servlets and Filters  declarations in web.xml {}", req.getRequestURL().toString());
+        if (Utils.webSocketEnabled(req) && !supportWebSocket()) {
+            logger.warn("Websocket protocol not supported");
             res.setStatus(501);
-            res.addHeader(X_ATMOSPHERE_ERROR, "<async-supported>true</async-supported> must be defined for ALL Servlets and Filters  declarations in web.xml.");
+            res.addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
             res.flushBuffer();
             return new Action();
         }
@@ -144,7 +147,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         if (supportSession()) {
             // Create the session needed to support the Resume
             // operation from disparate requests.
-            req.getSession(true);
+            HttpSession s = req.getSession(config.getInitParameter(PROPERTY_SESSION_CREATE, true));
+            if (s != null && s.isNew()) {
+                s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, config.getBroadcasterFactory());
+            }
+
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
@@ -163,18 +170,10 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             resource.forceBinaryWrite(Boolean.valueOf(v));
         }
 
-        // Globally defined
-        Action a = invokeInterceptors(config.framework().interceptors(), resource, tracing);
+        // handler interceptor lists
+        Action a = invokeInterceptors(handlerWrapper.interceptors, resource, tracing);
         if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
             return a;
-        }
-
-        if (a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-            // Per AtmosphereHandler
-            a = invokeInterceptors(handlerWrapper.interceptors, resource, tracing);
-            if (a.type() != Action.TYPE.CONTINUE) {
-                return a;
-            }
         }
 
         // Remap occured.
@@ -194,20 +193,20 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 ? (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
         if (!skipAtmosphereHandler) {
             try {
+                logger.trace("\t Last: {}", handlerWrapper.atmosphereHandler.getClass().getName());
                 handlerWrapper.atmosphereHandler.onRequest(resource);
             } catch (IOException t) {
                 resource.onThrowable(t);
                 throw t;
             }
-            postInterceptors(handlerWrapper.interceptors, resource);
         }
 
-        postInterceptors(config.framework().interceptors(), resource);
+        postInterceptors(handlerWrapper.interceptors, resource);
 
         Action action = resource.action();
         if (supportSession() && allowSessionTimeoutRemoval() && action.type().equals(Action.TYPE.SUSPEND)) {
             // Do not allow times out.
-            SessionTimeoutSupport.setupTimeout(config, req.getSession());
+            SessionTimeoutSupport.setupTimeout(config, req.getSession(config.getInitParameter(ApplicationConfig.PROPERTY_SESSION_CREATE, true)));
         }
         logger.trace("Action for {} was {} with transport " + req.getHeader(X_ATMOSPHERE_TRANSPORT), req.resource() != null ? req.resource().uuid() : "null", action);
         return action;
@@ -216,8 +215,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     private AtmosphereResourceImpl configureWorkflow(AtmosphereResourceImpl resource,
                                                      AtmosphereHandlerWrapper handlerWrapper,
                                                      AtmosphereRequest req, AtmosphereResponse res) {
-
-        config.getBroadcasterFactory().add(handlerWrapper.broadcaster, handlerWrapper.broadcaster.getID());
 
         // Check Broadcaster state. If destroyed, replace it.
         Broadcaster b = handlerWrapper.broadcaster;
@@ -263,6 +260,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
     protected void shutdown() {
+        Collection<AtmosphereResource> c = config.resourcesFactory().findAll();
+        for (AtmosphereResource r : c) {
+            try {
+                r.close();
+            } catch (IOException e) {
+                logger.trace("", e);
+            }
+        }
     }
 
     @Override
@@ -298,6 +303,12 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     public Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r, int tracing) {
         Action a = Action.CONTINUE;
         for (AtmosphereInterceptor arc : c) {
+
+            if (!AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                logger.warn("Request closed during processing {} and transport {}", r.uuid(), r.transport());
+                return Action.CANCELLED;
+            }
+
             try {
                 a = arc.inspect(r);
             } catch (Exception ex) {
@@ -354,8 +365,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getRequestURI(), config.handlers());
             throw new AtmosphereMappingException("No AtmosphereHandler maps request for " + req.getRequestURI());
         }
-        config.getBroadcasterFactory().add(atmosphereHandlerWrapper.broadcaster,
-                atmosphereHandlerWrapper.broadcaster.getID());
+
         return atmosphereHandlerWrapper;
     }
 
@@ -416,38 +426,45 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @return true if the operation was executed.
      */
     public boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
-        if (r != null && !r.isCancelled()) {
+        if (r != null && !r.isCancelled() && !AtmosphereResourceImpl.class.cast(r).getAndSetInClosingPhase()) {
             logger.trace("Finishing lifecycle for AtmosphereResource {}", r.uuid());
             final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
-            synchronized (impl) {
-                try {
-                    if (impl.isCancelled()) {
-                        logger.debug("{} is already cancelled", impl.uuid());
-                        return false;
-                    }
+            try {
+                if (impl.isCancelled()) {
+                    logger.debug("{} is already cancelled", impl.uuid());
+                    return false;
+                }
 
-                    AtmosphereResourceEventImpl e = impl.getAtmosphereResourceEvent();
-                    if (!e.isClosedByClient()) {
-                        if (cancelled) {
-                            e.setCancelled(true);
-                        } else {
-                            e.setIsResumedOnTimeout(true);
-                            Broadcaster b = r.getBroadcaster();
-                            if (b instanceof DefaultBroadcaster) {
-                                ((DefaultBroadcaster) b).broadcastOnResume(r);
-                            }
+                AtmosphereResourceEventImpl e = impl.getAtmosphereResourceEvent();
+                // https://github.com/Atmosphere/atmosphere/issues/1756
+                // Do not go inside Atmosphere once undeployed to avoid all kind of issues.
+                if (config.framework().isDestroyed()) {
+                    cancelled = true;
+                }
 
-                            // TODO: Was it there for legacy reason?
-                            // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
+                if (!e.isClosedByClient()) {
+                    if (cancelled) {
+                        e.setCancelled(cancelled);
+                    } else {
+                        e.setIsResumedOnTimeout(true);
+                        Broadcaster b = r.getBroadcaster();
+                        if (b instanceof DefaultBroadcaster) {
+                            ((DefaultBroadcaster) b).broadcastOnResume(r);
                         }
+
+                        // TODO: Was it there for legacy reason?
+                        // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
                     }
-                    invokeAtmosphereHandler(impl);
-                } catch (Throwable ex) {
-                    // Something wrong happened, ignore the exception
-                    logger.error("Failed to cancel resource: {}", impl.uuid(), ex);
-                } finally {
-                    try {
-                        impl.notifyListeners();
+                }
+                invokeAtmosphereHandler(impl);
+            } catch (Throwable ex) {
+                // Something wrong happened, ignore the exception
+                logger.error("Failed to cancel resource: {}", impl.uuid(), ex);
+            } finally {
+                try {
+                    impl.notifyListeners();
+                    // Legacy code #1894 that may breaks Jersey when set to false on some old server.
+                    if (closeOnCancel) {
                         try {
                             impl.getResponse(false).getOutputStream().close();
                         } catch (Throwable t) {
@@ -456,13 +473,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                             } catch (Throwable t2) {
                             }
                         }
-                        impl.setIsInScope(false);
-                        impl.cancel();
-                    } catch (Throwable t) {
-                        logger.debug("completeLifecycle", t);
-                    } finally {
-                        impl._destroy();
                     }
+                    impl.setIsInScope(false);
+                    impl.cancel();
+                } catch (Throwable t) {
+                    logger.debug("completeLifecycle", t);
+                } finally {
+                    impl._destroy();
                 }
             }
             return true;
@@ -481,6 +498,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
         AtmosphereRequest req = r.getRequest(false);
         try {
+            // Rely on isInScope instead of synchronization https://github.com/Atmosphere/atmosphere/issues/1865
             if (r.isInScope()) {
                 String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
                 r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
@@ -488,7 +506,14 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
                         AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
-                        if (atmosphereHandler != null) {
+                        if (atmosphereHandler != null && r.isInScope()) {
+
+                            try {
+                                Utils.inject(r);
+                            } catch (IllegalAccessException e) {
+                                logger.warn("",e);
+                            }
+
                             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
                         }
                     }

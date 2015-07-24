@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,9 +18,11 @@ package org.atmosphere.jersey;
 import com.sun.jersey.core.spi.component.ComponentContext;
 import com.sun.jersey.core.spi.component.ComponentScope;
 import com.sun.jersey.spi.inject.Injectable;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
+import org.atmosphere.cpr.BroadcasterListener;
 
 import javax.ws.rs.core.Context;
 import java.lang.reflect.Type;
@@ -81,9 +83,14 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             };
         }
 
-        class BroadcasterFactoryProxy extends BroadcasterFactory {
+        class BroadcasterFactoryProxy implements BroadcasterFactory {
             BroadcasterFactory _get() {
                 return getAtmosphereResource(AtmosphereResource.class, true).getAtmosphereConfig().getBroadcasterFactory();
+            }
+
+            @Override
+            public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
+                _get().configure(clazz, broadcasterLifeCyclePolicy, c);
             }
 
             @Override
@@ -149,6 +156,23 @@ abstract class BroadcasterFactoryInjector extends BaseInjectableProvider {
             @Override
             public Collection<Broadcaster> lookupAll() {
                 return _get().lookupAll();
+            }
+
+            @Override
+            public BroadcasterFactory addBroadcasterListener(BroadcasterListener b) {
+                _get().addBroadcasterListener(b);
+                return this;
+            }
+
+            @Override
+            public BroadcasterFactory removeBroadcasterListener(BroadcasterListener b) {
+                _get().removeBroadcasterListener(b);
+                return this;
+            }
+
+            @Override
+            public Collection<BroadcasterListener> broadcasterListeners() {
+                return _get().broadcasterListeners();
             }
         }
     }

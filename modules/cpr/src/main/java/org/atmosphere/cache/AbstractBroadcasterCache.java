@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,10 +15,10 @@
  */
 package org.atmosphere.cache;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
-import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +57,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
+    protected AtmosphereConfig config;
 
     @Override
     public void start() {
@@ -175,17 +176,18 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void configure(BroadcasterConfig config) {
-        Object o = config.getAtmosphereConfig().properties().get("shared");
+    public void configure(AtmosphereConfig config) {
+        Object o = config.properties().get("shared");
         if (o != null) {
             isShared = Boolean.parseBoolean(o.toString());
         }
 
         if (isShared) {
-            reaper = ExecutorsFactory.getScheduler(config.getAtmosphereConfig());
+            reaper = ExecutorsFactory.getScheduler(config);
         } else {
             reaper = Executors.newSingleThreadScheduledExecutor();
         }
+        this.config = config;
     }
 
     @Override

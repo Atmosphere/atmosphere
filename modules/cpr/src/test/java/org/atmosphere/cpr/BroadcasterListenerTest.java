@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -97,8 +97,8 @@ public class BroadcasterListenerTest {
     @Test
     public void testGet() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new AR()).init();
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertTrue(completed.get());
         assertTrue(postCreated.get());
         assertTrue(preDestroyed.get());
@@ -110,8 +110,8 @@ public class BroadcasterListenerTest {
     public void testOnBroadcast() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(BAR.count.get(), 1);
     }
 
@@ -119,8 +119,8 @@ public class BroadcasterListenerTest {
     public void testOnRemove() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(BAR.count.get(), 1);
     }
 
@@ -130,8 +130,8 @@ public class BroadcasterListenerTest {
 
         Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
-        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(BAR.count.get(), 1);
         assertTrue(onMessage.get());
     }
@@ -143,8 +143,8 @@ public class BroadcasterListenerTest {
         Map<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, UUID.randomUUID().toString());
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
-        AtmosphereRequest request = new AtmosphereRequest.Builder().headers(m).pathInfo("/a").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(CachedAR.count.get(), 3);
     }
 
@@ -153,19 +153,21 @@ public class BroadcasterListenerTest {
         static AtomicInteger count = new AtomicInteger();
 
         @Override
-        public void onRequest(AtmosphereResource e) throws IOException {
+        public void onRequest(AtmosphereResource r) throws IOException {
             try {
-                e.suspend();
-                e.getBroadcaster().broadcast("test1").get();
-                e.resume();
+                Broadcaster b = r.getBroadcaster();
+                r.suspend();
+                b.broadcast("test1").get();
+                r.resume();
 
-                ((AtmosphereResourceImpl) e).reset();
+                ((AtmosphereResourceImpl) r).reset();
 
-                e.getBroadcaster().broadcast("test2").get();
-                e.getBroadcaster().broadcast("test3").get();
-                e.getBroadcaster().broadcast("test4").get();
+                b.broadcast("test2").get();
+                b.broadcast("test3").get();
+                b.broadcast("test4").get();
 
-                e.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                r.setBroadcaster(b);
+                r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                     @Override
                     public void onBroadcast(AtmosphereResourceEvent event) {
                         if (List.class.isAssignableFrom(event.getMessage().getClass())) {
@@ -173,7 +175,7 @@ public class BroadcasterListenerTest {
                         }
                     }
                 }).suspend();
-                e.getBroadcaster().destroy();
+                b.destroy();
             } catch (InterruptedException e1) {
                 e1.printStackTrace();
             } catch (ExecutionException e1) {

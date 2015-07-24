@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,8 +18,11 @@ package org.atmosphere.cpr;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
+import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
+import org.atmosphere.config.service.AtmosphereResourceFactoryService;
+import org.atmosphere.config.service.AtmosphereResourceListenerService;
 import org.atmosphere.config.service.AtmosphereService;
 import org.atmosphere.config.service.BroadcasterCacheInspectorService;
 import org.atmosphere.config.service.BroadcasterCacheListenerService;
@@ -31,6 +34,8 @@ import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.MeteorService;
+import org.atmosphere.config.service.UUIDProviderService;
+import org.atmosphere.config.service.WebSocketFactoryService;
 import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
@@ -42,6 +47,7 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.ServletContext;
 import javax.servlet.annotation.HandlesTypes;
 import java.io.File;
+import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;
@@ -74,6 +80,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             BroadcasterFactoryService.class,
             BroadcasterService.class,
             MeteorService.class,
+            WebSocketFactoryService.class,
             WebSocketHandlerService.class,
             WebSocketProtocolService.class,
             AtmosphereInterceptorService.class,
@@ -86,7 +93,12 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             AtmosphereService.class,
             EndpointMapperService.class,
             BroadcasterCacheListenerService.class,
-            AtmosphereAnnotation.class
+            AtmosphereAnnotation.class,
+            AtmosphereResourceFactoryService.class,
+            AtmosphereFrameworkListenerService.class,
+            AtmosphereResourceListenerService.class,
+            UUIDProviderService.class
+
     };
 
     private AnnotationProcessor delegate;
@@ -118,29 +130,30 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     }
 
     @Override
-    public AnnotationProcessor configure(final AtmosphereFramework framework) {
-        ServletContext sc = framework.getServletContext();
+    public void configure(final AtmosphereConfig config) {
+        ServletContext sc = config.framework().getServletContext();
 
         Map<Class<? extends Annotation>, Set<Class<?>>>  annotations= (Map<Class<? extends Annotation>, Set<Class<?>>>) sc.getAttribute(ANNOTATION_ATTRIBUTE);
-        //sc.removeAttribute(ANNOTATION_ATTRIBUTE);
+        sc.removeAttribute(ANNOTATION_ATTRIBUTE);
+
+        boolean useByteCodeProcessor = config.getInitParameter(ApplicationConfig.BYTECODE_PROCESSOR, false);
 
         boolean scanForAtmosphereAnnotation = false;
-        if (annotations == null || annotations.isEmpty()) {
+        if (useByteCodeProcessor || annotations == null || annotations.isEmpty()) {
             delegate = new BytecodeBasedAnnotationProcessor(handler);
             scanForAtmosphereAnnotation = true;
         } else {
             Map<Class<? extends Annotation>, Set<Class<?>>> clone = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
             clone.putAll(annotations);
-            delegate = new ServletContainerInitializerAnnotationProcessor(handler, clone, framework);
+            delegate = new ServletContainerInitializerAnnotationProcessor(handler, clone, config.framework());
         }
         logger.info("AnnotationProcessor {} being used", delegate.getClass());
 
         if (scanForAtmosphereAnnotation) {
-            scanForAnnotation(framework);
+            scanForAnnotation(config.framework());
         }
 
-        delegate.configure(framework);
-        return this;
+        delegate.configure(config.framework().getAtmosphereConfig());
     }
 
     private void scanForAnnotation(AtmosphereFramework f) {
@@ -158,6 +171,23 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             String path = IOUtils.realPath(f.getServletContext(), f.getHandlersPath());
             if (path != null) {
                 detector.detect(new File(path));
+            }
+
+            String pathLibs =  IOUtils.realPath(f.getServletContext(), f.getLibPath());
+            if (pathLibs != null) {
+                File libFolder = new File(pathLibs);
+                File jars[] = libFolder.listFiles(new FilenameFilter() {
+                    @Override
+                    public boolean accept(File arg0, String arg1) {
+                        return arg1.endsWith(".jar");
+                    }
+                });
+
+                if (jars != null) {
+                    for (File file : jars) {
+                        detector.detect(file);
+                    }
+                }
             }
 
             // JBoss|vfs with APR issue, or any strange containers may fail. This is a hack for them.
@@ -234,8 +264,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         }
 
         @Override
-        public AnnotationProcessor configure(final AtmosphereFramework framework) {
-            return this;
+        public void configure(final AtmosphereConfig config) {
         }
 
         @Override
@@ -280,7 +309,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
         private void scanForCustomAnnotation() throws IOException {
             BytecodeBasedAnnotationProcessor b = new BytecodeBasedAnnotationProcessor(handler);
-            b.configure(framework);
+            b.configure(framework.getAtmosphereConfig());
             String path = framework.getServletContext().getRealPath(framework.getHandlersPath());
             if (path != null) {
                 b.scan(new File(path)).destroy();
@@ -334,7 +363,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         }
 
         @Override
-        public AnnotationProcessor configure(final AtmosphereFramework framework) {
+        public void configure(final AtmosphereConfig config) {
 
             final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
                 @SuppressWarnings("unchecked")
@@ -347,7 +376,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 public void reportTypeAnnotation(Class<? extends Annotation> annotation, String className) {
                     try {
                         final Class<?> discoveredClass = loadClass(getClass(), className);
-                        handler.handleAnnotation(framework, annotation, discoveredClass);
+                        handler.handleAnnotation(config.framework(), annotation, discoveredClass);
                     } catch (Exception e) {
                         logger.warn("Could not load discovered class", e);
                     }
@@ -355,7 +384,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
             };
             detector = new AnnotationDetector(reporter);
-            return this;
         }
 
         @Override

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -43,8 +43,10 @@ public class SessionSupport implements HttpSessionListener {
         logger.trace("Session destroyed");
         try {
             HttpSession s = se.getSession();
-            if (BroadcasterFactory.getDefault() != null) {
-                for (Broadcaster b : BroadcasterFactory.getDefault().lookupAll()) {
+            BroadcasterFactory f = (BroadcasterFactory) s.getAttribute(FrameworkConfig.BROADCASTER_FACTORY);
+            if (f != null) {
+                s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, null);
+                for (Broadcaster b : f.lookupAll()) {
                     for (AtmosphereResource r : b.getAtmosphereResources()) {
                         if (r.session() != null && r.session().getId().equals(s.getId())) {
                             AtmosphereResourceImpl.class.cast(r).session(null);

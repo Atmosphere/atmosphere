@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -36,8 +36,8 @@ import static org.testng.Assert.fail;
 public class DefaultAtmosphereResourceSessionFactoryTest {
     @Test
     public void testSessionLifecycle() {
-        DefaultAtmosphereResourceSessionFactory factory = (DefaultAtmosphereResourceSessionFactory) AtmosphereResourceSessionFactory
-                .getDefault();
+        DefaultAtmosphereResourceSessionFactory factory = new DefaultAtmosphereResourceSessionFactory();
+
         AtmosphereResourceEventListener disconnectListener = factory.getDisconnectListener();
 
         AtmosphereResource r1 = Mockito.mock(AtmosphereResource.class);

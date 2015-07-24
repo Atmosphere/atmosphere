@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,10 +15,10 @@
  */
 package org.atmosphere.cache;
 
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
-import org.atmosphere.cpr.BroadcasterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -38,10 +38,6 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void cleanup() {
-    }
-
-    @Override
-    public void configure(BroadcasterConfig config) {
     }
 
     @Override
@@ -83,5 +79,9 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
     @Override
     public BroadcasterCache removeBroadcasterCacheListener(BroadcasterCacheListener l) {
         return null;
+    }
+
+    @Override
+    public void configure(AtmosphereConfig config) {
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -29,6 +29,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Set;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Simple {@link org.atmosphere.cpr.Broadcaster} implementation that use the calling thread when broadcasting events.
@@ -59,7 +60,6 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     @Override
     protected void start() {
         if (!started.getAndSet(true)) {
-            setID(name);
             bc.getBroadcasterCache().start();
         }
     }
@@ -132,7 +132,7 @@ public class SimpleBroadcaster extends DefaultBroadcaster {
     }
 
     @Override
-    protected void queueWriteIO(AtmosphereResource r, Deliver deliver) throws InterruptedException {
-        executeBlockingWrite(r, deliver);
+    protected void queueWriteIO(AtmosphereResource r, Deliver deliver, AtomicInteger count) throws InterruptedException {
+        executeBlockingWrite(r, deliver, count);
     }
 }

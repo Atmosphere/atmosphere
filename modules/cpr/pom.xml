@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>2.3.0-SNAPSHOT</version>
+        <version>3.0.0-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
     <packaging>bundle</packaging>
-    <version>2.3.0-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
     <name>atmosphere-runtime</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
@@ -52,11 +52,12 @@
                             org.jboss.vfs*;resolution:=optional,
                             javax.servlet*;version="${servlet-version-range}",
                             javax.websocket*;resolution:=optional,
+                            javax.enterprise*;resolution:=optional,
+                            javax.inject*;resolution:=optional,
                             weblogic.websocket*;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
-                            org.atmosphere.annotation*,
                             org.atmosphere.cache*,
                             org.atmosphere.client*,
                             org.atmosphere.config*,
@@ -67,8 +68,10 @@
                             org.atmosphere.inject*,
                             org.atmosphere.handler*,
                             org.atmosphere.interceptor*,
+                            org.atmosphere.pool*,
                             org.atmosphere.util*,
                             org.atmosphere.websocket*,
+                            org.atmosphere.lifecycle*,
                             org.atmosphere.websocket.protocol*,
                         </Export-Package>
                     </instructions>
@@ -249,7 +252,7 @@
             <type>jar</type>
             <scope>test</scope>
         </dependency>
-        
+
         <dependency>
             <groupId>org.apache.shiro</groupId>
             <artifactId>shiro-core</artifactId>
@@ -265,10 +268,10 @@
         </dependency>
 
         <dependency>
-          <groupId>javax.inject</groupId>
-          <artifactId>javax.inject</artifactId>
-          <version>1</version>
-          <scope>provided</scope>
+            <groupId>javax</groupId>
+            <artifactId>javaee-api</artifactId>
+            <version>6.0</version>
+            <scope>provided</scope>
         </dependency>
 
         <dependency>
@@ -276,6 +279,13 @@
             <artifactId>shiro-web</artifactId>
             <version>${shiro-version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-pool2</artifactId>
+            <version>${commons-pool2}</version>
+            <optional>true</optional>
         </dependency>
     </dependencies>
 </project>

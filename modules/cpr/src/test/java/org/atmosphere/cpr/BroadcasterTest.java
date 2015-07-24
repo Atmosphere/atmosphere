@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.ExecutorsFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,8 +51,8 @@ public class BroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                AtmosphereRequest.newInstance(),
-                AtmosphereResponse.newInstance(),
+                AtmosphereRequestImpl.newInstance(),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -63,6 +64,7 @@ public class BroadcasterTest {
         broadcaster.destroy();
         atmosphereHandler.value.set(new HashSet());
         config.getBroadcasterFactory().destroy();
+        ExecutorsFactory.reset(config);
     }
 
     @Test
@@ -159,20 +161,20 @@ public class BroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         AtmosphereResource ar2 = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         AtmosphereResource ar3 = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 

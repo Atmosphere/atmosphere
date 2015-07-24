@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -46,7 +46,7 @@ public class Invoker {
         Object objectToEncode = null;
         boolean hasMatch = false;
         try {
-            objectToEncode = method.invoke(objectToInvoke, parameters);
+            objectToEncode = method.invoke(objectToInvoke, method.getParameterTypes().length == 0 ? new Object[]{} : parameters);
             hasMatch = true;
         } catch (IllegalAccessException e) {
             logger.trace("", e);

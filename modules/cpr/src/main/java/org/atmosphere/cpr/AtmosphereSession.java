@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -36,16 +36,18 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public class AtmosphereSession {
 
-    private final Logger logger = LoggerFactory.getLogger(AtmosphereSession.class);
-    private final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
-    private String uuid;
-    private final Semaphore latch = new Semaphore(1);
-    private BroadcasterListenerAdapter broadcasterListener;
-    private Broadcaster[] relatedBroadcasters;
+    protected final Logger logger = LoggerFactory.getLogger(AtmosphereSession.class);
+    protected final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
+    protected String uuid;
+    protected final Semaphore latch = new Semaphore(1);
+    protected BroadcasterListenerAdapter broadcasterListener;
+    protected Broadcaster[] relatedBroadcasters;
+    protected final boolean usesLongPolling;
 
     public AtmosphereSession(final AtmosphereResource r, Broadcaster... broadcasters) {
         this.uuid = r.uuid();
         this.relatedBroadcasters = broadcasters;
+        this.usesLongPolling = AtmosphereResource.TRANSPORT.LONG_POLLING == r.transport();
         resource.set(r);
 
         broadcasterListener = new BroadcasterListenerAdapter() {
@@ -109,11 +111,18 @@ public class AtmosphereSession {
      * Retrieve the {@link AtmosphereResource} associated with this session. If there is no {@link AtmosphereResource}
      * associated, wait until the {@link AtmosphereResource} is retrieved.
      *
+     * <p>If the resource uses long polling as its transport, this method treats the resource as a single use connection
+     * and will make subsequent callers wait until the client reconnects and the {@link #broadcasterListener}'s
+     * {@link BroadcasterListenerAdapter#onAddAtmosphereResource} method gets called again.</p>
+     *
+     * <p>WARNING: Use this method with long polling only if you intend to broadcast to the returned resource. If no broadcast is made,
+     * the client won't have to reconnect, the resource won't get re-added, and any subsequent calls will have to wait until the timeout is reached.</p>
+     *
      * @param timeInSecond The timeToWait before continuing the execution
-     * @return an {@link AtmosphereResource}
+     * @return an {@link AtmosphereResource} or {@code null} if the resource was not set and it didn't get set during the timeout
      */
     public AtmosphereResource tryAcquire(int timeInSecond) throws InterruptedException {
-        if (resource.get() == null) {
+        if (usesLongPolling || resource.get() == null) {
             latch.tryAcquire(timeInSecond, TimeUnit.SECONDS);
         }
         return resource.get();

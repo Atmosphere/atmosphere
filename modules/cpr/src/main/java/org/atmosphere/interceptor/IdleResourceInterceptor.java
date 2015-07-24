@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -73,17 +74,31 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     protected void idleResources() {
+        if (logger.isTraceEnabled()) {
+            logger.trace("{} monitoring {} AtmosphereResources", getClass().getSimpleName(), config.resourcesFactory().findAll().size());
+        }
+
         for (AtmosphereResource r : config.resourcesFactory().findAll()) {
+
+            if (Utils.pollableTransport(r.transport())) {
+                continue;
+            }
+
             AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
             try {
                 if (req.getAttribute(MAX_INACTIVE) == null) {
                     logger.error("Invalid state {}", r);
-                    config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+                    r.removeFromAllBroadcasters();
                     config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     continue;
                 }
 
                 long l = (Long) req.getAttribute(MAX_INACTIVE);
+
+                if (logger.isTraceEnabled() && l > 0) {
+                    logger.trace("Expiring {} in {}", r.uuid(), System.currentTimeMillis() - l);
+                }
+
                 if (l > 0 && System.currentTimeMillis() - l > maxInactiveTime ) {
                     try {
                         req.setAttribute(MAX_INACTIVE, (long) -1);
@@ -100,7 +115,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                             AsynchronousProcessor.class.cast(config.framework().getAsyncSupport()).endRequest(AtmosphereResourceImpl.class.cast(r), true);
                         }
                     } finally {
-                        config.getBroadcasterFactory().removeAllAtmosphereResource(r);
+                        r.removeFromAllBroadcasters();
                         config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     }
                 }
@@ -122,7 +137,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
-        if (maxInactiveTime > 0) {
+        if (maxInactiveTime > 0 && !Utils.pollableTransport(r.transport())) {
             AtmosphereResourceImpl.class.cast(r).getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis());
         }
         return Action.CONTINUE;
@@ -131,6 +146,13 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public PRIORITY priority() {
         return InvokationOrder.BEFORE_DEFAULT;
+    }
+
+    @Override
+    public void destroy() {
+        if (future != null) {
+            future.cancel(true);
+        }
     }
 
 }

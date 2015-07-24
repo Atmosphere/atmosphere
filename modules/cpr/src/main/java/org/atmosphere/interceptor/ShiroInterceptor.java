@@ -1,3 +1,18 @@
+/*
+ * Copyright 2015 Sebastien Dionne
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.atmosphere.interceptor;
 
 import org.apache.shiro.SecurityUtils;
@@ -29,7 +44,7 @@ public class ShiroInterceptor extends AtmosphereInterceptorAdapter {
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
-        if (r.getRequest().attributes().containsKey(FrameworkConfig.SECURITY_SUBJECT) == false) {
+        if (r.getRequest().localAttributes().containsKey(FrameworkConfig.SECURITY_SUBJECT) == false) {
             try {
                 Subject currentUser = null;
                 if (r.transport().equals(TRANSPORT.WEBSOCKET)) {

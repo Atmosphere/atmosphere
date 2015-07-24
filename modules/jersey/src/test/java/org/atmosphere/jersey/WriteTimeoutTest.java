@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -20,12 +20,12 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
-import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.handler.ReflectorServletProcessor;
@@ -129,8 +129,8 @@ public class WriteTimeoutTest {
 
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -154,8 +154,8 @@ public class WriteTimeoutTest {
     public void testNoWriteTimeout() throws ExecutionException, InterruptedException, ServletException {
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 

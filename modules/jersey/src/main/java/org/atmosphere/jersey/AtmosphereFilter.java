@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -748,7 +748,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                 Response.ResponseBuilder b = Response.ok();
                 b = configureHeaders(b);
 
-                AtmosphereConfig config = (AtmosphereConfig) servletReq.getAttribute(ATMOSPHERE_CONFIG);
+                AtmosphereConfig config = r.getAtmosphereConfig();
 
                 String defaultCT = config.getInitParameter(DEFAULT_CONTENT_TYPE);
                 if (defaultCT == null) {
@@ -893,7 +893,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         scope,
                         null,
                         null,
-                        true,
+                        am.getAnnotation(Suspend.class).writeEntity(),
                         am.getAnnotation(Suspend.class).contentType());
             } else {
                 f = new Filter(Action.SUSPEND,
@@ -902,7 +902,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
                         scope,
                         null,
                         null,
-                        true,
+                        am.getAnnotation(Suspend.class).writeEntity(),
                         am.getAnnotation(Suspend.class).contentType());
             }
             f.setListeners(am.getAnnotation(Suspend.class).listeners());

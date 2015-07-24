@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -20,8 +20,10 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -78,7 +80,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     /**
-     * Suspend the connection by invoking {@link AtmosphereRequest#startAsync()}
+     * Suspend the connection by invoking {@link AtmosphereRequestImpl#startAsync()}
      *
      * @param action The {@link org.atmosphere.cpr.Action}
      * @param req    the {@link AtmosphereRequest}
@@ -128,6 +130,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 try {
                     logger.trace("Already resumed!", ex);
                 } catch (Exception ex2){};
+            } finally {
+                request.removeAttribute(FrameworkConfig.ASYNC_CONTEXT);
             }
         }
     }
@@ -176,13 +180,20 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                 return;
             }
 
+            final AsyncContext asyncContext = event.getAsyncContext();
             try {
-                p.timedout((AtmosphereRequest) event.getAsyncContext().getRequest(),
-                        (AtmosphereResponse) event.getAsyncContext().getResponse());
+                p.timedout((AtmosphereRequest) asyncContext.getRequest(),
+                        (AtmosphereResponse) asyncContext.getResponse());
             } catch (ServletException ex) {
                 logger.warn("onTimeout(): failed timing out comet response: " + event.getAsyncContext().getResponse(), ex);
             } finally {
-                event.getAsyncContext().complete();
+                try {
+                    asyncContext.complete();
+                } catch (IllegalStateException ex) {
+                    // The complete method has been already called.
+                    // https://tomcat.apache.org/tomcat-7.0-doc/api/org/apache/coyote/AsyncStateMachine.html
+                    logger.trace("", ex);
+                }
             }
         }
 

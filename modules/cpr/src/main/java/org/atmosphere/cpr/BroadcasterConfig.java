@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -126,7 +126,7 @@ public class BroadcasterConfig {
                 broadcasterCache = config.framework().newClassInstance(BroadcasterCache.class,
                         (Class<BroadcasterCache>) IOUtils.loadClass(getClass(), className));
                 configureSharedCacheExecutor();
-                broadcasterCache.configure(this);
+                broadcasterCache.configure(config);
             }
 
             for (BroadcasterCacheInspector b : config.framework().inspectors()) {
@@ -148,7 +148,7 @@ public class BroadcasterConfig {
         config.properties().put("shared", "true");
     }
 
-    protected BroadcasterConfig broadcasterID(String name) {
+    protected BroadcasterConfig broadcasterID(String broadcasterId) {
         this.broadcasterId = broadcasterId;
         initClusterExtension();
         return this;
@@ -335,11 +335,6 @@ public class BroadcasterConfig {
             broadcasterCache.stop();
         }
 
-        for (BroadcastFilter f : filters) {
-            if (f instanceof BroadcastFilterLifecycle) {
-                ((BroadcastFilterLifecycle) f).destroy();
-            }
-        }
         removeAllFilters();
 
         if (!force && !handleExecutors) return;

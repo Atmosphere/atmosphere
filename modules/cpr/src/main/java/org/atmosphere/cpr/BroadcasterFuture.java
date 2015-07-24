@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -120,10 +120,13 @@ public class BroadcasterFuture<E> implements Future {
     public E get(long l, TimeUnit tu) throws InterruptedException, ExecutionException, TimeoutException {
 
         if (innerFuture != null) {
-            return (E) innerFuture.get();
+            return (E) innerFuture.get(l, tu);
         }
 
-        latch.await(l, tu);
+        boolean isSuccessful = latch.await(l, tu);
+        if (!isSuccessful) {
+            throw new TimeoutException();
+        }
         return msg;
     }
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,12 +15,12 @@
  */
 package org.atmosphere.cache;
 
-import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
-import org.atmosphere.cpr.BroadcasterConfig;
 import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,13 +32,15 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+
+import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_CLIENT_IDLETIME;
+import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL;
 
 /**
  * An improved {@link BroadcasterCache} implementation that is based on the unique identifier (UUID) that all
@@ -61,6 +63,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private boolean shared = true;
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
+    private UUIDProvider uuidProvider;
 
     /**
      * This class wraps all messages to be delivered to a client. The class is thread safe to be accessed in a
@@ -87,23 +90,25 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     @Override
-    public void configure(BroadcasterConfig config) {
-        Object o = config.getAtmosphereConfig().properties().get("shared");
+    public void configure(AtmosphereConfig config) {
+        Object o = config.properties().get("shared");
         if (o != null) {
             shared = Boolean.parseBoolean(o.toString());
         }
 
         if (shared) {
-            taskScheduler = ExecutorsFactory.getScheduler(config.getAtmosphereConfig());
+            taskScheduler = ExecutorsFactory.getScheduler(config);
         } else {
             taskScheduler = Executors.newSingleThreadScheduledExecutor();
         }
 
         clientIdleTime = TimeUnit.SECONDS.toMillis(
-                Long.valueOf(config.getAtmosphereConfig().getInitParameter(ApplicationConfig.UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
+                Long.valueOf(config.getInitParameter(UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
 
         invalidateCacheInterval = TimeUnit.SECONDS.toMillis(
-                Long.valueOf(config.getAtmosphereConfig().getInitParameter(ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
+                Long.valueOf(config.getInitParameter(UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
+
+        uuidProvider = config.uuidProvider();
     }
 
     @Override
@@ -145,7 +150,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             logger.trace("Active clients {}", activeClients());
         }
 
-        String messageId = UUID.randomUUID().toString();
+        String messageId = uuidProvider.generateUuid();
         boolean cache = true;
         if (!inspect(message)) {
             cache = false;

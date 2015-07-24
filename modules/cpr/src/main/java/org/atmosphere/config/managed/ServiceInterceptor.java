@@ -1,5 +1,5 @@
 /*
- * Copyright 2013 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -24,8 +24,13 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.interceptor.InvokationOrder;
+import org.atmosphere.util.Utils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
+    private final Logger logger = LoggerFactory.getLogger(ServiceInterceptor.class);
+
     protected AtmosphereConfig config;
     protected boolean wildcardMapping = false;
 
@@ -35,17 +40,26 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
+
         optimizeMapping();
     }
 
     @Override
     public Action inspect(AtmosphereResource r) {
-        if (!wildcardMapping) return Action.CONTINUE;
+        try {
+            if (!wildcardMapping) return Action.CONTINUE;
 
-        mapAnnotatedService(r.getRequest(), (AtmosphereFramework.AtmosphereHandlerWrapper)
-                r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER));
+            mapAnnotatedService(r.getRequest(), (AtmosphereFramework.AtmosphereHandlerWrapper)
+                    r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER));
 
-        return Action.CONTINUE;
+            return Action.CONTINUE;
+        } finally {
+            try {
+                Utils.inject(r);
+            } catch (IllegalAccessException e) {
+                logger.error("", e);
+            }
+        }
     }
 
     protected void optimizeMapping() {

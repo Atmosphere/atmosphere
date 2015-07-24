@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import java.util.List;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -132,7 +131,8 @@ public class Meteor {
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
                 BroadcasterFactory f = r.getAtmosphereConfig().getBroadcasterFactory();
-                b = f.get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName() + UUID.randomUUID());
+                b = f.get(DefaultBroadcaster.class, DefaultBroadcaster.class.getSimpleName()
+                        + r.getAtmosphereConfig().uuidProvider().generateUuid());
             } catch (Throwable t) {
                 throw new RuntimeException(t);
             }
@@ -141,7 +141,7 @@ public class Meteor {
             req.setAttribute(AtmosphereResourceImpl.SKIP_BROADCASTER_CREATION, Boolean.TRUE);
         }
 
-        Meteor m = new Meteor(r, l, s);
+        Meteor m = new Meteor(r, l, (s != null ? s : r.getSerializer()));
         req.setAttribute(METEOR, m);
         return m;
     }
@@ -333,5 +333,13 @@ public class Meteor {
      */
     public AtmosphereResource getAtmosphereResource() {
         return r;
+    }
+
+    /**
+     * Return the {@link org.atmosphere.cpr.AtmosphereConfig}
+     * @return the {@link org.atmosphere.cpr.AtmosphereConfig}
+     */
+    public AtmosphereConfig getAtmosphereConfig() {
+        return r.getAtmosphereConfig();
     }
 }

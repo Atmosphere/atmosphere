@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,6 +21,7 @@ import org.atmosphere.config.service.Singleton;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.AnnotatedProxy;
@@ -40,34 +41,38 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
 
+    // No Ops.
+    protected void namedInjection() {
+    }
+
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // ManagedService
                 if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
                     AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-                    ManagedAnnotation a = managed(ap, request.resource());
+                    ManagedAnnotation a = managed(ap, w.broadcaster.getClass());
                     if (a != null) {
                         String targetPath = a.path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
                             try {
                                 boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
-                                    AnnotatedProxy h = proxyHandler();
+                                    ap = proxyHandler();
 
-                                    final Object o = config.framework().newClassInstance(Object.class, ap.target().getClass());
-                                    h.configure(config, o);
-
-                                    if (h.pathParams()) {
-                                        prepareForPathInjection(path, targetPath, o);
-                                    }
-
-                                    config.framework().addAtmosphereHandler(path, h,
-                                            config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
-                                } else {
-                                    config.framework().addAtmosphereHandler(path, w.atmosphereHandler,
-                                            config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
+                                    final Object o = config.framework().newClassInstance(Object.class, AnnotatedProxy.class.cast(w.atmosphereHandler).target().getClass());
+                                    ap.configure(config, o);
                                 }
+                                config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
+
+                                if (ap.pathParams()) {
+                                    prepareForPathInjection(path, targetPath, ap.target());
+                                }
+
+                                AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(ap);
+
+                                config.framework().addAtmosphereHandler(path, ap,
+                                        config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                             } catch (Throwable e) {
                                 logger.warn("Unable to create AtmosphereHandler", e);
@@ -85,11 +90,11 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         return config.framework().newClassInstance(AnnotatedProxy.class, ManagedAtmosphereHandler.class);
     }
 
-    protected ManagedAnnotation managed(AnnotatedProxy ap, AtmosphereResource r){
+    protected ManagedAnnotation managed(AnnotatedProxy ap, final Class<? extends Broadcaster> aClass) {
         final ManagedService a = ap.target().getClass().getAnnotation(ManagedService.class);
         if (a == null) return null;
 
-        return new ManagedAnnotation(){
+        return new ManagedAnnotation() {
             @Override
             public String path() {
                 return a.path();
@@ -97,7 +102,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
             @Override
             public Class<? extends Broadcaster> broadcaster() {
-                return a.broadcaster();
+                return aClass;
             }
         };
     }
@@ -115,7 +120,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
             String s = outParts[i];
             if (s.startsWith("{") && s.endsWith("}")) {
                 /* we remove braces from string and put it to our map and also path that regex like room: [a-zA-Z][a-zA-Z_0-9]* */
-                int end = s.contains(":") ? s.indexOf(":"): s.length() - 1;
+                int end = s.contains(":") ? s.indexOf(":") : s.length() - 1;
                 annotatedPathVars.put(s.substring(1, end), inParts[i]);
                 logger.debug("Putting PathVar pair: {} -> {}", s.substring(1, s.length() - 1), inParts[i]);
             }
@@ -123,7 +128,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         injectPathParams(o, annotatedPathVars);
     }
 
-    protected void injectPathParams(Object o, Map<String, String> annotatedPathVars){
+    protected void injectPathParams(Object o, Map<String, String> annotatedPathVars) {
         /* now look for appropriate annotations and fill the variables accordingly */
         for (Field field : o.getClass().getDeclaredFields()) {
             if (field.isAnnotationPresent(PathParam.class)) {
@@ -148,7 +153,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         /* end @PathVariable annotations processing */
     }
 
-    protected static interface ManagedAnnotation{
+    protected static interface ManagedAnnotation {
 
         String path();
 
@@ -159,5 +164,10 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
     @Override
     public String toString() {
         return "@ManagedService Interceptor";
+    }
+
+    @Override
+    public void postInspect(AtmosphereResource r) {
+        config.properties().remove(Thread.currentThread().getName() + ".PATH");
     }
 }

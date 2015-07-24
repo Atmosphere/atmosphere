@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -77,12 +77,12 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     @Override
     public boolean isResuming() {
-        return resource.isResumed();
+        return resource == null ? true : resource.isResumed();
     }
 
     @Override
     public boolean isSuspended() {
-        return resource.isSuspended();
+        return resource == null ? false : resource.isSuspended();
     }
 
     @Override

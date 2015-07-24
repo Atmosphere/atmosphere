@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -25,8 +25,8 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.Arrays;
 import java.util.LinkedList;
-import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
@@ -47,7 +47,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
             filters(a.broadcastFilters(), framework);
 
             Class<?>[] interceptors = a.interceptors();
-            List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
             for (Class i : interceptors) {
                 try {
                     AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.class, i);
@@ -57,13 +57,13 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
                 }
             }
 
-            if (a.path().contains("{")) {
-                framework.interceptors().add(framework.newClassInstance(AtmosphereInterceptor.class, AtmosphereHandlerServiceInterceptor.class));
-            }
-
             AtmosphereInterceptor aa = listeners(a.listeners(), framework);
             if (aa != null) {
                 l.add(aa);
+            }
+
+            if (a.path().contains("{")) {
+                l.addFirst(framework.newClassInstance(AtmosphereInterceptor.class, AtmosphereHandlerServiceInterceptor.class));
             }
 
             framework.sessionSupport(a.supportSession());
@@ -75,6 +75,7 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
                 IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
             }
 
+            AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(a.interceptors()), l);
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
         } catch (Throwable e) {

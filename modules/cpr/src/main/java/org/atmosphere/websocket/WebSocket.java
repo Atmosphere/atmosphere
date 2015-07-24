@@ -1,5 +1,5 @@
 /*
-* Copyright 2014 Jeanfrancois Arcand
+* Copyright 2015 Async-IO.org
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -20,9 +20,11 @@ import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.KeepOpenStreamAware;
 import org.atmosphere.util.ByteArrayAsyncWriter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -30,6 +32,9 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -39,7 +44,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class WebSocket extends AtmosphereInterceptorWriter {
+public abstract class WebSocket extends AtmosphereInterceptorWriter implements KeepOpenStreamAware {
 
     protected static final Logger logger = LoggerFactory.getLogger(WebSocket.class);
     public final static String WEBSOCKET_INITIATED = WebSocket.class.getName() + ".initiated";
@@ -52,13 +57,14 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     private AtmosphereResource r;
     protected long lastWrite = 0;
     protected boolean binaryWrite;
-    private final ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
     private WebSocketHandler webSocketHandler;
     protected ByteBuffer bb = ByteBuffer.allocate(8192);
     protected CharBuffer cb = CharBuffer.allocate(8192);
     protected String uuid = "NUll";
+    private Map<String, Object> attributesAtWebSocketOpen;
+    private Object attachment;
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
@@ -81,6 +87,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
 
     /**
      * Switch to binary write, or go back to text write. Default is false.
+     *
      * @param binaryWrite true to switch to binary write.
      * @return
      */
@@ -89,7 +96,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         return this;
     }
 
-    protected WebSocketHandler webSocketHandler() {
+    public WebSocketHandler webSocketHandler() {
         return webSocketHandler;
     }
 
@@ -112,6 +119,27 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     }
 
     /**
+     * Copy {@link AtmosphereRequestImpl#localAttributes()} that where set when the websocket was opened.
+     *
+     * @return this.
+     */
+    public WebSocket shiftAttributes() {
+        Map<String, Object> m = new HashMap<String, Object>();
+        m.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes());
+        attributesAtWebSocketOpen = Collections.unmodifiableMap(m);
+        return this;
+    }
+
+    /**
+     * Return the attribute that was set during the websocket's open operation.
+     *
+     * @return
+     */
+    public Map<String, Object> attributes() {
+        return attributesAtWebSocketOpen;
+    }
+
+    /**
      * Return the an {@link AtmosphereResource} used by this WebSocket, or null if the WebSocket has been closed
      * before the WebSocket message has been processed.
      *
@@ -131,8 +159,15 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
     }
 
     protected byte[] transform(byte[] b, int offset, int length) throws IOException {
-        AtmosphereResponse response = r.getResponse();
+        return transform(r.getResponse(), b, offset, length);
+    }
+
+    protected byte[] transform(AtmosphereResponse response, byte[] b, int offset, int length) throws IOException {
         AsyncIOWriter a = response.getAsyncIOWriter();
+        // NOTE #1961 for now, create a new buffer par transform call and release it after the transform call.
+        //      Alternatively, we may cache the buffer in thread-local and use it while this thread invokes
+        //      multiple writes and release it when this thread invokes the close method.
+        ByteArrayAsyncWriter buffer = new ByteArrayAsyncWriter();
         try {
             response.asyncIOWriter(buffer);
             invokeInterceptor(response, b, offset, length);
@@ -158,7 +193,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         if (binaryWrite) {
             byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
             if (transform) {
-                b = transform(b, 0, b.length);
+                b = transform(r, b, 0, b.length);
             }
 
             if (b != null) {
@@ -167,7 +202,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         } else {
             if (transform) {
                 byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
-                data = new String(transform(b, 0, b.length), r.getCharacterEncoding());
+                data = new String(transform(r, b, 0, b.length), r.getCharacterEncoding());
             }
 
             if (data != null) {
@@ -203,7 +238,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         boolean transform = filters.size() > 0 && r.getStatus() < 400;
         if (binaryWrite || resource().forceBinaryWrite()) {
             if (transform) {
-                b = transform(b, offset, length);
+                b = transform(r, b, offset, length);
             }
 
             if (b != null) {
@@ -213,7 +248,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
             String data = null;
             String charset = r.getCharacterEncoding() == null ? "UTF-8" : r.getCharacterEncoding();
             if (transform) {
-                data = new String(transform(b, offset, length), charset);
+                data = new String(transform(r, b, offset, length), charset);
             } else {
                 data = new String(b, offset, length, charset);
             }
@@ -279,7 +314,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         try {
             bb.clear();
             cb.clear();
-            buffer.close(r);
+            // NOTE #1961 if the buffer is cached at thread-local, it needs to be released here.
         } catch (Exception ex) {
             logger.trace("", ex);
         }
@@ -322,7 +357,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
      */
     abstract public void close();
 
-    protected String uuid() {
+    public String uuid() {
         return uuid;
     }
 
@@ -330,5 +365,40 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter {
         response.addHeader(X_ATMOSPHERE_ERROR, WebSocket.NOT_SUPPORTED);
         response.sendError(501, WebSocket.NOT_SUPPORTED);
         logger.trace("{} for request {}", WebSocket.NOT_SUPPORTED, request);
+    }
+
+    /**
+     * Send a WebSocket Ping
+     * @param payload the bytes to send
+     * @return this
+     */
+    public WebSocket sendPing(byte[] payload) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Send a WebSocket Pong
+     * @param payload the bytes to send
+     * @return this
+     */
+    public WebSocket sendPong(byte[] payload) {
+        throw new UnsupportedOperationException();
+    }
+
+    /**
+     * Attach an object. Be careful when attaching an object as it can cause memory leak
+     *
+     * @oaram object
+     */
+    public WebSocket attachment(Object attachment) {
+        this.attachment = attachment;
+        return this;
+    }
+
+    /**
+     * Return the attachment
+     */
+    public Object attachment() {
+        return attachment;
     }
 }

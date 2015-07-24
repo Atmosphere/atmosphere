@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -31,6 +31,8 @@ import javax.websocket.Session;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.concurrent.Semaphore;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Asynchronous based {@link Session} websocket
@@ -41,54 +43,87 @@ public class JSR356WebSocket extends WebSocket {
 
     private final Logger logger = LoggerFactory.getLogger(JSR356WebSocket.class);
     private final Session session;
-    private final Semaphore semaphore = new Semaphore(1, true);
+    private final Semaphore semaphore = new Semaphore(1, true);// https://issues.apache.org/bugzilla/show_bug.cgi?id=56026
+    private final int writeTimeout;
+    private final AtomicBoolean closed = new AtomicBoolean();
 
     public JSR356WebSocket(Session session, AtmosphereConfig config) {
         super(config);
         this.session = session;
-        // https://issues.apache.org/bugzilla/show_bug.cgi?id=56026
-        String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
-        if (s != null) {
-            session.getAsyncRemote().setSendTimeout(Integer.valueOf(s));
-        }
+        this.writeTimeout = config.getInitParameter(ApplicationConfig.WEBSOCKET_WRITE_TIMEOUT, 60 * 1000);
+        session.getAsyncRemote().setSendTimeout(writeTimeout);
     }
 
     @Override
     public boolean isOpen() {
-        return session.isOpen();
+        return session.isOpen() && !closed.get();
     }
 
     @Override
     public WebSocket write(String s) throws IOException {
+
+        if (!isOpen()) {
+            throw new IOException("Socket closed {}");
+        }
+
+        boolean acquired = false;
         try {
-            try {
-                semaphore.acquireUninterruptibly();
+            acquired = semaphore.tryAcquire(writeTimeout, TimeUnit.MILLISECONDS);
+            if (acquired) {
                 session.getAsyncRemote().sendText(s, new WriteResult(resource(), s));
-            } catch (IllegalStateException e) {
-                semaphore.release();
-                throw e;
+            } else {
+                throw new IOException("Socket closed");
             }
-        } catch (NullPointerException e) {
-            patchGlassFish(e);
+        } catch (Throwable e) {
+            if (IOException.class.isAssignableFrom(e.getClass())) {
+                throw IOException.class.cast(e);
+            }
+            handleError(e, acquired);
         }
         return this;
     }
 
     @Override
     public WebSocket write(byte[] data, int offset, int length) throws IOException {
+
+        if (!isOpen()) {
+            throw new IOException("Socket closed {}");
+        }
+
+        boolean acquired = false;
         try {
-            semaphore.acquireUninterruptibly();
-            ByteBuffer b = ByteBuffer.wrap(data, offset, length);
-            session.getAsyncRemote().sendBinary(ByteBuffer.wrap(data, offset, length),
-                    new WriteResult(resource(), b.array()));
-        } catch (NullPointerException e) {
-            patchGlassFish(e);
-            semaphore.release();
-        } catch (IllegalStateException e) {
-            semaphore.release();
-            throw e;
+            acquired = semaphore.tryAcquire(writeTimeout, TimeUnit.MILLISECONDS);
+            if (acquired) {
+                ByteBuffer b = ByteBuffer.wrap(data, offset, length);
+                session.getAsyncRemote().sendBinary(b,
+                        new WriteResult(resource(), b.array()));
+            } else {
+                throw new IOException("Socket closed");
+            }
+        } catch (Throwable e) {
+            if (IOException.class.isAssignableFrom(e.getClass())) {
+                throw IOException.class.cast(e);
+            }
+            handleError(e, acquired);
         }
         return this;
+    }
+
+    private void handleError(Throwable e, boolean acquired) throws IOException {
+        if (acquired) {
+            semaphore.release();
+        }
+
+        if (e instanceof NullPointerException) {
+            patchGlassFish((NullPointerException) e);
+            return;
+        }
+
+        if (e instanceof RuntimeException) {
+            throw (RuntimeException) e;
+        }
+
+        throw new RuntimeException("Unexpected error while writing to socket", e);
     }
 
     void patchGlassFish(NullPointerException e) {
@@ -99,6 +134,9 @@ public class JSR356WebSocket extends WebSocket {
 
     @Override
     public void close() {
+
+        if (!session.isOpen() || closed.getAndSet(true)) return;
+
         logger.trace("WebSocket.close() for AtmosphereResource {}", resource() != null ? resource().uuid() : "null");
         try {
             session.close();
@@ -121,7 +159,7 @@ public class JSR356WebSocket extends WebSocket {
         @Override
         public void onResult(SendResult result) {
             semaphore.release();
-            if (!result.isOK() || result.getException() != null) {
+            if (!result.isOK() || result.getException() != null && r != null) {
                 logger.trace("WebSocket {} failed to write {}", r, message);
                 Broadcaster b = r.getBroadcaster();
                 b.getBroadcasterConfig().getBroadcasterCache().addToCache(b.getID(), r.uuid(), new BroadcastMessage(message));

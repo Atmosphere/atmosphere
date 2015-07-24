@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,6 +21,7 @@ import org.atmosphere.cache.BroadcasterCacheInspector;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -57,8 +58,8 @@ public class BroadcasterCacheTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -69,6 +70,7 @@ public class BroadcasterCacheTest {
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
         config.getBroadcasterFactory().destroy();
+        ExecutorsFactory.reset(config);
     }
 
     @Test
@@ -196,6 +198,8 @@ public class BroadcasterCacheTest {
     @Test
     public void testBasicExcludeCache() throws ExecutionException, InterruptedException, ServletException {
         BroadcasterCache cache = new UUIDBroadcasterCache();
+        cache.configure(config);
+
         AtmosphereResource r = config.resourcesFactory().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
         cache.excludeFromCache(broadcaster.getID(), r);
@@ -212,6 +216,8 @@ public class BroadcasterCacheTest {
     @Test
     public void testExcludeCache() throws ExecutionException, InterruptedException, ServletException {
         BroadcasterCache cache = new UUIDBroadcasterCache();
+        cache.configure(config);
+
         AtmosphereResource r = config.resourcesFactory().create(broadcaster.getBroadcasterConfig().getAtmosphereConfig(), "1234567");
 
         broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
@@ -229,6 +235,8 @@ public class BroadcasterCacheTest {
     public void testCloseExcludeCache() throws ExecutionException, InterruptedException, ServletException, IOException {
         UUIDBroadcasterCache cache = new UUIDBroadcasterCache();
         SimpleBroadcaster b = config.getBroadcasterFactory().lookup(SimpleBroadcaster.class, "uuidTest", true);
+        cache.configure(config);
+
         b.getBroadcasterConfig().setBroadcasterCache(cache);
         // Reset
         b.removeAtmosphereResource(ar);
@@ -251,6 +259,8 @@ public class BroadcasterCacheTest {
     public void testSuspendExcludeCache() throws ExecutionException, InterruptedException, ServletException, IOException {
         UUIDBroadcasterCache cache = new UUIDBroadcasterCache();
         SimpleBroadcaster b = config.getBroadcasterFactory().lookup(SimpleBroadcaster.class, "uuidTest", true);
+        cache.configure(config);
+
         b.getBroadcasterConfig().setBroadcasterCache(cache);
         // Reset
         b.removeAtmosphereResource(ar);

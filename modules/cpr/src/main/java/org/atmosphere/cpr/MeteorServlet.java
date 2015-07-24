@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -84,17 +84,19 @@ public class MeteorServlet extends AtmosphereServlet {
 
     @Override
     public void init(final ServletConfig sc) throws ServletException {
-        super.init(sc);
+        if (!framework().isInit) {
+            super.init(sc);
 
-        if (delegate == null) {
-            loadDelegateViaConfig(sc);
-        } else {
-            ReflectorServletProcessor r = new ReflectorServletProcessor(delegate);
-            for (Filter f : filters) {
-                r.addFilter(f);
+            if (delegate == null) {
+                loadDelegateViaConfig(sc);
+            } else {
+                ReflectorServletProcessor r = new ReflectorServletProcessor(delegate);
+                for (Filter f : filters) {
+                    r.addFilter(f);
+                }
+                framework().getBroadcasterFactory().remove(delegateMapping);
+                framework().addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
             }
-            framework().getBroadcasterFactory().remove(delegateMapping);
-            framework.addAtmosphereHandler(delegateMapping, r).initAtmosphereHandler(sc);
         }
     }
 
@@ -118,9 +120,9 @@ public class MeteorServlet extends AtmosphereServlet {
             r.addFilterClassName(filterClass, filterName);
             if (mapping == null) {
                 mapping = Broadcaster.ROOT_MASTER;
-                framework.getBroadcasterFactory().remove(Broadcaster.ROOT_MASTER);
+                framework().getBroadcasterFactory().remove(Broadcaster.ROOT_MASTER);
             }
-            framework.addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
+            framework().addAtmosphereHandler(mapping, r).initAtmosphereHandler(sc);
         }
     }
 

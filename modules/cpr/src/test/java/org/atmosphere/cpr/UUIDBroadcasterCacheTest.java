@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.ExecutorsFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -50,11 +51,12 @@ public class UUIDBroadcasterCacheTest {
 
         broadcasterCache = new UUIDBroadcasterCache();
         broadcaster.getBroadcasterConfig().setBroadcasterCache(broadcasterCache);
+        broadcasterCache.configure(config);
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
         broadcaster.addAtmosphereResource(ar);
@@ -64,6 +66,7 @@ public class UUIDBroadcasterCacheTest {
     public void addAR() {
         broadcaster.removeAtmosphereResource(ar);
         config.getBroadcasterFactory().destroy();
+        ExecutorsFactory.reset(config);
     }
 
     @Test

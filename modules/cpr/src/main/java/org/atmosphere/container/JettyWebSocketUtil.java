@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -20,6 +20,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
@@ -33,6 +34,8 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
+
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
 
 public class JettyWebSocketUtil {
 
@@ -107,7 +110,7 @@ public class JettyWebSocketUtil {
                     throw new IllegalStateException();
                 }
 
-                return new JettyWebSocketHandler(AtmosphereRequest.cloneRequest(request, false, useBuildInSession.get(), isDestroyable),
+                return new JettyWebSocketHandler(AtmosphereRequestImpl.cloneRequest(request, false, useBuildInSession.get(), isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
                         config.framework(), webSocketProcessor);
             }
         });

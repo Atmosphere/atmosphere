@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -93,10 +94,6 @@ public interface AtmosphereResource {
      * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
      * returns true) has no effect.
      * <p/>
-     * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
-     * work well with suspended responses. By default, the {@link AtmosphereResponse#getWriter} will be used. You can
-     * change that behavior by setting a request attribute named org.atmosphere.useStream so the framework will
-     * use {@link AtmosphereResponse#getOutputStream()}.
      *
      * @param timeout The maximum amount of time, in milliseconds, a {@link AtmosphereResponse} can be suspended. When
      *                the timeout expires, the {@link AtmosphereResponse} will be automatically resumed and committed.
@@ -110,10 +107,6 @@ public interface AtmosphereResource {
      * Invoking this method when a request is being timed out (e.g. {@link AtmosphereResourceEvent#isResumedOnTimeout}
      * returns true) has no effect.
      * <p/>
-     * The Framework will output some HTML comments when suspending the response in order to make sure all browsers
-     * work well with suspended responses. By default, the {@link AtmosphereResponse#getWriter} will be used. You can
-     * change that behavior by setting a request attribute named org.atmosphere.useStream so the framework will
-     * use {@link AtmosphereResponse#getOutputStream()}.
      *
      * @param timeout  The maximum amount of time a {@link AtmosphereResponse} can be suspended. When the timeout
      *                 expires, the {@link AtmosphereResponse} will be automatically resumed and committed. Usage of any
@@ -145,20 +138,50 @@ public interface AtmosphereResource {
     AtmosphereConfig getAtmosphereConfig();
 
     /**
-     * Return the current {@link Broadcaster}.
+     * Return the first added {@link Broadcaster}.
      *
      * @return the current {@link Broadcaster}
      */
     Broadcaster getBroadcaster();
 
     /**
-     * Set the current {@link Broadcaster}. If null, a new Broadcaster will be created with {@link Broadcaster.SCOPE#REQUEST}
-     * if that resource hasn't been suspended yet.
+     * Return an unmodifiable list of {@link Broadcaster}s associated with this resource
+     *
+     * @return an unmodifiable list of {@link Broadcaster}
+     */
+    List<Broadcaster> broadcasters();
+
+    /**
+     * Remove this {@link org.atmosphere.cpr.AtmosphereResource} from all {@link org.atmosphere.cpr.Broadcaster}
+     *
+     * @return this
+     */
+    public AtmosphereResource removeFromAllBroadcasters();
+
+    /**
+     * Set the first {@link Broadcaster} associated with this resource. This {@link org.atmosphere.cpr.Broadcaster}
+     * will be returned when {@link #getBroadcaster()} is invoked.
      *
      * @param broadcaster
      * @return this
      */
     AtmosphereResource setBroadcaster(Broadcaster broadcaster);
+
+    /**
+     * Add/Associate a {@link org.atmosphere.cpr.Broadcaster} with this resource.
+     *
+     * @param broadcaster
+     * @return this
+     */
+    AtmosphereResource addBroadcaster(Broadcaster broadcaster);
+
+    /**
+     * Remove a {@link org.atmosphere.cpr.Broadcaster} with this resource.
+     *
+     * @param broadcaster
+     * @return this
+     */
+    AtmosphereResource removeBroadcaster(Broadcaster broadcaster);
 
     /**
      * Set the {@link Serializer} to use when {@link AtmosphereResource#write} execute the operation.

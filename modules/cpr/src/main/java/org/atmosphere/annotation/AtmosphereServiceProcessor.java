@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -30,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.Arrays;
 import java.util.LinkedList;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
@@ -66,7 +67,7 @@ public class AtmosphereServiceProcessor implements Processor<Object> {
 
                 String mapping = a.path();
 
-                AnnotationUtil.interceptors(framework, a.interceptors(), l);
+                AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(a.interceptors()), l);
 
                 if (!a.dispatch()) {
                     AtmosphereHandler proxy = new AtmosphereServletProcessor() {

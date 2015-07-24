@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -48,8 +48,8 @@ public class ExcludeSessionBroadcasterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 

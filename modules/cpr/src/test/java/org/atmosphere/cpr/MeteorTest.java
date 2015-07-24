@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -84,7 +84,7 @@ public class MeteorTest {
         };
         framework.addAtmosphereHandler("/a", new ReflectorServletProcessor(s));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         framework.interceptor(new AtmosphereInterceptorAdapter() {
             @Override
             public Action inspect(AtmosphereResource r) {
@@ -93,7 +93,7 @@ public class MeteorTest {
             }
 
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertNotNull(meteor.get());
     }
@@ -109,7 +109,7 @@ public class MeteorTest {
         };
         framework.addAtmosphereHandler("/a", new ReflectorServletProcessor(s));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         framework.interceptor(new AtmosphereInterceptorAdapter() {
             @Override
             public Action inspect(AtmosphereResource r) {
@@ -117,7 +117,7 @@ public class MeteorTest {
             }
 
         });
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertNull(meteor.get());
     }

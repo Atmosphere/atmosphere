@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -66,7 +67,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
     /**
      * Excluse response's content-type from being processed by this class.
      *
-     * @param excludedContentType the value of {@link org.atmosphere.cpr.AtmosphereResponse#getContentType()}
+     * @param excludedContentType the value of {@link AtmosphereResponseImpl#getContentType()}
      * @return this
      */
     public TrackMessageSizeB64Interceptor excludedContentType(String excludedContentType) {

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.inject.AtmosphereConfigAware;
+
 import java.io.File;
 import java.io.IOException;
 
@@ -23,15 +25,7 @@ import java.io.IOException;
  *
  * @author Jeanfrancois Arcand
  */
-public interface AnnotationProcessor {
-
-    /**
-     * Configure this class with an instance of {@link AtmosphereFramework}
-     *
-     * @param framework the {@link AtmosphereFramework}
-     * @return this
-     */
-    public AnnotationProcessor configure(AtmosphereFramework framework);
+public interface AnnotationProcessor extends AtmosphereConfigAware{
 
     /**
      * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jason Burgess
+ * Copyright 2015 Jason Burgess
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,7 +15,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.SimpleBroadcaster;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -27,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Unit tests for the {@link org.atmosphere.cpr.DefaultBroadcasterFactory}.
@@ -42,6 +45,13 @@ public class DefaultBroadcasterFactoryTest {
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+    }
+
+    @AfterMethod
+    public void unSet() throws Exception {
+        config.destroy();
+        ExecutorsFactory.reset(config);
+        factory.destroy();
     }
 
     @Test
@@ -169,7 +179,6 @@ public class DefaultBroadcasterFactoryTest {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
             }
 
             @Override
@@ -184,21 +193,17 @@ public class DefaultBroadcasterFactoryTest {
         });
 
         ExecutorService r = Executors.newCachedThreadPool();
-        try {
-            for (int i = 0; i < 100; i++) {
-                r.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        f.lookup("name" + UUID.randomUUID().toString(), true);
-                    }
-                });
-            }
-        } finally {
-            r.shutdown();
+        for (int i = 0; i < 100; i++) {
+            r.submit(new Runnable() {
+                @Override
+                public void run() {
+                    f.lookup("name" + UUID.randomUUID().toString(), true);
+                    latch.countDown();
+                }
+            });
         }
-        latch.await();
-
         try {
+            assertTrue(latch.await(20, TimeUnit.SECONDS));
             assertEquals(f.lookupAll().size(), 100);
             assertEquals(created.get(), 100);
         } finally {
@@ -215,7 +220,6 @@ public class DefaultBroadcasterFactoryTest {
             @Override
             public void onPostCreate(Broadcaster b) {
                 created.incrementAndGet();
-                latch.countDown();
             }
 
             @Override
@@ -230,31 +234,30 @@ public class DefaultBroadcasterFactoryTest {
         });
 
         ExecutorService r = Executors.newCachedThreadPool();
-        try {
-            for (int i = 0; i < 1000; i++) {
-                r.submit(new Runnable() {
-                    @Override
-                    public void run() {
-                        try {
-                            f.get(TestBroadcaster.class, new String("me"));
-                        } catch (IllegalStateException ex) {
-                            latch.countDown();
-                        }
+        final String me = new String("me");
+        for (int i = 0; i < 1000; i++) {
+            r.submit(new Runnable() {
+                @Override
+                public void run() {
+                    try {
+                        f.get(TestBroadcaster.class, me);
+                    } finally {
+                        latch.countDown();
                     }
-                });
+                }
+            });
 
-            }
-        } finally {
-            r.shutdown();
         }
-        latch.await(10, TimeUnit.SECONDS);
+
         try {
+            assertTrue(latch.await(20, TimeUnit.SECONDS));
             assertEquals(latch.getCount(), 0);
             assertEquals(f.lookupAll().size(), 1);
             assertEquals(created.get(), 1);
             assertEquals(TestBroadcaster.instance.get(), 1);
         } finally {
             f.destroy();
+            r.shutdownNow();
         }
 
         assertEquals(TestBroadcaster.instance.get(), 1);

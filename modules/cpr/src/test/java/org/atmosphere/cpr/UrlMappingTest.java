@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.EndpointMapper;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -75,6 +76,11 @@ public class UrlMappingTest {
         };
     }
 
+    @AfterMethod
+    public void unSet() throws Exception {
+        framework.destroy();
+    }
+
     @Test
     public void mathTest() throws ServletException {
         EndpointMapper<String> mapper = new DefaultEndpointMapper<String>();
@@ -98,34 +104,34 @@ public class UrlMappingTest {
         framework.addAtmosphereHandler("/a/b/c", handler);
         framework.addAtmosphereHandler("/", handler);
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/ab/").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/ab/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/abc/").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/abc/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/b").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/b").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/b/").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/b/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/b/c").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/b/c").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/c").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/c").build();
         try {
             processor.map(r);
         } catch (AtmosphereMappingException e) {
@@ -137,7 +143,7 @@ public class UrlMappingTest {
     public void mappingTestServletPath() throws ServletException {
         framework.addAtmosphereHandler("/com.zyxabc.abc.Abc/gwtCometEvent*", handler);
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().servletPath("/com.zyxabc.abc.Abc/gwtCometEvent").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().servletPath("/com.zyxabc.abc.Abc/gwtCometEvent").build();
         assertNotNull(processor.map(r));
     }
 
@@ -145,7 +151,7 @@ public class UrlMappingTest {
     public void mappingExactUrl() throws ServletException {
         framework.addAtmosphereHandler("/foo/a/", handler);
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().servletPath("/foo").pathInfo("/a").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().servletPath("/foo").pathInfo("/a").build();
         assertNotNull(processor.map(r));
     }
 
@@ -153,13 +159,13 @@ public class UrlMappingTest {
     public void mappingSubWildcardPath() throws ServletException {
         framework.addAtmosphereHandler("/foo/*", handler);
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().servletPath("/foo").pathInfo("/a").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().servletPath("/foo").pathInfo("/a").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().servletPath("/foo").pathInfo("/a/b/c/d/////").build();
+        r = new AtmosphereRequestImpl.Builder().servletPath("/foo").pathInfo("/a/b/c/d/////").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/b/c/d/////").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/b/c/d/////").build();
         try {
             assertNotNull(processor.map(r));
         } catch (AtmosphereMappingException e) {
@@ -171,10 +177,10 @@ public class UrlMappingTest {
     public void mappingDotWildcard() throws ServletException {
         framework.addAtmosphereHandler("/*", handler);
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/a.b/b").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().pathInfo("/a.b/b").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/1.2").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/1.2").build();
         assertNotNull(processor.map(r));
     }
 
@@ -182,13 +188,13 @@ public class UrlMappingTest {
     public void mappingWildcardPath() throws ServletException {
         framework.addAtmosphereHandler("/*", handler);
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().servletPath("/foo").pathInfo("/a").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().servletPath("/foo").pathInfo("/a").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().servletPath("/foo").pathInfo("/a/b/c/d/////").build();
+        r = new AtmosphereRequestImpl.Builder().servletPath("/foo").pathInfo("/a/b/c/d/////").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/b/c/d/////").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/b/c/d/////").build();
         assertNotNull(processor.map(r));
     }
 
@@ -197,10 +203,10 @@ public class UrlMappingTest {
         // servlet-mapping : /a/*
         framework.addAtmosphereHandler("/a", handler);
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/a/").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().pathInfo("/a/").build();
         assertNotNull(processor.map(r));
 
-        r = new AtmosphereRequest.Builder().pathInfo("/a/1").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/a/1").build();
         assertNotNull(processor.map(r));
     }
 
@@ -214,42 +220,42 @@ public class UrlMappingTest {
         framework.addAtmosphereHandler("/blue/*", new AH("blue"));
         framework.addAtmosphereHandler("/blue/blue/*", new AH("blueblue"));
 
-        AtmosphereRequest r = new AtmosphereRequest.Builder().pathInfo("/").build();
+        AtmosphereRequest r = new AtmosphereRequestImpl.Builder().pathInfo("/").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "/");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/red").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/red").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "red");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/red/1").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/red/1").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "red");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/red/red").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/red/red").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "red");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/red/red/1").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/red/red/1").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "redred");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/red/blue/").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "redblue");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/red/blue/1").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/red/blue/1").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "redblue");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/blue").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/blue").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "/");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/blue/blue").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/blue/blue").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "blue");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/blue/blue/white").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/blue/blue/white").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "blueblue");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/green").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/green").build();
         assertEquals(processor.map(r).atmosphereHandler.toString(), "/");
 
         framework.removeAtmosphereHandler("/");
 
-        r = new AtmosphereRequest.Builder().pathInfo("/green").build();
+        r = new AtmosphereRequestImpl.Builder().pathInfo("/green").build();
         try {
             processor.map(r);
             fail();

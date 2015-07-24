@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,7 +21,6 @@ import javax.servlet.ServletContext;
  * A simple Factory to get access to the {@linl ServletContext}. This factory won't work if more than one Servlet is deployed inside the same war.
  *
  * @author Jeanfrancois Arcand
- * @deprecated
  */
 public class ServletContextFactory {
 

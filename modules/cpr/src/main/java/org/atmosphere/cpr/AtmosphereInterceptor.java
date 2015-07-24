@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,23 +15,18 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.inject.AtmosphereConfigAware;
+
 /**
  * Intercept the dispatch of {@link AtmosphereResource} before they get dispatched to {@link AtmosphereHandler}s.
  * An implementation of this class can intercept the dispatch and modify the AtmosphereResource and its
  * associated {@link AtmosphereRequest} and {@link AtmosphereResponse}.
  * <p/>
- * This class can be used to implement custom protocols like Server-Side Events, Socket.IO, etc.
+ * This class can be used to implement custom protocols like Server-Sent Events, Socket.IO, etc.
  *
  * @author Jeanfrancois Arcand
  */
-public interface AtmosphereInterceptor {
-
-    /**
-     * Allow this object to configure its state when initialized.
-     *
-     * @param config an {@link AtmosphereConfig}
-     */
-    void configure(AtmosphereConfig config);
+public interface AtmosphereInterceptor extends AtmosphereConfigAware {
 
     /**
      * Invoked before an {@link AtmosphereResource} gets dispatched to {@link AtmosphereHandler}.
@@ -49,4 +44,9 @@ public interface AtmosphereInterceptor {
      * @param r a {@link AtmosphereResource}
      */
     void postInspect(AtmosphereResource r);
+
+    /**
+     * Clean the AtmosphereInterceptor when removed or when the Atmosphere is undeployed.
+     */
+    void destroy();
 }

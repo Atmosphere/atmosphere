@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -21,9 +21,11 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.SimpleBroadcaster;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -101,8 +103,8 @@ public class ManagedAtmosphereHandlerTest {
     @Test
     public void testBroadcasterCache() throws IOException, ServletException {
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().pathInfo("/cache").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/cache").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertEquals(framework.getBroadcasterFactory().lookup("/*", true).getBroadcasterConfig().getBroadcasterCache().getClass(), UUIDBroadcasterCache.class);
 
     }

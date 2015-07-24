@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -40,6 +40,10 @@ public abstract class AtmosphereInterceptorAdapter implements AtmosphereIntercep
 
     @Override
     public void postInspect(AtmosphereResource r) {
+    }
+
+    @Override
+    public void destroy() {
     }
 
     @Override

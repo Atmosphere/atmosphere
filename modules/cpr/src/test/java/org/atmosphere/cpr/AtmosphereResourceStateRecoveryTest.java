@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -81,8 +81,8 @@ public class AtmosphereResourceStateRecoveryTest {
         recovery.configure(config);
         recovery.inspect(r);
         r.suspend();
-        r.close();
         r.getBroadcaster().removeAtmosphereResource(r);
+        r.close();
         assertEquals(recovery.states().size(), 1);
     }
 
@@ -168,7 +168,7 @@ public class AtmosphereResourceStateRecoveryTest {
 
 
         r.suspend();
-        MetaBroadcaster.getDefault().broadcastTo("/1", "Initialize Cache").get();
+        config.metaBroadcaster().broadcastTo("/1", "Initialize Cache").get();
         r.close();
 
         AtmosphereResourceImpl r2 = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");

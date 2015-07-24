@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -29,8 +29,6 @@ import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
 import java.io.IOException;
 
-import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
-
 /**
  * Websocket Portable Runtime implementation on top of GlassFish 3.0.1 and up.
  *
@@ -54,6 +52,7 @@ public class GlassFishServlet30WebSocketSupport extends Servlet30CometSupport {
 
     @Override
     public void shutdown() {
+        super.shutdown();
         WebSocketEngine.getEngine().unregister(glassfishWebSocketHandler);
         super.shutdown();
     }

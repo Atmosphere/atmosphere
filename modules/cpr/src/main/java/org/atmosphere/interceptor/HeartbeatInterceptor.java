@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -43,6 +43,7 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
 import static org.atmosphere.cpr.ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS;
@@ -79,6 +80,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private byte[] paddingBytes = "X".getBytes();
     private boolean resumeOnHeartbeat;
     private int heartbeatFrequencyInSeconds = 60;
+    private AtmosphereConfig config;
+    private final AtomicBoolean destroyed = new AtomicBoolean(false);
 
     /**
      * Heartbeat from client disabled by default.
@@ -165,6 +168,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
         logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", new String[]
                 {new String(paddingBytes), String.valueOf(heartbeatFrequencyInSeconds), String.valueOf(clientHeartbeatFrequencyInSeconds)});
+
+        this.config = config;
     }
 
     private static class Clock extends AtmosphereResourceEventListenerAdapter implements AllowInterceptor {
@@ -180,7 +185,16 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
         // Check heartbeat
         if (clientHeartbeatFrequencyInSeconds > 0) {
-            byte[] body = IOUtils.readEntirelyAsByte(r);
+            byte[] body = new byte[0];
+            try {
+                if (!request.getMethod().equalsIgnoreCase("GET")) {
+                    body = IOUtils.readEntirelyAsByte(r);
+                }
+            } catch (IOException e) {
+                logger.warn("", e);
+                cancelF(request);
+                return Action.CONTINUE;
+            }
 
             if (Arrays.equals(paddingBytes, body)) {
                 // Dispatch an event to notify that a heartbeat has been intercepted
@@ -333,30 +347,35 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                       final AtmosphereResource r,
                                       final AtmosphereRequest request,
                                       final AtmosphereResponse response) {
-        request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
-            @Override
-            public Object call() throws Exception {
-                synchronized (r) {
-                    if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
-                        try {
-                            logger.trace("Heartbeat for Resource {}", r);
-                            response.write(paddingBytes, false);
-                            if (Utils.resumableTransport(r.transport()) && resumeOnHeartbeat) {
-                                r.resume();
-                            } else {
-                                response.flushBuffer();
+
+        try {
+            request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(new Callable<Object>() {
+                @Override
+                public Object call() throws Exception {
+                    synchronized (r) {
+                        if (AtmosphereResourceImpl.class.cast(r).isInScope() && r.isSuspended()) {
+                            try {
+                                logger.trace("Heartbeat for Resource {}", r);
+                                response.write(paddingBytes, false);
+                                if (Utils.resumableTransport(r.transport()) && resumeOnHeartbeat) {
+                                    r.resume();
+                                } else {
+                                    response.flushBuffer();
+                                }
+                            } catch (Throwable t) {
+                                logger.trace("{}", r.uuid(), t);
+                                cancelF(request);
                             }
-                        } catch (Throwable t) {
-                            logger.trace("{}", r.uuid(), t);
+                        } else {
                             cancelF(request);
                         }
-                    } else {
-                        cancelF(request);
                     }
+                    return null;
                 }
-                return null;
-            }
-        }, interval, TimeUnit.SECONDS));
+            }, interval, TimeUnit.SECONDS));
+        } catch (Throwable t) {
+            logger.warn("", t);
+        }
 
         return this;
     }
@@ -365,4 +384,14 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     public String toString() {
         return "Heartbeat Interceptor Support";
     }
+
+    @Override
+    public void destroy() {
+        if (destroyed.getAndSet(true)) return;
+
+        for (AtmosphereResource r : config.resourcesFactory().findAll()) {
+            cancelF(r.getRequest());
+        }
+    }
+
 }

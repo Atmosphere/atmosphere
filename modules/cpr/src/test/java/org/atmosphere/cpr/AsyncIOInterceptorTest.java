@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -29,7 +29,7 @@ public class AsyncIOInterceptorTest {
     @Test
     public void singleTest() throws ServletException, IOException {
         final AtomicReference<String> s = new AtomicReference<String>();
-        AtmosphereResponse res = AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance());
+        AtmosphereResponse res = AtmosphereResponseImpl.newInstance().request(AtmosphereRequestImpl.newInstance());
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter().interceptor(new AsyncIOInterceptor() {
 
@@ -62,7 +62,7 @@ public class AsyncIOInterceptorTest {
     @Test
     public void chaining() throws ServletException, IOException {
         final AtomicReference<StringBuffer> s = new AtomicReference<StringBuffer>(new StringBuffer());
-        AtmosphereResponse res = AtmosphereResponse.newInstance().request(AtmosphereRequest.newInstance());
+        AtmosphereResponse res = AtmosphereResponseImpl.newInstance().request(AtmosphereRequestImpl.newInstance());
         res.request().setAttribute(PROPERTY_USE_STREAM, false);
         res.asyncIOWriter(new AtmosphereInterceptorWriter().interceptor(new AsyncIOInterceptor() {
 

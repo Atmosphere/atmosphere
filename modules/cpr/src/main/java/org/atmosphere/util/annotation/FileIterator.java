@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -131,6 +131,8 @@ public final class FileIterator {
      * Add the specified files in reverse order.
      */
     private void addReverse(final File[] files) {
+        if (files == null) return;
+
         for (int i = files.length - 1; i >=0; --i) {
             stack.add(files[i]);
         }

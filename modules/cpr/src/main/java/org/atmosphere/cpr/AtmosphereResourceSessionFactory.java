@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -20,21 +20,7 @@ package org.atmosphere.cpr;
  *
  * @author uklance (https://github.com/uklance)
  */
-public abstract class AtmosphereResourceSessionFactory {
-    // TODO: support IOC
-    // TO Make this Happend, we gonna need to pass an AtmosphereFramework's instance to the constructor and
-    // use the newInstance method, or add support for some sort of @Inject.
-    private static final AtmosphereResourceSessionFactory DEFAULT = new DefaultAtmosphereResourceSessionFactory();
-
-    /**
-     * Return the default {@link AtmosphereResourceSessionFactory}
-     *
-     * @return the default {@link AtmosphereResourceSessionFactory}
-     * @deprecated use {@link org.atmosphere.cpr.AtmosphereConfig#sessionFactory}
-     */
-    public static AtmosphereResourceSessionFactory getDefault() {
-        return DEFAULT;
-    }
+public interface AtmosphereResourceSessionFactory {
 
     /**
      * Returns the current session associated with the
@@ -50,7 +36,7 @@ public abstract class AtmosphereResourceSessionFactory {
      * @return the session associated with this request or null if create is
      * false and the resource has no valid session
      */
-    public abstract AtmosphereResourceSession getSession(AtmosphereResource resource, boolean create);
+    AtmosphereResourceSession getSession(AtmosphereResource resource, boolean create);
 
     /**
      * Returns the current session associated with the
@@ -61,9 +47,7 @@ public abstract class AtmosphereResourceSessionFactory {
      * {@link AtmosphereResource}, or creates one if it does not yet
      * exist.
      */
-    public AtmosphereResourceSession getSession(AtmosphereResource resource) {
-        return getSession(resource, true);
-    }
+    AtmosphereResourceSession getSession(AtmosphereResource resource);
 
-    public abstract void destroy();
+    void destroy();
 }

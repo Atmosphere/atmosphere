@@ -1,5 +1,5 @@
 /*
-* Copyright 2014 Jeanfrancois Arcand
+* Copyright 2015 Async-IO.org
 *
 * Licensed under the Apache License, Version 2.0 (the "License"); you may not
 * use this file except in compliance with the License. You may obtain a copy of
@@ -15,8 +15,9 @@
 */
 package org.atmosphere.websocket;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.List;
 
@@ -26,14 +27,7 @@ import java.util.List;
  *
  * @author Jeanfrancois Arcand
  */
-public interface WebSocketProtocol {
-
-    /**
-     * Allow an implementation to query the AtmosphereConfig of init-param, etc.
-     *
-     * @param config {@link org.atmosphere.cpr.AtmosphereConfig}
-     */
-    void configure(AtmosphereConfig config);
+public interface WebSocketProtocol extends AtmosphereConfigAware {
 
     /**
      * Parse the WebSocket message, and delegate the processing to the {@link org.atmosphere.cpr.AtmosphereFramework#asyncSupport} or

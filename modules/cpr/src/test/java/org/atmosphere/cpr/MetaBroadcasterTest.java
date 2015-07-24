@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.util.ExecutorsFactory;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -37,7 +38,9 @@ public class MetaBroadcasterTest {
     }
 
     @AfterMethod
-    public void destroy() {
+    public void unSet() throws Exception {
+        config.destroy();
+        ExecutorsFactory.reset(config);
         factory.destroy();
     }
 

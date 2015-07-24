@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.AtmosphereServletProcessor;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.util.IOUtils;
@@ -42,8 +43,8 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 /**
  * Simple {@link AtmosphereHandler} that reflect every call to
  * {@link Broadcaster#broadcast}, eg sent the broadcasted event back to the remote client. All broadcasts will be by default returned
- * as it is to the suspended {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream}
- * or {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
+ * as it is to the suspended {@link AtmosphereResponseImpl#getOutputStream}
+ * or {@link AtmosphereResponseImpl#getWriter()}.
  *
  * @author Jean-francois Arcand
  */
@@ -53,11 +54,11 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
 
     /**
      * Write the {@link AtmosphereResourceEvent#getMessage()} back to the client using
-     * the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()} or {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
+     * the {@link AtmosphereResponseImpl#getOutputStream()} or {@link AtmosphereResponseImpl#getWriter()}.
      * If a {@link org.atmosphere.cpr.Serializer} is defined, it will be invoked and the write operation
      * will be delegated to it.
      * <p/>
-     * By default, this method will try to use {@link org.atmosphere.cpr.AtmosphereResponse#getWriter()}.
+     * By default, this method will try to use {@link AtmosphereResponseImpl#getWriter()}.
      *
      * @param event the {@link AtmosphereResourceEvent#getMessage()}
      * @throws java.io.IOException
@@ -165,7 +166,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
      * @param event
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
-        if (event.isResuming() || event.isCancelled()) return;
+        if (event.isCancelled() || event.isResuming()) return;
 
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
         // Between event.isCancelled and resource, the connection has been remotly closed.

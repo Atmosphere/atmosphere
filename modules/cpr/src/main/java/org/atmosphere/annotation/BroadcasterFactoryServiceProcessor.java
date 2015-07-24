@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -30,8 +30,7 @@ public class BroadcasterFactoryServiceProcessor implements Processor<Broadcaster
     @Override
     public void handle(AtmosphereFramework framework, Class<BroadcasterFactory> annotatedClass) {
         try {
-            Class<BroadcasterFactory> bf = (Class<BroadcasterFactory>) annotatedClass;
-            framework.setBroadcasterFactory(framework.newClassInstance(BroadcasterFactory.class, bf));
+            framework.setBroadcasterFactory(framework.newClassInstance(BroadcasterFactory.class, annotatedClass));
             framework.configureBroadcasterFactory();
         } catch (Throwable e) {
             logger.warn("", e);

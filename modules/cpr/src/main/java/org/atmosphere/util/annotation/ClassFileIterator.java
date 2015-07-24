@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -142,7 +142,7 @@ final class ClassFileIterator {
                             if (name.endsWith(".class")) {
                                 isFile = true;
                                 return new FileInputStream(file);
-                            } else if (fileIterator.isRootFile() && (endsWithIgnoreCase(name, ".jar") || isZipFile(file))) {
+                            } else if (fileIterator.isRootFile() && (endsWithIgnoreCase(name, ".jar") || isZipFile(file)) && file.exists()) {
                                 try {
                                     zipIterator = new ZipFileIterator(new ZipFile(file), pkgNameFilter);
                                 } catch (Exception ex) {

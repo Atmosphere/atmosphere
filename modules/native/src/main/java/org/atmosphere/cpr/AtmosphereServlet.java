@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -15,10 +15,16 @@
  */
 package org.atmosphere.cpr;
 
-import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
-
-import java.io.IOException;
-import java.util.Enumeration;
+import org.apache.catalina.CometEvent;
+import org.apache.catalina.CometProcessor;
+import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
+import org.atmosphere.container.JBossWebCometSupport;
+import org.atmosphere.container.Tomcat7CometSupport;
+import org.atmosphere.container.TomcatCometSupport;
+import org.jboss.servlet.http.HttpEvent;
+import org.jboss.servlet.http.HttpEventServlet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import javax.servlet.Servlet;
 import javax.servlet.ServletConfig;
@@ -26,18 +32,10 @@ import javax.servlet.ServletException;
 import javax.servlet.http.HttpServlet;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import java.io.IOException;
+import java.util.Enumeration;
 
-import org.apache.catalina.CometEvent;
-import org.apache.catalina.CometProcessor;
-import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
-import org.atmosphere.container.JBossWebCometSupport;
-import org.atmosphere.container.JBossWebSocketSupport;
-import org.atmosphere.container.Tomcat7CometSupport;
-import org.atmosphere.container.TomcatCometSupport;
-import org.jboss.servlet.http.HttpEvent;
-import org.jboss.servlet.http.HttpEventServlet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
  * This servlet supports native Comet support with Tomcat 6, 7 and JBoss Web 3.x
@@ -47,7 +45,7 @@ import org.slf4j.LoggerFactory;
 public class AtmosphereServlet extends HttpServlet implements CometProcessor, HttpEventServlet, org.apache.catalina.comet.CometProcessor {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
-    protected AtmosphereFramework framework;
+    protected final AtmosphereFrameworkInitializer initializer;
 
     /**
      * Create an Atmosphere Servlet.
@@ -68,30 +66,39 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
     /**
      * Create an Atmosphere Servlet.
      *
-     * @param isFilter true if this instance is used as an {@link org.atmosphere.cpr.AtmosphereFilter}
+     * @param isFilter           true if this instance is used as an {@link org.atmosphere.cpr.AtmosphereFilter}
+     * @param autoDetectHandlers
      */
     public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
-        framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
+        initializer = new AtmosphereFrameworkInitializer(isFilter, autoDetectHandlers);
     }
 
     @Override
     public void destroy() {
-        if (framework != null) {
-            framework.destroy();
-            framework = null;
-        }
+        initializer.destroy();
     }
 
+    @Override
     public void init(final ServletConfig sc) throws ServletException {
+        configureFramework(sc);
         super.init(sc);
-        framework.setUseNativeImplementation(true);
-        framework.init(sc);
-        logger.info("AtmosphereServlet with native support for Tomcat 6/7 and JBossWeb Installed.");
+    }
 
+    protected AtmosphereServlet configureFramework(ServletConfig sc) throws ServletException {
+        return configureFramework(sc, true);
+    }
+
+    protected AtmosphereServlet configureFramework(ServletConfig sc, boolean init) throws ServletException {
+        initializer.configureFramework(sc, init, true, AtmosphereFramework.class);
+        return this;
+    }
+
+    protected AtmosphereFramework newAtmosphereFramework() {
+        return initializer.newAtmosphereFramework(AtmosphereFramework.class);
     }
 
     public AtmosphereFramework framework() {
-        return framework;
+       return initializer.framework();
     }
 
     /**
@@ -189,7 +196,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res)
             throws IOException, ServletException {
-        framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
     }
 
     /**
@@ -206,23 +213,23 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         HttpServletResponse res = cometEvent.getHttpServletResponse();
         req.setAttribute(TomcatCometSupport.COMET_EVENT, cometEvent);
 
-        if (!framework.getAsyncSupport().supportWebSocket()) {
-            if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-                synchronized (framework.asyncSupport) {
-                    if (!framework.asyncSupport.getClass().equals(TomcatCometSupport.class)) {
-                        AsyncSupport current = framework.asyncSupport;
+        if (!initializer.framework().getAsyncSupport().supportWebSocket()) {
+            if (!initializer.framework().isCometSupportSpecified && !initializer.framework().isCometSupportConfigured.getAndSet(true)) {
+                synchronized (initializer.framework().asyncSupport) {
+                    if (!initializer.framework().asyncSupport.getClass().equals(TomcatCometSupport.class)) {
+                        AsyncSupport current = initializer.framework().asyncSupport;
                         logger.warn("TomcatCometSupport is enabled, switching to it");
-                        framework.asyncSupport = new TomcatCometSupport(framework.config);
+                        initializer.framework().asyncSupport = new TomcatCometSupport(initializer.framework().config);
                         if (current instanceof AsynchronousProcessor) {
                             ((AsynchronousProcessor) current).shutdown();
                         }
-                        framework.asyncSupport.init(framework.config.getServletConfig());
+                        initializer.framework().asyncSupport.init(initializer.framework().config.getServletConfig());
                     }
                 }
             }
         }
 
-        framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
 
         String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         if (transport != null && transport.equalsIgnoreCase(HeaderConfig.WEBSOCKET_TRANSPORT)) {
@@ -238,23 +245,23 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         HttpServletResponse res = cometEvent.getHttpServletResponse();
         req.setAttribute(Tomcat7CometSupport.COMET_EVENT, cometEvent);
 
-        if (!framework.getAsyncSupport().supportWebSocket()) {
-            if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-                synchronized (framework.asyncSupport) {
-                    if (!framework.asyncSupport.getClass().equals(Tomcat7CometSupport.class)) {
-                        AsyncSupport current = framework.asyncSupport;
+        if (!initializer.framework().getAsyncSupport().supportWebSocket()) {
+            if (!initializer.framework().isCometSupportSpecified && !initializer.framework().isCometSupportConfigured.getAndSet(true)) {
+                synchronized (initializer.framework().asyncSupport) {
+                    if (!initializer.framework().asyncSupport.getClass().equals(Tomcat7CometSupport.class)) {
+                        AsyncSupport current = initializer.framework().asyncSupport;
                         logger.warn("TomcatCometSupport7 is enabled, switching to it");
-                        framework.asyncSupport = new Tomcat7CometSupport(framework.config);
+                        initializer.framework().asyncSupport = new Tomcat7CometSupport(initializer.framework().config);
                         if (current instanceof AsynchronousProcessor) {
                             ((AsynchronousProcessor) current).shutdown();
                         }
-                        framework.asyncSupport.init(framework.config.getServletConfig());
+                        initializer.framework().asyncSupport.init(initializer.framework().config.getServletConfig());
                     }
                 }
             }
         }
 
-        framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+        initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
 
         // https://github.com/Atmosphere/atmosphere/issues/920
         String transport = cometEvent.getHttpServletRequest().getParameter(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
@@ -295,31 +302,28 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
         HttpServletResponse res = httpEvent.getHttpServletResponse();
         req.setAttribute(JBossWebCometSupport.HTTP_EVENT, httpEvent);
 
-        if (!framework.isCometSupportSpecified && !framework.isCometSupportConfigured.getAndSet(true)) {
-            synchronized (framework.asyncSupport) {
-                if (!framework.asyncSupport.getClass().equals(JBossWebCometSupport.class)
-                        && !framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
-                    AsyncSupport current = framework.asyncSupport;
+        if (!initializer.framework().isCometSupportSpecified && !initializer.framework().isCometSupportConfigured.getAndSet(true)) {
+            synchronized (initializer.framework().asyncSupport) {
+                if (!initializer.framework().asyncSupport.getClass().equals(JBossWebCometSupport.class)
+                        && !initializer.framework().asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
+                    AsyncSupport current = initializer.framework().asyncSupport;
                     logger.warn("JBossWebCometSupport is enabled, switching to it");
-                    framework.asyncSupport = new JBossWebCometSupport(framework.config);
+                    initializer.framework().asyncSupport = new JBossWebCometSupport(initializer.framework().config);
                     if (current instanceof AsynchronousProcessor) {
                         ((AsynchronousProcessor) current).shutdown();
                     }
-                    framework.asyncSupport.init(framework.config.getServletConfig());
+                    initializer.framework().asyncSupport.init(initializer.framework().config.getServletConfig());
                 }
             }
         }
 
         boolean isWebSocket = req.getHeader("Upgrade") == null ? false : true;
-        if (isWebSocket && framework.asyncSupport.getClass().equals(JBossWebSocketSupport.class)) {
-            logger.trace("Dispatching websocket event: " + httpEvent);
-            ((JBossWebSocketSupport) framework.asyncSupport).dispatch(httpEvent);
-        } else if (isWebSocket && framework.asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
+        if (isWebSocket && initializer.framework().asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
         	logger.trace("Dispatching websocket event: " + httpEvent);
-            ((JBossAsyncSupportWithWebSocket) framework.asyncSupport).dispatch(httpEvent);
+            ((JBossAsyncSupportWithWebSocket) initializer.framework().asyncSupport).dispatch(httpEvent);
         } else {
             logger.trace("Dispatching comet event: " + httpEvent);
-            framework.doCometSupport(AtmosphereRequest.wrap(req), AtmosphereResponse.wrap(res));
+            initializer.framework().doCometSupport(AtmosphereRequestImpl.wrap(req), AtmosphereResponseImpl.wrap(res));
         }
     }
 

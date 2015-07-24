@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -37,6 +37,7 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.websocket.WebSocket;
@@ -59,6 +60,8 @@ import java.util.Enumeration;
 import java.util.List;
 import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
+
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
 
 public class TomcatWebSocketUtil {
     private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocketUtil.class);
@@ -144,7 +147,8 @@ public class TomcatWebSocketUtil {
             if (s != null && Boolean.valueOf(s)) {
                 isDestroyable = true;
             }
-            StreamInbound inbound = new TomcatWebSocketHandler(AtmosphereRequest.cloneRequest(req, true, useBuildInSession, isDestroyable),
+            StreamInbound inbound = new TomcatWebSocketHandler(
+                    AtmosphereRequestImpl.cloneRequest(req, true, useBuildInSession, isDestroyable, config.getInitParameter(PROPERTY_SESSION_CREATE, true)),
                     config.framework(), webSocketProcessor);
             facade.doUpgrade(inbound);
             return new Action(Action.TYPE.CREATED);
@@ -157,7 +161,7 @@ public class TomcatWebSocketUtil {
             }
             return action;
         } catch (Exception ex) {
-            logger.error("", ex);
+            logger.warn("", ex);
         }
         return Action.CANCELLED;
     }

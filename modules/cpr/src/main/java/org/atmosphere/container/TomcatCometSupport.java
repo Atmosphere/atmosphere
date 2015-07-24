@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -24,13 +24,17 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.util.ExecutorsFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
 import java.io.IOException;
+import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
@@ -97,11 +101,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 }
                 req.setAttribute(SUSPENDED, true);
             } else {
-                try {
-                    event.close();
-                } catch (IllegalStateException ex) {
-                    logger.trace("event.close", ex);
-                }
+                close(event);
             }
         } else if (event.getEventType() == EventType.READ) {
             // Not implemented
@@ -111,26 +111,12 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             }
-
-            try {
-                event.close();
-            } catch (IllegalStateException ex) {
-                logger.trace("event.close", ex);
-            }
+            close(event);
         } else if (event.getEventSubType() == CometEvent.EventSubType.TIMEOUT) {
-
             action = timedout(req, res);
-            try {
-                event.close();
-            } catch (IllegalStateException ex) {
-                logger.trace("event.close", ex);
-            }
+            close(event);
         } else if (event.getEventType() == EventType.ERROR) {
-            try {
-                event.close();
-            } catch (IllegalStateException ex) {
-                logger.trace("event.close", ex);
-            }
+            close(event);
         } else if (event.getEventType() == EventType.END) {
             if (req.resource() != null && req.resource().isResumed()) {
                 AtmosphereResourceImpl.class.cast(req.resource()).cancel();
@@ -138,11 +124,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
             } else {
-                try {
-                    event.close();
-                } catch (IllegalStateException ex) {
-                    logger.trace("event.close", ex);
-                }
+                close(event);
             }
         }
         return action;
@@ -156,20 +138,32 @@ public class TomcatCometSupport extends AsynchronousProcessor {
         }
     }
 
+    private void close(CometEvent event) {
+        try {
+            event.close();
+        } catch (Exception ex) {
+            logger.trace("event.close", ex);
+        }
+    }
+
     @Override
     public AsyncSupport complete(AtmosphereResourceImpl r) {
-        try {
-            CometEvent event = (CometEvent) r.getRequest(false).getAttribute(COMET_EVENT);
-            if (event == null) return this;
+        final CometEvent event = (CometEvent) r.getRequest(false).getAttribute(COMET_EVENT);
+        if (event == null) return this;
 
-            try {
-                event.close();
-            } catch (IllegalStateException ex) {
-                logger.trace("event.close", ex);
-            }
-        } catch (IOException ex) {
-            logger.debug("action failed", ex);
+        if (!r.isResumed()) {
+            ExecutorsFactory.getScheduler(config).schedule(new Runnable() {
+                @Override
+                public void run() {
+                    close(event);
+                }
+
+                ;
+            }, 500, TimeUnit.MILLISECONDS);
+        } else {
+            close(event);
         }
+
         return this;
     }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,7 @@
 package org.atmosphere.annotation;
 
 import org.atmosphere.client.TrackMessageSizeInterceptor;
+import org.atmosphere.config.managed.ManagedServiceInterceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
@@ -29,16 +30,20 @@ import org.atmosphere.interceptor.SuspendTrackerInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
 import java.util.List;
 
 public class AnnotationUtil {
 
     public static final Logger logger = LoggerFactory.getLogger(AnnotationUtil.class);
 
-    private static final Class<? extends AtmosphereInterceptor>[] defaultInterceptors = new Class[]{
-            AtmosphereResourceLifecycleInterceptor.class,
-            TrackMessageSizeInterceptor.class,
-            SuspendTrackerInterceptor.class
+    private static final List<Class<? extends AtmosphereInterceptor>> MANAGED_ATMOSPHERE_INTERCEPTORS = new LinkedList<Class<? extends AtmosphereInterceptor>>() {
+        {
+            add(AtmosphereResourceLifecycleInterceptor.class);
+            add(TrackMessageSizeInterceptor.class);
+            add(SuspendTrackerInterceptor.class);
+            add(ManagedServiceInterceptor.class);
+        }
     };
 
     public static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
@@ -65,19 +70,47 @@ public class AnnotationUtil {
         }
     }
 
-    public static void defaultInterceptors(AtmosphereFramework framework, List<AtmosphereInterceptor> l) {
-        interceptors(framework, defaultInterceptors, l);
+    public static void defaultManagedServiceInterceptors(AtmosphereFramework framework, List<AtmosphereInterceptor> l) {
+        interceptorsForManagedService(framework, MANAGED_ATMOSPHERE_INTERCEPTORS, l, false);
     }
 
-    public static void interceptors(AtmosphereFramework framework, Class<? extends AtmosphereInterceptor>[] interceptors, List<AtmosphereInterceptor> l) {
-        for (Class i : interceptors) {
-            try {
-                l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
-            } catch (Throwable e) {
-                logger.warn("", e);
+    public static void interceptorsForManagedService(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
+        interceptorsForManagedService(framework, interceptors, l, true);
+    }
+
+    public static void interceptorsForManagedService(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l, boolean checkDuplicate) {
+        for (Class<? extends AtmosphereInterceptor> i : interceptors) {
+            if (!framework.excludedInterceptors().contains(i.getName())
+                    && (!checkDuplicate || checkDefault(i))) {
+                try {
+                    logger.info("Adding {}", i);
+                    l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
+                } catch (Throwable e) {
+                    logger.warn("", e);
+                }
             }
         }
     }
+
+    public static void interceptorsForHandler(AtmosphereFramework framework, List<Class<? extends AtmosphereInterceptor>> interceptors, List<AtmosphereInterceptor> l) {
+        for (Class<? extends AtmosphereInterceptor> i : interceptors) {
+            if (!framework.excludedInterceptors().contains(i.getName())
+                    && (!AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(i))) {
+                try {
+                    logger.info("Adding {}", i);
+                    l.add(framework.newClassInstance(AtmosphereInterceptor.class, i));
+                } catch (Throwable e) {
+                    logger.warn("", e);
+                }
+            }
+        }
+    }
+
+    public static boolean checkDefault(Class<? extends AtmosphereInterceptor> i) {
+        return !MANAGED_ATMOSPHERE_INTERCEPTORS.contains(i) && !AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(i);
+    }
+
+
 
     public static AtmosphereInterceptor listeners(final Class<? extends AtmosphereResourceEventListener>[] listeners, final AtmosphereFramework framework) {
         if (listeners.length > 0) {

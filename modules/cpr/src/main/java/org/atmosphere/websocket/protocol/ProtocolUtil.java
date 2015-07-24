@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,26 +16,31 @@
 package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.websocket.WebSocket;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtocolUtil {
 
-    protected static AtmosphereRequest.Builder constructRequest(AtmosphereResource resource,
+    protected static AtmosphereRequestImpl.Builder constructRequest(WebSocket webSocket,
                                                                 String pathInfo,
                                                                 String requestURI,
                                                                 String methodType,
                                                                 String contentType,
                                                                 boolean destroyable) {
+
+        AtmosphereResource resource = webSocket.resource();
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
-        Map<String, Object> m = attributes(request);
+        Map<String, Object> m = attributes(webSocket, request);
 
         // We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.
-        AtmosphereRequest.Builder b = (new AtmosphereRequest.Builder()
+        AtmosphereRequestImpl.Builder b = (new AtmosphereRequestImpl.Builder()
                 .request(request)
                 .method(methodType)
                 .contentType(contentType == null ? request.getContentType() : contentType)
@@ -51,14 +56,9 @@ public class ProtocolUtil {
         return b;
     }
 
-    private static Map<String, Object> attributes(AtmosphereRequest request) {
+    private static Map<String, Object> attributes(WebSocket webSocket, AtmosphereRequest request) {
         Map<String, Object> m = new ConcurrentHashMap<String, Object>();
-        m.put(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
-        for (Map.Entry<String, Object> e : request.attributes().entrySet()) {
-            if (e.getKey() != null) {
-                m.put(e.getKey(), e.getValue());
-            }
-        }
+        m.putAll(webSocket.attributes());
         return m;
     }
 }

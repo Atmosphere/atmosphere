@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -27,10 +27,17 @@ public class WebSocketProcessorServiceProcessor implements Processor<WebSocketPr
 
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessorServiceProcessor.class);
 
+    private boolean hasBeenSet;
+
     @Override
     public void handle(AtmosphereFramework framework, Class<WebSocketProcessor> annotatedClass) {
         try {
-            framework.setWebsocketProcessorClassName(annotatedClass.getName());
+            if (!hasBeenSet) {
+                hasBeenSet = true;
+                framework.setWebsocketProcessorClassName(annotatedClass.getName());
+            } else {
+                logger.warn("WebSocketProcessor already configured");
+            }
         } catch (Throwable e) {
             logger.warn("", e);
         }

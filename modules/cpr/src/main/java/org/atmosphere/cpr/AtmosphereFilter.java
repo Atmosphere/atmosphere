@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -104,8 +104,8 @@ public class AtmosphereFilter implements Filter {
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {
 
-        AtmosphereRequest req = AtmosphereRequest.wrap((HttpServletRequest) request);
-        AtmosphereResponse res = AtmosphereResponse.wrap((HttpServletResponse) response);
+        AtmosphereRequest req = AtmosphereRequestImpl.wrap((HttpServletRequest) request);
+        AtmosphereResponse res = AtmosphereResponseImpl.wrap((HttpServletResponse) response);
         Action a = null;
 
         if (req.getServletPath() == null

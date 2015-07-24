@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -48,7 +48,9 @@ import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.net.URLConnection;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -185,9 +187,7 @@ public final class AnnotationDetector {
 
     }
 
-    // Only used during development. If set to "true" debug messages are displayed.
-    private static final boolean DEBUG = false;
-    private final Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
+    private final static Logger logger = LoggerFactory.getLogger(AnnotationDetector.class);
 
     // Constant Pool type tags
     private static final int CP_UTF8 = 1;
@@ -303,7 +303,7 @@ public final class AnnotationDetector {
                     final File dir = toFile(url);
                     if (dir.isDirectory()) {
                         files.add(dir);
-                        if (DEBUG) print("Add directory: '%s'", dir);
+                        print("Add directory: '%s'", dir);
                     } else if (isVfs) {
                         //Jar file via JBoss VFS protocol - strip package name
                         String jarPath = dir.getPath();
@@ -313,10 +313,18 @@ public final class AnnotationDetector {
                             final File jarFile = new File(jarPath);
                             if (jarFile.isFile() && jarFile.exists()) {
                                 files.add(jarFile);
-                                if (DEBUG) print("Add jar file from VFS: '%s'", jarFile);
+                                print("Add jar file from VFS: '%s'", jarFile);
                             } else {
                                 try {
-                                    List<org.jboss.vfs.VirtualFile> vfs = org.jboss.vfs.VFS.getChild(dir.getPath()).getChildren();
+                                    // VirtualFile#getChildren(java.lang.String) may return an object which refers a .jar managed by the deployer
+                                    // The problem is that this .jar file does not contains .class in sub-directories
+                                    // Ex: if your original file contains /foo/bar/Baz.class and /foo/Bar.class, VFS returns a .jar file with:
+                                    // - /foo
+                                    // - /foo/Bar.class
+                                    // - /foo/bar
+                                    // ==> /foo/bar/Baz.class is missing!
+                                    // Resolving child directories recursively solves the issue
+                                    List<org.jboss.vfs.VirtualFile> vfs = getVfsChildren(org.jboss.vfs.VFS.getChild(dir.getPath()));
                                     for (org.jboss.vfs.VirtualFile f : vfs) {
                                         files.add(f.getPhysicalFile());
                                     }
@@ -356,11 +364,20 @@ public final class AnnotationDetector {
                             throw new AssertionError("Not a File: " + url.toExternalForm());
                         }
                     }
-                    if (jarFile.isFile()) {
-                        files.add(jarFile);
-                        if (DEBUG) print("Add jar file: '%s'", jarFile);
-                    } else {
-                        loadJarContent((JarURLConnection) url.openConnection(), packageName, streams);
+                    try {
+                        if (jarFile.isFile()) {
+                            files.add(jarFile);
+                            print("Add jar file: '%s'", jarFile);
+                        } else {
+                            final URLConnection urlConnection = url.openConnection();
+                            if (urlConnection instanceof JarURLConnection) {
+                                loadJarContent((JarURLConnection) (url.openConnection()), packageName, streams);
+                            } else {
+                                streams.add(url.openConnection().getInputStream());
+                            }
+                        }
+                    } catch (Exception ex) {
+                        print("Cannot load from jar file", ex);
                     }
                 }
             }
@@ -371,6 +388,28 @@ public final class AnnotationDetector {
         } else if (!streams.isEmpty()) {
             detect(new ClassFileIterator(streams.toArray(new InputStream[streams.size()]), pkgNameFilter));
         }
+    }
+
+    /**
+     * <p>
+     * This method recursively retrieves VFS files when a directory is detected.
+     * </p>
+     *
+     * @param vfs the root
+     * @return all children files
+     */
+    private List<org.jboss.vfs.VirtualFile> getVfsChildren(final org.jboss.vfs.VirtualFile vfs) {
+        final List<org.jboss.vfs.VirtualFile> retval = new ArrayList<org.jboss.vfs.VirtualFile>();
+
+        for (org.jboss.vfs.VirtualFile f : vfs.getChildren()) {
+            if (f.isDirectory()) {
+                retval.addAll(getVfsChildren(org.jboss.vfs.VFS.getChild(vfs.getPathName() + File.separator + f.getName())));
+            } else {
+                retval.add(f);
+            }
+        }
+
+        return retval;
     }
 
     private boolean isRunningJavaWebStart() {
@@ -441,9 +480,7 @@ public final class AnnotationDetector {
      * {@code CAFEBABE} are silently ignored.
      */
     public void detect(final File... filesOrDirectories) throws IOException {
-        if (DEBUG) {
-            print("detectFilesOrDirectories: %s", (Object) filesOrDirectories);
-        }
+        print("detectFilesOrDirectories: %s", (Object) filesOrDirectories);
         detect(new ClassFileIterator(filesOrDirectories, null));
     }
 
@@ -508,7 +545,7 @@ public final class AnnotationDetector {
 
     private void readVersion(final DataInput di) throws IOException {
         // sequence: minor version, major version (argument_index is 1-based)
-        if (DEBUG) {
+        if (logger.isDebugEnabled()) {
             print("Java Class version %2$d.%1$d",
                     di.readUnsignedShort(), di.readUnsignedShort());
         } else {
@@ -582,9 +619,7 @@ public final class AnnotationDetector {
 
     private void readThisClass(final DataInput di) throws IOException {
         typeName = resolveUtf8(di);
-        if (DEBUG) {
-            print("read type '%s'", typeName);
-        }
+        print("read type '%s'", typeName);
     }
 
     private void readSuperClass(final DataInput di) throws IOException {
@@ -598,23 +633,19 @@ public final class AnnotationDetector {
 
     private void readFields(final DataInput di) throws IOException {
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("field count = %d", count);
-        }
+        print("field count = %d", count);
         for (int i = 0; i < count; ++i) {
             readAccessFlags(di);
             memberName = resolveUtf8(di);
             final String descriptor = resolveUtf8(di);
             readAttributes(di, 'F', fieldReporter == null);
-            if (DEBUG) {
-                print("Field: %s, descriptor: %s", memberName, descriptor);
-            }
+            print("Field: %s, descriptor: %s", memberName, descriptor);
         }
     }
 
     private void readMethods(final DataInput di) throws IOException {
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
+        {
             print("method count = %d", count);
         }
         for (int i = 0; i < count; ++i) {
@@ -622,9 +653,7 @@ public final class AnnotationDetector {
             memberName = resolveUtf8(di);
             final String descriptor = resolveUtf8(di);
             readAttributes(di, 'M', methodReporter == null);
-            if (DEBUG) {
-                print("Method: %s, descriptor: %s", memberName, descriptor);
-            }
+            print("Method: %s, descriptor: %s", memberName, descriptor);
         }
     }
 
@@ -632,9 +661,7 @@ public final class AnnotationDetector {
                                 final boolean skipReporting) throws IOException {
 
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("attribute count (%s) = %d", reporterType, count);
-        }
+        print("attribute count (%s) = %d", reporterType, count);
         for (int i = 0; i < count; ++i) {
             final String name = resolveUtf8(di);
             // in bytes, use this to skip the attribute info block
@@ -644,9 +671,7 @@ public final class AnnotationDetector {
                             "RuntimeInvisibleAnnotations".equals(name))) {
                 readAnnotations(di, reporterType);
             } else {
-                if (DEBUG) {
-                    print("skip attribute %s", name);
-                }
+                print("skip attribute %s", name);
                 di.skipBytes(length);
             }
         }
@@ -657,9 +682,7 @@ public final class AnnotationDetector {
 
         // the number of Runtime(In)VisibleAnnotations
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("annotation count (%s) = %d", reporterType, count);
-        }
+        print("annotation count (%s) = %d", reporterType, count);
         for (int i = 0; i < count; ++i) {
             final String rawTypeName = readAnnotation(di);
             final Class<? extends Annotation> type = annotations.get(rawTypeName);
@@ -687,11 +710,9 @@ public final class AnnotationDetector {
         final String rawTypeName = resolveUtf8(di);
         // num_element_value_pairs
         final int count = di.readUnsignedShort();
-        if (DEBUG) {
-            print("annotation elements count: %d", count);
-        }
+        print("annotation elements count: %d", count);
         for (int i = 0; i < count; ++i) {
-            if (DEBUG) {
+            if (logger.isDebugEnabled()) {
                 print("element '%s'", resolveUtf8(di));
             } else {
                 di.skipBytes(2);
@@ -703,9 +724,7 @@ public final class AnnotationDetector {
 
     private void readAnnotationElementValue(final DataInput di) throws IOException {
         final int tag = di.readUnsignedByte();
-        if (DEBUG) {
-            print("tag='%c'", (char) tag);
-        }
+        print("tag='%c'", (char) tag);
         switch (tag) {
             case BYTE:
             case CHAR:
@@ -749,24 +768,20 @@ public final class AnnotationDetector {
         final String s;
         if (value instanceof Integer) {
             s = (String) constantPool[(Integer) value];
-            if (DEBUG) {
-                print("resolveUtf8(%d): %d --> %s", index, value, s);
-            }
+            print("resolveUtf8(%d): %d --> %s", index, value, s);
         } else {
             s = (String) value;
-            if (DEBUG) {
-                print("resolveUtf8(%d): %s", index, s);
-            }
+            print("resolveUtf8(%d): %s", index, s);
         }
 
         return s;
     }
 
     /**
-     * Helper method for simple (debug) logging.
+     * Helper method for simple (trace) logging.
      */
     private static void print(final String message, final Object... args) {
-        if (DEBUG) {
+        if (logger.isDebugEnabled()) {
             final String logMessage;
             if (args.length == 0) {
                 logMessage = message;
@@ -785,7 +800,7 @@ public final class AnnotationDetector {
                 }
                 logMessage = String.format(message, args);
             }
-            System.out.println(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
+            logger.trace(logMessage); // SUPPRESS CHECKSTYLE RegexpSinglelineJavaCheck
         }
     }
 

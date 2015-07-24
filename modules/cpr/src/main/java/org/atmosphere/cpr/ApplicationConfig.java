@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -14,22 +14,6 @@
  * the License.
  */
 package org.atmosphere.cpr;
-
-import org.atmosphere.cache.UUIDBroadcasterCache;
-import org.atmosphere.client.TrackMessageSizeInterceptor;
-import org.atmosphere.container.JSR356AsyncSupport;
-import org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor;
-import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
-import org.atmosphere.interceptor.HeartbeatInterceptor;
-import org.atmosphere.interceptor.JavaScriptProtocol;
-import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
-import org.atmosphere.util.EndpointMapper;
-import org.atmosphere.websocket.DefaultWebSocketProcessor;
-import org.atmosphere.websocket.WebSocketProcessor;
-import org.atmosphere.websocket.WebSocketProtocol;
-import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
-
-import javax.servlet.http.HttpSession;
 
 /**
  * Web.xml init-param configuration supported by Atmosphere.
@@ -99,42 +83,49 @@ public interface ApplicationConfig {
      * Default: org.atmosphere.cpr.DefaultBroadcasterFactory<br>
      * Value: org.atmosphere.cpr.broadcasterFactory
      */
-    String BROADCASTER_FACTORY = ApplicationConfig.class.getPackage().getName() + ".broadcasterFactory";
+    String BROADCASTER_FACTORY = "org.atmosphere.cpr.broadcasterFactory";
     /**
      * The default {@link org.atmosphere.cpr.Broadcaster} class.
      * <p/>
      * Default: org.atmosphere.cpr.DefaultBroadcaster<br>
      * Value: org.atmosphere.cpr.broadcasterClass
      */
-    String BROADCASTER_CLASS = ApplicationConfig.class.getPackage().getName() + ".broadcasterClass";
+    String BROADCASTER_CLASS = "org.atmosphere.cpr.broadcasterClass";
     /**
      * The default {@link org.atmosphere.cpr.BroadcasterCache} class.
      * <p/>
      * Default: org.atmosphere.cache.DefaultBroadcasterCache (Doing nothing, not caching anything)<br>
      * Value: org.atmosphere.cpr.broadcasterCacheClass
      */
-    String BROADCASTER_CACHE = ApplicationConfig.class.getPackage().getName() + ".broadcasterCacheClass";
+    String BROADCASTER_CACHE = "org.atmosphere.cpr.broadcasterCacheClass";
     /**
      * Tell Atmosphere which {@link AsyncSupport} implementation to use.
      * <p/>
      * Default: "" (Auto detected by Atmosphere)<br>
      * Value: org.atmosphere.cpr.asyncSupport
      */
-    String PROPERTY_COMET_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".asyncSupport";
+    String PROPERTY_COMET_SUPPORT = "org.atmosphere.cpr.asyncSupport";
     /**
      * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.sessionSupport
      */
-    String PROPERTY_SESSION_SUPPORT = ApplicationConfig.class.getPackage().getName() + ".sessionSupport";
+    String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
     /**
-     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link HttpSession#setMaxInactiveInterval(int)}
+     * Tell Atmosphere to create a new {@link javax.servlet.http.HttpSession} when starting and when {@link #PROPERTY_SESSION_SUPPORT} is set to true.
+     * <p/>
+     * Default: true<br>
+     * Value: org.atmosphere.cpr.sessionCreate
+     */
+    String PROPERTY_SESSION_CREATE = "org.atmosphere.cpr.sessionCreate";
+    /**
+     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link javax.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.removeSessionTimeout
      */
-    String PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL = ApplicationConfig.class.getPackage().getName() + ".removeSessionTimeout";
+    String PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL = "org.atmosphere.cpr.removeSessionTimeout";
     /**
      * Force Atmosphere to invoke {@link AtmosphereResource#resume()} after the first {@link org.atmosphere.cpr.Broadcaster#broadcast(Object)} invocation.
      * <p/>
@@ -155,35 +146,35 @@ public interface ApplicationConfig {
      * Default: false<br>
      * Value: org.atmosphere.cpr.noCacheHeaders
      */
-    String NO_CACHE_HEADERS = ApplicationConfig.class.getPackage().getName() + ".noCacheHeaders";
+    String NO_CACHE_HEADERS = "org.atmosphere.cpr.noCacheHeaders";
     /**
      * Tell Atmosphere to not write the access-control header. Default is false, e.g Atmosphere will write them.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.dropAccessControlAllowOriginHeader
      */
-    String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = ApplicationConfig.class.getPackage().getName() + ".dropAccessControlAllowOriginHeader";
+    String DROP_ACCESS_CONTROL_ALLOW_ORIGIN_HEADER = "org.atmosphere.cpr.dropAccessControlAllowOriginHeader";
     /**
      * The {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy} policy to use.
      * <p/>
      * Default: BroadcasterLifeCyclePolicy.NEVER<br>
      * Value: org.atmosphere.cpr.broadcasterLifeCyclePolicy
      */
-    String BROADCASTER_LIFECYCLE_POLICY = ApplicationConfig.class.getPackage().getName() + ".broadcasterLifeCyclePolicy";
+    String BROADCASTER_LIFECYCLE_POLICY = "org.atmosphere.cpr.broadcasterLifeCyclePolicy";
     /**
      * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProcessor} to use.
      * <p/>
      * Default: org.atmosphere.websocket.DefaultWebSocketProcessor<br>
      * Value: org.atmosphere.websocket.WebSocketProcessor
      */
-    String WEBSOCKET_PROCESSOR = WebSocketProcessor.class.getName();
+    String WEBSOCKET_PROCESSOR = "org.atmosphere.websocket.WebSocketProcessor";
     /**
      * Tell Atmosphere the {@link org.atmosphere.websocket.WebSocketProtocol} to use.
      * <p/>
      * Default: org.atmosphere.websocket.SimpleHttpProtocol<br>
      * Value: org.atmosphere.websocket.WebSocketProtocol
      */
-    String WEBSOCKET_PROTOCOL = WebSocketProtocol.class.getName();
+    String WEBSOCKET_PROTOCOL = "org.atmosphere.websocket.WebSocketProtocol";
     /**
      * Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest.
      * <p/>
@@ -212,6 +203,14 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.maxIdleTime
      */
     String WEBSOCKET_IDLETIME = "org.atmosphere.websocket.maxIdleTime";
+    /**
+     * Timeout of JSR356 write operation.
+     * See {@link javax.websocket.RemoteEndpoint.Async#setSendTimeout(long)}
+     * <p/>
+     * Default: 1 minute<br>
+     * Value: org.atmosphere.websocket.writeTimeout
+     */
+    String WEBSOCKET_WRITE_TIMEOUT = "org.atmosphere.websocket.writeTimeout";
     /**
      * Tell Atmosphere the WebSocket write buffer size.
      * <p/>
@@ -263,14 +262,14 @@ public interface ApplicationConfig {
      * Default: org.atmosphere.cpr.AtmosphereResourceImpl<br>
      * Value: org.atmosphere.cpr.AtmosphereResource
      */
-    String ATMOSPHERE_RESOURCE = AtmosphereResource.class.getName();
+    String ATMOSPHERE_RESOURCE = "org.atmosphere.cpr.AtmosphereResource";
     /**
      * A list of {@link BroadcastFilter} separated by comma that will be added to every new {@link Broadcaster}.
      * <p/>
      * Default: ""<br>
      * Value: org.atmosphere.cpr.broadcastFilterClasses
      */
-    String BROADCAST_FILTER_CLASSES = ApplicationConfig.class.getPackage().getName() + ".broadcastFilterClasses";
+    String BROADCAST_FILTER_CLASSES = "org.atmosphere.cpr.broadcastFilterClasses";
     /**
      * A request attribute telling a {@link AsyncSupport} if the AtmosphereResource was resumed on timeout or by an application.
      * This attribute is for WebServer that doesn't support time-outs (like Jetty 6)
@@ -300,7 +299,7 @@ public interface ApplicationConfig {
      * Default: true<br>
      * Value: org.atmosphere.cpr.allowQueryStreamAsPostOrGet
      */
-    String ALLOW_QUERYSTRING_AS_REQUEST = ApplicationConfig.class.getPackage().getName() + ".allowQueryStreamAsPostOrGet";
+    String ALLOW_QUERYSTRING_AS_REQUEST = "org.atmosphere.cpr.allowQueryStreamAsPostOrGet";
     /**
      * Disallow Atmosphere to modify the query string of incoming connections.
      * <p/>
@@ -311,56 +310,71 @@ public interface ApplicationConfig {
      * Default: false<br>
      * Value: org.atmosphere.cpr.disallowModifyQueryString
      */
-    String DISALLOW_MODIFY_QUERYSTRING = ApplicationConfig.class.getPackage().getName() + ".disallowModifyQueryString";
+    String DISALLOW_MODIFY_QUERYSTRING = "org.atmosphere.cpr.disallowModifyQueryString";
     /**
      * Configure {@link Broadcaster} to share the same {@link java.util.concurrent.ExecutorService} among them.
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.broadcaster.shareableThreadPool
      */
-    String BROADCASTER_SHARABLE_THREAD_POOLS = ApplicationConfig.class.getPackage().getName() + ".broadcaster.shareableThreadPool";
+    String BROADCASTER_SHARABLE_THREAD_POOLS = "org.atmosphere.cpr.broadcaster.shareableThreadPool";
     /**
      * The maximum number of Thread created when processing broadcast operations {@link BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)}.
      * <p/>
      * Default: unlimited<br>
      * Value: org.atmosphere.cpr.broadcaster.maxProcessingThreads
      */
-    String BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE = ApplicationConfig.class.getPackage().getName() + ".broadcaster.maxProcessingThreads";
+    String BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE = "org.atmosphere.cpr.broadcaster.maxProcessingThreads";
     /**
      * The maximum number of Thread created when writing requests {@link BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)}.
      * <p/>
      * Default: 200<br>
      * Value: org.atmosphere.cpr.broadcaster.maxAsyncWriteThreads
      */
-    String BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE = ApplicationConfig.class.getPackage().getName() + ".broadcaster.maxAsyncWriteThreads";
+    String BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE = "org.atmosphere.cpr.broadcaster.maxAsyncWriteThreads";
+    /**
+     * Time out threads created by the {@link org.atmosphere.util.ExecutorsFactory}.
+     * <p/>
+     * Default: true} <br>
+     * Value: org.atmosphere.cpr.allowCoreThreadTimeOut
+     * #see {@link java.util.concurrent.ThreadPoolExecutor#allowCoreThreadTimeOut}
+     */
+    String ALLOW_CORE_THREAD_TIMEOUT = "org.atmosphere.cpr.allowCoreThreadTimeOut";
+    /**
+     * The maximum number of Thread created by the {@link org.atmosphere.util.ExecutorsFactory#getScheduler(AtmosphereConfig)}.
+     * <p/>
+     * Default: {@link Runtime#availableProcessors()} <br>
+     * Value: org.atmosphere.cpr.maxSchedulerThread
+     */
+    String SCHEDULER_THREADPOOL_MAXSIZE = "org.atmosphere.cpr.maxSchedulerThread";
     /**
      * BroadcasterLifecycle max idle time before executing.
      * <p/>
      * Default: 5 minutes<br>
      * Value: org.atmosphere.cpr.maxBroadcasterLifeCyclePolicyIdleTime
      */
-    String BROADCASTER_LIFECYCLE_POLICY_IDLETIME = ApplicationConfig.class.getPackage().getName() + ".maxBroadcasterLifeCyclePolicyIdleTime";
+    String BROADCASTER_LIFECYCLE_POLICY_IDLETIME = "org.atmosphere.cpr.maxBroadcasterLifeCyclePolicyIdleTime";
     /**
      * Recover from a {@link Broadcaster} that has been destroyed.
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.recoverFromDestroyedBroadcaster
      */
-    String RECOVER_DEAD_BROADCASTER = ApplicationConfig.class.getPackage().getName() + ".recoverFromDestroyedBroadcaster";
+    String RECOVER_DEAD_BROADCASTER = "org.atmosphere.cpr.recoverFromDestroyedBroadcaster";
     /**
      * Tell Atmosphere which AtmosphereHandler should be used. You can do the same using atmosphere.xml
      * <p/>
      * Default: ""<br>
      * Value: org.atmosphere.cpr.AtmosphereHandler
      */
-    String ATMOSPHERE_HANDLER = AtmosphereHandler.class.getName();
+    String ATMOSPHERE_HANDLER = "org.atmosphere.cpr.AtmosphereHandler";
     /**
      * The AtmosphereHandler defined using the property will be mapped to that value. Same as atmosphere.xml
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.AtmosphereHandler.contextRoot
      */
-    String ATMOSPHERE_HANDLER_MAPPING = AtmosphereHandler.class.getName() + ".contextRoot";
+    String ATMOSPHERE_HANDLER_MAPPING = "org.atmosphere.cpr.AtmosphereHandler.contextRoot";
     /**
      * The Servlet's name where {@link Meteor} will be available.
      * <p/>
@@ -395,7 +409,7 @@ public interface ApplicationConfig {
      * Default: afterFilter<br>
      * Value: org.atmosphere.cpr.BroadcasterCache.strategy
      */
-    String BROADCASTER_CACHE_STRATEGY = BroadcasterCache.class.getName() + ".strategy";
+    String BROADCASTER_CACHE_STRATEGY = "org.atmosphere.cpr.BroadcasterCache.strategy";
     /**
      * Support the Jersey location header for resuming. WARNING: this can cause memory leak if the connection is never
      * resumed.
@@ -433,14 +447,14 @@ public interface ApplicationConfig {
      * Default: false<br>
      * Value: org.atmosphere.cpr.recycleAtmosphereRequestResponse
      */
-    String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = ApplicationConfig.class.getPackage().getName() + ".recycleAtmosphereRequestResponse";
+    String RECYCLE_ATMOSPHERE_REQUEST_RESPONSE = "org.atmosphere.cpr.recycleAtmosphereRequestResponse";
     /**
      * The location of classes implementing the {@link AtmosphereHandler} interface.
      * <p/>
      * Default: "/WEB-INF/classes".<br>
      * Value: org.atmosphere.cpr.atmosphereHandlerPath
      */
-    String ATMOSPHERE_HANDLER_PATH = ApplicationConfig.class.getPackage().getName() + ".atmosphereHandlerPath";
+    String ATMOSPHERE_HANDLER_PATH = "org.atmosphere.cpr.atmosphereHandlerPath";
     /**
      * Jersey's ContainerResponseWriter.
      * <p/>
@@ -449,19 +463,19 @@ public interface ApplicationConfig {
      */
     String JERSEY_CONTAINER_RESPONSE_WRITER_CLASS = "org.atmosphere.jersey.containerResponseWriterClass";
     /**
-     * Execute the {@link WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}.
+     * Execute the {@link org.atmosphere.websocket.WebSocketProtocol#onMessage(org.atmosphere.websocket.WebSocket, byte[], int, int)}.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.websocket.WebSocketProtocol.executeAsync
      */
-    String WEBSOCKET_PROTOCOL_EXECUTION = WebSocketProtocol.class.getName() + ".executeAsync";
+    String WEBSOCKET_PROTOCOL_EXECUTION = "org.atmosphere.websocket.WebSocketProtocol.executeAsync";
     /**
      * The default content-type value used when Atmosphere requires one.
      * <p/>
      * Default: "text/plain"<br>
      * Value: org.atmosphere.cpr.defaultContentType
      */
-    String DEFAULT_CONTENT_TYPE = ApplicationConfig.class.getPackage().getName() + ".defaultContentType";
+    String DEFAULT_CONTENT_TYPE = "org.atmosphere.cpr.defaultContentType";
     /**
      * A list of {@link AtmosphereInterceptor} class name that will be invoked before the {@link AtmosphereResource}
      * gets delivered to an application or framework.
@@ -469,14 +483,14 @@ public interface ApplicationConfig {
      * Default: ""<br>
      * Value: org.atmosphere.cpr.AtmosphereInterceptor
      */
-    String ATMOSPHERE_INTERCEPTORS = AtmosphereInterceptor.class.getName();
+    String ATMOSPHERE_INTERCEPTORS = "org.atmosphere.cpr.AtmosphereInterceptor";
     /**
      * Regex pattern for excluding file from being serviced by {@link AtmosphereFilter}.
      * <p/>
      * Default: {@link AtmosphereFilter#EXCLUDE_FILES}<br>
      * Value: org.atmosphere.cpr.AtmosphereFilter.excludes
      */
-    String ATMOSPHERE_EXCLUDED_FILE = AtmosphereFilter.class.getName() + ".excludes";
+    String ATMOSPHERE_EXCLUDED_FILE = "org.atmosphere.cpr.AtmosphereFilter.excludes";
     /**
      * The token used to separate broadcasted messages. This value is used by the client to parse several messages
      * received in one chunk.
@@ -484,30 +498,30 @@ public interface ApplicationConfig {
      * Default: "|"<br>
      * Value: org.atmosphere.client.TrackMessageSizeInterceptor.delimiter
      */
-    String MESSAGE_DELIMITER = TrackMessageSizeInterceptor.class.getName() + ".delimiter";
+    String MESSAGE_DELIMITER = "org.atmosphere.client.TrackMessageSizeInterceptor.delimiter";
     /**
-     * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link AtmosphereResourceLifecycleInterceptor}
+     * The method used that trigger automatic management of {@link AtmosphereResource} when the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
      * is used.
      * <p/>
      * Default: "GET"<br>
      * Value: org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor.method
      */
-    String ATMOSPHERERESOURCE_INTERCEPTOR_METHOD = AtmosphereResourceLifecycleInterceptor.class.getName() + ".method";
+    String ATMOSPHERERESOURCE_INTERCEPTOR_METHOD = "org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor.method";
     /**
-     * The timeout, in second, for configuring the time an AtmosphereResource is suspended. Same as {@link AtmosphereResource#suspend(long, java.util.concurrent.TimeUnit)} when the {@link AtmosphereResourceLifecycleInterceptor}
+     * The timeout, in second, for configuring the time an AtmosphereResource is suspended. Same as {@link AtmosphereResource#suspend(long, java.util.concurrent.TimeUnit)} when the {@link org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor}
      * is used.
      * <p/>
      * Default: "-1"<br>
      * Value: org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor.timeout
      */
-    String ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT = AtmosphereResourceLifecycleInterceptor.class.getName() + ".timeout";
+    String ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT = "org.atmosphere.interceptor.AtmosphereResourceLifecycleInterceptor.timeout";
     /**
      * Disable au-discovery of pre-installed {@link AtmosphereInterceptor}s.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults
      */
-    String DISABLE_ATMOSPHEREINTERCEPTOR = AtmosphereInterceptor.class.getName() + ".disableDefaults";
+    String DISABLE_ATMOSPHEREINTERCEPTOR = "org.atmosphere.cpr.AtmosphereInterceptor.disableDefaults";
     /**
      * Set to true if Atmosphere is used as a library and you don't want to destroy associated static factory when undeploying.
      * <p/>
@@ -521,28 +535,28 @@ public interface ApplicationConfig {
      * <p/>
      * Value: org.atmosphere.cpr.AtmosphereResource.suspended.uuid
      */
-    String SUSPENDED_ATMOSPHERE_RESOURCE_UUID = AtmosphereResource.class.getName() + "suspended.uuid";
+    String SUSPENDED_ATMOSPHERE_RESOURCE_UUID = "org.atmosphere.cpr.AtmosphereResource.suspended.uuid";
     /**
      * Use a unique UUID for all WebSocket message delivered on the same connection.
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.AtmosphereResource.uniqueUUID
      */
-    String UNIQUE_UUID_WEBSOCKET = AtmosphereResource.class.getName() + ".uniqueUUID";
+    String UNIQUE_UUID_WEBSOCKET = "org.atmosphere.cpr.AtmosphereResource.uniqueUUID";
     /**
      * Set to true if order of message delivered to the client is not important.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.Broadcaster.supportOutOfOrderBroadcast
      */
-    String OUT_OF_ORDER_BROADCAST = Broadcaster.class.getName() + ".supportOutOfOrderBroadcast";
+    String OUT_OF_ORDER_BROADCAST = "org.atmosphere.cpr.Broadcaster.supportOutOfOrderBroadcast";
     /**
      * The write operation timeout, in millisecond, when using the {@link DefaultBroadcaster}. When the timeout occurs, the calling thread gets interrupted.
      * <p/>
      * Default: 5 * 60 * 1000 (5 minutes)<br>
      * Value: org.atmosphere.cpr.Broadcaster.writeTimeout
      */
-    String WRITE_TIMEOUT = Broadcaster.class.getName() + ".writeTimeout";
+    String WRITE_TIMEOUT = "org.atmosphere.cpr.Broadcaster.writeTimeout";
     /**
      * The sleep time, in millisecond, before the {@link DefaultBroadcaster} release its reactive thread for pushing message
      * and execute async write. Setting this value too high may create too many threads.
@@ -550,7 +564,7 @@ public interface ApplicationConfig {
      * Default: 1000<br>
      * Value: org.atmosphere.cpr.Broadcaster.threadWaitTime
      */
-    String BROADCASTER_WAIT_TIME = Broadcaster.class.getName() + ".threadWaitTime";
+    String BROADCASTER_WAIT_TIME = "org.atmosphere.cpr.Broadcaster.threadWaitTime";
     /**
      * Before 1.0.12, WebSocket's AtmosphereResource manually added to {@link Broadcaster} were added without checking
      * if the parent, e.g the AtmosphereResource's created on the first request was already added to the Broadcaster. That caused
@@ -573,61 +587,61 @@ public interface ApplicationConfig {
      * Default: org.atmosphere.cpr.DefaultAnnotationProcessor<br>
      * Value: org.atmosphere.cpr.AnnotationProcessor
      */
-    String ANNOTATION_PROCESSOR = AnnotationProcessor.class.getName();
+    String ANNOTATION_PROCESSOR = "org.atmosphere.cpr.AnnotationProcessor";
     /**
      * Define an implementation of the {@link org.atmosphere.util.EndpointMapper}.
      * <p/>
      * Default: org.atmosphere.cpr.DefaultEndpointMapper<br>
      * Value: org.atmosphere.cpr.EndpointMapper
      */
-    String ENDPOINT_MAPPER = EndpointMapper.class.getName();
+    String ENDPOINT_MAPPER = "org.atmosphere.cpr.EndpointMapper";
     /**
      * The list of content-type to exclude when delimiting message.
      * <p/>
      * Default: ""<br>
      * Value: org.atmosphere.client.TrackMessageSizeInterceptor.excludedContentType
      */
-    String EXCLUDED_CONTENT_TYPES = TrackMessageSizeInterceptor.class.getName() + ".excludedContentType";
+    String EXCLUDED_CONTENT_TYPES = "org.atmosphere.client.TrackMessageSizeInterceptor.excludedContentType";
     /**
      * Allow defining the Broadcaster's Suspend Policy {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}.
      * <p/>
      * Default: FIFO<br>
      * Value: org.atmosphere.cpr.Broadcaster.POLICY
      */
-    String BROADCASTER_POLICY = Broadcaster.POLICY.class.getName();
+    String BROADCASTER_POLICY = "org.atmosphere.cpr.Broadcaster.POLICY";
     /**
      * Allow defining the Broadcaster's maximum Suspended Atmosphere Policy {@link Broadcaster#setSuspendPolicy(long, org.atmosphere.cpr.Broadcaster.POLICY)}.
      * <p/>
      * Default: -1 (unlimited)<br>
      * Value: org.atmosphere.cpr.Broadcaster.POLICY.maximumSuspended
      */
-    String BROADCASTER_POLICY_TIMEOUT = Broadcaster.POLICY.class.getName() + ".maximumSuspended";
+    String BROADCASTER_POLICY_TIMEOUT = "org.atmosphere.cpr.Broadcaster.POLICY.maximumSuspended";
     /**
      * Change the default regex used when mapping AtmosphereHandler. Default: {@link AtmosphereFramework#MAPPING_REGEX}
      * <p/>
      * Default: "[a-zA-Z0-9-&.*_=@;\?]+"<br>
      * Value: org.atmosphere.client.ApplicationConfig.mappingRegex
      */
-    String HANDLER_MAPPING_REGEX = ApplicationConfig.class.getPackage().getName() + ".mappingRegex";
+    String HANDLER_MAPPING_REGEX = "org.atmosphere.cpr.mappingRegex";
     /**
      * The timeout, in milliseconds, before an {@link AtmosphereResource}'s state get discarded.
      * <p/>
      * Default: 300000 (5 minutes)<br>
      * Value: org.atmosphere.interceptor.AtmosphereResourceStateRecovery.timeout
      */
-    String STATE_RECOVERY_TIMEOUT = AtmosphereResourceStateRecovery.class.getName() + ".timeout";
+    String STATE_RECOVERY_TIMEOUT = "org.atmosphere.interceptor.AtmosphereResourceStateRecovery.timeout";
     /**
      * jsr356 Path mapping length for add(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, "/{path}/{path/...}").
      * Default: 5
      * Value: MUST be set using System's properties: org.atmosphere.cpr.jsr356.pathMappingLength"
      */
-    String JSR356_PATH_MAPPING_LENGTH = ApplicationConfig.class.getPackage().getName() + ".jsr356.pathMappingLength";
+    String JSR356_PATH_MAPPING_LENGTH = "org.atmosphere.cpr.jsr356.pathMappingLength";
     /**
-     * Default Server Side Event content type.
+     * Default Server-Sent Event content type.
      * Default: text/event-stream
      * Value: org.atmosphere.interceptor.SSEAtmosphereInterceptor.contentType
      */
-    String SSE_DEFAULT_CONTENTTYPE = SSEAtmosphereInterceptor.class.getName() + ".contentType";
+    String SSE_DEFAULT_CONTENTTYPE = "org.atmosphere.interceptor.SSEAtmosphereInterceptor.contentType";
     /**
      * A list, separated by comma, of package name to scan when looking for @AtmosphereAnnotation custom Annotation.
      * <p/>
@@ -641,21 +655,21 @@ public interface ApplicationConfig {
      * Default: true<br>
      * Value: org.atmosphere.cpr.scanClassPath
      */
-    String SCAN_CLASSPATH = ApplicationConfig.class.getPackage().getName() + ".scanClassPath";
+    String SCAN_CLASSPATH = "org.atmosphere.cpr.scanClassPath";
     /**
      * Use a build in {@link javax.servlet.http.HttpSession} when using native WebSocket implementation.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.useBuildInSession
      */
-    String BUILT_IN_SESSION = ApplicationConfig.class.getPackage().getName() + ".useBuildInSession";
+    String BUILT_IN_SESSION = "org.atmosphere.cpr.useBuildInSession";
     /**
      * The default {@link AtmosphereObjectFactory} class.
      * <p/>
      * Default: DefaultAtmosphereObjectFactory (calls newInstance() on class)<br>
      * Value: org.atmosphere.cpr.objectFactory
      */
-    String OBJECT_FACTORY = ApplicationConfig.class.getPackage().getName() + ".objectFactory";
+    String OBJECT_FACTORY = "org.atmosphere.cpr.objectFactory";
     /**
      * The maximum number of time, in seconds, thread will be stay alive when created with {@link org.atmosphere.util.ExecutorsFactory}. Those {@link java.util.concurrent.Executor}.
      * are used by the {@link DefaultBroadcaster}'s Thread Pool. See also {@link #BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE} and {@link #BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE}
@@ -663,28 +677,28 @@ public interface ApplicationConfig {
      * Default: 10 seconds<br>
      * Value: org.atmosphere.cpr.threadPool.maxKeepAliveThreads
      */
-    String EXECUTORFACTORY_KEEP_ALIVE = ApplicationConfig.class.getPackage().getName() + ".threadPool.maxKeepAliveThreads";
+    String EXECUTORFACTORY_KEEP_ALIVE = "org.atmosphere.cpr.threadPool.maxKeepAliveThreads";
     /**
      * In Memory WebSocket buffered message size;
      * <p/>
      * Default: 2097152 (2 mg)<br>
      * Value: org.atmosphere.websocket.webSocketBufferingMaxSize
      */
-    String IN_MEMORY_STREAMING_BUFFER_SIZE = DefaultWebSocketProcessor.class.getPackage().getName() + ".webSocketBufferingMaxSize";
+    String IN_MEMORY_STREAMING_BUFFER_SIZE = "org.atmosphere.websocket.webSocketBufferingMaxSize";
     /**
      * Scan the classpath to find {@link Broadcaster}
      * <p/>
      * Default: true)<br>
      * Value: org.atmosphere.cpr.Broadcaster.scanClassPath
      */
-    String AUTODETECT_BROADCASTER = Broadcaster.class.getName() + ".scanClassPath";
+    String AUTODETECT_BROADCASTER = "org.atmosphere.cpr.Broadcaster.scanClassPath";
     /**
      * Disables the list of {@link AtmosphereInterceptor}s.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.AtmosphereInterceptor.disable
      */
-    String DISABLE_ATMOSPHEREINTERCEPTORS = AtmosphereInterceptor.class.getName() + ".disable";
+    String DISABLE_ATMOSPHEREINTERCEPTORS = "org.atmosphere.cpr.AtmosphereInterceptor.disable";
     /**
      * The JSR 356 WebSocket root path. Use this property if more than one AtmosphereServlet gets deployed inside
      * the same application, and the guessed mapping path is not the one expected.
@@ -692,50 +706,50 @@ public interface ApplicationConfig {
      * Default: ""<br>
      * Value: org.atmosphere.container.JSR356AsyncSupport.mappingPath
      */
-    String JSR356_MAPPING_PATH = JSR356AsyncSupport.class.getName() + ".mappingPath";
+    String JSR356_MAPPING_PATH = "org.atmosphere.container.JSR356AsyncSupport.mappingPath";
     /**
-     * The default {@link HttpSession#setMaxInactiveInterval(int)}
+     * The default {@link javax.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: -1<br>
      * Value: org.atmosphere.cpr.session.maxInactiveInterval
      */
-    String SESSION_MAX_INACTIVE_INTERVAL = ApplicationConfig.class.getPackage().getName() + ".session.maxInactiveInterval";
+    String SESSION_MAX_INACTIVE_INTERVAL = "org.atmosphere.cpr.session.maxInactiveInterval";
     /**
-     * Wait X milliseconds before considering the {@link AtmosphereResource} closed. This is useful when {@link org.atmosphere.util.Utils.enableProtocol())}
+     * Wait X milliseconds before considering the {@link AtmosphereResource} closed. This is useful when {@link org.atmosphere.util.Utils#atmosphereProtocol(AtmosphereRequest r))}
      * return true, and let the client send the {@link HeaderConfig#DISCONNECT_TRANSPORT_MESSAGE} message.
      * <p/>
      * Default: 500<br>
      * Value: org.atmosphere.cpr.session.delayClosingTime
      */
-    String CLOSED_ATMOSPHERE_THINK_TIME = ApplicationConfig.class.getPackage().getName() + ".delayClosingTime";
+    String CLOSED_ATMOSPHERE_THINK_TIME = "org.atmosphere.cpr.delayClosingTime";
     /**
      * The maximum time, in seconds, for a message to stay cached when using the {@link org.atmosphere.cache.UUIDBroadcasterCache}
      * <p/>
      * Default: 60<br>
      * Value: org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime
      */
-    String UUIDBROADCASTERCACHE_CLIENT_IDLETIME = UUIDBroadcasterCache.class.getName() + ".clientIdleTime";
+    String UUIDBROADCASTERCACHE_CLIENT_IDLETIME = "org.atmosphere.cache.UUIDBroadcasterCache.clientIdleTime";
     /**
      * The frequency, in seconds, for the {@link org.atmosphere.cache.UUIDBroadcasterCache} is pruning cached messages.
      * <p/>
      * Default: 30<br>
      * Value: org.atmosphere.cache.UUIDBroadcasterCache.invalidateCacheInterval
      */
-    String UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL = UUIDBroadcasterCache.class.getName() + ".invalidateCacheInterval";
+    String UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL = "org.atmosphere.cache.UUIDBroadcasterCache.invalidateCacheInterval";
     /**
      * Invoke Atmosphere interceptor for on every websocket message.
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.websocket.DefaultWebSocketProcessor.invokeInterceptorsOnMessage
      */
-    String INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE = DefaultWebSocketProcessor.class.getName() + ".invokeInterceptorsOnMessage";
+    String INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE = "org.atmosphere.websocket.DefaultWebSocketProcessor.invokeInterceptorsOnMessage";
     /**
      * Disable the Atmosphere Protocol version check. This can be used to supprt version of atmosphere-javascript lower than 2.2.1
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.interceptor.JavaScriptProtocol.enforceAtmosphereProtocol
      */
-    String ENFORCE_ATMOSPHERE_VERSION = JavaScriptProtocol.class.getName() + ".enforceAtmosphereProtocol";
+    String ENFORCE_ATMOSPHERE_VERSION = "org.atmosphere.interceptor.JavaScriptProtocol.enforceAtmosphereProtocol";
     /**
      * Rewrite the original handshake request URI when websocket is used, trimming the http://host:port from the value.
      * This is required with when JSR356 is used and JAXRS like Jersey2 is used.
@@ -743,35 +757,35 @@ public interface ApplicationConfig {
      * Default: true<br>
      * Value: org.atmosphere.websocket.protocol.SimpleHttpProtocol.rewriteURL
      */
-    String REWRITE_WEBSOCKET_REQUESTURI = SimpleHttpProtocol.class.getName() + ".rewriteURL";
+    String REWRITE_WEBSOCKET_REQUESTURI = "org.atmosphere.websocket.protocol.SimpleHttpProtocol.rewriteURL";
     /**
      * The heartbeat padding String.
      * <p/>
      * Default: ' '<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.paddingChar
      */
-    String HEARTBEAT_PADDING_CHAR= HeartbeatInterceptor.class.getName() + ".paddingChar";
+    String HEARTBEAT_PADDING_CHAR = "org.atmosphere.interceptor.HeartbeatInterceptor.paddingChar";
     /**
      * The heartbeat frequency, in seconds.
      * <p/>
      * Default: 60<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.heartbeatFrequencyInSeconds
      */
-    String HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".heartbeatFrequencyInSeconds";
+    String HEARTBEAT_INTERVAL_IN_SECONDS = "org.atmosphere.interceptor.HeartbeatInterceptor.heartbeatFrequencyInSeconds";
     /**
      * Configuration key for client heartbeat.
      * <p/>
      * Default: 0 (disabled)<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds
      */
-    String CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS = HeartbeatInterceptor.class.getName() + ".clientHeartbeatFrequencyInSeconds";
+    String CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS = "org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds";
     /**
      * Resume the long-polling or jsonp connection on every heartbeat (I/O operations).
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.resumeOnHeartbeat
      */
-    String RESUME_ON_HEARTBEAT = HeartbeatInterceptor.class.getName() + ".resumeOnHeartbeat";
+    String RESUME_ON_HEARTBEAT = "org.atmosphere.interceptor.HeartbeatInterceptor.resumeOnHeartbeat";
 
     /**
      * Set the default {@link org.atmosphere.cpr.Serializer} implementation {@link org.atmosphere.cpr.AtmosphereResource}s use
@@ -780,7 +794,7 @@ public interface ApplicationConfig {
      * Default: empty (no Serialize class used)<br>
      * Value: org.atmosphere.cpr.AtmosphereResource.defaultSerializer
      */
-    String DEFAULT_SERIALIZER = AtmosphereResource.class.getName() + ".defaultSerializer";
+    String DEFAULT_SERIALIZER = "org.atmosphere.cpr.AtmosphereResource.defaultSerializer";
     /**
      * Disable container managed framework auto initialization during startup lifecycle (Servlet 3.0).
      * This is useful e.g. if special initialization or framework extensions are needed.
@@ -791,20 +805,113 @@ public interface ApplicationConfig {
      * <p/>
      * Example init-param:
      * <pre>
+     *
      * &lt;init-param&gt;
      * &lt;param-name&gt;org.atmosphere.cpr.AtmosphereInitializer.disabled&lt;/param-name&gt;
      * &lt;param-value&gt;true&lt;/param-value&gt;
      * &lt;/init-param&gt;
      * </pre>
      *
-     * @see {@link https://github.com/Atmosphere/atmosphere/issues/1695}
+     * @see {@see https://github.com/Atmosphere/atmosphere/issues/1695}
      */
-    String DISABLE_ATMOSPHERE_INITIALIZER =  "org.atmosphere.cpr.AtmosphereInitializer.disabled";
+    String DISABLE_ATMOSPHERE_INITIALIZER = "org.atmosphere.cpr.AtmosphereInitializer.disabled";
     /**
      * Disable Google Analytics.
      * Default: true (enabled) <br>
      * Value: org.atmosphere.cpr.AtmosphereFramework.analytics
      */
-    String ANALYTICS = AtmosphereFramework.class.getName() + ".analytics";
+    String ANALYTICS = "org.atmosphere.cpr.AtmosphereFramework.analytics";
+    /**
+     * For use of (@link BytecodeBasedAnnotationProcessor}
+     * Default: false
+     * Value: org.atmosphere.cpr.annotation.useBytecodeProcessor
+     */
+    String BYTECODE_PROCESSOR = "org.atmosphere.cpr.annotation.useBytecodeProcessor";
+    /**
+     * The web.xml servlet-name.
+     * Default: AtmosphereServlet <br>
+     * Value: org.atmosphere.servlet
+     */
+    String SERVLET_NAME = "org.atmosphere.servlet";
+    /**
+     * Try to read a HTTP GET body.
+     * Default: false <br>
+     * Value: org.atmosphere.util.IOUtils.readGetBody
+     */
+    String READ_GET_BODY = "org.atmosphere.util.IOUtils.readGetBody";
+    /**
+     * If a I/O exception occurs during a flush() or flushBuffer() exception, cache the bytes that was previously written.
+     * When the server buffer the bytes, the bytes may or may not been properly written to the client and those will be lost if you set that
+     * value to false. If the bytes where properly written, the bytes may be cached and may be sent twice to the client.
+     * Default: true <br>
+     * Value: org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException
+     */
+    String CACHE_MESSAGE_ON_IO_FLUSH_EXCEPTION = "org.atmosphere.cpr.Broadcaster.cacheOnIOFlushException";
+    /**
+     * Share between Broadcaster the same List of {@link BroadcasterListener} and {@link BroadcasterLifeCyclePolicyListener}.
+     * Setting the value to true may significantly reduce the memory used by those listeners if a lot of Broadcaster are created.
+     * <p/>
+     * Listeners MUST be Thread-Safe to use that feature.
+     * <p/>
+     * Default: false <br>
+     * Value: org.atmosphere.cpr.Broadcaster.sharedListenersList
+     */
+    String BROADCASTER_SHAREABLE_LISTENERS = "org.atmosphere.cpr.Broadcaster.sharedListenersList";
+    /**
+     * When the {@link org.atmosphere.pool.PoolableBroadcasterFactory} is enabled, set to true
+     * for tracking created {@link org.atmosphere.cpr.Broadcaster} and their associated id, preventing duplicate.
+     * <p/>
+     * Default: false
+     * Value:org.atmosphere.pool.trackPooledBroadcaster
+     */
+    String SUPPORT_TRACKED_BROADCASTER = "org.atmosphere.pool.trackPooledBroadcaster";
+    /**
+     * The {@link org.atmosphere.pool.PoolableProvider} used by the {@lin PoolableBroadcasterFactory}
+     * <p/>
+     * Default: org.atmosphere.pool.UnboundedApachePoolableProvider
+     * Value: org.atmosphere.pool.poolableProvider
+     */
+    String POOLEABLE_PROVIDER = "org.atmosphere.pool.poolableProvider";
+
+    /**
+     * The size of the pool powering {@link org.atmosphere.pool.BoundedApachePoolableProvider}
+     * <p/>
+     * Default: 200
+     * Value: org.atmosphere.pool.BoundedApachePoolableProvider.size
+     */
+    String BROADCASTER_FACTORY_POOL_SIZE = "org.atmosphere.pool.BoundedApachePoolableProvider.size";
+    /**
+     * The time, in second, to wait for a new object from the {@link org.atmosphere.pool.BoundedApachePoolableProvider}
+     * <p/>
+     * Default: 10 seconds
+     * Value: org.atmosphere.pool.BoundedApachePoolableProvider.waitingTime
+     */
+    String BROADCASTER_FACTORY_EMPTY_WAIT_TIME_IN_SECONDS = "org.atmosphere.pool.BoundedApachePoolableProvider.waitingTime";
+    /**
+     * The path to the org.atmosphere.cpr.AtmosphereFramework configuration file
+     * Default: META-INF/services
+     * Value: org.atmosphere.cpr.metaServicePath
+     */
+    String META_SERVICE_PATH = "org.atmosphere.cpr.metaServicePath";
+    /**
+     * Close the {@link AtmosphereResponseImpl#getOutputStream()} when {@link org.atmosphere.cpr.AtmosphereResource#close()}
+     * gets invoked, or when the underlying server close the connection.
+     * Default: false
+     * Value: org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel
+     */
+    String CLOSE_STREAM_ON_CANCEL = "org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel";
+
+    /**
+     * Use init parameters specified for servlet context in addition to servlet config
+     * Default: false
+     * Value: org.atmosphere.cpr.AtmosphereConfig.getInitParameter
+     */
+    String USE_SERVLET_CONTEXT_PARAMETERS = "org.atmosphere.cpr.AtmosphereConfig.getInitParameter";
+    /**
+     * Use {@link ForkJoinPool} for dispatching messages and executing async I/O) operation
+     * Default: true
+     * Value: org.atmosphere.useForkJoinPool
+     */
+    String USE_FORJOINPOOL = "org.atmosphere.useForkJoinPool";
 }
 

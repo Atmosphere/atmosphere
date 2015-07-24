@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -59,7 +59,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     private BroadcasterFactory factory;
     private ScheduledExecutorService stateTracker;
     private long timeout = 5 * 1000 * 60;
-    private Future<?> f;
+    private Future<?> trackerFuture;
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -77,7 +77,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
     public AtmosphereResourceStateRecovery timeout(long timeout){
         this.timeout = timeout;
-        f.cancel(false);
+        trackerFuture.cancel(false);
         startStateTracker();
         return this;
     }
@@ -87,7 +87,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     }
 
     protected void startStateTracker() {
-        f = stateTracker.scheduleAtFixedRate(new Runnable() {
+        trackerFuture = stateTracker.scheduleAtFixedRate(new Runnable() {
             @Override
             public void run() {
                 long now = System.currentTimeMillis();
@@ -116,7 +116,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 writeCache(r, cachedMessages);
                 return Action.CANCELLED;
             } else {
-                r.addEventListener(new OnSuspend() {
+                r.addEventListener(new OnAlwaysSuspend() {
                     public void onSuspend(AtmosphereResourceEvent event) {
                         r.removeEventListener(this);
 
@@ -191,6 +191,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
     @Override
     public void postInspect(AtmosphereResource r) {
+    }
+
+    @Override
+    public void destroy() {
+        trackerFuture.cancel(true);
     }
 
     public final class B extends BroadcasterListenerAdapter {
@@ -282,7 +287,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
                 List<Object> t = cache.retrieveFromCache(b.getID(), r.uuid());
 
-                cachedMessages = b.getBroadcasterConfig().applyFilters(r, t);
+                t = b.getBroadcasterConfig().applyFilters(r, t);
                 if (t.size() > 0) {
                     logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
                     cachedMessages.addAll(t);
@@ -303,5 +308,10 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         } catch (IOException e) {
             logger.warn("Unable to recover from state recovery {}", r.uuid(), e);
         }
+    }
+
+    abstract static public class OnAlwaysSuspend extends OnSuspend implements AllowInterceptor {
+        @Override
+        abstract public void onSuspend(AtmosphereResourceEvent event);
     }
 }

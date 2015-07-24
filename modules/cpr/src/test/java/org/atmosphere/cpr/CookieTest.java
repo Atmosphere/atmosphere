@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -65,6 +66,11 @@ public class CookieTest {
         });
     }
 
+    @AfterMethod
+    public void unSet() throws Exception {
+        framework.destroy();
+    }
+
     @Test
     public void basicHandlerTest() throws IOException, ServletException, ExecutionException, InterruptedException {
         final AtomicReference<Cookie> cValue = new AtomicReference<Cookie>();
@@ -91,8 +97,8 @@ public class CookieTest {
         Set<Cookie> c = new HashSet<Cookie>();
         c.add(new Cookie("yo", "man"));
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        framework.doCometSupport(request, AtmosphereResponse.newInstance());
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().cookies(c).pathInfo("/a").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(cValue.get());
@@ -134,8 +140,8 @@ public class CookieTest {
         a.setPath("/ya");
         c.add(a);
 
-        AtmosphereRequest request = new AtmosphereRequest.Builder().cookies(c).pathInfo("/a").build();
-        AtmosphereResponse response = AtmosphereResponse.newInstance().delegateToNativeResponse(false);
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().cookies(c).pathInfo("/a").build();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance().delegateToNativeResponse(false);
         response.destroyable(false);
         framework.doCometSupport(request, response);
 

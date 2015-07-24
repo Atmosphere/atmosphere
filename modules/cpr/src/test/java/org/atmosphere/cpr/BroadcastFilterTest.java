@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jean-Francois Arcand
+ * Copyright 2015 Jean-Francois Arcand
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -49,11 +49,11 @@ public class BroadcastFilterTest {
         atmosphereHandler = new AR();
         HashMap<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
-        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
                 req,
-                AtmosphereResponse.newInstance(),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -101,8 +101,8 @@ public class BroadcastFilterTest {
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
                 broadcaster,
-                mock(AtmosphereRequest.class),
-                AtmosphereResponse.newInstance(),
+                mock(AtmosphereRequestImpl.class),
+                AtmosphereResponseImpl.newInstance(),
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
@@ -236,12 +236,12 @@ public class BroadcastFilterTest {
     public void testMultipleMessageLengthFilter() throws ExecutionException, InterruptedException {
         HashMap<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
-        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         for (int i = 0; i < 10; i++) {
             broadcaster.addAtmosphereResource(new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
                     broadcaster,
                     req,
-                    AtmosphereResponse.newInstance(),
+                    AtmosphereResponseImpl.newInstance(),
                     mock(BlockingIOCometSupport.class),
                     new AR()));
         }
@@ -255,14 +255,14 @@ public class BroadcastFilterTest {
     public void testSetMultipleMessageLengthFilter() throws ExecutionException, InterruptedException {
         HashMap<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
-        AtmosphereRequest req = new AtmosphereRequest.Builder().headers(m).build();
+        AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         Set<AtmosphereResource> s = new HashSet<AtmosphereResource>();
         s.add(ar);
         for (int i = 0; i < 10; i++) {
             ar = new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
                     broadcaster,
                     req,
-                    AtmosphereResponse.newInstance(),
+                    AtmosphereResponseImpl.newInstance(),
                     mock(BlockingIOCometSupport.class),
                     new AR());
             broadcaster.addAtmosphereResource(ar);
@@ -271,6 +271,15 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
         broadcaster.broadcast("0", s).get();
         assertEquals(atmosphereHandler.value.get().toString(), "1|0");
+    }
+
+
+    @Test
+    public void testAbortPerFilterFuture() throws ExecutionException, InterruptedException {
+        broadcaster.getBroadcasterConfig().addFilter(new AbortFilter2());
+
+        broadcaster.broadcast("0").get();
+        assertEquals(atmosphereHandler.value.get().toString(), "");
     }
 
     private final static class PerRequestFilter implements PerRequestBroadcastFilter {
@@ -331,6 +340,19 @@ public class BroadcastFilterTest {
         @Override
         public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
             return new BroadcastAction(perRequest ? BroadcastAction.ACTION.ABORT : BroadcastAction.ACTION.CONTINUE, message);
+        }
+    }
+
+    private final static class AbortFilter2 implements PerRequestBroadcastFilter {
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
+            return new BroadcastAction(BroadcastAction.ACTION.CONTINUE, message);
+        }
+
+        @Override
+        public BroadcastAction filter(String broadcasterId, AtmosphereResource atmosphereResource, Object originalMessage, Object message) {
+            return new BroadcastAction(BroadcastAction.ACTION.ABORT, message);
         }
     }
 

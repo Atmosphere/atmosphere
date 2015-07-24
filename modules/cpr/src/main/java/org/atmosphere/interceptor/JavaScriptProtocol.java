@@ -1,5 +1,5 @@
 /*
- * Copyright 2014 Jeanfrancois Arcand
+ * Copyright 2015 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -88,7 +88,11 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
 
             if (enforceAtmosphereVersion) {
                 String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
-                int version = parseVersion(javascriptVersion.split("-")[0]);
+                int version = 0;
+                if (javascriptVersion != null) {
+                    version = parseVersion(javascriptVersion.split("-")[0]);
+                }
+
                 if (version < 221) {
                     logger.error("Invalid Atmosphere Version {}", javascriptVersion);
                     response.setStatus(501);
@@ -116,19 +120,24 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 }
             }
 
-            // Since 1.0.10
-            final StringBuffer message = new StringBuffer(r.uuid()).append(wsDelimiter);
-
-            // since 2.2
+            String message;
             if (enforceAtmosphereVersion) {
-                message.append(heartbeatInterval)
+                // UUID since 1.0.10
+                message = new StringBuilder(r.uuid())
+                    .append(wsDelimiter)
+                    // heartbeat since 2.2
+                    .append(heartbeatInterval)
                     .append(wsDelimiter)
                     .append(heartbeatData)
-                    .append(wsDelimiter);
+                    .append(wsDelimiter).toString();
+            }
+            else {
+                // UUID since 1.0.10
+                message = r.uuid();
             }
 
             // https://github.com/Atmosphere/atmosphere/issues/993
-            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message.toString());
+            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message);
             if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
                 for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
                     if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
