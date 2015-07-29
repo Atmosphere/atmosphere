@@ -338,16 +338,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private MethodInfo.EncoderObject message(AtmosphereResource resource, Object o) {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
         try {
-
-            Method invokedMethod = (Method) request.localAttributes().remove(getClass().getName());
-            if (invokedMethod != null) {
-                for (MethodInfo m : onRuntimeMethod) {
-                    if (invokedMethod.equals(m.method)) {
-                        return m.encode(encoders, o);
-                    }
-                }
-            }
-
             for (MethodInfo m : onRuntimeMethod) {
                 if (m.useReader) {
                     o = request.getReader();
@@ -371,15 +361,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                     logger.warn("Injection of more than 2 parameters not supported {}", m);
                 }
 
-                if (invokedMethod == null) {
-                    if (m.method.getParameterTypes().length == 2) {
-                        request.localAttributes().put(getClass().getName(), m.method);
-                        objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
-                    } else {
-                        objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
-                    }
+                if (m.method.getParameterTypes().length == 2) {
+                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
                 } else {
-                    objectToEncode = o;
+                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
                 }
 
                 if (objectToEncode != null) {
