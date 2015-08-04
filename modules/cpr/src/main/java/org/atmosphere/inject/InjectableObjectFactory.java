@@ -28,11 +28,13 @@ import org.slf4j.LoggerFactory;
 import javax.inject.Inject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.ServiceLoader;
 import java.util.Set;
+
+import static org.atmosphere.util.Utils.getInheritedPrivateFields;
+import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
 
 /**
  * Support injection of Atmosphere's Internal object using
@@ -128,8 +130,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      */
     public <U> void applyMethods(U instance, Class<U> defaultType) throws IllegalAccessException {
         Set<Method> methods = new HashSet<Method>();
-        methods.addAll(Arrays.asList(defaultType.getDeclaredMethods()));
-        methods.addAll(Arrays.asList(defaultType.getMethods()));
+        methods.addAll(getInheritedPrivateMethod(defaultType));
         injectMethods(methods, instance);
     }
 
@@ -155,22 +156,6 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         injectFields(fields, instance, framework, injectables);
     }
 
-    private Set<Field> getInheritedPrivateFields(Class<?> type) {
-        Set<Field> result = new HashSet<Field>();
-
-        Class<?> i = type;
-        while (i != null && i != Object.class) {
-            for (Field field : i.getDeclaredFields()) {
-                if (!field.isSynthetic()) {
-                    result.add(field);
-                }
-            }
-            i = i.getSuperclass();
-        }
-
-        return result;
-    }
-
     public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
@@ -183,7 +168,17 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
                         try {
                             field.setAccessible(true);
-                            field.set(instance, c.injectable(framework.getAtmosphereConfig()));
+                            Object o = c.injectable(framework.getAtmosphereConfig());
+
+                            if (o == null) continue;
+
+                            if (field.getType().equals(Boolean.TYPE)) {
+                                field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
+                            } else {
+                                field.set(instance, o);
+                            }
+                        } catch (Exception ex) {
+                            logger.warn("Injectable {} failed to inject", c, ex);
                         } finally {
                             field.setAccessible(false);
                         }
@@ -222,24 +217,26 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     public void requestScoped(Object instance, Class defaultType, AtmosphereResource r) throws IllegalAccessException {
-        Set<Field> fields = new HashSet<Field>();
-        fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
-        fields.addAll(Arrays.asList(defaultType.getFields()));
+        Set<Field> fields = new HashSet<>();
+        fields.addAll(getInheritedPrivateFields(defaultType));
 
         for (Field field : fields) {
-            if (field.isAnnotationPresent(Inject.class)) {
-                for (InjectIntrospector c : requestScopedIntrospectors) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
 
-                    c.introspectField(field);
+                for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
+                    if (field.isAnnotationPresent(annotation)) {
 
-                    if (c.supportedType(field.getType())) {
-                        try {
-                            field.setAccessible(true);
-                            field.set(instance, c.injectable(r));
-                        } finally {
-                            field.setAccessible(false);
+                        c.introspectField(field);
+
+                        if (c.supportedType(field.getType())) {
+                            try {
+                                field.setAccessible(true);
+                                field.set(instance, c.injectable(r));
+                            } finally {
+                                field.setAccessible(false);
+                            }
+                            break;
                         }
-                        break;
                     }
                 }
             }
