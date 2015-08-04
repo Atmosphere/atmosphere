@@ -36,6 +36,6 @@ import java.lang.annotation.Target;
 @Documented
 public @interface RequestScoped {
 
-    Class<?>[] value() default { Inject.class };
+    Class<?>[] value() default {Inject.class};
 
 }
