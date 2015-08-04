@@ -32,6 +32,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertTrue;
 
 public class QueryStringTest {
 
@@ -96,7 +97,7 @@ public class QueryStringTest {
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(q.get());
-        assertEquals(q.get(), "b=d&c=f&a=b");
+        assertTrue("b=d&c=f&a=b".equals(q.get()) || "a=b&b=d&c=f".equals(q.get()));
     }
 
     @Test
