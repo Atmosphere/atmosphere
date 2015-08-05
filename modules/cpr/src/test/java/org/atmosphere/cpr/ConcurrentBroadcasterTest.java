@@ -85,8 +85,8 @@ public class ConcurrentBroadcasterTest {
         @Override
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
             count.incrementAndGet();
-            // System.out.println("Message received => " + count);
-            //System.out.println(e.getMessage());
+            // logger.info("Message received => " + count);
+            //logger.info(e.getMessage());
         }
 
         @Override
@@ -130,7 +130,6 @@ public class ConcurrentBroadcasterTest {
         latch.await(60, TimeUnit.SECONDS);
 
         assertEquals(atmosphereHandler.value.get().toString(), b.toString());
-        System.out.println("Took: " + (System.currentTimeMillis() - t1));
     }
 
     @Test
@@ -166,7 +165,6 @@ public class ConcurrentBroadcasterTest {
 
         assertEquals(a.count.get(), count * client);
         //Thread.sleep(600000);
-        System.out.println("Took: " + (System.currentTimeMillis() - t1));
     }
 
     @Test
@@ -211,7 +209,6 @@ public class ConcurrentBroadcasterTest {
 
         assertEquals(a.count.get(), count * client);
         //Thread.sleep(600000);
-        System.out.println("Took: " + (System.currentTimeMillis() - t1));
     }
 
     @Test
@@ -256,7 +253,6 @@ public class ConcurrentBroadcasterTest {
 
         assertEquals(a.count.get(), count * client);
         //Thread.sleep(600000);
-        System.out.println("Took: " + (System.currentTimeMillis() - t1));
     }
 
     @Test
@@ -298,7 +294,6 @@ public class ConcurrentBroadcasterTest {
 
         assertEquals(a.count.get(), count * client);
         //Thread.sleep(600000);
-        System.out.println("Took: " + (System.currentTimeMillis() - t1));
     }
 
     @Test
@@ -343,7 +338,6 @@ public class ConcurrentBroadcasterTest {
         latch.await(60, TimeUnit.SECONDS);
 
         assertEquals(atmosphereHandler.value.get().toString(), b.toString());
-        System.out.println("Took: " + (System.currentTimeMillis() - t1));
     }
 
     AtmosphereResource newAR(AtmosphereHandler a) {
