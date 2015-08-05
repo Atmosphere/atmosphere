@@ -75,7 +75,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 [Top](#Top)
 
 ## Build Status
-[![Build Status](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/badge/icon)](https://buildhive.cloudbees.com/job/Atmosphere/job/atmosphere/)
+[![Build Status](https://travis-ci.org/Atmosphere/atmosphere.svg?branch=master)
 
 [![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)]
 
