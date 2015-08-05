@@ -1172,7 +1172,7 @@
 <a class="jxr_linenumber" name="L1164" href="#L1164">1164</a>         <strong class="jxr_keyword">private</strong> String servletPath = <span class="jxr_string">""</span>;
 <a class="jxr_linenumber" name="L1165" href="#L1165">1165</a>         <strong class="jxr_keyword">private</strong> String requestURI;
 <a class="jxr_linenumber" name="L1166" href="#L1166">1166</a>         <strong class="jxr_keyword">private</strong> String requestURL;
-<a class="jxr_linenumber" name="L1167" href="#L1167">1167</a>         <strong class="jxr_keyword">private</strong> Map&lt;String, Object&gt; localAttributes = Collections.synchronizedMap(<strong class="jxr_keyword">new</strong> HashMap&lt;String, Object&gt;());
+<a class="jxr_linenumber" name="L1167" href="#L1167">1167</a>         <strong class="jxr_keyword">private</strong> Map&lt;String, Object&gt; localAttributes = <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;String, Object&gt;();
 <a class="jxr_linenumber" name="L1168" href="#L1168">1168</a>         <strong class="jxr_keyword">private</strong> InputStream inputStream;
 <a class="jxr_linenumber" name="L1169" href="#L1169">1169</a>         <strong class="jxr_keyword">private</strong> Reader reader;
 <a class="jxr_linenumber" name="L1170" href="#L1170">1170</a>         <strong class="jxr_keyword">private</strong> String remoteAddr = <span class="jxr_string">""</span>;
@@ -1262,7 +1262,7 @@
 <a class="jxr_linenumber" name="L1254" href="#L1254">1254</a>         }
 <a class="jxr_linenumber" name="L1255" href="#L1255">1255</a> 
 <a class="jxr_linenumber" name="L1256" href="#L1256">1256</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">Builder</a> attributes(Map&lt;String, Object&gt; attributes) {
-<a class="jxr_linenumber" name="L1257" href="#L1257">1257</a>             localAttributes = ConcurrentHashMap.<strong class="jxr_keyword">class</strong>.isAssignableFrom(attributes.getClass()) ? attributes : Collections.synchronizedMap(attributes);
+<a class="jxr_linenumber" name="L1257" href="#L1257">1257</a>             localAttributes = ConcurrentHashMap.<strong class="jxr_keyword">class</strong>.isAssignableFrom(attributes.getClass()) ? attributes : <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;String, Object&gt;(attributes);
 <a class="jxr_linenumber" name="L1258" href="#L1258">1258</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="L1259" href="#L1259">1259</a>         }
 <a class="jxr_linenumber" name="L1260" href="#L1260">1260</a> 

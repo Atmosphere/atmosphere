@@ -828,7 +828,7 @@
 <a class="jxr_linenumber" name="L820" href="#L820">820</a> <em class="jxr_javadoccomment">     * Default: true (enabled) &lt;br&gt;</em>
 <a class="jxr_linenumber" name="L821" href="#L821">821</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.AtmosphereFramework.analytics</em>
 <a class="jxr_linenumber" name="L822" href="#L822">822</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L823" href="#L823">823</a>     String ANALYTICS = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereFramework.analytics.analytics"</span>;
+<a class="jxr_linenumber" name="L823" href="#L823">823</a>     String ANALYTICS = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereFramework.analytics"</span>;
 <a class="jxr_linenumber" name="L824" href="#L824">824</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L825" href="#L825">825</a> <em class="jxr_javadoccomment">     * For use of (@link BytecodeBasedAnnotationProcessor}</em>
 <a class="jxr_linenumber" name="L826" href="#L826">826</a> <em class="jxr_javadoccomment">     * Default: false</em>
@@ -921,8 +921,19 @@
 <a class="jxr_linenumber" name="L913" href="#L913">913</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.useForkJoinPool</em>
 <a class="jxr_linenumber" name="L914" href="#L914">914</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L915" href="#L915">915</a>     String USE_FORJOINPOOL = <span class="jxr_string">"org.atmosphere.useForkJoinPool"</span>;
-<a class="jxr_linenumber" name="L916" href="#L916">916</a> }
-<a class="jxr_linenumber" name="L917" href="#L917">917</a> 
+<a class="jxr_linenumber" name="L916" href="#L916">916</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L917" href="#L917">917</a> <em class="jxr_javadoccomment">     * Writes the given data to the given outputstream in two steps with extra flushes to make servers notice if the connection has been closed.</em>
+<a class="jxr_linenumber" name="L918" href="#L918">918</a> <em class="jxr_javadoccomment">     * This  enables caching the message instead of losing it, if the client is in the progress of reconnecting via a Proxy where</em>
+<a class="jxr_linenumber" name="L919" href="#L919">919</a> <em class="jxr_javadoccomment">     * the server fails to detect the connection has been closed.</em>
+<a class="jxr_linenumber" name="L920" href="#L920">920</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L921" href="#L921">921</a> <em class="jxr_javadoccomment">     * This value only apply to LONG-POLLING transport</em>
+<a class="jxr_linenumber" name="L922" href="#L922">922</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L923" href="#L923">923</a> <em class="jxr_javadoccomment">     * Default: false</em>
+<a class="jxr_linenumber" name="L924" href="#L924">924</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite</em>
+<a class="jxr_linenumber" name="L925" href="#L925">925</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L926" href="#L926">926</a>     String TWO_STEPS_WRITE = <span class="jxr_string">"org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite"</span>;
+<a class="jxr_linenumber" name="L927" href="#L927">927</a> }
+<a class="jxr_linenumber" name="L928" href="#L928">928</a> 
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>
