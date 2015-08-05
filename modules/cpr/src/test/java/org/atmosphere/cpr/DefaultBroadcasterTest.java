@@ -50,7 +50,6 @@ public class DefaultBroadcasterTest {
         }
 
         protected void cacheAndSuspend(AtmosphereResource r) {
-            System.out.println("========> cacheAndSuspend");
             try {
                 Thread.sleep(100);
             } catch (InterruptedException e) {
