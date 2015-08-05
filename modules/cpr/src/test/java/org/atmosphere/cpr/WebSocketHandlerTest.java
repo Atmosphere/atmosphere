@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -67,6 +68,7 @@ public class WebSocketHandlerTest {
                 return null;
             }
         });
+        framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
     }
 
     @AfterMethod
