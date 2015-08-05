@@ -161,8 +161,10 @@ public class JSR356WebSocket extends WebSocket {
             semaphore.release();
             if (!result.isOK() || result.getException() != null) {
                 logger.trace("WebSocket {} failed to write {}", r, message);
-                Broadcaster b = r.getBroadcaster();
-                b.getBroadcasterConfig().getBroadcasterCache().addToCache(b.getID(), r.uuid(), new BroadcastMessage(message));
+                if (r != null) {
+                    Broadcaster b = r.getBroadcaster();
+                    b.getBroadcasterConfig().getBroadcasterCache().addToCache(b.getID(), r.uuid(), new BroadcastMessage(message));
+                }
             }
         }
     }
