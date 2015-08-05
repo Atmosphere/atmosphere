@@ -53,6 +53,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractReflectorAtmosphereHandler.class);
 
+    private boolean twoStepsWrite = false;
+
     /**
      * Write the {@link AtmosphereResourceEvent#getMessage()} back to the client using
      * the {@link AtmosphereResponseImpl#getOutputStream()} or {@link AtmosphereResponseImpl#getWriter()}.
@@ -161,14 +163,13 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
         postStateChange(event);
     }
 
-    private void write(AtmosphereResourceEvent event, ServletOutputStream o, byte[] data) throws IOException {
+    protected void write(AtmosphereResourceEvent event, ServletOutputStream o, byte[] data) throws IOException {
         if (useTwoStepWrite(event) && data.length > 1) {
             twoStepWrite(o, data);
         } else {
             o.write(data);
             o.flush();
         }
-
     }
 
     /**
@@ -189,7 +190,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
     }
 
     protected boolean useTwoStepWrite(AtmosphereResourceEvent event) {
-        return event.getResource().transport() == AtmosphereResource.TRANSPORT.LONG_POLLING;
+        return twoStepsWrite && event.getResource().transport() == AtmosphereResource.TRANSPORT.LONG_POLLING;
     }
 
     /**
@@ -226,6 +227,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
 
     @Override
     public void init(AtmosphereConfig config) throws ServletException {
+        twoStepsWrite = config.getInitParameter(ApplicationConfig.TWO_STEPS_WRITE, false);
     }
 
     /**
