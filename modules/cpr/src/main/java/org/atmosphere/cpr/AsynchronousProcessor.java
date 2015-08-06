@@ -45,7 +45,8 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
+public abstract class
+        AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
@@ -148,10 +149,27 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             // Create the session needed to support the Resume
             // operation from disparate requests.
             HttpSession s = req.getSession(config.getInitParameter(PROPERTY_SESSION_CREATE, true));
-            if (s != null && s.isNew()) {
-                s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, config.getBroadcasterFactory());
-            }
 
+            // https://github.com/Atmosphere/atmosphere/issues/2034
+            try {
+                if (s != null && s.isNew()) {
+                    s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, config.getBroadcasterFactory());
+                }
+            } catch(IllegalStateException ex) {
+                AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(req.resource());
+                logger.warn("Session Expired for {}. Closing the connection", req.uuid(), ex);
+                if (r != null) {
+                    logger.trace("Ending request for {}", r.uuid());
+                    endRequest(r, true);
+                    return Action.CANCELLED;
+                } else {
+                    logger.trace("Sending error for {}", req.uuid());
+                    res.setStatus(500);
+                    res.addHeader(X_ATMOSPHERE_ERROR, "Session expired");
+                    res.flushBuffer();
+                    return new Action();
+                }
+            }
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
