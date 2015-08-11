@@ -52,7 +52,7 @@ public class ExecutorsFactory {
             Class.forName("java.util.concurrent.ForkJoinPool");
             useForkJoinPool = true;
         } catch (ClassNotFoundException e) {
-            logger.warn("Unable to instantiate the java.util.concurrent.ForkJoinPool For best performance, please install JDK 1.7+.");
+            logger.warn("Unable to instantiate the java.util.concurrent.ForkJoinPool for best performance, please install JDK 1.7+.");
             useForkJoinPool = false;
         }
     }
@@ -106,6 +106,9 @@ public class ExecutorsFactory {
                         : new org.atmosphere.util.ForkJoinPool();
             } else {
                 messageService = (ThreadPoolExecutor) Executors.newFixedThreadPool(numberOfMessageProcessingThread, new AtmosphereThreadFactory(shared, name + "-DispatchOp-"));
+                if (useForkJoinPool) {
+                    logger.info("ForkJoinPool is available. Set the {} to -1 to fully use its power.", ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
+                }
             }
 
             keepAliveThreads(messageService, config);
@@ -166,6 +169,9 @@ public class ExecutorsFactory {
             } else {
                 asyncWriteService = (ThreadPoolExecutor) Executors.newFixedThreadPool(numberOfAsyncThread,
                         new AtmosphereThreadFactory(shared, name + "-AsyncOp-"));
+                if (useForkJoinPool) {
+                    logger.info("ForkJoinPool is available. Set the {} to -1 to fully use its power.", ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
+                }
             }
 
             keepAliveThreads(asyncWriteService, config);

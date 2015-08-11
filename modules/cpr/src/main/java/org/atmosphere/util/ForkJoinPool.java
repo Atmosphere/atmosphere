@@ -15,10 +15,6 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.cpr.ApplicationConfig;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import java.util.List;
 import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -30,8 +26,6 @@ import java.util.concurrent.atomic.AtomicInteger;
  * @author Jean-Francois Arcand
  */
 public class ForkJoinPool extends AbstractExecutorService {
-
-    private final static Logger logger = LoggerFactory.getLogger(ForkJoinPool.class);
 
     private final org.atmosphere.util.chmv8.ForkJoinPool forkJoinPool;
 
@@ -45,7 +39,6 @@ public class ForkJoinPool extends AbstractExecutorService {
                             return new AtmosphereThreadFactoryJoin(pool);
                         }
                     }, null, true);
-        logger.info("Using ForkJoinPool. Set the {} to -1 to fully use its power.", ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
     }
 
     public org.atmosphere.util.chmv8.ForkJoinPool pool() {
