@@ -356,8 +356,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * Use the underlying container's websocket to write the byte.
      *
      * @param b      a websocket byte message
-     * @param offset start
-     * @param length end
      * @return this
      * @throws IOException
      */
