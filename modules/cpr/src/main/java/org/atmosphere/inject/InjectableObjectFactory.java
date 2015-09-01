@@ -190,7 +190,15 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable) {
-        injectables.add(injectable);
+        return allowInjectionOf(injectable, false);
+    }
+
+    public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable, boolean first) {
+        if (first) {
+            injectables.addFirst(injectable);
+        } else {
+            injectables.add(injectable);
+        }
         return this;
     }
 
