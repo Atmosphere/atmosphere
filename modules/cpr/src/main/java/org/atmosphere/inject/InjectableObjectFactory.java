@@ -94,6 +94,9 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         config.startupHook(new AtmosphereConfig.StartupHook() {
             @Override
             public void started(AtmosphereFramework framework) {
+                // Gieb another chance to injection in case we failed at first place. We may still fail if there is a strong
+                // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
+                // in META-INF/services/org/atmosphere/inject.Injectable
                 Set<Field> fields = new HashSet<Field>();
                 try {
                     for (Object instance : pushBackInjection) {
@@ -108,7 +111,6 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 } finally {
                     pushBackInjection.clear();
                 }
-
             }
         });
     }
