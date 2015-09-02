@@ -353,6 +353,17 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     abstract public WebSocket write(byte[] b, int offset, int length) throws IOException;
 
     /**
+     * Use the underlying container's websocket to write the byte.
+     *
+     * @param b      a websocket byte message
+     * @return this
+     * @throws IOException
+     */
+    public WebSocket write(byte[] b) throws IOException {
+        return write(b, 0, b.length);
+    }
+
+    /**
      * Close the underlying WebSocket
      */
     abstract public void close();
@@ -369,6 +380,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
 
     /**
      * Send a WebSocket Ping
+     *
      * @param payload the bytes to send
      * @return this
      */
@@ -378,6 +390,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
 
     /**
      * Send a WebSocket Pong
+     *
      * @param payload the bytes to send
      * @return this
      */
