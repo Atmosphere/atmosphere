@@ -934,6 +934,8 @@ public class AtmosphereFramework {
             if (logger.isInfoEnabled()) {
                 info();
             }
+
+            universe();
         } catch (Throwable t) {
             logger.error("Failed to initialize Atmosphere Framework", t);
 
@@ -1016,7 +1018,6 @@ public class AtmosphereFramework {
         }
     }
 
-
     private void info() {
 
         if (logger.isTraceEnabled()) {
@@ -1097,8 +1098,6 @@ public class AtmosphereFramework {
                 logger.trace("{}", e.getValue());
             }
         }
-
-        Universe.broadcasterFactory(broadcasterFactory);
     }
 
     protected void universe() {
