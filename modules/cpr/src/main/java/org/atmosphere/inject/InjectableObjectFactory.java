@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import static org.atmosphere.util.Utils.getInheritedPrivateFields;
 import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
@@ -52,7 +53,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
-    private final LinkedList<Object> pushBackInjection = new LinkedList<>();
+    private final LinkedBlockingDeque<Object> pushBackInjection = new LinkedBlockingDeque();
 
     private AtmosphereConfig config;
 
