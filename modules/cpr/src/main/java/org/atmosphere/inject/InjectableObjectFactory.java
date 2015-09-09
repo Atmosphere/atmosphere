@@ -49,13 +49,17 @@ import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
-    private final static ServiceLoader<Injectable> injectableServiceLoader = ServiceLoader.load(Injectable.class);
+    private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedBlockingDeque<Object> pushBackInjection = new LinkedBlockingDeque();
 
     private AtmosphereConfig config;
+
+    public InjectableObjectFactory() {
+        injectableServiceLoader = ServiceLoader.load(Injectable.class);
+    }
 
     @Override
     public void configure(AtmosphereConfig config) {
