@@ -36,50 +36,55 @@ import static org.atmosphere.annotation.AnnotationUtil.listeners;
 @AtmosphereAnnotation(AtmosphereHandlerService.class)
 public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHandler> {
 
-    private static final Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceProcessor.class);
+	private static final Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceProcessor.class);
 
-    @Override
-    public void handle(AtmosphereFramework framework, Class<AtmosphereHandler> annotatedClass) {
-        try {
-            AtmosphereHandlerService a = annotatedClass.getAnnotation(AtmosphereHandlerService.class);
+	@Override
+	public void handle(AtmosphereFramework framework, Class<AtmosphereHandler> annotatedClass) {
+		try {
+			AtmosphereHandlerService a = annotatedClass.getAnnotation(AtmosphereHandlerService.class);
 
-            atmosphereConfig(a.atmosphereConfig(), framework);
-            filters(a.broadcastFilters(), framework);
+			atmosphereConfig(a.atmosphereConfig(), framework);
+			filters(a.broadcastFilters(), framework);
 
-            Class<?>[] interceptors = a.interceptors();
-            LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
-            for (Class i : interceptors) {
-                try {
-                    AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.class, i);
-                    l.add(ai);
-                } catch (Throwable e) {
-                    logger.warn("", e);
-                }
-            }
+			Class<?>[] interceptors = a.interceptors();
+			LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+			for (Class i : interceptors) {
+				try {
+					AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.class, i);
+					l.add(ai);
+				} catch (Throwable e) {
+					logger.warn("", e);
+				}
+			}
 
-            AtmosphereInterceptor aa = listeners(a.listeners(), framework);
-            if (aa != null) {
-                l.add(aa);
-            }
+			AtmosphereInterceptor aa = listeners(a.listeners(), framework);
+			if (aa != null) {
+				l.add(aa);
+			}
 
-            if (a.path().contains("{")) {
-                l.addFirst(framework.newClassInstance(AtmosphereInterceptor.class, AtmosphereHandlerServiceInterceptor.class));
-            }
+			if (a.path().contains("{")) {
+				l.addFirst(framework.newClassInstance(AtmosphereInterceptor.class, AtmosphereHandlerServiceInterceptor.class));
+			}
 
-            framework.sessionSupport(a.supportSession());
+			framework.sessionSupport(a.supportSession());
 
-            AtmosphereHandler handler = framework.newClassInstance(AtmosphereHandler.class, annotatedClass);
-            for (String s : a.properties()) {
-                String[] nv = s.split("=");
-                IntrospectionUtils.setProperty(handler, nv[0], nv[1]);
-                IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
-            }
+			AtmosphereHandler handler = framework.newClassInstance(AtmosphereHandler.class, annotatedClass);
+			for (String s : a.properties()) {
+				String[] nv = s.split("=");
+				IntrospectionUtils.setProperty(handler, nv[0], nv[1]);
+				IntrospectionUtils.addProperty(handler, nv[0], nv[1]);
+			}
 
-            AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(a.interceptors()), l);
-            framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
-            framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
-        } catch (Throwable e) {
-            logger.warn("", e);
-        }
-    }
+			AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(a.interceptors()), l);
+			framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
+
+			if (a.broadcasterCache().getName().equals("org.atmosphere.cache.DefaultBroadcasterCache") && framework.getBroadcasterCacheClassName() != null &&!framework.getBroadcasterCacheClassName().isEmpty()) {
+				framework.setBroadcasterCacheClassName(framework.getBroadcasterCacheClassName());
+			} else {
+				framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
+			}
+		} catch (Throwable e) {
+			logger.warn("", e);
+		}
+	}
 }
