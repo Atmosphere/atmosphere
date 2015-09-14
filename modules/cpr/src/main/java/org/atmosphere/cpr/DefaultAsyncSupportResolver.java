@@ -234,14 +234,12 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             return (AsyncSupport) targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                     .newInstance(config);
         } catch (final Exception e) {
-            logger.error("Failed to create AsyncSupportt class: {}, error: {}", targetClass, e);
+            logger.warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
             Throwable cause = e.getCause();
             if (cause != null) {
                 logger.error("Real error: {}, error: {}", targetClass, cause);
             }
-            logger.error("Switching to BlockingIO");
-
-            return new BlockingIOCometSupport(config);
+            return null;
         }
     }
 
