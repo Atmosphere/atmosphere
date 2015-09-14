@@ -3190,7 +3190,7 @@ public class AtmosphereFramework {
     }
 
     public Class<? extends AtmosphereInterceptor>[] defaultInterceptors() {
-        return (Class<? extends AtmosphereInterceptor>[]) DEFAULT_ATMOSPHERE_INTERCEPTORS.toArray();
+        return DEFAULT_ATMOSPHERE_INTERCEPTORS.toArray(new Class[DEFAULT_ATMOSPHERE_INTERCEPTORS.size()]);
     }
 
     public AtmosphereResourceFactory atmosphereFactory() {
