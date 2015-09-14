@@ -232,6 +232,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     .newInstance(config);
         } catch (final Exception e) {
             logger.error("Failed to create comet support class: {}, error: {}", targetClass, e);
+            Throwable cause = e.getCause();
+            if (cause != null) {
+                logger.error("Real error: {}, error: {}", targetClass, cause);
+            }
             logger.error("Switching to BlockingIO");
 
             return new BlockingIOCometSupport(config);
@@ -245,6 +249,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
         } catch (final Exception e) {
             logger.error("Failed to create comet support class: {}, error: {}", targetClassFQN, e);
+            Throwable cause = e.getCause();
+            if (cause != null) {
+                logger.error("Real error: {}, error: {}", targetClassFQN, cause);
+            }
             throw new IllegalArgumentException("Unable to create " + targetClassFQN, e);
         }
     }
