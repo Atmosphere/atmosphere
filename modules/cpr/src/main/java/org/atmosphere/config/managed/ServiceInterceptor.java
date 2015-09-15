@@ -34,7 +34,6 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     private final Logger logger = LoggerFactory.getLogger(ServiceInterceptor.class);
 
     protected AtmosphereConfig config;
-    protected boolean wildcardMapping = false;
 
     public ServiceInterceptor() {
     }
@@ -42,8 +41,6 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
-
-        optimizeMapping();
     }
 
     @Override
@@ -53,7 +50,7 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
             w = (AtmosphereFramework.AtmosphereHandlerWrapper)
                                         r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
-            if (!wildcardMapping) return Action.CONTINUE;
+            if (!w.wildcardMapping()) return Action.CONTINUE;
 
             mapAnnotatedService(r.getRequest(), w);
 
@@ -65,15 +62,6 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
                 } catch (IllegalAccessException e) {
                     logger.error("", e);
                 }
-            }
-        }
-    }
-
-    protected void optimizeMapping() {
-        for (String w : config.handlers().keySet()) {
-            if (w.contains("{") && w.contains("}")) {
-                wildcardMapping = true;
-                break;
             }
         }
     }

@@ -299,17 +299,11 @@ public class AtmosphereFramework {
         public final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
         public boolean create;
         private boolean needRequestScopedInjection;
+        private final boolean wilcardMapping;
 
         public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, final AtmosphereHandler atmosphereHandler, String mapping,
                                         final AtmosphereConfig config) {
             this.atmosphereHandler = atmosphereHandler;
-
-            config.startupHook(new AtmosphereConfig.StartupHook(){
-                @Override
-                public void started(AtmosphereFramework framework) {
-                    needRequestScopedInjection = Utils.requestScopedInjection(config, atmosphereHandler);
-                }
-            });
 
             try {
                 if (broadcasterFactory != null) {
@@ -320,19 +314,25 @@ public class AtmosphereFramework {
             } catch (Exception t) {
                 throw new RuntimeException(t);
             }
+            wilcardMapping = mapping.contains("{") && mapping.contains("}");
+            hookInjection(config);
+        }
+
+        void hookInjection(final AtmosphereConfig config) {
+            config.startupHook(new AtmosphereConfig.StartupHook() {
+                @Override
+                public void started(AtmosphereFramework framework) {
+                    needRequestScopedInjection = Utils.requestScopedInjection(config, atmosphereHandler);
+                }
+            });
         }
 
         public AtmosphereHandlerWrapper(final AtmosphereHandler atmosphereHandler, Broadcaster broadcaster,
                                         final AtmosphereConfig config) {
             this.atmosphereHandler = atmosphereHandler;
             this.broadcaster = broadcaster;
-
-            config.startupHook(new AtmosphereConfig.StartupHook(){
-                @Override
-                public void started(AtmosphereFramework framework) {
-                    needRequestScopedInjection = Utils.requestScopedInjection(config, atmosphereHandler);
-                }
-            });
+            hookInjection(config);
+            wilcardMapping = false;
         }
 
         @Override
@@ -353,6 +353,10 @@ public class AtmosphereFramework {
 
         public boolean needRequestScopedInjection() {
             return needRequestScopedInjection;
+        }
+
+        public boolean wildcardMapping() {
+            return wilcardMapping;
         }
     }
 
