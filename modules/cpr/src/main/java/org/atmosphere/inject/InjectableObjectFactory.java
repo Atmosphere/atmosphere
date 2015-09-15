@@ -96,6 +96,15 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             }
         }
 
+        // Inject non requestScoped param
+        for (InjectIntrospector<?> i : requestScopedIntrospectors) {
+            try {
+                injectInjectable(i, i.getClass(), config.framework());
+            } catch (IllegalAccessException e) {
+                logger.error("", e);
+            }
+        }
+
         config.startupHook(new AtmosphereConfig.StartupHook() {
             @Override
             public void started(AtmosphereFramework framework) {
