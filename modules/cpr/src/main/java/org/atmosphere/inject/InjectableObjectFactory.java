@@ -283,6 +283,33 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
     }
 
+    public void requestScoped(Object instance, Class defaultType) throws IllegalAccessException {
+        Set<Field> fields = new HashSet<>();
+        fields.addAll(getInheritedPrivateFields(defaultType));
+
+        for (Field field : fields) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
+
+                for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
+                    if (field.isAnnotationPresent(annotation)) {
+
+                        c.introspectField(field);
+
+                        if (c.supportedType(field.getType())) {
+                            try {
+                                field.setAccessible(true);
+                                field.set(instance, c.injectable(config));
+                            } finally {
+                                field.setAccessible(false);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
     public boolean needRequestScoped(Class defaultType) throws IllegalAccessException {
         Set<Field> fields = new HashSet<>();
         fields.addAll(getInheritedPrivateFields(defaultType));
