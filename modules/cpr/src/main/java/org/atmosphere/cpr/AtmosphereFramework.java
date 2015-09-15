@@ -51,6 +51,7 @@ import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.ServletContextFactory;
 import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.util.UUIDProvider;
+import org.atmosphere.util.Utils;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.analytics.FocusPoint;
 import org.atmosphere.util.analytics.JGoogleAnalyticsTracker;
@@ -297,9 +298,19 @@ public class AtmosphereFramework {
         public String mapping;
         public final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
         public boolean create;
+        private boolean needRequestScopedInjection;
 
-        public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, AtmosphereHandler atmosphereHandler, String mapping) {
+        public AtmosphereHandlerWrapper(BroadcasterFactory broadcasterFactory, final AtmosphereHandler atmosphereHandler, String mapping,
+                                        final AtmosphereConfig config) {
             this.atmosphereHandler = atmosphereHandler;
+
+            config.startupHook(new AtmosphereConfig.StartupHook(){
+                @Override
+                public void started(AtmosphereFramework framework) {
+                    needRequestScopedInjection = Utils.requestScopedInjection(config, atmosphereHandler);
+                }
+            });
+
             try {
                 if (broadcasterFactory != null) {
                     this.broadcaster = broadcasterFactory.lookup(mapping, true);
@@ -311,9 +322,17 @@ public class AtmosphereFramework {
             }
         }
 
-        public AtmosphereHandlerWrapper(AtmosphereHandler atmosphereHandler, Broadcaster broadcaster) {
+        public AtmosphereHandlerWrapper(final AtmosphereHandler atmosphereHandler, Broadcaster broadcaster,
+                                        final AtmosphereConfig config) {
             this.atmosphereHandler = atmosphereHandler;
             this.broadcaster = broadcaster;
+
+            config.startupHook(new AtmosphereConfig.StartupHook(){
+                @Override
+                public void started(AtmosphereFramework framework) {
+                    needRequestScopedInjection = Utils.requestScopedInjection(config, atmosphereHandler);
+                }
+            });
         }
 
         @Override
@@ -330,6 +349,10 @@ public class AtmosphereFramework {
                     b.toString()
                     + "\n broadcaster"
                     + "\t" + broadcaster;
+        }
+
+        public boolean needRequestScopedInjection() {
+            return needRequestScopedInjection;
         }
     }
 
@@ -645,7 +668,7 @@ public class AtmosphereFramework {
     }
 
     protected AtmosphereHandlerWrapper createWrapperAndConfigureHandler(AtmosphereHandler h, String mapping, List<AtmosphereInterceptor> l) {
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping);
+        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping, config);
         addMapping(mapping, w);
         addInterceptorToWrapper(w, l);
         initServletProcessor(h);
@@ -1954,7 +1977,7 @@ public class AtmosphereFramework {
 
                     b = broadcasterFactory.lookup(atmoHandler.getContextRoot(), true);
 
-                    AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b);
+                    AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b, config);
                     addMapping(atmoHandler.getContextRoot(), wrapper);
 
                     String bc = atmoHandler.getBroadcasterCache();
@@ -2103,7 +2126,7 @@ public class AtmosphereFramework {
                     if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
                         AtmosphereHandler handler = newClassInstance(AtmosphereHandler.class, (Class<AtmosphereHandler>) clazz);
                         addMapping("/" + handler.getClass().getSimpleName(),
-                                new AtmosphereHandlerWrapper(broadcasterFactory, handler, "/" + handler.getClass().getSimpleName()));
+                                new AtmosphereHandlerWrapper(broadcasterFactory, handler, "/" + handler.getClass().getSimpleName(), config));
                         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handler.getClass().getName());
                     }
                 } catch (Throwable t) {

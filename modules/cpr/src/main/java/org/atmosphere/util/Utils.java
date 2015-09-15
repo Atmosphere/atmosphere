@@ -243,7 +243,13 @@ public final class Utils {
         AtmosphereHandler h = r.getAtmosphereHandler();
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
             return WebSocketProcessor.WebSocketHandlerProxy.class.cast(AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler()).proxied();
-        } else if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
+        } else {
+            return injectIn(h);
+        }
+    }
+
+    private static Object injectIn(AtmosphereHandler h) {
+        if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
             return AnnotatedProxy.class.cast(h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
             return ReflectorServletProcessor.class.cast(h).getServlet();
@@ -282,5 +288,20 @@ public final class Utils {
         }
 
         return result;
+    }
+
+    public final static boolean requestScopedInjection(AtmosphereConfig config, AtmosphereHandler h) {
+        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+            return false;
+        }
+
+        try {
+            return InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(injectIn(h).getClass());
+        } catch (Exception e) {
+            LOGGER.error("", e);
+            return false;
+        }
+
     }
 }

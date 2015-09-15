@@ -48,18 +48,23 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public Action inspect(AtmosphereResource r) {
+        AtmosphereFramework.AtmosphereHandlerWrapper w = null;
         try {
+            w = (AtmosphereFramework.AtmosphereHandlerWrapper)
+                                        r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
+
             if (!wildcardMapping) return Action.CONTINUE;
 
-            mapAnnotatedService(r.getRequest(), (AtmosphereFramework.AtmosphereHandlerWrapper)
-                    r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER));
+            mapAnnotatedService(r.getRequest(), w);
 
             return Action.CONTINUE;
         } finally {
-            try {
-                Utils.inject(r);
-            } catch (IllegalAccessException e) {
-                logger.error("", e);
+            if (w != null && w.needRequestScopedInjection()) {
+                try {
+                    Utils.inject(r);
+                } catch (IllegalAccessException e) {
+                    logger.error("", e);
+                }
             }
         }
     }
