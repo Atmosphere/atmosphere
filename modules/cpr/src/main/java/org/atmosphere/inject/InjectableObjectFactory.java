@@ -48,6 +48,8 @@ import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
 
+    public final static String INSTANCE_BEING_INJECTED = InjectableObjectFactory.class.getName() + ".instance";
+
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
     private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
@@ -197,6 +199,11 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
                         try {
                             field.setAccessible(true);
+
+                            /**
+                             * TODO: revist in 3.0 as this should be passed as a parameter instead but don't want to break all the 2.3.x implementation.
+                             */
+                            framework.getAtmosphereConfig().properties().put(INSTANCE_BEING_INJECTED, instance);
                             Object o = c.injectable(framework.getAtmosphereConfig());
 
                             if (o == null) {
@@ -213,6 +220,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             logger.warn("Injectable {} failed to inject", c, ex);
                         } finally {
                             field.setAccessible(false);
+                            framework.getAtmosphereConfig().properties().remove(INSTANCE_BEING_INJECTED);
                         }
                         break;
                     }
