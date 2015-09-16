@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
@@ -138,6 +139,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
             }
 
             if (response.request().getAttribute(SKIP_INTERCEPTOR) == null
+                    && Boolean.valueOf(response.request().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE))
                     && (response.getContentType() == null
                     || !excludedContentTypes.contains(response.getContentType().toLowerCase()))) {
                 try {
