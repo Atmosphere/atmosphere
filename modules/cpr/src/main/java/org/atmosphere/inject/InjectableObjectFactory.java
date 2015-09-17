@@ -114,7 +114,6 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     }
                 } finally {
                     pushBackInjection.clear();
-                    framework.getAtmosphereConfig().properties().remove(INSTANCE_BEING_INJECTED);
                 }
             }
         });
