@@ -188,44 +188,46 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
-        for (Field field : fields) {
-            if (field.isAnnotationPresent(Inject.class)) {
-                for (Injectable c : injectable) {
-                    if (c.supportedType(field.getType())) {
+        /**
+         * TODO: revist in 3.0 as this should be passed as a parameter instead but don't want to break all the 2.3.x implementation.
+         */
+        framework.getAtmosphereConfig().properties().put(INSTANCE_BEING_INJECTED, instance);
+        try {
+            for (Field field : fields) {
+                if (field.isAnnotationPresent(Inject.class)) {
+                    for (Injectable c : injectable) {
+                        if (c.supportedType(field.getType())) {
 
-                        if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
-                            InjectIntrospector.class.cast(c).introspectField(field);
-                        }
-
-                        try {
-                            field.setAccessible(true);
-
-                            /**
-                             * TODO: revist in 3.0 as this should be passed as a parameter instead but don't want to break all the 2.3.x implementation.
-                             */
-                            framework.getAtmosphereConfig().properties().put(INSTANCE_BEING_INJECTED, instance);
-                            Object o = c.injectable(framework.getAtmosphereConfig());
-
-                            if (o == null) {
-                                pushBackInjection.addFirst(instance);
-                                continue;
+                            if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
+                                InjectIntrospector.class.cast(c).introspectField(field);
                             }
 
-                            if (field.getType().equals(Boolean.TYPE)) {
-                                field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
-                            } else {
-                                field.set(instance, o);
+                            try {
+                                field.setAccessible(true);
+                                Object o = c.injectable(framework.getAtmosphereConfig());
+
+                                if (o == null) {
+                                    pushBackInjection.addFirst(instance);
+                                    continue;
+                                }
+
+                                if (field.getType().equals(Boolean.TYPE)) {
+                                    field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
+                                } else {
+                                    field.set(instance, o);
+                                }
+                            } catch (Exception ex) {
+                                logger.warn("Injectable {} failed to inject", c, ex);
+                            } finally {
+                                field.setAccessible(false);
                             }
-                        } catch (Exception ex) {
-                            logger.warn("Injectable {} failed to inject", c, ex);
-                        } finally {
-                            field.setAccessible(false);
-                            framework.getAtmosphereConfig().properties().remove(INSTANCE_BEING_INJECTED);
+                            break;
                         }
-                        break;
                     }
                 }
             }
+        } finally {
+            framework.getAtmosphereConfig().properties().remove(INSTANCE_BEING_INJECTED);
         }
     }
 
