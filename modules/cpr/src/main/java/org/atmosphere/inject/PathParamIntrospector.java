@@ -67,7 +67,7 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
     }
 
     @Override
-    public void introspectField(Field f) {
+    public void introspectField(Class clazz, Field f) {
         if (f.isAnnotationPresent(PathParam.class)) {
             String name = f.getAnnotation(PathParam.class).value();
 

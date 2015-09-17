@@ -36,7 +36,7 @@ public class InjectIntrospectorAdapter<T> implements InjectIntrospector {
     }
 
     @Override
-    public void introspectField(Field f) {
+    public void introspectField(Class clazz, Field f) {
     }
 
     @Override
