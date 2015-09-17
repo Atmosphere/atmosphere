@@ -47,9 +47,6 @@ import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
  * @author Jeanfrancois Arcand
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
-
-    public final static String INSTANCE_BEING_INJECTED = InjectableObjectFactory.class.getName() + ".instance";
-
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
     private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
