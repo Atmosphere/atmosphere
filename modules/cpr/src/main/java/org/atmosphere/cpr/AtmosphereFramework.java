@@ -1734,8 +1734,14 @@ public class AtmosphereFramework {
      *
      * @param sc the {@link ServletConfig}
      * @throws javax.servlet.ServletException
+     * @Deprecated
      */
     public void initAtmosphereHandler(ServletConfig sc) throws ServletException {
+        initAtmosphereHandler();
+    }
+
+    public void initAtmosphereHandler() throws ServletException {
+
         AtmosphereHandler a;
         AtmosphereHandlerWrapper w;
         for (Entry<String, AtmosphereHandlerWrapper> h : atmosphereHandlers.entrySet()) {
@@ -1745,7 +1751,10 @@ public class AtmosphereFramework {
                 ((AtmosphereServletProcessor) a).init(config);
             }
         }
+        checkWebSocketSupportState();
+    }
 
+    public void checkWebSocketSupportState(){
         if (atmosphereHandlers.size() == 0 && !SimpleHttpProtocol.class.isAssignableFrom(webSocketProtocol.getClass())) {
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
             addAtmosphereHandler(Broadcaster.ROOT_MASTER, new AbstractReflectorAtmosphereHandler() {
