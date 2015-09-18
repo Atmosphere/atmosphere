@@ -70,7 +70,7 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
     }
 
     @Override
-    public void introspectField(Field f) {
+    public void introspectField(Class clazz, Field f) {
         if (f.isAnnotationPresent(Named.class)) {
             String name = f.getAnnotation(Named.class).value();
 

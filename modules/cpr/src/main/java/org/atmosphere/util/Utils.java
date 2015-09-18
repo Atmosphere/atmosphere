@@ -229,21 +229,31 @@ public final class Utils {
             return;
         }
 
-        Object injectIn = injectIn(r);
+        Object injectIn = injectWith(r);
         if (injectIn != null) {
             inject(injectIn, injectIn.getClass(), r);
         }
     }
 
-    private static final void inject(Object object, Class clazz, AtmosphereResource r) throws IllegalAccessException {
+    public static final void inject(Object object, Class clazz, AtmosphereResource r) throws IllegalAccessException {
         InjectableObjectFactory.class.cast(r.getAtmosphereConfig().framework().objectFactory()).requestScoped(object, clazz, r);
     }
 
-    public static final Object injectIn(AtmosphereResource r) {
+    public static final void inject(Object object, Class clazz, AtmosphereConfig config) throws IllegalAccessException {
+        InjectableObjectFactory.class.cast(config.framework().objectFactory()).requestScoped(object, clazz);
+    }
+
+    private static final Object injectWith(AtmosphereResource r) {
         AtmosphereHandler h = r.getAtmosphereHandler();
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
             return WebSocketProcessor.WebSocketHandlerProxy.class.cast(AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler()).proxied();
-        } else if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
+        } else {
+            return injectWith(h);
+        }
+    }
+
+    private static Object injectWith(AtmosphereHandler h) {
+        if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
             return AnnotatedProxy.class.cast(h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
             return ReflectorServletProcessor.class.cast(h).getServlet();
@@ -282,5 +292,40 @@ public final class Utils {
         }
 
         return result;
+    }
+
+    public final static boolean requestScopedInjection(AtmosphereConfig config, AtmosphereHandler h) {
+        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+            return false;
+        }
+
+        try {
+            return InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(injectWith(h).getClass());
+        } catch (Exception e) {
+            LOGGER.error("", e);
+            return false;
+        }
+    }
+
+    /**
+     * Inject custom object. This method is mostly for external framework.
+     *
+     * @param config
+     * @param o
+     * @return
+     */
+    public static final boolean requestScopedInjection(AtmosphereConfig config, Object o) {
+        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+            return false;
+        }
+
+        try {
+            return InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(o.getClass());
+        } catch (Exception var4) {
+            LOGGER.error("", var4);
+            return false;
+        }
     }
 }

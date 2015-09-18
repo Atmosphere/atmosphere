@@ -35,8 +35,9 @@ public interface InjectIntrospector<T> extends Injectable {
      * Introspect the field
      *
      * @param f the field
+     * @param clazz
      */
-    void introspectField(Field f);
+    void introspectField(Class<T> clazz, Field f);
 
     /**
      * Introspect the method

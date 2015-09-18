@@ -56,6 +56,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.util.IOUtils.loadClass;
+
 /**
  * An {@link AnnotationProcessor} that selects between a ServletContextInitializer based scanner, and
  * a bytecode based scanner based on <a href="https://github.com/rmuller/infomas-asl"></a>.
@@ -411,11 +413,4 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         }
     }
 
-    private static Class<?> loadClass(Class thisClass, String className) throws Exception {
-        try {
-            return Thread.currentThread().getContextClassLoader().loadClass(className);
-        } catch (Throwable t) {
-            return thisClass.getClassLoader().loadClass(className);
-        }
-    }
 }

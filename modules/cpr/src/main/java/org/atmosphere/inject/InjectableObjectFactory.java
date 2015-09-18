@@ -32,6 +32,7 @@ import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingDeque;
 
 import static org.atmosphere.util.Utils.getInheritedPrivateFields;
 import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
@@ -46,15 +47,18 @@ import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
  * @author Jeanfrancois Arcand
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
-
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
-    private final static ServiceLoader<Injectable> injectableServiceLoader = ServiceLoader.load(Injectable.class);
+    private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
-    private final LinkedList<Object> pushBackInjection = new LinkedList<>();
+    private final LinkedBlockingDeque<Object> pushBackInjection = new LinkedBlockingDeque();
 
     private AtmosphereConfig config;
+
+    public InjectableObjectFactory() {
+        injectableServiceLoader = ServiceLoader.load(Injectable.class);
+    }
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -187,7 +191,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     if (c.supportedType(field.getType())) {
 
                         if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
-                            InjectIntrospector.class.cast(c).introspectField(field);
+                            InjectIntrospector.class.cast(c).introspectField(instance.getClass(), field);
                         }
 
                         try {
@@ -261,7 +265,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
                     if (field.isAnnotationPresent(annotation)) {
 
-                        c.introspectField(field);
+                        c.introspectField(instance.getClass(), field);
 
                         if (c.supportedType(field.getType())) {
                             try {
@@ -276,5 +280,46 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 }
             }
         }
+    }
+
+    public void requestScoped(Object instance, Class defaultType) throws IllegalAccessException {
+        Set<Field> fields = new HashSet<>();
+        fields.addAll(getInheritedPrivateFields(defaultType));
+
+        for (Field field : fields) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
+
+                for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
+                    if (field.isAnnotationPresent(annotation)) {
+
+                        c.introspectField(instance.getClass(), field);
+
+                        if (c.supportedType(field.getType())) {
+                            try {
+                                field.setAccessible(true);
+                                field.set(instance, c.injectable(config));
+                            } finally {
+                                field.setAccessible(false);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public boolean needRequestScoped(Class defaultType) throws IllegalAccessException {
+        Set<Field> fields = new HashSet<>();
+        fields.addAll(getInheritedPrivateFields(defaultType));
+
+        for (Field field : fields) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
+                if (c.supportedType(field.getType())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }
