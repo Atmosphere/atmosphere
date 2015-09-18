@@ -89,8 +89,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         // Inject into injectable
         for (Injectable<?> i : injectables) {
             try {
-                injectInjectable(i, i.getClass(), config.framework());
-            } catch (IllegalAccessException e) {
+                inject(i);
+            } catch (Exception e) {
                 logger.error("", e);
             }
         }
