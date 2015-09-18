@@ -96,7 +96,6 @@ public class MeteorServlet extends AtmosphereServlet {
                 }
                 framework().getBroadcasterFactory().remove(delegateMapping);
                 framework().addAtmosphereHandler(delegateMapping, r);
-                r.init(framework().getAtmosphereConfig());
                 framework().checkWebSocketSupportState();
             }
         }
