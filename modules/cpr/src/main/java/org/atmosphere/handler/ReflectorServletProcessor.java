@@ -100,7 +100,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             }
         }
 
-        logger.info("Installing Servlet {}", servletClassName);
+        logger.info("Installing Servlet {}", servletClassName == null ? servlet.getClass().getName() : servletClassName);
     }
 
     private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC) throws Exception {
