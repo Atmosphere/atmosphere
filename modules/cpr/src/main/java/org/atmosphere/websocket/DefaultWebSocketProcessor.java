@@ -633,6 +633,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                                     return null;
                                 }
                             }, ff ? (closingTime == 0 ? 1000 : closingTime) : closingTime, TimeUnit.MILLISECONDS);
+                            resource.getAndSetPendingClose();
                         } else {
                             executeClose(webSocket, closeCode);
                         }
