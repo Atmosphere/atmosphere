@@ -88,6 +88,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private WebSocket webSocket;
     private final AtomicBoolean inClosingPhase = new AtomicBoolean();
     private boolean closeOnCancel = false;
+    private final AtomicBoolean isPendingClose = new AtomicBoolean();
 
     public AtmosphereResourceImpl() {
     }
@@ -533,6 +534,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public void reset() {
         isResumed.set(false);
         isCancelled.set(false);
+        isPendingClose.set(false);
         isInScope.set(true);
         isSuspendEvent.set(false);
         listeners.clear();
@@ -1018,5 +1020,16 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public boolean getAndSetInClosingPhase() {
         return inClosingPhase.getAndSet(true);
+    }
+
+    /**
+     * @return
+     */
+    public boolean isPendingClose () {
+        return isPendingClose.get();
+    }
+    
+    public boolean getAndSetPendingClose() {
+        return isPendingClose.getAndSet(true);
     }
 }
