@@ -243,6 +243,7 @@ public class AtmosphereFramework {
     protected Class<Serializer> defaultSerializerClass;
     protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<AtmosphereFrameworkListener>();
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
+    protected Thread shutdownHook;
     public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = new LinkedList() {
         {
             // Add CORS support
@@ -952,11 +953,15 @@ public class AtmosphereFramework {
                 sharedThreadPools = Boolean.parseBoolean(s);
             }
 
-            Runtime.getRuntime().addShutdownHook(new Thread() {
+
+	    this.shutdownHook = new Thread() {
                 public void run() {
+		    AtmosphereFramework.this.shutdownHook = null;
                     AtmosphereFramework.this.destroy();
                 }
-            });
+            };
+
+            Runtime.getRuntime().addShutdownHook(this.shutdownHook);
 
             if (logger.isInfoEnabled()) {
                 info();
@@ -1855,6 +1860,9 @@ public class AtmosphereFramework {
 
         onPostDestroy();
 
+	if ( this.shutdownHook != null) {
+		Runtime.getRuntime().removeShutdownHook(this.shutdownHook);
+	}
         return this;
     }
 
