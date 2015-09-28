@@ -269,6 +269,7 @@ public class AtmosphereFramework {
         }
     };
     private WebSocketFactory webSocketFactory;
+    private IllegalStateException initializationError;
 
     /**
      * An implementation of {@link AbstractReflectorAtmosphereHandler}.
@@ -933,6 +934,10 @@ public class AtmosphereFramework {
 
             if (logger.isInfoEnabled()) {
                 info();
+            }
+
+            if (initializationError != null) {
+                logger.trace("ContainerInitalizer exception. May not be an issue if Atmosphere started properly ", initializationError);
             }
 
             universe();
@@ -3459,4 +3464,11 @@ public class AtmosphereFramework {
         return this;
     }
 
+    /**
+     * If a {@link ContainerInitializer} fail, log the excetion here.
+     * @param initializationError
+     */
+    public void initializationError(IllegalStateException initializationError) {
+        this.initializationError = initializationError;
+    }
 }

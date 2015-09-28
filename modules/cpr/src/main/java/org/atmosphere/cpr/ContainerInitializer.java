@@ -73,8 +73,9 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                     try {
                         framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                     } catch (IllegalStateException ex) {
-                        // Let it fail so fallback can occurs.
-                        c.log("WARN: ", ex);
+                        // Let it fail so later an exception will be displayed..
+                        // c.log("WARN: ", ex);
+                        framework.initializationError(ex);
                     }
                 }
 
