@@ -126,30 +126,40 @@ public class JSR356Endpoint extends Endpoint {
             servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
         }
 
+        boolean recomputeForBackwardCompat = false;
         URI uri = session.getRequestURI();
-        String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
-
-        int pathInfoStartIndex = 3;
+        String rawPath = uri.getPath();
         String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
-        if ("".equals(contextPath) || "".equals(servletPath)) {
-            pathInfoStartIndex = 2;
-        }
+        int pathInfoStartAt = rawPath.indexOf(servletPath) + servletPath.length();
 
-        // /contextPath/servletPath/pathInfo or /servletPath/pathInfo
-        StringBuffer b = new StringBuffer("/");
-        for (int i = 0; i < paths.length; i++) {
-            if (i >= pathInfoStartIndex) {
-                b.append(paths[i]).append("/");
+        if (rawPath.length() >= pathInfoStartAt) {
+            String pathInfo = rawPath.substring(pathInfoStartAt);
+            if (pathInfo.equals("/")) {
+                pathInfo = null;
             }
+        } else {
+            recomputeForBackwardCompat = true;
         }
 
-        if (b.length() > 1) {
-            b.deleteCharAt(b.length() - 1);
-        }
+        if (recomputeForBackwardCompat) {
+            // DON"T SCREAM this code is for broken/backward compatible
+            String[] paths = uri.getPath() != null ? uri.getPath().split("/") : new String[]{};
 
-        String pathInfo = b.toString();
-        if (pathInfo.equals("/")) {
-            pathInfo = null;
+            int pathInfoStartIndex = 3;
+            if ("".equals(contextPath) || "".equals(servletPath)) {
+                pathInfoStartIndex = 2;
+            }
+            ///contextPath / servletPath / pathInfo or / servletPath / pathInfo
+            StringBuffer b = new StringBuffer("/");
+            for (int i = 0; i < paths.length; i++) {
+                if (i >= pathInfoStartIndex) {
+                    b.append(paths[i]).append("/");
+                }
+            }
+
+            if (b.length() > 1) {
+                b.deleteCharAt(b.length() - 1);
+            }
         }
 
         try {
