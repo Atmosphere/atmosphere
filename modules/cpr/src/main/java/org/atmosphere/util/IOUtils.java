@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletContext;
+import javax.servlet.ServletRegistration;
 import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;
@@ -244,12 +245,11 @@ public class IOUtils {
     public static String guestServletPath(AtmosphereConfig config) {
         String servletPath = "";
         try {
-            // TODO: pick up the first one, will fail if there are two
-            // This won't work with Servlet 2.5.
-            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
-            servletPath = getCleanedServletPath(servletPath);
+            if (config.getServletConfig() != null) {
+                servletPath = getCleanedServletPath(guestRawServletPath(config));
+            }
         } catch (Exception ex) {
-            logger.trace("", ex);
+            logger.error("", ex);
         }
         return servletPath;
     }
@@ -257,9 +257,16 @@ public class IOUtils {
     public static String guestRawServletPath(AtmosphereConfig config) {
         String servletPath = "";
         try {
-            // TODO: pick up the first one, will fail if there are two
-            // This won't work with Servlet 2.5.
-            servletPath = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName()).getMappings().iterator().next();
+            if (config.getServletConfig() != null) {
+                ServletRegistration s = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName());
+                if (s.getMappings().size() > 1) {
+                    logger.warn("More than one Servlet Mapping defined. WebSocket may not work {}", s);
+                }
+
+                for (String m : s.getMappings()) {
+                    servletPath = m;
+                }
+            }
         } catch (Exception ex) {
             logger.trace("", ex);
         }
