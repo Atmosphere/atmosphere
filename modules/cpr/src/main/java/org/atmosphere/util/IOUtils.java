@@ -241,7 +241,6 @@ public class IOUtils {
         throw new IllegalStateException("No body " + r);
     }
 
-
     public static String guestServletPath(AtmosphereConfig config) {
         String servletPath = "";
         if (config.getServletConfig() != null) {
@@ -264,13 +263,14 @@ public class IOUtils {
                 for (String m : s.getMappings()) {
                     servletPath = m;
                 }
+            } else {
+                throw new IllegalStateException("Unable to configure jsr356 at that stage");
             }
             return servletPath;
         } catch (Exception ex) {
             throw new IllegalStateException("Unable to configure jsr356 at that stage");
         }
     }
-
 
     /**
      * Used to remove trailing slash and wildcard from a servlet path.<br/><br/>
