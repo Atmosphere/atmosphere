@@ -244,12 +244,10 @@ public class IOUtils {
 
     public static String guestServletPath(AtmosphereConfig config) {
         String servletPath = "";
-        try {
-            if (config.getServletConfig() != null) {
-                servletPath = getCleanedServletPath(guestRawServletPath(config));
-            }
-        } catch (Exception ex) {
-            logger.error("", ex);
+        if (config.getServletConfig() != null) {
+            servletPath = getCleanedServletPath(guestRawServletPath(config));
+        } else {
+            throw new IllegalStateException("Unable to configure jsr356 at that stage");
         }
         return servletPath;
     }
@@ -267,10 +265,10 @@ public class IOUtils {
                     servletPath = m;
                 }
             }
+            return servletPath;
         } catch (Exception ex) {
-            logger.trace("", ex);
+            throw new IllegalStateException("Unable to configure jsr356 at that stage");
         }
-        return servletPath;
     }
 
 

@@ -74,7 +74,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                         framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                     } catch (IllegalStateException ex) {
                         // Let it fail so fallback can occurs.
-                        c.log("Unable to initialize websocket support", ex);
+                        c.log("WARN: ", ex);
                     }
                 }
 
