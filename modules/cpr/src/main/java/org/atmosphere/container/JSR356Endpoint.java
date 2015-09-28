@@ -132,11 +132,9 @@ public class JSR356Endpoint extends Endpoint {
         String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
         int pathInfoStartAt = rawPath.indexOf(servletPath) + servletPath.length();
 
+        String pathInfo = null;
         if (rawPath.length() >= pathInfoStartAt) {
-            String pathInfo = rawPath.substring(pathInfoStartAt);
-            if (pathInfo.equals("/")) {
-                pathInfo = null;
-            }
+            pathInfo = rawPath.substring(pathInfoStartAt);
         } else {
             recomputeForBackwardCompat = true;
         }
@@ -160,6 +158,12 @@ public class JSR356Endpoint extends Endpoint {
             if (b.length() > 1) {
                 b.deleteCharAt(b.length() - 1);
             }
+
+            pathInfo = b.toString();
+        }
+
+        if (pathInfo.equals("/")) {
+            pathInfo = null;
         }
 
         try {
