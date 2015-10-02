@@ -89,8 +89,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         // Inject into injectable
         for (Injectable<?> i : injectables) {
             try {
-                injectInjectable(i, i.getClass(), config.framework());
-            } catch (IllegalAccessException e) {
+                inject(i);
+            } catch (Exception e) {
                 logger.error("", e);
             }
         }
@@ -143,7 +143,9 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     public <T> T inject(T instance) throws InstantiationException, IllegalAccessException {
 
         injectInjectable(instance, instance.getClass(), config.framework());
-        applyMethods(instance, (Class<T>) instance.getClass());
+        if (!pushBackInjection.contains(instance)) {
+            applyMethods(instance, (Class<T>) instance.getClass());
+        }
 
         return instance;
     }
