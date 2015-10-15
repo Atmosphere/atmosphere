@@ -159,8 +159,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void applyMethods(U instance, Class<U> defaultType) throws IllegalAccessException {
-        Set<Method> methods = new HashSet<Method>();
-        methods.addAll(getInheritedPrivateMethod(defaultType));
+        Set<Method> methods = (getInheritedPrivateMethod(defaultType));
         injectMethods(methods, instance);
     }
 
@@ -180,8 +179,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void injectInjectable(U instance, Class<? extends U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
-        Set<Field> fields = new HashSet<Field>();
-        fields.addAll(getInheritedPrivateFields(defaultType));
+        Set<Field> fields = getInheritedPrivateFields(defaultType);
 
         injectFields(fields, instance, framework, injectables);
     }
