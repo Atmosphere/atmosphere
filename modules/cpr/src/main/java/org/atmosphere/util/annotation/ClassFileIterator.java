@@ -176,10 +176,11 @@ final class ClassFileIterator {
         DataInputStream in = null;
         try {
             in = new DataInputStream(new FileInputStream(file));
-            final int n = in.readInt();
+            int n = in.readInt();
+            in.close();
             return n == 0x504b0304;
-        } catch (IOException ex) {
-            // silently ignore read exceptions
+        } catch (Exception ex) {
+            if (in != null) in.close();
             return false;
         } finally {
             if (in != null) {
