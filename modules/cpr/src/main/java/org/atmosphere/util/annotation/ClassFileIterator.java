@@ -49,7 +49,7 @@ import java.util.zip.ZipFile;
 /**
  * {@code ClassFileIterator} is used to iterate over all Java ClassFile files available within
  * a specific context.
- * <p>
+ * <p/>
  * For every Java ClassFile ({@code .class}) an {@link InputStream} is returned.
  *
  * @author <a href="mailto:rmuller@xiam.nl">Ronald K. Muller</a>
@@ -75,13 +75,13 @@ final class ClassFileIterator {
     /**
      * Create a new {@code ClassFileIterator} returning all Java ClassFile files available
      * from the specified files and/or directories, including sub directories.
-     * <p>
+     * <p/>
      * If the (optional) package filter is defined, only class files staring with one of the
      * defined package names are returned.
      * NOTE: package names must be defined in the native format (using '/' instead of '.').
      */
     ClassFileIterator(final File[] filesOrDirectories, final String[] pkgNameFilter)
-        throws IOException {
+            throws IOException {
 
         this.fileIterator = new FileIterator(filesOrDirectories);
         this.pkgNameFilter = pkgNameFilter;
@@ -91,13 +91,13 @@ final class ClassFileIterator {
     /**
      * Create a new {@code ClassFileIterator} returning all Java ClassFile files available
      * from the specified files and/or directories, including sub directories.
-     * <p>
+     * <p/>
      * If the (optional) package filter is defined, only class files staring with one of the
      * defined package names are returned.
      * NOTE: package names must be defined in the native format (using '/' instead of '.').
      */
     ClassFileIterator(final InputStream[] filesOrDirectories, final String[] pkgNameFilter)
-        throws IOException {
+            throws IOException {
 
         this.fileIterator = null;
         this.pkgNameFilter = pkgNameFilter;
@@ -111,8 +111,8 @@ final class ClassFileIterator {
     public String getName() {
         // Both getPath() and getName() are very light weight method calls
         return zipIterator == null ?
-            fileIterator.getFile().getPath() :
-            zipIterator.getEntry().getName();
+                fileIterator.getFile().getPath() :
+                zipIterator.getEntry().getName();
     }
 
     /**
@@ -126,7 +126,7 @@ final class ClassFileIterator {
 
     /**
      * Return the next Java ClassFile as an {@code InputStream}.
-     * <p>
+     * <p/>
      * NOTICE: Client code MUST close the returned {@code InputStream}!
      */
     public InputStream next() throws IOException {
@@ -176,12 +176,19 @@ final class ClassFileIterator {
         DataInputStream in = null;
         try {
             in = new DataInputStream(new FileInputStream(file));
-            int n = in.readInt();
-            in.close();
+            final int n = in.readInt();
             return n == 0x504b0304;
-        } catch (Exception ex) {
-            if (in != null) in.close();
+        } catch (IOException ex) {
+            // silently ignore read exceptions
             return false;
+        } finally {
+            if (in != null) {
+                try {
+                    in.close();
+                } catch (IOException ex) {
+                    // ignore
+                }
+            }
         }
     }
 
@@ -190,7 +197,7 @@ final class ClassFileIterator {
      */
     private static File[] classPath() {
         final String[] fileNames = System.getProperty("java.class.path")
-            .split(File.pathSeparator);
+                .split(File.pathSeparator);
         final File[] files = new File[fileNames.length];
         for (int i = 0; i < files.length; ++i) {
             files[i] = new File(fileNames[i]);
