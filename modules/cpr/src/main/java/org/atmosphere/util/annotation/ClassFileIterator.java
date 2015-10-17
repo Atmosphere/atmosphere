@@ -173,12 +173,14 @@ final class ClassFileIterator {
     // private
 
     private boolean isZipFile(File file) throws IOException {
+        DataInputStream in = null;
         try {
-            DataInputStream in = new DataInputStream(new FileInputStream(file));
+            in = new DataInputStream(new FileInputStream(file));
             int n = in.readInt();
             in.close();
             return n == 0x504b0304;
         } catch (Exception ex) {
+            if (in != null) in.close();
             return false;
         }
     }
