@@ -15,6 +15,7 @@
  */
 package org.atmosphere.inject;
 
+import com.sun.org.apache.bcel.internal.generic.FLOAD;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
@@ -205,6 +206,16 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
                             if (field.getType().equals(Boolean.TYPE)) {
                                 field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
+                            } else if (field.getType().equals(Integer.TYPE)) {
+                                field.setInt(instance, Integer.class.cast(o).intValue());
+                            } else if (field.getType().equals(Byte.TYPE)) {
+                                field.setByte(instance, Byte.class.cast(o).byteValue());
+                            } else if (field.getType().equals(Double.TYPE)) {
+                                field.setDouble(instance, Double.class.cast(o).doubleValue());
+                            } else if (field.getType().equals(Long.TYPE)) {
+                                field.setLong(instance, Long.class.cast(o).longValue());
+                            } else if (field.getType().equals(Float.TYPE)) {
+                                field.setFloat(instance, Float.class.cast(o).floatValue());
                             } else {
                                 field.set(instance, o);
                             }
