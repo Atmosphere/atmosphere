@@ -75,9 +75,9 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 [Top](#Top)
 
 ## Build Status
-[![Build Status](https://travis-ci.org/Atmosphere/atmosphere.svg?branch=master)
+[![Build Status](https://travis-ci.org/Atmosphere/atmosphere.svg?branch=master)](https://travis-ci.org/Atmosphere/atmosphere)
 
-[![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)]
+![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)
 
 @Copyright 2015 [Async-IO.org](http://async-io.org)
 
