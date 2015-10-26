@@ -237,7 +237,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             logger.warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
             Throwable cause = e.getCause();
             if (cause != null) {
-                logger.error("Real error: {}, error: {}", targetClass, cause);
+                logger.error("Real error: {}, error: {}", cause.getMessage(), cause);
             }
             return null;
         }
@@ -252,7 +252,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             logger.error("Failed to create AsyncSupport class: {}, error: {}", targetClassFQN, e);
             Throwable cause = e.getCause();
             if (cause != null) {
-                logger.error("Real error: {}, error: {}", targetClassFQN, cause);
+                logger.error("Real error: {}, error: {}", cause.getMessage(), cause);
             }
             throw new IllegalArgumentException("Unable to create " + targetClassFQN, e);
         }
