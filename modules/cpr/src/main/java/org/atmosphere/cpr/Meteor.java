@@ -69,7 +69,8 @@ public class Meteor {
      * @return a {@link Meteor} or null if not found
      */
     public static Meteor lookup(HttpServletRequest r) {
-        return (Meteor) r.getAttribute(METEOR);
+        Object o = r.getAttribute(METEOR);
+        return o == null ? null : Meteor.class.isAssignableFrom(o.getClass()) ? Meteor.class.cast(o) : null;
     }
 
     /**

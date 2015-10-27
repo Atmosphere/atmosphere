@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.cpr.Meteor;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.inject.InjectableObjectFactory;
@@ -326,6 +327,17 @@ public final class Utils {
         } catch (Exception var4) {
             LOGGER.error("", var4);
             return false;
+        }
+    }
+
+    public final static void destroyMeteor(AtmosphereRequest req) {
+        try {
+            Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
+            if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
+                Meteor.class.cast(o).destroy();
+            }
+        } catch (Exception ex) {
+            LOGGER.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
         }
     }
 }
