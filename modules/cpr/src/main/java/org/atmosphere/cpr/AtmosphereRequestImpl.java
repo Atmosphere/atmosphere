@@ -57,7 +57,6 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
@@ -635,7 +634,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     @Override
-    public Map<String, Object> attributes() {
+    public LocalAttributes attributes() {
         return b.localAttributes;
     }
 
@@ -839,12 +838,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public Enumeration<String> getAttributeNames() {
         Set<String> l = new HashSet();
-        l.addAll(b.localAttributes.keySet());
-        Enumeration<String> e = (isNotNoOps() ? b.request.getAttributeNames() : null);
-        if (e != null) {
-            while (e.hasMoreElements()) {
-                l.add(e.nextElement());
-            }
+        l.addAll(b.localAttributes.unmodifiableMap().keySet());
+
+        if (isNotNoOps()) {
+            l.addAll(Collections.list(b.request.getAttributeNames()));
         }
         return Collections.enumeration(l);
     }
@@ -860,7 +857,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     @Override
-    public Map<String, Object> localAttributes() {
+    public LocalAttributes localAttributes() {
         return b.localAttributes;
     }
 
@@ -935,7 +932,6 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
-        private Map<String, Object> localAttributes = new ConcurrentHashMap<String, Object>();
         private InputStream inputStream;
         private Reader reader;
         private String remoteAddr = "";
@@ -960,6 +956,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private LazyComputation lazyRemote = null;
         private LazyComputation lazyLocal = null;
         public Body body;
+        private LocalAttributes localAttributes = new LocalAttributes();
 
         public Builder() {
         }
@@ -1025,7 +1022,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         public Builder attributes(Map<String, Object> attributes) {
-            localAttributes = ConcurrentHashMap.class.isAssignableFrom(attributes.getClass()) ? attributes : new ConcurrentHashMap<String, Object>(attributes);
+            localAttributes = new LocalAttributes(attributes);
             return this;
         }
 
