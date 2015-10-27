@@ -194,32 +194,34 @@ public abstract class
             return a;
         }
 
-        // Remap occured.
-        if (req.getAttribute(FrameworkConfig.NEW_MAPPING) != null) {
-            req.removeAttribute(FrameworkConfig.NEW_MAPPING);
-            handlerWrapper = map(req);
-            if (handlerWrapper == null) {
-                logger.debug("Remap {}", resource.uuid());
-                throw new AtmosphereMappingException("Invalid state. No AtmosphereHandler maps request for " + req.getRequestURI());
+        try {
+            // Remap occured.
+            if (req.getAttribute(FrameworkConfig.NEW_MAPPING) != null) {
+                req.removeAttribute(FrameworkConfig.NEW_MAPPING);
+                handlerWrapper = map(req);
+                if (handlerWrapper == null) {
+                    logger.debug("Remap {}", resource.uuid());
+                    throw new AtmosphereMappingException("Invalid state. No AtmosphereHandler maps request for " + req.getRequestURI());
+                }
+                resource = configureWorkflow(resource, handlerWrapper, req, res);
+                resource.setBroadcaster(handlerWrapper.broadcaster);
             }
-            resource = configureWorkflow(resource, handlerWrapper, req, res);
-            resource.setBroadcaster(handlerWrapper.broadcaster);
-        }
 
-        //Unit test mock the request and will throw NPE.
-        boolean skipAtmosphereHandler = req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
-                ? (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
-        if (!skipAtmosphereHandler) {
-            try {
-                logger.trace("\t Last: {}", handlerWrapper.atmosphereHandler.getClass().getName());
-                handlerWrapper.atmosphereHandler.onRequest(resource);
-            } catch (IOException t) {
-                resource.onThrowable(t);
-                throw t;
+            //Unit test mock the request and will throw NPE.
+            boolean skipAtmosphereHandler = req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
+                    ? (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
+            if (!skipAtmosphereHandler) {
+                try {
+                    logger.trace("\t Last: {}", handlerWrapper.atmosphereHandler.getClass().getName());
+                    handlerWrapper.atmosphereHandler.onRequest(resource);
+                } catch (IOException t) {
+                    resource.onThrowable(t);
+                    throw t;
+                }
             }
+        } finally{
+            postInterceptors(handlerWrapper.interceptors, resource);
         }
-
-        postInterceptors(handlerWrapper.interceptors, resource);
 
         Action action = resource.action();
         if (supportSession() && allowSessionTimeoutRemoval() && action.type().equals(Action.TYPE.SUSPEND)) {
