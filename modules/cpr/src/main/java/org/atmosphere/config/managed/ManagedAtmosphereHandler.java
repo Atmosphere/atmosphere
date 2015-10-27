@@ -74,7 +74,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
-    private List<MethodInfo> onRuntimeMethod;
+    protected List<MethodInfo> onRuntimeMethod;
     private Method onHeartbeatMethod;
     private Method onDisconnectMethod;
     private Method onTimeoutMethod;
@@ -85,8 +85,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Method onReadyMethod;
     private Method onResumeMethod;
     private AtmosphereConfig config;
-    private boolean pathParams = false;
-    private AtmosphereResourceFactory resourcesFactory;
+    protected boolean pathParams = false;
+    protected AtmosphereResourceFactory resourcesFactory;
 
     final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
     final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
@@ -259,7 +259,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return false;
     }
 
-    private Method populate(Object c, Class<? extends Annotation> annotation) {
+    protected Method populate(Object c, Class<? extends Annotation> annotation) {
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(annotation)) {
                 return m;
@@ -268,7 +268,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return null;
     }
 
-    private List<MethodInfo> populateMessage(Object c, Class<? extends Annotation> annotation) {
+    protected List<MethodInfo> populateMessage(Object c, Class<? extends Annotation> annotation) {
         ArrayList<MethodInfo> methods = new ArrayList<MethodInfo>();
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(annotation)) {
@@ -338,16 +338,6 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private MethodInfo.EncoderObject message(AtmosphereResource resource, Object o) {
         AtmosphereRequest request = AtmosphereResourceImpl.class.cast(resource).getRequest(false);
         try {
-
-            Method invokedMethod = (Method) request.localAttributes().remove(getClass().getName());
-            if (invokedMethod != null) {
-                for (MethodInfo m : onRuntimeMethod) {
-                    if (invokedMethod.equals(m.method)) {
-                        return m.encode(encoders, o);
-                    }
-                }
-            }
-
             for (MethodInfo m : onRuntimeMethod) {
                 if (m.useReader) {
                     o = request.getReader();
@@ -371,15 +361,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                     logger.warn("Injection of more than 2 parameters not supported {}", m);
                 }
 
-                if (invokedMethod == null) {
-                    if (m.method.getParameterTypes().length == 2) {
-                        request.localAttributes().put(getClass().getName(), m.method);
-                        objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
-                    } else {
-                        objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
-                    }
+                if (m.method.getParameterTypes().length == 2) {
+                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, resource, decoded);
                 } else {
-                    objectToEncode = o;
+                    objectToEncode = Invoker.invokeMethod(m.method, proxiedInstance, decoded);
                 }
 
                 if (objectToEncode != null) {

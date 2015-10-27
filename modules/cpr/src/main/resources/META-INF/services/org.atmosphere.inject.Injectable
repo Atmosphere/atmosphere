@@ -11,3 +11,4 @@ org.atmosphere.inject.AtmosphereResourceIntrospector
 org.atmosphere.inject.AtmosphereRequestIntrospector
 org.atmosphere.inject.AtmosphereResponseIntrospector
 org.atmosphere.inject.AtmosphereResourceEventIntrospector
+org.atmosphere.inject.PathParamIntrospector

@@ -15,21 +15,28 @@
  */
 package org.atmosphere.inject;
 
+import com.sun.org.apache.bcel.internal.generic.FLOAD;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.inject.annotation.ApplicationScoped;
+import org.atmosphere.inject.annotation.RequestScoped;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.inject.Inject;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.ServiceLoader;
 import java.util.Set;
+import java.util.concurrent.LinkedBlockingDeque;
+
+import static org.atmosphere.util.Utils.getInheritedPrivateFields;
+import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
 
 /**
  * Support injection of Atmosphere's Internal object using
@@ -41,36 +48,76 @@ import java.util.Set;
  * @author Jeanfrancois Arcand
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
-
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
-    private final static ServiceLoader<Injectable> injectableServiceLoader = ServiceLoader.load(Injectable.class);
+    private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
-    private final LinkedList<InjectIntrospector<?>> runtimeIntrospectors = new LinkedList<InjectIntrospector<?>>();
+    private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
+    private final LinkedBlockingDeque<Object> pushBackInjection = new LinkedBlockingDeque();
 
     private AtmosphereConfig config;
+
+    public InjectableObjectFactory() {
+        injectableServiceLoader = ServiceLoader.load(Injectable.class);
+    }
 
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
-        for (Injectable i : injectableServiceLoader) {
+        for (Injectable<?> i : injectableServiceLoader) {
             try {
                 logger.debug("Adding class {} as injectable", i.getClass());
                 if (InjectIntrospector.class.isAssignableFrom(i.getClass())) {
                     InjectIntrospector<?> ii = InjectIntrospector.class.cast(i);
 
                     introspectors.addFirst(ii);
-                    if (ii.when().equals(InjectIntrospector.WHEN.RUNTIME)) {
+                    if (i.getClass().isAnnotationPresent(RequestScoped.class)) {
                         config.properties().put(FrameworkConfig.NEED_RUNTIME_INJECTION, true);
-                        runtimeIntrospectors.addFirst(ii);
-                        continue;
+                        requestScopedIntrospectors.addFirst(ii);
                     }
                 }
-                injectables.addFirst(i);
+
+                if (i.getClass().isAnnotationPresent(ApplicationScoped.class) ||
+                        // For backward compatibility with 2.2+
+                        (!i.getClass().isAnnotationPresent(RequestScoped.class) && !i.getClass().isAnnotationPresent(RequestScoped.class))) {
+                    injectables.addFirst(i);
+                }
             } catch (Exception e) {
                 logger.error("", e);
             }
         }
+
+        // Inject into injectable
+        for (Injectable<?> i : injectables) {
+            try {
+                inject(i);
+            } catch (Exception e) {
+                logger.error("", e);
+            }
+        }
+
+        config.startupHook(new AtmosphereConfig.StartupHook() {
+            @Override
+            public void started(AtmosphereFramework framework) {
+                // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
+                // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
+                // in META-INF/services/org/atmosphere/inject.Injectable
+                Set<Field> fields = new HashSet<Field>();
+                try {
+                    for (Object instance : pushBackInjection) {
+                        fields.addAll(getInheritedPrivateFields(instance.getClass()));
+                        try {
+                            injectFields(fields, instance, framework, injectables);
+                        } catch (IllegalAccessException e) {
+                            logger.warn("", e);
+                        }
+                        fields.clear();
+                    }
+                } finally {
+                    pushBackInjection.clear();
+                }
+            }
+        });
     }
 
     @Override
@@ -79,24 +126,41 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
         U instance = defaultType.newInstance();
 
-        injectAtmosphereInternalObject(instance, defaultType, config.framework());
-        postConstructExecution(instance, defaultType);
+        injectInjectable(instance, defaultType, config.framework());
+        applyMethods(instance, defaultType);
 
         return instance;
     }
 
     /**
-     * Execute {@PostConstruct} method.
+     * Apply {@link Injectable} and {@link InjectIntrospector} to a class already constructed.
+     *
+     * @param instance the instance to inject to.
+     * @return
+     * @throws InstantiationException
+     * @throws IllegalAccessException
+     */
+    /* @Override */
+    public <T> T inject(T instance) throws InstantiationException, IllegalAccessException {
+
+        injectInjectable(instance, instance.getClass(), config.framework());
+        if (!pushBackInjection.contains(instance)) {
+            applyMethods(instance, (Class<T>) instance.getClass());
+        }
+
+        return instance;
+    }
+
+    /**
+     * Execute {@link InjectIntrospector#introspectMethod}
      *
      * @param instance    the requested object.
      * @param defaultType the type of the requested object
      * @param <U>
      * @throws IllegalAccessException
      */
-    public <U> void postConstructExecution(U instance, Class<U> defaultType) throws IllegalAccessException {
-        Set<Method> methods = new HashSet<Method>();
-        methods.addAll(Arrays.asList(defaultType.getDeclaredMethods()));
-        methods.addAll(Arrays.asList(defaultType.getMethods()));
+    public <U> void applyMethods(U instance, Class<U> defaultType) throws IllegalAccessException {
+        Set<Method> methods = (getInheritedPrivateMethod(defaultType));
         injectMethods(methods, instance);
     }
 
@@ -115,31 +179,48 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @param <U>
      * @throws IllegalAccessException
      */
-    public <U> void injectAtmosphereInternalObject(U instance, Class<U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
-        apply(instance, defaultType, framework, false);
+    public <U> void injectInjectable(U instance, Class<? extends U> defaultType, AtmosphereFramework framework) throws IllegalAccessException {
+        Set<Field> fields = getInheritedPrivateFields(defaultType);
+
+        injectFields(fields, instance, framework, injectables);
     }
 
-    private <U> void apply(U instance, Class<U> defaultType, AtmosphereFramework framework, boolean requestScoped) throws IllegalAccessException {
-        Set<Field> fields = new HashSet<Field>();
-        fields.addAll(Arrays.asList(defaultType.getDeclaredFields()));
-        fields.addAll(Arrays.asList(defaultType.getFields()));
-        injectFields(fields, instance, framework, requestScoped);
-    }
-
-    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, boolean requestScoped) throws IllegalAccessException {
+    public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
-                LinkedList<? extends Injectable> list = requestScoped ? runtimeIntrospectors : injectables;
-                for (Injectable c : list) {
-
-                    if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
-                        InjectIntrospector.class.cast(c).introspectField(field);
-                    }
-
+                for (Injectable c : injectable) {
                     if (c.supportedType(field.getType())) {
+
+                        if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
+                            InjectIntrospector.class.cast(c).introspectField(instance.getClass(), field);
+                        }
+
                         try {
                             field.setAccessible(true);
-                            field.set(instance, c.injectable(framework.getAtmosphereConfig()));
+                            Object o = c.injectable(framework.getAtmosphereConfig());
+
+                            if (o == null) {
+                                pushBackInjection.addFirst(instance);
+                                continue;
+                            }
+
+                            if (field.getType().equals(Boolean.TYPE)) {
+                                field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
+                            } else if (field.getType().equals(Integer.TYPE)) {
+                                field.setInt(instance, Integer.class.cast(o).intValue());
+                            } else if (field.getType().equals(Byte.TYPE)) {
+                                field.setByte(instance, Byte.class.cast(o).byteValue());
+                            } else if (field.getType().equals(Double.TYPE)) {
+                                field.setDouble(instance, Double.class.cast(o).doubleValue());
+                            } else if (field.getType().equals(Long.TYPE)) {
+                                field.setLong(instance, Long.class.cast(o).longValue());
+                            } else if (field.getType().equals(Float.TYPE)) {
+                                field.setFloat(instance, Float.class.cast(o).floatValue());
+                            } else {
+                                field.set(instance, o);
+                            }
+                        } catch (Exception ex) {
+                            logger.warn("Injectable {} failed to inject", c, ex);
                         } finally {
                             field.setAccessible(false);
                         }
@@ -151,7 +232,15 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable) {
-        injectables.add(injectable);
+        return allowInjectionOf(injectable, false);
+    }
+
+    public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable, boolean first) {
+        if (first) {
+            injectables.addFirst(injectable);
+        } else {
+            injectables.add(injectable);
+        }
         return this;
     }
 
@@ -177,7 +266,71 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         return null;
     }
 
-    public void requestScoped(Object instance, Class defaultType, AtmosphereFramework framework) throws IllegalAccessException {
-        apply(instance, defaultType, framework, true);
+    public void requestScoped(Object instance, Class defaultType, AtmosphereResource r) throws IllegalAccessException {
+        Set<Field> fields = new HashSet<>();
+        fields.addAll(getInheritedPrivateFields(defaultType));
+
+        for (Field field : fields) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
+
+                for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
+                    if (field.isAnnotationPresent(annotation)) {
+
+                        c.introspectField(instance.getClass(), field);
+
+                        if (c.supportedType(field.getType())) {
+                            try {
+                                field.setAccessible(true);
+                                field.set(instance, c.injectable(r));
+                            } finally {
+                                field.setAccessible(false);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public void requestScoped(Object instance, Class defaultType) throws IllegalAccessException {
+        Set<Field> fields = new HashSet<>();
+        fields.addAll(getInheritedPrivateFields(defaultType));
+
+        for (Field field : fields) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
+
+                for (Class annotation : c.getClass().getAnnotation(RequestScoped.class).value()) {
+                    if (field.isAnnotationPresent(annotation)) {
+
+                        c.introspectField(instance.getClass(), field);
+
+                        if (c.supportedType(field.getType())) {
+                            try {
+                                field.setAccessible(true);
+                                field.set(instance, c.injectable(config));
+                            } finally {
+                                field.setAccessible(false);
+                            }
+                            break;
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    public boolean needRequestScoped(Class defaultType) throws IllegalAccessException {
+        Set<Field> fields = new HashSet<>();
+        fields.addAll(getInheritedPrivateFields(defaultType));
+
+        for (Field field : fields) {
+            for (InjectIntrospector c : requestScopedIntrospectors) {
+                if (c.supportedType(field.getType())) {
+                    return true;
+                }
+            }
+        }
+        return false;
     }
 }

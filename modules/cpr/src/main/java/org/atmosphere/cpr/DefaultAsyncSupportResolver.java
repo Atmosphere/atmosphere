@@ -235,7 +235,11 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     .newInstance(config);
         } catch (final Exception e) {
             logger.warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
-            return null; // All callers are expected to handle null return value
+            Throwable cause = e.getCause();
+            if (cause != null) {
+                logger.error("Real error: {}, error: {}", targetClass, cause);
+            }
+            return null;
         }
     }
 
@@ -245,7 +249,11 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             return (AsyncSupport) cl.loadClass(targetClassFQN)
                     .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
         } catch (final Exception e) {
-            logger.error("Failed to create comet support class: {}, error: {}", targetClassFQN, e);
+            logger.error("Failed to create AsyncSupport class: {}, error: {}", targetClassFQN, e);
+            Throwable cause = e.getCause();
+            if (cause != null) {
+                logger.error("Real error: {}, error: {}", targetClassFQN, cause);
+            }
             throw new IllegalArgumentException("Unable to create " + targetClassFQN, e);
         }
     }

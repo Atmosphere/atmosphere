@@ -28,9 +28,7 @@ import org.atmosphere.handler.AnnotatedProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.Field;
-import java.util.HashMap;
-import java.util.Map;
+import javax.inject.Named;
 
 /**
  * Handle {@link Singleton} for {@link ManagedService} processing.
@@ -41,17 +39,13 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
 
-    // No Ops.
-    protected void namedInjection() {
-    }
-
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // ManagedService
                 if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
                     AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
-                    ManagedAnnotation a = managed(ap, w.broadcaster.getClass());
+                    ManagedAnnotation a = managed(ap, request.resource());
                     if (a != null) {
                         String targetPath = a.path();
                         if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
@@ -63,10 +57,10 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                     final Object o = config.framework().newClassInstance(Object.class, AnnotatedProxy.class.cast(w.atmosphereHandler).target().getClass());
                                     ap.configure(config, o);
                                 }
-                                config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
 
+                                request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
                                 if (ap.pathParams()) {
-                                    prepareForPathInjection(path, targetPath, ap.target());
+                                    request.localAttributes().put(PathParam.class.getName(), new String[]{path, targetPath});
                                 }
 
                                 AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(ap);
@@ -90,7 +84,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         return config.framework().newClassInstance(AnnotatedProxy.class, ManagedAtmosphereHandler.class);
     }
 
-    protected ManagedAnnotation managed(AnnotatedProxy ap, final Class<? extends Broadcaster> aClass) {
+    protected ManagedAnnotation managed(AnnotatedProxy ap, final AtmosphereResource r){
         final ManagedService a = ap.target().getClass().getAnnotation(ManagedService.class);
         if (a == null) return null;
 
@@ -102,55 +96,8 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
             @Override
             public Class<? extends Broadcaster> broadcaster() {
-                return aClass;
-            }
-        };
-    }
-
-    protected void prepareForPathInjection(String path, String targetPath, Object o) {
-        /* begin @PathVariable annotations processing */
-
-        /* first, split paths at slashes and map {{parameter names}} to values from path */
-        logger.debug("Path: {}, targetPath: {}", path, targetPath);
-        String[] inParts = path.split("/");
-        String[] outParts = targetPath.split("/");
-        Map<String, String> annotatedPathVars = new HashMap<String, String>();
-        int len = Math.min(outParts.length, inParts.length);
-        for (int i = 0; i < len; i++) {
-            String s = outParts[i];
-            if (s.startsWith("{") && s.endsWith("}")) {
-                /* we remove braces from string and put it to our map and also path that regex like room: [a-zA-Z][a-zA-Z_0-9]* */
-                int end = s.contains(":") ? s.indexOf(":") : s.length() - 1;
-                annotatedPathVars.put(s.substring(1, end), inParts[i]);
-                logger.debug("Putting PathVar pair: {} -> {}", s.substring(1, s.length() - 1), inParts[i]);
-            }
-        }
-        injectPathParams(o, annotatedPathVars);
-    }
-
-    protected void injectPathParams(Object o, Map<String, String> annotatedPathVars) {
-        /* now look for appropriate annotations and fill the variables accordingly */
-        for (Field field : o.getClass().getDeclaredFields()) {
-            if (field.isAnnotationPresent(PathParam.class)) {
-                PathParam annotation = field.getAnnotation(PathParam.class);
-                String name = annotation.value();
-                if (name.isEmpty()) {
-                    name = field.getName();
-                }
-                if (annotatedPathVars.containsKey(name)) {
-                    try {
-                        logger.debug("Annotating field {}", name);
-                        field.setAccessible(true);
-                        field.set(o, annotatedPathVars.get(name));
-                    } catch (Exception e) {
-                        logger.error("Error processing @PathVariable annotation", e);
-                    }
-                } else {
-                    logger.error("No path marker found for PathVariable {}, class {}", field.getName(), o.getClass());
-                }
-            }
-        }
-        /* end @PathVariable annotations processing */
+                return r.getBroadcaster().getClass();
+            }  };
     }
 
     protected static interface ManagedAnnotation {

@@ -30,9 +30,11 @@ import java.net.URI;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.BlockingQueue;
@@ -637,13 +639,28 @@ public class DefaultBroadcaster implements Broadcaster {
 
         deliver.message = finalMsg;
 
+        Map<String, CacheMessage> cacheForSet = deliver.type == Deliver.TYPE.SET ? new HashMap<String, CacheMessage>() : null;
         // We cache first, and if the broadcast succeed, we will remove it.
-        AtmosphereResource cache = deliver.type == Deliver.TYPE.ALL ? null : deliver.resource;
-        deliver.cache = bc.getBroadcasterCache().addToCache(getID(), cache != null ? cache.uuid() : BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
+        switch (deliver.type) {
+            case ALL:
+                deliver.cache = bc.getBroadcasterCache().addToCache(getID(), BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
+                break;
+            case RESOURCE:
+                deliver.cache = bc.getBroadcasterCache().addToCache(getID(), deliver.resource.uuid(), new BroadcastMessage(deliver.originalMessage));
+                break;
+            case SET:
+                for (AtmosphereResource r : deliver.resources) {
+                    cacheForSet.put(r.uuid(), bc.getBroadcasterCache().addToCache(getID(), r.uuid(), new BroadcastMessage(deliver.originalMessage)));
+                }
+                break;
+        }
 
         if (resources.isEmpty()) {
             logger.trace("No resource available for {} and message {}", getID(), finalMsg);
             entryDone(deliver.future);
+            if (cacheForSet != null) {
+                cacheForSet.clear();
+            }
             return;
         }
 
@@ -664,7 +681,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliver.message = beforeProcessingMessage;
                         boolean deliverMessage = perRequestFilter(r, deliver);
 
-                        if (endBroadcast(deliver, deliverMessage)) continue;
+                        if (endBroadcast(deliver, r, deliver.cache, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
                             queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
@@ -674,7 +691,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 case RESOURCE:
                     boolean deliverMessage = perRequestFilter(deliver.resource, deliver);
 
-                    if (endBroadcast(deliver, deliverMessage)) return;
+                    if (endBroadcast(deliver, deliver.resource, deliver.cache,  deliverMessage)) return;
 
                     if (deliver.writeLocally) {
                         queueWriteIO(deliver.resource, deliver, new AtomicInteger(1));
@@ -687,10 +704,12 @@ public class DefaultBroadcaster implements Broadcaster {
                         deliver.message = beforeProcessingMessage;
                         deliverMessage = perRequestFilter(r, deliver);
 
-                        if (endBroadcast(deliver, deliverMessage)) continue;
+                        CacheMessage cacheMsg = cacheForSet.remove(r.uuid());
+
+                        if (endBroadcast(deliver, r, cacheMsg, deliverMessage)) continue;
 
                         if (deliver.writeLocally) {
-                            queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
+                            queueWriteIO(r, new Deliver(r, deliver, cacheMsg), count);
                         }
                     }
                     break;
@@ -699,13 +718,16 @@ public class DefaultBroadcaster implements Broadcaster {
             deliver.message = prevMessage;
         } catch (InterruptedException ex) {
             logger.debug(ex.getMessage(), ex);
+            if (cacheForSet != null) {
+                cacheForSet.clear();
+            }
         }
     }
 
-    protected boolean endBroadcast(Deliver deliver, boolean deliverMessage) {
+    protected boolean endBroadcast(Deliver deliver, AtmosphereResource r, CacheMessage cacheMsg, boolean deliverMessage) {
         if (!deliverMessage || deliver.message == null) {
             logger.debug("Skipping broadcast delivery {} for resource {} ", deliver.message, deliver.resource != null ? deliver.resource.uuid() : "null");
-            bc.getBroadcasterCache().clearCache(getID(), deliver.resource != null ? deliver.resource.uuid() : BroadcasterCache.NULL, deliver.cache);
+            bc.getBroadcasterCache().clearCache(getID(), r.uuid(), cacheMsg);
             entryDone(deliver.future);
 
             return true;
@@ -837,7 +859,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 return;
             }
 
-            bc.getBroadcasterCache().clearCache(getID(), r != null ? r.uuid() : BroadcasterCache.NULL, token.cache);
+            bc.getBroadcasterCache().clearCache(getID(), r.uuid(), token.cache);
             try {
                 request.setAttribute(getID(), token.future);
                 request.setAttribute(MAX_INACTIVE, System.currentTimeMillis());
@@ -1339,8 +1361,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 if (duplicate) {
                     AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
-                    if (dup != null && dup != r) {
-                        logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
+                    if (dup != null && dup != r ) {
+                        if ( ! dup.isPendingClose() ) {
+                            logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
+                        } else {
+                            logger.debug("Not yet closed resource still active {}", r.uuid());
+                        }
                         AtmosphereResourceImpl.class.cast(dup).dirtyClose();
                     } else {
                         logger.debug("Duplicate resource {}", r.uuid());

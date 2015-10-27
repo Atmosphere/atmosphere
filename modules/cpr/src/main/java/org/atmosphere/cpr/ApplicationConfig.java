@@ -913,5 +913,16 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.useForkJoinPool
      */
     String USE_FORJOINPOOL = "org.atmosphere.useForkJoinPool";
+    /**
+     * Writes the given data to the given outputstream in two steps with extra flushes to make servers notice if the connection has been closed.
+     * This  enables caching the message instead of losing it, if the client is in the progress of reconnecting via a Proxy where
+     * the server fails to detect the connection has been closed.
+     *
+     * This value only apply to LONG-POLLING transport
+     *
+     * Default: false
+     * Value: org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite
+     */
+    String TWO_STEPS_WRITE = "org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite";
 }
 

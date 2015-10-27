@@ -21,9 +21,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.annotation.Annotation;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A class that handles the results of an annotation scan. This class contains the logic that maps
@@ -40,6 +43,20 @@ public class AnnotationHandler {
     private final Map<Class<? extends Processor>, Processor> processors = new HashMap<Class<? extends Processor>, Processor>();
 
     public AnnotationHandler() {
+    }
+
+    public AnnotationHandler flushCoreAnnotations(Set<Class<?>> classes){
+        List<Class<? extends Annotation>> l = new ArrayList<Class<? extends Annotation>>();
+        for (Map.Entry<Class<? extends Annotation>, Class<? extends Processor>> e : annotations.entrySet()) {
+            if (e.getValue().getPackage().getName().equals("org.atmosphere.annotation") && classes.contains(e.getValue())) {
+                l.add(e.getKey());
+            }
+        }
+
+        for (Class<? extends Annotation> c : l) {
+            annotations.remove(c);
+        }
+        return this;
     }
 
     public Class<? extends Processor> handleProcessor(Class<?> clazz) {

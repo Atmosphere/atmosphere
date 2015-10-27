@@ -56,6 +56,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.atmosphere.util.IOUtils.loadClass;
+
 /**
  * An {@link AnnotationProcessor} that selects between a ServletContextInitializer based scanner, and
  * a bytecode based scanner based on <a href="https://github.com/rmuller/infomas-asl"></a>.
@@ -98,7 +100,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             AtmosphereFrameworkListenerService.class,
             AtmosphereResourceListenerService.class,
             UUIDProviderService.class
-
     };
 
     private AnnotationProcessor delegate;
@@ -284,7 +285,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             }
 
             if (handleAtmosphereAnnotation) {
-                scanForCustomAnnotation();
+                scanForCustomAnnotation(atmosphereAnnotatedClasses);
             }
             return this;
         }
@@ -307,7 +308,10 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             return scanForCustomizedAnnotation;
         }
 
-        private void scanForCustomAnnotation() throws IOException {
+        private void scanForCustomAnnotation(Set<Class<?>> atmosphereAnnotatedClasses) throws IOException {
+
+            handler.flushCoreAnnotations(atmosphereAnnotatedClasses);
+
             BytecodeBasedAnnotationProcessor b = new BytecodeBasedAnnotationProcessor(handler);
             b.configure(framework.getAtmosphereConfig());
             String path = framework.getServletContext().getRealPath(framework.getHandlersPath());
@@ -335,7 +339,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
                 }
 
                 if (handleAtmosphereAnnotation) {
-                    scanForCustomAnnotation();
+                    scanForCustomAnnotation(atmosphereAnnotatedClasses);
                 }
             }
 
@@ -411,11 +415,4 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         }
     }
 
-    private static Class<?> loadClass(Class thisClass, String className) throws Exception {
-        try {
-            return Thread.currentThread().getContextClassLoader().loadClass(className);
-        } catch (Throwable t) {
-            return thisClass.getClassLoader().loadClass(className);
-        }
-    }
 }

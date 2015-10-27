@@ -25,7 +25,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Wrapper around a ForkJoinPool for JDK6 support.
+ * Wrapper around a ForkJoinPool for JDK7+ support.
  *
  * @author Jean-Francois Arcand
  */
@@ -33,22 +33,22 @@ public class ForkJoinPool extends AbstractExecutorService {
 
     private final static Logger logger = LoggerFactory.getLogger(ForkJoinPool.class);
 
-    private final org.atmosphere.util.chmv8.ForkJoinPool forkJoinPool;
+    private final AbstractExecutorService forkJoinPool;
+    private final boolean shared;
 
-    public ForkJoinPool() {
-        forkJoinPool =
-                new org.atmosphere.util.chmv8.ForkJoinPool(Runtime.getRuntime().availableProcessors(),
-                    new org.atmosphere.util.chmv8.ForkJoinPool.ForkJoinWorkerThreadFactory() {
+    public ForkJoinPool(boolean shared, final String threadName) {
+        this.shared = shared;
 
-                        @Override
-                        public org.atmosphere.util.chmv8.ForkJoinWorkerThread newThread(org.atmosphere.util.chmv8.ForkJoinPool pool) {
-                            return new AtmosphereThreadFactoryJoin(pool);
-                        }
-                    }, null, true);
-        logger.info("Using ForkJoinPool. Set the {} to -1 to fully use its power.", ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
+        forkJoinPool = new java.util.concurrent.ForkJoinPool(Runtime.getRuntime().availableProcessors(), new java.util.concurrent.ForkJoinPool.ForkJoinWorkerThreadFactory() {
+            @Override
+            public java.util.concurrent.ForkJoinWorkerThread newThread(java.util.concurrent.ForkJoinPool pool) {
+                return new JDK7ForkJoinWorkerThread(pool, ForkJoinPool.this.shared, threadName);
+            }
+        }, null, false);
+        logger.info("Using ForkJoinPool  {}. Set the {} to -1 to fully use its power.", forkJoinPool.getClass().getName(), ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
     }
 
-    public org.atmosphere.util.chmv8.ForkJoinPool pool() {
+    public AbstractExecutorService pool() {
         return forkJoinPool;
     }
 
@@ -74,7 +74,7 @@ public class ForkJoinPool extends AbstractExecutorService {
 
     @Override
     public boolean awaitTermination(long timeout, TimeUnit unit) throws InterruptedException {
-        return forkJoinPool.awaitTermination(timeout,unit);
+        return forkJoinPool.awaitTermination(timeout, unit);
     }
 
     @Override
@@ -82,12 +82,12 @@ public class ForkJoinPool extends AbstractExecutorService {
         forkJoinPool.execute(command);
     }
 
-    private final class AtmosphereThreadFactoryJoin extends org.atmosphere.util.chmv8.ForkJoinWorkerThread {
+    private final static class JDK7ForkJoinWorkerThread extends java.util.concurrent.ForkJoinWorkerThread {
         private final AtomicInteger count = new AtomicInteger();
 
-        protected AtmosphereThreadFactoryJoin(org.atmosphere.util.chmv8.ForkJoinPool pool) {
+        protected JDK7ForkJoinWorkerThread(java.util.concurrent.ForkJoinPool pool, boolean shared, String threadName) {
             super(pool);
-            setName("Atmosphere-ForkJoinThreadShared-" + count.getAndIncrement());
+            setName((shared ? "Atmosphere-Shared-" : threadName) + count.getAndIncrement());
         }
     }
 }

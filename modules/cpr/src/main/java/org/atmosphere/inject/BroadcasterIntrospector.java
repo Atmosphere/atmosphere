@@ -15,8 +15,9 @@
  */
 package org.atmosphere.inject;
 
-import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.inject.annotation.RequestScoped;
 import org.atmosphere.util.ThreadLocalInvoker;
 
 import javax.inject.Named;
@@ -30,12 +31,9 @@ import java.lang.reflect.Type;
  *
  * @author Jeanfrancois Arcand
  */
+@RequestScoped
 public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcaster> {
-    private String name = Broadcaster.ROOT_MASTER;
-
-    public WHEN when() {
-        return WHEN.RUNTIME;
-    }
+    private final ThreadLocal<String> nameLocal = new ThreadLocal<String>();
 
     @Override
     public boolean supportedType(Type t) {
@@ -43,14 +41,20 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
     }
 
     @Override
-    public Broadcaster injectable(AtmosphereConfig config) {
+    public Broadcaster injectable(AtmosphereResource r) {
+        String named = nameLocal.get();
 
-        String s = (String) config.properties().get(Thread.currentThread().getName() + ".PATH");
-        if (s != null) {
-            name = name.substring(0, name.indexOf("{")) + s;
+        if (named == null) {
+            named = Broadcaster.ROOT_MASTER;
         }
 
-        final Broadcaster broadcaster = config.getBroadcasterFactory().lookup(name, true);
+        String s = (String) r.getRequest().getAttribute(Named.class.getName());
+        int indx = named.indexOf("{");
+        if (s != null && indx != -1) {
+            named = named.substring(0, indx) + s;
+        }
+
+        final Broadcaster broadcaster = r.getAtmosphereConfig().getBroadcasterFactory().lookup(named, true);
 
         return (Broadcaster) Proxy.newProxyInstance(this.getClass().getClassLoader(),
                 new Class[]{Broadcaster.class}, new ThreadLocalInvoker() {
@@ -66,9 +70,14 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
     }
 
     @Override
-    public void introspectField(Field f) {
+    public void introspectField(Class clazz, Field f) {
         if (f.isAnnotationPresent(Named.class)) {
-            name = f.getAnnotation(Named.class).value();
+            String name = f.getAnnotation(Named.class).value();
+
+            if (name.isEmpty()) {
+                name = f.getName();
+            }
+            nameLocal.set(name);
         }
     }
 }

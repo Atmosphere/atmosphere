@@ -15,7 +15,6 @@
  */
 package org.atmosphere.util;
 
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -33,11 +32,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpServletRequest;
+import java.lang.reflect.Field;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.Enumeration;
+import java.util.HashSet;
+import java.util.Set;
 
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
+import static org.atmosphere.cpr.FrameworkConfig.NEED_RUNTIME_INJECTION;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
 
 /**
@@ -217,7 +220,7 @@ public final class Utils {
         AtmosphereConfig config = r.getAtmosphereConfig();
 
         // No Injectable supports Injection
-        if (config.properties().get(FrameworkConfig.NEED_RUNTIME_INJECTION) == null) {
+        if (config.properties().get(NEED_RUNTIME_INJECTION) == null) {
             return;
         }
 
@@ -226,32 +229,103 @@ public final class Utils {
             return;
         }
 
-        Object injectIn = injectIn(r);
+        Object injectIn = injectWith(r);
         if (injectIn != null) {
-            String name = Thread.currentThread().getName() + AtmosphereResource.class.getSimpleName();
-            try {
-                config.properties().put(name, r);
-                inject(injectIn, injectIn.getClass(), config);
-            } finally {
-                config.properties().remove(name);
-            }
+            inject(injectIn, injectIn.getClass(), r);
         }
     }
 
-    private static final void inject(Object object, Class clazz, AtmosphereConfig config) throws IllegalAccessException {
-        InjectableObjectFactory.class.cast(config.framework().objectFactory()).requestScoped(object, clazz, config.framework());
+    public static final void inject(Object object, Class clazz, AtmosphereResource r) throws IllegalAccessException {
+        InjectableObjectFactory.class.cast(r.getAtmosphereConfig().framework().objectFactory()).requestScoped(object, clazz, r);
     }
 
-    public static final Object injectIn(AtmosphereResource r) {
+    public static final void inject(Object object, Class clazz, AtmosphereConfig config) throws IllegalAccessException {
+        InjectableObjectFactory.class.cast(config.framework().objectFactory()).requestScoped(object, clazz);
+    }
+
+    private static final Object injectWith(AtmosphereResource r) {
         AtmosphereHandler h = r.getAtmosphereHandler();
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
             return WebSocketProcessor.WebSocketHandlerProxy.class.cast(AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler()).proxied();
-        } else if (ManagedAtmosphereHandler.class.isAssignableFrom(h.getClass())) {
+        } else {
+            return injectWith(h);
+        }
+    }
+
+    private static Object injectWith(AtmosphereHandler h) {
+        if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
             return AnnotatedProxy.class.cast(h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
             return ReflectorServletProcessor.class.cast(h).getServlet();
         } else {
             return h;
+        }
+    }
+
+    public final static Set<Field> getInheritedPrivateFields(Class<?> type) {
+        Set<Field> result = new HashSet<Field>();
+
+        Class<?> i = type;
+        while (i != null && i != Object.class) {
+            for (Field field : i.getDeclaredFields()) {
+                if (!field.isSynthetic()) {
+                    result.add(field);
+                }
+            }
+            i = i.getSuperclass();
+        }
+
+        return result;
+    }
+
+    public final static Set<Method> getInheritedPrivateMethod(Class<?> type) {
+        Set<Method> result = new HashSet<>();
+
+        Class<?> i = type;
+        while (i != null && i != Object.class) {
+            for (Method m : i.getDeclaredMethods()) {
+                if (!m.isSynthetic()) {
+                    result.add(m);
+                }
+            }
+            i = i.getSuperclass();
+        }
+
+        return result;
+    }
+
+    public final static boolean requestScopedInjection(AtmosphereConfig config, AtmosphereHandler h) {
+        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+            return false;
+        }
+
+        try {
+            return InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(injectWith(h).getClass());
+        } catch (Exception e) {
+            LOGGER.error("", e);
+            return false;
+        }
+    }
+
+    /**
+     * Inject custom object. This method is mostly for external framework.
+     *
+     * @param config
+     * @param o
+     * @return
+     */
+    public static final boolean requestScopedInjection(AtmosphereConfig config, Object o) {
+        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+            return false;
+        }
+
+        try {
+            return InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(o.getClass());
+        } catch (Exception var4) {
+            LOGGER.error("", var4);
+            return false;
         }
     }
 }

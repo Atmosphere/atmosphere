@@ -33,6 +33,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.ServletException;
+import javax.servlet.ServletOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -51,6 +52,8 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereServletProcessor {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractReflectorAtmosphereHandler.class);
+
+    private boolean twoStepsWrite = false;
 
     /**
      * Write the {@link AtmosphereResourceEvent#getMessage()} back to the client using
@@ -149,8 +152,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
                 }
             } else {
                 if (isUsingStream) {
-                    r.getOutputStream().write(writeAsBytes ? (byte[]) message : message.toString().getBytes(r.getCharacterEncoding()));
-                    r.getOutputStream().flush();
+                    byte[] data = writeAsBytes ? (byte[])message : message.toString().getBytes(r.getCharacterEncoding());
+                    write(event, r.getOutputStream(), data);
                 } else {
                     r.getWriter().write(message.toString());
                     r.getWriter().flush();
@@ -158,6 +161,36 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
             }
         }
         postStateChange(event);
+    }
+
+    protected void write(AtmosphereResourceEvent event, ServletOutputStream o, byte[] data) throws IOException {
+        if (useTwoStepWrite(event) && data.length > 1) {
+            twoStepWrite(o, data);
+        } else {
+            o.write(data);
+            o.flush();
+        }
+    }
+
+    /**
+     * Writes the given data to the given outputstream in two steps with extra
+     * flushes to make servers notice if the connection has been closed. This
+     * enables caching the message instead of losing it, if the client is in the
+     * progress of reconnecting
+     *
+     * @param o the stream to write to
+     * @param data the data to write
+     * @throws IOException if an exception occurs during writing
+     */
+    private void twoStepWrite(ServletOutputStream o, byte[] data) throws IOException {
+        o.write(data, 0, 1);
+        o.flush();
+        o.write(data, 1, data.length - 1);
+        o.flush();
+    }
+
+    protected boolean useTwoStepWrite(AtmosphereResourceEvent event) {
+        return twoStepsWrite && event.getResource().transport() == AtmosphereResource.TRANSPORT.LONG_POLLING;
     }
 
     /**
@@ -194,6 +227,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
 
     @Override
     public void init(AtmosphereConfig config) throws ServletException {
+        twoStepsWrite = config.getInitParameter(ApplicationConfig.TWO_STEPS_WRITE, false);
     }
 
     /**

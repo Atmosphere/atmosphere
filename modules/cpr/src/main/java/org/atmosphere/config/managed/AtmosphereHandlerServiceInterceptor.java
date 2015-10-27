@@ -25,6 +25,8 @@ import org.atmosphere.cpr.FrameworkConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.inject.Named;
+
 /**
  * Handle {@link org.atmosphere.config.service.Singleton},{@link org.atmosphere.config.service.MeteorService} and
  * {@link org.atmosphere.config.service.AtmosphereHandlerService} processing.
@@ -51,7 +53,7 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
                                 newW = config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass());
                             }
 
-                            config.properties().put(Thread.currentThread().getName() + ".PATH", path.substring(targetPath.indexOf("{")));
+                            request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
 
                             AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(newW);
 

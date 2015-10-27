@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.sonatype.oss</groupId>
         <artifactId>oss-parent</artifactId>
-        <version>5</version>
+        <version>9</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
@@ -72,23 +72,6 @@
         <testSourceDirectory>src/test/java</testSourceDirectory>
         <outputDirectory>target/classes</outputDirectory>
         <testOutputDirectory>target/test-classes</testOutputDirectory>
-        <extensions>
-            <extension>
-                <groupId>org.jvnet.wagon-svn</groupId>
-                <artifactId>wagon-svn</artifactId>
-                <version>1.8</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-ssh-external</artifactId>
-                <version>1.0-alpha-6</version>
-            </extension>
-            <extension>
-                <groupId>org.apache.maven.wagon</groupId>
-                <artifactId>wagon-webdav</artifactId>
-                <version>1.0-beta-1</version>
-            </extension>
-        </extensions>
         <defaultGoal>install</defaultGoal>
         <resources>
             <resource>
@@ -213,7 +196,7 @@
                         <version>2.5</version>
                         <configuration>
                             <aggregate>true</aggregate>
-                            <source>1.6</source>
+                            <source>1.7</source>
                             <encoding>UTF-8</encoding>
                             <maxmemory>1g</maxmemory>
                             <links>
@@ -547,7 +530,7 @@
         <tomcat7-version>7.0.35</tomcat7-version>
         <shade-version>1.2.1</shade-version>
         <felix-version>2.3.7</felix-version>
-        <ahc.version>1.9.27</ahc.version>
+        <ahc.version>1.7.7</ahc.version>
         <slf4j-impl-version>1.6.1</slf4j-impl-version>
         <slf4j-version>1.7.7</slf4j-version>
         <logback-version>1.1.2</logback-version>

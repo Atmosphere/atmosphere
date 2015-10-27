@@ -17,9 +17,11 @@ package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
+import org.atmosphere.inject.annotation.ApplicationScoped;
 
 import java.lang.reflect.Type;
 
+@ApplicationScoped
 public class AtmosphereResourceFactoryInjectable implements Injectable<AtmosphereResourceFactory> {
 
     @Override
