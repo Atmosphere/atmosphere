@@ -268,6 +268,7 @@ public class IOUtils {
             }
             return servletPath;
         } catch (Exception ex) {
+            logger.error("", ex);
             throw new IllegalStateException("Unable to configure jsr356 at that stage");
         }
     }
