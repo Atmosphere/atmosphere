@@ -540,10 +540,7 @@ public abstract class
                 return;
             }
         } finally {
-            Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-            if (m != null) {
-                m.destroy();
-            }
+            Utils.destroyMeteor(req);
         }
     }
 

@@ -20,6 +20,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.cpr.Meteor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -202,5 +203,16 @@ public final class Utils {
         }
         LOGGER.trace("No Method Mapped for {}", o);
         return null;
+    }
+
+    public final static void destroyMeteor(AtmosphereRequest req) {
+        try {
+            Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
+            if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
+                Meteor.class.cast(o).destroy();
+            }
+        } catch (Exception ex) {
+            LOGGER.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
+        }
     }
 }
