@@ -304,14 +304,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         } finally {
             unregister();
-            try {
-                Meteor m = (Meteor) req.getAttribute(METEOR);
-                if (m != null) {
-                    m.destroy();
-                }
-            } catch (Exception ex) {
-                logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
-            }
+            Utils.destroyMeteor(req);
         }
         listeners.clear();
         return this;
@@ -813,9 +806,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 asyncSupport.complete(this);
 
                 try {
-                    Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                    if (m != null) {
-                        m.destroy();
+                    Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
+                    if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
+                        Meteor.class.cast(o).destroy();
                     }
                 } catch (Exception ex) {
                     logger.trace("Meteor exception {}", ex);
