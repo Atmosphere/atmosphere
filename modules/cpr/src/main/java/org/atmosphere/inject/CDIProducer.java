@@ -18,5 +18,5 @@ package org.atmosphere.inject;
 /**
  * A simple marker interface for for the CDI extension.
  */
-public interface CDIProducer {
+public interface CDIProducer extends AtmosphereConfigAware{
 }
