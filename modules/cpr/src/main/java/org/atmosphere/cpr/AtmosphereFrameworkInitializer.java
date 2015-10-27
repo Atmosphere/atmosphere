@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.IOUtils;
+import org.atmosphere.util.VoidServletConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -79,17 +80,30 @@ public class AtmosphereFrameworkInitializer {
         return AtmosphereFrameworkInitializer.newAtmosphereFramework(frameworkClass, isFilter, autoDetectHandlers);
     }
 
-    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers) {
+    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers, final ServletContext c) {
         AtmosphereFramework framework;
         try {
-            framework = frameworkClass.getDeclaredConstructor(
+            framework = (AtmosphereFramework) frameworkClass.getDeclaredConstructor(
                     new Class[]{boolean.class, boolean.class}).newInstance(isFilter, autoDetectHandlers);
         } catch (Exception e) {
             logger.error("", e);
             framework = new AtmosphereFramework(isFilter, autoDetectHandlers);
         }
 
+        if (c != null) {
+            framework.servletConfig(new VoidServletConfig(framework.initParams) {
+                @Override
+                public ServletContext getServletContext() {
+                    return c;
+                }
+            }, false);
+        }
+
         return framework;
+    }
+
+    protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers) {
+        return newAtmosphereFramework(frameworkClass, isFilter,autoDetectHandlers, null);
     }
 
     public static AtmosphereFramework newAtmosphereFramework(ServletContext sc, boolean isFilter, boolean autoDetectHandlers) {
@@ -110,7 +124,7 @@ public class AtmosphereFrameworkInitializer {
         } catch (Exception ex) {
             logger.error("", ex);
         }
-        return newAtmosphereFramework(AtmosphereFramework.class, isFilter, autoDetectHandlers);
+        return newAtmosphereFramework(AtmosphereFramework.class, isFilter, autoDetectHandlers, sc);
     }
 
     public AtmosphereFramework framework() {

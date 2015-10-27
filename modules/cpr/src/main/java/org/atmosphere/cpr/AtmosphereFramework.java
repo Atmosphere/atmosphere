@@ -49,10 +49,10 @@ import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.ServletContextFactory;
-import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.util.UUIDProvider;
 import org.atmosphere.util.Utils;
 import org.atmosphere.util.Version;
+import org.atmosphere.util.VoidServletConfig;
 import org.atmosphere.util.analytics.FocusPoint;
 import org.atmosphere.util.analytics.JGoogleAnalyticsTracker;
 import org.atmosphere.util.analytics.ModuleDetection;
@@ -78,9 +78,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
@@ -820,35 +817,7 @@ public class AtmosphereFramework {
      */
     public AtmosphereFramework init() {
         try {
-            init(servletConfig == null ? new ServletConfig() {
-
-                @Override
-                public String getServletName() {
-                    return "AtmosphereFramework";
-                }
-
-                @Override
-                public ServletContext getServletContext() {
-                    return (ServletContext) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ServletContext.class},
-                            new InvocationHandler() {
-                                @Override
-                                public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                                    return ServletProxyFactory.getDefault().proxy(proxy, method, args);
-                                }
-                            }
-                    );
-                }
-
-                @Override
-                public String getInitParameter(String name) {
-                    return initParams.get(name);
-                }
-
-                @Override
-                public Enumeration<String> getInitParameterNames() {
-                    return Collections.enumeration(initParams.values());
-                }
-            } : servletConfig, false);
+            init(servletConfig == null ? new VoidServletConfig(initParams) : servletConfig, false);
         } catch (ServletException e) {
             logger.error("", e);
         }
@@ -889,7 +858,7 @@ public class AtmosphereFramework {
     public AtmosphereFramework init(final ServletConfig sc, boolean wrap) throws ServletException {
         if (isInit) return this;
 
-        servletConfig = servletConfig(sc, wrap);
+        servletConfig(sc, wrap);
         readSystemProperties();
         populateBroadcasterType();
         populateObjectFactoryType();
@@ -995,9 +964,7 @@ public class AtmosphereFramework {
         return this;
     }
 
-    protected ServletConfig servletConfig(final ServletConfig sc, boolean wrap) {
-        ServletConfig servletConfig;
-
+    protected void servletConfig(final ServletConfig sc, boolean wrap) {
         if (wrap) {
 
             String value = sc.getServletContext().getInitParameter(USE_SERVLET_CONTEXT_PARAMETERS);
@@ -1045,7 +1012,6 @@ public class AtmosphereFramework {
         } else {
             servletConfig = sc;
         }
-        return servletConfig;
     }
 
     public void reconfigureInitParams(boolean reconfigureInitParams) {
