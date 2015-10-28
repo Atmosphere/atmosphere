@@ -257,6 +257,16 @@ public class IOUtils {
         try {
             if (config.getServletConfig() != null) {
                 ServletRegistration s = config.getServletContext().getServletRegistration(config.getServletConfig().getServletName());
+
+                if (s == null) {
+                    s = config.getServletContext().getServletRegistration(VoidServletConfig.ATMOSPHERE_SERVLET);
+                }
+
+                if ( s == null) {
+                    throw new IllegalStateException("Unable to configure jsr356 at that stage. No Servlet associated with "
+                            + config.getServletConfig().getServletName());
+                }
+
                 if (s.getMappings().size() > 1) {
                     logger.warn("More than one Servlet Mapping defined. WebSocket may not work {}", s);
                 }

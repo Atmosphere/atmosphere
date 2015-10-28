@@ -25,6 +25,7 @@ import java.util.Enumeration;
 import java.util.Map;
 
 public class VoidServletConfig implements ServletConfig {
+    public final static String ATMOSPHERE_SERVLET =  "AtmosphereServlet";
 
     private final Map<String, String> initParams;
 
@@ -38,7 +39,7 @@ public class VoidServletConfig implements ServletConfig {
 
     @Override
     public String getServletName() {
-        return "AtmosphereFramework";
+        return ATMOSPHERE_SERVLET;
     }
 
     @Override
