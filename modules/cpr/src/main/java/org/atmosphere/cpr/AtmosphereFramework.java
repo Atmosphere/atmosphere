@@ -481,6 +481,8 @@ public class AtmosphereFramework {
                     fwk.webSocketFactory(fwk.newClassInstance(WebSocketFactory.class, c));
                 } else if (AtmosphereFramework.class.isAssignableFrom(c)) {
                     // No OPS
+                } else if (EndpointMapper.class.isAssignableFrom(c)) {
+                   fwk.endPointMapper(fwk.newClassInstance(EndpointMapper.class, c));
                 } else {
                     logger.warn("{} is not a framework service that could be installed", c.getName());
                 }
