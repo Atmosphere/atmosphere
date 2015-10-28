@@ -67,6 +67,8 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 boolean force = false || c.getServerInfo().toLowerCase().contains("glassfish");
                 if (s != null && s.equals(JSR356AsyncSupport.class.getName())) {
                     force = true;
+                } else if (s != null) {
+                    force = false;
                 }
 
                 if (force || l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
