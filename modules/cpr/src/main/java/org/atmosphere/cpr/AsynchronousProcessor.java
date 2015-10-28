@@ -52,17 +52,22 @@ public abstract class
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
     protected static final Action cancelledAction = new Action(Action.TYPE.CANCELLED);
     protected final AtmosphereConfig config;
-    private final EndpointMapper<AtmosphereHandlerWrapper> mapper;
+    private EndpointMapper<AtmosphereHandlerWrapper> mapper;
     private final long closingTime;
     private final boolean isServlet30;
     private boolean closeOnCancel = false;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
-        mapper = config.framework().endPointMapper();
         closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         isServlet30 = Servlet30CometSupport.class.isAssignableFrom(this.getClass());
         closeOnCancel = config.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
+        config.startupHook(new AtmosphereConfig.StartupHook() {
+            @Override
+            public void started(AtmosphereFramework framework) {
+                mapper = framework.endPointMapper();
+            }
+        });
     }
 
     @Override
