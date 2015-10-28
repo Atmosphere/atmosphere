@@ -64,7 +64,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 int size = c.getServerInfo().toLowerCase().contains("weblogic") ? 1 : 0;
 
                 String s = reg.getValue().getInitParameter(ApplicationConfig.PROPERTY_COMET_SUPPORT);
-                boolean force = false || c.getServerInfo().toLowerCase().contains("glassfish");
+                boolean force = c.getServerInfo().toLowerCase().contains("glassfish");
                 if (s != null && s.equals(JSR356AsyncSupport.class.getName())) {
                     force = true;
                 } else if (s != null) {
