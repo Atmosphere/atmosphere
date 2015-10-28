@@ -262,8 +262,17 @@ public class IOUtils {
                 }
 
                 if ( s == null) {
-                    throw new IllegalStateException("Unable to configure jsr356 at that stage. No Servlet associated with "
-                            + config.getServletConfig().getServletName());
+                    for (Map.Entry<String, ? extends ServletRegistration> servlet : config.getServletContext().getServletRegistrations().entrySet()) {
+                        if (knownClasses.contains(servlet.getValue().getClassName())) {
+                            s = servlet.getValue();
+                            break;
+                        }
+                    }
+
+                    if (s == null) {
+                        throw new IllegalStateException("Unable to configure jsr356 at that stage. No Servlet associated with "
+                                + config.getServletConfig().getServletName());
+                    }
                 }
 
                 if (s.getMappings().size() > 1) {

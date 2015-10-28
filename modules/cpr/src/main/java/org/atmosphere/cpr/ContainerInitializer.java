@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.GlassFishServ30WebSocketSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
@@ -75,9 +76,17 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                     try {
                         framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                     } catch (IllegalStateException ex) {
-                        // Let it fail so later an exception will be displayed..
-                        // c.log("WARN: ", ex);
-                        framework.initializationError(ex);
+                        /**
+                         * For an unknown reason, when PrimneFaces Showcase is deployed in GlassFish,
+                         * the ServerContainer is always null.
+                         * For Native usage
+                         */
+                        if (c.getServerInfo().toLowerCase().contains("glassfish")) {
+                            framework.setAsyncSupport(new GlassFishServ30WebSocketSupport(framework.getAtmosphereConfig(), c));
+                            framework.initializationError(null);
+                        } else {
+                            framework.initializationError(ex);
+                        }
                     }
                 }
 
