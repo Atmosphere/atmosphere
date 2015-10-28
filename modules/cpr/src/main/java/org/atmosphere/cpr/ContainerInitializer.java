@@ -61,10 +61,10 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
 
                 // Don't use WebLogic Native WebSocket support if JSR356 is available
-                int size = c.getServerInfo().contains("WebLogic") ? 1 : 0;
+                int size = c.getServerInfo().toLowerCase().contains("weblogic") ? 1 : 0;
 
                 String s = reg.getValue().getInitParameter(ApplicationConfig.PROPERTY_COMET_SUPPORT);
-                boolean force = false;
+                boolean force = false || c.getServerInfo().toLowerCase().contains("glassfish");
                 if (s != null && s.equals(JSR356AsyncSupport.class.getName())) {
                     force = true;
                 }
