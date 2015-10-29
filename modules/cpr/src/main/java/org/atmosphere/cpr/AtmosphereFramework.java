@@ -481,6 +481,8 @@ public class AtmosphereFramework {
                     fwk.webSocketFactory(fwk.newClassInstance(WebSocketFactory.class, c));
                 } else if (AtmosphereFramework.class.isAssignableFrom(c)) {
                     // No OPS
+                } else if (EndpointMapper.class.isAssignableFrom(c)) {
+                   fwk.endPointMapper(fwk.newClassInstance(EndpointMapper.class, c));
                 } else {
                     logger.warn("{} is not a framework service that could be installed", c.getName());
                 }
@@ -691,6 +693,11 @@ public class AtmosphereFramework {
     }
 
     private AtmosphereFramework addMapping(String path, AtmosphereHandlerWrapper w) {
+        atmosphereHandlers.put(normalizePath(path), w);
+        return this;
+    }
+
+    public String normalizePath(String path) {
         // We are using JAXRS mapping algorithm.
         if (path.contains("*")) {
             path = path.replace("*", mappingRegex);
@@ -699,9 +706,7 @@ public class AtmosphereFramework {
         if (path.endsWith("/")) {
             path = path + mappingRegex;
         }
-
-        atmosphereHandlers.put(path, w);
-        return this;
+        return path;
     }
 
 

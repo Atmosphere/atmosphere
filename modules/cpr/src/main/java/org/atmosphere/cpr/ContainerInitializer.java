@@ -15,6 +15,7 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.container.GlassFishServ30WebSocketSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
@@ -61,19 +62,31 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
 
                 // Don't use WebLogic Native WebSocket support if JSR356 is available
-                int size = c.getServerInfo().contains("WebLogic") ? 1 : 0;
+                int size = c.getServerInfo().toLowerCase().contains("weblogic") ? 1 : 0;
 
                 String s = reg.getValue().getInitParameter(ApplicationConfig.PROPERTY_COMET_SUPPORT);
-                boolean force = false;
+                boolean force = c.getServerInfo().toLowerCase().contains("glassfish");
                 if (s != null && s.equals(JSR356AsyncSupport.class.getName())) {
                     force = true;
+                } else if (s != null) {
+                    force = false;
                 }
 
                 if (force || l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
                     try {
                         framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                     } catch (IllegalStateException ex) {
-                        framework.initializationError(ex);
+                        /**
+                         * For an unknown reason, when PrimneFaces Showcase is deployed in GlassFish,
+                         * the ServerContainer is always null.
+                         * For Native usage
+                         */
+                        if (c.getServerInfo().toLowerCase().contains("glassfish")) {
+                            framework.setAsyncSupport(new GlassFishServ30WebSocketSupport(framework.getAtmosphereConfig(), c));
+                            framework.initializationError(null);
+                        } else {
+                            framework.initializationError(ex);
+                        }
                     }
                 }
 

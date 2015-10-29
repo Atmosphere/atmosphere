@@ -35,9 +35,11 @@ import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * An Atmosphere request representation. An {@link AtmosphereRequest} is a two-way communication channel between the
@@ -340,7 +342,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
      * @return the locally added attributes
      * @deprecated Use {@link #localAttributes()}
      */
-    Map<String, Object> attributes();
+    LocalAttributes attributes();
 
     /**
      * {@inheritDoc}
@@ -529,9 +531,9 @@ public interface AtmosphereRequest extends HttpServletRequest {
      * Return a subset of the attributes set on this AtmosphereRequest, set locally by the framework or by an application. Attributes added using this method
      * won't be propagated to the original, container-only, native request object.
      *
-     * @return a {@link Map<String,Object>}
+     * @return a {@linkLocalAttributes>}
      */
-    Map<String, Object> localAttributes();
+    LocalAttributes localAttributes();
 
     /**
      * {@inheritDoc}
@@ -567,4 +569,44 @@ public interface AtmosphereRequest extends HttpServletRequest {
 
     String requestURL();
 
+
+    final class LocalAttributes {
+
+        private final Map<String, Object> localAttributes;
+
+        public LocalAttributes(Map<String, Object> attributes) {
+            this.localAttributes = attributes;
+        }
+
+        public LocalAttributes() {
+            this.localAttributes = new ConcurrentHashMap<>();
+        }
+
+        public LocalAttributes put(String s, Object o) {
+            localAttributes.put(s, o);
+            return this;
+        }
+
+        public Object get(String s) {
+            return localAttributes.get(s);
+        }
+
+        public Object remove(String name) {
+            return localAttributes.remove(name);
+        }
+
+        public Map<String, Object> unmodifiableMap() {
+            return Collections.unmodifiableMap(localAttributes);
+        }
+
+        public void clear() {
+            synchronized (localAttributes) {
+                localAttributes.clear();
+            }
+        }
+
+        public boolean containsKey(String key) {
+            return localAttributes.containsKey(key);
+        }
+    }
 }

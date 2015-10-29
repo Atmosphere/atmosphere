@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -124,9 +122,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * @return this.
      */
     public WebSocket shiftAttributes() {
-        Map<String, Object> m = new HashMap<String, Object>();
-        m.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes());
-        attributesAtWebSocketOpen = Collections.unmodifiableMap(m);
+        attributesAtWebSocketOpen = AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes().unmodifiableMap();
         return this;
     }
 

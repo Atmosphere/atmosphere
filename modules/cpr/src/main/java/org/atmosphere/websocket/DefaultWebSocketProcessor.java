@@ -23,6 +23,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -391,35 +392,48 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             request.body(new ByteArrayInputStream((byte[]) webSocketMessageAsBody, offset, length));
         }
 
-        // Globally defined
-        int tracing = 0;
-        Action a = asynchronousProcessor.invokeInterceptors(framework.interceptors(), resource, tracing);
-        if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-            return;
+        String path = webSocketHandler.proxied.getClass().isAnnotationPresent(WebSocketHandlerService.class) ?
+                webSocketHandler.proxied.getClass().getAnnotation(WebSocketHandlerService.class).path() : "/";
+
+        AtmosphereFramework.AtmosphereHandlerWrapper w = framework.getAtmosphereHandlers().get(framework.normalizePath(path));
+        List<AtmosphereInterceptor> l;
+        if (w == null) {
+            l = framework.interceptors();
+        } else {
+            l = w.interceptors;
         }
 
-        //Unit test mock the request and will throw NPE.
-        boolean skipAtmosphereHandler = request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
-                ? (Boolean) request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
-        if (!skipAtmosphereHandler) {
-            try {
-                if (String.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-                    webSocketHandler.onTextMessage(webSocket, String.class.cast(webSocketMessageAsBody));
-                } else if (Reader.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-                    WebSocketStreamingHandler.class.cast(webSocketHandler.proxied).onTextStream(webSocket, Reader.class.cast(webSocketMessageAsBody));
-                } else if (InputStream.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-                    WebSocketStreamingHandler.class.cast(webSocketHandler.proxied()).onBinaryStream(webSocket, InputStream.class.cast(webSocketMessageAsBody));
-                } else {
-                    webSocketHandler.onByteMessage(webSocket, (byte[]) webSocketMessageAsBody, offset, length);
-                }
-            } catch (IOException t) {
-                resource.onThrowable(t);
-                throw t;
+        try {
+            // Globally defined
+            int tracing = 0;
+            Action a = asynchronousProcessor.invokeInterceptors(l, resource, tracing);
+            if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
+                return;
             }
-        }
-        request.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
 
-        asynchronousProcessor.postInterceptors(framework.interceptors(), resource);
+            //Unit test mock the request and will throw NPE.
+            boolean skipAtmosphereHandler = request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null
+                    ? (Boolean) request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
+            if (!skipAtmosphereHandler) {
+                try {
+                    if (String.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
+                        webSocketHandler.onTextMessage(webSocket, String.class.cast(webSocketMessageAsBody));
+                    } else if (Reader.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
+                        WebSocketStreamingHandler.class.cast(webSocketHandler.proxied).onTextStream(webSocket, Reader.class.cast(webSocketMessageAsBody));
+                    } else if (InputStream.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
+                        WebSocketStreamingHandler.class.cast(webSocketHandler.proxied()).onBinaryStream(webSocket, InputStream.class.cast(webSocketMessageAsBody));
+                    } else {
+                        webSocketHandler.onByteMessage(webSocket, (byte[]) webSocketMessageAsBody, offset, length);
+                    }
+                } catch (IOException t) {
+                    resource.onThrowable(t);
+                    throw t;
+                }
+            }
+            request.setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.FALSE);
+        } finally {
+            asynchronousProcessor.postInterceptors(l, resource);
+        }
     }
 
     @Override
