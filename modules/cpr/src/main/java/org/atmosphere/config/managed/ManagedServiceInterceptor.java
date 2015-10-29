@@ -65,7 +65,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
 
                                 AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(ap);
 
-                                config.framework().addAtmosphereHandler(path, ap,
+                                config.framework().addAtmosphereHandler(targetPath, ap,
                                         config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                             } catch (Throwable e) {
