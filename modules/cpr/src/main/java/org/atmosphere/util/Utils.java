@@ -253,7 +253,7 @@ public final class Utils {
         }
     }
 
-    private static Object injectWith(AtmosphereHandler h) {
+    public static Object injectWith(AtmosphereHandler h) {
         if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
             return AnnotatedProxy.class.cast(h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
@@ -339,5 +339,26 @@ public final class Utils {
         } catch (Exception ex) {
             LOGGER.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
         }
+    }
+
+    public static String pathInfo(AtmosphereRequest request) {
+        String pathInfo = null;
+        String path = null;
+        try {
+            pathInfo = request.getPathInfo();
+        } catch (IllegalStateException ex) {
+            // http://java.net/jira/browse/GRIZZLY-1301
+        }
+
+        if (pathInfo != null) {
+            path = request.getServletPath() + pathInfo;
+        } else {
+            path = request.getServletPath();
+        }
+
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+        return path;
     }
 }

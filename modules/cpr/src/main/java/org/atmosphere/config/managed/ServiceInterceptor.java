@@ -81,21 +81,7 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
         String pathInfo = null;
         boolean reMap = false;
 
-        try {
-            pathInfo = request.getPathInfo();
-        } catch (IllegalStateException ex) {
-            // http://java.net/jira/browse/GRIZZLY-1301
-        }
-
-        if (pathInfo != null) {
-            path = request.getServletPath() + pathInfo;
-        } else {
-            path = request.getServletPath();
-        }
-
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
+        path = Utils.pathInfo(request);
 
         // Remove the Broadcaster with curly braces
         if (b.getID().contains("{")) {
