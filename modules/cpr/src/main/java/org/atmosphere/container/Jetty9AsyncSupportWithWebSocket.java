@@ -52,6 +52,19 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
     private static final Logger logger = LoggerFactory.getLogger(Jetty9AsyncSupportWithWebSocket.class);
     private final WebSocketServerFactory webSocketFactory;
 
+    private static final boolean jetty93Up;
+
+    static {
+        Exception ex = null;
+        try {
+            Class.forName("org.eclipse.jetty.websocket.api.WebSocketFrameListener");
+        } catch (ClassNotFoundException e) {
+            ex = e;
+        } finally {
+            jetty93Up = ex == null ? true : false;
+        }
+    }
+
     public Jetty9AsyncSupportWithWebSocket(final AtmosphereConfig config) {
         super(config);
 
@@ -129,7 +142,9 @@ public class Jetty9AsyncSupportWithWebSocket extends Servlet30CometSupport {
 
                     // @Override 9.1.x
                     public Object createWebSocket(ServletUpgradeRequest req, ServletUpgradeResponse resp) {
-                        req.getExtensions().clear();
+                        if (!jetty93Up) {
+                            req.getExtensions().clear();
+                        }
 
                         if (!webSocketProcessor.handshake(request)) {
                             try {
