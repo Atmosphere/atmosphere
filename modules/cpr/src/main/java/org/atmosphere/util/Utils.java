@@ -253,7 +253,7 @@ public final class Utils {
         }
     }
 
-    public static Object injectWith(AtmosphereHandler h) {
+    private static Object injectWith(AtmosphereHandler h) {
         if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
             return AnnotatedProxy.class.cast(h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
