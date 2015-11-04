@@ -340,4 +340,25 @@ public final class Utils {
             LOGGER.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
         }
     }
+
+    public static String pathInfo(AtmosphereRequest request) {
+        String pathInfo = null;
+        String path = null;
+        try {
+            pathInfo = request.getPathInfo();
+        } catch (IllegalStateException ex) {
+            // http://java.net/jira/browse/GRIZZLY-1301
+        }
+
+        if (pathInfo != null) {
+            path = request.getServletPath() + pathInfo;
+        } else {
+            path = request.getServletPath();
+        }
+
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+        return path;
+    }
 }

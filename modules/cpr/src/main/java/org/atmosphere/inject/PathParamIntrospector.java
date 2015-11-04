@@ -15,9 +15,14 @@
  */
 package org.atmosphere.inject;
 
+import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.PathParam;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.inject.annotation.RequestScoped;
+import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -46,7 +51,26 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
         String named = pathLocal.get();
         String[] paths = (String[]) r.getRequest().getAttribute(PathParam.class.getName());
 
-        if (paths == null || paths.length != 2) return null;
+        if (paths == null || paths.length != 2) {
+            AtmosphereFramework.AtmosphereHandlerWrapper w = (AtmosphereFramework.AtmosphereHandlerWrapper)
+                    r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
+
+            if (w != null) {
+                if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
+                    AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
+                    if (ap.target().getClass().isAnnotationPresent(ManagedService.class)) {
+                        String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
+                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                            paths = new String[] { Utils.pathInfo(r.getRequest()), targetPath };
+                        }
+                    }
+                }
+
+                if (paths == null || paths.length != 2) {
+                    return null;
+                }
+            }
+        }
 
         /* first, split paths at slashes and map {{parameter names}} to values from pathLocal */
         logger.debug("Path: {}, targetPath: {}", pathLocal, paths[1]);
