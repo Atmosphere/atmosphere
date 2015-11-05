@@ -40,7 +40,7 @@ The Atmosphere Framework ships with many examples describing how to implement We
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.3.5</version>
+         <version>2.4.0</version>
       </dependency>
 ```
       
@@ -60,7 +60,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 [Change Log](./CHANGELOG.md)
 
-2.3.x release: [2.3.5](https://goo.gl/BVr1PS) [2.3.4](https://goo.gl/5eiQXb) [2.3.3](https://goo.gl/6Yfr0p ) [2.3.2](https://goo.gl/PQ60X0 ) [2.3.1](https://goo.gl/6o9gjc) [2.3.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.3.0+is%3Aclosed)
+2.3.x release: [2.4.0](https://goo.gl/GpB1B1) [2.3.5](https://goo.gl/BVr1PS) [2.3.4](https://goo.gl/5eiQXb) [2.3.3](https://goo.gl/6Yfr0p ) [2.3.2](https://goo.gl/PQ60X0 ) [2.3.1](https://goo.gl/6o9gjc) [2.3.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.3.0+is%3Aclosed)
 
 2.2.x release: [2.2.9](https://goo.gl/DkOD2l) [2.2.8](https://goo.gl/WoPC3N) [2.2.7](https://goo.gl/biW2Co) [2.2.6](http://goo.gl/kqZSb0) [2.2.5](http://goo.gl/2lNzg2) [2.2.4](http://goo.gl/bOLCW2) [2.2.3](http://goo.gl/1DXKP3) [2.2.2](http://goo.gl/i3W2v5) [2.2.1](http://goo.gl/glEj7L) [2.2.0](http://goo.gl/3hrlZH)
 
