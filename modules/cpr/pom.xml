@@ -288,6 +288,11 @@
             <version>${commons-pool2}</version>
             <optional>true</optional>
         </dependency>
+   	<dependency>
+            <groupId>org.redisson</groupId>
+            <artifactId>redisson</artifactId>
+            <version>2.1.3</version>
+        </dependency>
     </dependencies>
 </project>
     
