@@ -23,7 +23,14 @@ import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CAC
 public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
 
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
-    private static final String REDIS_SERVER = UUIDRedissonBroadcasterCache.class.getName() + ".server";
+
+    private static final String REDIS_AUTH = RedissonBroadcaster.class.getName() + ".authorization";
+    private static final String REDIS_SERVER = RedissonBroadcaster.class.getName() + ".server";
+    private static final String REDIS_OTHERS = RedissonBroadcaster.class.getName() + ".others";
+    private static final String REDIS_TYPE = RedissonBroadcaster.class.getName() + ".type";
+    private static final String REDIS_SCAN_INTERVAL = RedissonBroadcaster.class.getName() + ".scan.interval";
+    private static final String REDIS_SENTINEL_MASTER_NAME = RedissonBroadcaster.class.getName() + ".master.name";
+
     private Redisson redisson;
     private Config redisConfig = new Config();
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
@@ -75,17 +82,85 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
             taskScheduler = Executors.newSingleThreadScheduledExecutor();
         }
 
-        URI uri;
+        String authToken = "";
+        String redisType = "";
+
+        if (config.getServletConfig().getInitParameter(REDIS_TYPE) != null) {
+            redisType = config.getServletConfig().getInitParameter(REDIS_TYPE);
+        }
+
+        if (config.getServletConfig().getInitParameter(REDIS_AUTH) != null) {
+            authToken = config.getServletConfig().getInitParameter(REDIS_AUTH);
+        }
+
         if (config.getServletConfig().getInitParameter(REDIS_SERVER) != null) {
             uri = URI.create(config.getServletConfig().getInitParameter(REDIS_SERVER));
-        } else {
+        } else if (uri == null) {
             throw new NullPointerException("uri cannot be null");
         }
 
-        redisConfig.useSingleServer().setAddress(uri.getHost() + ":" + uri.getPort());
-        redisConfig.useSingleServer().setDatabase(1);
+        Config redissonConfig = new Config();
 
-        redisson = Redisson.create(redisConfig);
+        if (redisType.isEmpty() || redisType.equals(RedisType.SINGLE.getStringValue())) {
+            redissonConfig.useSingleServer().setAddress(uri.getHost() + ":" + uri.getPort());
+            redissonConfig.useSingleServer().setDatabase(1);
+            if (!authToken.isEmpty()) {
+                redissonConfig.useSingleServer().setPassword(authToken);
+            }
+        } else {
+            List<String> slaveList = Arrays.asList(config.getServletConfig().getInitParameter(REDIS_OTHERS).split("\\s*,\\s*"));
+            if (redisType.equals(RedisType.MASTER.getStringValue())) {
+                redissonConfig.useMasterSlaveConnection()
+                        .setMasterAddress(uri.getHost() + ":" + uri.getPort())
+                        .setLoadBalancer(new RandomLoadBalancer());
+                for (String slave : slaveList) {
+                    URI serverAddress = URI.create(slave);
+                    redissonConfig.useMasterSlaveConnection().addSlaveAddress(serverAddress.getHost() + ":" + serverAddress.getPort());
+                }
+                if (!authToken.isEmpty()) {
+                    redissonConfig.useMasterSlaveConnection().setPassword(authToken);
+                }
+            } else if (redisType.equals(RedisType.CLUSTER.getStringValue())) {
+                Integer scanInterval = 2000;
+                if (config.getServletConfig().getInitParameter(REDIS_SCAN_INTERVAL) != null) {
+                    scanInterval = Integer.parseInt(config.getServletConfig().getInitParameter(REDIS_SCAN_INTERVAL));
+                }
+                redissonConfig.useClusterServers()
+                        .setScanInterval(scanInterval)
+                        .addNodeAddress(uri.getHost() + ":" + uri.getPort());
+                for (String slave : slaveList) {
+                    URI serverAddress = URI.create(slave);
+                    redissonConfig.useClusterServers().addNodeAddress(serverAddress.getHost() + ":" + serverAddress.getPort());
+                }
+                if (!authToken.isEmpty()) {
+                    redissonConfig.useClusterServers().setPassword(authToken);
+                }
+            } else if (redisType.equals(RedisType.SENTINEL.getStringValue())) {
+                String masterName = "";
+                if (config.getServletConfig().getInitParameter(REDIS_SENTINEL_MASTER_NAME) != null) {
+                    masterName = config.getServletConfig().getInitParameter(REDIS_SENTINEL_MASTER_NAME);
+                } else if (masterName.isEmpty()) {
+                    throw new NullPointerException("SENTINEL MASTER NAME cannot be null");
+                }
+                redissonConfig.useSentinelConnection()
+                        .setMasterName(masterName)
+                        .addSentinelAddress(uri.getHost() + ":" + uri.getPort());
+                for (String slave : slaveList) {
+                    URI serverAddress = URI.create(slave);
+                    redissonConfig.useSentinelConnection().addSentinelAddress(serverAddress.getHost() + ":" + serverAddress.getPort());
+                }
+                if (!authToken.isEmpty()) {
+                    redissonConfig.useSentinelConnection().setPassword(authToken);
+                }
+            }
+        }
+
+        try {
+            redisson = Redisson.create(redissonConfig);
+        } catch (Exception e) {
+            logger.error("failed to connect redis", e);
+            disconnectRedisson();
+        }
 
         clientIdleTime = TimeUnit.SECONDS.toMillis(
                 Long.valueOf(config.getInitParameter(UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
