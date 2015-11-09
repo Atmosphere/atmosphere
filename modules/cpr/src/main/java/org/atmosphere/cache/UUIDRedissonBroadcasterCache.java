@@ -8,7 +8,7 @@ import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.UUIDProvider;
 import org.redisson.Config;
 import org.redisson.Redisson;
-import org.redisson.core.RMap;
+import org.redisson.connection.RandomLoadBalancer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -24,15 +24,15 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
 
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
-    private static final String REDIS_AUTH = RedissonBroadcaster.class.getName() + ".authorization";
-    private static final String REDIS_SERVER = RedissonBroadcaster.class.getName() + ".server";
-    private static final String REDIS_OTHERS = RedissonBroadcaster.class.getName() + ".others";
-    private static final String REDIS_TYPE = RedissonBroadcaster.class.getName() + ".type";
-    private static final String REDIS_SCAN_INTERVAL = RedissonBroadcaster.class.getName() + ".scan.interval";
-    private static final String REDIS_SENTINEL_MASTER_NAME = RedissonBroadcaster.class.getName() + ".master.name";
+    private static final String REDIS_AUTH = UUIDRedissonBroadcasterCache.class.getName() + ".authorization";
+    private static final String REDIS_SERVER = UUIDRedissonBroadcasterCache.class.getName() + ".server";
+    private static final String REDIS_OTHERS = UUIDRedissonBroadcasterCache.class.getName() + ".others";
+    private static final String REDIS_TYPE = UUIDRedissonBroadcasterCache.class.getName() + ".type";
+    private static final String REDIS_SCAN_INTERVAL = UUIDRedissonBroadcasterCache.class.getName() + ".scan.interval";
+    private static final String REDIS_SENTINEL_MASTER_NAME = UUIDRedissonBroadcasterCache.class.getName() + ".master.name";
 
+    private URI uri;
     private Redisson redisson;
-    private Config redisConfig = new Config();
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
     protected ScheduledExecutorService taskScheduler;
@@ -66,6 +66,19 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
         @Override
         public String toString() {
             return queue.toString();
+        }
+    }
+
+    private enum RedisType {
+        SINGLE("single"), MASTER("master"), CLUSTER("cluster"), SENTINEL("sentinel"), ELASTICACHE("elasticache");
+        private String stringValue;
+
+        RedisType(String s) {
+            stringValue = s;
+        }
+
+        public String getStringValue() {
+            return stringValue;
         }
     }
 
@@ -109,6 +122,10 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
             }
         } else {
             List<String> slaveList = Arrays.asList(config.getServletConfig().getInitParameter(REDIS_OTHERS).split("\\s*,\\s*"));
+            Integer scanInterval = 2000;
+            if (config.getServletConfig().getInitParameter(REDIS_SCAN_INTERVAL) != null) {
+                scanInterval = Integer.parseInt(config.getServletConfig().getInitParameter(REDIS_SCAN_INTERVAL));
+            }
             if (redisType.equals(RedisType.MASTER.getStringValue())) {
                 redissonConfig.useMasterSlaveConnection()
                         .setMasterAddress(uri.getHost() + ":" + uri.getPort())
@@ -121,10 +138,6 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
                     redissonConfig.useMasterSlaveConnection().setPassword(authToken);
                 }
             } else if (redisType.equals(RedisType.CLUSTER.getStringValue())) {
-                Integer scanInterval = 2000;
-                if (config.getServletConfig().getInitParameter(REDIS_SCAN_INTERVAL) != null) {
-                    scanInterval = Integer.parseInt(config.getServletConfig().getInitParameter(REDIS_SCAN_INTERVAL));
-                }
                 redissonConfig.useClusterServers()
                         .setScanInterval(scanInterval)
                         .addNodeAddress(uri.getHost() + ":" + uri.getPort());
@@ -152,6 +165,13 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
                 if (!authToken.isEmpty()) {
                     redissonConfig.useSentinelConnection().setPassword(authToken);
                 }
+            } else if (redisType.equals(RedisType.ELASTICACHE.getStringValue())) {
+                redissonConfig.useElasticacheServers()
+                        .addNodeAddress(uri.getHost() + ":" + uri.getPort())
+                        .setScanInterval(scanInterval);
+                if (!authToken.isEmpty()) {
+                    redissonConfig.useElasticacheServers().setPassword(authToken);
+                }
             }
         }
 
@@ -159,7 +179,7 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
             redisson = Redisson.create(redissonConfig);
         } catch (Exception e) {
             logger.error("failed to connect redis", e);
-            disconnectRedisson();
+            redisson.shutdown();
         }
 
         clientIdleTime = TimeUnit.SECONDS.toMillis(
@@ -250,7 +270,7 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
 
         if (logger.isTraceEnabled()) {
             logger.trace("Retrieved for AtmosphereResource {} cached messages {}", uuid, result);
-            logger.trace("Available cached message {}", getMessages(TypeOfTransaction.GET_ALL,""));
+            logger.trace("Available cached message {}", getMessages(TypeOfTransaction.GET_ALL, ""));
         }
 
         return result;
@@ -300,11 +320,11 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
     }
 
     private void addMessage(String broadcasterId, String clientId, CacheMessage message) {
-        ClientQueue clientQueue = getClient(TypeOfTransaction.GET,clientId);
+        ClientQueue clientQueue = getClient(TypeOfTransaction.GET, clientId);
         if (clientQueue == null) {
             clientQueue = new ClientQueue();
             // Make sure the client is not in the process of being invalidated
-            if (getClient(TypeOfTransaction.GET,clientId) != null) {
+            if (getClient(TypeOfTransaction.GET, clientId) != null) {
                 actionMessages(TypeOfTransaction.GET, clientId, clientQueue);
             } else {
                 // The entry has been invalidated
@@ -338,7 +358,7 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
     }
 
     private boolean hasMessage(String clientId, String messageId) {
-        ClientQueue clientQueue = getClient(TypeOfTransaction.GET,clientId);
+        ClientQueue clientQueue = getClient(TypeOfTransaction.GET, clientId);
         return clientQueue != null && clientQueue.getIds().contains(messageId);
     }
 
@@ -347,7 +367,7 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
         ClientQueue clientQueue;
         if (type == TypeOfTransaction.REMOVE) {
             clientQueue = messages.remove(string);
-        }else {
+        } else {
             clientQueue = messages.get(string);
         }
         return clientQueue;
@@ -414,7 +434,7 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
             getClient(TypeOfTransaction.REMOVE, clientId);
         }
 
-        for (String msg : getMessages(TypeOfTransaction.GET_ALL,"").keySet()) {
+        for (String msg : getMessages(TypeOfTransaction.GET_ALL, "").keySet()) {
             if (!activeClients.containsKey(msg)) {
                 actionMessages(TypeOfTransaction.REMOVE, msg, new ClientQueue());
             }
@@ -423,14 +443,14 @@ public class UUIDRedissonBroadcasterCache implements BroadcasterCache {
 
     @Override
     public BroadcasterCache excludeFromCache(String broadcasterId, AtmosphereResource r) {
-        getActiveClients(TypeOfTransaction.REMOVE,r.uuid(),0L);
+        getActiveClients(TypeOfTransaction.REMOVE, r.uuid(), 0L);
         return this;
     }
 
     @Override
     public BroadcasterCache cacheCandidate(String broadcasterId, String uuid) {
         long now = System.currentTimeMillis();
-        getActiveClients(TypeOfTransaction.PUT,uuid, now);
+        getActiveClients(TypeOfTransaction.PUT, uuid, now);
         return this;
     }
 
