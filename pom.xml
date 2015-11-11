@@ -524,8 +524,8 @@
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
         <jetty7-version>7.6.9.v20130131</jetty7-version>
-        <jetty8-version>8.1.9.v20130131</jetty8-version>
-        <jetty9-version>9.1.1.v20140108</jetty9-version>
+        <jetty8-version>8.1.17.v20150415</jetty8-version>
+        <jetty9-version>9.2.13.v20150730</jetty9-version>
         <tomcat-version>6.0.35</tomcat-version>
         <tomcat7-version>7.0.35</tomcat7-version>
         <shade-version>1.2.1</shade-version>
