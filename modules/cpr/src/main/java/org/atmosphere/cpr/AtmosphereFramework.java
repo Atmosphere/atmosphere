@@ -931,7 +931,6 @@ public class AtmosphereFramework {
 
 	    this.shutdownHook = new Thread() {
                 public void run() {
-		    AtmosphereFramework.this.shutdownHook = null;
                     AtmosphereFramework.this.destroy();
                 }
             };
@@ -1838,6 +1837,7 @@ public class AtmosphereFramework {
 
 	if ( this.shutdownHook != null) {
 		Runtime.getRuntime().removeShutdownHook(this.shutdownHook);
+		shutdownHook = null;
 	}
         return this;
     }
