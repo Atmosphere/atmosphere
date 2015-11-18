@@ -673,12 +673,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             throw ex;
         } catch (NullPointerException ex) {
             // GLASSFISH http://java.net/jira/browse/GLASSFISH-18856
-        	try {
-				return b.request.getSession(create);
-			} catch (Exception e) {
-				logger.trace("", ex);
-				return null;
-			}
+			return b.request.getSession(create);
         } catch (RuntimeException ex) {
             // https://github.com/Atmosphere/atmosphere/issues/1974
             logger.trace("", ex);
