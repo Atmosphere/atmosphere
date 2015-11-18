@@ -1835,10 +1835,15 @@ public class AtmosphereFramework {
 
         onPostDestroy();
 
-	if ( this.shutdownHook != null) {
-		Runtime.getRuntime().removeShutdownHook(this.shutdownHook);
-		shutdownHook = null;
-	}
+        try {
+            if (this.shutdownHook != null) {
+                Runtime.getRuntime().removeShutdownHook(this.shutdownHook);
+                shutdownHook = null;
+            }
+        } catch (IllegalStateException ex) {
+            logger.trace("", ex);
+        }
+
         return this;
     }
 
