@@ -900,7 +900,6 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel
      */
     String CLOSE_STREAM_ON_CANCEL = "org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel";
-
     /**
      * Use init parameters specified for servlet context in addition to servlet config
      * Default: false
@@ -917,12 +916,21 @@ public interface ApplicationConfig {
      * Writes the given data to the given outputstream in two steps with extra flushes to make servers notice if the connection has been closed.
      * This  enables caching the message instead of losing it, if the client is in the progress of reconnecting via a Proxy where
      * the server fails to detect the connection has been closed.
-     *
+     * <p/>
      * This value only apply to LONG-POLLING transport
-     *
+     * <p/>
      * Default: false
      * Value: org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite
      */
     String TWO_STEPS_WRITE = "org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite";
+    /**
+     * How many times the {@link org.atmosphere.inject.InjectableObjectFactory} will try to construct and inject an object
+     * from an {@link org.atmosphere.inject.Injectable}. This happens when an Injectable returns null instead of the
+     * expected Injection
+     * <p/>
+     * Default: 5
+     * Value: org.atmosphere.cpr.InjectableObjectFactory.maxTry
+     */
+    String INJECTION_TRY = "org.atmosphere.cpr.InjectableObjectFactory.maxTry";
 }
 

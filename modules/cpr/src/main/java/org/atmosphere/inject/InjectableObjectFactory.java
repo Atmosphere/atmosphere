@@ -15,7 +15,7 @@
  */
 package org.atmosphere.inject;
 
-import com.sun.org.apache.bcel.internal.generic.FLOAD;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereObjectFactory;
@@ -54,6 +54,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedBlockingDeque<Object> pushBackInjection = new LinkedBlockingDeque();
+    private int maxTry;
 
     private AtmosphereConfig config;
 
@@ -64,6 +65,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     @Override
     public void configure(AtmosphereConfig config) {
         this.config = config;
+        this.maxTry = config.getInitParameter(ApplicationConfig.INJECTION_TRY, 5);
         for (Injectable<?> i : injectableServiceLoader) {
             try {
                 logger.debug("Adding class {} as injectable", i.getClass());
@@ -103,19 +105,28 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
                 // in META-INF/services/org/atmosphere/inject.Injectable
                 Set<Field> fields = new HashSet<Field>();
-                try {
-                    for (Object instance : pushBackInjection) {
+                Object instance = null;
+                while (pushBackInjection.size() > 0 & maxTry-- > 0) {
+                    java.util.Iterator<Object> t = pushBackInjection.iterator();
+                    pushBackInjection.clear();
+                    while (t.hasNext())
+                        instance = t.next();
                         fields.addAll(getInheritedPrivateFields(instance.getClass()));
-                        try {
-                            injectFields(fields, instance, framework, injectables);
-                        } catch (IllegalAccessException e) {
-                            logger.warn("", e);
-                        }
+                    try {
+                        injectFields(fields, instance, framework, injectables);
+                        applyMethods(instance, (Class<Object>) instance.getClass());
+                    } catch (IllegalAccessException e) {
+                        logger.warn("", e);
+                    } finally {
                         fields.clear();
                     }
-                } finally {
-                    pushBackInjection.clear();
                 }
+
+                if (pushBackInjection.size() > 0) {
+                    logger.warn("Injection failed for {}", pushBackInjection);
+                }
+
+
             }
         });
     }
