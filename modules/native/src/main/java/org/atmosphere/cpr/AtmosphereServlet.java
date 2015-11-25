@@ -44,7 +44,7 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  */
 public class AtmosphereServlet extends HttpServlet implements CometProcessor, HttpEventServlet, org.apache.catalina.comet.CometProcessor {
 
-	private static final long serialVersionUID = 7526472295622776147L;
+    private static final long serialVersionUID = 7526472295622776147L;
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected final AtmosphereFrameworkInitializer initializer;
 
