@@ -99,7 +99,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandlerProxy> handlers = new ConcurrentHashMap<String, WebSocketHandlerProxy>();
     private final EndpointMapper<WebSocketHandlerProxy> mapper = new DefaultEndpointMapper<WebSocketHandlerProxy>();
-    private boolean wildcardMapping = false;
+    private boolean wildcardMapping;
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
     private int charBufferMaxSize = 2097152;

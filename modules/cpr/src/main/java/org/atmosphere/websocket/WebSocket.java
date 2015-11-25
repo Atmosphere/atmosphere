@@ -53,7 +53,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     public final static String CLEAN_CLOSE = "Clean_Close";
 
     private AtmosphereResource r;
-    protected long lastWrite = 0;
+    protected long lastWrite;
     protected boolean binaryWrite;
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;

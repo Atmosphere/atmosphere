@@ -113,11 +113,11 @@ public class DefaultBroadcaster implements Broadcaster {
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
     protected int waitTime = POLLING_DEFAULT;
-    private boolean backwardCompatible = false;
+    private boolean backwardCompatible;
     private LifecycleHandler lifecycleHandler;
     private Future<?> currentLifecycleTask;
     private boolean cacheOnIOFlushException = true;
-    protected boolean sharedListeners = false;
+    protected boolean sharedListeners;
     protected boolean candidateForPoolable;
     protected final String usingTokenIdForAttribute = UUID.randomUUID().toString();
 

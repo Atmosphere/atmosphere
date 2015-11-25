@@ -254,7 +254,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
          * of everything in the war. It would be nice to change to the API to make this a bit cleaner
          * but it looks like it is a public API.
          */
-        private boolean alreadyScanned = false;
+        private boolean alreadyScanned;
 
         private ServletContainerInitializerAnnotationProcessor(AnnotationHandler handler,
                                                                final Map<Class<? extends Annotation>, Set<Class<?>>> annotations,

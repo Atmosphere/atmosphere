@@ -64,11 +64,11 @@ public final class AtmosphereFilterChain implements FilterChain {
     /**
      * The int which gives the current number of filters in the chain.
      */
-    private int n = 0;
+    private int n;
     /**
      * The servlet instance to be executed by this chain.
      */
-    private Servlet servlet = null;
+    private Servlet servlet;
     private ServletConfig configImpl;
 
     public AtmosphereFilterChain() {
