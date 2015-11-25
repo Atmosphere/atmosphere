@@ -609,7 +609,7 @@ public class AtmosphereFramework {
         if (!isInit) {
             logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
             logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
-            if (l.size() > 0) {
+            if ( !l.isEmpty() ) {
                 for (AtmosphereInterceptor s : l) {
                     logger.info("\t{} : {}", s.getClass().getName(), s);
                 }
@@ -642,7 +642,7 @@ public class AtmosphereFramework {
                     new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
         }
 
-        if (l.size() > 0) {
+        if (!l.isEmpty()) {
             logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
         }
         return this;
@@ -666,7 +666,7 @@ public class AtmosphereFramework {
         createWrapperAndConfigureHandler(h, mapping, l).broadcaster.setID(broadcasterId);
 
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
-        if (l.size() > 0) {
+        if (!l.isEmpty()) {
             logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, h.getClass().getName());
         }
         return this;
@@ -1553,10 +1553,10 @@ public class AtmosphereFramework {
             loadAtmosphereDotXml(sc.getServletContext().
                     getResourceAsStream(atmosphereDotXmlPath), urlC);
 
-            if (atmosphereHandlers.size() == 0) {
+            if (atmosphereHandlers.isEmpty()) {
                 autoDetectAtmosphereHandlers(sc.getServletContext(), urlC);
 
-                if (atmosphereHandlers.size() == 0) {
+                if (atmosphereHandlers.isEmpty()) {
                     detectSupportedFramework(sc);
                 }
             }
@@ -1734,7 +1734,7 @@ public class AtmosphereFramework {
     }
 
     public void checkWebSocketSupportState(){
-        if (atmosphereHandlers.size() == 0 && !SimpleHttpProtocol.class.isAssignableFrom(webSocketProtocol.getClass())) {
+        if (atmosphereHandlers.isEmpty() && !SimpleHttpProtocol.class.isAssignableFrom(webSocketProtocol.getClass())) {
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
             addAtmosphereHandler(Broadcaster.ROOT_MASTER, new AbstractReflectorAtmosphereHandler() {
                 @Override
@@ -2010,7 +2010,7 @@ public class AtmosphereFramework {
                     }
                     addInterceptorToWrapper(wrapper, l);
 
-                    if (l.size() > 0) {
+                    if (!l.isEmpty()) {
                         logger.info("Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}", l, atmoHandler.getClassName());
                     }
                 }
@@ -2095,7 +2095,7 @@ public class AtmosphereFramework {
             throws MalformedURLException, URISyntaxException {
 
         // If Handler has been added
-        if (atmosphereHandlers.size() > 0) return;
+        if (!atmosphereHandlers.isEmpty()) return;
 
         logger.info("Auto detecting atmosphere handlers {}", handlersPath);
 
@@ -2829,7 +2829,7 @@ public class AtmosphereFramework {
 
             annotationProcessor.configure(config);
 
-            if (packages.size() > 0) {
+            if (!packages.isEmpty()) {
                 for (String s : packages) {
                     annotationProcessor.scan(s);
                 }

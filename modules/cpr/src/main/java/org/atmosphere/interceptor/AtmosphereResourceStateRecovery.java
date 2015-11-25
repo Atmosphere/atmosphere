@@ -111,7 +111,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
             final BroadcasterTracker tracker = track(r).tick();
 
             List<Object> cachedMessages = retrieveCache(r, tracker, false);
-            if (cachedMessages.size() > 0) {
+            if (!cachedMessages.isEmpty()) {
                 logger.trace("cached messages");
                 writeCache(r, cachedMessages);
                 return Action.CANCELLED;
@@ -159,7 +159,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                         if (logger.isTraceEnabled()) {
                             logger.trace("message size {}", cachedMessages.size());
                         }
-                        if (cachedMessages.size() > 0) {
+                        if (!cachedMessages.isEmpty()) {
                             logger.trace("About to write to the cache {}", r.uuid());
                             writeCache(r, cachedMessages);
                             doNotSuspend.set(true);
@@ -287,7 +287,11 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
                 List<Object> t = cache.retrieveFromCache(b.getID(), r.uuid());
 
-                cachedMessages = b.getBroadcasterConfig().applyFilters(r, t);
+                t = b.getBroadcasterConfig().applyFilters(r, t);
+                if (!t.isEmpty()) {
+                    logger.trace("Found Cached Messages For AtmosphereResource {} with Broadcaster {}", r.uuid(), broadcasterID);
+                    cachedMessages.addAll(t);
+                }
             } else {
                 logger.trace("Broadcaster {} is no longer available for {}", broadcasterID, r);
             }

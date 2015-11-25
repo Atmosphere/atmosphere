@@ -116,7 +116,7 @@ public class JSR356Endpoint extends Endpoint {
         Map<String, String> headers = new HashMap<String, String>();
         // TODO: We don't support multi map header, which cause => https://github.com/Atmosphere/atmosphere/issues/1945
         for (Map.Entry<String, List<String>> e : handshakeRequest.getHeaders().entrySet()) {
-            headers.put(e.getKey(), e.getValue().size() > 0 ? e.getValue().get(0) : "");
+            headers.put(e.getKey(), !e.getValue().isEmpty() ? e.getValue().get(0) : "");
         }
 
         // Force WebSocket. Hack for https://github.com/Atmosphere/atmosphere/issues/1944
@@ -183,7 +183,7 @@ public class JSR356Endpoint extends Endpoint {
                         l = handshakeRequest.getHeaders().get("Origin");
                     }
                     String origin;
-                    if (l != null && l.size() > 0) {
+                    if (l != null && !l.isEmpty()) {
                         origin = l.get(0);
                     } else {
                         // Broken WebSocket Spec

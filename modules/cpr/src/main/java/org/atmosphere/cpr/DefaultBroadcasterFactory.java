@@ -240,7 +240,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     public void removeAllAtmosphereResource(AtmosphereResource r) {
         // Remove inside all Broadcaster as well.
         try {
-            if (store.size() > 0) {
+            if (!store.isEmpty()) {
                 for (Broadcaster b : lookupAll()) {
                     try {
                         b.removeAtmosphereResource(r);

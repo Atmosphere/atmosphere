@@ -393,7 +393,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
 
                 broadcaster = config.getBroadcasterFactory().lookup(clazz, id, false);
-                if (broadcaster == null || broadcaster.getAtmosphereResources().size() > 0) {
+                if (broadcaster == null || !broadcaster.getAtmosphereResources().isEmpty()) {
                     broadcaster = config.getBroadcasterFactory().lookup(clazz, id + "/" + UUID.randomUUID(), true);
                 }
             }
