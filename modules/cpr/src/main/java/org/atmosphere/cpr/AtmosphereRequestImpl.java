@@ -77,8 +77,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private BufferedReader br;
     private final Builder b;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
-    private boolean queryComputed;
-    private boolean cookieComputed;
+    private boolean queryComputed = false;
+    private boolean cookieComputed = false;
     private volatile BufferedReader voidReader;
     private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
     private AtomicBoolean streamSet = new AtomicBoolean();
@@ -941,25 +941,25 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private Reader reader;
         private String remoteAddr = "";
         private String remoteHost = "";
-        private int remotePort;
+        private int remotePort = 0;
         private String localAddr = "";
         private String localName = "";
-        private int localPort;
+        private int localPort = 0;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
         private Set<Cookie> cookies = Collections.synchronizedSet(new HashSet<Cookie>());
         private final Set<Locale> locales = Collections.synchronizedSet(new HashSet<Locale>());
-        private Principal principal;
-        private String authType;
+        private Principal principal = null;
+        private String authType = null;
         private String contextPath = "";
         private String serverName = "";
-        private int serverPort;
+        private int serverPort = 0;
         private HttpSession webSocketFakeSession;
         private String queryString = "";
-        private boolean isSecure;
+        private boolean isSecure = false;
         // Callable to lazily execute.
-        private LazyComputation lazyRemote;
-        private LazyComputation lazyLocal;
+        private LazyComputation lazyRemote = null;
+        private LazyComputation lazyLocal = null;
         public Body body;
         private LocalAttributes localAttributes = new LocalAttributes();
 
