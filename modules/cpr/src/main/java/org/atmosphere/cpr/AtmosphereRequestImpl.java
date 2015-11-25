@@ -250,7 +250,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             }
 
             if (isNotNoOps()) {
-                if (list.size() == 0 && name.startsWith(X_ATMOSPHERE)) {
+                if (list.isEmpty() && name.startsWith(X_ATMOSPHERE)) {
                     if (attributeWithoutException(b.request, name) != null) {
                         list.add(attributeWithoutException(b.request, name));
                     }
