@@ -89,6 +89,7 @@ import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYP
  */
 public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializable, WebSocketPingPongListener {
 
+	private static final long serialVersionUID = 7526472295622776149L;
     private static final Logger logger = LoggerFactory.getLogger(DefaultWebSocketProcessor.class);
 
     private /* final */ AtmosphereFramework framework;
