@@ -879,7 +879,7 @@ public class AtmosphereFramework {
             doInitParamsForWebSocket(servletConfig);
             lookupDefaultObjectFactoryType();
 
-            if (logger.isDebugEnabled()) {
+            if (logger.isTraceEnabled()) {
                 asyncSupportListener(newClassInstance(AsyncSupportListener.class, AsyncSupportListenerAdapter.class));
             }
 
@@ -928,8 +928,7 @@ public class AtmosphereFramework {
                 sharedThreadPools = Boolean.parseBoolean(s);
             }
 
-
-	    this.shutdownHook = new Thread() {
+            this.shutdownHook = new Thread() {
                 public void run() {
                     AtmosphereFramework.this.destroy();
                 }

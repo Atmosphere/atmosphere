@@ -932,5 +932,14 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.InjectableObjectFactory.maxTry
      */
     String INJECTION_TRY = "org.atmosphere.cpr.InjectableObjectFactory.maxTry";
+    /**
+     * {@link org.atmosphere.inject.InjectableObjectFactory} listeners.
+     * <p/>
+     * Listeners MUST be Thread-Safe to use that feature.
+     * <p/>
+     * Default: null <br>
+     * Value: org.atmosphere.inject.InjectableObjectFactory.listeners
+     */
+    String INJECTION_LISTENERS = "org.atmosphere.inject.InjectableObjectFactory.listeners";
 }
 
