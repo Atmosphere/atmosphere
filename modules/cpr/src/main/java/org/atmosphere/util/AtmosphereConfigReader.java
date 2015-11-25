@@ -105,24 +105,24 @@ public class AtmosphereConfigReader {
 
                 Node attribute = root.getAttributes().item(j);
 
-                if (attribute.getNodeName().equals("support-session")) {
+                if ("support-session".equals(attribute.getNodeName())) {
                     atmoHandler.setSupportSession(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("context-root")) {
+                } else if ("context-root".equals(attribute.getNodeName())) {
                     atmoHandler.setContextRoot(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("class-name")) {
+                } else if ("class-name".equals(attribute.getNodeName())) {
                     atmoHandler.setClassName(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("broadcaster")) {
+                } else if ("broadcaster".equals(attribute.getNodeName())) {
                     atmoHandler.setBroadcaster(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("broadcasterCache")) {
+                } else if ("broadcasterCache".equals(attribute.getNodeName())) {
                     atmoHandler.setBroadcasterCache(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("broadcastFilterClasses")) {
+                } else if ("broadcastFilterClasses".equals(attribute.getNodeName())) {
                     String[] values = attribute.getNodeValue().split(",");
                     for (String value : values) {
                         atmoHandler.getBroadcastFilterClasses().add(value);
                     }
-                } else if (attribute.getNodeName().equals("comet-support")) {
+                } else if ("comet-support".equals(attribute.getNodeName())) {
                     atmoHandler.setCometSupport(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("interceptorClasses")) {
+                } else if ("interceptorClasses".equals(attribute.getNodeName())) {
                     String[] values = attribute.getNodeValue().split(",");
                     for (String value : values) {
                         atmoHandler.getAtmosphereInterceptorClasses().add(value);
@@ -134,12 +134,12 @@ public class AtmosphereConfigReader {
 
             for (int j = 0; j < list.getLength(); j++) {
                 Node n = list.item(j);
-                if (n.getNodeName().equals("property")) {
+                if ("property".equals(n.getNodeName())) {
                     String param = n.getAttributes().getNamedItem("name").getNodeValue();
                     String value = n.getAttributes().getNamedItem("value").getNodeValue();
 
                     atmoHandler.getProperties().add(new AtmosphereHandlerProperty(param, value));
-                } else if (n.getNodeName().equals("applicationConfig")) {
+                } else if ("applicationConfig".equals(n.getNodeName())) {
 
                     String param = null;
                     String value = null;
@@ -147,9 +147,9 @@ public class AtmosphereConfigReader {
 
                         Node n2 = n.getChildNodes().item(k);
 
-                        if (n2.getNodeName().equals("param-name")) {
+                        if ("param-name".equals(n2.getNodeName())) {
                             param = n2.getFirstChild().getNodeValue();
-                        } else if (n2.getNodeName().equals("param-value")) {
+                        } else if ("param-value".equals(n2.getNodeName())) {
                             if (n2 != null) {
                                 value = n2.getFirstChild().getNodeValue();
                             }
@@ -161,16 +161,16 @@ public class AtmosphereConfigReader {
                         atmoHandler.getApplicationConfig().add(new ApplicationConfiguration(param, value));
                     }
 
-                } else if (n.getNodeName().equals("frameworkConfig")) {
+                } else if ("frameworkConfig".equals(n.getNodeName())) {
                     String param = null;
                     String value = null;
                     for (int k = 0; k < n.getChildNodes().getLength(); k++) {
 
                         Node n2 = n.getChildNodes().item(k);
 
-                        if (n2.getNodeName().equals("param-name")) {
+                        if ("param-name".equals(n2.getNodeName())) {
                             param = n2.getFirstChild().getNodeValue();
-                        } else if (n2.getNodeName().equals("param-value")) {
+                        } else if ("param-value".equals(n2.getNodeName())) {
                             if (n2 != null) {
                                 value = n2.getFirstChild().getNodeValue();
                             }
