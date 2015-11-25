@@ -70,7 +70,7 @@ import static org.atmosphere.util.IOUtils.readEntirely;
 public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         implements AnnotatedProxy, AtmosphereResourceHeartbeatEventListener {
 
-    private static IllegalArgumentException IAE = null;
+    private static IllegalArgumentException IAE;
     private Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
     private final static List<Decoder<?, ?>> EMPTY = Collections.<Decoder<?, ?>>emptyList();
     private Object proxiedInstance;
@@ -85,7 +85,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     private Method onReadyMethod;
     private Method onResumeMethod;
     private AtmosphereConfig config;
-    protected boolean pathParams = false;
+    protected boolean pathParams;
     protected AtmosphereResourceFactory resourcesFactory;
 
     final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();

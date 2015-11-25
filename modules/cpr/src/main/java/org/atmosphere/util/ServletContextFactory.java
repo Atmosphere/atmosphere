@@ -24,7 +24,7 @@ import javax.servlet.ServletContext;
  */
 public class ServletContextFactory {
 
-    private ServletContext servletContext = null;
+    private ServletContext servletContext;
     private static ServletContextFactory servletContextFactory;
 
     private ServletContextFactory() {
