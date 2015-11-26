@@ -96,7 +96,7 @@ public class Invoker {
     }
 
     public static Object matchDecoder(Object instanceType, List<Decoder<?, ?>> decoders) {
-        Object decodedObject = decoders.size() == 0 ? instanceType : null;
+        Object decodedObject = decoders.isEmpty() ? instanceType : null;
         for (Decoder d : decoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Decoder.class);
             if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {
@@ -115,7 +115,7 @@ public class Invoker {
     public static Object matchEncoder(Object instanceType, List<Encoder<?, ?>> encoders) {
         if (instanceType == null) return null;
 
-        Object encodedObject = encoders.size() == 0 ? instanceType : null;
+        Object encodedObject = encoders.isEmpty() ? instanceType : null;
         for (Encoder d : encoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Encoder.class);
             if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {

@@ -183,9 +183,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (framework.isDestroyed()) return;
 
         // TODO: Fix this. Instead add an Interceptor.
-        if (framework.getAtmosphereConfig().handlers().size() == 0) {
+        if (framework.getAtmosphereConfig().handlers().isEmpty()) {
             synchronized (framework) {
-                if (handlers.size() == 0) {
+                if (handlers.isEmpty()) {
                     logger.warn("No AtmosphereHandler or WebSocketHandler installed. Adding a default one.");
                 }
                 framework.addAtmosphereHandler(ROOT_MASTER, REFLECTOR_ATMOSPHEREHANDLER);
@@ -211,7 +211,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             webSocket.resource(r);
             webSocketProtocol.onOpen(webSocket);
             WebSocketHandler proxy = null;
-            if (handlers.size() != 0) {
+            if (!handlers.isEmpty()) {
                 WebSocketHandlerProxy handler = mapper.map(request, handlers);
                 if (handler == null) {
                     logger.debug("No WebSocketHandler maps request for {} with mapping {}", request.getRequestURI(), handlers);

@@ -161,7 +161,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         List<String> packages = f.customAnnotationPackages();
         AnnotationDetector detector = new AnnotationDetector(atmosphereReporter);
         try {
-            if (packages.size() > 0) {
+            if (!packages.isEmpty()) {
                 for (String p : packages) {
                     logger.trace("Package {} scanned for @AtmosphereAnnotation", p);
                     detector.detect(p);
