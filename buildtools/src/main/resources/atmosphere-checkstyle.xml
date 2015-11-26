@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE module PUBLIC
+    "-//Puppy Crawl//DTD Check Configuration 1.2//EN"
+    "http://www.puppycrawl.com/dtds/configuration_1_2.dtd">
+
+<!--
+Checks the code meets the Atmosphere's coding guidelines.
+-->
+<module name="Checker">
+<!-- TODO it's empty now as we need to fix the code first ... -->
+</module>

@@ -157,6 +157,75 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>2.15</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.atmosphere</groupId>
+                        <artifactId>atmosphere-buildtools</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>6.4.1</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <includeResources>false</includeResources>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <configuration>
+                            <configLocation>atmosphere-checkstyle.xml</configLocation>
+                            <consoleOutput>true</consoleOutput>
+                            <failsOnError>true</failsOnError>
+                            <linkXRef>false</linkXRef>
+                            <suppressionsLocation>atmosphere-checkstyle-suppressions.xml</suppressionsLocation>
+                            <sourceDirectory>${basedir}/src</sourceDirectory>
+                        </configuration>
+                        <goals>
+                            <goal>checkstyle</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>3.5</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.atmosphere</groupId>
+                        <artifactId>atmosphere-buildtools</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <rulesets>
+                        <ruleset>atmosphere-pmd-ruleset.xml</ruleset>
+                    </rulesets>
+                    <sourceEncoding>UTF-8</sourceEncoding>
+                    <targetJdk>1.7</targetJdk>
+                    <linkXRef>false</linkXRef>
+                    <includeTests>true</includeTests>
+                    <verbose>true</verbose>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
@@ -311,6 +380,7 @@
         </profile>
     </profiles>
     <modules>
+        <module>buildtools</module>
         <module>modules</module>
         <module>assembly</module>
     </modules>
