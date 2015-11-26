@@ -70,12 +70,15 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         this.config = config;
         this.maxTry = config.getInitParameter(ApplicationConfig.INJECTION_TRY, 5);
 
-        String[] listeners = config.getInitParameter(ApplicationConfig.INJECTION_LISTENERS, "").split(",");
-        for (String l : listeners) {
-            try {
-                listener((InjectionListener) IOUtils.loadClass(getClass(), l).newInstance());
-            } catch (Exception ex) {
-                logger.warn("", ex);
+        String s = config.getInitParameter(ApplicationConfig.INJECTION_LISTENERS, "");
+        if (s != null && !s.isEmpty()) {
+            String[] listeners = s.split(",");
+            for (String l : listeners) {
+                try {
+                    listener((InjectionListener) IOUtils.loadClass(getClass(), l).newInstance());
+                } catch (Exception ex) {
+                    logger.warn("", ex);
+                }
             }
         }
 
