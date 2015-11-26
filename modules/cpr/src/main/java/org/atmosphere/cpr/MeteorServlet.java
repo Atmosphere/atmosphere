@@ -44,6 +44,7 @@ import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
  */
 public class MeteorServlet extends AtmosphereServlet {
 
+    private static final long serialVersionUID = 7526472295622776110L;
     protected static final Logger logger = LoggerFactory.getLogger(MeteorServlet.class);
 
     private Servlet delegate;

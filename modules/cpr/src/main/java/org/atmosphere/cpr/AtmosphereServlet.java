@@ -35,6 +35,7 @@ import java.io.IOException;
  */
 public class AtmosphereServlet extends HttpServlet {
 
+    private static final long serialVersionUID = 7526472295622776146L;
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected final AtmosphereFrameworkInitializer initializer;
 
