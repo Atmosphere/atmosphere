@@ -154,9 +154,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             });
         }
 
-        if (method.equalsIgnoreCase("get")) {
+        if ("get".equalsIgnoreCase(method)) {
             invoke(onGetMethod, resource);
-        } else if (method.equalsIgnoreCase("post")) {
+        } else if ("post".equalsIgnoreCase(method)) {
             Object body = null;
             if (onPostMethod != null) {
                 body = readEntirely(resource);
@@ -176,9 +176,9 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 }
                 IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, r);
             }
-        } else if (method.equalsIgnoreCase("delete")) {
+        } else if ("delete".equalsIgnoreCase(method)) {
             invoke(onDeleteMethod, resource);
-        } else if (method.equalsIgnoreCase("put")) {
+        } else if ("put".equalsIgnoreCase(method)) {
             invoke(onPutMethod, resource);
         }
     }

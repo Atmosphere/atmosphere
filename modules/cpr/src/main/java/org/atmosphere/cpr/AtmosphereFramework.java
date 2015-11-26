@@ -2222,7 +2222,7 @@ public class AtmosphereFramework {
 
             // Reconfigure the request. Clear the Atmosphere queryString
             req.headers(headers)
-                    .method(body != null && req.getMethod().equalsIgnoreCase("GET") ? "POST" : req.getMethod());
+                    .method(body != null && "GET".equalsIgnoreCase(req.getMethod()) ? "POST" : req.getMethod());
 
             if (body != null) {
                 req.body(URLDecoder.decode(body, req.getCharacterEncoding() == null ? "UTF-8" : req.getCharacterEncoding()));
@@ -2478,8 +2478,8 @@ public class AtmosphereFramework {
                     if (!header.isEmpty()
                             && !header.toLowerCase().startsWith("x-atmo")
                             && !header.equalsIgnoreCase(HeaderConfig.X_HEARTBEAT_SERVER)
-                            && !header.equalsIgnoreCase("Content-Type")
-                            && !header.equalsIgnoreCase("_")) {
+                            && !"Content-Type".equalsIgnoreCase(header)
+                            && !"_".equalsIgnoreCase(header)) {
                         q.append(header).append("=").append(s.length > 1 ? value : "").append("&");
                     }
                     headers.put(header, s.length > 1 ? value : "");
