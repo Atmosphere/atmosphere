@@ -86,7 +86,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     /**
      * Heartbeat from client disabled by default.
      */
-    private int clientHeartbeatFrequencyInSeconds = 0;
+    private int clientHeartbeatFrequencyInSeconds;
 
     public HeartbeatInterceptor paddingText(byte[] paddingBytes) {
         this.paddingBytes = paddingBytes;

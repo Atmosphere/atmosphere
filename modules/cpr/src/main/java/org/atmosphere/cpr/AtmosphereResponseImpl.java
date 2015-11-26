@@ -79,9 +79,9 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private String charSet = "UTF-8";
     private long contentLength = -1;
     private String contentType = "text/html";
-    private boolean isCommited = false;
+    private boolean isCommited;
     private Locale locale;
-    private boolean headerHandled = false;
+    private boolean headerHandled;
     private AtmosphereRequest atmosphereRequest;
     private static final HttpServletResponse dsr = (HttpServletResponse)
             Proxy.newProxyInstance(AtmosphereResponseImpl.class.getClassLoader(), new Class[]{HttpServletResponse.class},
@@ -95,7 +95,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private boolean delegateToNativeResponse;
     private boolean destroyable;
     private HttpServletResponse response;
-    private boolean forceAsyncIOWriter = false;
+    private boolean forceAsyncIOWriter;
     private String uuid = "0";
     private final AtomicBoolean usingStream = new AtomicBoolean(true);
     private final AtomicBoolean destroyed = new AtomicBoolean(false);

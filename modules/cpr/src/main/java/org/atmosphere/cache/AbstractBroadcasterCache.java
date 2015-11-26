@@ -53,7 +53,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected long maxCacheTime = TimeUnit.MINUTES.toMillis(2); // 2 minutes
     protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1); // 1 minute
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
-    protected boolean isShared = false;
+    protected boolean isShared;
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();

@@ -53,7 +53,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractReflectorAtmosphereHandler.class);
 
-    private boolean twoStepsWrite = false;
+    private boolean twoStepsWrite;
 
     /**
      * Write the {@link AtmosphereResourceEvent#getMessage()} back to the client using

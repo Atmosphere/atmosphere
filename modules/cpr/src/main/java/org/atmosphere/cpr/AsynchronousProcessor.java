@@ -56,7 +56,7 @@ public abstract class
     private EndpointMapper<AtmosphereHandlerWrapper> mapper;
     private final long closingTime;
     private final boolean isServlet30;
-    private boolean closeOnCancel = false;
+    private boolean closeOnCancel;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;

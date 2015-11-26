@@ -70,8 +70,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean isResumed = new AtomicBoolean();
     private final AtomicBoolean isCancelled = new AtomicBoolean();
     private final AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
-    private Object writeOnTimeout = null;
-    private boolean disableSuspend = false;
+    private Object writeOnTimeout;
+    private boolean disableSuspend;
     private final AtomicBoolean disconnected = new AtomicBoolean();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
@@ -87,7 +87,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean suspended = new AtomicBoolean();
     private WebSocket webSocket;
     private final AtomicBoolean inClosingPhase = new AtomicBoolean();
-    private boolean closeOnCancel = false;
+    private boolean closeOnCancel;
     private final AtomicBoolean isPendingClose = new AtomicBoolean();
 
     public AtmosphereResourceImpl() {

@@ -25,7 +25,7 @@ package org.atmosphere.util.analytics;
  */
 public class JGoogleAnalyticsTracker {
 
-    private URLBuildingStrategy urlBuildingStrategy = null;
+    private URLBuildingStrategy urlBuildingStrategy;
     private HTTPGetMethod httpRequest = new HTTPGetMethod();
 
     /**
