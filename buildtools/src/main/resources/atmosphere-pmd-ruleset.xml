@@ -11,5 +11,6 @@
     <!-- TODO add more rules after fixing the code -->
     <rule ref="rulesets/java/basic.xml/DoubleCheckedLocking"/>
 
+    <rule ref="rulesets/java/design.xml/UseCollectionIsEmpty"/>
  
 </ruleset>

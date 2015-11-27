@@ -122,7 +122,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 // in META-INF/services/org/atmosphere/inject.Injectable
                 Set<Field> fields = new HashSet<Field>();
                 Object instance = null;
-                while (pushBackInjection.size() > 0 & maxTry-- > 0) {
+                while (!pushBackInjection.isEmpty() & maxTry-- > 0) {
                     Iterator<Object> t = new LinkedList(pushBackInjection).iterator();
                     pushBackInjection.clear();
                     while (t.hasNext()) {
@@ -139,7 +139,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     }
                 }
 
-                if (pushBackInjection.size() > 0) {
+                if (!pushBackInjection.isEmpty()) {
                     injectionFailed();
                 }
             }
