@@ -239,6 +239,14 @@
     </build>
     <profiles>
         <profile>
+            <id>fastinstall</id>
+            <properties>
+                <maven.test.skip>true</maven.test.skip>
+                <pmd.skip>true</pmd.skip>
+                <checkstyle.skip>true</checkstyle.skip>
+            </properties>
+        </profile>
+        <profile>
             <id>release-profile</id>
             <properties>
                 <skipTests>true</skipTests>
