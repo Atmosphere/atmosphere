@@ -320,7 +320,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
         boolean isWebSocket = req.getHeader("Upgrade") == null ? false : true;
         if (isWebSocket && initializer.framework().asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
-        	logger.trace("Dispatching websocket event: " + httpEvent);
+            logger.trace("Dispatching websocket event: " + httpEvent);
             ((JBossAsyncSupportWithWebSocket) initializer.framework().asyncSupport).dispatch(httpEvent);
         } else {
             logger.trace("Dispatching comet event: " + httpEvent);

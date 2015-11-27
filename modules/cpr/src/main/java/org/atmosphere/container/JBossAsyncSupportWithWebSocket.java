@@ -39,8 +39,8 @@ import org.slf4j.LoggerFactory;
  */
 public class JBossAsyncSupportWithWebSocket extends JBossWebCometSupport {
 
-	private static final Logger logger = LoggerFactory.getLogger(JBossAsyncSupportWithWebSocket.class);
-	
+    private static final Logger logger = LoggerFactory.getLogger(JBossAsyncSupportWithWebSocket.class);
+    
     private final HttpEventServlet websocketHandler;
 
     public JBossAsyncSupportWithWebSocket(AtmosphereConfig config) {
@@ -61,7 +61,7 @@ public class JBossAsyncSupportWithWebSocket extends JBossWebCometSupport {
 
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-    	
+        
         boolean allowWebSocketWithoutHeaders = req.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
         if (!allowWebSocketWithoutHeaders)   {
             if (!headerContainsToken(req, "Upgrade", "websocket")) {
@@ -76,8 +76,8 @@ public class JBossAsyncSupportWithWebSocket extends JBossWebCometSupport {
                 WebSocket.notSupported(req, res);
                 return new Action(Action.TYPE.CANCELLED);
             }
-        }    	
-    	
+        }        
+        
         try {
             Action action = suspended(req, res);
             if (action.type() == Action.TYPE.RESUME) {

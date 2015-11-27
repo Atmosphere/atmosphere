@@ -7,5 +7,10 @@
 Checks the code meets the Atmosphere's coding guidelines.
 -->
 <module name="Checker">
-<!-- TODO it's empty now as we need to fix the code first ... -->
+<!-- TODO add more checks as we improve the code style  ... -->
+
+    <module name="FileTabCharacter">
+        <property name="fileExtensions" value="java"/>
+    </module>
+
 </module>

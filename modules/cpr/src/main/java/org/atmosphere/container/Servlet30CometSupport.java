@@ -121,22 +121,22 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     public void endAsyncContext(AtmosphereRequest request){
-    	final Object attribute = request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
-		if (attribute instanceof AsyncContext) {
-			AsyncContext asyncContext = (AsyncContext) attribute;
-			if (asyncContext != null) {
-				try {
-					asyncContext.complete();
-				} catch (IllegalStateException ex) {
-					// Already completed. Jetty throw an exception on shutdown with log
-					try {
-						logger.trace("Already resumed!", ex);
-					} catch (Exception ex2){};
-				} finally {
-					request.removeAttribute(FrameworkConfig.ASYNC_CONTEXT);
-				}
-			}
-		}
+        final Object attribute = request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+        if (attribute instanceof AsyncContext) {
+            AsyncContext asyncContext = (AsyncContext) attribute;
+            if (asyncContext != null) {
+                try {
+                    asyncContext.complete();
+                } catch (IllegalStateException ex) {
+                    // Already completed. Jetty throw an exception on shutdown with log
+                    try {
+                        logger.trace("Already resumed!", ex);
+                    } catch (Exception ex2){};
+                } finally {
+                    request.removeAttribute(FrameworkConfig.ASYNC_CONTEXT);
+                }
+            }
+        }
     }
 
     @Override

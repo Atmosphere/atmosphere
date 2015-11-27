@@ -29,7 +29,7 @@ import java.lang.annotation.*;
 @Documented
 public @interface PathParam {
     /**
-	 * The URI template variable to bind to.
-	 */
-	String value() default "";
+     * The URI template variable to bind to.
+     */
+    String value() default "";
 }
