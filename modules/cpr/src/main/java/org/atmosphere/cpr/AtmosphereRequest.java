@@ -86,7 +86,7 @@ public class AtmosphereRequest extends HttpServletRequestWrapper {
     private AtomicBoolean readerSet = new AtomicBoolean();
     private String uuid;
 
-    private AtmosphereRequest(Builder b) {
+    protected AtmosphereRequest(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
         if (b.request == null) b.request(new NoOpsRequest());
 
