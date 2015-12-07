@@ -32,6 +32,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.ServiceLoader;
@@ -55,7 +56,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
-    private final LinkedList<Object> pushBackInjection = new LinkedList();
+    private final LinkedHashSet<Object> pushBackInjection = new LinkedHashSet<>();
     private final List<InjectionListener> listeners = new LinkedList();
     private int maxTry;
 
@@ -101,7 +102,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     injectables.addFirst(i);
                 }
             } catch (Exception e) {
-                logger.error("", e);
+                logger.error("", e.getCause());
             }
         }
 
@@ -110,7 +111,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             try {
                 inject(i);
             } catch (Exception e) {
-                logger.error("", e);
+                logger.error("", e.getCause());
             }
         }
 
@@ -194,9 +195,14 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         for (Method m : methods) {
             for (Injectable c : introspectors) {
                 if (!pushBackInjection.contains(instance)) {
-                    preMethodInjection(m, instance, (Class<U>) instance.getClass());
-                    InjectIntrospector.class.cast(c).introspectMethod(m, instance);
-                    postMethodInjection(m, instance, (Class<U>) instance.getClass());
+                    try {
+                        preMethodInjection(m, instance, (Class<U>) instance.getClass());
+                        InjectIntrospector.class.cast(c).introspectMethod(m, instance);
+                        postMethodInjection(m, instance, (Class<U>) instance.getClass());
+                    } catch (Exception ex) {
+                        methodInjectionException(m, instance, (Class<U>) instance.getClass(), ex);
+                        throw ex;
+                    }
                 }
             }
         }
@@ -231,7 +237,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             Object o = c.injectable(framework.getAtmosphereConfig());
 
                             if (o == null) {
-                                pushBackInjection.addFirst(instance);
+                                pushBackInjection.add(instance);
                                 continue;
                             }
                             postFieldInjection(field, instance, (Class<U>) instance.getClass());
@@ -252,7 +258,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                                 field.set(instance, o);
                             }
                         } catch (Exception ex) {
-                            logger.warn("Injectable {} failed to inject", c, ex);
+                            fieldInjectionException(field, instance, (Class<U>) instance.getClass(), ex);
+                            throw ex;
                         } finally {
                             field.setAccessible(false);
                         }
@@ -377,6 +384,26 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 i.injectionFailed(pushBackInjection);
             } catch (Exception ex) {
                 logger.error("", ex);
+            }
+        }
+    }
+
+    protected <T, U extends T> void fieldInjectionException(Field field, U instance, Class<T> clazz, Exception ex) {
+        for (InjectionListener i : listeners) {
+            try {
+                i.fieldInjectionException(field, instance, clazz, ex);
+            } catch (Exception ex2) {
+                logger.error("", ex2);
+            }
+        }
+    }
+
+    protected <T, U extends T> void methodInjectionException(Method m, U instance, Class<T> clazz, Exception ex) {
+        for (InjectionListener i : listeners) {
+            try {
+                i.methodInjectionException(m, instance, clazz, ex);
+            } catch (Exception ex2) {
+                logger.error("", ex2);
             }
         }
     }
