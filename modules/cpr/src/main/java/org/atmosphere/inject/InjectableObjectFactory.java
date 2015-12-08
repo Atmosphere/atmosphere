@@ -146,11 +146,9 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
                 for (Object o : postponedMethodExecution) {
                     try {
-                        applyMethods(o, (Class<Object>) instance.getClass());
+                        applyMethods(o, (Class<Object>) o.getClass());
                     } catch (IllegalAccessException e) {
                         logger.warn("", e);
-                    } finally {
-                        fields.clear();
                     }
                 }
             }
