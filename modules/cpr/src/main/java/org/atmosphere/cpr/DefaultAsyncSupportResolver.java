@@ -78,8 +78,11 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
     private final AtmosphereConfig config;
 
+    private final boolean suppress356;
+
     public DefaultAsyncSupportResolver(final AtmosphereConfig config) {
         this.config = config;
+        this.suppress356 = Boolean.parseBoolean(config.getInitParameter("org.atmosphere.suppressDetectingJSR356"));
     }
 
     /**
@@ -93,6 +96,13 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             return testClass != null && testClass.length() > 0 &&
                     Thread.currentThread().getContextClassLoader().loadClass(testClass) != null;
         } catch (ClassNotFoundException ex) {
+            //REVISIT switch to use IOUtils.loadClass 
+            try {
+                Class.forName(testClass);
+                return true;
+            } catch (ClassNotFoundException ex2){
+                //ignore
+            }
             return false;
         } catch (NoClassDefFoundError ex) {
             return false;
@@ -152,8 +162,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             {
                 if (useServlet30Async && !useNativeIfPossible) {
 
-
-                    if (testClassExists(JSR356_WEBSOCKET)) {
+                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
                         add(JSR356AsyncSupport.class);
                     } else {
 
