@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,6 +40,8 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
@@ -608,5 +611,85 @@ public interface AtmosphereRequest extends HttpServletRequest {
         public boolean containsKey(String key) {
             return localAttributes.containsKey(key);
         }
+    }
+    
+    interface Builder {
+        Builder destroyable(boolean destroyable);
+
+        Builder headers(Map<String, String> headers);
+
+        Builder cookies(Set<Cookie> cookies);
+
+        Builder dispatchRequestAsynchronously(boolean dispatchRequestAsynchronously);
+
+        Builder remoteAddr(String remoteAddr);
+
+        Builder remoteHost(String remoteHost);
+
+        Builder remotePort(int remotePort);
+
+        Builder localAddr(String localAddr);
+
+        Builder localName(String localName);
+
+        Builder localPort(int localPort);
+
+        Builder remoteInetSocketAddress(Callable remoteAddr);
+
+        Builder localInetSocketAddress(Callable localAddr);
+
+        Builder attributes(Map<String, Object> attributes);
+
+        Builder request(HttpServletRequest request);
+
+        Builder servletPath(String servletPath);
+
+        Builder requestURI(String requestURI);
+
+        Builder requestURL(String requestURL);
+
+        Builder pathInfo(String pathInfo);
+
+        Builder queryString(String queryString);
+
+        Builder body(byte[] dataBytes);
+
+        Builder body(byte[] dataBytes, int offset, int length);
+
+        Builder encoding(String encoding);
+
+        Builder method(String methodType);
+
+        Builder contentType(String contentType);
+
+        Builder contentLength(Long contentLength);
+
+        Builder body(String data);
+
+        Builder inputStream(InputStream inputStream);
+
+        Builder reader(Reader reader);
+
+        AtmosphereRequest build();
+
+        Builder queryStrings(Map<String, String[]> queryStrings);
+
+        Builder contextPath(String contextPath);
+
+        Builder serverName(String serverName);
+
+        Builder serverPort(int serverPort);
+
+        Builder session(HttpSession session);
+
+        Builder principal(Principal principal);
+
+        Builder authType(String authType);
+
+        Builder isSSecure(boolean isSecure);
+
+        Builder locale(Locale locale);
+
+        Builder userPrincipal(Principal userPrincipal);
     }
 }

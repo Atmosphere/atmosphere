@@ -924,7 +924,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
     }
 
-    public final static class Builder {
+    public final static class Builder implements AtmosphereRequest.Builder {
         private final static Body NULL_BODY = new Body(null, null, 0, 0);
         private HttpServletRequest request;
         private String pathInfo = "";
@@ -966,145 +966,174 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         public Builder() {
         }
 
+        @Override
         public Builder destroyable(boolean destroyable) {
             this.destroyable = destroyable;
             return this;
         }
 
+        @Override
         public Builder headers(Map<String, String> headers) {
             this.headers = Collections.synchronizedMap(headers);
             return this;
         }
 
+        @Override
         public Builder cookies(Set<Cookie> cookies) {
             this.cookies = cookies;
             return this;
         }
 
+        @Override
         public Builder dispatchRequestAsynchronously(boolean dispatchRequestAsynchronously) {
             this.dispatchRequestAsynchronously = dispatchRequestAsynchronously;
             return this;
         }
 
+        @Override
         public Builder remoteAddr(String remoteAddr) {
             this.remoteAddr = remoteAddr;
             return this;
         }
 
+        @Override
         public Builder remoteHost(String remoteHost) {
             this.remoteHost = remoteHost;
             return this;
         }
 
+        @Override
         public Builder remotePort(int remotePort) {
             this.remotePort = remotePort;
             return this;
         }
 
+        @Override
         public Builder localAddr(String localAddr) {
             this.localAddr = localAddr;
             return this;
         }
 
+        @Override
         public Builder localName(String localName) {
             this.localName = localName;
             return this;
         }
 
+        @Override
         public Builder localPort(int localPort) {
             this.localPort = localPort;
             return this;
         }
 
+        @Override
         public Builder remoteInetSocketAddress(Callable remoteAddr) {
             this.lazyRemote = new LazyComputation(remoteAddr);
             return this;
         }
 
+        @Override
         public Builder localInetSocketAddress(Callable localAddr) {
             this.lazyLocal = new LazyComputation(localAddr);
             return this;
         }
 
+        @Override
         public Builder attributes(Map<String, Object> attributes) {
             localAttributes = new LocalAttributes(attributes);
             return this;
         }
 
+        @Override
         public Builder request(HttpServletRequest request) {
             this.request = request;
             return this;
         }
 
+        @Override
         public Builder servletPath(String servletPath) {
             this.servletPath = servletPath;
             return this;
         }
 
+        @Override
         public Builder requestURI(String requestURI) {
             this.requestURI = requestURI;
             return this;
         }
 
+        @Override
         public Builder requestURL(String requestURL) {
             this.requestURL = requestURL;
             return this;
         }
 
+        @Override
         public Builder pathInfo(String pathInfo) {
             this.pathInfo = pathInfo;
             return this;
         }
 
+        @Override
         public Builder queryString(String queryString) {
             this.queryString = queryString;
             return this;
         }
 
+        @Override
         public Builder body(byte[] dataBytes) {
             return body(dataBytes, 0, dataBytes.length);
         }
 
+        @Override
         public Builder body(byte[] dataBytes, int offset, int length) {
             this.body = new Body(null, dataBytes, offset, length);
             return this;
         }
 
+        @Override
         public Builder encoding(String encoding) {
             this.encoding = encoding;
             return this;
         }
 
+        @Override
         public Builder method(String methodType) {
             this.methodType = methodType;
             return this;
         }
 
+        @Override
         public Builder contentType(String contentType) {
             this.contentType = contentType;
             return this;
         }
 
+        @Override
         public Builder contentLength(Long contentLength) {
             this.contentLength = contentLength;
             return this;
         }
 
+        @Override
         public Builder body(String data) {
             this.body = new Body(data, null, 0, 0);
             return this;
         }
 
+        @Override
         public Builder inputStream(InputStream inputStream) {
             this.inputStream = inputStream;
             return this;
         }
 
+        @Override
         public Builder reader(Reader reader) {
             this.reader = reader;
             return this;
         }
 
+        @Override
         public AtmosphereRequest build() {
             if (body == null) {
                 body = NULL_BODY;
@@ -1112,26 +1141,31 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             return new AtmosphereRequestImpl(this);
         }
 
+        @Override
         public Builder queryStrings(Map<String, String[]> queryStrings) {
             this.queryStrings = Collections.synchronizedMap(queryStrings);
             return this;
         }
 
+        @Override
         public Builder contextPath(String contextPath) {
             this.contextPath = contextPath == null ? "" : contextPath;
             return this;
         }
 
+        @Override
         public Builder serverName(String serverName) {
             this.serverName = serverName;
             return this;
         }
 
+        @Override
         public Builder serverPort(int serverPort) {
             this.serverPort = serverPort;
             return this;
         }
 
+        @Override
         public Builder session(HttpSession session) {
             if (request == null) {
                 request = new NoOpsRequest();
@@ -1145,26 +1179,31 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             return this;
         }
 
+        @Override
         public Builder principal(Principal principal) {
             this.principal = principal;
             return this;
         }
 
+        @Override
         public Builder authType(String authType) {
             this.authType = authType;
             return this;
         }
 
+        @Override
         public Builder isSSecure(boolean isSecure) {
             this.isSecure = isSecure;
             return this;
         }
 
+        @Override
         public Builder locale(Locale locale) {
             locales.add(locale);
             return this;
         }
 
+        @Override
         public Builder userPrincipal(Principal userPrincipal) {
             this.principal = userPrincipal;
             return this;
