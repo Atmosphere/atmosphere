@@ -123,6 +123,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 // in META-INF/services/org/atmosphere/inject.Injectable
                 Set<Field> fields = new HashSet<Field>();
                 Object instance = null;
+                final LinkedHashSet<Object> postponedMethodExecution = new LinkedHashSet<>(pushBackInjection);
                 while (!pushBackInjection.isEmpty() & maxTry-- > 0) {
                     Iterator<Object> t = new LinkedList(pushBackInjection).iterator();
                     pushBackInjection.clear();
@@ -131,7 +132,6 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                         fields.addAll(getInheritedPrivateFields(instance.getClass()));
                         try {
                             injectFields(fields, instance, framework, injectables);
-                            applyMethods(instance, (Class<Object>) instance.getClass());
                         } catch (IllegalAccessException e) {
                             logger.warn("", e);
                         } finally {
@@ -142,6 +142,16 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
                 if (!pushBackInjection.isEmpty()) {
                     injectionFailed();
+                }
+
+                for (Object o : postponedMethodExecution) {
+                    try {
+                        applyMethods(o, (Class<Object>) instance.getClass());
+                    } catch (IllegalAccessException e) {
+                        logger.warn("", e);
+                    } finally {
+                        fields.clear();
+                    }
                 }
             }
         });
@@ -171,9 +181,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     public <T> T inject(T instance) throws InstantiationException, IllegalAccessException {
 
         injectInjectable(instance, instance.getClass(), config.framework());
-        if (!pushBackInjection.contains(instance)) {
-            applyMethods(instance, (Class<T>) instance.getClass());
-        }
+        applyMethods(instance, (Class<T>) instance.getClass());
 
         return instance;
     }
@@ -187,8 +195,10 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws IllegalAccessException
      */
     public <U> void applyMethods(U instance, Class<U> defaultType) throws IllegalAccessException {
-        Set<Method> methods = (getInheritedPrivateMethod(defaultType));
-        injectMethods(methods, instance);
+        if (!pushBackInjection.contains(instance)) {
+            Set<Method> methods = (getInheritedPrivateMethod(defaultType));
+            injectMethods(methods, instance);
+        }
     }
 
     private <U> void injectMethods(Set<Method> methods, U instance) throws IllegalAccessException {
