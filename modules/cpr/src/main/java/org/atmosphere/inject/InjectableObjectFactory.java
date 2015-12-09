@@ -115,44 +115,53 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             }
         }
 
+        // Injectable that needs Injection
+        if (!pushBackInjection.isEmpty()) {
+            retryInjection(config.framework());
+        }
+
         config.startupHook(new AtmosphereConfig.StartupHook() {
             @Override
             public void started(AtmosphereFramework framework) {
-                // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
-                // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
-                // in META-INF/services/org/atmosphere/inject.Injectable
-                Set<Field> fields = new HashSet<Field>();
-                Object instance = null;
-                final LinkedHashSet<Object> postponedMethodExecution = new LinkedHashSet<>(pushBackInjection);
-                while (!pushBackInjection.isEmpty() & maxTry-- > 0) {
-                    Iterator<Object> t = new LinkedList(pushBackInjection).iterator();
-                    pushBackInjection.clear();
-                    while (t.hasNext()) {
-                        instance = t.next();
-                        fields.addAll(getInheritedPrivateFields(instance.getClass()));
-                        try {
-                            injectFields(fields, instance, framework, injectables);
-                        } catch (IllegalAccessException e) {
-                            logger.warn("", e);
-                        } finally {
-                            fields.clear();
-                        }
-                    }
-                }
-
-                if (!pushBackInjection.isEmpty()) {
-                    injectionFailed();
-                }
-
-                for (Object o : postponedMethodExecution) {
-                    try {
-                        applyMethods(o, (Class<Object>) o.getClass());
-                    } catch (IllegalAccessException e) {
-                        logger.warn("", e);
-                    }
-                }
+                retryInjection(framework);
             }
         });
+    }
+
+    protected void retryInjection(AtmosphereFramework framework){
+        // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
+        // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
+        // in META-INF/services/org/atmosphere/inject.Injectable
+        Set<Field> fields = new HashSet<Field>();
+        Object instance = null;
+        final LinkedHashSet<Object> postponedMethodExecution = new LinkedHashSet<>(pushBackInjection);
+        while (!pushBackInjection.isEmpty() & maxTry-- > 0) {
+            Iterator<Object> t = new LinkedList(pushBackInjection).iterator();
+            pushBackInjection.clear();
+            while (t.hasNext()) {
+                instance = t.next();
+                fields.addAll(getInheritedPrivateFields(instance.getClass()));
+                try {
+                    injectFields(fields, instance, framework, injectables);
+                } catch (IllegalAccessException e) {
+                    logger.warn("", e);
+                } finally {
+                    fields.clear();
+                }
+            }
+        }
+
+        if (!pushBackInjection.isEmpty()) {
+            injectionFailed();
+        }
+
+        for (Object o : postponedMethodExecution) {
+            try {
+                applyMethods(o, (Class<Object>) o.getClass());
+            } catch (IllegalAccessException e) {
+                logger.warn("", e);
+            }
+        }
     }
 
     @Override
@@ -239,16 +248,18 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             InjectIntrospector.class.cast(c).introspectField(instance.getClass(), field);
                         }
 
+                        Class<U> clazz = (Class<U>) instance.getClass();
                         try {
                             field.setAccessible(true);
-                            preFieldInjection(field, instance, (Class<U>) instance.getClass());
+                            preFieldInjection(field, instance, clazz);
                             Object o = c.injectable(framework.getAtmosphereConfig());
 
                             if (o == null) {
+                                nullFieldInjectionFor(field,instance,clazz);
                                 pushBackInjection.add(instance);
                                 continue;
                             }
-                            postFieldInjection(field, instance, (Class<U>) instance.getClass());
+                            postFieldInjection(field, instance, clazz);
 
                             if (field.getType().equals(Boolean.TYPE)) {
                                 field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
@@ -266,7 +277,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                                 field.set(instance, o);
                             }
                         } catch (Exception ex) {
-                            fieldInjectionException(field, instance, (Class<U>) instance.getClass(), ex);
+                            fieldInjectionException(field, instance, clazz, ex);
                             throw ex;
                         } finally {
                             field.setAccessible(false);
@@ -392,6 +403,16 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 i.injectionFailed(pushBackInjection);
             } catch (Exception ex) {
                 logger.error("", ex);
+            }
+        }
+    }
+
+    protected <T, U extends T> void nullFieldInjectionFor(Field field, U instance, Class<T> clazz) {
+        for (InjectionListener i : listeners) {
+            try {
+                i.nullFieldInjectionFor(field, instance, clazz);
+            } catch (Exception ex2) {
+                logger.error("", ex2);
             }
         }
     }
