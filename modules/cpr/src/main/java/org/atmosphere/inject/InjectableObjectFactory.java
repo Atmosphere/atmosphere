@@ -129,13 +129,14 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     protected void retryInjection(AtmosphereFramework framework){
+        int maxTryPerCycle = maxTry;
         // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
         // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
         // in META-INF/services/org/atmosphere/inject.Injectable
         Set<Field> fields = new HashSet<Field>();
         Object instance = null;
         final LinkedHashSet<Object> postponedMethodExecution = new LinkedHashSet<>(pushBackInjection);
-        while (!pushBackInjection.isEmpty() & maxTry-- > 0) {
+        while (!pushBackInjection.isEmpty() & maxTryPerCycle-- > 0) {
             Iterator<Object> t = new LinkedList(pushBackInjection).iterator();
             pushBackInjection.clear();
             while (t.hasNext()) {
