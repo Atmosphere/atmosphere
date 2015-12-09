@@ -94,7 +94,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      */
     protected boolean testClassExists(final String testClass) {
         try {
-            return testClass != null && testClass.length() > 0 && IOUtils.loadClass(null, testClass) != null;
+            final boolean exists = testClass != null && testClass.length() > 0 && IOUtils.loadClass(null, testClass) != null;
+            logger.debug(exists ? "Found {}" : "Not found {}", testClass);
+            return exists; 
         } catch (Exception ex) {
             return false;
         }
@@ -177,7 +179,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         }
                     }
                 } else {
-                    if (testClassExists(JSR356_WEBSOCKET)) {
+                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
                         add(JSR356AsyncSupport.class);
                     } else {
                         if (testClassExists(TOMCAT_WEBSOCKET))
