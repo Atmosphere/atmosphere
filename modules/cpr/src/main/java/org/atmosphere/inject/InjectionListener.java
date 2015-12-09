@@ -20,6 +20,8 @@ public interface InjectionListener {
 
     <T, U extends T> void postMethodInjection(Method method, U instance, Class<T> clazz);
 
+    <T, U extends T> void nullFieldInjectionFor(Field field, U instance, Class<T> clazz);
+
     void injectionFailed(LinkedHashSet<Object> pushBackInjection);
 
     <T, U extends T> void fieldInjectionException(Field field, U instance, Class<T> clazz, Exception ex);
