@@ -40,6 +40,7 @@ import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.Tomcat7Servlet30SupportWithWebSocket;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicServlet30WithWebSocket;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -90,14 +91,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      */
     protected boolean testClassExists(final String testClass) {
         try {
-            return testClass != null && testClass.length() > 0 &&
-                    Thread.currentThread().getContextClassLoader().loadClass(testClass) != null;
-        } catch (ClassNotFoundException ex) {
-            return false;
-        } catch (NoClassDefFoundError ex) {
-            return false;
-            // JDK 7
-        } catch (UnsupportedClassVersionError ex) {
+            return testClass != null && testClass.length() > 0 && IOUtils.loadClass(null, testClass) != null;
+        } catch (Exception ex) {
             return false;
         }
     }

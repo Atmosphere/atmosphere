@@ -345,11 +345,30 @@ public class IOUtils {
         return false;
     }
 
-    public static Class<?> loadClass(Class thisClass, String className) throws Exception {
+    /**
+     * Loading the specified class using some heuristics to support various containers
+     * The order of preferece is:
+     *  1. Thread.currentThread().getContextClassLoader()
+     *  2. Class.forName
+     *  3. thisClass.getClassLoader()
+     *
+     * @param thisClass
+     * @param className
+     * @return
+     * @throws Exception
+     */
+    public static Class<?> loadClass(Class<?> thisClass, String className) throws Exception {
         try {
             return Thread.currentThread().getContextClassLoader().loadClass(className);
         } catch (Throwable t) {
-            return thisClass.getClassLoader().loadClass(className);
+            try {
+                return Class.forName(className);
+            } catch (Throwable t2) {
+                if (thisClass != null) {
+                    return thisClass.getClassLoader().loadClass(className);
+                }
+                throw t2;
+            }
         }
     }
 
