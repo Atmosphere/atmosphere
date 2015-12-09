@@ -45,7 +45,7 @@ public class AtmosphereFrameworkTest {
      */
     @Test
     public void testInterceptorInstalledByMetaService() throws Exception {
-        final AtmosphereFramework framework = new AtmosphereFramework().addInitParameter("org.atmosphere.suppressDetectingJSR356", "true");
+        final AtmosphereFramework framework = new AtmosphereFramework().addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true");
         framework.addAtmosphereHandler("/*", mock(AtmosphereHandler.class));
 
         // Where the file describing the interceptor to install is stored
@@ -87,14 +87,14 @@ public class AtmosphereFrameworkTest {
 
     @Test
     public void testServletContextFactory() throws ServletException {
-        AtmosphereFramework f = new AtmosphereFramework().addInitParameter("org.atmosphere.suppressDetectingJSR356", "true");
+        AtmosphereFramework f = new AtmosphereFramework().addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true");
         f.init();
         assertNotNull(ServletContextFactory.getDefault().getServletContext());
     }
 
     @Test
     public void testReload() throws ServletException {
-        AtmosphereFramework f = new AtmosphereFramework().addInitParameter("org.atmosphere.suppressDetectingJSR356", "true");
+        AtmosphereFramework f = new AtmosphereFramework().addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true");
         f.init();
         f.destroy();
         f.init();
@@ -117,7 +117,7 @@ public class AtmosphereFrameworkTest {
 
             @Override
             public String getInitParameter(String name) {
-                if ("org.atmosphere.suppressDetectingJSR356".equals(name)) {
+                if (ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356.equals(name)) {
                     return "true";
                 }
                 return null;
@@ -170,7 +170,7 @@ public class AtmosphereFrameworkTest {
 
             @Override
             public String getInitParameter(String name) {
-                if ("org.atmosphere.suppressDetectingJSR356".equals(name)) {
+                if (ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356.equals(name)) {
                     return "true";
                 }
                 return null;
@@ -314,7 +314,7 @@ public class AtmosphereFrameworkTest {
 
     @Test
     public void testIsInit() throws ServletException {
-        AtmosphereFramework f = new AtmosphereFramework().addInitParameter("org.atmosphere.suppressDetectingJSR356", "true");
+        AtmosphereFramework f = new AtmosphereFramework().addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true");
         f.init();
 
         final AtomicBoolean b = new AtomicBoolean();

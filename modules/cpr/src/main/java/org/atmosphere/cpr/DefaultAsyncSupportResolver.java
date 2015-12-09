@@ -83,7 +83,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
     public DefaultAsyncSupportResolver(final AtmosphereConfig config) {
         this.config = config;
-        this.suppress356 = Boolean.parseBoolean(config.getInitParameter("org.atmosphere.suppressDetectingJSR356"));
+        this.suppress356 = 
+            Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
     }
 
     /**

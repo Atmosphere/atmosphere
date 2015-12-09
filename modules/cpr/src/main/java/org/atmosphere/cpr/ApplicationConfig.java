@@ -470,6 +470,14 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_PROTOCOL_EXECUTION = "org.atmosphere.websocket.WebSocketProtocol.executeAsync";
     /**
+     * Suppress the detection of JSR356 support. In Atmosphere 2.4.0 and newer, JSR356 has the
+     * precedence over container specific providers. This option can be used to suppress this ordering.    
+     * <p/>
+     * Default: false<br>
+     * Value: org.atmosphere.websocket.suppressJSR356
+     */
+    String WEBSOCKET_SUPPRESS_JSR356 = "org.atmosphere.websocket.suppressJSR356";
+    /**
      * The default content-type value used when Atmosphere requires one.
      * <p/>
      * Default: "text/plain"<br>

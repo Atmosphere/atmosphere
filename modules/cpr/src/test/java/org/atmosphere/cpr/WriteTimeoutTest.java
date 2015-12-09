@@ -42,7 +42,7 @@ public class WriteTimeoutTest {
     public void setUp() throws Exception {
         config = new AtmosphereFramework()
             .addInitParameter("org.atmosphere.cpr.Broadcaster.writeTimeout", "2000")
-            .addInitParameter("org.atmosphere.suppressDetectingJSR356", "true")
+            .addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true")
             .init().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);

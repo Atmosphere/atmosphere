@@ -41,7 +41,7 @@ public class DefaultAsyncSupportResolverTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework()
-            .addInitParameter("org.atmosphere.suppressDetectingJSR356", "true")
+            .addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true")
             .init().getAtmosphereConfig();
         defaultAsyncSupportResolver = new DefaultAsyncSupportResolver(config);
     }
