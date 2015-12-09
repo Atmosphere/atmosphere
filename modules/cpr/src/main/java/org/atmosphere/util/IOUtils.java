@@ -365,7 +365,7 @@ public class IOUtils {
         } catch (Throwable t) {
             try {
                 return Class.forName(className);
-            } catch (Throwable t2) {
+            } catch (Exception t2) {
                 if (thisClass != null) {
                     return thisClass.getClassLoader().loadClass(className);
                 }
