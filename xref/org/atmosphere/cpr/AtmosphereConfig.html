@@ -33,9 +33,9 @@
 <a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> javax.servlet.ServletContext;
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> java.util.ArrayList;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> java.util.Enumeration;
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.List;
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> java.util.List;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ConcurrentHashMap;
 <a class="jxr_linenumber" name="L31" href="#L31">31</a>  
 <a class="jxr_linenumber" name="L32" href="#L32">32</a>  <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L33" href="#L33">33</a>  <em class="jxr_javadoccomment"> * This class contains information about the current state of the {@link AtmosphereFramework}. You can also</em>
@@ -54,7 +54,7 @@
 <a class="jxr_linenumber" name="L46" href="#L46">46</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> sessionTimeoutRemovalAllowed;
 <a class="jxr_linenumber" name="L47" href="#L47">47</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> throwExceptionOnCloned;
 <a class="jxr_linenumber" name="L48" href="#L48">48</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework;
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>      <strong class="jxr_keyword">private</strong> Map&lt;String, Object&gt; properties = <strong class="jxr_keyword">new</strong> HashMap&lt;String, Object&gt;();
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Map&lt;String, Object&gt; properties = <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;String, Object&gt;();
 <a class="jxr_linenumber" name="L50" href="#L50">50</a>      <strong class="jxr_keyword">protected</strong> List&lt;ShutdownHook&gt; shutdownHooks = <strong class="jxr_keyword">new</strong> ArrayList&lt;ShutdownHook&gt;();
 <a class="jxr_linenumber" name="L51" href="#L51">51</a>      <strong class="jxr_keyword">protected</strong> List&lt;StartupHook&gt; startUpHook = <strong class="jxr_keyword">new</strong> ArrayList&lt;StartupHook&gt;();
 <a class="jxr_linenumber" name="L52" href="#L52">52</a>  
@@ -380,7 +380,7 @@
 <a class="jxr_linenumber" name="L372" href="#L372">372</a>         sessionTimeoutRemovalAllowed = config.sessionTimeoutRemovalAllowed;
 <a class="jxr_linenumber" name="L373" href="#L373">373</a>         throwExceptionOnCloned = config.throwExceptionOnCloned;
 <a class="jxr_linenumber" name="L374" href="#L374">374</a>         framework = config.framework;
-<a class="jxr_linenumber" name="L375" href="#L375">375</a>         properties = config.properties;
+<a class="jxr_linenumber" name="L375" href="#L375">375</a>         properties.putAll(config.properties);
 <a class="jxr_linenumber" name="L376" href="#L376">376</a>         shutdownHooks = config.shutdownHooks;
 <a class="jxr_linenumber" name="L377" href="#L377">377</a>         startUpHook = config.startUpHook;
 <a class="jxr_linenumber" name="L378" href="#L378">378</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;

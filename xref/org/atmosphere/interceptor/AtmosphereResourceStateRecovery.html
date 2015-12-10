@@ -119,7 +119,7 @@
 <a class="jxr_linenumber" name="L111" href="#L111">111</a>             <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/interceptor/AtmosphereResourceStateRecovery.html">BroadcasterTracker</a> tracker = track(r).tick();
 <a class="jxr_linenumber" name="L112" href="#L112">112</a> 
 <a class="jxr_linenumber" name="L113" href="#L113">113</a>             List&lt;Object&gt; cachedMessages = retrieveCache(r, tracker, false);
-<a class="jxr_linenumber" name="L114" href="#L114">114</a>             <strong class="jxr_keyword">if</strong> (cachedMessages.size() &gt; 0) {
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>             <strong class="jxr_keyword">if</strong> (!cachedMessages.isEmpty()) {
 <a class="jxr_linenumber" name="L115" href="#L115">115</a>                 logger.trace(<span class="jxr_string">"cached messages"</span>);
 <a class="jxr_linenumber" name="L116" href="#L116">116</a>                 writeCache(r, cachedMessages);
 <a class="jxr_linenumber" name="L117" href="#L117">117</a>                 <strong class="jxr_keyword">return</strong> Action.CANCELLED;
@@ -167,7 +167,7 @@
 <a class="jxr_linenumber" name="L159" href="#L159">159</a>                         <strong class="jxr_keyword">if</strong> (logger.isTraceEnabled()) {
 <a class="jxr_linenumber" name="L160" href="#L160">160</a>                             logger.trace(<span class="jxr_string">"message size {}"</span>, cachedMessages.size());
 <a class="jxr_linenumber" name="L161" href="#L161">161</a>                         }
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>                         <strong class="jxr_keyword">if</strong> (cachedMessages.size() &gt; 0) {
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>                         <strong class="jxr_keyword">if</strong> (!cachedMessages.isEmpty()) {
 <a class="jxr_linenumber" name="L163" href="#L163">163</a>                             logger.trace(<span class="jxr_string">"About to write to the cache {}"</span>, r.uuid());
 <a class="jxr_linenumber" name="L164" href="#L164">164</a>                             writeCache(r, cachedMessages);
 <a class="jxr_linenumber" name="L165" href="#L165">165</a>                             doNotSuspend.set(<strong class="jxr_keyword">true</strong>);
@@ -295,30 +295,34 @@
 <a class="jxr_linenumber" name="L287" href="#L287">287</a>                 cache = b.getBroadcasterConfig().getBroadcasterCache();
 <a class="jxr_linenumber" name="L288" href="#L288">288</a>                 List&lt;Object&gt; t = cache.retrieveFromCache(b.getID(), r.uuid());
 <a class="jxr_linenumber" name="L289" href="#L289">289</a> 
-<a class="jxr_linenumber" name="L290" href="#L290">290</a>                 cachedMessages = b.getBroadcasterConfig().applyFilters(r, t);
-<a class="jxr_linenumber" name="L291" href="#L291">291</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L292" href="#L292">292</a>                 logger.trace(<span class="jxr_string">"Broadcaster {} is no longer available for {}"</span>, broadcasterID, r);
-<a class="jxr_linenumber" name="L293" href="#L293">293</a>             }
-<a class="jxr_linenumber" name="L294" href="#L294">294</a>         }
-<a class="jxr_linenumber" name="L295" href="#L295">295</a>         <strong class="jxr_keyword">return</strong> cachedMessages;
-<a class="jxr_linenumber" name="L296" href="#L296">296</a>     }
-<a class="jxr_linenumber" name="L297" href="#L297">297</a> 
-<a class="jxr_linenumber" name="L298" href="#L298">298</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> writeCache(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, List&lt;Object&gt; cachedMessages) {
-<a class="jxr_linenumber" name="L299" href="#L299">299</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L300" href="#L300">300</a>             logger.trace(<span class="jxr_string">"Writing cached messages {} for {}"</span>, cachedMessages, r.uuid());
-<a class="jxr_linenumber" name="L301" href="#L301">301</a>             r.getAtmosphereHandler().onStateChange(
-<a class="jxr_linenumber" name="L302" href="#L302">302</a>                     <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a>(AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r), false, false, <strong class="jxr_keyword">null</strong>)
-<a class="jxr_linenumber" name="L303" href="#L303">303</a>                             .setMessage(cachedMessages));
-<a class="jxr_linenumber" name="L304" href="#L304">304</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="L305" href="#L305">305</a>             logger.warn(<span class="jxr_string">"Unable to recover from state recovery {}"</span>, r.uuid(), e);
-<a class="jxr_linenumber" name="L306" href="#L306">306</a>         }
-<a class="jxr_linenumber" name="L307" href="#L307">307</a>     }
-<a class="jxr_linenumber" name="L308" href="#L308">308</a> 
-<a class="jxr_linenumber" name="L309" href="#L309">309</a>     <strong class="jxr_keyword">abstract</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/interceptor/AtmosphereResourceStateRecovery.html">OnAlwaysSuspend</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListenerAdapter.html">OnSuspend</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/atmosphere/interceptor/AllowInterceptor.html">AllowInterceptor</a> {
-<a class="jxr_linenumber" name="L310" href="#L310">310</a>         @Override
-<a class="jxr_linenumber" name="L311" href="#L311">311</a>         <strong class="jxr_keyword">abstract</strong> <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onSuspend(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event);
-<a class="jxr_linenumber" name="L312" href="#L312">312</a>     }
-<a class="jxr_linenumber" name="L313" href="#L313">313</a> }
+<a class="jxr_linenumber" name="L290" href="#L290">290</a>                 t = b.getBroadcasterConfig().applyFilters(r, t);
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>                 <strong class="jxr_keyword">if</strong> (!t.isEmpty()) {
+<a class="jxr_linenumber" name="L292" href="#L292">292</a>                     logger.trace(<span class="jxr_string">"Found Cached Messages For AtmosphereResource {} with Broadcaster {}"</span>, r.uuid(), broadcasterID);
+<a class="jxr_linenumber" name="L293" href="#L293">293</a>                     cachedMessages.addAll(t);
+<a class="jxr_linenumber" name="L294" href="#L294">294</a>                 }
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L296" href="#L296">296</a>                 logger.trace(<span class="jxr_string">"Broadcaster {} is no longer available for {}"</span>, broadcasterID, r);
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>             }
+<a class="jxr_linenumber" name="L298" href="#L298">298</a>         }
+<a class="jxr_linenumber" name="L299" href="#L299">299</a>         <strong class="jxr_keyword">return</strong> cachedMessages;
+<a class="jxr_linenumber" name="L300" href="#L300">300</a>     }
+<a class="jxr_linenumber" name="L301" href="#L301">301</a> 
+<a class="jxr_linenumber" name="L302" href="#L302">302</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> writeCache(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, List&lt;Object&gt; cachedMessages) {
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L304" href="#L304">304</a>             logger.trace(<span class="jxr_string">"Writing cached messages {} for {}"</span>, cachedMessages, r.uuid());
+<a class="jxr_linenumber" name="L305" href="#L305">305</a>             r.getAtmosphereHandler().onStateChange(
+<a class="jxr_linenumber" name="L306" href="#L306">306</a>                     <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventImpl.html">AtmosphereResourceEventImpl</a>(AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r), false, false, <strong class="jxr_keyword">null</strong>)
+<a class="jxr_linenumber" name="L307" href="#L307">307</a>                             .setMessage(cachedMessages));
+<a class="jxr_linenumber" name="L308" href="#L308">308</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="L309" href="#L309">309</a>             logger.warn(<span class="jxr_string">"Unable to recover from state recovery {}"</span>, r.uuid(), e);
+<a class="jxr_linenumber" name="L310" href="#L310">310</a>         }
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>     }
+<a class="jxr_linenumber" name="L312" href="#L312">312</a> 
+<a class="jxr_linenumber" name="L313" href="#L313">313</a>     <strong class="jxr_keyword">abstract</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/interceptor/AtmosphereResourceStateRecovery.html">OnAlwaysSuspend</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListenerAdapter.html">OnSuspend</a> <strong class="jxr_keyword">implements</strong> <a href="../../../org/atmosphere/interceptor/AllowInterceptor.html">AllowInterceptor</a> {
+<a class="jxr_linenumber" name="L314" href="#L314">314</a>         @Override
+<a class="jxr_linenumber" name="L315" href="#L315">315</a>         <strong class="jxr_keyword">abstract</strong> <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onSuspend(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event);
+<a class="jxr_linenumber" name="L316" href="#L316">316</a>     }
+<a class="jxr_linenumber" name="L317" href="#L317">317</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

@@ -77,280 +77,281 @@
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>  <em class="jxr_javadoccomment">     * @return a {@link Meteor} or null if not found</em>
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> lookup(HttpServletRequest r) {
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>          <strong class="jxr_keyword">return</strong> (Meteor) r.getAttribute(METEOR);
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>      }
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>  
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>  <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest}.</em>
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>  <em class="jxr_javadoccomment">     * @param r an {@link HttpServletRequest}</em>
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>  <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest r) {
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>          <strong class="jxr_keyword">return</strong> build(r, <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>      }
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>  
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>  <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest} and use the</em>
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>  <em class="jxr_javadoccomment">     * {@link Serializer} for writing the result of a broadcast operation using</em>
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>  <em class="jxr_javadoccomment">     * the {@link HttpServletResponse}.</em>
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>  <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>  <em class="jxr_javadoccomment">     * @param r an {@link HttpServletRequest}</em>
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>  <em class="jxr_javadoccomment">     * @param s a {@link Serializer} used when writing broadcast events</em>
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>  <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>  <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest r, <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s) {
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>          <strong class="jxr_keyword">return</strong> build(r, <strong class="jxr_keyword">null</strong>, s);
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>      }
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>  
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>  <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest} and use a list of</em>
-<a class="jxr_linenumber" name="L100" href="#L100">100</a> <em class="jxr_javadoccomment">     * {@link BroadcastFilter} and {@link Serializer} for writing the result</em>
-<a class="jxr_linenumber" name="L101" href="#L101">101</a> <em class="jxr_javadoccomment">     * of a broadcast operation the {@link HttpServletResponse}.</em>
-<a class="jxr_linenumber" name="L102" href="#L102">102</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L103" href="#L103">103</a> <em class="jxr_javadoccomment">     * @param req an {@link HttpServletRequest}</em>
-<a class="jxr_linenumber" name="L104" href="#L104">104</a> <em class="jxr_javadoccomment">     * @param l   a list of {@link BroadcastFilter}</em>
-<a class="jxr_linenumber" name="L105" href="#L105">105</a> <em class="jxr_javadoccomment">     * @param s   a {@link Serializer} used when writing broadcast events</em>
-<a class="jxr_linenumber" name="L106" href="#L106">106</a> <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
-<a class="jxr_linenumber" name="L107" href="#L107">107</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest req, List&lt;BroadcastFilter&gt; l, <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s) {
-<a class="jxr_linenumber" name="L109" href="#L109">109</a>         <strong class="jxr_keyword">return</strong> build(req, Broadcaster.SCOPE.APPLICATION, l, s);
-<a class="jxr_linenumber" name="L110" href="#L110">110</a>     }
-<a class="jxr_linenumber" name="L111" href="#L111">111</a> 
-<a class="jxr_linenumber" name="L112" href="#L112">112</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L113" href="#L113">113</a> <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest} and use a list of</em>
-<a class="jxr_linenumber" name="L114" href="#L114">114</a> <em class="jxr_javadoccomment">     * {@link BroadcastFilter} and {@link Serializer} for writing the result</em>
-<a class="jxr_linenumber" name="L115" href="#L115">115</a> <em class="jxr_javadoccomment">     * of a broadcast operation the {@link HttpServletResponse}.</em>
-<a class="jxr_linenumber" name="L116" href="#L116">116</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L117" href="#L117">117</a> <em class="jxr_javadoccomment">     * @param req   an {@link HttpServletRequest}</em>
-<a class="jxr_linenumber" name="L118" href="#L118">118</a> <em class="jxr_javadoccomment">     * @param scope the {@link Broadcaster.SCOPE}}</em>
-<a class="jxr_linenumber" name="L119" href="#L119">119</a> <em class="jxr_javadoccomment">     * @param l     a list of {@link BroadcastFilter}</em>
-<a class="jxr_linenumber" name="L120" href="#L120">120</a> <em class="jxr_javadoccomment">     * @param s     a {@link Serializer} used when writing broadcast events</em>
-<a class="jxr_linenumber" name="L121" href="#L121">121</a> <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
-<a class="jxr_linenumber" name="L122" href="#L122">122</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L123" href="#L123">123</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest req, Broadcaster.SCOPE scope,
-<a class="jxr_linenumber" name="L124" href="#L124">124</a>                                      List&lt;BroadcastFilter&gt; l, <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s) {
-<a class="jxr_linenumber" name="L125" href="#L125">125</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r =
-<a class="jxr_linenumber" name="L126" href="#L126">126</a>                 (<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a>)
-<a class="jxr_linenumber" name="L127" href="#L127">127</a>                         req.getAttribute(ATMOSPHERE_RESOURCE);
-<a class="jxr_linenumber" name="L128" href="#L128">128</a>         <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"MeteorServlet not defined in web.xml"</span>);
-<a class="jxr_linenumber" name="L129" href="#L129">129</a> 
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>         <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L131" href="#L131">131</a>         <strong class="jxr_keyword">if</strong> (scope == Broadcaster.SCOPE.REQUEST) {
-<a class="jxr_linenumber" name="L132" href="#L132">132</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L133" href="#L133">133</a>                 <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> f = r.getAtmosphereConfig().getBroadcasterFactory();
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>                 b = f.get(DefaultBroadcaster.<strong class="jxr_keyword">class</strong>, DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.getSimpleName()
-<a class="jxr_linenumber" name="L135" href="#L135">135</a>                         + r.getAtmosphereConfig().uuidProvider().generateUuid());
-<a class="jxr_linenumber" name="L136" href="#L136">136</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="L137" href="#L137">137</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(t);
-<a class="jxr_linenumber" name="L138" href="#L138">138</a>             }
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>             b.setScope(scope);
-<a class="jxr_linenumber" name="L140" href="#L140">140</a>             r.setBroadcaster(b);
-<a class="jxr_linenumber" name="L141" href="#L141">141</a>             req.setAttribute(AtmosphereResourceImpl.SKIP_BROADCASTER_CREATION, Boolean.TRUE);
-<a class="jxr_linenumber" name="L142" href="#L142">142</a>         }
-<a class="jxr_linenumber" name="L143" href="#L143">143</a> 
-<a class="jxr_linenumber" name="L144" href="#L144">144</a>         <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> m = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a>(r, l, (s != <strong class="jxr_keyword">null</strong> ? s : r.getSerializer()));
-<a class="jxr_linenumber" name="L145" href="#L145">145</a>         req.setAttribute(METEOR, m);
-<a class="jxr_linenumber" name="L146" href="#L146">146</a>         <strong class="jxr_keyword">return</strong> m;
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>     }
-<a class="jxr_linenumber" name="L148" href="#L148">148</a> 
-<a class="jxr_linenumber" name="L149" href="#L149">149</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L150" href="#L150">150</a> <em class="jxr_javadoccomment">     * Suspend the underlying {@link HttpServletResponse}. Passing a value of -1</em>
-<a class="jxr_linenumber" name="L151" href="#L151">151</a> <em class="jxr_javadoccomment">     * suspends the response forever.</em>
-<a class="jxr_linenumber" name="L152" href="#L152">152</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L153" href="#L153">153</a> <em class="jxr_javadoccomment">     * @param l the maximum time a response stay suspended</em>
-<a class="jxr_linenumber" name="L154" href="#L154">154</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
-<a class="jxr_linenumber" name="L155" href="#L155">155</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> suspend(<strong class="jxr_keyword">long</strong> l) {
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>         r.suspend(l);
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L160" href="#L160">160</a>     }
-<a class="jxr_linenumber" name="L161" href="#L161">161</a> 
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L163" href="#L163">163</a> <em class="jxr_javadoccomment">     * Resume the Meteor after the first broadcast operation. This is useful when long-polling is used.</em>
-<a class="jxr_linenumber" name="L164" href="#L164">164</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L165" href="#L165">165</a> <em class="jxr_javadoccomment">     * @param resumeOnBroadcast</em>
-<a class="jxr_linenumber" name="L166" href="#L166">166</a> <em class="jxr_javadoccomment">     * @return this</em>
-<a class="jxr_linenumber" name="L167" href="#L167">167</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> resumeOnBroadcast(<strong class="jxr_keyword">boolean</strong> resumeOnBroadcast) {
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>         r.resumeOnBroadcast(resumeOnBroadcast);
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>     }
-<a class="jxr_linenumber" name="L172" href="#L172">172</a> 
-<a class="jxr_linenumber" name="L173" href="#L173">173</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L174" href="#L174">174</a> <em class="jxr_javadoccomment">     * Return the current {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}. The transport needs to be</em>
-<a class="jxr_linenumber" name="L175" href="#L175">175</a> <em class="jxr_javadoccomment">     * explicitly set by the client by adding the appropriate {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT} value,</em>
-<a class="jxr_linenumber" name="L176" href="#L176">176</a> <em class="jxr_javadoccomment">     * which can be long-polling, streaming, websocket or JSONP.</em>
-<a class="jxr_linenumber" name="L177" href="#L177">177</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L178" href="#L178">178</a> <em class="jxr_javadoccomment">     * @return</em>
-<a class="jxr_linenumber" name="L179" href="#L179">179</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>     <strong class="jxr_keyword">public</strong> AtmosphereResource.TRANSPORT transport() {
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>         <strong class="jxr_keyword">return</strong> r.transport();
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>     }
-<a class="jxr_linenumber" name="L183" href="#L183">183</a> 
-<a class="jxr_linenumber" name="L184" href="#L184">184</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L185" href="#L185">185</a> <em class="jxr_javadoccomment">     * Suspend the underlying {@link HttpServletResponse}. Passing a value of -1</em>
-<a class="jxr_linenumber" name="L186" href="#L186">186</a> <em class="jxr_javadoccomment">     * suspends the response forever.</em>
-<a class="jxr_linenumber" name="L187" href="#L187">187</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L188" href="#L188">188</a> <em class="jxr_javadoccomment">     * @param timeout  the maximum time a response stay suspended</em>
-<a class="jxr_linenumber" name="L189" href="#L189">189</a> <em class="jxr_javadoccomment">     * @param timeunit The time unit of the timeout value</em>
-<a class="jxr_linenumber" name="L190" href="#L190">190</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
-<a class="jxr_linenumber" name="L191" href="#L191">191</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L192" href="#L192">192</a> 
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> suspend(<strong class="jxr_keyword">long</strong> timeout, TimeUnit timeunit) {
-<a class="jxr_linenumber" name="L194" href="#L194">194</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>         r.suspend(timeout, timeunit);
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>     }
-<a class="jxr_linenumber" name="L198" href="#L198">198</a> 
-<a class="jxr_linenumber" name="L199" href="#L199">199</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L200" href="#L200">200</a> <em class="jxr_javadoccomment">     * Resume the underlying {@link HttpServletResponse}.</em>
-<a class="jxr_linenumber" name="L201" href="#L201">201</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L202" href="#L202">202</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
-<a class="jxr_linenumber" name="L203" href="#L203">203</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> resume() {
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>         r.resume();
-<a class="jxr_linenumber" name="L207" href="#L207">207</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L208" href="#L208">208</a>     }
-<a class="jxr_linenumber" name="L209" href="#L209">209</a> 
-<a class="jxr_linenumber" name="L210" href="#L210">210</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L211" href="#L211">211</a> <em class="jxr_javadoccomment">     * Broadcast an {@link Object} to all suspended responses.</em>
-<a class="jxr_linenumber" name="L212" href="#L212">212</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L213" href="#L213">213</a> <em class="jxr_javadoccomment">     * @param o an {@link Object}</em>
-<a class="jxr_linenumber" name="L214" href="#L214">214</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
-<a class="jxr_linenumber" name="L215" href="#L215">215</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L216" href="#L216">216</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> broadcast(Object o) {
-<a class="jxr_linenumber" name="L217" href="#L217">217</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L218" href="#L218">218</a>         r.getBroadcaster().broadcast(o);
-<a class="jxr_linenumber" name="L219" href="#L219">219</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L220" href="#L220">220</a>     }
-<a class="jxr_linenumber" name="L221" href="#L221">221</a> 
-<a class="jxr_linenumber" name="L222" href="#L222">222</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L223" href="#L223">223</a> <em class="jxr_javadoccomment">     * Schedule a periodic broadcast, in seconds.</em>
-<a class="jxr_linenumber" name="L224" href="#L224">224</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L225" href="#L225">225</a> <em class="jxr_javadoccomment">     * @param o      an {@link Object}</em>
-<a class="jxr_linenumber" name="L226" href="#L226">226</a> <em class="jxr_javadoccomment">     * @param period period in seconds</em>
-<a class="jxr_linenumber" name="L227" href="#L227">227</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
-<a class="jxr_linenumber" name="L228" href="#L228">228</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L229" href="#L229">229</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> schedule(Object o, <strong class="jxr_keyword">long</strong> period) {
-<a class="jxr_linenumber" name="L230" href="#L230">230</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L231" href="#L231">231</a>         r.getBroadcaster().scheduleFixedBroadcast(o, period, TimeUnit.SECONDS);
-<a class="jxr_linenumber" name="L232" href="#L232">232</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L233" href="#L233">233</a>     }
-<a class="jxr_linenumber" name="L234" href="#L234">234</a> 
-<a class="jxr_linenumber" name="L235" href="#L235">235</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L236" href="#L236">236</a> <em class="jxr_javadoccomment">     * Schedule a delayed broadcast, in seconds.</em>
-<a class="jxr_linenumber" name="L237" href="#L237">237</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L238" href="#L238">238</a> <em class="jxr_javadoccomment">     * @param o      an {@link Object}</em>
-<a class="jxr_linenumber" name="L239" href="#L239">239</a> <em class="jxr_javadoccomment">     * @param period period in seconds</em>
-<a class="jxr_linenumber" name="L240" href="#L240">240</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
-<a class="jxr_linenumber" name="L241" href="#L241">241</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L242" href="#L242">242</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> delayBroadadcast(Object o, <strong class="jxr_keyword">long</strong> period) {
-<a class="jxr_linenumber" name="L243" href="#L243">243</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L244" href="#L244">244</a>         r.getBroadcaster().delayBroadcast(o, period, TimeUnit.SECONDS);
-<a class="jxr_linenumber" name="L245" href="#L245">245</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L246" href="#L246">246</a>     }
-<a class="jxr_linenumber" name="L247" href="#L247">247</a> 
-<a class="jxr_linenumber" name="L248" href="#L248">248</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L249" href="#L249">249</a> <em class="jxr_javadoccomment">     * Return the underlying {@link Broadcaster}.</em>
-<a class="jxr_linenumber" name="L250" href="#L250">250</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L251" href="#L251">251</a> <em class="jxr_javadoccomment">     * @return</em>
-<a class="jxr_linenumber" name="L252" href="#L252">252</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L253" href="#L253">253</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> getBroadcaster() {
-<a class="jxr_linenumber" name="L254" href="#L254">254</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L255" href="#L255">255</a>         <strong class="jxr_keyword">return</strong> r.getBroadcaster();
-<a class="jxr_linenumber" name="L256" href="#L256">256</a>     }
-<a class="jxr_linenumber" name="L257" href="#L257">257</a> 
-<a class="jxr_linenumber" name="L258" href="#L258">258</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L259" href="#L259">259</a> <em class="jxr_javadoccomment">     * Set a {@link Broadcaster} instance.</em>
-<a class="jxr_linenumber" name="L260" href="#L260">260</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L261" href="#L261">261</a> <em class="jxr_javadoccomment">     * @param b</em>
-<a class="jxr_linenumber" name="L262" href="#L262">262</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L263" href="#L263">263</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBroadcaster(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b) {
-<a class="jxr_linenumber" name="L264" href="#L264">264</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="L265" href="#L265">265</a>         r.setBroadcaster(b);
-<a class="jxr_linenumber" name="L266" href="#L266">266</a>     }
-<a class="jxr_linenumber" name="L267" href="#L267">267</a> 
-<a class="jxr_linenumber" name="L268" href="#L268">268</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L269" href="#L269">269</a> <em class="jxr_javadoccomment">     * Return an {@link Object} with this {@link Meteor}.</em>
-<a class="jxr_linenumber" name="L270" href="#L270">270</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L271" href="#L271">271</a> <em class="jxr_javadoccomment">     * @return the {@link Object}</em>
-<a class="jxr_linenumber" name="L272" href="#L272">272</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L273" href="#L273">273</a>     <strong class="jxr_keyword">public</strong> Object attachement() {
-<a class="jxr_linenumber" name="L274" href="#L274">274</a>         <strong class="jxr_keyword">return</strong> o;
-<a class="jxr_linenumber" name="L275" href="#L275">275</a>     }
-<a class="jxr_linenumber" name="L276" href="#L276">276</a> 
-<a class="jxr_linenumber" name="L277" href="#L277">277</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L278" href="#L278">278</a> <em class="jxr_javadoccomment">     * Attach an {@link Object} with this {@link Meteor}.</em>
-<a class="jxr_linenumber" name="L279" href="#L279">279</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L280" href="#L280">280</a> <em class="jxr_javadoccomment">     * @return the {@link Object}</em>
-<a class="jxr_linenumber" name="L281" href="#L281">281</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L282" href="#L282">282</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> attach(Object o) {
-<a class="jxr_linenumber" name="L283" href="#L283">283</a>         <strong class="jxr_keyword">this</strong>.o = o;
-<a class="jxr_linenumber" name="L284" href="#L284">284</a>     }
-<a class="jxr_linenumber" name="L285" href="#L285">285</a> 
-<a class="jxr_linenumber" name="L286" href="#L286">286</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L287" href="#L287">287</a> <em class="jxr_javadoccomment">     * Add a {@link AtmosphereResourceEventListener} which gets invoked when</em>
-<a class="jxr_linenumber" name="L288" href="#L288">288</a> <em class="jxr_javadoccomment">     * responses are resuming, when the remote client closes the connection or</em>
-<a class="jxr_linenumber" name="L289" href="#L289">289</a> <em class="jxr_javadoccomment">     * when the a {@link Broadcaster#broadcast} operations occurs.</em>
-<a class="jxr_linenumber" name="L290" href="#L290">290</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L291" href="#L291">291</a> <em class="jxr_javadoccomment">     * @param e an instance of {@link AtmosphereResourceEventListener}</em>
-<a class="jxr_linenumber" name="L292" href="#L292">292</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L293" href="#L293">293</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> addListener(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a> e) {
-<a class="jxr_linenumber" name="L294" href="#L294">294</a>         <strong class="jxr_keyword">if</strong> (!destroyed()) {
-<a class="jxr_linenumber" name="L295" href="#L295">295</a>             r.addEventListener(e);
-<a class="jxr_linenumber" name="L296" href="#L296">296</a>         }
-<a class="jxr_linenumber" name="L297" href="#L297">297</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L298" href="#L298">298</a>     }
-<a class="jxr_linenumber" name="L299" href="#L299">299</a> 
-<a class="jxr_linenumber" name="L300" href="#L300">300</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L301" href="#L301">301</a> <em class="jxr_javadoccomment">     * Remove a {@link AtmosphereResourceEventListener} which gets invoked when</em>
-<a class="jxr_linenumber" name="L302" href="#L302">302</a> <em class="jxr_javadoccomment">     * a response is resuming, when the remote client closes the connection or</em>
-<a class="jxr_linenumber" name="L303" href="#L303">303</a> <em class="jxr_javadoccomment">     * when the a {@link Broadcaster#broadcast} operations occurs.</em>
-<a class="jxr_linenumber" name="L304" href="#L304">304</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L305" href="#L305">305</a> <em class="jxr_javadoccomment">     * @param e an instance of {@link AtmosphereResourceEventListener}</em>
-<a class="jxr_linenumber" name="L306" href="#L306">306</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L307" href="#L307">307</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> removeListener(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a> e) {
-<a class="jxr_linenumber" name="L308" href="#L308">308</a>         <strong class="jxr_keyword">if</strong> (!destroyed()) {
-<a class="jxr_linenumber" name="L309" href="#L309">309</a>             r.removeEventListener(e);
-<a class="jxr_linenumber" name="L310" href="#L310">310</a>         }
-<a class="jxr_linenumber" name="L311" href="#L311">311</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L312" href="#L312">312</a>     }
-<a class="jxr_linenumber" name="L313" href="#L313">313</a> 
-<a class="jxr_linenumber" name="L314" href="#L314">314</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L315" href="#L315">315</a> <em class="jxr_javadoccomment">     * Mark this instance as destroyed. No more operations will be allowed.</em>
-<a class="jxr_linenumber" name="L316" href="#L316">316</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L317" href="#L317">317</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
-<a class="jxr_linenumber" name="L318" href="#L318">318</a>         isDestroyed.set(<strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L319" href="#L319">319</a>     }
-<a class="jxr_linenumber" name="L320" href="#L320">320</a> 
-<a class="jxr_linenumber" name="L321" href="#L321">321</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> destroyed() {
-<a class="jxr_linenumber" name="L322" href="#L322">322</a>         <strong class="jxr_keyword">if</strong> (isDestroyed.get()) {
-<a class="jxr_linenumber" name="L323" href="#L323">323</a>             logger.debug(<span class="jxr_string">"This Meteor is destroyed and cannot be used."</span>);
-<a class="jxr_linenumber" name="L324" href="#L324">324</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L325" href="#L325">325</a>         }
-<a class="jxr_linenumber" name="L326" href="#L326">326</a>         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L327" href="#L327">327</a>     }
-<a class="jxr_linenumber" name="L328" href="#L328">328</a> 
-<a class="jxr_linenumber" name="L329" href="#L329">329</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L330" href="#L330">330</a> <em class="jxr_javadoccomment">     * Return the underlying {@link AtmosphereResource}.</em>
-<a class="jxr_linenumber" name="L331" href="#L331">331</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L332" href="#L332">332</a> <em class="jxr_javadoccomment">     * @return the underlying {@link AtmosphereResource}</em>
-<a class="jxr_linenumber" name="L333" href="#L333">333</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L334" href="#L334">334</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> getAtmosphereResource() {
-<a class="jxr_linenumber" name="L335" href="#L335">335</a>         <strong class="jxr_keyword">return</strong> r;
-<a class="jxr_linenumber" name="L336" href="#L336">336</a>     }
-<a class="jxr_linenumber" name="L337" href="#L337">337</a> 
-<a class="jxr_linenumber" name="L338" href="#L338">338</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L339" href="#L339">339</a> <em class="jxr_javadoccomment">     * Return the {@link org.atmosphere.cpr.AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="L340" href="#L340">340</a> <em class="jxr_javadoccomment">     * @return the {@link org.atmosphere.cpr.AtmosphereConfig}</em>
-<a class="jxr_linenumber" name="L341" href="#L341">341</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L342" href="#L342">342</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> getAtmosphereConfig() {
-<a class="jxr_linenumber" name="L343" href="#L343">343</a>         <strong class="jxr_keyword">return</strong> r.getAtmosphereConfig();
-<a class="jxr_linenumber" name="L344" href="#L344">344</a>     }
-<a class="jxr_linenumber" name="L345" href="#L345">345</a> }
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>          Object o = r.getAttribute(METEOR);
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>          <strong class="jxr_keyword">return</strong> o == <strong class="jxr_keyword">null</strong> ? <strong class="jxr_keyword">null</strong> : Meteor.<strong class="jxr_keyword">class</strong>.isAssignableFrom(o.getClass()) ? Meteor.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(o) : <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>      }
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>  
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>  <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest}.</em>
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>  <em class="jxr_javadoccomment">     * @param r an {@link HttpServletRequest}</em>
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>  <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest r) {
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>          <strong class="jxr_keyword">return</strong> build(r, <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>      }
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>  
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>  <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest} and use the</em>
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>  <em class="jxr_javadoccomment">     * {@link Serializer} for writing the result of a broadcast operation using</em>
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>  <em class="jxr_javadoccomment">     * the {@link HttpServletResponse}.</em>
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>  <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>  <em class="jxr_javadoccomment">     * @param r an {@link HttpServletRequest}</em>
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>  <em class="jxr_javadoccomment">     * @param s a {@link Serializer} used when writing broadcast events</em>
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>  <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest r, <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s) {
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>          <strong class="jxr_keyword">return</strong> build(r, <strong class="jxr_keyword">null</strong>, s);
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>      }
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>  
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L100" href="#L100">100</a> <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest} and use a list of</em>
+<a class="jxr_linenumber" name="L101" href="#L101">101</a> <em class="jxr_javadoccomment">     * {@link BroadcastFilter} and {@link Serializer} for writing the result</em>
+<a class="jxr_linenumber" name="L102" href="#L102">102</a> <em class="jxr_javadoccomment">     * of a broadcast operation the {@link HttpServletResponse}.</em>
+<a class="jxr_linenumber" name="L103" href="#L103">103</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L104" href="#L104">104</a> <em class="jxr_javadoccomment">     * @param req an {@link HttpServletRequest}</em>
+<a class="jxr_linenumber" name="L105" href="#L105">105</a> <em class="jxr_javadoccomment">     * @param l   a list of {@link BroadcastFilter}</em>
+<a class="jxr_linenumber" name="L106" href="#L106">106</a> <em class="jxr_javadoccomment">     * @param s   a {@link Serializer} used when writing broadcast events</em>
+<a class="jxr_linenumber" name="L107" href="#L107">107</a> <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
+<a class="jxr_linenumber" name="L108" href="#L108">108</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest req, List&lt;BroadcastFilter&gt; l, <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s) {
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         <strong class="jxr_keyword">return</strong> build(req, Broadcaster.SCOPE.APPLICATION, l, s);
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>     }
+<a class="jxr_linenumber" name="L112" href="#L112">112</a> 
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L114" href="#L114">114</a> <em class="jxr_javadoccomment">     * Create a {@link Meteor} using the {@link HttpServletRequest} and use a list of</em>
+<a class="jxr_linenumber" name="L115" href="#L115">115</a> <em class="jxr_javadoccomment">     * {@link BroadcastFilter} and {@link Serializer} for writing the result</em>
+<a class="jxr_linenumber" name="L116" href="#L116">116</a> <em class="jxr_javadoccomment">     * of a broadcast operation the {@link HttpServletResponse}.</em>
+<a class="jxr_linenumber" name="L117" href="#L117">117</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L118" href="#L118">118</a> <em class="jxr_javadoccomment">     * @param req   an {@link HttpServletRequest}</em>
+<a class="jxr_linenumber" name="L119" href="#L119">119</a> <em class="jxr_javadoccomment">     * @param scope the {@link Broadcaster.SCOPE}}</em>
+<a class="jxr_linenumber" name="L120" href="#L120">120</a> <em class="jxr_javadoccomment">     * @param l     a list of {@link BroadcastFilter}</em>
+<a class="jxr_linenumber" name="L121" href="#L121">121</a> <em class="jxr_javadoccomment">     * @param s     a {@link Serializer} used when writing broadcast events</em>
+<a class="jxr_linenumber" name="L122" href="#L122">122</a> <em class="jxr_javadoccomment">     * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}</em>
+<a class="jxr_linenumber" name="L123" href="#L123">123</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L124" href="#L124">124</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> build(HttpServletRequest req, Broadcaster.SCOPE scope,
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>                                      List&lt;BroadcastFilter&gt; l, <a href="../../../org/atmosphere/cpr/Serializer.html">Serializer</a> s) {
+<a class="jxr_linenumber" name="L126" href="#L126">126</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r =
+<a class="jxr_linenumber" name="L127" href="#L127">127</a>                 (<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a>)
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>                         req.getAttribute(ATMOSPHERE_RESOURCE);
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>         <strong class="jxr_keyword">if</strong> (r == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"MeteorServlet not defined in web.xml"</span>);
+<a class="jxr_linenumber" name="L130" href="#L130">130</a> 
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>         <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>         <strong class="jxr_keyword">if</strong> (scope == Broadcaster.SCOPE.REQUEST) {
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>                 <a href="../../../org/atmosphere/cpr/BroadcasterFactory.html">BroadcasterFactory</a> f = r.getAtmosphereConfig().getBroadcasterFactory();
+<a class="jxr_linenumber" name="L135" href="#L135">135</a>                 b = f.get(DefaultBroadcaster.<strong class="jxr_keyword">class</strong>, DefaultBroadcaster.<strong class="jxr_keyword">class</strong>.getSimpleName()
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>                         + r.getAtmosphereConfig().uuidProvider().generateUuid());
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> RuntimeException(t);
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>             }
+<a class="jxr_linenumber" name="L140" href="#L140">140</a>             b.setScope(scope);
+<a class="jxr_linenumber" name="L141" href="#L141">141</a>             r.setBroadcaster(b);
+<a class="jxr_linenumber" name="L142" href="#L142">142</a>             req.setAttribute(AtmosphereResourceImpl.SKIP_BROADCASTER_CREATION, Boolean.TRUE);
+<a class="jxr_linenumber" name="L143" href="#L143">143</a>         }
+<a class="jxr_linenumber" name="L144" href="#L144">144</a> 
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>         <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> m = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a>(r, l, (s != <strong class="jxr_keyword">null</strong> ? s : r.getSerializer()));
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>         req.setAttribute(METEOR, m);
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>         <strong class="jxr_keyword">return</strong> m;
+<a class="jxr_linenumber" name="L148" href="#L148">148</a>     }
+<a class="jxr_linenumber" name="L149" href="#L149">149</a> 
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L151" href="#L151">151</a> <em class="jxr_javadoccomment">     * Suspend the underlying {@link HttpServletResponse}. Passing a value of -1</em>
+<a class="jxr_linenumber" name="L152" href="#L152">152</a> <em class="jxr_javadoccomment">     * suspends the response forever.</em>
+<a class="jxr_linenumber" name="L153" href="#L153">153</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L154" href="#L154">154</a> <em class="jxr_javadoccomment">     * @param l the maximum time a response stay suspended</em>
+<a class="jxr_linenumber" name="L155" href="#L155">155</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
+<a class="jxr_linenumber" name="L156" href="#L156">156</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> suspend(<strong class="jxr_keyword">long</strong> l) {
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>         r.suspend(l);
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>     }
+<a class="jxr_linenumber" name="L162" href="#L162">162</a> 
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L164" href="#L164">164</a> <em class="jxr_javadoccomment">     * Resume the Meteor after the first broadcast operation. This is useful when long-polling is used.</em>
+<a class="jxr_linenumber" name="L165" href="#L165">165</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L166" href="#L166">166</a> <em class="jxr_javadoccomment">     * @param resumeOnBroadcast</em>
+<a class="jxr_linenumber" name="L167" href="#L167">167</a> <em class="jxr_javadoccomment">     * @return this</em>
+<a class="jxr_linenumber" name="L168" href="#L168">168</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> resumeOnBroadcast(<strong class="jxr_keyword">boolean</strong> resumeOnBroadcast) {
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>         r.resumeOnBroadcast(resumeOnBroadcast);
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>     }
+<a class="jxr_linenumber" name="L173" href="#L173">173</a> 
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L175" href="#L175">175</a> <em class="jxr_javadoccomment">     * Return the current {@link org.atmosphere.cpr.AtmosphereResource.TRANSPORT}. The transport needs to be</em>
+<a class="jxr_linenumber" name="L176" href="#L176">176</a> <em class="jxr_javadoccomment">     * explicitly set by the client by adding the appropriate {@link HeaderConfig#X_ATMOSPHERE_TRANSPORT} value,</em>
+<a class="jxr_linenumber" name="L177" href="#L177">177</a> <em class="jxr_javadoccomment">     * which can be long-polling, streaming, websocket or JSONP.</em>
+<a class="jxr_linenumber" name="L178" href="#L178">178</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L179" href="#L179">179</a> <em class="jxr_javadoccomment">     * @return</em>
+<a class="jxr_linenumber" name="L180" href="#L180">180</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>     <strong class="jxr_keyword">public</strong> AtmosphereResource.TRANSPORT transport() {
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>         <strong class="jxr_keyword">return</strong> r.transport();
+<a class="jxr_linenumber" name="L183" href="#L183">183</a>     }
+<a class="jxr_linenumber" name="L184" href="#L184">184</a> 
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L186" href="#L186">186</a> <em class="jxr_javadoccomment">     * Suspend the underlying {@link HttpServletResponse}. Passing a value of -1</em>
+<a class="jxr_linenumber" name="L187" href="#L187">187</a> <em class="jxr_javadoccomment">     * suspends the response forever.</em>
+<a class="jxr_linenumber" name="L188" href="#L188">188</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L189" href="#L189">189</a> <em class="jxr_javadoccomment">     * @param timeout  the maximum time a response stay suspended</em>
+<a class="jxr_linenumber" name="L190" href="#L190">190</a> <em class="jxr_javadoccomment">     * @param timeunit The time unit of the timeout value</em>
+<a class="jxr_linenumber" name="L191" href="#L191">191</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
+<a class="jxr_linenumber" name="L192" href="#L192">192</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L193" href="#L193">193</a> 
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> suspend(<strong class="jxr_keyword">long</strong> timeout, TimeUnit timeunit) {
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>         r.suspend(timeout, timeunit);
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>     }
+<a class="jxr_linenumber" name="L199" href="#L199">199</a> 
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L201" href="#L201">201</a> <em class="jxr_javadoccomment">     * Resume the underlying {@link HttpServletResponse}.</em>
+<a class="jxr_linenumber" name="L202" href="#L202">202</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L203" href="#L203">203</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
+<a class="jxr_linenumber" name="L204" href="#L204">204</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> resume() {
+<a class="jxr_linenumber" name="L206" href="#L206">206</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>         r.resume();
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L209" href="#L209">209</a>     }
+<a class="jxr_linenumber" name="L210" href="#L210">210</a> 
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L212" href="#L212">212</a> <em class="jxr_javadoccomment">     * Broadcast an {@link Object} to all suspended responses.</em>
+<a class="jxr_linenumber" name="L213" href="#L213">213</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L214" href="#L214">214</a> <em class="jxr_javadoccomment">     * @param o an {@link Object}</em>
+<a class="jxr_linenumber" name="L215" href="#L215">215</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
+<a class="jxr_linenumber" name="L216" href="#L216">216</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> broadcast(Object o) {
+<a class="jxr_linenumber" name="L218" href="#L218">218</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>         r.getBroadcaster().broadcast(o);
+<a class="jxr_linenumber" name="L220" href="#L220">220</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>     }
+<a class="jxr_linenumber" name="L222" href="#L222">222</a> 
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L224" href="#L224">224</a> <em class="jxr_javadoccomment">     * Schedule a periodic broadcast, in seconds.</em>
+<a class="jxr_linenumber" name="L225" href="#L225">225</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L226" href="#L226">226</a> <em class="jxr_javadoccomment">     * @param o      an {@link Object}</em>
+<a class="jxr_linenumber" name="L227" href="#L227">227</a> <em class="jxr_javadoccomment">     * @param period period in seconds</em>
+<a class="jxr_linenumber" name="L228" href="#L228">228</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
+<a class="jxr_linenumber" name="L229" href="#L229">229</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> schedule(Object o, <strong class="jxr_keyword">long</strong> period) {
+<a class="jxr_linenumber" name="L231" href="#L231">231</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L232" href="#L232">232</a>         r.getBroadcaster().scheduleFixedBroadcast(o, period, TimeUnit.SECONDS);
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L234" href="#L234">234</a>     }
+<a class="jxr_linenumber" name="L235" href="#L235">235</a> 
+<a class="jxr_linenumber" name="L236" href="#L236">236</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L237" href="#L237">237</a> <em class="jxr_javadoccomment">     * Schedule a delayed broadcast, in seconds.</em>
+<a class="jxr_linenumber" name="L238" href="#L238">238</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L239" href="#L239">239</a> <em class="jxr_javadoccomment">     * @param o      an {@link Object}</em>
+<a class="jxr_linenumber" name="L240" href="#L240">240</a> <em class="jxr_javadoccomment">     * @param period period in seconds</em>
+<a class="jxr_linenumber" name="L241" href="#L241">241</a> <em class="jxr_javadoccomment">     * @return {@link Meteor}</em>
+<a class="jxr_linenumber" name="L242" href="#L242">242</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L243" href="#L243">243</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> delayBroadadcast(Object o, <strong class="jxr_keyword">long</strong> period) {
+<a class="jxr_linenumber" name="L244" href="#L244">244</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L245" href="#L245">245</a>         r.getBroadcaster().delayBroadcast(o, period, TimeUnit.SECONDS);
+<a class="jxr_linenumber" name="L246" href="#L246">246</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L247" href="#L247">247</a>     }
+<a class="jxr_linenumber" name="L248" href="#L248">248</a> 
+<a class="jxr_linenumber" name="L249" href="#L249">249</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L250" href="#L250">250</a> <em class="jxr_javadoccomment">     * Return the underlying {@link Broadcaster}.</em>
+<a class="jxr_linenumber" name="L251" href="#L251">251</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L252" href="#L252">252</a> <em class="jxr_javadoccomment">     * @return</em>
+<a class="jxr_linenumber" name="L253" href="#L253">253</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L254" href="#L254">254</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> getBroadcaster() {
+<a class="jxr_linenumber" name="L255" href="#L255">255</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L256" href="#L256">256</a>         <strong class="jxr_keyword">return</strong> r.getBroadcaster();
+<a class="jxr_linenumber" name="L257" href="#L257">257</a>     }
+<a class="jxr_linenumber" name="L258" href="#L258">258</a> 
+<a class="jxr_linenumber" name="L259" href="#L259">259</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L260" href="#L260">260</a> <em class="jxr_javadoccomment">     * Set a {@link Broadcaster} instance.</em>
+<a class="jxr_linenumber" name="L261" href="#L261">261</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L262" href="#L262">262</a> <em class="jxr_javadoccomment">     * @param b</em>
+<a class="jxr_linenumber" name="L263" href="#L263">263</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L264" href="#L264">264</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBroadcaster(<a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> b) {
+<a class="jxr_linenumber" name="L265" href="#L265">265</a>         <strong class="jxr_keyword">if</strong> (destroyed()) <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L266" href="#L266">266</a>         r.setBroadcaster(b);
+<a class="jxr_linenumber" name="L267" href="#L267">267</a>     }
+<a class="jxr_linenumber" name="L268" href="#L268">268</a> 
+<a class="jxr_linenumber" name="L269" href="#L269">269</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L270" href="#L270">270</a> <em class="jxr_javadoccomment">     * Return an {@link Object} with this {@link Meteor}.</em>
+<a class="jxr_linenumber" name="L271" href="#L271">271</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L272" href="#L272">272</a> <em class="jxr_javadoccomment">     * @return the {@link Object}</em>
+<a class="jxr_linenumber" name="L273" href="#L273">273</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L274" href="#L274">274</a>     <strong class="jxr_keyword">public</strong> Object attachement() {
+<a class="jxr_linenumber" name="L275" href="#L275">275</a>         <strong class="jxr_keyword">return</strong> o;
+<a class="jxr_linenumber" name="L276" href="#L276">276</a>     }
+<a class="jxr_linenumber" name="L277" href="#L277">277</a> 
+<a class="jxr_linenumber" name="L278" href="#L278">278</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L279" href="#L279">279</a> <em class="jxr_javadoccomment">     * Attach an {@link Object} with this {@link Meteor}.</em>
+<a class="jxr_linenumber" name="L280" href="#L280">280</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L281" href="#L281">281</a> <em class="jxr_javadoccomment">     * @return the {@link Object}</em>
+<a class="jxr_linenumber" name="L282" href="#L282">282</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L283" href="#L283">283</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> attach(Object o) {
+<a class="jxr_linenumber" name="L284" href="#L284">284</a>         <strong class="jxr_keyword">this</strong>.o = o;
+<a class="jxr_linenumber" name="L285" href="#L285">285</a>     }
+<a class="jxr_linenumber" name="L286" href="#L286">286</a> 
+<a class="jxr_linenumber" name="L287" href="#L287">287</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L288" href="#L288">288</a> <em class="jxr_javadoccomment">     * Add a {@link AtmosphereResourceEventListener} which gets invoked when</em>
+<a class="jxr_linenumber" name="L289" href="#L289">289</a> <em class="jxr_javadoccomment">     * responses are resuming, when the remote client closes the connection or</em>
+<a class="jxr_linenumber" name="L290" href="#L290">290</a> <em class="jxr_javadoccomment">     * when the a {@link Broadcaster#broadcast} operations occurs.</em>
+<a class="jxr_linenumber" name="L291" href="#L291">291</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L292" href="#L292">292</a> <em class="jxr_javadoccomment">     * @param e an instance of {@link AtmosphereResourceEventListener}</em>
+<a class="jxr_linenumber" name="L293" href="#L293">293</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L294" href="#L294">294</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> addListener(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a> e) {
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>         <strong class="jxr_keyword">if</strong> (!destroyed()) {
+<a class="jxr_linenumber" name="L296" href="#L296">296</a>             r.addEventListener(e);
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>         }
+<a class="jxr_linenumber" name="L298" href="#L298">298</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L299" href="#L299">299</a>     }
+<a class="jxr_linenumber" name="L300" href="#L300">300</a> 
+<a class="jxr_linenumber" name="L301" href="#L301">301</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L302" href="#L302">302</a> <em class="jxr_javadoccomment">     * Remove a {@link AtmosphereResourceEventListener} which gets invoked when</em>
+<a class="jxr_linenumber" name="L303" href="#L303">303</a> <em class="jxr_javadoccomment">     * a response is resuming, when the remote client closes the connection or</em>
+<a class="jxr_linenumber" name="L304" href="#L304">304</a> <em class="jxr_javadoccomment">     * when the a {@link Broadcaster#broadcast} operations occurs.</em>
+<a class="jxr_linenumber" name="L305" href="#L305">305</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L306" href="#L306">306</a> <em class="jxr_javadoccomment">     * @param e an instance of {@link AtmosphereResourceEventListener}</em>
+<a class="jxr_linenumber" name="L307" href="#L307">307</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L308" href="#L308">308</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Meteor.html">Meteor</a> removeListener(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListener.html">AtmosphereResourceEventListener</a> e) {
+<a class="jxr_linenumber" name="L309" href="#L309">309</a>         <strong class="jxr_keyword">if</strong> (!destroyed()) {
+<a class="jxr_linenumber" name="L310" href="#L310">310</a>             r.removeEventListener(e);
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>         }
+<a class="jxr_linenumber" name="L312" href="#L312">312</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L313" href="#L313">313</a>     }
+<a class="jxr_linenumber" name="L314" href="#L314">314</a> 
+<a class="jxr_linenumber" name="L315" href="#L315">315</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L316" href="#L316">316</a> <em class="jxr_javadoccomment">     * Mark this instance as destroyed. No more operations will be allowed.</em>
+<a class="jxr_linenumber" name="L317" href="#L317">317</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L318" href="#L318">318</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
+<a class="jxr_linenumber" name="L319" href="#L319">319</a>         isDestroyed.set(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L320" href="#L320">320</a>     }
+<a class="jxr_linenumber" name="L321" href="#L321">321</a> 
+<a class="jxr_linenumber" name="L322" href="#L322">322</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> destroyed() {
+<a class="jxr_linenumber" name="L323" href="#L323">323</a>         <strong class="jxr_keyword">if</strong> (isDestroyed.get()) {
+<a class="jxr_linenumber" name="L324" href="#L324">324</a>             logger.debug(<span class="jxr_string">"This Meteor is destroyed and cannot be used."</span>);
+<a class="jxr_linenumber" name="L325" href="#L325">325</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L326" href="#L326">326</a>         }
+<a class="jxr_linenumber" name="L327" href="#L327">327</a>         <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L328" href="#L328">328</a>     }
+<a class="jxr_linenumber" name="L329" href="#L329">329</a> 
+<a class="jxr_linenumber" name="L330" href="#L330">330</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L331" href="#L331">331</a> <em class="jxr_javadoccomment">     * Return the underlying {@link AtmosphereResource}.</em>
+<a class="jxr_linenumber" name="L332" href="#L332">332</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L333" href="#L333">333</a> <em class="jxr_javadoccomment">     * @return the underlying {@link AtmosphereResource}</em>
+<a class="jxr_linenumber" name="L334" href="#L334">334</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L335" href="#L335">335</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> getAtmosphereResource() {
+<a class="jxr_linenumber" name="L336" href="#L336">336</a>         <strong class="jxr_keyword">return</strong> r;
+<a class="jxr_linenumber" name="L337" href="#L337">337</a>     }
+<a class="jxr_linenumber" name="L338" href="#L338">338</a> 
+<a class="jxr_linenumber" name="L339" href="#L339">339</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L340" href="#L340">340</a> <em class="jxr_javadoccomment">     * Return the {@link org.atmosphere.cpr.AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="L341" href="#L341">341</a> <em class="jxr_javadoccomment">     * @return the {@link org.atmosphere.cpr.AtmosphereConfig}</em>
+<a class="jxr_linenumber" name="L342" href="#L342">342</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L343" href="#L343">343</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> getAtmosphereConfig() {
+<a class="jxr_linenumber" name="L344" href="#L344">344</a>         <strong class="jxr_keyword">return</strong> r.getAtmosphereConfig();
+<a class="jxr_linenumber" name="L345" href="#L345">345</a>     }
+<a class="jxr_linenumber" name="L346" href="#L346">346</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

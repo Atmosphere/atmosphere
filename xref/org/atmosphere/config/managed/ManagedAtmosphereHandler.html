@@ -78,11 +78,11 @@
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/config/managed/ManagedAtmosphereHandler.html">ManagedAtmosphereHandler</a> <strong class="jxr_keyword">extends</strong> <a href="../../../../org/atmosphere/handler/AbstractReflectorAtmosphereHandler.html">AbstractReflectorAtmosphereHandler</a>
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>          <strong class="jxr_keyword">implements</strong> AnnotatedProxy, <a href="../../../../org/atmosphere/cpr/AtmosphereResourceHeartbeatEventListener.html">AtmosphereResourceHeartbeatEventListener</a> {
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>  
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> IllegalArgumentException IAE = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> IllegalArgumentException IAE;
 <a class="jxr_linenumber" name="L74" href="#L74">74</a>      <strong class="jxr_keyword">private</strong> Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.<strong class="jxr_keyword">class</strong>);
 <a class="jxr_linenumber" name="L75" href="#L75">75</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> List&lt;Decoder&lt;?, ?&gt;&gt; EMPTY = Collections.&lt;Decoder&lt;?, ?&gt;&gt;emptyList();
 <a class="jxr_linenumber" name="L76" href="#L76">76</a>      <strong class="jxr_keyword">private</strong> Object proxiedInstance;
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>      <strong class="jxr_keyword">private</strong> List&lt;MethodInfo&gt; onRuntimeMethod;
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>      <strong class="jxr_keyword">protected</strong> List&lt;MethodInfo&gt; onRuntimeMethod;
 <a class="jxr_linenumber" name="L78" href="#L78">78</a>      <strong class="jxr_keyword">private</strong> Method onHeartbeatMethod;
 <a class="jxr_linenumber" name="L79" href="#L79">79</a>      <strong class="jxr_keyword">private</strong> Method onDisconnectMethod;
 <a class="jxr_linenumber" name="L80" href="#L80">80</a>      <strong class="jxr_keyword">private</strong> Method onTimeoutMethod;
@@ -93,8 +93,8 @@
 <a class="jxr_linenumber" name="L85" href="#L85">85</a>      <strong class="jxr_keyword">private</strong> Method onReadyMethod;
 <a class="jxr_linenumber" name="L86" href="#L86">86</a>      <strong class="jxr_keyword">private</strong> Method onResumeMethod;
 <a class="jxr_linenumber" name="L87" href="#L87">87</a>      <strong class="jxr_keyword">private</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config;
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> pathParams = false;
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>      <strong class="jxr_keyword">private</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceFactory.html">AtmosphereResourceFactory</a> resourcesFactory;
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> pathParams;
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>      <strong class="jxr_keyword">protected</strong> <a href="../../../../org/atmosphere/cpr/AtmosphereResourceFactory.html">AtmosphereResourceFactory</a> resourcesFactory;
 <a class="jxr_linenumber" name="L90" href="#L90">90</a>  
 <a class="jxr_linenumber" name="L91" href="#L91">91</a>      <strong class="jxr_keyword">final</strong> Map&lt;Method, List&lt;Encoder&lt;?, ?&gt;&gt;&gt; encoders = <strong class="jxr_keyword">new</strong> HashMap&lt;Method, List&lt;Encoder&lt;?, ?&gt;&gt;&gt;();
 <a class="jxr_linenumber" name="L92" href="#L92">92</a>      <strong class="jxr_keyword">final</strong> Map&lt;Method, List&lt;Decoder&lt;?, ?&gt;&gt;&gt; decoders = <strong class="jxr_keyword">new</strong> HashMap&lt;Method, List&lt;Decoder&lt;?, ?&gt;&gt;&gt;();
@@ -267,7 +267,7 @@
 <a class="jxr_linenumber" name="L259" href="#L259">259</a>         <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="L260" href="#L260">260</a>     }
 <a class="jxr_linenumber" name="L261" href="#L261">261</a> 
-<a class="jxr_linenumber" name="L262" href="#L262">262</a>     <strong class="jxr_keyword">private</strong> Method populate(Object c, Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt; annotation) {
+<a class="jxr_linenumber" name="L262" href="#L262">262</a>     <strong class="jxr_keyword">protected</strong> Method populate(Object c, Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt; annotation) {
 <a class="jxr_linenumber" name="L263" href="#L263">263</a>         <strong class="jxr_keyword">for</strong> (Method m : c.getClass().getMethods()) {
 <a class="jxr_linenumber" name="L264" href="#L264">264</a>             <strong class="jxr_keyword">if</strong> (m.isAnnotationPresent(annotation)) {
 <a class="jxr_linenumber" name="L265" href="#L265">265</a>                 <strong class="jxr_keyword">return</strong> m;
@@ -276,7 +276,7 @@
 <a class="jxr_linenumber" name="L268" href="#L268">268</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L269" href="#L269">269</a>     }
 <a class="jxr_linenumber" name="L270" href="#L270">270</a> 
-<a class="jxr_linenumber" name="L271" href="#L271">271</a>     <strong class="jxr_keyword">private</strong> List&lt;MethodInfo&gt; populateMessage(Object c, Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt; annotation) {
+<a class="jxr_linenumber" name="L271" href="#L271">271</a>     <strong class="jxr_keyword">protected</strong> List&lt;MethodInfo&gt; populateMessage(Object c, Class&lt;? <strong class="jxr_keyword">extends</strong> Annotation&gt; annotation) {
 <a class="jxr_linenumber" name="L272" href="#L272">272</a>         ArrayList&lt;MethodInfo&gt; methods = <strong class="jxr_keyword">new</strong> ArrayList&lt;MethodInfo&gt;();
 <a class="jxr_linenumber" name="L273" href="#L273">273</a>         <strong class="jxr_keyword">for</strong> (Method m : c.getClass().getMethods()) {
 <a class="jxr_linenumber" name="L274" href="#L274">274</a>             <strong class="jxr_keyword">if</strong> (m.isAnnotationPresent(annotation)) {

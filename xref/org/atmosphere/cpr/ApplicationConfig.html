@@ -902,38 +902,55 @@
 <a class="jxr_linenumber" name="L894" href="#L894">894</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L895" href="#L895">895</a>     String META_SERVICE_PATH = <span class="jxr_string">"org.atmosphere.cpr.metaServicePath"</span>;
 <a class="jxr_linenumber" name="L896" href="#L896">896</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L897" href="#L897">897</a> <em class="jxr_javadoccomment">     * Close the {@link org.atmosphere.cpr.AtmosphereResponse#getOutputStream()} when {@link org.atmosphere.cpr.AtmosphereResource#close()}</em>
+<a class="jxr_linenumber" name="L897" href="#L897">897</a> <em class="jxr_javadoccomment">     * Close the {@link AtmosphereResponseImpl#getOutputStream()} when {@link org.atmosphere.cpr.AtmosphereResource#close()}</em>
 <a class="jxr_linenumber" name="L898" href="#L898">898</a> <em class="jxr_javadoccomment">     * gets invoked, or when the underlying server close the connection.</em>
 <a class="jxr_linenumber" name="L899" href="#L899">899</a> <em class="jxr_javadoccomment">     * Default: false</em>
 <a class="jxr_linenumber" name="L900" href="#L900">900</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel</em>
 <a class="jxr_linenumber" name="L901" href="#L901">901</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L902" href="#L902">902</a>     String CLOSE_STREAM_ON_CANCEL = <span class="jxr_string">"org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel"</span>;
-<a class="jxr_linenumber" name="L903" href="#L903">903</a> 
-<a class="jxr_linenumber" name="L904" href="#L904">904</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L905" href="#L905">905</a> <em class="jxr_javadoccomment">     * Use init parameters specified for servlet context in addition to servlet config</em>
-<a class="jxr_linenumber" name="L906" href="#L906">906</a> <em class="jxr_javadoccomment">     * Default: false</em>
-<a class="jxr_linenumber" name="L907" href="#L907">907</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.AtmosphereConfig.getInitParameter</em>
-<a class="jxr_linenumber" name="L908" href="#L908">908</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L909" href="#L909">909</a>     String USE_SERVLET_CONTEXT_PARAMETERS = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereConfig.getInitParameter"</span>;
-<a class="jxr_linenumber" name="L910" href="#L910">910</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L911" href="#L911">911</a> <em class="jxr_javadoccomment">     * Use {@link ForkJoinPool} for dispatching messages and executing async I/O) operation</em>
-<a class="jxr_linenumber" name="L912" href="#L912">912</a> <em class="jxr_javadoccomment">     * Default: true</em>
-<a class="jxr_linenumber" name="L913" href="#L913">913</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.useForkJoinPool</em>
-<a class="jxr_linenumber" name="L914" href="#L914">914</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L915" href="#L915">915</a>     String USE_FORJOINPOOL = <span class="jxr_string">"org.atmosphere.useForkJoinPool"</span>;
-<a class="jxr_linenumber" name="L916" href="#L916">916</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L917" href="#L917">917</a> <em class="jxr_javadoccomment">     * Writes the given data to the given outputstream in two steps with extra flushes to make servers notice if the connection has been closed.</em>
-<a class="jxr_linenumber" name="L918" href="#L918">918</a> <em class="jxr_javadoccomment">     * This  enables caching the message instead of losing it, if the client is in the progress of reconnecting via a Proxy where</em>
-<a class="jxr_linenumber" name="L919" href="#L919">919</a> <em class="jxr_javadoccomment">     * the server fails to detect the connection has been closed.</em>
-<a class="jxr_linenumber" name="L920" href="#L920">920</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L921" href="#L921">921</a> <em class="jxr_javadoccomment">     * This value only apply to LONG-POLLING transport</em>
-<a class="jxr_linenumber" name="L922" href="#L922">922</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L923" href="#L923">923</a> <em class="jxr_javadoccomment">     * Default: false</em>
-<a class="jxr_linenumber" name="L924" href="#L924">924</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite</em>
-<a class="jxr_linenumber" name="L925" href="#L925">925</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L926" href="#L926">926</a>     String TWO_STEPS_WRITE = <span class="jxr_string">"org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite"</span>;
-<a class="jxr_linenumber" name="L927" href="#L927">927</a> }
-<a class="jxr_linenumber" name="L928" href="#L928">928</a> 
+<a class="jxr_linenumber" name="L903" href="#L903">903</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L904" href="#L904">904</a> <em class="jxr_javadoccomment">     * Use init parameters specified for servlet context in addition to servlet config</em>
+<a class="jxr_linenumber" name="L905" href="#L905">905</a> <em class="jxr_javadoccomment">     * Default: false</em>
+<a class="jxr_linenumber" name="L906" href="#L906">906</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.AtmosphereConfig.getInitParameter</em>
+<a class="jxr_linenumber" name="L907" href="#L907">907</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L908" href="#L908">908</a>     String USE_SERVLET_CONTEXT_PARAMETERS = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereConfig.getInitParameter"</span>;
+<a class="jxr_linenumber" name="L909" href="#L909">909</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L910" href="#L910">910</a> <em class="jxr_javadoccomment">     * Use {@link ForkJoinPool} for dispatching messages and executing async I/O) operation</em>
+<a class="jxr_linenumber" name="L911" href="#L911">911</a> <em class="jxr_javadoccomment">     * Default: true</em>
+<a class="jxr_linenumber" name="L912" href="#L912">912</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.useForkJoinPool</em>
+<a class="jxr_linenumber" name="L913" href="#L913">913</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L914" href="#L914">914</a>     String USE_FORJOINPOOL = <span class="jxr_string">"org.atmosphere.useForkJoinPool"</span>;
+<a class="jxr_linenumber" name="L915" href="#L915">915</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L916" href="#L916">916</a> <em class="jxr_javadoccomment">     * Writes the given data to the given outputstream in two steps with extra flushes to make servers notice if the connection has been closed.</em>
+<a class="jxr_linenumber" name="L917" href="#L917">917</a> <em class="jxr_javadoccomment">     * This  enables caching the message instead of losing it, if the client is in the progress of reconnecting via a Proxy where</em>
+<a class="jxr_linenumber" name="L918" href="#L918">918</a> <em class="jxr_javadoccomment">     * the server fails to detect the connection has been closed.</em>
+<a class="jxr_linenumber" name="L919" href="#L919">919</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L920" href="#L920">920</a> <em class="jxr_javadoccomment">     * This value only apply to LONG-POLLING transport</em>
+<a class="jxr_linenumber" name="L921" href="#L921">921</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L922" href="#L922">922</a> <em class="jxr_javadoccomment">     * Default: false</em>
+<a class="jxr_linenumber" name="L923" href="#L923">923</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite</em>
+<a class="jxr_linenumber" name="L924" href="#L924">924</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L925" href="#L925">925</a>     String TWO_STEPS_WRITE = <span class="jxr_string">"org.atmosphere.cpr.AbstractReflectorAtmosphereHandler.twoStepsWrite"</span>;
+<a class="jxr_linenumber" name="L926" href="#L926">926</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L927" href="#L927">927</a> <em class="jxr_javadoccomment">     * How many times the {@link org.atmosphere.inject.InjectableObjectFactory} will try to construct and inject an object</em>
+<a class="jxr_linenumber" name="L928" href="#L928">928</a> <em class="jxr_javadoccomment">     * from an {@link org.atmosphere.inject.Injectable}. This happens when an Injectable returns null instead of the</em>
+<a class="jxr_linenumber" name="L929" href="#L929">929</a> <em class="jxr_javadoccomment">     * expected Injection</em>
+<a class="jxr_linenumber" name="L930" href="#L930">930</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L931" href="#L931">931</a> <em class="jxr_javadoccomment">     * Default: 5</em>
+<a class="jxr_linenumber" name="L932" href="#L932">932</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.cpr.InjectableObjectFactory.maxTry</em>
+<a class="jxr_linenumber" name="L933" href="#L933">933</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L934" href="#L934">934</a>     String INJECTION_TRY = <span class="jxr_string">"org.atmosphere.cpr.InjectableObjectFactory.maxTry"</span>;
+<a class="jxr_linenumber" name="L935" href="#L935">935</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L936" href="#L936">936</a> <em class="jxr_javadoccomment">     * {@link org.atmosphere.inject.InjectableObjectFactory} listeners.</em>
+<a class="jxr_linenumber" name="L937" href="#L937">937</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L938" href="#L938">938</a> <em class="jxr_javadoccomment">     * Listeners MUST be Thread-Safe to use that feature.</em>
+<a class="jxr_linenumber" name="L939" href="#L939">939</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L940" href="#L940">940</a> <em class="jxr_javadoccomment">     * Default: null &lt;br&gt;</em>
+<a class="jxr_linenumber" name="L941" href="#L941">941</a> <em class="jxr_javadoccomment">     * Value: org.atmosphere.inject.InjectableObjectFactory.listeners</em>
+<a class="jxr_linenumber" name="L942" href="#L942">942</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L943" href="#L943">943</a>     String INJECTION_LISTENERS = <span class="jxr_string">"org.atmosphere.inject.InjectableObjectFactory.listeners"</span>;
+<a class="jxr_linenumber" name="L944" href="#L944">944</a> }
+<a class="jxr_linenumber" name="L945" href="#L945">945</a> 
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

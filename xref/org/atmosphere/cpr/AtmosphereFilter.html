@@ -112,8 +112,8 @@
 <a class="jxr_linenumber" name="L104" href="#L104">104</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
 <a class="jxr_linenumber" name="L105" href="#L105">105</a>             <strong class="jxr_keyword">throws</strong> IOException, ServletException {
 <a class="jxr_linenumber" name="L106" href="#L106">106</a> 
-<a class="jxr_linenumber" name="L107" href="#L107">107</a>         <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req = AtmosphereRequest.wrap((HttpServletRequest) request);
-<a class="jxr_linenumber" name="L108" href="#L108">108</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res = AtmosphereResponse.wrap((HttpServletResponse) response);
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>         <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> req = AtmosphereRequestImpl.wrap((HttpServletRequest) request);
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res = AtmosphereResponseImpl.wrap((HttpServletResponse) response);
 <a class="jxr_linenumber" name="L109" href="#L109">109</a>         <a href="../../../org/atmosphere/cpr/Action.html">Action</a> a = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L110" href="#L110">110</a> 
 <a class="jxr_linenumber" name="L111" href="#L111">111</a>         <strong class="jxr_keyword">if</strong> (req.getServletPath() == <strong class="jxr_keyword">null</strong>

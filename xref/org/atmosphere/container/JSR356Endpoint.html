@@ -27,269 +27,284 @@
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponse;
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.IOUtils;
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocket;
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketEventListener;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketProcessor;
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>  
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpSession;
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> javax.websocket.CloseReason;
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> javax.websocket.Endpoint;
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> javax.websocket.EndpointConfig;
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> javax.websocket.MessageHandler;
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> javax.websocket.Session;
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> javax.websocket.server.HandshakeRequest;
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> java.net.InetSocketAddress;
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> java.net.URI;
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> java.nio.ByteBuffer;
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>  <strong class="jxr_keyword">import</strong> java.util.List;
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.Callable;
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>  
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>  
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/JSR356Endpoint.html">JSR356Endpoint</a> <strong class="jxr_keyword">extends</strong> Endpoint {
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>  
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(JSR356Endpoint.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>  
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS = <span class="jxr_string">"javax.websocket.endpoint.localAddress"</span>;
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS = <span class="jxr_string">"javax.websocket.endpoint.remoteAddress"</span>;
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>  
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor;
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Integer maxBinaryBufferSize;
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Integer maxTextBufferSize;
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request;
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework;
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket;
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> webSocketWriteTimeout;
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>      <strong class="jxr_keyword">private</strong> HandshakeRequest handshakeRequest;
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>  
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/container/JSR356Endpoint.html">JSR356Endpoint</a>(<a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework, <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor) {
-<a class="jxr_linenumber" name="L65" href="#L65">65</a>          <strong class="jxr_keyword">this</strong>.framework = framework;
-<a class="jxr_linenumber" name="L66" href="#L66">66</a>          <strong class="jxr_keyword">this</strong>.webSocketProcessor = webSocketProcessor;
-<a class="jxr_linenumber" name="L67" href="#L67">67</a>  
-<a class="jxr_linenumber" name="L68" href="#L68">68</a>          <strong class="jxr_keyword">if</strong> (framework.isUseNativeImplementation()) {
-<a class="jxr_linenumber" name="L69" href="#L69">69</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"You cannot use WebSocket native implementation with JSR356. Please set "</span> + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + <span class="jxr_string">" to false"</span>);
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>          }
-<a class="jxr_linenumber" name="L71" href="#L71">71</a>  
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>          String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
-<a class="jxr_linenumber" name="L73" href="#L73">73</a>          <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L74" href="#L74">74</a>              webSocketWriteTimeout = Integer.valueOf(s);
-<a class="jxr_linenumber" name="L75" href="#L75">75</a>          } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L76" href="#L76">76</a>              webSocketWriteTimeout = -1;
-<a class="jxr_linenumber" name="L77" href="#L77">77</a>          }
-<a class="jxr_linenumber" name="L78" href="#L78">78</a>  
-<a class="jxr_linenumber" name="L79" href="#L79">79</a>          s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
-<a class="jxr_linenumber" name="L80" href="#L80">80</a>          <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L81" href="#L81">81</a>              maxBinaryBufferSize = Integer.valueOf(s);
-<a class="jxr_linenumber" name="L82" href="#L82">82</a>          } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L83" href="#L83">83</a>              maxBinaryBufferSize = -1;
-<a class="jxr_linenumber" name="L84" href="#L84">84</a>          }
-<a class="jxr_linenumber" name="L85" href="#L85">85</a>  
-<a class="jxr_linenumber" name="L86" href="#L86">86</a>          s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
-<a class="jxr_linenumber" name="L87" href="#L87">87</a>          <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L88" href="#L88">88</a>              maxTextBufferSize = Integer.valueOf(s);
-<a class="jxr_linenumber" name="L89" href="#L89">89</a>          } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L90" href="#L90">90</a>              maxTextBufferSize = -1;
-<a class="jxr_linenumber" name="L91" href="#L91">91</a>          }
-<a class="jxr_linenumber" name="L92" href="#L92">92</a>      }
-<a class="jxr_linenumber" name="L93" href="#L93">93</a>  
-<a class="jxr_linenumber" name="L94" href="#L94">94</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/container/JSR356Endpoint.html">JSR356Endpoint</a> handshakeRequest(HandshakeRequest handshakeRequest) {
-<a class="jxr_linenumber" name="L95" href="#L95">95</a>          <strong class="jxr_keyword">this</strong>.handshakeRequest = handshakeRequest;
-<a class="jxr_linenumber" name="L96" href="#L96">96</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L97" href="#L97">97</a>      }
-<a class="jxr_linenumber" name="L98" href="#L98">98</a>  
-<a class="jxr_linenumber" name="L99" href="#L99">99</a>      @Override
-<a class="jxr_linenumber" name="L100" href="#L100">100</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onOpen(Session session, <strong class="jxr_keyword">final</strong> EndpointConfig endpointConfig) {
-<a class="jxr_linenumber" name="L101" href="#L101">101</a> 
-<a class="jxr_linenumber" name="L102" href="#L102">102</a>         <strong class="jxr_keyword">if</strong> (framework.isDestroyed()) <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="L103" href="#L103">103</a> 
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>         <strong class="jxr_keyword">if</strong> (!session.isOpen()) {
-<a class="jxr_linenumber" name="L105" href="#L105">105</a>             logger.trace(<span class="jxr_string">"Session Closed {}"</span>, session);
-<a class="jxr_linenumber" name="L106" href="#L106">106</a>             <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="L107" href="#L107">107</a>         }
-<a class="jxr_linenumber" name="L108" href="#L108">108</a> 
-<a class="jxr_linenumber" name="L109" href="#L109">109</a>         <strong class="jxr_keyword">if</strong> (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
-<a class="jxr_linenumber" name="L110" href="#L110">110</a>         <strong class="jxr_keyword">if</strong> (webSocketWriteTimeout != -1) session.setMaxIdleTimeout(webSocketWriteTimeout);
-<a class="jxr_linenumber" name="L111" href="#L111">111</a>         <strong class="jxr_keyword">if</strong> (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
-<a class="jxr_linenumber" name="L112" href="#L112">112</a> 
-<a class="jxr_linenumber" name="L113" href="#L113">113</a>         webSocket = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/version/JSR356WebSocket.html">JSR356WebSocket</a>(session, framework.getAtmosphereConfig());
-<a class="jxr_linenumber" name="L114" href="#L114">114</a> 
-<a class="jxr_linenumber" name="L115" href="#L115">115</a>         Map&lt;String, String&gt; headers = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>         <em class="jxr_comment">// TODO: We don't support multi map header, which cause =&gt; https://github.com/Atmosphere/atmosphere/issues/1945</em>
-<a class="jxr_linenumber" name="L117" href="#L117">117</a>         <strong class="jxr_keyword">for</strong> (Map.Entry&lt;String, List&lt;String&gt;&gt; e : handshakeRequest.getHeaders().entrySet()) {
-<a class="jxr_linenumber" name="L118" href="#L118">118</a>             headers.put(e.getKey(), e.getValue().size() &gt; 0 ? e.getValue().get(0) : <span class="jxr_string">""</span>);
-<a class="jxr_linenumber" name="L119" href="#L119">119</a>         }
-<a class="jxr_linenumber" name="L120" href="#L120">120</a> 
-<a class="jxr_linenumber" name="L121" href="#L121">121</a>         <em class="jxr_comment">// Force WebSocket. Hack for https://github.com/Atmosphere/atmosphere/issues/1944</em>
-<a class="jxr_linenumber" name="L122" href="#L122">122</a>         headers.put(<span class="jxr_string">"Connection"</span>, <span class="jxr_string">"Upgrade"</span>);
-<a class="jxr_linenumber" name="L123" href="#L123">123</a> 
-<a class="jxr_linenumber" name="L124" href="#L124">124</a>         String servletPath = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
-<a class="jxr_linenumber" name="L125" href="#L125">125</a>         <strong class="jxr_keyword">if</strong> (servletPath == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L126" href="#L126">126</a>             servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
-<a class="jxr_linenumber" name="L127" href="#L127">127</a>         }
-<a class="jxr_linenumber" name="L128" href="#L128">128</a> 
-<a class="jxr_linenumber" name="L129" href="#L129">129</a>         URI uri = session.getRequestURI();
-<a class="jxr_linenumber" name="L130" href="#L130">130</a>         String[] paths = uri.getPath() != <strong class="jxr_keyword">null</strong> ? uri.getPath().split(<span class="jxr_string">"/"</span>) : <strong class="jxr_keyword">new</strong> String[]{};
-<a class="jxr_linenumber" name="L131" href="#L131">131</a> 
-<a class="jxr_linenumber" name="L132" href="#L132">132</a>         <strong class="jxr_keyword">int</strong> pathInfoStartIndex = 3;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequestImpl;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponseImpl;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.IOUtils;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocket;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketEventListener;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketProcessor;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> javax.servlet.http.HttpSession;
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> javax.websocket.CloseReason;
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> javax.websocket.Endpoint;
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> javax.websocket.EndpointConfig;
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> javax.websocket.MessageHandler;
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> javax.websocket.Session;
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> javax.websocket.server.HandshakeRequest;
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> java.net.InetSocketAddress;
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> java.net.URI;
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> java.nio.ByteBuffer;
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> java.util.List;
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.Callable;
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> <strong class="jxr_keyword">static</strong> org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/container/JSR356Endpoint.html">JSR356Endpoint</a> <strong class="jxr_keyword">extends</strong> Endpoint {
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger logger = LoggerFactory.getLogger(JSR356Endpoint.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS = <span class="jxr_string">"javax.websocket.endpoint.localAddress"</span>;
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS = <span class="jxr_string">"javax.websocket.endpoint.remoteAddress"</span>;
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor;
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Integer maxBinaryBufferSize;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> Integer maxTextBufferSize;
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request;
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework;
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket;
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> webSocketWriteTimeout;
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>      <strong class="jxr_keyword">private</strong> HandshakeRequest handshakeRequest;
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>  
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/container/JSR356Endpoint.html">JSR356Endpoint</a>(<a href="../../../org/atmosphere/cpr/AtmosphereFramework.html">AtmosphereFramework</a> framework, <a href="../../../org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a> webSocketProcessor) {
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>          <strong class="jxr_keyword">this</strong>.framework = framework;
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>          <strong class="jxr_keyword">this</strong>.webSocketProcessor = webSocketProcessor;
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>  
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>          <strong class="jxr_keyword">if</strong> (framework.isUseNativeImplementation()) {
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>              <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IllegalStateException(<span class="jxr_string">"You cannot use WebSocket native implementation with JSR356. Please set "</span> + ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT + <span class="jxr_string">" to false"</span>);
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>          }
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>  
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>          String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>          <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>              webSocketWriteTimeout = Integer.valueOf(s);
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>          } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>              webSocketWriteTimeout = -1;
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>          }
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>  
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>          s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>          <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>              maxBinaryBufferSize = Integer.valueOf(s);
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>          } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>              maxBinaryBufferSize = -1;
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>          }
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>  
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>          s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE);
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>          <strong class="jxr_keyword">if</strong> (s != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>              maxTextBufferSize = Integer.valueOf(s);
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>          } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>              maxTextBufferSize = -1;
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>          }
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>      }
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>  
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>      <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/container/JSR356Endpoint.html">JSR356Endpoint</a> handshakeRequest(HandshakeRequest handshakeRequest) {
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>          <strong class="jxr_keyword">this</strong>.handshakeRequest = handshakeRequest;
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>          <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>      }
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>  
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>     @Override
+<a class="jxr_linenumber" name="L101" href="#L101">101</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onOpen(Session session, <strong class="jxr_keyword">final</strong> EndpointConfig endpointConfig) {
+<a class="jxr_linenumber" name="L102" href="#L102">102</a> 
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>         <strong class="jxr_keyword">if</strong> (framework.isDestroyed()) <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L104" href="#L104">104</a> 
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>         <strong class="jxr_keyword">if</strong> (!session.isOpen()) {
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>             logger.trace(<span class="jxr_string">"Session Closed {}"</span>, session);
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>             <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>         }
+<a class="jxr_linenumber" name="L109" href="#L109">109</a> 
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         <strong class="jxr_keyword">if</strong> (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>         <strong class="jxr_keyword">if</strong> (webSocketWriteTimeout != -1) session.setMaxIdleTimeout(webSocketWriteTimeout);
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>         <strong class="jxr_keyword">if</strong> (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
+<a class="jxr_linenumber" name="L113" href="#L113">113</a> 
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>         webSocket = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/version/JSR356WebSocket.html">JSR356WebSocket</a>(session, framework.getAtmosphereConfig());
+<a class="jxr_linenumber" name="L115" href="#L115">115</a> 
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>         Map&lt;String, String&gt; headers = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>         <em class="jxr_comment">// TODO: We don't support multi map header, which cause =&gt; https://github.com/Atmosphere/atmosphere/issues/1945</em>
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>         <strong class="jxr_keyword">for</strong> (Map.Entry&lt;String, List&lt;String&gt;&gt; e : handshakeRequest.getHeaders().entrySet()) {
+<a class="jxr_linenumber" name="L119" href="#L119">119</a>             headers.put(e.getKey(), !e.getValue().isEmpty() ? e.getValue().get(0) : <span class="jxr_string">""</span>);
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>         }
+<a class="jxr_linenumber" name="L121" href="#L121">121</a> 
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>         <em class="jxr_comment">// Force WebSocket. Hack for https://github.com/Atmosphere/atmosphere/issues/1944</em>
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>         headers.put(<span class="jxr_string">"Connection"</span>, <span class="jxr_string">"Upgrade"</span>);
+<a class="jxr_linenumber" name="L124" href="#L124">124</a> 
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>         String servletPath = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
+<a class="jxr_linenumber" name="L126" href="#L126">126</a>         <strong class="jxr_keyword">if</strong> (servletPath == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L127" href="#L127">127</a>             servletPath = IOUtils.guestServletPath(framework.getAtmosphereConfig());
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>         }
+<a class="jxr_linenumber" name="L129" href="#L129">129</a> 
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>         <strong class="jxr_keyword">boolean</strong> recomputeForBackwardCompat = false;
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>         URI uri = session.getRequestURI();
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>         String rawPath = uri.getPath();
 <a class="jxr_linenumber" name="L133" href="#L133">133</a>         String contextPath = framework.getAtmosphereConfig().getServletContext().getContextPath();
-<a class="jxr_linenumber" name="L134" href="#L134">134</a>         <strong class="jxr_keyword">if</strong> (<span class="jxr_string">""</span>.equals(contextPath) || <span class="jxr_string">""</span>.equals(servletPath)) {
-<a class="jxr_linenumber" name="L135" href="#L135">135</a>             pathInfoStartIndex = 2;
-<a class="jxr_linenumber" name="L136" href="#L136">136</a>         }
-<a class="jxr_linenumber" name="L137" href="#L137">137</a> 
-<a class="jxr_linenumber" name="L138" href="#L138">138</a>         <em class="jxr_comment">// /contextPath/servletPath/pathInfo or /servletPath/pathInfo</em>
-<a class="jxr_linenumber" name="L139" href="#L139">139</a>         StringBuffer b = <strong class="jxr_keyword">new</strong> StringBuffer(<span class="jxr_string">"/"</span>);
-<a class="jxr_linenumber" name="L140" href="#L140">140</a>         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = 0; i &lt; paths.length; i++) {
-<a class="jxr_linenumber" name="L141" href="#L141">141</a>             <strong class="jxr_keyword">if</strong> (i &gt;= pathInfoStartIndex) {
-<a class="jxr_linenumber" name="L142" href="#L142">142</a>                 b.append(paths[i]).append(<span class="jxr_string">"/"</span>);
-<a class="jxr_linenumber" name="L143" href="#L143">143</a>             }
-<a class="jxr_linenumber" name="L144" href="#L144">144</a>         }
-<a class="jxr_linenumber" name="L145" href="#L145">145</a> 
-<a class="jxr_linenumber" name="L146" href="#L146">146</a>         <strong class="jxr_keyword">if</strong> (b.length() &gt; 1) {
-<a class="jxr_linenumber" name="L147" href="#L147">147</a>             b.deleteCharAt(b.length() - 1);
-<a class="jxr_linenumber" name="L148" href="#L148">148</a>         }
-<a class="jxr_linenumber" name="L149" href="#L149">149</a> 
-<a class="jxr_linenumber" name="L150" href="#L150">150</a>         String pathInfo = b.toString();
-<a class="jxr_linenumber" name="L151" href="#L151">151</a>         <strong class="jxr_keyword">if</strong> (pathInfo.equals(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="L152" href="#L152">152</a>             pathInfo = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L153" href="#L153">153</a>         }
-<a class="jxr_linenumber" name="L154" href="#L154">154</a> 
-<a class="jxr_linenumber" name="L155" href="#L155">155</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L156" href="#L156">156</a>             String requestURL = uri.toASCIIString();
-<a class="jxr_linenumber" name="L157" href="#L157">157</a>             <strong class="jxr_keyword">if</strong> (requestURL.contains(<span class="jxr_string">"?"</span>)) {
-<a class="jxr_linenumber" name="L158" href="#L158">158</a>                 requestURL = requestURL.substring(0, requestURL.indexOf(<span class="jxr_string">"?"</span>));
-<a class="jxr_linenumber" name="L159" href="#L159">159</a>             }
-<a class="jxr_linenumber" name="L160" href="#L160">160</a> 
-<a class="jxr_linenumber" name="L161" href="#L161">161</a>             <em class="jxr_comment">// https://issues.apache.org/bugzilla/show_bug.cgi?id=56573</em>
-<a class="jxr_linenumber" name="L162" href="#L162">162</a>             <em class="jxr_comment">// https://java.net/jira/browse/WEBSOCKET_SPEC-228</em>
-<a class="jxr_linenumber" name="L163" href="#L163">163</a>             <strong class="jxr_keyword">if</strong> ((!requestURL.startsWith(<span class="jxr_string">"http://"</span>)) || (!requestURL.startsWith(<span class="jxr_string">"https://"</span>))) {
-<a class="jxr_linenumber" name="L164" href="#L164">164</a>                 <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"/"</span>)) {
-<a class="jxr_linenumber" name="L165" href="#L165">165</a>                     List&lt;String&gt; l = handshakeRequest.getHeaders().get(<span class="jxr_string">"origin"</span>);
-<a class="jxr_linenumber" name="L166" href="#L166">166</a>                     <strong class="jxr_keyword">if</strong> (l == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L167" href="#L167">167</a>                         <em class="jxr_comment">// https://issues.jboss.org/browse/UNDERTOW-252</em>
-<a class="jxr_linenumber" name="L168" href="#L168">168</a>                         l = handshakeRequest.getHeaders().get(<span class="jxr_string">"Origin"</span>);
-<a class="jxr_linenumber" name="L169" href="#L169">169</a>                     }
-<a class="jxr_linenumber" name="L170" href="#L170">170</a>                     String origin;
-<a class="jxr_linenumber" name="L171" href="#L171">171</a>                     <strong class="jxr_keyword">if</strong> (l != <strong class="jxr_keyword">null</strong> &amp;&amp; l.size() &gt; 0) {
-<a class="jxr_linenumber" name="L172" href="#L172">172</a>                         origin = l.get(0);
-<a class="jxr_linenumber" name="L173" href="#L173">173</a>                     } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L174" href="#L174">174</a>                         <em class="jxr_comment">// Broken WebSocket Spec</em>
-<a class="jxr_linenumber" name="L175" href="#L175">175</a>                         logger.trace(<span class="jxr_string">"Unable to retrieve the `origin` header for websocket {}"</span>, session);
-<a class="jxr_linenumber" name="L176" href="#L176">176</a>                         origin = <strong class="jxr_keyword">new</strong> StringBuilder(<span class="jxr_string">"http"</span>).append(session.isSecure() ? <span class="jxr_string">"s"</span> : <span class="jxr_string">""</span>).append(<span class="jxr_string">"://0.0.0.0:80"</span>).toString();
-<a class="jxr_linenumber" name="L177" href="#L177">177</a>                     }
-<a class="jxr_linenumber" name="L178" href="#L178">178</a>                     requestURL = <strong class="jxr_keyword">new</strong> StringBuilder(origin).append(requestURL).toString();
-<a class="jxr_linenumber" name="L179" href="#L179">179</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"ws://"</span>)) {
-<a class="jxr_linenumber" name="L180" href="#L180">180</a>                     requestURL = requestURL.replace(<span class="jxr_string">"ws://"</span>, <span class="jxr_string">"http://"</span>);
-<a class="jxr_linenumber" name="L181" href="#L181">181</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"wss://"</span>)) {
-<a class="jxr_linenumber" name="L182" href="#L182">182</a>                     requestURL = requestURL.replace(<span class="jxr_string">"wss://"</span>, <span class="jxr_string">"https://"</span>);
-<a class="jxr_linenumber" name="L183" href="#L183">183</a>                 }
-<a class="jxr_linenumber" name="L184" href="#L184">184</a>             }
-<a class="jxr_linenumber" name="L185" href="#L185">185</a> 
-<a class="jxr_linenumber" name="L186" href="#L186">186</a>             request = <strong class="jxr_keyword">new</strong> AtmosphereRequest.Builder()
-<a class="jxr_linenumber" name="L187" href="#L187">187</a>                     .requestURI(uri.getPath())
-<a class="jxr_linenumber" name="L188" href="#L188">188</a>                     .requestURL(requestURL)
-<a class="jxr_linenumber" name="L189" href="#L189">189</a>                     .headers(headers)
-<a class="jxr_linenumber" name="L190" href="#L190">190</a>                     .session((HttpSession) handshakeRequest.getHttpSession())
-<a class="jxr_linenumber" name="L191" href="#L191">191</a>                     .servletPath(servletPath)
-<a class="jxr_linenumber" name="L192" href="#L192">192</a>                     .contextPath(framework.getServletContext().getContextPath())
-<a class="jxr_linenumber" name="L193" href="#L193">193</a>                     .pathInfo(pathInfo)
-<a class="jxr_linenumber" name="L194" href="#L194">194</a>                     .destroyable(false)
-<a class="jxr_linenumber" name="L195" href="#L195">195</a>                     .userPrincipal(session.getUserPrincipal())
-<a class="jxr_linenumber" name="L196" href="#L196">196</a>                     .remoteInetSocketAddress(<strong class="jxr_keyword">new</strong> Callable&lt;InetSocketAddress&gt;() {
-<a class="jxr_linenumber" name="L197" href="#L197">197</a>                         @Override
-<a class="jxr_linenumber" name="L198" href="#L198">198</a>                         <strong class="jxr_keyword">public</strong> InetSocketAddress call() <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="L199" href="#L199">199</a>                             <strong class="jxr_keyword">return</strong> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS);
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>                         }
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>                     })
-<a class="jxr_linenumber" name="L202" href="#L202">202</a>                     .localInetSocketAddress(<strong class="jxr_keyword">new</strong> Callable&lt;InetSocketAddress&gt;() {
-<a class="jxr_linenumber" name="L203" href="#L203">203</a>                         @Override
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>                         <strong class="jxr_keyword">public</strong> InetSocketAddress call() <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="L205" href="#L205">205</a>                             <strong class="jxr_keyword">return</strong> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS);
-<a class="jxr_linenumber" name="L206" href="#L206">206</a>                         }
-<a class="jxr_linenumber" name="L207" href="#L207">207</a>                     })
-<a class="jxr_linenumber" name="L208" href="#L208">208</a>                     .build()
-<a class="jxr_linenumber" name="L209" href="#L209">209</a>                     .queryString(session.getQueryString());
-<a class="jxr_linenumber" name="L210" href="#L210">210</a> 
-<a class="jxr_linenumber" name="L211" href="#L211">211</a>             <strong class="jxr_keyword">if</strong> (!webSocketProcessor.handshake(request)) {
-<a class="jxr_linenumber" name="L212" href="#L212">212</a>                 <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L213" href="#L213">213</a>                     session.close(<strong class="jxr_keyword">new</strong> CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, <span class="jxr_string">"Handshake not accepted."</span>));
-<a class="jxr_linenumber" name="L214" href="#L214">214</a>                 } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="L215" href="#L215">215</a>                     logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L216" href="#L216">216</a>                 }
-<a class="jxr_linenumber" name="L217" href="#L217">217</a>                 <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="L218" href="#L218">218</a>             }
-<a class="jxr_linenumber" name="L219" href="#L219">219</a> 
-<a class="jxr_linenumber" name="L220" href="#L220">220</a>             <em class="jxr_comment">// TODO: Fix this crazy code.</em>
-<a class="jxr_linenumber" name="L221" href="#L221">221</a>             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, <span class="jxr_string">"false"</span>);
-<a class="jxr_linenumber" name="L222" href="#L222">222</a> 
-<a class="jxr_linenumber" name="L223" href="#L223">223</a>             webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
-<a class="jxr_linenumber" name="L224" href="#L224">224</a> 
-<a class="jxr_linenumber" name="L225" href="#L225">225</a>             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, <span class="jxr_string">"true"</span>);
-<a class="jxr_linenumber" name="L226" href="#L226">226</a> 
-<a class="jxr_linenumber" name="L227" href="#L227">227</a>             <strong class="jxr_keyword">if</strong> (session.isOpen()) {
-<a class="jxr_linenumber" name="L228" href="#L228">228</a>                 session.addMessageHandler(<strong class="jxr_keyword">new</strong> MessageHandler.Whole&lt;String&gt;() {
-<a class="jxr_linenumber" name="L229" href="#L229">229</a>                     @Override
-<a class="jxr_linenumber" name="L230" href="#L230">230</a>                     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(String s) {
-<a class="jxr_linenumber" name="L231" href="#L231">231</a>                         webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
-<a class="jxr_linenumber" name="L232" href="#L232">232</a>                     }
-<a class="jxr_linenumber" name="L233" href="#L233">233</a>                 });
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>         <strong class="jxr_keyword">int</strong> pathInfoStartAt = rawPath.indexOf(servletPath) + servletPath.length();
+<a class="jxr_linenumber" name="L135" href="#L135">135</a> 
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>         String pathInfo = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>         <strong class="jxr_keyword">if</strong> (rawPath.length() &gt;= pathInfoStartAt) {
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>             pathInfo = rawPath.substring(pathInfoStartAt);
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L140" href="#L140">140</a>             recomputeForBackwardCompat = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L141" href="#L141">141</a>         }
+<a class="jxr_linenumber" name="L142" href="#L142">142</a> 
+<a class="jxr_linenumber" name="L143" href="#L143">143</a>         <strong class="jxr_keyword">if</strong> (recomputeForBackwardCompat) {
+<a class="jxr_linenumber" name="L144" href="#L144">144</a>             <em class="jxr_comment">// DON"T SCREAM this code is for broken/backward compatible</em>
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>             String[] paths = uri.getPath() != <strong class="jxr_keyword">null</strong> ? uri.getPath().split(<span class="jxr_string">"/"</span>) : <strong class="jxr_keyword">new</strong> String[]{};
+<a class="jxr_linenumber" name="L146" href="#L146">146</a> 
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>             <strong class="jxr_keyword">int</strong> pathInfoStartIndex = 3;
+<a class="jxr_linenumber" name="L148" href="#L148">148</a>             <strong class="jxr_keyword">if</strong> (<span class="jxr_string">""</span>.equals(contextPath) || <span class="jxr_string">""</span>.equals(servletPath)) {
+<a class="jxr_linenumber" name="L149" href="#L149">149</a>                 pathInfoStartIndex = 2;
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>             }
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>             <em class="jxr_comment">///contextPath / servletPath / pathInfo or / servletPath / pathInfo</em>
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>             StringBuffer b = <strong class="jxr_keyword">new</strong> StringBuffer(<span class="jxr_string">"/"</span>);
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>             <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = 0; i &lt; paths.length; i++) {
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>                 <strong class="jxr_keyword">if</strong> (i &gt;= pathInfoStartIndex) {
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>                     b.append(paths[i]).append(<span class="jxr_string">"/"</span>);
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>                 }
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>             }
+<a class="jxr_linenumber" name="L158" href="#L158">158</a> 
+<a class="jxr_linenumber" name="L159" href="#L159">159</a>             <strong class="jxr_keyword">if</strong> (b.length() &gt; 1) {
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>                 b.deleteCharAt(b.length() - 1);
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>             }
+<a class="jxr_linenumber" name="L162" href="#L162">162</a> 
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>             pathInfo = b.toString();
+<a class="jxr_linenumber" name="L164" href="#L164">164</a>         }
+<a class="jxr_linenumber" name="L165" href="#L165">165</a> 
+<a class="jxr_linenumber" name="L166" href="#L166">166</a>         <strong class="jxr_keyword">if</strong> (pathInfo.equals(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>             pathInfo = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>         }
+<a class="jxr_linenumber" name="L169" href="#L169">169</a> 
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>             String requestURL = uri.toASCIIString();
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>             <strong class="jxr_keyword">if</strong> (requestURL.contains(<span class="jxr_string">"?"</span>)) {
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>                 requestURL = requestURL.substring(0, requestURL.indexOf(<span class="jxr_string">"?"</span>));
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>             }
+<a class="jxr_linenumber" name="L175" href="#L175">175</a> 
+<a class="jxr_linenumber" name="L176" href="#L176">176</a>             <em class="jxr_comment">// https://issues.apache.org/bugzilla/show_bug.cgi?id=56573</em>
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>             <em class="jxr_comment">// https://java.net/jira/browse/WEBSOCKET_SPEC-228</em>
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>             <strong class="jxr_keyword">if</strong> ((!requestURL.startsWith(<span class="jxr_string">"http://"</span>)) || (!requestURL.startsWith(<span class="jxr_string">"https://"</span>))) {
+<a class="jxr_linenumber" name="L179" href="#L179">179</a>                 <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"/"</span>)) {
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>                     List&lt;String&gt; l = handshakeRequest.getHeaders().get(<span class="jxr_string">"origin"</span>);
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>                     <strong class="jxr_keyword">if</strong> (l == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>                         <em class="jxr_comment">// https://issues.jboss.org/browse/UNDERTOW-252</em>
+<a class="jxr_linenumber" name="L183" href="#L183">183</a>                         l = handshakeRequest.getHeaders().get(<span class="jxr_string">"Origin"</span>);
+<a class="jxr_linenumber" name="L184" href="#L184">184</a>                     }
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>                     String origin;
+<a class="jxr_linenumber" name="L186" href="#L186">186</a>                     <strong class="jxr_keyword">if</strong> (l != <strong class="jxr_keyword">null</strong> &amp;&amp; !l.isEmpty()) {
+<a class="jxr_linenumber" name="L187" href="#L187">187</a>                         origin = l.get(0);
+<a class="jxr_linenumber" name="L188" href="#L188">188</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>                         <em class="jxr_comment">// Broken WebSocket Spec</em>
+<a class="jxr_linenumber" name="L190" href="#L190">190</a>                         logger.trace(<span class="jxr_string">"Unable to retrieve the `origin` header for websocket {}"</span>, session);
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>                         origin = <strong class="jxr_keyword">new</strong> StringBuilder(<span class="jxr_string">"http"</span>).append(session.isSecure() ? <span class="jxr_string">"s"</span> : <span class="jxr_string">""</span>).append(<span class="jxr_string">"://0.0.0.0:80"</span>).toString();
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>                     }
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>                     requestURL = <strong class="jxr_keyword">new</strong> StringBuilder(origin).append(requestURL).toString();
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"ws://"</span>)) {
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>                     requestURL = requestURL.replace(<span class="jxr_string">"ws://"</span>, <span class="jxr_string">"http://"</span>);
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (requestURL.startsWith(<span class="jxr_string">"wss://"</span>)) {
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>                     requestURL = requestURL.replace(<span class="jxr_string">"wss://"</span>, <span class="jxr_string">"https://"</span>);
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>                 }
+<a class="jxr_linenumber" name="L199" href="#L199">199</a>             }
+<a class="jxr_linenumber" name="L200" href="#L200">200</a> 
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>             request = <strong class="jxr_keyword">new</strong> AtmosphereRequestImpl.Builder()
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>                     .requestURI(uri.getPath())
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>                     .requestURL(requestURL)
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>                     .headers(headers)
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>                     .session((HttpSession) handshakeRequest.getHttpSession())
+<a class="jxr_linenumber" name="L206" href="#L206">206</a>                     .servletPath(servletPath)
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>                     .contextPath(framework.getServletContext().getContextPath())
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>                     .pathInfo(pathInfo)
+<a class="jxr_linenumber" name="L209" href="#L209">209</a>                     .destroyable(false)
+<a class="jxr_linenumber" name="L210" href="#L210">210</a>                     .userPrincipal(session.getUserPrincipal())
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>                     .remoteInetSocketAddress(<strong class="jxr_keyword">new</strong> Callable&lt;InetSocketAddress&gt;() {
+<a class="jxr_linenumber" name="L212" href="#L212">212</a>                         @Override
+<a class="jxr_linenumber" name="L213" href="#L213">213</a>                         <strong class="jxr_keyword">public</strong> InetSocketAddress call() <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L214" href="#L214">214</a>                             <strong class="jxr_keyword">return</strong> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS);
+<a class="jxr_linenumber" name="L215" href="#L215">215</a>                         }
+<a class="jxr_linenumber" name="L216" href="#L216">216</a>                     })
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>                     .localInetSocketAddress(<strong class="jxr_keyword">new</strong> Callable&lt;InetSocketAddress&gt;() {
+<a class="jxr_linenumber" name="L218" href="#L218">218</a>                         @Override
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>                         <strong class="jxr_keyword">public</strong> InetSocketAddress call() <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L220" href="#L220">220</a>                             <strong class="jxr_keyword">return</strong> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS);
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>                         }
+<a class="jxr_linenumber" name="L222" href="#L222">222</a>                     })
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>                     .build()
+<a class="jxr_linenumber" name="L224" href="#L224">224</a>                     .queryString(session.getQueryString());
+<a class="jxr_linenumber" name="L225" href="#L225">225</a> 
+<a class="jxr_linenumber" name="L226" href="#L226">226</a>             <strong class="jxr_keyword">if</strong> (!webSocketProcessor.handshake(request)) {
+<a class="jxr_linenumber" name="L227" href="#L227">227</a>                 <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L228" href="#L228">228</a>                     session.close(<strong class="jxr_keyword">new</strong> CloseReason(CloseReason.CloseCodes.CANNOT_ACCEPT, <span class="jxr_string">"Handshake not accepted."</span>));
+<a class="jxr_linenumber" name="L229" href="#L229">229</a>                 } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>                     logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="L231" href="#L231">231</a>                 }
+<a class="jxr_linenumber" name="L232" href="#L232">232</a>                 <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>             }
 <a class="jxr_linenumber" name="L234" href="#L234">234</a> 
-<a class="jxr_linenumber" name="L235" href="#L235">235</a>                 session.addMessageHandler(<strong class="jxr_keyword">new</strong> MessageHandler.Whole&lt;ByteBuffer&gt;() {
-<a class="jxr_linenumber" name="L236" href="#L236">236</a>                     @Override
-<a class="jxr_linenumber" name="L237" href="#L237">237</a>                     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(ByteBuffer bb) {
-<a class="jxr_linenumber" name="L238" href="#L238">238</a>                         byte[] b = bb.hasArray() ? bb.array() : <strong class="jxr_keyword">new</strong> byte[bb.limit()];
-<a class="jxr_linenumber" name="L239" href="#L239">239</a>                         bb.get(b);
-<a class="jxr_linenumber" name="L240" href="#L240">240</a>                         webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
-<a class="jxr_linenumber" name="L241" href="#L241">241</a>                     }
-<a class="jxr_linenumber" name="L242" href="#L242">242</a>                 });
-<a class="jxr_linenumber" name="L243" href="#L243">243</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L244" href="#L244">244</a>                 logger.trace(<span class="jxr_string">"Session closed during onOpen {}"</span>, session);
-<a class="jxr_linenumber" name="L245" href="#L245">245</a>                 onClose(session, <strong class="jxr_keyword">new</strong> CloseReason(CloseReason.CloseCodes.GOING_AWAY, <span class="jxr_string">"Session closed already"</span>));
-<a class="jxr_linenumber" name="L246" href="#L246">246</a>             }
-<a class="jxr_linenumber" name="L247" href="#L247">247</a>         } <strong class="jxr_keyword">catch</strong> (Throwable e) {
-<a class="jxr_linenumber" name="L248" href="#L248">248</a>             <strong class="jxr_keyword">if</strong> (session.isOpen()){
-<a class="jxr_linenumber" name="L249" href="#L249">249</a>                 logger.error(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L250" href="#L250">250</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L251" href="#L251">251</a>                 logger.trace(<span class="jxr_string">"Session closed during onOpen"</span>, e);
-<a class="jxr_linenumber" name="L252" href="#L252">252</a>             }
-<a class="jxr_linenumber" name="L253" href="#L253">253</a> 
-<a class="jxr_linenumber" name="L254" href="#L254">254</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L255" href="#L255">255</a>                 session.close(<strong class="jxr_keyword">new</strong> CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
-<a class="jxr_linenumber" name="L256" href="#L256">256</a>             } <strong class="jxr_keyword">catch</strong> (IOException e1) {
-<a class="jxr_linenumber" name="L257" href="#L257">257</a>                 logger.trace(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L258" href="#L258">258</a>             }
-<a class="jxr_linenumber" name="L259" href="#L259">259</a>             <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="L260" href="#L260">260</a>         }
-<a class="jxr_linenumber" name="L261" href="#L261">261</a> 
-<a class="jxr_linenumber" name="L262" href="#L262">262</a>     }
-<a class="jxr_linenumber" name="L263" href="#L263">263</a> 
-<a class="jxr_linenumber" name="L264" href="#L264">264</a>     @Override
-<a class="jxr_linenumber" name="L265" href="#L265">265</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onClose(javax.websocket.Session session, javax.websocket.CloseReason closeCode) {
-<a class="jxr_linenumber" name="L266" href="#L266">266</a>         logger.trace(<span class="jxr_string">"{} closed {}"</span>, session, closeCode);
-<a class="jxr_linenumber" name="L267" href="#L267">267</a>         <strong class="jxr_keyword">if</strong> (request != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L268" href="#L268">268</a>             request.destroy();
-<a class="jxr_linenumber" name="L269" href="#L269">269</a>             webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
-<a class="jxr_linenumber" name="L270" href="#L270">270</a>         }
-<a class="jxr_linenumber" name="L271" href="#L271">271</a>     }
-<a class="jxr_linenumber" name="L272" href="#L272">272</a> 
-<a class="jxr_linenumber" name="L273" href="#L273">273</a>     @Override
-<a class="jxr_linenumber" name="L274" href="#L274">274</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onError(javax.websocket.Session session, java.lang.Throwable t) {
-<a class="jxr_linenumber" name="L275" href="#L275">275</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L276" href="#L276">276</a>             logger.error(<span class="jxr_string">""</span>, t);
-<a class="jxr_linenumber" name="L277" href="#L277">277</a>             webSocketProcessor.notifyListener(webSocket,
-<a class="jxr_linenumber" name="L278" href="#L278">278</a>                     <strong class="jxr_keyword">new</strong> WebSocketEventListener.WebSocketEvent&lt;Throwable&gt;(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
-<a class="jxr_linenumber" name="L279" href="#L279">279</a>         } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="L280" href="#L280">280</a>             <em class="jxr_comment">// Ignore completely</em>
-<a class="jxr_linenumber" name="L281" href="#L281">281</a>             <em class="jxr_comment">// https://github.com/Atmosphere/atmosphere/issues/1758</em>
-<a class="jxr_linenumber" name="L282" href="#L282">282</a>         }
-<a class="jxr_linenumber" name="L283" href="#L283">283</a>     }
-<a class="jxr_linenumber" name="L284" href="#L284">284</a> }
+<a class="jxr_linenumber" name="L235" href="#L235">235</a>             <em class="jxr_comment">// TODO: Fix this crazy code.</em>
+<a class="jxr_linenumber" name="L236" href="#L236">236</a>             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, <span class="jxr_string">"false"</span>);
+<a class="jxr_linenumber" name="L237" href="#L237">237</a> 
+<a class="jxr_linenumber" name="L238" href="#L238">238</a>             webSocketProcessor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+<a class="jxr_linenumber" name="L239" href="#L239">239</a> 
+<a class="jxr_linenumber" name="L240" href="#L240">240</a>             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, <span class="jxr_string">"true"</span>);
+<a class="jxr_linenumber" name="L241" href="#L241">241</a> 
+<a class="jxr_linenumber" name="L242" href="#L242">242</a>             <strong class="jxr_keyword">if</strong> (session.isOpen()) {
+<a class="jxr_linenumber" name="L243" href="#L243">243</a>                 session.addMessageHandler(<strong class="jxr_keyword">new</strong> MessageHandler.Whole&lt;String&gt;() {
+<a class="jxr_linenumber" name="L244" href="#L244">244</a>                     @Override
+<a class="jxr_linenumber" name="L245" href="#L245">245</a>                     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(String s) {
+<a class="jxr_linenumber" name="L246" href="#L246">246</a>                         webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
+<a class="jxr_linenumber" name="L247" href="#L247">247</a>                     }
+<a class="jxr_linenumber" name="L248" href="#L248">248</a>                 });
+<a class="jxr_linenumber" name="L249" href="#L249">249</a> 
+<a class="jxr_linenumber" name="L250" href="#L250">250</a>                 session.addMessageHandler(<strong class="jxr_keyword">new</strong> MessageHandler.Whole&lt;ByteBuffer&gt;() {
+<a class="jxr_linenumber" name="L251" href="#L251">251</a>                     @Override
+<a class="jxr_linenumber" name="L252" href="#L252">252</a>                     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onMessage(ByteBuffer bb) {
+<a class="jxr_linenumber" name="L253" href="#L253">253</a>                         byte[] b = bb.hasArray() ? bb.array() : <strong class="jxr_keyword">new</strong> byte[bb.limit()];
+<a class="jxr_linenumber" name="L254" href="#L254">254</a>                         bb.get(b);
+<a class="jxr_linenumber" name="L255" href="#L255">255</a>                         webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
+<a class="jxr_linenumber" name="L256" href="#L256">256</a>                     }
+<a class="jxr_linenumber" name="L257" href="#L257">257</a>                 });
+<a class="jxr_linenumber" name="L258" href="#L258">258</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L259" href="#L259">259</a>                 logger.trace(<span class="jxr_string">"Session closed during onOpen {}"</span>, session);
+<a class="jxr_linenumber" name="L260" href="#L260">260</a>                 onClose(session, <strong class="jxr_keyword">new</strong> CloseReason(CloseReason.CloseCodes.GOING_AWAY, <span class="jxr_string">"Session closed already"</span>));
+<a class="jxr_linenumber" name="L261" href="#L261">261</a>             }
+<a class="jxr_linenumber" name="L262" href="#L262">262</a>         } <strong class="jxr_keyword">catch</strong> (Throwable e) {
+<a class="jxr_linenumber" name="L263" href="#L263">263</a>             <strong class="jxr_keyword">if</strong> (session.isOpen()){
+<a class="jxr_linenumber" name="L264" href="#L264">264</a>                 logger.error(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="L265" href="#L265">265</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L266" href="#L266">266</a>                 logger.trace(<span class="jxr_string">"Session closed during onOpen"</span>, e);
+<a class="jxr_linenumber" name="L267" href="#L267">267</a>             }
+<a class="jxr_linenumber" name="L268" href="#L268">268</a> 
+<a class="jxr_linenumber" name="L269" href="#L269">269</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L270" href="#L270">270</a>                 session.close(<strong class="jxr_keyword">new</strong> CloseReason(CloseReason.CloseCodes.UNEXPECTED_CONDITION, e.getMessage()));
+<a class="jxr_linenumber" name="L271" href="#L271">271</a>             } <strong class="jxr_keyword">catch</strong> (IOException e1) {
+<a class="jxr_linenumber" name="L272" href="#L272">272</a>                 logger.trace(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="L273" href="#L273">273</a>             }
+<a class="jxr_linenumber" name="L274" href="#L274">274</a>             <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L275" href="#L275">275</a>         }
+<a class="jxr_linenumber" name="L276" href="#L276">276</a> 
+<a class="jxr_linenumber" name="L277" href="#L277">277</a>     }
+<a class="jxr_linenumber" name="L278" href="#L278">278</a> 
+<a class="jxr_linenumber" name="L279" href="#L279">279</a>     @Override
+<a class="jxr_linenumber" name="L280" href="#L280">280</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onClose(javax.websocket.Session session, javax.websocket.CloseReason closeCode) {
+<a class="jxr_linenumber" name="L281" href="#L281">281</a>         logger.trace(<span class="jxr_string">"{} closed {}"</span>, session, closeCode);
+<a class="jxr_linenumber" name="L282" href="#L282">282</a>         <strong class="jxr_keyword">if</strong> (request != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L283" href="#L283">283</a>             request.destroy();
+<a class="jxr_linenumber" name="L284" href="#L284">284</a>             webSocketProcessor.close(webSocket, closeCode.getCloseCode().getCode());
+<a class="jxr_linenumber" name="L285" href="#L285">285</a>         }
+<a class="jxr_linenumber" name="L286" href="#L286">286</a>     }
+<a class="jxr_linenumber" name="L287" href="#L287">287</a> 
+<a class="jxr_linenumber" name="L288" href="#L288">288</a>     @Override
+<a class="jxr_linenumber" name="L289" href="#L289">289</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onError(javax.websocket.Session session, java.lang.Throwable t) {
+<a class="jxr_linenumber" name="L290" href="#L290">290</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>             logger.error(<span class="jxr_string">""</span>, t);
+<a class="jxr_linenumber" name="L292" href="#L292">292</a>             webSocketProcessor.notifyListener(webSocket,
+<a class="jxr_linenumber" name="L293" href="#L293">293</a>                     <strong class="jxr_keyword">new</strong> WebSocketEventListener.WebSocketEvent&lt;Throwable&gt;(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
+<a class="jxr_linenumber" name="L294" href="#L294">294</a>         } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>             <em class="jxr_comment">// Ignore completely</em>
+<a class="jxr_linenumber" name="L296" href="#L296">296</a>             <em class="jxr_comment">// https://github.com/Atmosphere/atmosphere/issues/1758</em>
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>         }
+<a class="jxr_linenumber" name="L298" href="#L298">298</a>     }
+<a class="jxr_linenumber" name="L299" href="#L299">299</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

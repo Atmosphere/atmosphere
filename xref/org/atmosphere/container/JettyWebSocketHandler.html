@@ -26,7 +26,7 @@
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.container.version.Jetty8WebSocket;
 <a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
-<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponse;
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponseImpl;
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocket;
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketEventListener;
 <a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketProcessor;
@@ -109,7 +109,7 @@
 <a class="jxr_linenumber" name="L101" href="#L101">101</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onOpen(org.eclipse.jetty.websocket.WebSocket.Connection connection) {
 <a class="jxr_linenumber" name="L102" href="#L102">102</a>         logger.trace(<span class="jxr_string">"WebSocket.onOpen {}"</span>, connection);
 <a class="jxr_linenumber" name="L103" href="#L103">103</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L104" href="#L104">104</a>             webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+<a class="jxr_linenumber" name="L104" href="#L104">104</a>             webSocketProcessor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
 <a class="jxr_linenumber" name="L105" href="#L105">105</a>         } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="L106" href="#L106">106</a>             logger.warn(<span class="jxr_string">"Failed to connect to WebSocket"</span>, e);
 <a class="jxr_linenumber" name="L107" href="#L107">107</a>         }

@@ -29,7 +29,7 @@
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework;
 <a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponse;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponseImpl;
 <a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocket;
 <a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketProcessor;
 <a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
@@ -77,7 +77,7 @@
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>          logger.trace(<span class="jxr_string">"WebSocket.onOpen."</span>);
 <a class="jxr_linenumber" name="L70" href="#L70">70</a>          webSocket = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/container/version/TomcatWebSocket.html">TomcatWebSocket</a>(outbound, framework.getAtmosphereConfig());
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>          <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L72" href="#L72">72</a>              webSocketProcessor.open(webSocket, request, AtmosphereResponse.newInstance(framework.getAtmosphereConfig(), request, webSocket));
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>              webSocketProcessor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));
 <a class="jxr_linenumber" name="L73" href="#L73">73</a>          } <strong class="jxr_keyword">catch</strong> (Exception e) {
 <a class="jxr_linenumber" name="L74" href="#L74">74</a>              logger.warn(<span class="jxr_string">"failed to connect to web socket"</span>, e);
 <a class="jxr_linenumber" name="L75" href="#L75">75</a>          }

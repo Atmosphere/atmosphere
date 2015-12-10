@@ -9,6 +9,7 @@ org.atmosphere.container.version
 org.atmosphere.cpr
 org.atmosphere.handler
 org.atmosphere.inject
+org.atmosphere.inject.annotation
 org.atmosphere.interceptor
 org.atmosphere.jersey
 org.atmosphere.jersey.util
@@ -17,7 +18,6 @@ org.atmosphere.pool
 org.atmosphere.util
 org.atmosphere.util.analytics
 org.atmosphere.util.annotation
-org.atmosphere.util.chmv8
 org.atmosphere.util.uri
 org.atmosphere.websocket
 org.atmosphere.websocket.protocol

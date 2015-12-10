@@ -24,52 +24,53 @@
 <a class="jxr_linenumber" name="L16" href="#L16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.websocket.protocol;
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
-<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
-<a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceImpl;
-<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocket;
-<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
-<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
-<a class="jxr_linenumber" name="L24" href="#L24">24</a>  
-<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
-<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ConcurrentHashMap;
-<a class="jxr_linenumber" name="L27" href="#L27">27</a>  
-<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/websocket/protocol/ProtocolUtil.html">ProtocolUtil</a> {
-<a class="jxr_linenumber" name="L29" href="#L29">29</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> Logger logger = LoggerFactory.getLogger(ProtocolUtil.<strong class="jxr_keyword">class</strong>);
-<a class="jxr_linenumber" name="L30" href="#L30">30</a>  
-<a class="jxr_linenumber" name="L31" href="#L31">31</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> AtmosphereRequest.Builder constructRequest(<a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket,
-<a class="jxr_linenumber" name="L32" href="#L32">32</a>                                                                  String pathInfo,
-<a class="jxr_linenumber" name="L33" href="#L33">33</a>                                                                  String requestURI,
-<a class="jxr_linenumber" name="L34" href="#L34">34</a>                                                                  String methodType,
-<a class="jxr_linenumber" name="L35" href="#L35">35</a>                                                                  String contentType,
-<a class="jxr_linenumber" name="L36" href="#L36">36</a>                                                                  <strong class="jxr_keyword">boolean</strong> destroyable) {
-<a class="jxr_linenumber" name="L37" href="#L37">37</a>  
-<a class="jxr_linenumber" name="L38" href="#L38">38</a>          <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource = webSocket.resource();
-<a class="jxr_linenumber" name="L39" href="#L39">39</a>          <a href="../../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(resource).getRequest(false);
-<a class="jxr_linenumber" name="L40" href="#L40">40</a>          Map&lt;String, Object&gt; m = attributes(webSocket, request);
-<a class="jxr_linenumber" name="L41" href="#L41">41</a>  
-<a class="jxr_linenumber" name="L42" href="#L42">42</a>          <em class="jxr_comment">// We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.</em>
-<a class="jxr_linenumber" name="L43" href="#L43">43</a>          AtmosphereRequest.Builder b = (<strong class="jxr_keyword">new</strong> AtmosphereRequest.Builder()
-<a class="jxr_linenumber" name="L44" href="#L44">44</a>                  .request(request)
-<a class="jxr_linenumber" name="L45" href="#L45">45</a>                  .method(methodType)
-<a class="jxr_linenumber" name="L46" href="#L46">46</a>                  .contentType(contentType == <strong class="jxr_keyword">null</strong> ? request.getContentType() : contentType)
-<a class="jxr_linenumber" name="L47" href="#L47">47</a>                  .attributes(m)
-<a class="jxr_linenumber" name="L48" href="#L48">48</a>                  .pathInfo(pathInfo)
-<a class="jxr_linenumber" name="L49" href="#L49">49</a>                  .contextPath(request.getContextPath())
-<a class="jxr_linenumber" name="L50" href="#L50">50</a>                  .servletPath(request.getServletPath())
-<a class="jxr_linenumber" name="L51" href="#L51">51</a>                  .requestURI(requestURI)
-<a class="jxr_linenumber" name="L52" href="#L52">52</a>                  .requestURL(request.requestURL())
-<a class="jxr_linenumber" name="L53" href="#L53">53</a>                  .destroyable(destroyable)
-<a class="jxr_linenumber" name="L54" href="#L54">54</a>                  .headers(request.headersMap())
-<a class="jxr_linenumber" name="L55" href="#L55">55</a>                  .session(resource.session()));
-<a class="jxr_linenumber" name="L56" href="#L56">56</a>          <strong class="jxr_keyword">return</strong> b;
-<a class="jxr_linenumber" name="L57" href="#L57">57</a>      }
-<a class="jxr_linenumber" name="L58" href="#L58">58</a>  
-<a class="jxr_linenumber" name="L59" href="#L59">59</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Map&lt;String, Object&gt; attributes(<a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket, <a href="../../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request) {
-<a class="jxr_linenumber" name="L60" href="#L60">60</a>          Map&lt;String, Object&gt; m = <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;String, Object&gt;();
-<a class="jxr_linenumber" name="L61" href="#L61">61</a>          m.putAll(webSocket.attributes());
-<a class="jxr_linenumber" name="L62" href="#L62">62</a>          <strong class="jxr_keyword">return</strong> m;
-<a class="jxr_linenumber" name="L63" href="#L63">63</a>      }
-<a class="jxr_linenumber" name="L64" href="#L64">64</a>  }
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequestImpl;
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceImpl;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocket;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.ConcurrentHashMap;
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../../org/atmosphere/websocket/protocol/ProtocolUtil.html">ProtocolUtil</a> {
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> Logger logger = LoggerFactory.getLogger(ProtocolUtil.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> AtmosphereRequestImpl.Builder constructRequest(<a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket,
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>                                                                  String pathInfo,
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>                                                                  String requestURI,
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>                                                                  String methodType,
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>                                                                  String contentType,
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>                                                                  <strong class="jxr_keyword">boolean</strong> destroyable) {
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>          <a href="../../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource = webSocket.resource();
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>          <a href="../../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(resource).getRequest(false);
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>          Map&lt;String, Object&gt; m = attributes(webSocket, request);
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>  
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>          <em class="jxr_comment">// We need to create a new AtmosphereRequest as WebSocket message may arrive concurrently on the same connection.</em>
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>          AtmosphereRequestImpl.Builder b = (<strong class="jxr_keyword">new</strong> AtmosphereRequestImpl.Builder()
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>                  .request(request)
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>                  .method(methodType)
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>                  .contentType(contentType == <strong class="jxr_keyword">null</strong> ? request.getContentType() : contentType)
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>                  .attributes(m)
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>                  .pathInfo(pathInfo)
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>                  .contextPath(request.getContextPath())
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>                  .servletPath(request.getServletPath())
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>                  .requestURI(requestURI)
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>                  .requestURL(request.requestURL())
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>                  .destroyable(destroyable)
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>                  .headers(request.headersMap())
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>                  .session(resource.session()));
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>          <strong class="jxr_keyword">return</strong> b;
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>      }
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> Map&lt;String, Object&gt; attributes(<a href="../../../../org/atmosphere/websocket/WebSocket.html">WebSocket</a> webSocket, <a href="../../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request) {
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>          Map&lt;String, Object&gt; m = <strong class="jxr_keyword">new</strong> ConcurrentHashMap&lt;String, Object&gt;();
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>          m.putAll(webSocket.attributes());
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>          <strong class="jxr_keyword">return</strong> m;
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>      }
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>  }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

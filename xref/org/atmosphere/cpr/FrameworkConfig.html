@@ -24,7 +24,7 @@
 <a class="jxr_linenumber" name="L16" href="#L16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.cpr;
 <a class="jxr_linenumber" name="L17" href="#L17">17</a>  
 <a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
-<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest.NoOpsRequest;
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.inject.InjectIntrospector;
 <a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.interceptor.JavaScriptProtocol;
 <a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.websocket.WebSocketProcessor;
 <a class="jxr_linenumber" name="L22" href="#L22">22</a>  
@@ -75,7 +75,7 @@
 <a class="jxr_linenumber" name="L67" href="#L67">67</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L68" href="#L68">68</a>      String JERSEY_CONTAINER = <span class="jxr_string">"com.sun.jersey.spi.container.servlet.ServletContainer"</span>;
 <a class="jxr_linenumber" name="L69" href="#L69">69</a>      <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     * A request attribute used to lookup the {@link AtmosphereNativeCometServlet}. This attribute is for framework integrators and not recommend for normal applications.</em>
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>  <em class="jxr_javadoccomment">     * A request attribute used to lookup the {@link AtmosphereServlet}. This attribute is for framework integrators and not recommend for normal applications.</em>
 <a class="jxr_linenumber" name="L71" href="#L71">71</a>  <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L72" href="#L72">72</a>      String ATMOSPHERE_SERVLET = <span class="jxr_string">"org.atmosphere.cpr.AtmosphereServlet"</span>;
 <a class="jxr_linenumber" name="L73" href="#L73">73</a>      <em class="jxr_javadoccomment">/**</em>
@@ -153,11 +153,11 @@
 <a class="jxr_linenumber" name="L145" href="#L145">145</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L146" href="#L146">146</a> <em class="jxr_javadoccomment">     * Throw Exception from cloned request.</em>
 <a class="jxr_linenumber" name="L147" href="#L147">147</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L148" href="#L148">148</a>     String THROW_EXCEPTION_ON_CLONED_REQUEST = NoOpsRequest.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".throwExceptionOnClonedRequest"</span>;
+<a class="jxr_linenumber" name="L148" href="#L148">148</a>     String THROW_EXCEPTION_ON_CLONED_REQUEST = AtmosphereRequestImpl.NoOpsRequest.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".throwExceptionOnClonedRequest"</span>;
 <a class="jxr_linenumber" name="L149" href="#L149">149</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L150" href="#L150">150</a> <em class="jxr_javadoccomment">     * The subject for the current request.</em>
 <a class="jxr_linenumber" name="L151" href="#L151">151</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L152" href="#L152">152</a>     String SECURITY_SUBJECT = AtmosphereRequest.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".subject"</span>;
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>     String SECURITY_SUBJECT = AtmosphereRequestImpl.<strong class="jxr_keyword">class</strong>.getName() + <span class="jxr_string">".subject"</span>;
 <a class="jxr_linenumber" name="L153" href="#L153">153</a>     <em class="jxr_javadoccomment">/**</em>
 <a class="jxr_linenumber" name="L154" href="#L154">154</a> <em class="jxr_javadoccomment">     * The {@link javax.servlet.AsyncContext}.</em>
 <a class="jxr_linenumber" name="L155" href="#L155">155</a> <em class="jxr_javadoccomment">     */</em>
@@ -195,7 +195,11 @@
 <a class="jxr_linenumber" name="L187" href="#L187">187</a> <em class="jxr_javadoccomment">     * The current installed {@link org.atmosphere.cpr.BroadcasterFactory}</em>
 <a class="jxr_linenumber" name="L188" href="#L188">188</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L189" href="#L189">189</a>     String BROADCASTER_FACTORY = BroadcasterFactory.<strong class="jxr_keyword">class</strong>.getName();
-<a class="jxr_linenumber" name="L190" href="#L190">190</a> }
+<a class="jxr_linenumber" name="L190" href="#L190">190</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L191" href="#L191">191</a> <em class="jxr_javadoccomment">     * Need runtime injection</em>
+<a class="jxr_linenumber" name="L192" href="#L192">192</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>     String NEED_RUNTIME_INJECTION = InjectIntrospector.WHEN.DEPLOY.getClass().getName();
+<a class="jxr_linenumber" name="L194" href="#L194">194</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

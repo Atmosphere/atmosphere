@@ -121,11 +121,11 @@
 <a class="jxr_linenumber" name="L113" href="#L113">113</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> AtomicBoolean outOfOrderBroadcastSupported = <strong class="jxr_keyword">new</strong> AtomicBoolean(false);
 <a class="jxr_linenumber" name="L114" href="#L114">114</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">int</strong> writeTimeoutInSecond = -1;
 <a class="jxr_linenumber" name="L115" href="#L115">115</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">int</strong> waitTime = POLLING_DEFAULT;
-<a class="jxr_linenumber" name="L116" href="#L116">116</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> backwardCompatible = false;
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> backwardCompatible;
 <a class="jxr_linenumber" name="L117" href="#L117">117</a>     <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/lifecycle/LifecycleHandler.html">LifecycleHandler</a> lifecycleHandler;
 <a class="jxr_linenumber" name="L118" href="#L118">118</a>     <strong class="jxr_keyword">private</strong> Future&lt;?&gt; currentLifecycleTask;
 <a class="jxr_linenumber" name="L119" href="#L119">119</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> cacheOnIOFlushException = <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L120" href="#L120">120</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> sharedListeners = false;
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> sharedListeners;
 <a class="jxr_linenumber" name="L121" href="#L121">121</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> candidateForPoolable;
 <a class="jxr_linenumber" name="L122" href="#L122">122</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> String usingTokenIdForAttribute = UUID.randomUUID().toString();
 <a class="jxr_linenumber" name="L123" href="#L123">123</a> 
@@ -455,7 +455,7 @@
 <a class="jxr_linenumber" name="L447" href="#L447">447</a>                         token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
 <a class="jxr_linenumber" name="L448" href="#L448">448</a>                         <strong class="jxr_keyword">if</strong> (token == <strong class="jxr_keyword">null</strong> &amp;&amp; !outOfOrderBroadcastSupported.get()) {
 <a class="jxr_linenumber" name="L449" href="#L449">449</a>                             <strong class="jxr_keyword">synchronized</strong> (writeQueue) {
-<a class="jxr_linenumber" name="L450" href="#L450">450</a>                                 <strong class="jxr_keyword">if</strong> (writeQueue.queue.size() == 0) {
+<a class="jxr_linenumber" name="L450" href="#L450">450</a>                                 <strong class="jxr_keyword">if</strong> (writeQueue.queue.isEmpty()) {
 <a class="jxr_linenumber" name="L451" href="#L451">451</a>                                     writeQueue.monitored.set(false);
 <a class="jxr_linenumber" name="L452" href="#L452">452</a>                                     writeQueues.remove(writeQueue.uuid);
 <a class="jxr_linenumber" name="L453" href="#L453">453</a>                                     <strong class="jxr_keyword">return</strong>;
@@ -976,7 +976,7 @@
 <a class="jxr_linenumber" name="L968" href="#L968">968</a>                 }
 <a class="jxr_linenumber" name="L969" href="#L969">969</a>             }
 <a class="jxr_linenumber" name="L970" href="#L970">970</a> 
-<a class="jxr_linenumber" name="L971" href="#L971">971</a>             <strong class="jxr_keyword">if</strong> (filteredMessage.size() == 0) {
+<a class="jxr_linenumber" name="L971" href="#L971">971</a>             <strong class="jxr_keyword">if</strong> (filteredMessage.isEmpty()) {
 <a class="jxr_linenumber" name="L972" href="#L972">972</a>                 <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="L973" href="#L973">973</a>             }
 <a class="jxr_linenumber" name="L974" href="#L974">974</a>             e.setMessage(filteredMessage);
@@ -1231,7 +1231,7 @@
 <a class="jxr_linenumber" name="L1223" href="#L1223">1223</a>             <strong class="jxr_keyword">return</strong> futureDone(msg);
 <a class="jxr_linenumber" name="L1224" href="#L1224">1224</a>         }
 <a class="jxr_linenumber" name="L1225" href="#L1225">1225</a> 
-<a class="jxr_linenumber" name="L1226" href="#L1226">1226</a>         <strong class="jxr_keyword">int</strong> callee = resources.size() == 0 ? 1 : resources.size();
+<a class="jxr_linenumber" name="L1226" href="#L1226">1226</a>         <strong class="jxr_keyword">int</strong> callee = resources.isEmpty() ? 1 : resources.size();
 <a class="jxr_linenumber" name="L1227" href="#L1227">1227</a> 
 <a class="jxr_linenumber" name="L1228" href="#L1228">1228</a>         BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(newMsg, callee);
 <a class="jxr_linenumber" name="L1229" href="#L1229">1229</a>         dispatchMessages(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(newMsg, f, msg));
@@ -1369,422 +1369,426 @@
 <a class="jxr_linenumber" name="L1361" href="#L1361">1361</a> 
 <a class="jxr_linenumber" name="L1362" href="#L1362">1362</a>                 <strong class="jxr_keyword">if</strong> (duplicate) {
 <a class="jxr_linenumber" name="L1363" href="#L1363">1363</a>                     <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
-<a class="jxr_linenumber" name="L1364" href="#L1364">1364</a>                     <strong class="jxr_keyword">if</strong> (dup != <strong class="jxr_keyword">null</strong> &amp;&amp; dup != r) {
-<a class="jxr_linenumber" name="L1365" href="#L1365">1365</a>                         logger.warn(<span class="jxr_string">"Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one"</span>, r.uuid());
-<a class="jxr_linenumber" name="L1366" href="#L1366">1366</a>                         AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(dup).dirtyClose();
-<a class="jxr_linenumber" name="L1367" href="#L1367">1367</a>                     } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L1368" href="#L1368">1368</a>                         logger.debug(<span class="jxr_string">"Duplicate resource {}"</span>, r.uuid());
-<a class="jxr_linenumber" name="L1369" href="#L1369">1369</a>                         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1370" href="#L1370">1370</a>                     }
-<a class="jxr_linenumber" name="L1371" href="#L1371">1371</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L1372" href="#L1372">1372</a>                     logger.debug(<span class="jxr_string">"Duplicate resource {}"</span>, r.uuid());
-<a class="jxr_linenumber" name="L1373" href="#L1373">1373</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1374" href="#L1374">1374</a>                 }
-<a class="jxr_linenumber" name="L1375" href="#L1375">1375</a>             }
-<a class="jxr_linenumber" name="L1376" href="#L1376">1376</a> 
-<a class="jxr_linenumber" name="L1377" href="#L1377">1377</a>             <em class="jxr_comment">// Only synchronize if we have a valid BroadcasterCache</em>
-<a class="jxr_linenumber" name="L1378" href="#L1378">1378</a>             <strong class="jxr_keyword">if</strong> (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
-<a class="jxr_linenumber" name="L1379" href="#L1379">1379</a>                 <em class="jxr_comment">// In case we are adding messages to the cache, we need to make sure the operation is done before.</em>
-<a class="jxr_linenumber" name="L1380" href="#L1380">1380</a>                 <strong class="jxr_keyword">synchronized</strong> (resources) {
-<a class="jxr_linenumber" name="L1381" href="#L1381">1381</a>                     cacheAndSuspend(r);
-<a class="jxr_linenumber" name="L1382" href="#L1382">1382</a>                 }
-<a class="jxr_linenumber" name="L1383" href="#L1383">1383</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L1384" href="#L1384">1384</a>                 cacheAndSuspend(r);
-<a class="jxr_linenumber" name="L1385" href="#L1385">1385</a>             }
-<a class="jxr_linenumber" name="L1386" href="#L1386">1386</a>         } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="L1387" href="#L1387">1387</a>             <em class="jxr_comment">// OK reset</em>
-<a class="jxr_linenumber" name="L1388" href="#L1388">1388</a>             <strong class="jxr_keyword">if</strong> (resources.size() &gt; 0) {
-<a class="jxr_linenumber" name="L1389" href="#L1389">1389</a>                 <strong class="jxr_keyword">synchronized</strong> (awaitBarrier) {
-<a class="jxr_linenumber" name="L1390" href="#L1390">1390</a>                     awaitBarrier.notifyAll();
-<a class="jxr_linenumber" name="L1391" href="#L1391">1391</a>                 }
-<a class="jxr_linenumber" name="L1392" href="#L1392">1392</a>             }
-<a class="jxr_linenumber" name="L1393" href="#L1393">1393</a>         }
-<a class="jxr_linenumber" name="L1394" href="#L1394">1394</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1395" href="#L1395">1395</a>     }
-<a class="jxr_linenumber" name="L1396" href="#L1396">1396</a> 
-<a class="jxr_linenumber" name="L1397" href="#L1397">1397</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L1398" href="#L1398">1398</a> <em class="jxr_javadoccomment">     * Look in the cache to see if there are messages available, and take the appropriate actions.</em>
-<a class="jxr_linenumber" name="L1399" href="#L1399">1399</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L1400" href="#L1400">1400</a> <em class="jxr_javadoccomment">     * @param r AtmosphereResource</em>
-<a class="jxr_linenumber" name="L1401" href="#L1401">1401</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L1402" href="#L1402">1402</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> cacheAndSuspend(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="L1403" href="#L1403">1403</a>         <em class="jxr_comment">// In case the connection is closed, for whatever reason</em>
-<a class="jxr_linenumber" name="L1404" href="#L1404">1404</a>         <strong class="jxr_keyword">if</strong> (!isAtmosphereResourceValid(r)) {
-<a class="jxr_linenumber" name="L1405" href="#L1405">1405</a>             logger.debug(<span class="jxr_string">"Unable to add AtmosphereResource {}"</span>, r.uuid());
-<a class="jxr_linenumber" name="L1406" href="#L1406">1406</a>             <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="L1407" href="#L1407">1407</a>         }
-<a class="jxr_linenumber" name="L1408" href="#L1408">1408</a> 
-<a class="jxr_linenumber" name="L1409" href="#L1409">1409</a>         <strong class="jxr_keyword">boolean</strong> wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
-<a class="jxr_linenumber" name="L1410" href="#L1410">1410</a>         <strong class="jxr_keyword">if</strong> (!wasResumed &amp;&amp; isAtmosphereResourceValid(r)) {
-<a class="jxr_linenumber" name="L1411" href="#L1411">1411</a>             logger.trace(<span class="jxr_string">"Associating AtmosphereResource {} with Broadcaster {}"</span>, r.uuid(), getID());
+<a class="jxr_linenumber" name="L1364" href="#L1364">1364</a>                     <strong class="jxr_keyword">if</strong> (dup != <strong class="jxr_keyword">null</strong> &amp;&amp; dup != r ) {
+<a class="jxr_linenumber" name="L1365" href="#L1365">1365</a>                         <strong class="jxr_keyword">if</strong> ( ! dup.isPendingClose() ) {
+<a class="jxr_linenumber" name="L1366" href="#L1366">1366</a>                             logger.warn(<span class="jxr_string">"Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one"</span>, r.uuid());
+<a class="jxr_linenumber" name="L1367" href="#L1367">1367</a>                         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L1368" href="#L1368">1368</a>                             logger.debug(<span class="jxr_string">"Not yet closed resource still active {}"</span>, r.uuid());
+<a class="jxr_linenumber" name="L1369" href="#L1369">1369</a>                         }
+<a class="jxr_linenumber" name="L1370" href="#L1370">1370</a>                         AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(dup).dirtyClose();
+<a class="jxr_linenumber" name="L1371" href="#L1371">1371</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L1372" href="#L1372">1372</a>                         logger.debug(<span class="jxr_string">"Duplicate resource {}"</span>, r.uuid());
+<a class="jxr_linenumber" name="L1373" href="#L1373">1373</a>                         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1374" href="#L1374">1374</a>                     }
+<a class="jxr_linenumber" name="L1375" href="#L1375">1375</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L1376" href="#L1376">1376</a>                     logger.debug(<span class="jxr_string">"Duplicate resource {}"</span>, r.uuid());
+<a class="jxr_linenumber" name="L1377" href="#L1377">1377</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1378" href="#L1378">1378</a>                 }
+<a class="jxr_linenumber" name="L1379" href="#L1379">1379</a>             }
+<a class="jxr_linenumber" name="L1380" href="#L1380">1380</a> 
+<a class="jxr_linenumber" name="L1381" href="#L1381">1381</a>             <em class="jxr_comment">// Only synchronize if we have a valid BroadcasterCache</em>
+<a class="jxr_linenumber" name="L1382" href="#L1382">1382</a>             <strong class="jxr_keyword">if</strong> (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
+<a class="jxr_linenumber" name="L1383" href="#L1383">1383</a>                 <em class="jxr_comment">// In case we are adding messages to the cache, we need to make sure the operation is done before.</em>
+<a class="jxr_linenumber" name="L1384" href="#L1384">1384</a>                 <strong class="jxr_keyword">synchronized</strong> (resources) {
+<a class="jxr_linenumber" name="L1385" href="#L1385">1385</a>                     cacheAndSuspend(r);
+<a class="jxr_linenumber" name="L1386" href="#L1386">1386</a>                 }
+<a class="jxr_linenumber" name="L1387" href="#L1387">1387</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L1388" href="#L1388">1388</a>                 cacheAndSuspend(r);
+<a class="jxr_linenumber" name="L1389" href="#L1389">1389</a>             }
+<a class="jxr_linenumber" name="L1390" href="#L1390">1390</a>         } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="L1391" href="#L1391">1391</a>             <em class="jxr_comment">// OK reset</em>
+<a class="jxr_linenumber" name="L1392" href="#L1392">1392</a>             <strong class="jxr_keyword">if</strong> (!resources.isEmpty()) {
+<a class="jxr_linenumber" name="L1393" href="#L1393">1393</a>                 <strong class="jxr_keyword">synchronized</strong> (awaitBarrier) {
+<a class="jxr_linenumber" name="L1394" href="#L1394">1394</a>                     awaitBarrier.notifyAll();
+<a class="jxr_linenumber" name="L1395" href="#L1395">1395</a>                 }
+<a class="jxr_linenumber" name="L1396" href="#L1396">1396</a>             }
+<a class="jxr_linenumber" name="L1397" href="#L1397">1397</a>         }
+<a class="jxr_linenumber" name="L1398" href="#L1398">1398</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1399" href="#L1399">1399</a>     }
+<a class="jxr_linenumber" name="L1400" href="#L1400">1400</a> 
+<a class="jxr_linenumber" name="L1401" href="#L1401">1401</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L1402" href="#L1402">1402</a> <em class="jxr_javadoccomment">     * Look in the cache to see if there are messages available, and take the appropriate actions.</em>
+<a class="jxr_linenumber" name="L1403" href="#L1403">1403</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L1404" href="#L1404">1404</a> <em class="jxr_javadoccomment">     * @param r AtmosphereResource</em>
+<a class="jxr_linenumber" name="L1405" href="#L1405">1405</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L1406" href="#L1406">1406</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> cacheAndSuspend(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L1407" href="#L1407">1407</a>         <em class="jxr_comment">// In case the connection is closed, for whatever reason</em>
+<a class="jxr_linenumber" name="L1408" href="#L1408">1408</a>         <strong class="jxr_keyword">if</strong> (!isAtmosphereResourceValid(r)) {
+<a class="jxr_linenumber" name="L1409" href="#L1409">1409</a>             logger.debug(<span class="jxr_string">"Unable to add AtmosphereResource {}"</span>, r.uuid());
+<a class="jxr_linenumber" name="L1410" href="#L1410">1410</a>             <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L1411" href="#L1411">1411</a>         }
 <a class="jxr_linenumber" name="L1412" href="#L1412">1412</a> 
-<a class="jxr_linenumber" name="L1413" href="#L1413">1413</a>             String parentUUID = r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) ?
-<a class="jxr_linenumber" name="L1414" href="#L1414">1414</a>                     (String) AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) :
-<a class="jxr_linenumber" name="L1415" href="#L1415">1415</a>                     <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1416" href="#L1416">1416</a>             <strong class="jxr_keyword">if</strong> (!backwardCompatible &amp;&amp; parentUUID != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L1417" href="#L1417">1417</a>                 <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> p = config.resourcesFactory().find(parentUUID);
-<a class="jxr_linenumber" name="L1418" href="#L1418">1418</a>                 <strong class="jxr_keyword">if</strong> (p != <strong class="jxr_keyword">null</strong> &amp;&amp; !resources.contains(p)) {
-<a class="jxr_linenumber" name="L1419" href="#L1419">1419</a>                     notifyAndAdd(p);
-<a class="jxr_linenumber" name="L1420" href="#L1420">1420</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (p == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L1421" href="#L1421">1421</a>                     notifyAndAdd(r);
-<a class="jxr_linenumber" name="L1422" href="#L1422">1422</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L1423" href="#L1423">1423</a>                     logger.trace(<span class="jxr_string">"AtmosphereResource {} was already mapped to {}"</span>, r.uuid(), parentUUID);
-<a class="jxr_linenumber" name="L1424" href="#L1424">1424</a>                 }
-<a class="jxr_linenumber" name="L1425" href="#L1425">1425</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L1426" href="#L1426">1426</a>                 notifyAndAdd(r);
-<a class="jxr_linenumber" name="L1427" href="#L1427">1427</a>             }
-<a class="jxr_linenumber" name="L1428" href="#L1428">1428</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (!wasResumed) {
-<a class="jxr_linenumber" name="L1429" href="#L1429">1429</a>             logger.debug(<span class="jxr_string">"Unable to add AtmosphereResource {} to {}"</span>, r.uuid(), name);
-<a class="jxr_linenumber" name="L1430" href="#L1430">1430</a>         }
-<a class="jxr_linenumber" name="L1431" href="#L1431">1431</a>     }
-<a class="jxr_linenumber" name="L1432" href="#L1432">1432</a> 
-<a class="jxr_linenumber" name="L1433" href="#L1433">1433</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyAndAdd(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="L1434" href="#L1434">1434</a>         resources.add(r);
-<a class="jxr_linenumber" name="L1435" href="#L1435">1435</a>         r.addBroadcaster(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="L1436" href="#L1436">1436</a>         notifyOnAddAtmosphereResourceListener(r);
-<a class="jxr_linenumber" name="L1437" href="#L1437">1437</a>     }
-<a class="jxr_linenumber" name="L1438" href="#L1438">1438</a> 
-<a class="jxr_linenumber" name="L1439" href="#L1439">1439</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isAtmosphereResourceValid(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="L1440" href="#L1440">1440</a>         <strong class="jxr_keyword">return</strong> !r.isResumed()
-<a class="jxr_linenumber" name="L1441" href="#L1441">1441</a>                 &amp;&amp; !r.isCancelled()
-<a class="jxr_linenumber" name="L1442" href="#L1442">1442</a>                 &amp;&amp; AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).isInScope();
-<a class="jxr_linenumber" name="L1443" href="#L1443">1443</a>     }
-<a class="jxr_linenumber" name="L1444" href="#L1444">1444</a> 
-<a class="jxr_linenumber" name="L1445" href="#L1445">1445</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> entryDone(<strong class="jxr_keyword">final</strong> BroadcasterFuture&lt;?&gt; f) {
-<a class="jxr_linenumber" name="L1446" href="#L1446">1446</a>         notifyBroadcastListener();
-<a class="jxr_linenumber" name="L1447" href="#L1447">1447</a>         <strong class="jxr_keyword">if</strong> (f != <strong class="jxr_keyword">null</strong>) f.done();
-<a class="jxr_linenumber" name="L1448" href="#L1448">1448</a>     }
-<a class="jxr_linenumber" name="L1449" href="#L1449">1449</a> 
-<a class="jxr_linenumber" name="L1450" href="#L1450">1450</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyBroadcastListener() {
-<a class="jxr_linenumber" name="L1451" href="#L1451">1451</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
-<a class="jxr_linenumber" name="L1452" href="#L1452">1452</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L1453" href="#L1453">1453</a>                 b.onComplete(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="L1454" href="#L1454">1454</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="L1455" href="#L1455">1455</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
-<a class="jxr_linenumber" name="L1456" href="#L1456">1456</a>             }
-<a class="jxr_linenumber" name="L1457" href="#L1457">1457</a>         }
-<a class="jxr_linenumber" name="L1458" href="#L1458">1458</a>     }
-<a class="jxr_linenumber" name="L1459" href="#L1459">1459</a> 
-<a class="jxr_linenumber" name="L1460" href="#L1460">1460</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyOnAddAtmosphereResourceListener(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="L1461" href="#L1461">1461</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
-<a class="jxr_linenumber" name="L1462" href="#L1462">1462</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L1463" href="#L1463">1463</a>                 b.onAddAtmosphereResource(<strong class="jxr_keyword">this</strong>, r);
-<a class="jxr_linenumber" name="L1464" href="#L1464">1464</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="L1465" href="#L1465">1465</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
-<a class="jxr_linenumber" name="L1466" href="#L1466">1466</a>             }
-<a class="jxr_linenumber" name="L1467" href="#L1467">1467</a>         }
-<a class="jxr_linenumber" name="L1468" href="#L1468">1468</a>     }
-<a class="jxr_linenumber" name="L1469" href="#L1469">1469</a> 
-<a class="jxr_linenumber" name="L1470" href="#L1470">1470</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyOnRemoveAtmosphereResourceListener(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="L1471" href="#L1471">1471</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
-<a class="jxr_linenumber" name="L1472" href="#L1472">1472</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L1473" href="#L1473">1473</a>                 b.onRemoveAtmosphereResource(<strong class="jxr_keyword">this</strong>, r);
-<a class="jxr_linenumber" name="L1474" href="#L1474">1474</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="L1475" href="#L1475">1475</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
-<a class="jxr_linenumber" name="L1476" href="#L1476">1476</a>             }
-<a class="jxr_linenumber" name="L1477" href="#L1477">1477</a>         }
-<a class="jxr_linenumber" name="L1478" href="#L1478">1478</a>     }
-<a class="jxr_linenumber" name="L1479" href="#L1479">1479</a> 
-<a class="jxr_linenumber" name="L1480" href="#L1480">1480</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyOnMessage(<a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> deliver) {
-<a class="jxr_linenumber" name="L1481" href="#L1481">1481</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
-<a class="jxr_linenumber" name="L1482" href="#L1482">1482</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L1483" href="#L1483">1483</a>                 b.onMessage(<strong class="jxr_keyword">this</strong>, deliver);
-<a class="jxr_linenumber" name="L1484" href="#L1484">1484</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="L1485" href="#L1485">1485</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
-<a class="jxr_linenumber" name="L1486" href="#L1486">1486</a>             }
-<a class="jxr_linenumber" name="L1487" href="#L1487">1487</a>         }
-<a class="jxr_linenumber" name="L1488" href="#L1488">1488</a>     }
-<a class="jxr_linenumber" name="L1489" href="#L1489">1489</a> 
-<a class="jxr_linenumber" name="L1490" href="#L1490">1490</a>     @Override
-<a class="jxr_linenumber" name="L1491" href="#L1491">1491</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> removeAtmosphereResource(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
-<a class="jxr_linenumber" name="L1492" href="#L1492">1492</a>         <strong class="jxr_keyword">return</strong> removeAtmosphereResource(r, <strong class="jxr_keyword">true</strong>);
-<a class="jxr_linenumber" name="L1493" href="#L1493">1493</a>     }
-<a class="jxr_linenumber" name="L1494" href="#L1494">1494</a> 
-<a class="jxr_linenumber" name="L1495" href="#L1495">1495</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> removeAtmosphereResource(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, <strong class="jxr_keyword">boolean</strong> executeDone) {
-<a class="jxr_linenumber" name="L1496" href="#L1496">1496</a>         <strong class="jxr_keyword">if</strong> (destroyed.get()) {
-<a class="jxr_linenumber" name="L1497" href="#L1497">1497</a>             logger.debug(DESTROYED, getID(), <span class="jxr_string">"removeAtmosphereResource(AtmosphereResource r)"</span>);
-<a class="jxr_linenumber" name="L1498" href="#L1498">1498</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1499" href="#L1499">1499</a>         }
-<a class="jxr_linenumber" name="L1500" href="#L1500">1500</a> 
-<a class="jxr_linenumber" name="L1501" href="#L1501">1501</a>         <strong class="jxr_keyword">boolean</strong> removed = resources.remove(r);
-<a class="jxr_linenumber" name="L1502" href="#L1502">1502</a>         <strong class="jxr_keyword">if</strong> (removed) {
-<a class="jxr_linenumber" name="L1503" href="#L1503">1503</a>             <strong class="jxr_keyword">if</strong> (r.isSuspended()) {
-<a class="jxr_linenumber" name="L1504" href="#L1504">1504</a>                 logger.trace(<span class="jxr_string">"Excluded from {} : {}"</span>, getID(), r.uuid());
-<a class="jxr_linenumber" name="L1505" href="#L1505">1505</a>                 bc.getBroadcasterCache().excludeFromCache(getID(), r);
-<a class="jxr_linenumber" name="L1506" href="#L1506">1506</a>             }
-<a class="jxr_linenumber" name="L1507" href="#L1507">1507</a>             notifyOnRemoveAtmosphereResourceListener(r);
-<a class="jxr_linenumber" name="L1508" href="#L1508">1508</a>         } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L1509" href="#L1509">1509</a>             logger.trace(<span class="jxr_string">"Unable to remove {} from {}"</span>, r.uuid(), getID());
-<a class="jxr_linenumber" name="L1510" href="#L1510">1510</a>         }
-<a class="jxr_linenumber" name="L1511" href="#L1511">1511</a>         r.removeBroadcaster(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="L1512" href="#L1512">1512</a> 
-<a class="jxr_linenumber" name="L1513" href="#L1513">1513</a>         <strong class="jxr_keyword">if</strong> (!removed) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1514" href="#L1514">1514</a> 
-<a class="jxr_linenumber" name="L1515" href="#L1515">1515</a>         logger.trace(<span class="jxr_string">"Removing AtmosphereResource {} for Broadcaster {}"</span>, r.uuid(), name);
-<a class="jxr_linenumber" name="L1516" href="#L1516">1516</a>         writeQueues.remove(r.uuid());
-<a class="jxr_linenumber" name="L1517" href="#L1517">1517</a> 
-<a class="jxr_linenumber" name="L1518" href="#L1518">1518</a>         <em class="jxr_comment">// Here we need to make sure we aren't in the process of broadcasting and unlock the Future.</em>
-<a class="jxr_linenumber" name="L1519" href="#L1519">1519</a>         <strong class="jxr_keyword">if</strong> (executeDone) {
-<a class="jxr_linenumber" name="L1520" href="#L1520">1520</a>             <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> aImpl = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r);
-<a class="jxr_linenumber" name="L1521" href="#L1521">1521</a>             <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> f = (BroadcasterFuture) aImpl.getRequest(false).getAttribute(getID());
-<a class="jxr_linenumber" name="L1522" href="#L1522">1522</a>             <strong class="jxr_keyword">if</strong> (f != <strong class="jxr_keyword">null</strong> &amp;&amp; !f.isDone() &amp;&amp; !f.isCancelled()) {
-<a class="jxr_linenumber" name="L1523" href="#L1523">1523</a>                 aImpl.getRequest(false).removeAttribute(getID());
-<a class="jxr_linenumber" name="L1524" href="#L1524">1524</a>                 entryDone(f);
-<a class="jxr_linenumber" name="L1525" href="#L1525">1525</a>             }
-<a class="jxr_linenumber" name="L1526" href="#L1526">1526</a>         }
-<a class="jxr_linenumber" name="L1527" href="#L1527">1527</a> 
-<a class="jxr_linenumber" name="L1528" href="#L1528">1528</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1529" href="#L1529">1529</a>     }
-<a class="jxr_linenumber" name="L1530" href="#L1530">1530</a> 
-<a class="jxr_linenumber" name="L1531" href="#L1531">1531</a>     @Override
-<a class="jxr_linenumber" name="L1532" href="#L1532">1532</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBroadcasterConfig(<a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> bc) {
-<a class="jxr_linenumber" name="L1533" href="#L1533">1533</a>         <strong class="jxr_keyword">this</strong>.bc = bc;
-<a class="jxr_linenumber" name="L1534" href="#L1534">1534</a>     }
-<a class="jxr_linenumber" name="L1535" href="#L1535">1535</a> 
-<a class="jxr_linenumber" name="L1536" href="#L1536">1536</a>     @Override
-<a class="jxr_linenumber" name="L1537" href="#L1537">1537</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> getBroadcasterConfig() {
-<a class="jxr_linenumber" name="L1538" href="#L1538">1538</a>         <strong class="jxr_keyword">return</strong> bc;
-<a class="jxr_linenumber" name="L1539" href="#L1539">1539</a>     }
-<a class="jxr_linenumber" name="L1540" href="#L1540">1540</a> 
-<a class="jxr_linenumber" name="L1541" href="#L1541">1541</a>     @Override
-<a class="jxr_linenumber" name="L1542" href="#L1542">1542</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; delayBroadcast(Object o) {
-<a class="jxr_linenumber" name="L1543" href="#L1543">1543</a>         <strong class="jxr_keyword">return</strong> delayBroadcast(o, 0, <strong class="jxr_keyword">null</strong>);
-<a class="jxr_linenumber" name="L1544" href="#L1544">1544</a>     }
-<a class="jxr_linenumber" name="L1545" href="#L1545">1545</a> 
-<a class="jxr_linenumber" name="L1546" href="#L1546">1546</a>     @Override
-<a class="jxr_linenumber" name="L1547" href="#L1547">1547</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; delayBroadcast(<strong class="jxr_keyword">final</strong> Object o, <strong class="jxr_keyword">long</strong> delay, TimeUnit t) {
-<a class="jxr_linenumber" name="L1548" href="#L1548">1548</a> 
-<a class="jxr_linenumber" name="L1549" href="#L1549">1549</a>         <strong class="jxr_keyword">if</strong> (destroyed.get()) {
-<a class="jxr_linenumber" name="L1550" href="#L1550">1550</a>             logger.debug(DESTROYED, getID(), <span class="jxr_string">"delayBroadcast(final T o, long delay, TimeUnit t)"</span>);
-<a class="jxr_linenumber" name="L1551" href="#L1551">1551</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1552" href="#L1552">1552</a>         }
-<a class="jxr_linenumber" name="L1553" href="#L1553">1553</a> 
-<a class="jxr_linenumber" name="L1554" href="#L1554">1554</a>         start();
-<a class="jxr_linenumber" name="L1555" href="#L1555">1555</a>         <strong class="jxr_keyword">final</strong> Object msg = filter(o);
-<a class="jxr_linenumber" name="L1556" href="#L1556">1556</a>         <strong class="jxr_keyword">if</strong> (msg == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1413" href="#L1413">1413</a>         <strong class="jxr_keyword">boolean</strong> wasResumed = checkCachedAndPush(r, r.getAtmosphereResourceEvent());
+<a class="jxr_linenumber" name="L1414" href="#L1414">1414</a>         <strong class="jxr_keyword">if</strong> (!wasResumed &amp;&amp; isAtmosphereResourceValid(r)) {
+<a class="jxr_linenumber" name="L1415" href="#L1415">1415</a>             logger.trace(<span class="jxr_string">"Associating AtmosphereResource {} with Broadcaster {}"</span>, r.uuid(), getID());
+<a class="jxr_linenumber" name="L1416" href="#L1416">1416</a> 
+<a class="jxr_linenumber" name="L1417" href="#L1417">1417</a>             String parentUUID = r.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET) ?
+<a class="jxr_linenumber" name="L1418" href="#L1418">1418</a>                     (String) AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) :
+<a class="jxr_linenumber" name="L1419" href="#L1419">1419</a>                     <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1420" href="#L1420">1420</a>             <strong class="jxr_keyword">if</strong> (!backwardCompatible &amp;&amp; parentUUID != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L1421" href="#L1421">1421</a>                 <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> p = config.resourcesFactory().find(parentUUID);
+<a class="jxr_linenumber" name="L1422" href="#L1422">1422</a>                 <strong class="jxr_keyword">if</strong> (p != <strong class="jxr_keyword">null</strong> &amp;&amp; !resources.contains(p)) {
+<a class="jxr_linenumber" name="L1423" href="#L1423">1423</a>                     notifyAndAdd(p);
+<a class="jxr_linenumber" name="L1424" href="#L1424">1424</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (p == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L1425" href="#L1425">1425</a>                     notifyAndAdd(r);
+<a class="jxr_linenumber" name="L1426" href="#L1426">1426</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L1427" href="#L1427">1427</a>                     logger.trace(<span class="jxr_string">"AtmosphereResource {} was already mapped to {}"</span>, r.uuid(), parentUUID);
+<a class="jxr_linenumber" name="L1428" href="#L1428">1428</a>                 }
+<a class="jxr_linenumber" name="L1429" href="#L1429">1429</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L1430" href="#L1430">1430</a>                 notifyAndAdd(r);
+<a class="jxr_linenumber" name="L1431" href="#L1431">1431</a>             }
+<a class="jxr_linenumber" name="L1432" href="#L1432">1432</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (!wasResumed) {
+<a class="jxr_linenumber" name="L1433" href="#L1433">1433</a>             logger.debug(<span class="jxr_string">"Unable to add AtmosphereResource {} to {}"</span>, r.uuid(), name);
+<a class="jxr_linenumber" name="L1434" href="#L1434">1434</a>         }
+<a class="jxr_linenumber" name="L1435" href="#L1435">1435</a>     }
+<a class="jxr_linenumber" name="L1436" href="#L1436">1436</a> 
+<a class="jxr_linenumber" name="L1437" href="#L1437">1437</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyAndAdd(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L1438" href="#L1438">1438</a>         resources.add(r);
+<a class="jxr_linenumber" name="L1439" href="#L1439">1439</a>         r.addBroadcaster(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="L1440" href="#L1440">1440</a>         notifyOnAddAtmosphereResourceListener(r);
+<a class="jxr_linenumber" name="L1441" href="#L1441">1441</a>     }
+<a class="jxr_linenumber" name="L1442" href="#L1442">1442</a> 
+<a class="jxr_linenumber" name="L1443" href="#L1443">1443</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isAtmosphereResourceValid(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L1444" href="#L1444">1444</a>         <strong class="jxr_keyword">return</strong> !r.isResumed()
+<a class="jxr_linenumber" name="L1445" href="#L1445">1445</a>                 &amp;&amp; !r.isCancelled()
+<a class="jxr_linenumber" name="L1446" href="#L1446">1446</a>                 &amp;&amp; AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r).isInScope();
+<a class="jxr_linenumber" name="L1447" href="#L1447">1447</a>     }
+<a class="jxr_linenumber" name="L1448" href="#L1448">1448</a> 
+<a class="jxr_linenumber" name="L1449" href="#L1449">1449</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> entryDone(<strong class="jxr_keyword">final</strong> BroadcasterFuture&lt;?&gt; f) {
+<a class="jxr_linenumber" name="L1450" href="#L1450">1450</a>         notifyBroadcastListener();
+<a class="jxr_linenumber" name="L1451" href="#L1451">1451</a>         <strong class="jxr_keyword">if</strong> (f != <strong class="jxr_keyword">null</strong>) f.done();
+<a class="jxr_linenumber" name="L1452" href="#L1452">1452</a>     }
+<a class="jxr_linenumber" name="L1453" href="#L1453">1453</a> 
+<a class="jxr_linenumber" name="L1454" href="#L1454">1454</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyBroadcastListener() {
+<a class="jxr_linenumber" name="L1455" href="#L1455">1455</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
+<a class="jxr_linenumber" name="L1456" href="#L1456">1456</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L1457" href="#L1457">1457</a>                 b.onComplete(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="L1458" href="#L1458">1458</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="L1459" href="#L1459">1459</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="L1460" href="#L1460">1460</a>             }
+<a class="jxr_linenumber" name="L1461" href="#L1461">1461</a>         }
+<a class="jxr_linenumber" name="L1462" href="#L1462">1462</a>     }
+<a class="jxr_linenumber" name="L1463" href="#L1463">1463</a> 
+<a class="jxr_linenumber" name="L1464" href="#L1464">1464</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyOnAddAtmosphereResourceListener(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L1465" href="#L1465">1465</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
+<a class="jxr_linenumber" name="L1466" href="#L1466">1466</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L1467" href="#L1467">1467</a>                 b.onAddAtmosphereResource(<strong class="jxr_keyword">this</strong>, r);
+<a class="jxr_linenumber" name="L1468" href="#L1468">1468</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="L1469" href="#L1469">1469</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="L1470" href="#L1470">1470</a>             }
+<a class="jxr_linenumber" name="L1471" href="#L1471">1471</a>         }
+<a class="jxr_linenumber" name="L1472" href="#L1472">1472</a>     }
+<a class="jxr_linenumber" name="L1473" href="#L1473">1473</a> 
+<a class="jxr_linenumber" name="L1474" href="#L1474">1474</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyOnRemoveAtmosphereResourceListener(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L1475" href="#L1475">1475</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
+<a class="jxr_linenumber" name="L1476" href="#L1476">1476</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L1477" href="#L1477">1477</a>                 b.onRemoveAtmosphereResource(<strong class="jxr_keyword">this</strong>, r);
+<a class="jxr_linenumber" name="L1478" href="#L1478">1478</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="L1479" href="#L1479">1479</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="L1480" href="#L1480">1480</a>             }
+<a class="jxr_linenumber" name="L1481" href="#L1481">1481</a>         }
+<a class="jxr_linenumber" name="L1482" href="#L1482">1482</a>     }
+<a class="jxr_linenumber" name="L1483" href="#L1483">1483</a> 
+<a class="jxr_linenumber" name="L1484" href="#L1484">1484</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">void</strong> notifyOnMessage(<a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> deliver) {
+<a class="jxr_linenumber" name="L1485" href="#L1485">1485</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
+<a class="jxr_linenumber" name="L1486" href="#L1486">1486</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L1487" href="#L1487">1487</a>                 b.onMessage(<strong class="jxr_keyword">this</strong>, deliver);
+<a class="jxr_linenumber" name="L1488" href="#L1488">1488</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="L1489" href="#L1489">1489</a>                 logger.warn(<span class="jxr_string">""</span>, ex);
+<a class="jxr_linenumber" name="L1490" href="#L1490">1490</a>             }
+<a class="jxr_linenumber" name="L1491" href="#L1491">1491</a>         }
+<a class="jxr_linenumber" name="L1492" href="#L1492">1492</a>     }
+<a class="jxr_linenumber" name="L1493" href="#L1493">1493</a> 
+<a class="jxr_linenumber" name="L1494" href="#L1494">1494</a>     @Override
+<a class="jxr_linenumber" name="L1495" href="#L1495">1495</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> removeAtmosphereResource(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L1496" href="#L1496">1496</a>         <strong class="jxr_keyword">return</strong> removeAtmosphereResource(r, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L1497" href="#L1497">1497</a>     }
+<a class="jxr_linenumber" name="L1498" href="#L1498">1498</a> 
+<a class="jxr_linenumber" name="L1499" href="#L1499">1499</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> removeAtmosphereResource(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r, <strong class="jxr_keyword">boolean</strong> executeDone) {
+<a class="jxr_linenumber" name="L1500" href="#L1500">1500</a>         <strong class="jxr_keyword">if</strong> (destroyed.get()) {
+<a class="jxr_linenumber" name="L1501" href="#L1501">1501</a>             logger.debug(DESTROYED, getID(), <span class="jxr_string">"removeAtmosphereResource(AtmosphereResource r)"</span>);
+<a class="jxr_linenumber" name="L1502" href="#L1502">1502</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1503" href="#L1503">1503</a>         }
+<a class="jxr_linenumber" name="L1504" href="#L1504">1504</a> 
+<a class="jxr_linenumber" name="L1505" href="#L1505">1505</a>         <strong class="jxr_keyword">boolean</strong> removed = resources.remove(r);
+<a class="jxr_linenumber" name="L1506" href="#L1506">1506</a>         <strong class="jxr_keyword">if</strong> (removed) {
+<a class="jxr_linenumber" name="L1507" href="#L1507">1507</a>             <strong class="jxr_keyword">if</strong> (r.isSuspended()) {
+<a class="jxr_linenumber" name="L1508" href="#L1508">1508</a>                 logger.trace(<span class="jxr_string">"Excluded from {} : {}"</span>, getID(), r.uuid());
+<a class="jxr_linenumber" name="L1509" href="#L1509">1509</a>                 bc.getBroadcasterCache().excludeFromCache(getID(), r);
+<a class="jxr_linenumber" name="L1510" href="#L1510">1510</a>             }
+<a class="jxr_linenumber" name="L1511" href="#L1511">1511</a>             notifyOnRemoveAtmosphereResourceListener(r);
+<a class="jxr_linenumber" name="L1512" href="#L1512">1512</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L1513" href="#L1513">1513</a>             logger.trace(<span class="jxr_string">"Unable to remove {} from {}"</span>, r.uuid(), getID());
+<a class="jxr_linenumber" name="L1514" href="#L1514">1514</a>         }
+<a class="jxr_linenumber" name="L1515" href="#L1515">1515</a>         r.removeBroadcaster(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="L1516" href="#L1516">1516</a> 
+<a class="jxr_linenumber" name="L1517" href="#L1517">1517</a>         <strong class="jxr_keyword">if</strong> (!removed) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1518" href="#L1518">1518</a> 
+<a class="jxr_linenumber" name="L1519" href="#L1519">1519</a>         logger.trace(<span class="jxr_string">"Removing AtmosphereResource {} for Broadcaster {}"</span>, r.uuid(), name);
+<a class="jxr_linenumber" name="L1520" href="#L1520">1520</a>         writeQueues.remove(r.uuid());
+<a class="jxr_linenumber" name="L1521" href="#L1521">1521</a> 
+<a class="jxr_linenumber" name="L1522" href="#L1522">1522</a>         <em class="jxr_comment">// Here we need to make sure we aren't in the process of broadcasting and unlock the Future.</em>
+<a class="jxr_linenumber" name="L1523" href="#L1523">1523</a>         <strong class="jxr_keyword">if</strong> (executeDone) {
+<a class="jxr_linenumber" name="L1524" href="#L1524">1524</a>             <a href="../../../org/atmosphere/cpr/AtmosphereResourceImpl.html">AtmosphereResourceImpl</a> aImpl = AtmosphereResourceImpl.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(r);
+<a class="jxr_linenumber" name="L1525" href="#L1525">1525</a>             <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> f = (BroadcasterFuture) aImpl.getRequest(false).getAttribute(getID());
+<a class="jxr_linenumber" name="L1526" href="#L1526">1526</a>             <strong class="jxr_keyword">if</strong> (f != <strong class="jxr_keyword">null</strong> &amp;&amp; !f.isDone() &amp;&amp; !f.isCancelled()) {
+<a class="jxr_linenumber" name="L1527" href="#L1527">1527</a>                 aImpl.getRequest(false).removeAttribute(getID());
+<a class="jxr_linenumber" name="L1528" href="#L1528">1528</a>                 entryDone(f);
+<a class="jxr_linenumber" name="L1529" href="#L1529">1529</a>             }
+<a class="jxr_linenumber" name="L1530" href="#L1530">1530</a>         }
+<a class="jxr_linenumber" name="L1531" href="#L1531">1531</a> 
+<a class="jxr_linenumber" name="L1532" href="#L1532">1532</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1533" href="#L1533">1533</a>     }
+<a class="jxr_linenumber" name="L1534" href="#L1534">1534</a> 
+<a class="jxr_linenumber" name="L1535" href="#L1535">1535</a>     @Override
+<a class="jxr_linenumber" name="L1536" href="#L1536">1536</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> setBroadcasterConfig(<a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> bc) {
+<a class="jxr_linenumber" name="L1537" href="#L1537">1537</a>         <strong class="jxr_keyword">this</strong>.bc = bc;
+<a class="jxr_linenumber" name="L1538" href="#L1538">1538</a>     }
+<a class="jxr_linenumber" name="L1539" href="#L1539">1539</a> 
+<a class="jxr_linenumber" name="L1540" href="#L1540">1540</a>     @Override
+<a class="jxr_linenumber" name="L1541" href="#L1541">1541</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterConfig.html">BroadcasterConfig</a> getBroadcasterConfig() {
+<a class="jxr_linenumber" name="L1542" href="#L1542">1542</a>         <strong class="jxr_keyword">return</strong> bc;
+<a class="jxr_linenumber" name="L1543" href="#L1543">1543</a>     }
+<a class="jxr_linenumber" name="L1544" href="#L1544">1544</a> 
+<a class="jxr_linenumber" name="L1545" href="#L1545">1545</a>     @Override
+<a class="jxr_linenumber" name="L1546" href="#L1546">1546</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; delayBroadcast(Object o) {
+<a class="jxr_linenumber" name="L1547" href="#L1547">1547</a>         <strong class="jxr_keyword">return</strong> delayBroadcast(o, 0, <strong class="jxr_keyword">null</strong>);
+<a class="jxr_linenumber" name="L1548" href="#L1548">1548</a>     }
+<a class="jxr_linenumber" name="L1549" href="#L1549">1549</a> 
+<a class="jxr_linenumber" name="L1550" href="#L1550">1550</a>     @Override
+<a class="jxr_linenumber" name="L1551" href="#L1551">1551</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; delayBroadcast(<strong class="jxr_keyword">final</strong> Object o, <strong class="jxr_keyword">long</strong> delay, TimeUnit t) {
+<a class="jxr_linenumber" name="L1552" href="#L1552">1552</a> 
+<a class="jxr_linenumber" name="L1553" href="#L1553">1553</a>         <strong class="jxr_keyword">if</strong> (destroyed.get()) {
+<a class="jxr_linenumber" name="L1554" href="#L1554">1554</a>             logger.debug(DESTROYED, getID(), <span class="jxr_string">"delayBroadcast(final T o, long delay, TimeUnit t)"</span>);
+<a class="jxr_linenumber" name="L1555" href="#L1555">1555</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1556" href="#L1556">1556</a>         }
 <a class="jxr_linenumber" name="L1557" href="#L1557">1557</a> 
-<a class="jxr_linenumber" name="L1558" href="#L1558">1558</a>         <strong class="jxr_keyword">final</strong> BroadcasterFuture&lt;Object&gt; future = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(msg);
-<a class="jxr_linenumber" name="L1559" href="#L1559">1559</a>         <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> e = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, future, o);
-<a class="jxr_linenumber" name="L1560" href="#L1560">1560</a>         Future&lt;Object&gt; f;
-<a class="jxr_linenumber" name="L1561" href="#L1561">1561</a>         <strong class="jxr_keyword">if</strong> (delay &gt; 0) {
-<a class="jxr_linenumber" name="L1562" href="#L1562">1562</a>             f = bc.getScheduledExecutorService().schedule(<strong class="jxr_keyword">new</strong> Callable&lt;Object&gt;() {
-<a class="jxr_linenumber" name="L1563" href="#L1563">1563</a> 
-<a class="jxr_linenumber" name="L1564" href="#L1564">1564</a>                 <strong class="jxr_keyword">public</strong> Object call() <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="L1565" href="#L1565">1565</a>                     delayedBroadcast.remove(e);
-<a class="jxr_linenumber" name="L1566" href="#L1566">1566</a>                     <strong class="jxr_keyword">if</strong> (Callable.<strong class="jxr_keyword">class</strong>.isAssignableFrom(o.getClass())) {
-<a class="jxr_linenumber" name="L1567" href="#L1567">1567</a>                         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L1568" href="#L1568">1568</a>                             Object r = Callable.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(o).call();
-<a class="jxr_linenumber" name="L1569" href="#L1569">1569</a>                             <strong class="jxr_keyword">final</strong> Object msg = filter(r);
-<a class="jxr_linenumber" name="L1570" href="#L1570">1570</a>                             <strong class="jxr_keyword">if</strong> (msg != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L1571" href="#L1571">1571</a>                                 <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> deliver = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, future, r);
-<a class="jxr_linenumber" name="L1572" href="#L1572">1572</a>                                 push(deliver);
-<a class="jxr_linenumber" name="L1573" href="#L1573">1573</a>                             }
-<a class="jxr_linenumber" name="L1574" href="#L1574">1574</a>                             <strong class="jxr_keyword">return</strong> msg;
-<a class="jxr_linenumber" name="L1575" href="#L1575">1575</a>                         } <strong class="jxr_keyword">catch</strong> (Exception e1) {
-<a class="jxr_linenumber" name="L1576" href="#L1576">1576</a>                             logger.error(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L1577" href="#L1577">1577</a>                         }
-<a class="jxr_linenumber" name="L1578" href="#L1578">1578</a>                     }
-<a class="jxr_linenumber" name="L1579" href="#L1579">1579</a> 
-<a class="jxr_linenumber" name="L1580" href="#L1580">1580</a>                     <strong class="jxr_keyword">final</strong> Object msg = filter(o);
-<a class="jxr_linenumber" name="L1581" href="#L1581">1581</a>                     <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> e = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, future, o);
-<a class="jxr_linenumber" name="L1582" href="#L1582">1582</a>                     push(e);
-<a class="jxr_linenumber" name="L1583" href="#L1583">1583</a>                     <strong class="jxr_keyword">return</strong> msg;
-<a class="jxr_linenumber" name="L1584" href="#L1584">1584</a>                 }
-<a class="jxr_linenumber" name="L1585" href="#L1585">1585</a>             }, delay, t);
-<a class="jxr_linenumber" name="L1586" href="#L1586">1586</a> 
-<a class="jxr_linenumber" name="L1587" href="#L1587">1587</a>             e.future = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(f, msg);
-<a class="jxr_linenumber" name="L1588" href="#L1588">1588</a>         }
-<a class="jxr_linenumber" name="L1589" href="#L1589">1589</a>         delayedBroadcast.offer(e);
-<a class="jxr_linenumber" name="L1590" href="#L1590">1590</a>         <strong class="jxr_keyword">return</strong> future;
-<a class="jxr_linenumber" name="L1591" href="#L1591">1591</a>     }
-<a class="jxr_linenumber" name="L1592" href="#L1592">1592</a> 
-<a class="jxr_linenumber" name="L1593" href="#L1593">1593</a>     @Override
-<a class="jxr_linenumber" name="L1594" href="#L1594">1594</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; scheduleFixedBroadcast(<strong class="jxr_keyword">final</strong> Object o, <strong class="jxr_keyword">long</strong> period, TimeUnit t) {
-<a class="jxr_linenumber" name="L1595" href="#L1595">1595</a>         <strong class="jxr_keyword">return</strong> scheduleFixedBroadcast(o, 0, period, t);
-<a class="jxr_linenumber" name="L1596" href="#L1596">1596</a>     }
-<a class="jxr_linenumber" name="L1597" href="#L1597">1597</a> 
-<a class="jxr_linenumber" name="L1598" href="#L1598">1598</a>     @Override
-<a class="jxr_linenumber" name="L1599" href="#L1599">1599</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; scheduleFixedBroadcast(<strong class="jxr_keyword">final</strong> Object o, <strong class="jxr_keyword">long</strong> waitFor, <strong class="jxr_keyword">long</strong> period, TimeUnit t) {
-<a class="jxr_linenumber" name="L1600" href="#L1600">1600</a> 
-<a class="jxr_linenumber" name="L1601" href="#L1601">1601</a>         <strong class="jxr_keyword">if</strong> (destroyed.get()) {
-<a class="jxr_linenumber" name="L1602" href="#L1602">1602</a>             logger.debug(DESTROYED, getID(), <span class="jxr_string">"scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t)"</span>);
-<a class="jxr_linenumber" name="L1603" href="#L1603">1603</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1604" href="#L1604">1604</a>         }
-<a class="jxr_linenumber" name="L1605" href="#L1605">1605</a> 
-<a class="jxr_linenumber" name="L1606" href="#L1606">1606</a>         start();
-<a class="jxr_linenumber" name="L1607" href="#L1607">1607</a>         <strong class="jxr_keyword">if</strong> (period == 0 || t == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L1608" href="#L1608">1608</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1609" href="#L1609">1609</a>         }
-<a class="jxr_linenumber" name="L1610" href="#L1610">1610</a> 
-<a class="jxr_linenumber" name="L1611" href="#L1611">1611</a>         <strong class="jxr_keyword">final</strong> Object msg = filter(o);
-<a class="jxr_linenumber" name="L1612" href="#L1612">1612</a>         <strong class="jxr_keyword">if</strong> (msg == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1613" href="#L1613">1613</a> 
-<a class="jxr_linenumber" name="L1614" href="#L1614">1614</a>         <strong class="jxr_keyword">final</strong> BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(msg);
-<a class="jxr_linenumber" name="L1615" href="#L1615">1615</a> 
-<a class="jxr_linenumber" name="L1616" href="#L1616">1616</a>         <strong class="jxr_keyword">return</strong> (Future&lt;Object&gt;) bc.getScheduledExecutorService().scheduleWithFixedDelay(<strong class="jxr_keyword">new</strong> Runnable() {
-<a class="jxr_linenumber" name="L1617" href="#L1617">1617</a>             <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
-<a class="jxr_linenumber" name="L1618" href="#L1618">1618</a>                 <strong class="jxr_keyword">if</strong> (Callable.<strong class="jxr_keyword">class</strong>.isAssignableFrom(o.getClass())) {
-<a class="jxr_linenumber" name="L1619" href="#L1619">1619</a>                     <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L1620" href="#L1620">1620</a>                         Object r = Callable.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(o).call();
-<a class="jxr_linenumber" name="L1621" href="#L1621">1621</a>                         <strong class="jxr_keyword">final</strong> Object msg = filter(r);
-<a class="jxr_linenumber" name="L1622" href="#L1622">1622</a>                         <strong class="jxr_keyword">if</strong> (msg != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L1623" href="#L1623">1623</a>                             <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> deliver = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, f, r);
-<a class="jxr_linenumber" name="L1624" href="#L1624">1624</a>                             push(deliver);
-<a class="jxr_linenumber" name="L1625" href="#L1625">1625</a>                         }
-<a class="jxr_linenumber" name="L1626" href="#L1626">1626</a>                         <strong class="jxr_keyword">return</strong>;
-<a class="jxr_linenumber" name="L1627" href="#L1627">1627</a>                     } <strong class="jxr_keyword">catch</strong> (Exception e) {
-<a class="jxr_linenumber" name="L1628" href="#L1628">1628</a>                         logger.error(<span class="jxr_string">""</span>, e);
-<a class="jxr_linenumber" name="L1629" href="#L1629">1629</a>                     }
-<a class="jxr_linenumber" name="L1630" href="#L1630">1630</a>                 }
-<a class="jxr_linenumber" name="L1631" href="#L1631">1631</a>                 <strong class="jxr_keyword">final</strong> Object msg = filter(o);
-<a class="jxr_linenumber" name="L1632" href="#L1632">1632</a>                 <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> e = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, f, o);
-<a class="jxr_linenumber" name="L1633" href="#L1633">1633</a>                 push(e);
-<a class="jxr_linenumber" name="L1634" href="#L1634">1634</a>             }
-<a class="jxr_linenumber" name="L1635" href="#L1635">1635</a>         }, waitFor, period, t);
-<a class="jxr_linenumber" name="L1636" href="#L1636">1636</a>     }
-<a class="jxr_linenumber" name="L1637" href="#L1637">1637</a> 
-<a class="jxr_linenumber" name="L1638" href="#L1638">1638</a>     @Override
-<a class="jxr_linenumber" name="L1639" href="#L1639">1639</a>     <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="L1640" href="#L1640">1640</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> StringBuilder().append(<span class="jxr_string">"\n\tName: "</span>).append(name)
-<a class="jxr_linenumber" name="L1641" href="#L1641">1641</a>                 .append(<span class="jxr_string">"\n\tAtmosphereResource: "</span>).append(resources.size())
-<a class="jxr_linenumber" name="L1642" href="#L1642">1642</a>                 .append(<span class="jxr_string">"\n\tBroadcasterCache "</span>).append(bc.getBroadcasterCache())
-<a class="jxr_linenumber" name="L1643" href="#L1643">1643</a>                 .toString();
-<a class="jxr_linenumber" name="L1644" href="#L1644">1644</a>     }
-<a class="jxr_linenumber" name="L1645" href="#L1645">1645</a> 
-<a class="jxr_linenumber" name="L1646" href="#L1646">1646</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">AsyncWriteToken</a> {
-<a class="jxr_linenumber" name="L1647" href="#L1647">1647</a> 
-<a class="jxr_linenumber" name="L1648" href="#L1648">1648</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource;
-<a class="jxr_linenumber" name="L1649" href="#L1649">1649</a>         Object msg;
-<a class="jxr_linenumber" name="L1650" href="#L1650">1650</a>         <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> future;
-<a class="jxr_linenumber" name="L1651" href="#L1651">1651</a>         Object originalMessage;
-<a class="jxr_linenumber" name="L1652" href="#L1652">1652</a>         <a href="../../../org/atmosphere/cache/CacheMessage.html">CacheMessage</a> cache;
-<a class="jxr_linenumber" name="L1653" href="#L1653">1653</a>         AtomicInteger count;
-<a class="jxr_linenumber" name="L1654" href="#L1654">1654</a> 
-<a class="jxr_linenumber" name="L1655" href="#L1655">1655</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">AsyncWriteToken</a>(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource, Object msg, <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> future, Object originalMessage, AtomicInteger count) {
-<a class="jxr_linenumber" name="L1656" href="#L1656">1656</a>             <strong class="jxr_keyword">this</strong>.resource = resource;
-<a class="jxr_linenumber" name="L1657" href="#L1657">1657</a>             <strong class="jxr_keyword">this</strong>.msg = msg;
-<a class="jxr_linenumber" name="L1658" href="#L1658">1658</a>             <strong class="jxr_keyword">this</strong>.future = future;
-<a class="jxr_linenumber" name="L1659" href="#L1659">1659</a>             <strong class="jxr_keyword">this</strong>.originalMessage = originalMessage;
-<a class="jxr_linenumber" name="L1660" href="#L1660">1660</a>             <strong class="jxr_keyword">this</strong>.count = count;
-<a class="jxr_linenumber" name="L1661" href="#L1661">1661</a>         }
-<a class="jxr_linenumber" name="L1662" href="#L1662">1662</a> 
-<a class="jxr_linenumber" name="L1663" href="#L1663">1663</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">AsyncWriteToken</a>(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource, Object msg, <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> future, Object originalMessage, <a href="../../../org/atmosphere/cache/CacheMessage.html">CacheMessage</a> cache, AtomicInteger count) {
-<a class="jxr_linenumber" name="L1664" href="#L1664">1664</a>             <strong class="jxr_keyword">this</strong>.resource = resource;
-<a class="jxr_linenumber" name="L1665" href="#L1665">1665</a>             <strong class="jxr_keyword">this</strong>.msg = msg;
-<a class="jxr_linenumber" name="L1666" href="#L1666">1666</a>             <strong class="jxr_keyword">this</strong>.future = future;
-<a class="jxr_linenumber" name="L1667" href="#L1667">1667</a>             <strong class="jxr_keyword">this</strong>.originalMessage = originalMessage;
-<a class="jxr_linenumber" name="L1668" href="#L1668">1668</a>             <strong class="jxr_keyword">this</strong>.cache = cache;
-<a class="jxr_linenumber" name="L1669" href="#L1669">1669</a>             <strong class="jxr_keyword">this</strong>.count = count;
-<a class="jxr_linenumber" name="L1670" href="#L1670">1670</a>         }
-<a class="jxr_linenumber" name="L1671" href="#L1671">1671</a> 
-<a class="jxr_linenumber" name="L1672" href="#L1672">1672</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
-<a class="jxr_linenumber" name="L1673" href="#L1673">1673</a>             <strong class="jxr_keyword">this</strong>.resource = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1674" href="#L1674">1674</a>             <strong class="jxr_keyword">this</strong>.msg = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1675" href="#L1675">1675</a>             <strong class="jxr_keyword">this</strong>.future = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1676" href="#L1676">1676</a>             <strong class="jxr_keyword">this</strong>.originalMessage = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L1677" href="#L1677">1677</a>         }
-<a class="jxr_linenumber" name="L1678" href="#L1678">1678</a> 
-<a class="jxr_linenumber" name="L1679" href="#L1679">1679</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> lastBroadcasted() {
-<a class="jxr_linenumber" name="L1680" href="#L1680">1680</a>             <strong class="jxr_keyword">return</strong> count.decrementAndGet() == 0;
+<a class="jxr_linenumber" name="L1558" href="#L1558">1558</a>         start();
+<a class="jxr_linenumber" name="L1559" href="#L1559">1559</a>         <strong class="jxr_keyword">final</strong> Object msg = filter(o);
+<a class="jxr_linenumber" name="L1560" href="#L1560">1560</a>         <strong class="jxr_keyword">if</strong> (msg == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1561" href="#L1561">1561</a> 
+<a class="jxr_linenumber" name="L1562" href="#L1562">1562</a>         <strong class="jxr_keyword">final</strong> BroadcasterFuture&lt;Object&gt; future = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(msg);
+<a class="jxr_linenumber" name="L1563" href="#L1563">1563</a>         <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> e = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, future, o);
+<a class="jxr_linenumber" name="L1564" href="#L1564">1564</a>         Future&lt;Object&gt; f;
+<a class="jxr_linenumber" name="L1565" href="#L1565">1565</a>         <strong class="jxr_keyword">if</strong> (delay &gt; 0) {
+<a class="jxr_linenumber" name="L1566" href="#L1566">1566</a>             f = bc.getScheduledExecutorService().schedule(<strong class="jxr_keyword">new</strong> Callable&lt;Object&gt;() {
+<a class="jxr_linenumber" name="L1567" href="#L1567">1567</a> 
+<a class="jxr_linenumber" name="L1568" href="#L1568">1568</a>                 <strong class="jxr_keyword">public</strong> Object call() <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L1569" href="#L1569">1569</a>                     delayedBroadcast.remove(e);
+<a class="jxr_linenumber" name="L1570" href="#L1570">1570</a>                     <strong class="jxr_keyword">if</strong> (Callable.<strong class="jxr_keyword">class</strong>.isAssignableFrom(o.getClass())) {
+<a class="jxr_linenumber" name="L1571" href="#L1571">1571</a>                         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L1572" href="#L1572">1572</a>                             Object r = Callable.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(o).call();
+<a class="jxr_linenumber" name="L1573" href="#L1573">1573</a>                             <strong class="jxr_keyword">final</strong> Object msg = filter(r);
+<a class="jxr_linenumber" name="L1574" href="#L1574">1574</a>                             <strong class="jxr_keyword">if</strong> (msg != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L1575" href="#L1575">1575</a>                                 <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> deliver = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, future, r);
+<a class="jxr_linenumber" name="L1576" href="#L1576">1576</a>                                 push(deliver);
+<a class="jxr_linenumber" name="L1577" href="#L1577">1577</a>                             }
+<a class="jxr_linenumber" name="L1578" href="#L1578">1578</a>                             <strong class="jxr_keyword">return</strong> msg;
+<a class="jxr_linenumber" name="L1579" href="#L1579">1579</a>                         } <strong class="jxr_keyword">catch</strong> (Exception e1) {
+<a class="jxr_linenumber" name="L1580" href="#L1580">1580</a>                             logger.error(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="L1581" href="#L1581">1581</a>                         }
+<a class="jxr_linenumber" name="L1582" href="#L1582">1582</a>                     }
+<a class="jxr_linenumber" name="L1583" href="#L1583">1583</a> 
+<a class="jxr_linenumber" name="L1584" href="#L1584">1584</a>                     <strong class="jxr_keyword">final</strong> Object msg = filter(o);
+<a class="jxr_linenumber" name="L1585" href="#L1585">1585</a>                     <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> e = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, future, o);
+<a class="jxr_linenumber" name="L1586" href="#L1586">1586</a>                     push(e);
+<a class="jxr_linenumber" name="L1587" href="#L1587">1587</a>                     <strong class="jxr_keyword">return</strong> msg;
+<a class="jxr_linenumber" name="L1588" href="#L1588">1588</a>                 }
+<a class="jxr_linenumber" name="L1589" href="#L1589">1589</a>             }, delay, t);
+<a class="jxr_linenumber" name="L1590" href="#L1590">1590</a> 
+<a class="jxr_linenumber" name="L1591" href="#L1591">1591</a>             e.future = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(f, msg);
+<a class="jxr_linenumber" name="L1592" href="#L1592">1592</a>         }
+<a class="jxr_linenumber" name="L1593" href="#L1593">1593</a>         delayedBroadcast.offer(e);
+<a class="jxr_linenumber" name="L1594" href="#L1594">1594</a>         <strong class="jxr_keyword">return</strong> future;
+<a class="jxr_linenumber" name="L1595" href="#L1595">1595</a>     }
+<a class="jxr_linenumber" name="L1596" href="#L1596">1596</a> 
+<a class="jxr_linenumber" name="L1597" href="#L1597">1597</a>     @Override
+<a class="jxr_linenumber" name="L1598" href="#L1598">1598</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; scheduleFixedBroadcast(<strong class="jxr_keyword">final</strong> Object o, <strong class="jxr_keyword">long</strong> period, TimeUnit t) {
+<a class="jxr_linenumber" name="L1599" href="#L1599">1599</a>         <strong class="jxr_keyword">return</strong> scheduleFixedBroadcast(o, 0, period, t);
+<a class="jxr_linenumber" name="L1600" href="#L1600">1600</a>     }
+<a class="jxr_linenumber" name="L1601" href="#L1601">1601</a> 
+<a class="jxr_linenumber" name="L1602" href="#L1602">1602</a>     @Override
+<a class="jxr_linenumber" name="L1603" href="#L1603">1603</a>     <strong class="jxr_keyword">public</strong> Future&lt;Object&gt; scheduleFixedBroadcast(<strong class="jxr_keyword">final</strong> Object o, <strong class="jxr_keyword">long</strong> waitFor, <strong class="jxr_keyword">long</strong> period, TimeUnit t) {
+<a class="jxr_linenumber" name="L1604" href="#L1604">1604</a> 
+<a class="jxr_linenumber" name="L1605" href="#L1605">1605</a>         <strong class="jxr_keyword">if</strong> (destroyed.get()) {
+<a class="jxr_linenumber" name="L1606" href="#L1606">1606</a>             logger.debug(DESTROYED, getID(), <span class="jxr_string">"scheduleFixedBroadcast(final Object o, long waitFor, long period, TimeUnit t)"</span>);
+<a class="jxr_linenumber" name="L1607" href="#L1607">1607</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1608" href="#L1608">1608</a>         }
+<a class="jxr_linenumber" name="L1609" href="#L1609">1609</a> 
+<a class="jxr_linenumber" name="L1610" href="#L1610">1610</a>         start();
+<a class="jxr_linenumber" name="L1611" href="#L1611">1611</a>         <strong class="jxr_keyword">if</strong> (period == 0 || t == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L1612" href="#L1612">1612</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1613" href="#L1613">1613</a>         }
+<a class="jxr_linenumber" name="L1614" href="#L1614">1614</a> 
+<a class="jxr_linenumber" name="L1615" href="#L1615">1615</a>         <strong class="jxr_keyword">final</strong> Object msg = filter(o);
+<a class="jxr_linenumber" name="L1616" href="#L1616">1616</a>         <strong class="jxr_keyword">if</strong> (msg == <strong class="jxr_keyword">null</strong>) <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1617" href="#L1617">1617</a> 
+<a class="jxr_linenumber" name="L1618" href="#L1618">1618</a>         <strong class="jxr_keyword">final</strong> BroadcasterFuture&lt;Object&gt; f = <strong class="jxr_keyword">new</strong> BroadcasterFuture&lt;Object&gt;(msg);
+<a class="jxr_linenumber" name="L1619" href="#L1619">1619</a> 
+<a class="jxr_linenumber" name="L1620" href="#L1620">1620</a>         <strong class="jxr_keyword">return</strong> (Future&lt;Object&gt;) bc.getScheduledExecutorService().scheduleWithFixedDelay(<strong class="jxr_keyword">new</strong> Runnable() {
+<a class="jxr_linenumber" name="L1621" href="#L1621">1621</a>             <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> run() {
+<a class="jxr_linenumber" name="L1622" href="#L1622">1622</a>                 <strong class="jxr_keyword">if</strong> (Callable.<strong class="jxr_keyword">class</strong>.isAssignableFrom(o.getClass())) {
+<a class="jxr_linenumber" name="L1623" href="#L1623">1623</a>                     <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L1624" href="#L1624">1624</a>                         Object r = Callable.<strong class="jxr_keyword">class</strong>.<strong class="jxr_keyword">cast</strong>(o).call();
+<a class="jxr_linenumber" name="L1625" href="#L1625">1625</a>                         <strong class="jxr_keyword">final</strong> Object msg = filter(r);
+<a class="jxr_linenumber" name="L1626" href="#L1626">1626</a>                         <strong class="jxr_keyword">if</strong> (msg != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L1627" href="#L1627">1627</a>                             <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> deliver = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, f, r);
+<a class="jxr_linenumber" name="L1628" href="#L1628">1628</a>                             push(deliver);
+<a class="jxr_linenumber" name="L1629" href="#L1629">1629</a>                         }
+<a class="jxr_linenumber" name="L1630" href="#L1630">1630</a>                         <strong class="jxr_keyword">return</strong>;
+<a class="jxr_linenumber" name="L1631" href="#L1631">1631</a>                     } <strong class="jxr_keyword">catch</strong> (Exception e) {
+<a class="jxr_linenumber" name="L1632" href="#L1632">1632</a>                         logger.error(<span class="jxr_string">""</span>, e);
+<a class="jxr_linenumber" name="L1633" href="#L1633">1633</a>                     }
+<a class="jxr_linenumber" name="L1634" href="#L1634">1634</a>                 }
+<a class="jxr_linenumber" name="L1635" href="#L1635">1635</a>                 <strong class="jxr_keyword">final</strong> Object msg = filter(o);
+<a class="jxr_linenumber" name="L1636" href="#L1636">1636</a>                 <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a> e = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/Deliver.html">Deliver</a>(msg, f, o);
+<a class="jxr_linenumber" name="L1637" href="#L1637">1637</a>                 push(e);
+<a class="jxr_linenumber" name="L1638" href="#L1638">1638</a>             }
+<a class="jxr_linenumber" name="L1639" href="#L1639">1639</a>         }, waitFor, period, t);
+<a class="jxr_linenumber" name="L1640" href="#L1640">1640</a>     }
+<a class="jxr_linenumber" name="L1641" href="#L1641">1641</a> 
+<a class="jxr_linenumber" name="L1642" href="#L1642">1642</a>     @Override
+<a class="jxr_linenumber" name="L1643" href="#L1643">1643</a>     <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="L1644" href="#L1644">1644</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> StringBuilder().append(<span class="jxr_string">"\n\tName: "</span>).append(name)
+<a class="jxr_linenumber" name="L1645" href="#L1645">1645</a>                 .append(<span class="jxr_string">"\n\tAtmosphereResource: "</span>).append(resources.size())
+<a class="jxr_linenumber" name="L1646" href="#L1646">1646</a>                 .append(<span class="jxr_string">"\n\tBroadcasterCache "</span>).append(bc.getBroadcasterCache())
+<a class="jxr_linenumber" name="L1647" href="#L1647">1647</a>                 .toString();
+<a class="jxr_linenumber" name="L1648" href="#L1648">1648</a>     }
+<a class="jxr_linenumber" name="L1649" href="#L1649">1649</a> 
+<a class="jxr_linenumber" name="L1650" href="#L1650">1650</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">AsyncWriteToken</a> {
+<a class="jxr_linenumber" name="L1651" href="#L1651">1651</a> 
+<a class="jxr_linenumber" name="L1652" href="#L1652">1652</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource;
+<a class="jxr_linenumber" name="L1653" href="#L1653">1653</a>         Object msg;
+<a class="jxr_linenumber" name="L1654" href="#L1654">1654</a>         <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> future;
+<a class="jxr_linenumber" name="L1655" href="#L1655">1655</a>         Object originalMessage;
+<a class="jxr_linenumber" name="L1656" href="#L1656">1656</a>         <a href="../../../org/atmosphere/cache/CacheMessage.html">CacheMessage</a> cache;
+<a class="jxr_linenumber" name="L1657" href="#L1657">1657</a>         AtomicInteger count;
+<a class="jxr_linenumber" name="L1658" href="#L1658">1658</a> 
+<a class="jxr_linenumber" name="L1659" href="#L1659">1659</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">AsyncWriteToken</a>(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource, Object msg, <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> future, Object originalMessage, AtomicInteger count) {
+<a class="jxr_linenumber" name="L1660" href="#L1660">1660</a>             <strong class="jxr_keyword">this</strong>.resource = resource;
+<a class="jxr_linenumber" name="L1661" href="#L1661">1661</a>             <strong class="jxr_keyword">this</strong>.msg = msg;
+<a class="jxr_linenumber" name="L1662" href="#L1662">1662</a>             <strong class="jxr_keyword">this</strong>.future = future;
+<a class="jxr_linenumber" name="L1663" href="#L1663">1663</a>             <strong class="jxr_keyword">this</strong>.originalMessage = originalMessage;
+<a class="jxr_linenumber" name="L1664" href="#L1664">1664</a>             <strong class="jxr_keyword">this</strong>.count = count;
+<a class="jxr_linenumber" name="L1665" href="#L1665">1665</a>         }
+<a class="jxr_linenumber" name="L1666" href="#L1666">1666</a> 
+<a class="jxr_linenumber" name="L1667" href="#L1667">1667</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">AsyncWriteToken</a>(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> resource, Object msg, <a href="../../../org/atmosphere/cpr/BroadcasterFuture.html">BroadcasterFuture</a> future, Object originalMessage, <a href="../../../org/atmosphere/cache/CacheMessage.html">CacheMessage</a> cache, AtomicInteger count) {
+<a class="jxr_linenumber" name="L1668" href="#L1668">1668</a>             <strong class="jxr_keyword">this</strong>.resource = resource;
+<a class="jxr_linenumber" name="L1669" href="#L1669">1669</a>             <strong class="jxr_keyword">this</strong>.msg = msg;
+<a class="jxr_linenumber" name="L1670" href="#L1670">1670</a>             <strong class="jxr_keyword">this</strong>.future = future;
+<a class="jxr_linenumber" name="L1671" href="#L1671">1671</a>             <strong class="jxr_keyword">this</strong>.originalMessage = originalMessage;
+<a class="jxr_linenumber" name="L1672" href="#L1672">1672</a>             <strong class="jxr_keyword">this</strong>.cache = cache;
+<a class="jxr_linenumber" name="L1673" href="#L1673">1673</a>             <strong class="jxr_keyword">this</strong>.count = count;
+<a class="jxr_linenumber" name="L1674" href="#L1674">1674</a>         }
+<a class="jxr_linenumber" name="L1675" href="#L1675">1675</a> 
+<a class="jxr_linenumber" name="L1676" href="#L1676">1676</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> destroy() {
+<a class="jxr_linenumber" name="L1677" href="#L1677">1677</a>             <strong class="jxr_keyword">this</strong>.resource = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1678" href="#L1678">1678</a>             <strong class="jxr_keyword">this</strong>.msg = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1679" href="#L1679">1679</a>             <strong class="jxr_keyword">this</strong>.future = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L1680" href="#L1680">1680</a>             <strong class="jxr_keyword">this</strong>.originalMessage = <strong class="jxr_keyword">null</strong>;
 <a class="jxr_linenumber" name="L1681" href="#L1681">1681</a>         }
 <a class="jxr_linenumber" name="L1682" href="#L1682">1682</a> 
-<a class="jxr_linenumber" name="L1683" href="#L1683">1683</a>         @Override
-<a class="jxr_linenumber" name="L1684" href="#L1684">1684</a>         <strong class="jxr_keyword">public</strong> String toString() {
-<a class="jxr_linenumber" name="L1685" href="#L1685">1685</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AsyncWriteToken{"</span> +
-<a class="jxr_linenumber" name="L1686" href="#L1686">1686</a>                     <span class="jxr_string">"resource="</span> + resource +
-<a class="jxr_linenumber" name="L1687" href="#L1687">1687</a>                     <span class="jxr_string">", msg="</span> + msg +
-<a class="jxr_linenumber" name="L1688" href="#L1688">1688</a>                     <span class="jxr_string">", future="</span> + future +
-<a class="jxr_linenumber" name="L1689" href="#L1689">1689</a>                     '}';
-<a class="jxr_linenumber" name="L1690" href="#L1690">1690</a>         }
-<a class="jxr_linenumber" name="L1691" href="#L1691">1691</a>     }
-<a class="jxr_linenumber" name="L1692" href="#L1692">1692</a> 
-<a class="jxr_linenumber" name="L1693" href="#L1693">1693</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">long</strong> translateTimeUnit(<strong class="jxr_keyword">long</strong> period, TimeUnit tu) {
-<a class="jxr_linenumber" name="L1694" href="#L1694">1694</a>         <strong class="jxr_keyword">if</strong> (period == -1) <strong class="jxr_keyword">return</strong> period;
-<a class="jxr_linenumber" name="L1695" href="#L1695">1695</a> 
-<a class="jxr_linenumber" name="L1696" href="#L1696">1696</a>         <strong class="jxr_keyword">switch</strong> (tu) {
-<a class="jxr_linenumber" name="L1697" href="#L1697">1697</a>             <strong class="jxr_keyword">case</strong> SECONDS:
-<a class="jxr_linenumber" name="L1698" href="#L1698">1698</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.SECONDS);
-<a class="jxr_linenumber" name="L1699" href="#L1699">1699</a>             <strong class="jxr_keyword">case</strong> MINUTES:
-<a class="jxr_linenumber" name="L1700" href="#L1700">1700</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.MINUTES);
-<a class="jxr_linenumber" name="L1701" href="#L1701">1701</a>             <strong class="jxr_keyword">case</strong> HOURS:
-<a class="jxr_linenumber" name="L1702" href="#L1702">1702</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.HOURS);
-<a class="jxr_linenumber" name="L1703" href="#L1703">1703</a>             <strong class="jxr_keyword">case</strong> DAYS:
-<a class="jxr_linenumber" name="L1704" href="#L1704">1704</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.DAYS);
-<a class="jxr_linenumber" name="L1705" href="#L1705">1705</a>             <strong class="jxr_keyword">case</strong> MILLISECONDS:
-<a class="jxr_linenumber" name="L1706" href="#L1706">1706</a>                 <strong class="jxr_keyword">return</strong> period;
-<a class="jxr_linenumber" name="L1707" href="#L1707">1707</a>             <strong class="jxr_keyword">case</strong> MICROSECONDS:
-<a class="jxr_linenumber" name="L1708" href="#L1708">1708</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.MICROSECONDS);
-<a class="jxr_linenumber" name="L1709" href="#L1709">1709</a>             <strong class="jxr_keyword">case</strong> NANOSECONDS:
-<a class="jxr_linenumber" name="L1710" href="#L1710">1710</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.NANOSECONDS);
-<a class="jxr_linenumber" name="L1711" href="#L1711">1711</a>         }
-<a class="jxr_linenumber" name="L1712" href="#L1712">1712</a>         <strong class="jxr_keyword">return</strong> period;
-<a class="jxr_linenumber" name="L1713" href="#L1713">1713</a>     }
-<a class="jxr_linenumber" name="L1714" href="#L1714">1714</a> 
-<a class="jxr_linenumber" name="L1715" href="#L1715">1715</a>     <strong class="jxr_keyword">boolean</strong> notifyOnPreDestroy() {
-<a class="jxr_linenumber" name="L1716" href="#L1716">1716</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
-<a class="jxr_linenumber" name="L1717" href="#L1717">1717</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L1718" href="#L1718">1718</a>                 b.onPreDestroy(<strong class="jxr_keyword">this</strong>);
-<a class="jxr_linenumber" name="L1719" href="#L1719">1719</a>             } <strong class="jxr_keyword">catch</strong> (RuntimeException ex) {
-<a class="jxr_linenumber" name="L1720" href="#L1720">1720</a>                 <strong class="jxr_keyword">if</strong> (BroadcasterListener.BroadcastListenerException.<strong class="jxr_keyword">class</strong>.isAssignableFrom(ex.getClass())) {
-<a class="jxr_linenumber" name="L1721" href="#L1721">1721</a>                     logger.trace(<span class="jxr_string">"onPreDestroy"</span>, ex);
-<a class="jxr_linenumber" name="L1722" href="#L1722">1722</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
-<a class="jxr_linenumber" name="L1723" href="#L1723">1723</a>                 }
-<a class="jxr_linenumber" name="L1724" href="#L1724">1724</a>                 logger.warn(<span class="jxr_string">"onPreDestroy"</span>, ex);
-<a class="jxr_linenumber" name="L1725" href="#L1725">1725</a>             }
-<a class="jxr_linenumber" name="L1726" href="#L1726">1726</a>         }
-<a class="jxr_linenumber" name="L1727" href="#L1727">1727</a>         <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L1728" href="#L1728">1728</a>     }
-<a class="jxr_linenumber" name="L1729" href="#L1729">1729</a> 
-<a class="jxr_linenumber" name="L1730" href="#L1730">1730</a>     <strong class="jxr_keyword">public</strong> Collection&lt;BroadcasterListener&gt; broadcasterListeners() {
-<a class="jxr_linenumber" name="L1731" href="#L1731">1731</a>         <strong class="jxr_keyword">return</strong> broadcasterListeners;
+<a class="jxr_linenumber" name="L1683" href="#L1683">1683</a>         <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> lastBroadcasted() {
+<a class="jxr_linenumber" name="L1684" href="#L1684">1684</a>             <strong class="jxr_keyword">return</strong> count.decrementAndGet() == 0;
+<a class="jxr_linenumber" name="L1685" href="#L1685">1685</a>         }
+<a class="jxr_linenumber" name="L1686" href="#L1686">1686</a> 
+<a class="jxr_linenumber" name="L1687" href="#L1687">1687</a>         @Override
+<a class="jxr_linenumber" name="L1688" href="#L1688">1688</a>         <strong class="jxr_keyword">public</strong> String toString() {
+<a class="jxr_linenumber" name="L1689" href="#L1689">1689</a>             <strong class="jxr_keyword">return</strong> <span class="jxr_string">"AsyncWriteToken{"</span> +
+<a class="jxr_linenumber" name="L1690" href="#L1690">1690</a>                     <span class="jxr_string">"resource="</span> + resource +
+<a class="jxr_linenumber" name="L1691" href="#L1691">1691</a>                     <span class="jxr_string">", msg="</span> + msg +
+<a class="jxr_linenumber" name="L1692" href="#L1692">1692</a>                     <span class="jxr_string">", future="</span> + future +
+<a class="jxr_linenumber" name="L1693" href="#L1693">1693</a>                     '}';
+<a class="jxr_linenumber" name="L1694" href="#L1694">1694</a>         }
+<a class="jxr_linenumber" name="L1695" href="#L1695">1695</a>     }
+<a class="jxr_linenumber" name="L1696" href="#L1696">1696</a> 
+<a class="jxr_linenumber" name="L1697" href="#L1697">1697</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">long</strong> translateTimeUnit(<strong class="jxr_keyword">long</strong> period, TimeUnit tu) {
+<a class="jxr_linenumber" name="L1698" href="#L1698">1698</a>         <strong class="jxr_keyword">if</strong> (period == -1) <strong class="jxr_keyword">return</strong> period;
+<a class="jxr_linenumber" name="L1699" href="#L1699">1699</a> 
+<a class="jxr_linenumber" name="L1700" href="#L1700">1700</a>         <strong class="jxr_keyword">switch</strong> (tu) {
+<a class="jxr_linenumber" name="L1701" href="#L1701">1701</a>             <strong class="jxr_keyword">case</strong> SECONDS:
+<a class="jxr_linenumber" name="L1702" href="#L1702">1702</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.SECONDS);
+<a class="jxr_linenumber" name="L1703" href="#L1703">1703</a>             <strong class="jxr_keyword">case</strong> MINUTES:
+<a class="jxr_linenumber" name="L1704" href="#L1704">1704</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.MINUTES);
+<a class="jxr_linenumber" name="L1705" href="#L1705">1705</a>             <strong class="jxr_keyword">case</strong> HOURS:
+<a class="jxr_linenumber" name="L1706" href="#L1706">1706</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.HOURS);
+<a class="jxr_linenumber" name="L1707" href="#L1707">1707</a>             <strong class="jxr_keyword">case</strong> DAYS:
+<a class="jxr_linenumber" name="L1708" href="#L1708">1708</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.DAYS);
+<a class="jxr_linenumber" name="L1709" href="#L1709">1709</a>             <strong class="jxr_keyword">case</strong> MILLISECONDS:
+<a class="jxr_linenumber" name="L1710" href="#L1710">1710</a>                 <strong class="jxr_keyword">return</strong> period;
+<a class="jxr_linenumber" name="L1711" href="#L1711">1711</a>             <strong class="jxr_keyword">case</strong> MICROSECONDS:
+<a class="jxr_linenumber" name="L1712" href="#L1712">1712</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.MICROSECONDS);
+<a class="jxr_linenumber" name="L1713" href="#L1713">1713</a>             <strong class="jxr_keyword">case</strong> NANOSECONDS:
+<a class="jxr_linenumber" name="L1714" href="#L1714">1714</a>                 <strong class="jxr_keyword">return</strong> TimeUnit.MILLISECONDS.convert(period, TimeUnit.NANOSECONDS);
+<a class="jxr_linenumber" name="L1715" href="#L1715">1715</a>         }
+<a class="jxr_linenumber" name="L1716" href="#L1716">1716</a>         <strong class="jxr_keyword">return</strong> period;
+<a class="jxr_linenumber" name="L1717" href="#L1717">1717</a>     }
+<a class="jxr_linenumber" name="L1718" href="#L1718">1718</a> 
+<a class="jxr_linenumber" name="L1719" href="#L1719">1719</a>     <strong class="jxr_keyword">boolean</strong> notifyOnPreDestroy() {
+<a class="jxr_linenumber" name="L1720" href="#L1720">1720</a>         <strong class="jxr_keyword">for</strong> (BroadcasterListener b : broadcasterListeners) {
+<a class="jxr_linenumber" name="L1721" href="#L1721">1721</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L1722" href="#L1722">1722</a>                 b.onPreDestroy(<strong class="jxr_keyword">this</strong>);
+<a class="jxr_linenumber" name="L1723" href="#L1723">1723</a>             } <strong class="jxr_keyword">catch</strong> (RuntimeException ex) {
+<a class="jxr_linenumber" name="L1724" href="#L1724">1724</a>                 <strong class="jxr_keyword">if</strong> (BroadcasterListener.BroadcastListenerException.<strong class="jxr_keyword">class</strong>.isAssignableFrom(ex.getClass())) {
+<a class="jxr_linenumber" name="L1725" href="#L1725">1725</a>                     logger.trace(<span class="jxr_string">"onPreDestroy"</span>, ex);
+<a class="jxr_linenumber" name="L1726" href="#L1726">1726</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L1727" href="#L1727">1727</a>                 }
+<a class="jxr_linenumber" name="L1728" href="#L1728">1728</a>                 logger.warn(<span class="jxr_string">"onPreDestroy"</span>, ex);
+<a class="jxr_linenumber" name="L1729" href="#L1729">1729</a>             }
+<a class="jxr_linenumber" name="L1730" href="#L1730">1730</a>         }
+<a class="jxr_linenumber" name="L1731" href="#L1731">1731</a>         <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="L1732" href="#L1732">1732</a>     }
 <a class="jxr_linenumber" name="L1733" href="#L1733">1733</a> 
-<a class="jxr_linenumber" name="L1734" href="#L1734">1734</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a> lifeCyclePolicy() {
-<a class="jxr_linenumber" name="L1735" href="#L1735">1735</a>         <strong class="jxr_keyword">return</strong> lifeCyclePolicy;
+<a class="jxr_linenumber" name="L1734" href="#L1734">1734</a>     <strong class="jxr_keyword">public</strong> Collection&lt;BroadcasterListener&gt; broadcasterListeners() {
+<a class="jxr_linenumber" name="L1735" href="#L1735">1735</a>         <strong class="jxr_keyword">return</strong> broadcasterListeners;
 <a class="jxr_linenumber" name="L1736" href="#L1736">1736</a>     }
 <a class="jxr_linenumber" name="L1737" href="#L1737">1737</a> 
-<a class="jxr_linenumber" name="L1738" href="#L1738">1738</a>     <strong class="jxr_keyword">public</strong> ConcurrentLinkedQueue&lt;BroadcasterLifeCyclePolicyListener&gt; lifeCycleListeners() {
-<a class="jxr_linenumber" name="L1739" href="#L1739">1739</a>         <strong class="jxr_keyword">return</strong> lifeCycleListeners;
+<a class="jxr_linenumber" name="L1738" href="#L1738">1738</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a> lifeCyclePolicy() {
+<a class="jxr_linenumber" name="L1739" href="#L1739">1739</a>         <strong class="jxr_keyword">return</strong> lifeCyclePolicy;
 <a class="jxr_linenumber" name="L1740" href="#L1740">1740</a>     }
 <a class="jxr_linenumber" name="L1741" href="#L1741">1741</a> 
-<a class="jxr_linenumber" name="L1742" href="#L1742">1742</a>     <strong class="jxr_keyword">public</strong> BlockingQueue&lt;Deliver&gt; messages() {
-<a class="jxr_linenumber" name="L1743" href="#L1743">1743</a>         <strong class="jxr_keyword">return</strong> messages;
+<a class="jxr_linenumber" name="L1742" href="#L1742">1742</a>     <strong class="jxr_keyword">public</strong> ConcurrentLinkedQueue&lt;BroadcasterLifeCyclePolicyListener&gt; lifeCycleListeners() {
+<a class="jxr_linenumber" name="L1743" href="#L1743">1743</a>         <strong class="jxr_keyword">return</strong> lifeCycleListeners;
 <a class="jxr_linenumber" name="L1744" href="#L1744">1744</a>     }
 <a class="jxr_linenumber" name="L1745" href="#L1745">1745</a> 
-<a class="jxr_linenumber" name="L1746" href="#L1746">1746</a>     <strong class="jxr_keyword">public</strong> ConcurrentHashMap&lt;String, WriteQueue&gt; writeQueues() {
-<a class="jxr_linenumber" name="L1747" href="#L1747">1747</a>         <strong class="jxr_keyword">return</strong> writeQueues;
+<a class="jxr_linenumber" name="L1746" href="#L1746">1746</a>     <strong class="jxr_keyword">public</strong> BlockingQueue&lt;Deliver&gt; messages() {
+<a class="jxr_linenumber" name="L1747" href="#L1747">1747</a>         <strong class="jxr_keyword">return</strong> messages;
 <a class="jxr_linenumber" name="L1748" href="#L1748">1748</a>     }
 <a class="jxr_linenumber" name="L1749" href="#L1749">1749</a> 
-<a class="jxr_linenumber" name="L1750" href="#L1750">1750</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">POLICY</a> policy() {
-<a class="jxr_linenumber" name="L1751" href="#L1751">1751</a>         <strong class="jxr_keyword">return</strong> policy;
+<a class="jxr_linenumber" name="L1750" href="#L1750">1750</a>     <strong class="jxr_keyword">public</strong> ConcurrentHashMap&lt;String, WriteQueue&gt; writeQueues() {
+<a class="jxr_linenumber" name="L1751" href="#L1751">1751</a>         <strong class="jxr_keyword">return</strong> writeQueues;
 <a class="jxr_linenumber" name="L1752" href="#L1752">1752</a>     }
 <a class="jxr_linenumber" name="L1753" href="#L1753">1753</a> 
-<a class="jxr_linenumber" name="L1754" href="#L1754">1754</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> outOfOrderBroadcastSupported() {
-<a class="jxr_linenumber" name="L1755" href="#L1755">1755</a>         <strong class="jxr_keyword">return</strong> outOfOrderBroadcastSupported.get();
+<a class="jxr_linenumber" name="L1754" href="#L1754">1754</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">POLICY</a> policy() {
+<a class="jxr_linenumber" name="L1755" href="#L1755">1755</a>         <strong class="jxr_keyword">return</strong> policy;
 <a class="jxr_linenumber" name="L1756" href="#L1756">1756</a>     }
 <a class="jxr_linenumber" name="L1757" href="#L1757">1757</a> 
-<a class="jxr_linenumber" name="L1758" href="#L1758">1758</a>     <strong class="jxr_keyword">public</strong> AtomicBoolean recentActivity() {
-<a class="jxr_linenumber" name="L1759" href="#L1759">1759</a>         <strong class="jxr_keyword">return</strong> recentActivity;
+<a class="jxr_linenumber" name="L1758" href="#L1758">1758</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> outOfOrderBroadcastSupported() {
+<a class="jxr_linenumber" name="L1759" href="#L1759">1759</a>         <strong class="jxr_keyword">return</strong> outOfOrderBroadcastSupported.get();
 <a class="jxr_linenumber" name="L1760" href="#L1760">1760</a>     }
 <a class="jxr_linenumber" name="L1761" href="#L1761">1761</a> 
-<a class="jxr_linenumber" name="L1762" href="#L1762">1762</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/lifecycle/LifecycleHandler.html">LifecycleHandler</a> lifecycleHandler() {
-<a class="jxr_linenumber" name="L1763" href="#L1763">1763</a>         <strong class="jxr_keyword">return</strong> lifecycleHandler;
+<a class="jxr_linenumber" name="L1762" href="#L1762">1762</a>     <strong class="jxr_keyword">public</strong> AtomicBoolean recentActivity() {
+<a class="jxr_linenumber" name="L1763" href="#L1763">1763</a>         <strong class="jxr_keyword">return</strong> recentActivity;
 <a class="jxr_linenumber" name="L1764" href="#L1764">1764</a>     }
 <a class="jxr_linenumber" name="L1765" href="#L1765">1765</a> 
-<a class="jxr_linenumber" name="L1766" href="#L1766">1766</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a> lifecycleHandler(<a href="../../../org/atmosphere/lifecycle/LifecycleHandler.html">LifecycleHandler</a> lifecycleHandler) {
-<a class="jxr_linenumber" name="L1767" href="#L1767">1767</a>         <strong class="jxr_keyword">this</strong>.lifecycleHandler = lifecycleHandler;
-<a class="jxr_linenumber" name="L1768" href="#L1768">1768</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1769" href="#L1769">1769</a>     }
-<a class="jxr_linenumber" name="L1770" href="#L1770">1770</a> 
-<a class="jxr_linenumber" name="L1771" href="#L1771">1771</a>     <strong class="jxr_keyword">public</strong> Future&lt;?&gt; currentLifecycleTask() {
-<a class="jxr_linenumber" name="L1772" href="#L1772">1772</a>         <strong class="jxr_keyword">return</strong> currentLifecycleTask;
+<a class="jxr_linenumber" name="L1766" href="#L1766">1766</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/lifecycle/LifecycleHandler.html">LifecycleHandler</a> lifecycleHandler() {
+<a class="jxr_linenumber" name="L1767" href="#L1767">1767</a>         <strong class="jxr_keyword">return</strong> lifecycleHandler;
+<a class="jxr_linenumber" name="L1768" href="#L1768">1768</a>     }
+<a class="jxr_linenumber" name="L1769" href="#L1769">1769</a> 
+<a class="jxr_linenumber" name="L1770" href="#L1770">1770</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a> lifecycleHandler(<a href="../../../org/atmosphere/lifecycle/LifecycleHandler.html">LifecycleHandler</a> lifecycleHandler) {
+<a class="jxr_linenumber" name="L1771" href="#L1771">1771</a>         <strong class="jxr_keyword">this</strong>.lifecycleHandler = lifecycleHandler;
+<a class="jxr_linenumber" name="L1772" href="#L1772">1772</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
 <a class="jxr_linenumber" name="L1773" href="#L1773">1773</a>     }
 <a class="jxr_linenumber" name="L1774" href="#L1774">1774</a> 
-<a class="jxr_linenumber" name="L1775" href="#L1775">1775</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a> currentLifecycleTask(Future&lt;?&gt; currentLifecycleTask) {
-<a class="jxr_linenumber" name="L1776" href="#L1776">1776</a>         <strong class="jxr_keyword">this</strong>.currentLifecycleTask = currentLifecycleTask;
-<a class="jxr_linenumber" name="L1777" href="#L1777">1777</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
-<a class="jxr_linenumber" name="L1778" href="#L1778">1778</a>     }
-<a class="jxr_linenumber" name="L1779" href="#L1779">1779</a> }
+<a class="jxr_linenumber" name="L1775" href="#L1775">1775</a>     <strong class="jxr_keyword">public</strong> Future&lt;?&gt; currentLifecycleTask() {
+<a class="jxr_linenumber" name="L1776" href="#L1776">1776</a>         <strong class="jxr_keyword">return</strong> currentLifecycleTask;
+<a class="jxr_linenumber" name="L1777" href="#L1777">1777</a>     }
+<a class="jxr_linenumber" name="L1778" href="#L1778">1778</a> 
+<a class="jxr_linenumber" name="L1779" href="#L1779">1779</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a> currentLifecycleTask(Future&lt;?&gt; currentLifecycleTask) {
+<a class="jxr_linenumber" name="L1780" href="#L1780">1780</a>         <strong class="jxr_keyword">this</strong>.currentLifecycleTask = currentLifecycleTask;
+<a class="jxr_linenumber" name="L1781" href="#L1781">1781</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L1782" href="#L1782">1782</a>     }
+<a class="jxr_linenumber" name="L1783" href="#L1783">1783</a> }
 </pre>
 <hr/>
 <div id="footer">Copyright &#169; 2015. All rights reserved.</div>

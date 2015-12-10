@@ -224,11 +224,11 @@
 <a class="jxr_linenumber" name="L216" href="#L216">216</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L217" href="#L217">217</a>     @Override
 <a class="jxr_linenumber" name="L218" href="#L218">218</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> create(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config, String uuid) {
-<a class="jxr_linenumber" name="L219" href="#L219">219</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response = AtmosphereResponse.newInstance();
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response = AtmosphereResponseImpl.newInstance();
 <a class="jxr_linenumber" name="L220" href="#L220">220</a>         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
 <a class="jxr_linenumber" name="L221" href="#L221">221</a>         <strong class="jxr_keyword">return</strong> create(config,
 <a class="jxr_linenumber" name="L222" href="#L222">222</a>                 noOps,
-<a class="jxr_linenumber" name="L223" href="#L223">223</a>                 AtmosphereRequest.newInstance(),
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>                 AtmosphereRequestImpl.newInstance(),
 <a class="jxr_linenumber" name="L224" href="#L224">224</a>                 response,
 <a class="jxr_linenumber" name="L225" href="#L225">225</a>                 config.framework().getAsyncSupport(),
 <a class="jxr_linenumber" name="L226" href="#L226">226</a>                 noOpsHandler);
@@ -244,7 +244,7 @@
 <a class="jxr_linenumber" name="L236" href="#L236">236</a> <em class="jxr_javadoccomment">     */</em>
 <a class="jxr_linenumber" name="L237" href="#L237">237</a>     @Override
 <a class="jxr_linenumber" name="L238" href="#L238">238</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> create(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config, String uuid, <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request) {
-<a class="jxr_linenumber" name="L239" href="#L239">239</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response = AtmosphereResponse.newInstance();
+<a class="jxr_linenumber" name="L239" href="#L239">239</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response = AtmosphereResponseImpl.newInstance();
 <a class="jxr_linenumber" name="L240" href="#L240">240</a>         response.setHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, uuid);
 <a class="jxr_linenumber" name="L241" href="#L241">241</a>         <strong class="jxr_keyword">return</strong> create(config,
 <a class="jxr_linenumber" name="L242" href="#L242">242</a>                 noOps,
