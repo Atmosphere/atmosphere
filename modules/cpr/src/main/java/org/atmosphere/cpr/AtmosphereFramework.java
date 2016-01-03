@@ -1150,7 +1150,7 @@ public class AtmosphereFramework {
 
                     String inputLine;
                     String newVersion = Version.getRawVersion();
-                    String clientVersion = "2.2.11";
+                    String clientVersion = "2.3.1";
                     String nextMajorRelease = null;
                     boolean nextAvailable = false;
                     if (newVersion.indexOf("SNAPSHOT") == -1) {
