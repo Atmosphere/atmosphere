@@ -1150,7 +1150,7 @@ public class AtmosphereFramework {
 
                     String inputLine;
                     String newVersion = Version.getRawVersion();
-                    String clientVersion = "2.2.11";
+                    String clientVersion = null;
                     String nextMajorRelease = null;
                     boolean nextAvailable = false;
                     if (newVersion.indexOf("SNAPSHOT") == -1) {
@@ -1171,7 +1171,9 @@ public class AtmosphereFramework {
                                 }
                             }
                         } finally {
-                            logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
+                            if (clientVersion != null) {
+                                logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
+                            }
                             if (newVersion.compareTo(Version.getRawVersion()) > 0) {
                                 if (nextAvailable) {
                                     logger.info("\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}", newVersion, nextMajorRelease);
