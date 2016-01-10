@@ -40,6 +40,7 @@ import org.atmosphere.container.Tomcat7CometSupport;
 import org.atmosphere.container.Tomcat7Servlet30SupportWithWebSocket;
 import org.atmosphere.container.TomcatCometSupport;
 import org.atmosphere.container.WebLogicServlet30WithWebSocket;
+import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,8 +79,12 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
     private final AtmosphereConfig config;
 
+    private final boolean suppress356;
+
     public DefaultAsyncSupportResolver(final AtmosphereConfig config) {
         this.config = config;
+        this.suppress356 = 
+            Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
     }
 
     /**
@@ -90,14 +95,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      */
     protected boolean testClassExists(final String testClass) {
         try {
-            return testClass != null && testClass.length() > 0 &&
-                    Thread.currentThread().getContextClassLoader().loadClass(testClass) != null;
-        } catch (ClassNotFoundException ex) {
-            return false;
-        } catch (NoClassDefFoundError ex) {
-            return false;
-            // JDK 7
-        } catch (UnsupportedClassVersionError ex) {
+            final boolean exists = testClass != null && testClass.length() > 0 && IOUtils.loadClass(null, testClass) != null;
+            logger.debug(exists ? "Found {}" : "Not found {}", testClass);
+            return exists; 
+        } catch (Exception ex) {
             return false;
         }
     }
@@ -152,8 +153,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             {
                 if (useServlet30Async && !useNativeIfPossible) {
 
-
-                    if (testClassExists(JSR356_WEBSOCKET)) {
+                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
                         add(JSR356AsyncSupport.class);
                     } else {
 
@@ -180,7 +180,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         }
                     }
                 } else {
-                    if (testClassExists(JSR356_WEBSOCKET)) {
+                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
                         add(JSR356AsyncSupport.class);
                     } else {
                         if (testClassExists(TOMCAT_WEBSOCKET))
@@ -235,9 +235,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                     .newInstance(config);
         } catch (final Exception e) {
             logger.warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
+
             Throwable cause = e.getCause();
             if (cause != null) {
-                logger.error("Real error: {}, error: {}", targetClass, cause);
+                logger.error("Real error: {}", cause.getMessage(), cause);
             }
             return null;
         }
@@ -252,7 +253,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             logger.error("Failed to create AsyncSupport class: {}, error: {}", targetClassFQN, e);
             Throwable cause = e.getCause();
             if (cause != null) {
-                logger.error("Real error: {}, error: {}", targetClassFQN, cause);
+                logger.error("Real error: {}", cause.getMessage(), cause);
             }
             throw new IllegalArgumentException("Unable to create " + targetClassFQN, e);
         }

@@ -40,7 +40,7 @@ import java.util.concurrent.Future;
 public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterProxy.class);
-    private Method jerseyBroadcast = null;
+    private Method jerseyBroadcast;
 
     public AbstractBroadcasterProxy() {
         try {

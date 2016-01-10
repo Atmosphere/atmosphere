@@ -32,8 +32,6 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -55,7 +53,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     public final static String CLEAN_CLOSE = "Clean_Close";
 
     private AtmosphereResource r;
-    protected long lastWrite = 0;
+    protected long lastWrite;
     protected boolean binaryWrite;
     private final AtomicBoolean firstWrite = new AtomicBoolean(false);
     private final AtmosphereConfig config;
@@ -124,9 +122,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * @return this.
      */
     public WebSocket shiftAttributes() {
-        Map<String, Object> m = new HashMap<String, Object>();
-        m.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes());
-        attributesAtWebSocketOpen = Collections.unmodifiableMap(m);
+        attributesAtWebSocketOpen = AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes().unmodifiableMap();
         return this;
     }
 
@@ -189,7 +185,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
         logger.trace("WebSocket.write() {}", data);
 
-        boolean transform = filters.size() > 0 && r.getStatus() < 400;
+        boolean transform = !filters.isEmpty() && r.getStatus() < 400;
         if (binaryWrite) {
             byte[] b = data.getBytes(resource().getResponse().getCharacterEncoding());
             if (transform) {
@@ -235,7 +231,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
             logger.trace("WebSocket.write() {}", new String(b, offset, length, "UTF-8"));
         }
 
-        boolean transform = filters.size() > 0 && r.getStatus() < 400;
+        boolean transform = !filters.isEmpty() && r.getStatus() < 400;
         if (binaryWrite || resource().forceBinaryWrite()) {
             if (transform) {
                 b = transform(r, b, offset, length);

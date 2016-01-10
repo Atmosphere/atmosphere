@@ -47,6 +47,7 @@ import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
  */
 public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
+    private static final long serialVersionUID = 7526472295622776111L;
     private static final Logger logger = LoggerFactory.getLogger(SimpleHttpProtocol.class);
     protected final static String TEXT = "text/plain";
     protected String contentType = TEXT;

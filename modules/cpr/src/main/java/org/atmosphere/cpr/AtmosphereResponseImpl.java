@@ -79,9 +79,9 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private String charSet = "UTF-8";
     private long contentLength = -1;
     private String contentType = "text/html";
-    private boolean isCommited = false;
+    private boolean isCommited;
     private Locale locale;
-    private boolean headerHandled = false;
+    private boolean headerHandled;
     private AtmosphereRequest atmosphereRequest;
     private static final HttpServletResponse dsr = (HttpServletResponse)
             Proxy.newProxyInstance(AtmosphereResponseImpl.class.getClassLoader(), new Class[]{HttpServletResponse.class},
@@ -95,11 +95,11 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private boolean delegateToNativeResponse;
     private boolean destroyable;
     private HttpServletResponse response;
-    private boolean forceAsyncIOWriter = false;
+    private boolean forceAsyncIOWriter;
     private String uuid = "0";
     private final AtomicBoolean usingStream = new AtomicBoolean(true);
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
-    private final Stream stream = new Stream();
+    private ServletOutputStream stream = new Stream();
     private final Writer writer = new Writer(stream);
 
     public AtmosphereResponseImpl(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
@@ -138,7 +138,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         this.destroyable = b.destroyable;
     }
 
-    public final static class Builder {
+    public final static class Builder implements AtmosphereResponse.Builder {
         private AsyncIOWriter asyncIOWriter;
         private int status = 200;
         private String statusMessage = "OK";
@@ -151,45 +151,54 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         public Builder() {
         }
 
+        @Override
         public Builder destroyable(boolean isRecyclable) {
             this.destroyable = isRecyclable;
             return this;
         }
 
+        @Override
         public Builder asyncIOWriter(AsyncIOWriter asyncIOWriter) {
             this.asyncIOWriter = asyncIOWriter;
             return this;
         }
 
+        @Override
         public Builder status(int status) {
             this.status = status;
             return this;
         }
 
+        @Override
         public Builder statusMessage(String statusMessage) {
             this.statusMessage = statusMessage;
             return this;
         }
 
+        @Override
         public Builder request(AtmosphereRequest atmosphereRequest) {
             this.atmosphereRequest = atmosphereRequest;
             return this;
         }
 
+        @Override
         public AtmosphereResponse build() {
             return new AtmosphereResponseImpl(this);
         }
 
+        @Override
         public Builder header(String name, String value) {
             headers.put(name, value);
             return this;
         }
 
+        @Override
         public Builder writeHeader(boolean writeStatusAndHeader) {
             this.writeStatusAndHeader.set(writeStatusAndHeader);
             return this;
         }
 
+        @Override
         public Builder response(HttpServletResponse res) {
             this.atmosphereResponse = res;
             return this;

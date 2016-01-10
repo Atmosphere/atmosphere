@@ -70,8 +70,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean isResumed = new AtomicBoolean();
     private final AtomicBoolean isCancelled = new AtomicBoolean();
     private final AtomicBoolean resumeOnBroadcast = new AtomicBoolean();
-    private Object writeOnTimeout = null;
-    private boolean disableSuspend = false;
+    private Object writeOnTimeout;
+    private boolean disableSuspend;
     private final AtomicBoolean disconnected = new AtomicBoolean();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
@@ -87,7 +87,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean suspended = new AtomicBoolean();
     private WebSocket webSocket;
     private final AtomicBoolean inClosingPhase = new AtomicBoolean();
-    private boolean closeOnCancel = false;
+    private boolean closeOnCancel;
     private final AtomicBoolean isPendingClose = new AtomicBoolean();
 
     public AtmosphereResourceImpl() {
@@ -304,14 +304,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         } finally {
             unregister();
-            try {
-                Meteor m = (Meteor) req.getAttribute(METEOR);
-                if (m != null) {
-                    m.destroy();
-                }
-            } catch (Exception ex) {
-                logger.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
-            }
+            Utils.destroyMeteor(req);
         }
         listeners.clear();
         return this;
@@ -400,7 +393,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
 
                 broadcaster = config.getBroadcasterFactory().lookup(clazz, id, false);
-                if (broadcaster == null || broadcaster.getAtmosphereResources().size() > 0) {
+                if (broadcaster == null || !broadcaster.getAtmosphereResources().isEmpty()) {
                     broadcaster = config.getBroadcasterFactory().lookup(clazz, id + "/" + UUID.randomUUID(), true);
                 }
             }
@@ -813,9 +806,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 asyncSupport.complete(this);
 
                 try {
-                    Meteor m = (Meteor) req.getAttribute(AtmosphereResourceImpl.METEOR);
-                    if (m != null) {
-                        m.destroy();
+                    Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
+                    if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
+                        Meteor.class.cast(o).destroy();
                     }
                 } catch (Exception ex) {
                     logger.trace("Meteor exception {}", ex);

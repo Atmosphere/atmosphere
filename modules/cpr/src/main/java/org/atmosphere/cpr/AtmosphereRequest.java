@@ -28,6 +28,7 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
+
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
@@ -35,9 +36,13 @@ import java.io.Reader;
 import java.io.UnsupportedEncodingException;
 import java.security.Principal;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * An Atmosphere request representation. An {@link AtmosphereRequest} is a two-way communication channel between the
@@ -340,7 +345,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
      * @return the locally added attributes
      * @deprecated Use {@link #localAttributes()}
      */
-    Map<String, Object> attributes();
+    LocalAttributes attributes();
 
     /**
      * {@inheritDoc}
@@ -529,9 +534,9 @@ public interface AtmosphereRequest extends HttpServletRequest {
      * Return a subset of the attributes set on this AtmosphereRequest, set locally by the framework or by an application. Attributes added using this method
      * won't be propagated to the original, container-only, native request object.
      *
-     * @return a {@link Map<String,Object>}
+     * @return a {@linkLocalAttributes>}
      */
-    Map<String, Object> localAttributes();
+    LocalAttributes localAttributes();
 
     /**
      * {@inheritDoc}
@@ -567,4 +572,124 @@ public interface AtmosphereRequest extends HttpServletRequest {
 
     String requestURL();
 
+
+    final class LocalAttributes {
+
+        private final Map<String, Object> localAttributes;
+
+        public LocalAttributes(Map<String, Object> attributes) {
+            this.localAttributes = attributes;
+        }
+
+        public LocalAttributes() {
+            this.localAttributes = new ConcurrentHashMap<>();
+        }
+
+        public LocalAttributes put(String s, Object o) {
+            localAttributes.put(s, o);
+            return this;
+        }
+
+        public Object get(String s) {
+            return localAttributes.get(s);
+        }
+
+        public Object remove(String name) {
+            return localAttributes.remove(name);
+        }
+
+        public Map<String, Object> unmodifiableMap() {
+            return Collections.unmodifiableMap(localAttributes);
+        }
+
+        public void clear() {
+            synchronized (localAttributes) {
+                localAttributes.clear();
+            }
+        }
+
+        public boolean containsKey(String key) {
+            return localAttributes.containsKey(key);
+        }
+    }
+    
+    interface Builder {
+        Builder destroyable(boolean destroyable);
+
+        Builder headers(Map<String, String> headers);
+
+        Builder cookies(Set<Cookie> cookies);
+
+        Builder dispatchRequestAsynchronously(boolean dispatchRequestAsynchronously);
+
+        Builder remoteAddr(String remoteAddr);
+
+        Builder remoteHost(String remoteHost);
+
+        Builder remotePort(int remotePort);
+
+        Builder localAddr(String localAddr);
+
+        Builder localName(String localName);
+
+        Builder localPort(int localPort);
+
+        Builder remoteInetSocketAddress(Callable remoteAddr);
+
+        Builder localInetSocketAddress(Callable localAddr);
+
+        Builder attributes(Map<String, Object> attributes);
+
+        Builder request(HttpServletRequest request);
+
+        Builder servletPath(String servletPath);
+
+        Builder requestURI(String requestURI);
+
+        Builder requestURL(String requestURL);
+
+        Builder pathInfo(String pathInfo);
+
+        Builder queryString(String queryString);
+
+        Builder body(byte[] dataBytes);
+
+        Builder body(byte[] dataBytes, int offset, int length);
+
+        Builder encoding(String encoding);
+
+        Builder method(String methodType);
+
+        Builder contentType(String contentType);
+
+        Builder contentLength(Long contentLength);
+
+        Builder body(String data);
+
+        Builder inputStream(InputStream inputStream);
+
+        Builder reader(Reader reader);
+
+        AtmosphereRequest build();
+
+        Builder queryStrings(Map<String, String[]> queryStrings);
+
+        Builder contextPath(String contextPath);
+
+        Builder serverName(String serverName);
+
+        Builder serverPort(int serverPort);
+
+        Builder session(HttpSession session);
+
+        Builder principal(Principal principal);
+
+        Builder authType(String authType);
+
+        Builder isSSecure(boolean isSecure);
+
+        Builder locale(Locale locale);
+
+        Builder userPrincipal(Principal userPrincipal);
+    }
 }

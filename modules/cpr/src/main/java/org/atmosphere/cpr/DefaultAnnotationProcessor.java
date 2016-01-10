@@ -161,7 +161,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         List<String> packages = f.customAnnotationPackages();
         AnnotationDetector detector = new AnnotationDetector(atmosphereReporter);
         try {
-            if (packages.size() > 0) {
+            if (!packages.isEmpty()) {
                 for (String p : packages) {
                     logger.trace("Package {} scanned for @AtmosphereAnnotation", p);
                     detector.detect(p);
@@ -254,7 +254,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
          * of everything in the war. It would be nice to change to the API to make this a bit cleaner
          * but it looks like it is a public API.
          */
-        private boolean alreadyScanned = false;
+        private boolean alreadyScanned;
 
         private ServletContainerInitializerAnnotationProcessor(AnnotationHandler handler,
                                                                final Map<Class<? extends Annotation>, Set<Class<?>>> annotations,

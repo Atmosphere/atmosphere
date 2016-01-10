@@ -943,7 +943,7 @@ public class AtmosphereFilter implements ResourceFilterFactory {
             }
         }
 
-        if (list.size() == 0) {
+        if (!list.isEmpty()) {
             f = new Filter(Action.NONE);
             list.addFirst(f);
         }

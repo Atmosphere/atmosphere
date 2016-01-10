@@ -44,6 +44,7 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  */
 public class AtmosphereServlet extends HttpServlet implements CometProcessor, HttpEventServlet, org.apache.catalina.comet.CometProcessor {
 
+    private static final long serialVersionUID = 7526472295622776147L;
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereServlet.class);
     protected final AtmosphereFrameworkInitializer initializer;
 
@@ -319,7 +320,7 @@ public class AtmosphereServlet extends HttpServlet implements CometProcessor, Ht
 
         boolean isWebSocket = req.getHeader("Upgrade") == null ? false : true;
         if (isWebSocket && initializer.framework().asyncSupport.getClass().equals(JBossAsyncSupportWithWebSocket.class)) {
-        	logger.trace("Dispatching websocket event: " + httpEvent);
+            logger.trace("Dispatching websocket event: " + httpEvent);
             ((JBossAsyncSupportWithWebSocket) initializer.framework().asyncSupport).dispatch(httpEvent);
         } else {
             logger.trace("Dispatching comet event: " + httpEvent);

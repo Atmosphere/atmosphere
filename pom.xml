@@ -11,7 +11,7 @@
     <artifactId>atmosphere-project</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
-    <version>3.0.0-SNAPSHOT</version>
+    <version>2.4.3-SNAPSHOT</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
@@ -157,6 +157,75 @@
                     </dependency>
                 </dependencies>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-checkstyle-plugin</artifactId>
+                <version>2.15</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.atmosphere</groupId>
+                        <artifactId>atmosphere-buildtools</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                    <dependency>
+                        <groupId>com.puppycrawl.tools</groupId>
+                        <artifactId>checkstyle</artifactId>
+                        <version>6.4.1</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <encoding>UTF-8</encoding>
+                    <includeResources>false</includeResources>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <configuration>
+                            <configLocation>atmosphere-checkstyle.xml</configLocation>
+                            <consoleOutput>true</consoleOutput>
+                            <failsOnError>true</failsOnError>
+                            <linkXRef>false</linkXRef>
+                            <suppressionsLocation>atmosphere-checkstyle-suppressions.xml</suppressionsLocation>
+                            <sourceDirectory>${basedir}/src</sourceDirectory>
+                        </configuration>
+                        <goals>
+                            <goal>checkstyle</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-pmd-plugin</artifactId>
+                <version>3.5</version>
+                <dependencies>
+                    <dependency>
+                        <groupId>org.atmosphere</groupId>
+                        <artifactId>atmosphere-buildtools</artifactId>
+                        <version>${project.version}</version>
+                    </dependency>
+                </dependencies>
+                <configuration>
+                    <rulesets>
+                        <ruleset>atmosphere-pmd-ruleset.xml</ruleset>
+                    </rulesets>
+                    <sourceEncoding>UTF-8</sourceEncoding>
+                    <targetJdk>1.7</targetJdk>
+                    <linkXRef>false</linkXRef>
+                    <includeTests>true</includeTests>
+                    <verbose>true</verbose>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>validate</id>
+                        <phase>validate</phase>
+                        <goals>
+                            <goal>check</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
         <pluginManagement>
             <plugins>
@@ -169,6 +238,14 @@
         </pluginManagement>
     </build>
     <profiles>
+        <profile>
+            <id>fastinstall</id>
+            <properties>
+                <maven.test.skip>true</maven.test.skip>
+                <pmd.skip>true</pmd.skip>
+                <checkstyle.skip>true</checkstyle.skip>
+            </properties>
+        </profile>
         <profile>
             <id>release-profile</id>
             <properties>
@@ -311,6 +388,7 @@
         </profile>
     </profiles>
     <modules>
+        <module>buildtools</module>
         <module>modules</module>
         <module>assembly</module>
     </modules>
@@ -524,8 +602,8 @@
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
         <jetty7-version>7.6.9.v20130131</jetty7-version>
-        <jetty8-version>8.1.9.v20130131</jetty8-version>
-        <jetty9-version>9.1.1.v20140108</jetty9-version>
+        <jetty8-version>8.1.17.v20150415</jetty8-version>
+        <jetty9-version>9.2.13.v20150730</jetty9-version>
         <tomcat-version>6.0.35</tomcat-version>
         <tomcat7-version>7.0.35</tomcat7-version>
         <shade-version>1.2.1</shade-version>
@@ -535,7 +613,6 @@
         <slf4j-version>1.7.7</slf4j-version>
         <logback-version>1.1.2</logback-version>
         <jbossaswebsockets-version>0.5</jbossaswebsockets-version>
-        <client-version>2.2.4</client-version>
         <compat-version>2.0.1</compat-version>
         <shiro-version>1.2.2</shiro-version>
         <commons-pool2>2.3</commons-pool2>

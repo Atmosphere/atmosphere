@@ -45,12 +45,10 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         ServerContainer container = (ServerContainer) ctx.getAttribute(ServerContainer.class.getName());
 
         if (container == null) {
-            String minVersion = "1.7+";
             if (ctx.getServerInfo().contains("WebLogic")) {
                 logger.error("{} must use JDK 1.8+ with WebSocket", ctx.getServerInfo());
-                minVersion = "1.8+";
             }
-            throw new IllegalStateException("Unable to configure jsr356 at that stage");
+            throw new IllegalStateException("Unable to configure jsr356 at that stage. ServerContainer is null");
         }
 
         int pathLength = 5;

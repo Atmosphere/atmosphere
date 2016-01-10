@@ -32,7 +32,7 @@ import java.net.URL;
 public class HTTPGetMethod {
     private static final String GET_METHOD_NAME = "GET";
     private static final String SUCCESS_MESSAGE = "JGoogleAnalytics: Tracking Successful!";
-    private static String uaName = null; // User Agent name
+    private static String uaName; // User Agent name
     private static String osString = "Unknown";
     private final Logger logger = LoggerFactory.getLogger(HTTPGetMethod.class);
 

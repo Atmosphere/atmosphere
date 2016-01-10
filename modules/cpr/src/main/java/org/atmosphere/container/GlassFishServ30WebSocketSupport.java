@@ -34,6 +34,7 @@ import org.glassfish.grizzly.websockets.WebSocketEngine;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 
@@ -50,6 +51,13 @@ public class GlassFishServ30WebSocketSupport extends Servlet30CometSupport {
         super(config);
         application = new Grizzly2WebSocketApplication(config);
         WebSocketEngine.getEngine().register(config.getServletContext().getContextPath(),
+                IOUtils.guestRawServletPath(config), application);
+    }
+
+    public GlassFishServ30WebSocketSupport(AtmosphereConfig config, ServletContext sc) {
+        super(config);
+        application = new Grizzly2WebSocketApplication(config);
+        WebSocketEngine.getEngine().register(sc.getContextPath(),
                 IOUtils.guestRawServletPath(config), application);
     }
 

@@ -28,6 +28,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
@@ -80,6 +81,7 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertSame;
+import static org.testng.Assert.assertTrue;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
@@ -663,7 +665,33 @@ public class ManagedAtmosphereHandlerTest {
 
     }
 
-    @WebSocketHandlerService(path = "/websocketfactory")
+    public final static class Interceptor implements AtmosphereInterceptor {
+
+        public static boolean invoked = false;
+
+        @Override
+        public Action inspect(AtmosphereResource r) {
+            invoked = true;
+            return Action.CONTINUE;
+        }
+
+        @Override
+        public void postInspect(AtmosphereResource r) {
+
+        }
+
+        @Override
+        public void destroy() {
+
+        }
+
+        @Override
+        public void configure(AtmosphereConfig config) {
+
+        }
+    }
+
+    @WebSocketHandlerService(path = "/websocketfactory", interceptors = {Interceptor.class })
     public final static class WebSocketfactoryTest extends WebSocketHandlerAdapter {
 
         @Inject
@@ -688,6 +716,8 @@ public class ManagedAtmosphereHandlerTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
 
         assertNotNull(r.get());
+        assertTrue(Interceptor.invoked);
+
     }
 
     @ManagedService(path = "/named")

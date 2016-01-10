@@ -27,7 +27,7 @@ public class SessionSupport implements HttpSessionListener {
     private final Logger logger = LoggerFactory.getLogger(SessionSupport.class);
 
     // Quite ugly, but gives hints about current state of Session Support.
-    public static boolean initializationHint = false;
+    public static boolean initializationHint;
 
     public SessionSupport() {
         initializationHint = true;

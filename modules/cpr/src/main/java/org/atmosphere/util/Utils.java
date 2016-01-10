@@ -24,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.cpr.Meteor;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.inject.InjectableObjectFactory;
@@ -327,5 +328,37 @@ public final class Utils {
             LOGGER.error("", var4);
             return false;
         }
+    }
+
+    public final static void destroyMeteor(AtmosphereRequest req) {
+        try {
+            Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
+            if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
+                Meteor.class.cast(o).destroy();
+            }
+        } catch (Exception ex) {
+            LOGGER.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
+        }
+    }
+
+    public static String pathInfo(AtmosphereRequest request) {
+        String pathInfo = null;
+        String path = null;
+        try {
+            pathInfo = request.getPathInfo();
+        } catch (IllegalStateException ex) {
+            // http://java.net/jira/browse/GRIZZLY-1301
+        }
+
+        if (pathInfo != null) {
+            path = request.getServletPath() + pathInfo;
+        } else {
+            path = request.getServletPath();
+        }
+
+        if (path == null || path.isEmpty()) {
+            path = "/";
+        }
+        return path;
     }
 }

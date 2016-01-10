@@ -113,11 +113,11 @@ public class DefaultBroadcaster implements Broadcaster {
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
     protected int waitTime = POLLING_DEFAULT;
-    private boolean backwardCompatible = false;
+    private boolean backwardCompatible;
     private LifecycleHandler lifecycleHandler;
     private Future<?> currentLifecycleTask;
     private boolean cacheOnIOFlushException = true;
-    protected boolean sharedListeners = false;
+    protected boolean sharedListeners;
     protected boolean candidateForPoolable;
     protected final String usingTokenIdForAttribute = UUID.randomUUID().toString();
 
@@ -447,7 +447,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
                         if (token == null && !outOfOrderBroadcastSupported.get()) {
                             synchronized (writeQueue) {
-                                if (writeQueue.queue.size() == 0) {
+                                if (writeQueue.queue.isEmpty()) {
                                     writeQueue.monitored.set(false);
                                     writeQueues.remove(writeQueue.uuid);
                                     return;
@@ -968,7 +968,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
 
-            if (filteredMessage.size() == 0) {
+            if (filteredMessage.isEmpty()) {
                 return false;
             }
             e.setMessage(filteredMessage);
@@ -1223,7 +1223,7 @@ public class DefaultBroadcaster implements Broadcaster {
             return futureDone(msg);
         }
 
-        int callee = resources.size() == 0 ? 1 : resources.size();
+        int callee = resources.isEmpty() ? 1 : resources.size();
 
         BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(newMsg, callee);
         dispatchMessages(new Deliver(newMsg, f, msg));
@@ -1389,7 +1389,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
         } finally {
             // OK reset
-            if (resources.size() > 0) {
+            if (!resources.isEmpty()) {
                 synchronized (awaitBarrier) {
                     awaitBarrier.notifyAll();
                 }

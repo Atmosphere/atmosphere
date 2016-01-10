@@ -1,24 +1,15 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <parent>
-        <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-project</artifactId>
-        <version>2.4.3-SNAPSHOT</version>
+        <groupId>org.sonatype.oss</groupId>
+        <artifactId>oss-parent</artifactId>
+        <version>9</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-assembly</artifactId>
+    <artifactId>atmosphere-buildtools</artifactId>
     <version>2.4.3-SNAPSHOT</version>
-    <packaging>pom</packaging>
-    <name>atmosphere-assembly</name>
+    <name>atmosphere-buildtools</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
-
-    <modules>
-        <module>cpr</module>
-        <module>jersey</module>
-	<!-- Only for experimentation
-        <module>websocketd</module>
-	-->
-    </modules>
 </project>

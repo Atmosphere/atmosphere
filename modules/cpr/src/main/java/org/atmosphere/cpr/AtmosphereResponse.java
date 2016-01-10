@@ -19,6 +19,7 @@ import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
+
 import java.io.IOException;
 import java.io.PrintWriter;
 import java.util.Collection;
@@ -282,4 +283,24 @@ public interface AtmosphereResponse extends HttpServletResponse {
 
     @Override
     String toString();
+
+    interface Builder {
+        Builder destroyable(boolean isRecyclable);
+
+        Builder asyncIOWriter(AsyncIOWriter asyncIOWriter);
+
+        Builder status(int status);
+
+        Builder statusMessage(String statusMessage);
+
+        Builder request(AtmosphereRequest atmosphereRequest);
+
+        AtmosphereResponse build();
+
+        Builder header(String name, String value);
+
+        Builder writeHeader(boolean writeStatusAndHeader);
+
+        Builder response(HttpServletResponse res);
+    }
 }

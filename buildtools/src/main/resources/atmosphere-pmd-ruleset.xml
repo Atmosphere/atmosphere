@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<ruleset name="pmd-atmosphere">
+    <description>PMD Plugin preferences rule set</description>
+    <exclude-pattern>.*.xml</exclude-pattern>
+    <exclude-pattern>.*.xsl</exclude-pattern>
+    <exclude-pattern>.*.html</exclude-pattern>
+    <exclude-pattern>.*.class</exclude-pattern>
+    <exclude-pattern>.*.js</exclude-pattern>
+    <exclude-pattern>.*.txt</exclude-pattern>
+
+    <!-- TODO add more rules after fixing the code -->
+    <rule ref="rulesets/java/basic.xml/DoubleCheckedLocking"/>
+
+    <rule ref="rulesets/java/design.xml/UseCollectionIsEmpty"/>
+ 
+</ruleset>

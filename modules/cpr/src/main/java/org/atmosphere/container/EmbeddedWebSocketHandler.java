@@ -59,7 +59,7 @@ public class EmbeddedWebSocketHandler {
         }).getAtmosphereConfig().startupHook(new AtmosphereConfig.StartupHook() {
             @Override
             public void started(AtmosphereFramework framework) {
-                if (framework.getAtmosphereConfig().handlers().size() == 0) {
+                if (framework.getAtmosphereConfig().handlers().isEmpty()) {
                     framework.addAtmosphereHandler("/*", ECHO_ATMOSPHEREHANDLER);
                 }
             }

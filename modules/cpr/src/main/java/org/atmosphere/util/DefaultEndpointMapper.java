@@ -62,24 +62,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
     }
 
     public String computePath(AtmosphereRequest req) {
-        String path;
-        String pathInfo = null;
-        try {
-            pathInfo = req.getPathInfo();
-        } catch (IllegalStateException ex) {
-            // http://java.net/jira/browse/GRIZZLY-1301
-        }
-
-        if (pathInfo != null) {
-            path = req.getServletPath() + pathInfo;
-        } else {
-            path = req.getServletPath();
-        }
-
-        if (path == null || path.isEmpty()) {
-            path = "/";
-        }
-        return path;
+        return Utils.pathInfo(req);
     }
 
     @Override

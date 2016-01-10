@@ -4,6 +4,10 @@
 .*.swo
 .loadpath
 .buildpath
+.checkstyle
+.pmd
+.pmdruleset
+.pmdruleset.xml
 .project
 .settings
 .classpath

@@ -56,6 +56,7 @@ import java.util.Map;
  */
 public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandler {
 
+    private static final long serialVersionUID = 7526472295622776148L;
     private final static String APPLICATION_NAME = "applicationClassName";
     private static final Logger logger = LoggerFactory.getLogger(ReflectorServletProcessor.class);
 

@@ -50,8 +50,8 @@ public class BroadcasterConfig {
     private ScheduledExecutorService scheduler;
     private BroadcasterCache broadcasterCache = BroadcasterCache.DEFAULT;
     private final AtmosphereConfig config;
-    private boolean isExecutorShared = false;
-    private boolean isAsyncExecutorShared = false;
+    private boolean isExecutorShared;
+    private boolean isAsyncExecutorShared;
     private final boolean shared;
     private String broadcasterId;
     private boolean handleExecutors;

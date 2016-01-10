@@ -52,7 +52,7 @@ public final class FilterConfigImpl implements FilterConfig {
     /**
      * The application Filter we are configured for.
      */
-    private Filter filter = null;
+    private Filter filter;
     /**
      * Filter name
      */

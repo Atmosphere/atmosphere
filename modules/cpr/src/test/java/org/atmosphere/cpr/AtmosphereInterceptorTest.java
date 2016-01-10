@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.interceptor.InvokationOrder;
+import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -24,10 +25,12 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class AtmosphereInterceptorTest {
 
@@ -317,5 +320,38 @@ public class AtmosphereInterceptorTest {
         assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
         assertEquals(framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors.removeFirst().toString(), "CORS Interceptor Support");
         assertEquals(framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors.getFirst().toString(), "XXX");
+    }
+
+    @Test
+    public void postInspectOnThrown() throws Exception{
+        AtmosphereHandler handler = mock(AtmosphereHandler.class);
+        Mockito.doThrow(new RuntimeException()).when(handler).onRequest(Mockito.any(AtmosphereResource.class));
+        framework.addAtmosphereHandler("/*", handler);
+
+        final AtomicBoolean postInspected = new AtomicBoolean(false);
+        framework.interceptor(new AtmosphereInterceptor() {
+            @Override
+            public void configure(AtmosphereConfig config) {
+            }
+
+            @Override
+            public void destroy() {
+            }
+
+            @Override
+            public Action inspect(AtmosphereResource r) {
+                return Action.CONTINUE;
+            }
+
+            @Override
+            public void postInspect(AtmosphereResource r) {
+                postInspected.set(true);
+            }
+        });
+
+        try{
+            processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance());
+        } catch(Throwable t){}
+        assertTrue(postInspected.get());
     }
 }
