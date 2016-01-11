@@ -196,12 +196,12 @@ public abstract class
 
         // handler interceptor lists
         LinkedList<AtmosphereInterceptor> invokedInterceptors = handlerWrapper.interceptors;
-        Action a = invokeInterceptors(invokedInterceptors, resource, tracing);
-        if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-            return a;
-        }
-
         try {
+            Action a = invokeInterceptors(invokedInterceptors, resource, tracing);
+            if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
+                return a;
+            }
+
             // Remap occured.
             if (req.getAttribute(FrameworkConfig.NEW_MAPPING) != null) {
                 req.removeAttribute(FrameworkConfig.NEW_MAPPING);
