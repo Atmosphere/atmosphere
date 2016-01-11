@@ -152,8 +152,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
                 }
             } else {
                 if (isUsingStream) {
-                    r.getOutputStream().write(writeAsBytes ? (byte[]) message : message.toString().getBytes(r.getCharacterEncoding()));
-                    r.getOutputStream().flush();
+                    byte[] data = writeAsBytes ? (byte[])message : message.toString().getBytes(r.getCharacterEncoding());
+                    write(event, r.getOutputStream(), data);
                 } else {
                     r.getWriter().write(message.toString());
                     r.getWriter().flush();

@@ -1156,8 +1156,8 @@ public class AtmosphereFramework {
                     if (newVersion.indexOf("SNAPSHOT") == -1) {
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
-                                if (inputLine.startsWith("ATMO23_VERSION=")) {
-                                    newVersion = inputLine.substring("ATMO23_VERSION=".length());
+                                if (inputLine.startsWith("ATMO30_VERSION=")) {
+                                    newVersion = inputLine.substring("ATMO30_VERSION=".length());
                                 } else if (inputLine.startsWith("CLIENT3_VERSION=")) {
                                     clientVersion = inputLine.substring("CLIENT3_VERSION=".length());
                                     break;

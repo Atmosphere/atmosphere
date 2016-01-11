@@ -27,7 +27,6 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
 public class ProtocolUtil {
-    private final static Logger logger = LoggerFactory.getLogger(ProtocolUtil.class);
 
     protected static AtmosphereRequestImpl.Builder constructRequest(WebSocket webSocket,
                                                                 String pathInfo,
