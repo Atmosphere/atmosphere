@@ -560,6 +560,8 @@ public class AtmosphereFramework {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
         config = newAtmosphereConfig();
+        populateBroadcasterType();
+        populateObjectFactoryType();
     }
 
     /**
@@ -865,8 +867,6 @@ public class AtmosphereFramework {
 
         servletConfig(sc, wrap);
         readSystemProperties();
-        populateBroadcasterType();
-        populateObjectFactoryType();
         loadMetaService();
         onPreInit();
 
