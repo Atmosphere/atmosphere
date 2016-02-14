@@ -90,8 +90,8 @@
                 <artifactId>maven-compiler-plugin</artifactId>
                 <version>2.3.2</version>
                 <configuration>
-                    <source>1.7</source>
-                    <target>1.7</target>
+                    <source>1.8</source>
+                    <target>1.8</target>
                 </configuration>
             </plugin>
             <plugin>
@@ -605,7 +605,7 @@
         <grizzly10-version>1.0.31</grizzly10-version>
         <jetty7-version>7.6.9.v20130131</jetty7-version>
         <jetty8-version>8.1.17.v20150415</jetty8-version>
-        <jetty9-version>${jetty9_2-version}</jetty9-version>
+        <jetty9-version>${jetty9_3-version}</jetty9-version>
         <jetty9_2-version>9.2.13.v20150730</jetty9_2-version>
         <jetty9_3-version>9.3.5.v20151012</jetty9_3-version>
         <tomcat-version>6.0.35</tomcat-version>
