@@ -381,13 +381,6 @@
                 </plugins>
             </build>
         </profile>
-        <profile>
-            <!-- jetty 9.3.x requires jdk8 or higher -->
-            <id>jetty9_3</id>
-            <properties>
-                <jetty9-version>${jetty9_3-version}</jetty9-version>
-            </properties>
-        </profile>
     </profiles>
     <modules>
         <module>buildtools</module>
@@ -594,31 +587,28 @@
     <properties>
         <jetty-version>6.1.22</jetty-version>
         <jersey-version>1.19</jersey-version>
-        <jaxb-version>2.1</jaxb-version>
-        <junit-version>3.8.1</junit-version>
-        <maven-plugin.version>1.0.0</maven-plugin.version>
-        <servlet-version>3.0-b74b</servlet-version>
+        <jaxb-version>2.2.11</jaxb-version>
+        <junit-version>4.11</junit-version>
+        <servlet-version>3.1.0</servlet-version>
         <servlet-version-range>[2.5,4)</servlet-version-range>
         <grizzly-version>1.9.57</grizzly-version>
-        <grizzly2-version>2.3.12</grizzly2-version>
+        <grizzly2-version>2.3.24</grizzly2-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
         <jetty7-version>7.6.9.v20130131</jetty7-version>
         <jetty8-version>8.1.17.v20150415</jetty8-version>
-        <jetty9-version>${jetty9_3-version}</jetty9-version>
-        <jetty9_2-version>9.2.13.v20150730</jetty9_2-version>
-        <jetty9_3-version>9.3.5.v20151012</jetty9_3-version>
+        <jetty9-version>9.3.5.v20151012</jetty9-version>
         <tomcat-version>6.0.35</tomcat-version>
         <tomcat7-version>7.0.35</tomcat7-version>
         <shade-version>1.2.1</shade-version>
-        <felix-version>2.3.7</felix-version>
-        <ahc.version>1.7.7</ahc.version>
-        <slf4j-impl-version>1.6.1</slf4j-impl-version>
-        <slf4j-version>1.7.7</slf4j-version>
+        <felix-version>2.4.0</felix-version>
+        <ahc.version>1.9.33</ahc.version>
+        <slf4j-impl-version>1.7.13</slf4j-impl-version>
+        <slf4j-version>1.7.13</slf4j-version>
         <logback-version>1.1.2</logback-version>
         <jbossaswebsockets-version>0.5</jbossaswebsockets-version>
         <compat-version>2.0.1</compat-version>
-        <shiro-version>1.2.2</shiro-version>
-        <commons-pool2>2.3</commons-pool2>
+        <shiro-version>1.2.4</shiro-version>
+        <commons-pool2>2.4.2</commons-pool2>
     </properties>
 </project>
