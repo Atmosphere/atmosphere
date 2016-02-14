@@ -1,0 +1,7 @@
+sudo: false
+language: java
+jdk:
+  - oraclejdk7
+  - openjdk7
+before_install: 'mvn -version'
+install: 'mvn clean install'
