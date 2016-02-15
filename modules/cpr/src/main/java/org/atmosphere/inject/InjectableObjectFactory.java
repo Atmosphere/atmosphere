@@ -83,8 +83,11 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             }
         }
 
-        for (Injectable<?> i : injectableServiceLoader) {
+        Iterator<Injectable> iterator = injectableServiceLoader.iterator();
+        while (iterator.hasNext()) {
             try {
+                Injectable<?> i = iterator.next();
+
                 logger.debug("Adding class {} as injectable", i.getClass());
                 if (InjectIntrospector.class.isAssignableFrom(i.getClass())) {
                     InjectIntrospector<?> ii = InjectIntrospector.class.cast(i);
@@ -128,7 +131,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         });
     }
 
-    protected void retryInjection(AtmosphereFramework framework){
+    protected void retryInjection(AtmosphereFramework framework) {
         int maxTryPerCycle = maxTry;
         // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
         // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
@@ -256,7 +259,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             Object o = c.injectable(framework.getAtmosphereConfig());
 
                             if (o == null) {
-                                nullFieldInjectionFor(field,instance,clazz);
+                                nullFieldInjectionFor(field, instance, clazz);
                                 pushBackInjection.add(instance);
                                 continue;
                             }
