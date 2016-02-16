@@ -99,8 +99,6 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     private String uuid = "0";
     private final AtomicBoolean usingStream = new AtomicBoolean(true);
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
-    private final Stream stream = new Stream();
-    private final Writer writer = new Writer(stream);
 
     public AtmosphereResponse(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -538,7 +536,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     @Override
     public ServletOutputStream getOutputStream() throws IOException {
         if (forceAsyncIOWriter || !delegateToNativeResponse) {
-            return stream;
+            return new Stream();
         } else {
             return _r().getOutputStream() != null ? _r().getOutputStream() : new ServletOutputStream() {
                 @Override
@@ -580,7 +578,7 @@ public class AtmosphereResponse extends HttpServletResponseWrapper {
     @Override
     public PrintWriter getWriter() throws IOException {
         if (forceAsyncIOWriter || !delegateToNativeResponse) {
-            return writer;
+            return new Writer(new Stream());
         } else {
             return _r().getWriter() != null ? _r().getWriter() : new PrintWriter(new StringWriter());
         }
