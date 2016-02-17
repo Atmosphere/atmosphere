@@ -224,7 +224,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         final int interval = extractHeartbeatInterval(impl);
 
         if (interval != 0) {
-            if (!Utils.pollableTransport(r.transport())) {
+            if (!(Utils.pollableTransport(r.transport())
+                    || r.transport() == AtmosphereResource.TRANSPORT.UNDEFINED)) {
                 super.inspect(r);
                 final boolean wasSuspended = r.isSuspended();
 
