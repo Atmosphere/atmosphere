@@ -81,6 +81,6 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 ![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)
 
-@Copyright 2015 [Async-IO.org](http://async-io.org)
+@Copyright 2016 [Async-IO.org](http://async-io.org)
 
 
