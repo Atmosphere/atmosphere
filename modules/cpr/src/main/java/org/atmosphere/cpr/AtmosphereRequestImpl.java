@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.servlet.AsyncContext;
+import javax.servlet.AsyncListener;
 import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
 import javax.servlet.ServletContext;
@@ -35,6 +36,7 @@ import javax.servlet.http.HttpServletRequestWrapper;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
+
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -607,16 +609,25 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public AsyncContext startAsync() {
+        if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+            return new NoOpsAsyncContext(getRequest(), resource().getResponse().getResponse()); 
+        }
         return b.request.startAsync();
     }
 
     @Override
     public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
+        if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+            return new NoOpsAsyncContext(request, response);
+        }
         return b.request.startAsync(request, response);
     }
 
     @Override
     public AsyncContext getAsyncContext() {
+        if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+            return new NoOpsAsyncContext(getRequest(), resource().getResponse().getResponse()); 
+        }
         return b.request.getAsyncContext();
     }
 
@@ -771,6 +782,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public boolean isAsyncStarted() {
+        if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+            return true;
+        }
         return b.request.isAsyncStarted();
     }
 
@@ -1851,6 +1865,77 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             return address().getHostName();
         }
 
+    }
+
+    private class NoOpsAsyncContext implements AsyncContext {
+        private final ServletRequest request;
+        private final ServletResponse response;
+        private long timeout;
+
+        public NoOpsAsyncContext(ServletRequest request, ServletResponse response) {
+            this.request = request;
+            this.response = response;
+            this.timeout = -1;
+        }
+
+        @Override
+        public void addListener(AsyncListener listener) throws IllegalStateException {
+        }
+
+        @Override
+        public void addListener(AsyncListener listener, ServletRequest request, ServletResponse response) throws IllegalStateException {
+        }
+
+        @Override
+        public void complete() {
+        }
+
+        @Override
+        public <T extends AsyncListener> T createListener(Class<T> clazz) throws ServletException {
+            throw new ServletException("Not supported");
+        }
+
+        @Override
+        public void dispatch() throws IllegalStateException {
+        }
+
+        @Override
+        public void dispatch(ServletContext servletContext, String path) throws IllegalStateException {
+        }
+
+        @Override
+        public void dispatch(String path) throws IllegalStateException {
+        }
+
+        @Override
+        public ServletRequest getRequest() {
+            return request;
+        }
+
+        @Override
+        public ServletResponse getResponse() {
+            return response;
+        }
+
+        @Override
+        public long getTimeout() {
+           return timeout;
+        }
+
+        @Override
+        public boolean hasOriginalRequestAndResponse() {
+            return false;
+        }
+
+        @Override
+        public void setTimeout(long timeout) throws IllegalStateException {
+            this.timeout = timeout;
+        }
+
+        @Override
+        public void start(Runnable run) {
+            throw new RuntimeException("Not supported");
+        }
     }
 
     private static void load(HttpServletRequest request, Builder b) {
