@@ -89,7 +89,6 @@ public class BroadcasterFuture<E> implements Future {
             return innerFuture.isDone();
         }
 
-        isDone = true;
         return isDone;
     }
 
@@ -97,11 +96,10 @@ public class BroadcasterFuture<E> implements Future {
      * Invoked when a {@link Broadcaster} completed its broadcast operation.
      */
     public BroadcasterFuture<E> done() {
-        isDone = true;
-
         if (latch != null) {
             latch.countDown();
         }
+        isDone = latch == null || latch.getCount() == 0;
         return this;
     }
 
