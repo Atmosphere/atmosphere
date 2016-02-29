@@ -20,7 +20,7 @@
       <tag>HEAD</tag>
   </scm>
     <prerequisites>
-        <maven>2.2.0</maven>
+        <maven>3.0</maven>
     </prerequisites>
     <developers>
         <developer>
