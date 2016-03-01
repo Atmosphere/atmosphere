@@ -18,9 +18,6 @@ Using another framework? Look at the list of supported [extensions](https://gith
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
-### Atmosphere.Next 
-Active Development of Atmosphere 3 started. [Join the community to help](https://github.com/Atmosphere/atmosphere/issues/1911)
-
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
 
@@ -40,7 +37,7 @@ The Atmosphere Framework ships with many examples describing how to implement We
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.4.2</version>
+         <version>2.4.3</version>
       </dependency>
 ```
       
@@ -56,17 +53,25 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 [Top](#Top)
 
+#### Atmosphere and JDK Versions
+
+Atmosphere 2.3.x and older can run on JDK 1.6 or newer.
+
+Atmosphere 2.4.x requires JDK 1.7 or newer
+
+Atmosphere 2.5.x requires JDK 1.8
+
 #### Versions
 
 [Change Log](./CHANGELOG.md)
 
-2.4.x: [2.4.2](https://goo.gl/TulSUl) [2.4.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.4.1+is%3Aclosed) [2.4.0](https://goo.gl/GpB1B1)
+2.4.x release: [2.4.3](https://goo.gl/n5s5GL) [2.4.2](https://goo.gl/TulSUl) [2.4.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.4.1+is%3Aclosed) [2.4.0](https://goo.gl/GpB1B1)
 
-2.3.x: release: [2.3.6](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.3.6) [2.3.5](https://goo.gl/BVr1PS) [2.3.4](https://goo.gl/5eiQXb) [2.3.3](https://goo.gl/6Yfr0p ) [2.3.2](https://goo.gl/PQ60X0 ) [2.3.1](https://goo.gl/6o9gjc) [2.3.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.3.0+is%3Aclosed)
-
-2.2.x release: [2.2.9](https://goo.gl/DkOD2l) [2.2.8](https://goo.gl/WoPC3N) [2.2.7](https://goo.gl/biW2Co) [2.2.6](http://goo.gl/kqZSb0) [2.2.5](http://goo.gl/2lNzg2) [2.2.4](http://goo.gl/bOLCW2) [2.2.3](http://goo.gl/1DXKP3) [2.2.2](http://goo.gl/i3W2v5) [2.2.1](http://goo.gl/glEj7L) [2.2.0](http://goo.gl/3hrlZH)
+2.3.x release: [2.3.7](https://goo.gl/EYqAJh) [2.3.6](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.3.6) [2.3.5](https://goo.gl/BVr1PS) [2.3.4](https://goo.gl/5eiQXb) [2.3.3](https://goo.gl/6Yfr0p ) [2.3.2](https://goo.gl/PQ60X0 ) [2.3.1](https://goo.gl/6o9gjc) [2.3.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.3.0+is%3Aclosed)
 
 #### End Of Life Versions (go to [http://async-io.org](http://async-io.org) for commercial support)
+
+2.2.x release: [2.2.9](https://goo.gl/DkOD2l) [2.2.8](https://goo.gl/WoPC3N) [2.2.7](https://goo.gl/biW2Co) [2.2.6](http://goo.gl/kqZSb0) [2.2.5](http://goo.gl/2lNzg2) [2.2.4](http://goo.gl/bOLCW2) [2.2.3](http://goo.gl/1DXKP3) [2.2.2](http://goo.gl/i3W2v5) [2.2.1](http://goo.gl/glEj7L) [2.2.0](http://goo.gl/3hrlZH)
 
 2.1.x release: [2.1.12](https://goo.gl/r829Vr) [2.1.11](https://goo.gl/E9xH2y) [2.1.10](http://goo.gl/2zuMql) [2.1.9](http://goo.gl/3HyZCK) [2.1.8](http://goo.gl/YxX1m9) [2.1.7](http://goo.gl/p41cCc) [2.1.6](http://goo.gl/UYvBxA) [2.1.5](http://goo.gl/jx5pdc ) [2.1.4](http://goo.gl/5HiZM7) [2.1.2](http://goo.gl/0BSpfj) [2.1.1](http://goo.gl/F9fr45) [2.1.0](https://github.com/Atmosphere/atmosphere/issues?labels=2.1&page=1&state=closed)
 
