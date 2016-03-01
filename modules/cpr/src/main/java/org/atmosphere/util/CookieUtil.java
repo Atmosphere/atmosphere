@@ -65,7 +65,7 @@ public class CookieUtil {
             return s;
         }
 
-        StringBuffer b = new StringBuffer();
+        StringBuilder b = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c == '"')
@@ -196,7 +196,7 @@ public class CookieUtil {
             return s;
         }
 
-        StringBuffer b = new StringBuffer();
+        StringBuilder b = new StringBuilder();
         for (int i = beginIndex; i < endIndex; i++) {
             char c = s.charAt(i);
             if (c == '\\') {

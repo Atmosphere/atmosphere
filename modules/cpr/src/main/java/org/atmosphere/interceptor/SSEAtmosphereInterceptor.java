@@ -54,7 +54,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private String contentType = "text/event-stream";
 
     static {
-        StringBuffer whitespace = new StringBuffer();
+        StringBuilder whitespace = new StringBuilder();
         for (int i = 0; i < 2000; i++) {
             whitespace.append(" ");
         }

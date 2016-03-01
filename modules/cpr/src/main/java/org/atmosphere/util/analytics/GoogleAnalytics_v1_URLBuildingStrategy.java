@@ -66,7 +66,7 @@ public class GoogleAnalytics_v1_URLBuildingStrategy implements URLBuildingStrate
         long now = new Date().getTime();
 
         focusPoint.setParentTrackPoint(appFocusPoint);
-        StringBuffer url = new StringBuffer(TRACKING_URL_Prefix);
+        StringBuilder url = new StringBuilder(TRACKING_URL_Prefix);
         url.append("?utmwv=1"); //Urchin/Analytics version
         url.append("&utmn=" + random.nextInt());
         url.append("&utmcs=UTF-8"); //document encoding

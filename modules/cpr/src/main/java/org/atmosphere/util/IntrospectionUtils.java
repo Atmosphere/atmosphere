@@ -828,7 +828,7 @@ public final class IntrospectionUtils {
 
         if (dbg > 0) {
             // debug
-            StringBuffer sb = new StringBuffer();
+            StringBuilder sb = new StringBuilder();
             sb.append("" + target.getClass().getName() + "." + methodN + "( ");
             for (int i = 0; i < params.length; i++) {
                 if (i > 0)

@@ -40,7 +40,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private static final String paddingText;
 
     static {
-        StringBuffer whitespace = new StringBuffer();
+        StringBuilder whitespace = new StringBuilder();
         for (int i = 0; i < 4096; i++) {
             whitespace.append(" ");
         }

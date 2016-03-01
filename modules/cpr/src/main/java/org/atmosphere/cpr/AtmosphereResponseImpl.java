@@ -567,16 +567,17 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     private String constructStatusAndHeaders() {
-        StringBuffer b = new StringBuffer("HTTP/1.1")
+        StringBuilder b = new StringBuilder("HTTP/1.1")
                 .append(" ")
                 .append(status)
                 .append(" ")
                 .append(statusMessage)
                 .append("\r\n");
 
-        b.append("Content-Type").append(":").append(headers.get("Content-Type") == null ? contentType : headers.get("Content-Type")).append("\r\n");
+        String contentTypeHeader = headers.get("Content-Type");
+        b.append("Content-Type:").append(contentTypeHeader == null ? contentType : contentTypeHeader).append("\r\n");
         if (contentLength != -1) {
-            b.append("Content-Length").append(":").append(contentLength).append("\r\n");
+            b.append("Content-Length:").append(contentLength).append("\r\n");
         }
 
         for (String s : headers().keySet()) {

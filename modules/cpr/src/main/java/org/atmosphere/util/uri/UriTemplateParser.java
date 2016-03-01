@@ -334,7 +334,7 @@ public class UriTemplateParser {
     private void parseName(CharacterIterator ci) {
         char c = consumeWhiteSpace(ci);
 
-        StringBuffer nameBuffer = new StringBuffer();        
+        StringBuilder nameBuffer = new StringBuilder();
         if (Character.isLetterOrDigit(c) || c == '_') {
             // Template name character
             nameBuffer.append(c);
@@ -410,7 +410,7 @@ public class UriTemplateParser {
     }
 
     private String parseRegex(CharacterIterator ci) {
-        StringBuffer regexBuffer = new StringBuffer();
+        StringBuilder regexBuffer = new StringBuilder();
 
         int braceCount = 1;
         while (true) {

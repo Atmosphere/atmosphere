@@ -149,7 +149,7 @@ public class JSR356Endpoint extends Endpoint {
                 pathInfoStartIndex = 2;
             }
             ///contextPath / servletPath / pathInfo or / servletPath / pathInfo
-            StringBuffer b = new StringBuffer("/");
+            StringBuilder b = new StringBuilder("/");
             for (int i = 0; i < paths.length; i++) {
                 if (i >= pathInfoStartIndex) {
                     b.append(paths[i]).append("/");
@@ -188,9 +188,9 @@ public class JSR356Endpoint extends Endpoint {
                     } else {
                         // Broken WebSocket Spec
                         logger.trace("Unable to retrieve the `origin` header for websocket {}", session);
-                        origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").toString();
+                        origin = "http" + (session.isSecure() ? "s" : "") + "://0.0.0.0:80";
                     }
-                    requestURL = new StringBuilder(origin).append(requestURL).toString();
+                    requestURL = origin + requestURL;
                 } else if (requestURL.startsWith("ws://")) {
                     requestURL = requestURL.replace("ws://", "http://");
                 } else if (requestURL.startsWith("wss://")) {
