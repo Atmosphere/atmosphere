@@ -48,7 +48,7 @@ public class SessionSupport implements HttpSessionListener {
                 s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, null);
                 for (Broadcaster b : f.lookupAll()) {
                     for (AtmosphereResource r : b.getAtmosphereResources()) {
-                        if (r.session() != null && r.session().getId().equals(s.getId())) {
+                        if (r.session(false) != null && r.session().getId().equals(s.getId())) {
                             AtmosphereResourceImpl.class.cast(r).session(null);
                         }
                     }
