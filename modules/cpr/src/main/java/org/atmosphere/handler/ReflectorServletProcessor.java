@@ -100,8 +100,12 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
             }
         }
-
-        logger.info("Installing Servlet {}", servletClassName == null ? servlet.getClass().getName() : servletClassName);
+        if (servlet != null) {
+            logger.info("Installing Servlet {}", servletClassName == null ? servlet.getClass().getName() : servletClassName);
+        } else {
+            // for now, not throw an exception, just in case if someone may call setServlet at later time
+            logger.warn("No servlet installed. Neither servlet nor servletClassName is set");
+        }
     }
 
     private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC) throws Exception {
