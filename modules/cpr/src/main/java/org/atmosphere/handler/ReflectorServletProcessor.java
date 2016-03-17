@@ -35,7 +35,6 @@ import javax.servlet.ServletException;
 import javax.servlet.ServletRequest;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.HttpServlet;
-import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.net.URL;
 import java.net.URLClassLoader;
@@ -101,8 +100,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         if (servlet != null) {
             logger.info("Installing Servlet {}", servletClassName == null ? servlet.getClass().getName() : servletClassName);
         } else {
-            // for now, not throw an exception, just in case if someone may call setServlet at later time
-            logger.warn("No servlet installed. Neither servlet nor servletClassName is set");
+            logger.info("No servlet installed. Neither servlet nor servletClassName is set");
         }
     }
 
