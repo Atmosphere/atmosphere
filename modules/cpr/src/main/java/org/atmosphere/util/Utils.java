@@ -302,7 +302,8 @@ public final class Utils {
         }
 
         try {
-            return InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(injectWith(h).getClass());
+            Object obj = injectWith(h);
+            return obj == null ? false : InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(obj.getClass());
         } catch (Exception e) {
             LOGGER.error("", e);
             return false;
