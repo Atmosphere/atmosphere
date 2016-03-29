@@ -51,7 +51,7 @@ import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
  * @author Jeanfrancois Arcand
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
-    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
+    protected static final Logger logger = LoggerFactory.getLogger(InjectableObjectFactory.class);
     private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
@@ -83,8 +83,11 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             }
         }
 
-        for (Injectable<?> i : injectableServiceLoader) {
+        Iterator<Injectable> iterator = injectableServiceLoader.iterator();
+        while (iterator.hasNext()) {
             try {
+                Injectable<?> i = iterator.next();
+
                 logger.debug("Adding class {} as injectable", i.getClass());
                 if (InjectIntrospector.class.isAssignableFrom(i.getClass())) {
                     InjectIntrospector<?> ii = InjectIntrospector.class.cast(i);
@@ -96,9 +99,10 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     }
                 }
 
-                if (i.getClass().isAnnotationPresent(ApplicationScoped.class) ||
-                        // For backward compatibility with 2.2+
-                        (!i.getClass().isAnnotationPresent(RequestScoped.class) && !i.getClass().isAnnotationPresent(RequestScoped.class))) {
+                if (!i.getClass().isAnnotationPresent(RequestScoped.class)) {
+                    if (!i.getClass().isAnnotationPresent(ApplicationScoped.class)) {
+                        logger.warn("Missing @ApplicationScoped for {}", i.getClass());
+                    }
                     injectables.addFirst(i);
                 }
             } catch (Exception e) {
@@ -111,7 +115,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             try {
                 inject(i);
             } catch (Exception e) {
-                logger.error("", e.getCause());
+                logger.error("Error during injecton", e);
             }
         }
 
@@ -128,7 +132,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         });
     }
 
-    protected void retryInjection(AtmosphereFramework framework){
+    protected void retryInjection(AtmosphereFramework framework) {
         int maxTryPerCycle = maxTry;
         // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
         // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
@@ -256,7 +260,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             Object o = c.injectable(framework.getAtmosphereConfig());
 
                             if (o == null) {
-                                nullFieldInjectionFor(field,instance,clazz);
+                                nullFieldInjectionFor(field, instance, clazz);
                                 pushBackInjection.add(instance);
                                 continue;
                             }

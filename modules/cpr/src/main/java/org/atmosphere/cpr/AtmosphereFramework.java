@@ -96,6 +96,7 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Queue;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -238,7 +239,7 @@ public class AtmosphereFramework {
     protected AtmosphereResourceSessionFactory sessionFactory;
     protected String defaultSerializerClassName;
     protected Class<Serializer> defaultSerializerClass;
-    protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<AtmosphereFrameworkListener>();
+    protected final ConcurrentLinkedQueue<AtmosphereFrameworkListener> frameworkListeners = new ConcurrentLinkedQueue<AtmosphereFrameworkListener>();
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
     protected Thread shutdownHook;
     public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = new LinkedList() {
@@ -3365,11 +3366,20 @@ public class AtmosphereFramework {
     }
 
     /**
+     * Use {@link #atmosphereFrameworkListeners()}
+     * @return {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
+     */
+    @Deprecated
+    public List<AtmosphereFrameworkListener> frameworkListeners() {
+        return Arrays.asList(frameworkListeners.toArray(new AtmosphereFrameworkListener[frameworkListeners.size()]));
+    }
+
+    /**
      * Return the list of {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      *
      * @return {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      */
-    public List<AtmosphereFrameworkListener> frameworkListeners() {
+    public Queue<AtmosphereFrameworkListener> atmosphereFrameworkListeners() {
         return frameworkListeners;
     }
 
