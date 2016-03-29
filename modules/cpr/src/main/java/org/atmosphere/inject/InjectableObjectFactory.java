@@ -51,7 +51,7 @@ import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
  * @author Jeanfrancois Arcand
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
-    protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
+    protected static final Logger logger = LoggerFactory.getLogger(InjectableObjectFactory.class);
     private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
@@ -99,9 +99,10 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     }
                 }
 
-                if (i.getClass().isAnnotationPresent(ApplicationScoped.class) ||
-                        // For backward compatibility with 2.2+
-                        (!i.getClass().isAnnotationPresent(RequestScoped.class) && !i.getClass().isAnnotationPresent(RequestScoped.class))) {
+                if (!i.getClass().isAnnotationPresent(RequestScoped.class)) {
+                    if (!i.getClass().isAnnotationPresent(ApplicationScoped.class)) {
+                        logger.warn("Missing @ApplicationScoped for {}", i.getClass());
+                    }
                     injectables.addFirst(i);
                 }
             } catch (Exception e) {
@@ -114,7 +115,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             try {
                 inject(i);
             } catch (Exception e) {
-                logger.error("", e.getCause());
+                logger.error("Error during injecton", e);
             }
         }
 
