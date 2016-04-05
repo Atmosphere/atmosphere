@@ -248,15 +248,19 @@ public final class Utils {
 
         // Check for null when disconnect happens. This happens when websocket are closed by both the client and the server
         // concurrently.
-        if (r == null
-                || r.getAtmosphereHandler() == null
-                || AtmosphereResourceImpl.class.cast(r).webSocket() == null
-                || AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler() == null) {
+        if (r == null) {
             return null;
         }
 
         AtmosphereHandler h = r.getAtmosphereHandler();
+        if (r.getAtmosphereHandler() == null) {
+            return null;
+        }
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
+            if (AtmosphereResourceImpl.class.cast(r).webSocket() == null
+                    || AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler() == null) {
+                return null;
+            }
             return WebSocketProcessor.WebSocketHandlerProxy.class.cast(AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler()).proxied();
         } else {
             return injectWith(h);
