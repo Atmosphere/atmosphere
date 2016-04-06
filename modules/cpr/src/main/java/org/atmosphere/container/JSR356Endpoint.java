@@ -21,6 +21,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.util.CookieUtil;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketEventListener;
@@ -28,6 +29,7 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpSession;
 import javax.websocket.CloseReason;
 import javax.websocket.Endpoint;
@@ -35,13 +37,16 @@ import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 import javax.websocket.server.HandshakeRequest;
+
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.Callable;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
@@ -198,10 +203,19 @@ public class JSR356Endpoint extends Endpoint {
                 }
             }
 
+            List<String> cookieHeaders = handshakeRequest.getHeaders().get("Cookie");
+            Set<Cookie> cookies = null;
+            if (cookieHeaders != null) {
+                cookies = new HashSet<Cookie>();
+                for (String cookieHeader : cookieHeaders)
+                cookies.addAll(CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader));
+            }
+            
             request = new AtmosphereRequestImpl.Builder()
                     .requestURI(uri.getPath())
                     .requestURL(requestURL)
                     .headers(headers)
+                    .cookies(cookies)
                     .session((HttpSession) handshakeRequest.getHttpSession())
                     .servletPath(servletPath)
                     .contextPath(framework.getServletContext().getContextPath())

@@ -699,7 +699,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public void closeStreamOrWriter() {
-        if (resource() != null && resource().transport() != AtmosphereResource.TRANSPORT.WEBSOCKET) {
+        if (resource() != null) {
             try {
                 if (isUsingStream()) {
                     getOutputStream().close();
