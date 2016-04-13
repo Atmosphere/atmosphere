@@ -1379,7 +1379,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // Only synchronize if we have a valid BroadcasterCache
-            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass())) {
                 // In case we are adding messages to the cache, we need to make sure the operation is done before.
                 synchronized (resources) {
                     cacheAndSuspend(r);
