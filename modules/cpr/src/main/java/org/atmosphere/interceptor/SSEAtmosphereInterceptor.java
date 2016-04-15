@@ -30,6 +30,7 @@ import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
@@ -50,6 +51,8 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final byte[] padding;
     private static final String paddingText;
+    private static final byte[] DATA = "data:".getBytes();
+    private static final byte[] NEWLINE = "\r\n".getBytes();
     private static final byte[] END = "\r\n\r\n".getBytes();
     private String contentType = "text/event-stream";
 
@@ -146,8 +149,24 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                         // The CALLBACK_JAVASCRIPT_PROTOCOL may be called by a framework running on top of Atmosphere
                         // In that case, we must pad/protocol indenendently of the state of the AtmosphereResource
                         if (!noPadding || r.getRequest().getAttribute(CALLBACK_JAVASCRIPT_PROTOCOL) != null) {
-                            response.write("data:", true);
+                            // write other meta info such as (id, event, etc)?
+                            response.write(DATA, true);
                         }
+                    }
+
+                    @Override
+                    public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft,
+                                                   byte[] data) throws IOException {
+                        boolean noPadding = padding();
+                        // The CALLBACK_JAVASCRIPT_PROTOCOL may be called by a framework running on top of Atmosphere
+                        // In that case, we must pad/protocol indenendently of the state of the AtmosphereResource
+                        if (!noPadding || r.getRequest().getAttribute(CALLBACK_JAVASCRIPT_PROTOCOL) != null) {
+                            if (isMultilineData(responseDraft)) {
+                                // return a padded multiline-data
+                                return encodeMultilineData(responseDraft);
+                            }
+                        }
+                        return responseDraft;
                     }
 
                     @Override
@@ -184,5 +203,54 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public String toString() {
         return "SSE Interceptor Support";
+    }
+
+    // utilities
+    private static byte[] encodeMultilineData(byte[] data) {
+        // add "data" field for each line
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        int bp = 0;
+        int ep = 0;
+        try {
+            while (ep < data.length) {
+                int c = data[ep];
+                if (c == '\r') {
+                    if (baos.size() > 0) {
+                        baos.write(NEWLINE);
+                        baos.write(DATA);
+                    }
+                    baos.write(data, bp, ep - bp);
+                    if (ep + 1 < data.length && data[ep + 1] == '\n') {
+                        ep++;
+                        bp = ep + 1;
+                    }
+                } else if (c == '\n') {
+                    if (baos.size() > 0) {
+                        baos.write(NEWLINE);
+                        baos.write(DATA);
+                    }
+                    baos.write(data, bp, ep - bp);
+                    bp = ep + 1;
+                }
+                ep++;
+            }
+            if (baos.size() > 0) {
+                baos.write(NEWLINE);
+                baos.write(DATA);
+            }
+            baos.write(data, bp, ep - bp);
+        } catch (IOException e) {
+            //ignore
+        }
+        return baos.toByteArray();
+    }
+
+    private static boolean isMultilineData(byte[] data) {
+        for (byte b : data) {
+            if (b == '\r' || b == '\n') {
+                return true;
+            }
+        }
+        return false;
     }
 }
