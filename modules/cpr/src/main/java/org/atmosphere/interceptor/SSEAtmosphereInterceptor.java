@@ -222,8 +222,8 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     baos.write(data, bp, ep - bp);
                     if (ep + 1 < data.length && data[ep + 1] == '\n') {
                         ep++;
-                        bp = ep + 1;
                     }
+                    bp = ep + 1;
                 } else if (c == '\n') {
                     if (baos.size() > 0) {
                         baos.write(NEWLINE);
