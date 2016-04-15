@@ -86,6 +86,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private AtomicBoolean streamSet = new AtomicBoolean();
     private AtomicBoolean readerSet = new AtomicBoolean();
     private String uuid;
+    private boolean noopsAsyncContextStarted;
 
     private AtmosphereRequestImpl(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
@@ -610,6 +611,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public AsyncContext startAsync() {
         if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+            noopsAsyncContextStarted = true;
             return new NoOpsAsyncContext(getRequest(), resource().getResponse().getResponse()); 
         }
         return b.request.startAsync();
@@ -618,6 +620,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public AsyncContext startAsync(ServletRequest request, ServletResponse response) {
         if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+            noopsAsyncContextStarted = true;
             return new NoOpsAsyncContext(request, response);
         }
         return b.request.startAsync(request, response);
@@ -626,6 +629,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public AsyncContext getAsyncContext() {
         if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+            noopsAsyncContextStarted = true;
             return new NoOpsAsyncContext(getRequest(), resource().getResponse().getResponse()); 
         }
         return b.request.getAsyncContext();
@@ -783,7 +787,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public boolean isAsyncStarted() {
         if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
-            return true;
+            return noopsAsyncContextStarted;
         }
         return b.request.isAsyncStarted();
     }
