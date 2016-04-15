@@ -17,21 +17,15 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletOutputStream;
+import javax.servlet.*;
 import java.io.IOException;
 import java.io.PrintWriter;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -211,7 +205,7 @@ public class AtmosphereResourceTest {
                         framework.getBroadcasterFactory().get(),
                         request, response, null, null);
 
-        assertEquals(res0,res1);
+        assertEquals(res0, res1);
 
         HashSet set = new HashSet();
         set.add(res0);
@@ -262,4 +256,119 @@ public class AtmosphereResourceTest {
         verify(wswriter, times(0)).close(response);
     }
 
+    @Test
+    public void testCompletionNotAwareForStartAsync() throws IOException {
+        verifyTestCompletionAwareForStartAsync(false);
+    }
+
+    @Test
+    public void testCompletionAwareForStartAsync() throws IOException {
+        verifyTestCompletionAwareForStartAsync(true);
+    }
+
+    @Test
+    public void testCompletionNotAwareForGetAsync() throws IOException {
+        verifyTestCompletionAwareForGetAsync(false);
+    }
+
+    @Test
+    public void testCompletionAwareForGetAsync() throws IOException {
+        verifyTestCompletionAwareForGetAsync(true);
+    }
+
+    @Test
+    public void testCompletionNotAwareForSync() throws IOException, ServletException {
+        verifyTestCompletionAwareForSync(false);
+    }
+
+    @Test
+    public void testCompletionAwareForSync() throws IOException, ServletException {
+        verifyTestCompletionAwareForSync(true);
+    }
+
+    @Test
+    public void testCompletionAwareForSyncButStartAsync() throws IOException, ServletException {
+        Servlet s = mock(Servlet.class);
+        framework.addInitParameter(ApplicationConfig.RESPONSE_COMPLETION_AWARE, "true");
+        ReflectorServletProcessor handler = new ReflectorServletProcessor(s);
+        handler.init(framework.getAtmosphereConfig());
+
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
+        AtmosphereResponseImpl response = mock(AtmosphereResponseImpl.class);
+        AtmosphereResourceImpl res = new AtmosphereResourceImpl();
+        res.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, null, null);
+        res.transport(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, res);
+        request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, res);
+
+        AsyncContext ac = request.startAsync();
+        handler.onRequest(res);
+        verify(response, times(0)).onComplete();
+        ac.complete();
+        verify(response, times(1)).onComplete();
+    }
+
+    private void verifyTestCompletionAwareForStartAsync(boolean aware) throws IOException {
+        if (aware) {
+            framework.addInitParameter(ApplicationConfig.RESPONSE_COMPLETION_AWARE, "true");
+        }
+        AtmosphereRequest request = AtmosphereRequestImpl.newInstance();
+        AtmosphereResponseImpl response = mock(AtmosphereResponseImpl.class);
+        AtmosphereResourceImpl res = new AtmosphereResourceImpl();
+        res.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, null, null);
+        res.transport(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, res);
+
+        AsyncContext ac = request.startAsync();
+
+        verify(response, times(0)).onComplete();
+        ac.complete();
+        verify(response, times(aware ? 1 : 0)).onComplete();
+    }
+
+    private void verifyTestCompletionAwareForGetAsync(boolean aware) throws IOException {
+        if (aware) {
+            framework.addInitParameter(ApplicationConfig.RESPONSE_COMPLETION_AWARE, "true");
+        }
+        AtmosphereRequest request = AtmosphereRequestImpl.newInstance();
+        AtmosphereResponseImpl response = mock(AtmosphereResponseImpl.class);
+        AtmosphereResourceImpl res = new AtmosphereResourceImpl();
+        res.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, null, null);
+        res.transport(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, res);
+
+        AsyncContext ac = request.getAsyncContext();
+
+        verify(response, times(0)).onComplete();
+        ac.complete();
+        verify(response, times(aware ? 1 : 0)).onComplete();
+    }
+
+    private void verifyTestCompletionAwareForSync(boolean aware) throws IOException, ServletException {
+        Servlet s = mock(Servlet.class);
+        if (aware) {
+            framework.addInitParameter(ApplicationConfig.RESPONSE_COMPLETION_AWARE, "true");
+        }
+        ReflectorServletProcessor handler = new ReflectorServletProcessor(s);
+        handler.init(framework.getAtmosphereConfig());
+
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
+        AtmosphereResponseImpl response = mock(AtmosphereResponseImpl.class);
+        AtmosphereResourceImpl res = new AtmosphereResourceImpl();
+        res.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, null, null);
+        res.transport(AtmosphereResource.TRANSPORT.WEBSOCKET);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, res);
+        request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, res);
+
+        handler.onRequest(res);
+        verify(response, times(aware ? 1 : 0)).onComplete();
+    }
 }

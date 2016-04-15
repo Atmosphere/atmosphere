@@ -921,6 +921,10 @@ public interface ApplicationConfig {
      */
     String USE_FORJOINPOOL = "org.atmosphere.useForkJoinPool";
     /**
+     * The completion of response writing is reported to AtmosphereResponse.  
+     */
+    String RESPONSE_COMPLETION_AWARE = "org.atmosphere.cpr.ResponseCompletionAware";
+    /**
      * Writes the given data to the given outputstream in two steps with extra flushes to make servers notice if the connection has been closed.
      * This  enables caching the message instead of losing it, if the client is in the progress of reconnecting via a Proxy where
      * the server fails to detect the connection has been closed.
