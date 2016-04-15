@@ -108,11 +108,23 @@ public class SSEAtmosphereInterceptorTest {
         interceptor.configure(config);
         interceptor.inspect(resource);
         
+        // no newline
         response.write("Good Morning".getBytes());
         assertEquals(baos.toString(), "data:Good Morning\r\n\r\n");
         baos.reset();
         
+        // \n
         response.write("Hello World!\nHave a nice day!".getBytes());
+        assertEquals(baos.toString(), "data:Hello World!\r\ndata:Have a nice day!\r\n\r\n");
+        baos.reset();
+
+        // \r
+        response.write("Hello World!\rHave a nice day!".getBytes());
+        assertEquals(baos.toString(), "data:Hello World!\r\ndata:Have a nice day!\r\n\r\n");
+        baos.reset();
+
+        // \r\n
+        response.write("Hello World!\r\nHave a nice day!".getBytes());
         assertEquals(baos.toString(), "data:Hello World!\r\ndata:Have a nice day!\r\n\r\n");
     }
 }
