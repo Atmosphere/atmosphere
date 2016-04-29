@@ -97,5 +97,7 @@ public interface HeaderConfig {
     String X_ATMO_WEBSOCKET_PROXY = "X-Atmosphere-WebSocket-Proxy";
 
     String FORCE_BINARY = "application/octet-stream";
+    
+    String WEBSOCKET_VERSION = "Sec-Websocket-Version";
 
 }

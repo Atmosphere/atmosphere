@@ -62,6 +62,7 @@ import java.util.Queue;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_VERSION;
 
 public class TomcatWebSocketUtil {
     private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocketUtil.class);
@@ -105,7 +106,7 @@ public class TomcatWebSocketUtil {
                     return delegate.doService(req, res);
                 }
 
-                if (!headerContainsToken(req, "sec-websocket-version", "13")) {
+                if (!headerContainsToken(req, WEBSOCKET_VERSION, "13")) {
                     WebSocket.notSupported(req, res);
                     return new Action(Action.TYPE.CANCELLED);
                 }
