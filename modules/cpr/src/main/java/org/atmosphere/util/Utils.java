@@ -43,6 +43,7 @@ import java.util.Set;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.FrameworkConfig.NEED_RUNTIME_INJECTION;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_VERSION;
 
 /**
  * Utils class.
@@ -165,7 +166,7 @@ public final class Utils {
         }
 
         boolean isOK = false;
-        boolean isWebSocket = (request.getHeader("sec-websocket-version") != null || request.getHeader("Sec-WebSocket-Draft") != null);
+        boolean isWebSocket = (request.getHeader(WEBSOCKET_VERSION) != null || request.getHeader("Sec-WebSocket-Draft") != null);
         if (connection != null && connection.hasMoreElements()) {
             String[] e = connection.nextElement().toString().split(",");
             for (String upgrade : e) {

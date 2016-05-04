@@ -32,6 +32,8 @@ import org.jboss.servlet.http.HttpEventServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_VERSION;
+
 /**
  * JBoss's WebSocket support. This code has been adapted from
  * {@link org.atmosphere.container.Tomcat7AsyncSupportWithWebSocket} and
@@ -72,7 +74,7 @@ public class JBossAsyncSupportWithWebSocket extends JBossWebCometSupport {
                 return doService(req, res);
             }
 
-            if (!headerContainsToken(req, "sec-websocket-version", "13")) {
+            if (!headerContainsToken(req, WEBSOCKET_VERSION, "13")) {
                 WebSocket.notSupported(req, res);
                 return new Action(Action.TYPE.CANCELLED);
             }

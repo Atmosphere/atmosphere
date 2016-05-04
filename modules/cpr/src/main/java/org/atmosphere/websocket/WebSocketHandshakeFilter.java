@@ -31,6 +31,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
+import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_VERSION;
 
 /**
  * A Servlet Filter for configuring which WebSocket protocol version an application want to support.
@@ -56,7 +57,7 @@ public class WebSocketHandshakeFilter implements Filter {
 
         HttpServletRequest r = HttpServletRequest.class.cast(request);
         if (Utils.webSocketEnabled(r)) {
-            int draft = r.getIntHeader("Sec-WebSocket-Version");
+            int draft = r.getIntHeader(WEBSOCKET_VERSION);
             if (draft < 0) {
                 draft = r.getIntHeader("Sec-WebSocket-Draft");
             }
@@ -65,7 +66,7 @@ public class WebSocketHandshakeFilter implements Filter {
                 for (String s : bannedVersion) {
                     if (Integer.parseInt(s) == draft) {
                         logger.trace("Invalid WebSocket Specification {} with {} ",
-                                r.getHeader("Connection"), r.getIntHeader("Sec-WebSocket-Version"));
+                                r.getHeader("Connection"), r.getIntHeader(WEBSOCKET_VERSION));
                         HttpServletResponse.class.cast(response).addHeader(X_ATMOSPHERE_ERROR, "Websocket protocol not supported");
                         HttpServletResponse.class.cast(response).sendError(501, "Websocket protocol not supported");
                         return;
