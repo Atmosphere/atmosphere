@@ -1414,7 +1414,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             b.request(request);
         }
 
-        HttpSession session = null;
+        HttpSession session = request.getSession(false);
         if (copySession) {
             session = request.getSession(createSession);
             if (session != null) {
