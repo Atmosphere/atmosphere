@@ -138,7 +138,7 @@ public class IOUtils {
                 try {
                     InputStream inputStream = request.getInputStream();
                     if (inputStream != null) {
-                        bufferedReader = new BufferedReader(new InputStreamReader(inputStream));
+                        bufferedReader = new BufferedReader(new InputStreamReader(inputStream, request.getCharacterEncoding()));
                     }
                 } catch (IllegalStateException ex) {
                     logger.trace("", ex);
