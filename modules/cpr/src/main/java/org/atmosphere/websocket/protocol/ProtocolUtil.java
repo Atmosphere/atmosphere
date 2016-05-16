@@ -59,7 +59,7 @@ public class ProtocolUtil {
 
     private static Map<String, Object> attributes(WebSocket webSocket, AtmosphereRequest request) {
         Map<String, Object> m = new ConcurrentHashMap<String, Object>();
-        m.putAll(webSocket.attributes());
+        m.putAll(new ConcurrentHashMap<String, Object>(webSocket.attributes()));
         return m;
     }
 }
