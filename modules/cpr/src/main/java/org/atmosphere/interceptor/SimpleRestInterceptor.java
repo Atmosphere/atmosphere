@@ -368,7 +368,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
      * A custom json envelope reader to parse a character sequence by extracting the key value pairs
      * but leaves the data value unparsed so that it can be subsequently consumed directly as a chracter seqeunce.
      */
-    private static class JSONEnvelopeReader {
+    static class JSONEnvelopeReader {
         private Reader reader;
         private Map<String, String> headers;
         private boolean datap;
