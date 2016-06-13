@@ -62,7 +62,15 @@ import org.slf4j.LoggerFactory;
  */
 public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleRestInterceptor.class);
+    /**
+     * Servlet init property to enable the detached mode in the response
+     */
     public final static String PROTOCOL_DETACHED_KEY = "atmosphere.simple-rest.protocol.detached";
+
+    /**
+     * Connection request property to enable the detached mode in the response
+     */
+    public final static String X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED = "X-Atmosphere-SimpleRestProtocolDetached";
 
     protected final static String REQUEST_DISPATCHED = "request.dispatched";
     protected final static String REQUEST_ID = "request.id";
@@ -177,6 +185,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereRequest request = r.getRequest();
         if (request.getAttribute(REQUEST_DISPATCHED) == null) {
             try {
+                //REVISIT use a more efficient approach for the detached mode (i.e.,avoid reading the message into a string)
                 // read the message entity and dispatch a service call
                 String body = IOUtils.readEntirelyAsString(r).toString();
                 LOG.debug("Request message: '{}'", body);
@@ -283,7 +292,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
             try {
                 baos.write(RESPONSE_TEMPLATE_HEAD);
                 baos.write(id.getBytes());
-                if (detached) {
+                if (isDetached(request)) {
                     // {"id":...,  "detached": true}\n
                     // <payload>
                     if (isLastResponse(request, response)) {
@@ -332,6 +341,12 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 || Boolean.TRUE != request.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE);
     }
 
+    protected boolean isDetached(AtmosphereRequest request) {
+        // the default detached setting configured by the init property can be overrriden by the connection property
+        final String prop = request.getHeader(X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED);
+        return (detached && prop == null) || Boolean.valueOf(prop);
+    }
+
     private void attachWriter(final AtmosphereResource r) {
         AtmosphereResponse res = r.getResponse();
         AsyncIOWriter writer = res.getAsyncIOWriter();
@@ -372,6 +387,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         private Reader reader;
         private Map<String, String> headers;
         private boolean datap;
+        private boolean detachedp;
         private int peek = -1;
 
         public JSONEnvelopeReader(Reader reader) throws IOException {
@@ -390,7 +406,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         public Reader getReader() {
-            if (!datap) {
+            if (!datap && !detachedp) {
                 return null;
             }
 
@@ -451,9 +467,12 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                         if ("data".equals(name)) {
                             datap = true;
                             break;
+                        } else if ("detached".equals(name)) {
+                            if (Boolean.valueOf(nextValue())) {
+                                detachedp = true;
+                            }
                         } else {
-                            String value = nextValue();
-                            headers.put(name, value);
+                            headers.put(name, nextValue());
                         }
                     } else {
                         throw new IOException("invalid value: missing name-separator ':'");
