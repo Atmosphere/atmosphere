@@ -32,42 +32,39 @@ public class SimpleRestInterceptorTest {
 
     @Test
     public void testParsingNoData() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"text/xml\", \"accept\" : \"text/plain\" }";
+        final String data = "{\"id\": \"123\", \"accept\" : \"text/plain\" }";
         Reader r = new StringReader(data);
 
         SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
 
         Map<String, String> expectedHeaders = new HashMap<String, String>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("type", "text/xml");
         expectedHeaders.put("accept", "text/plain");
         verify(jer, expectedHeaders, null);
     }
 
     @Test
     public void testParsingNoDataApos() throws Exception {
-        final String data = "{'id': \"123\", \"type\" : 'text/xml', 'accept' : 'text/plain' }";
+        final String data = "{'id': \"123\", 'accept' : 'text/plain' }";
         Reader r = new StringReader(data);
 
         SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
 
         Map<String, String> expectedHeaders = new HashMap<String, String>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("type", "text/xml");
         expectedHeaders.put("accept", "text/plain");
         verify(jer, expectedHeaders, null);
     }
 
     @Test
     public void testParsingNoDataAposMixedSpace() throws Exception {
-        final String data = "{\n 'id':\"123\",\"type\" :'text/xml','accept'\n: 'text/plain'\r }";
+        final String data = "{\n 'id':\"123\",'accept'\n: 'text/plain'\r }";
         Reader r = new StringReader(data);
 
         SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
 
         Map<String, String> expectedHeaders = new HashMap<String, String>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("type", "text/xml");
         expectedHeaders.put("accept", "text/plain");
         verify(jer, expectedHeaders, null);
     }
@@ -100,20 +97,20 @@ public class SimpleRestInterceptorTest {
 
     @Test
     public void testParsingWithData() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"text/xml\", \"data\": {\"records\": [{\"value\": \"S2Fma2E=\"}]}}";
+        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"data\": {\"records\": [{\"value\": \"S2Fma2E=\"}]}}";
         Reader r = new StringReader(data);
 
         SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
 
         Map<String, String> expectedHeaders = new HashMap<String, String>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("type", "text/xml");
+        expectedHeaders.put("type", "application/json");
         verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
     }
 
     @Test
     public void testParsingWithMoreData() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"text/xml\", "
+        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", "
                 + "\"data\": {\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}}";
         Reader r = new StringReader(data);
 
@@ -121,8 +118,50 @@ public class SimpleRestInterceptorTest {
 
         Map<String, String> expectedHeaders = new HashMap<String, String>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("type", "text/xml");
+        expectedHeaders.put("type", "application/json");
         verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}");
+    }
+
+    @Test
+    public void testParsingWithDetachedDataWithLF() throws Exception {
+        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"detached\": true}\n"
+                + "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}";
+        Reader r = new StringReader(data);
+
+        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+
+        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        expectedHeaders.put("id", "123");
+        expectedHeaders.put("type", "application/json");
+        verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}");
+    }
+
+    @Test
+    public void testParsingWithDetachedDataWithCRLF() throws Exception {
+        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"detached\": true}\r\n"
+                + "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}";
+        Reader r = new StringReader(data);
+
+        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+
+        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        expectedHeaders.put("id", "123");
+        expectedHeaders.put("type", "application/json");
+        verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}");
+    }
+
+    @Test
+    public void testParsingWithDetachedTextData() throws Exception {
+        final String data = "{\"id\": \"123\", \"type\" : \"text/plain\", \"detached\": true}\n"
+                + "This is just a plain text";
+        Reader r = new StringReader(data);
+
+        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+
+        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        expectedHeaders.put("id", "123");
+        expectedHeaders.put("type", "text/plain");
+        verify(jer, expectedHeaders, "This is just a plain text");
     }
 
     private void verify(SimpleRestInterceptor.JSONEnvelopeReader jer, Map<String, String> expectedHeaders, String expectedBody) {
