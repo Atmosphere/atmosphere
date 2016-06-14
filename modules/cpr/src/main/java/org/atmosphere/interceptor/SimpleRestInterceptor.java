@@ -45,6 +45,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.CompletionAware;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.util.ChunkConcatReaderPool;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -89,6 +90,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private final static long DEFAULT_HEARTBEAT_INTERVAL = 60;
 
     private Map<String, AtmosphereResponse> suspendedResponses = new HashMap<String, AtmosphereResponse>();
+    private ChunkConcatReaderPool readerPool = new ChunkConcatReaderPool();
     private boolean detached;
 
     private Broadcaster heartbeat;
@@ -203,6 +205,9 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 }
 
                 AtmosphereRequest ar = createAtmosphereRequest(request, body);
+                if (ar == null) {
+                    return Action.CANCELLED;
+                }
                 AtmosphereResponse response = r.getResponse();
                 ar.localAttributes().put(REQUEST_DISPATCHED, "true");
 
@@ -241,39 +246,65 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         //REVISIT find a more efficient way to read and extract the message data
         JSONEnvelopeReader jer = new JSONEnvelopeReader(new StringReader(body));
 
-        AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
         final String id = jer.getHeader("id");
         if (id != null) {
             request.localAttributes().put(REQUEST_ID, id);
         }
-        final String method = jer.getHeader("method");
-        String path = jer.getHeader("path");
-        final String type = jer.getHeader("type");
-        final String accept = jer.getHeader("accept");
-        b.method(method != null ? method : "GET").pathInfo(path != null ? path: "/");
-        if (accept != null || type != null) {
-            Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-            if (accept != null) {
-                headers.put("Accept", accept);
-            }
-            if (type != null) {
-                b.contentType(type);
-            }
-            b.headers(headers);
-        }
-        final int qpos = path.indexOf('?');
-        if (qpos > 0) {
-            b.queryString(path.substring(qpos + 1));
-            path = path.substring(0, qpos);
-        }
-        final Reader data = jer.getReader();
-        if (data != null) {
-            b.reader(data);
-        }
-        String requestURL = request.getRequestURL() + path.substring(request.getRequestURI().length());
-        b.requestURI(path).requestURL(requestURL).request(request);
 
-        return b.build();
+        boolean skip = false;
+        final boolean continued = Boolean.valueOf(jer.getHeader("continue"));
+        Reader reader = readerPool.getReader(id, false);
+        if (reader != null) {
+            skip = true;
+        } else if (continued) {
+            reader = readerPool.getReader(id, true);
+        }
+
+        if (skip) {
+            // add the request data to the prevously dispatched request and skip dispatching a new one
+            final Reader data = jer.getReader();
+            if (data != null) {
+                readerPool.addChunk(id, data, continued);
+            }
+            return null;
+        } else {
+            // prepare a new request for dispatching
+            final String method = jer.getHeader("method");
+            String path = jer.getHeader("path");
+            final String type = jer.getHeader("type");
+            final String accept = jer.getHeader("accept");
+
+            AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
+            b.method(method != null ? method : "GET").pathInfo(path != null ? path: "/");
+            if (accept != null || type != null) {
+                Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+                if (accept != null) {
+                    headers.put("Accept", accept);
+                }
+                if (type != null) {
+                    b.contentType(type);
+                }
+                b.headers(headers);
+            }
+            final int qpos = path.indexOf('?');
+            if (qpos > 0) {
+                b.queryString(path.substring(qpos + 1));
+                path = path.substring(0, qpos);
+            }
+            final Reader data = jer.getReader();
+            if (data != null) {
+                if (reader != null) {
+                    b.reader(reader);
+                    readerPool.addChunk(id, data, true);
+                } else {
+                    b.reader(data);
+                }
+            }
+            String requestURL = request.getRequestURL() + path.substring(request.getRequestURI().length());
+            b.requestURI(path).requestURL(requestURL).request(request);
+
+            return b.build();
+        }
     }
 
     protected byte[] createResponse(AtmosphereResponse response, byte[] payload) {
@@ -479,7 +510,16 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                     }
                     c = next(true);
                     if (c != ',') {
-                        unread(c);
+                        if (c == '}' && detachedp) {
+                            while (c != -1) {
+                                c = next(false);
+                                if (c == '\n') {
+                                    break;
+                                }
+                            }
+                        } else {
+                            unread(c);
+                        }
                         break;
                     }
                 }
