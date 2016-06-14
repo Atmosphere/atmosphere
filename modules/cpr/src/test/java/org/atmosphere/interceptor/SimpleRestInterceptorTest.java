@@ -15,11 +15,21 @@
  */
 package org.atmosphere.interceptor;
 
+import org.atmosphere.cpr.*;
+import org.atmosphere.util.IOUtils;
+import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletOutputStream;
+import javax.servlet.ServletResponse;
+import javax.servlet.http.HttpServletResponse;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -27,8 +37,69 @@ import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNull;
 
 public class SimpleRestInterceptorTest {
+    private AtmosphereFramework framework;
+    private AtmosphereConfig config;
 
     //TODO tests other part of the inteceptors
+
+    @Test
+    public void testCreateRequestNormal() throws Exception {
+        setupAtmosphere();
+        final String data = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
+                + "\"type\": \"application/json\", \"data\":{\"records\": [{\"value\": \"S2Fma2E=\"}]}}";
+
+        AtmosphereResource resource = createAtmosphereResource("POST", "/", data);
+        SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
+        interceptor.configure(config);
+
+        AtmosphereRequest dipatchedRequest = interceptor.createAtmosphereRequest(resource.getRequest(), IOUtils.readEntirelyAsString(resource).toString());
+        assertEquals(dipatchedRequest.getMethod(), "POST");
+        assertEquals(dipatchedRequest.getRequestURI(), "/topics/test");
+        assertEquals(dipatchedRequest.getContentType(), "application/json");
+
+        assertEquals(extractContent(dipatchedRequest.getReader()), "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
+    }
+
+    @Test
+    public void testCreateRequestDetached() throws Exception {
+        setupAtmosphere();
+        final String data = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
+                + "\"type\": \"application/json\", \"detached\": true}\n{\"records\": [{\"value\": \"S2Fma2E=\"}]}";
+
+        AtmosphereResource resource = createAtmosphereResource("POST", "/", data);
+        SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
+        interceptor.configure(config);
+
+        AtmosphereRequest dispatchedRequest = interceptor.createAtmosphereRequest(resource.getRequest(), IOUtils.readEntirelyAsString(resource).toString());
+        assertEquals(dispatchedRequest.getMethod(), "POST");
+        assertEquals(dispatchedRequest.getRequestURI(), "/topics/test");
+        assertEquals(dispatchedRequest.getContentType(), "application/json");
+        assertEquals(extractContent(dispatchedRequest.getReader()), "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
+    }
+
+    @Test
+    public void testCreateRequestContinued() throws Exception {
+        setupAtmosphere();
+        final String data1 = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
+                + "\"type\": \"application/json\", \"detached\": true, \"continue\": true}\n{\"records\": [";
+        final String data2 = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
+                + "\"type\": \"application/json\", \"detached\": true}\n{\"value\": \"S2Fma2E=\"}]}";
+
+        AtmosphereResource resource1 = createAtmosphereResource("POST", "/", data1);
+        AtmosphereResource resource2 = createAtmosphereResource("POST", "/", data2);
+        SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
+        interceptor.configure(config);
+
+        AtmosphereRequest dispatchedRequest1 = interceptor.createAtmosphereRequest(resource1.getRequest(), IOUtils.readEntirelyAsString(resource1).toString());
+        assertEquals(dispatchedRequest1.getMethod(), "POST");
+        assertEquals(dispatchedRequest1.getRequestURI(), "/topics/test");
+        assertEquals(dispatchedRequest1.getContentType(), "application/json");
+
+        AtmosphereRequest dispatchedRequest2 = interceptor.createAtmosphereRequest(resource1.getRequest(), IOUtils.readEntirelyAsString(resource2).toString());
+        assertNull(dispatchedRequest2);
+
+        assertEquals(extractContent(dispatchedRequest1.getReader()), "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
+    }
 
     @Test
     public void testParsingNoData() throws Exception {
@@ -97,7 +168,7 @@ public class SimpleRestInterceptorTest {
 
     @Test
     public void testParsingWithData() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"data\": {\"records\": [{\"value\": \"S2Fma2E=\"}]}}";
+        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"data\":{\"records\": [{\"value\": \"S2Fma2E=\"}]}}";
         Reader r = new StringReader(data);
 
         SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
@@ -111,7 +182,7 @@ public class SimpleRestInterceptorTest {
     @Test
     public void testParsingWithMoreData() throws Exception {
         final String data = "{\"id\": \"123\", \"type\" : \"application/json\", "
-                + "\"data\": {\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}}";
+                + "\"data\":{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}}";
         Reader r = new StringReader(data);
 
         SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
@@ -188,10 +259,45 @@ public class SimpleRestInterceptorTest {
         } catch (IOException e) {
             // ignore
         }
-        return sb.toString().trim();
+        return sb.toString();
     }
 
-    private static class CoderHolder extends SimpleRestInterceptor {
+    private void setupAtmosphere() throws Exception {
+        framework = new AtmosphereFramework();
+        framework.setAsyncSupport(Mockito.mock(AsyncSupport.class));
+        framework.init(new ServletConfig() {
+            @Override
+            public String getServletName() {
+                return "void";
+            }
 
+            @Override
+            public ServletContext getServletContext() {
+                return Mockito.mock(ServletContext.class);
+            }
+
+            @Override
+            public String getInitParameter(String name) {
+                return null;
+            }
+
+            @Override
+            public Enumeration<String> getInitParameterNames() {
+                return null;
+            }
+        });
+        config = framework.getAtmosphereConfig();
+    }
+
+    private AtmosphereResource createAtmosphereResource(String method, String path, String data) {
+        AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
+        AtmosphereRequest request = b.method("POST").pathInfo("/").body(data).build();
+        AtmosphereResponse response = AtmosphereResponseImpl.newInstance(request);
+        response.request(request);
+        AtmosphereResourceImpl resource = new AtmosphereResourceImpl();
+        resource.initialize(framework.getAtmosphereConfig(),
+                framework.getBroadcasterFactory().get(),
+                request, response, Mockito.mock(AsyncSupport.class), null);
+        return resource;
     }
 }
