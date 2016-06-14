@@ -105,6 +105,9 @@ public class ChunkConcatReaderPool {
                             break;
                         }
                         synchronized (readers) {
+                            if (!readers.isEmpty()) {
+                                continue;
+                            }
                             // if no data has been read and no data is available, wait for new data
                             try {
                                 readers.wait(timeout);

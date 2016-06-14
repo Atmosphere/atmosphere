@@ -110,7 +110,7 @@ public class ChunkConcatReaderPoolTest {
         new Thread(new Runnable() {
             public void run() {
                 try {
-                    Thread.sleep(2000);
+                    Thread.sleep(1000);
                 } catch (InterruptedException e) {
                     //ignore
                 }
