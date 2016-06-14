@@ -176,8 +176,8 @@ public class ChunkConcatReaderPool {
             synchronized (readers) {
                 readers.addLast(chunk);
                 readers.notifyAll();
+                this.continued = continued;
             }
-            this.continued = continued;
         }
     }
 }
