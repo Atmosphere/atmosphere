@@ -123,9 +123,9 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * @return this.
      */
     public synchronized WebSocket shiftAttributes() {
-    	attributesAtWebSocketOpen = new ConcurrentHashMap<String, Object>();
-    	attributesAtWebSocketOpen.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes().unmodifiableMap());
-    	return this;
+        attributesAtWebSocketOpen = new ConcurrentHashMap<String, Object>();
+        attributesAtWebSocketOpen.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes().unmodifiableMap());
+        return this;
     }
 
     /**
