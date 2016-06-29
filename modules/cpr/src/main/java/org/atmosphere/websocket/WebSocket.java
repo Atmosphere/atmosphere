@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -121,9 +122,10 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      *
      * @return this.
      */
-    public WebSocket shiftAttributes() {
-        attributesAtWebSocketOpen = AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes().unmodifiableMap();
-        return this;
+    public synchronized WebSocket shiftAttributes() {
+    	attributesAtWebSocketOpen = new ConcurrentHashMap<String, Object>();
+    	attributesAtWebSocketOpen.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes().unmodifiableMap());
+    	return this;
     }
 
     /**
