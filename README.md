@@ -65,7 +65,7 @@ Atmosphere 2.5.x requires JDK 1.8
 
 [Change Log](./CHANGELOG.md)
 
-2.4.x release: [2.4.4](https://goo.gl/3CZ1qV) [2.4.3](https://goo.gl/n5s5GL) [2.4.2](https://goo.gl/TulSUl) [2.4.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.4.1+is%3Aclosed) [2.4.0](https://goo.gl/GpB1B1)
+2.4.x release: [2.4.5](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aclosed+label%3A2.4.5) [2.4.4](https://goo.gl/3CZ1qV) [2.4.3](https://goo.gl/n5s5GL) [2.4.2](https://goo.gl/TulSUl) [2.4.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.4.1+is%3Aclosed) [2.4.0](https://goo.gl/GpB1B1)
 
 2.3.x release: [2.3.8](https://goo.gl/wzUetO) [2.3.7](https://goo.gl/EYqAJh) [2.3.6](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.3.6) [2.3.5](https://goo.gl/BVr1PS) [2.3.4](https://goo.gl/5eiQXb) [2.3.3](https://goo.gl/6Yfr0p ) [2.3.2](https://goo.gl/PQ60X0 ) [2.3.1](https://goo.gl/6o9gjc) [2.3.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.3.0+is%3Aclosed)
 
