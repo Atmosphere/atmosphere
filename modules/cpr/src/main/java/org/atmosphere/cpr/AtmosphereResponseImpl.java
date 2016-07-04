@@ -951,7 +951,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                 writeStatusAndHeaders();
 
                 forceAsyncIOWriter = false;
-                if (buffering) {
+                if (buffering && !AtmosphereResponseImpl.this.completed()) {
                     writeWithBuffering(bytes);
                 } else {
                     asyncIOWriter.write(AtmosphereResponseImpl.this, bytes);
@@ -973,7 +973,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                 writeStatusAndHeaders();
 
                 forceAsyncIOWriter = false;
-                if (buffering) {
+                if (buffering && !AtmosphereResponseImpl.this.completed()) {
                     byte[] copy = new byte[offset];
                     System.arraycopy(bytes, start, copy, 0, offset);
                     writeWithBuffering(copy);
@@ -1016,7 +1016,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             boolean b = forceAsyncIOWriter;
             forceAsyncIOWriter = false;
             try {
-                if (buffering) {
+                if (buffering && !AtmosphereResponseImpl.this.completed()) {
                     writeWithBuffering(null);
                 }
                 asyncIOWriter.close(AtmosphereResponseImpl.this);

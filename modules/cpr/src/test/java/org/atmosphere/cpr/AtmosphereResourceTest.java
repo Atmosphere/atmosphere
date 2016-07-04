@@ -23,7 +23,9 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import javax.servlet.*;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.util.*;
 import java.util.concurrent.CountDownLatch;
@@ -34,6 +36,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertTrue;
 
@@ -308,6 +311,84 @@ public class AtmosphereResourceTest {
         verify(response, times(0)).onComplete();
         ac.complete();
         verify(response, times(1)).onComplete();
+    }
+
+    @Test
+    public void testResponseWritingUnbuffered() throws IOException {
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder().asyncIOWriter(new TestAsyncIOWriter(baos)).build();
+        response.getOutputStream();
+        response.write("hello".getBytes());
+        // written unbuffered
+        assertEquals(baos.toString(), "hello");
+        response.write("hello again".getBytes());
+        // written unbuffered
+        assertEquals(baos.toString(), "hellohello again");
+    }
+
+    @Test
+    public void testResponseWritingBuffered() throws IOException {
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        AtmosphereRequest request =  mock(AtmosphereRequestImpl.class);
+        when(request.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE)).thenReturn(Boolean.TRUE);
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder()
+                .request(request).asyncIOWriter(new TestAsyncIOWriter(baos)).build();
+        response.getOutputStream();
+        response.write("hello".getBytes());
+        // buffering the data and nothing written
+        assertEquals(baos.toString(), "");
+        response.write("hello again".getBytes());
+        // buffering the new data and writing the previously buffered data
+        assertEquals(baos.toString(), "hello");
+        ((AtmosphereResponseImpl)response).onComplete();
+        // the buffered data is written
+        assertEquals(baos.toString(), "hellohello again");
+        response.write("bye".getBytes());
+        // written unbuffered
+        assertEquals(baos.toString(), "hellohello againbye");
+    }
+
+    private static class TestAsyncIOWriter implements AsyncIOWriter {
+        private OutputStream out;
+        public TestAsyncIOWriter(OutputStream out) {
+            this.out = out;
+        }
+
+        @Override
+        public AsyncIOWriter redirect(AtmosphereResponse r, String location) throws IOException {
+            return this;
+        }
+
+        @Override
+        public AsyncIOWriter writeError(AtmosphereResponse r, int errorCode, String message) throws IOException {
+            return this;
+        }
+
+        @Override
+        public AsyncIOWriter write(AtmosphereResponse r, String data) throws IOException {
+            return this;
+        }
+
+        @Override
+        public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
+            out.write(data);
+            return this;
+        }
+
+        @Override
+        public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
+            out.write(data, offset, length);
+            return this;
+        }
+
+        @Override
+        public void close(AtmosphereResponse r) throws IOException {
+        }
+
+        @Override
+        public AsyncIOWriter flush(AtmosphereResponse r) throws IOException {
+            return this;
+        }
     }
 
     private void verifyTestCompletionAwareForStartAsync(boolean aware) throws IOException {
