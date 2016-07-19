@@ -69,6 +69,7 @@
                             javax.enterprise*;resolution:=optional,
                             javax.inject*;resolution:=optional,
                             weblogic.websocket*;resolution:=optional,
+                            com.google.common.util.concurrent*;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
@@ -301,6 +302,12 @@
             <artifactId>shiro-web</artifactId>
             <version>${shiro-version}</version>
             <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.guava</groupId>
+            <artifactId>guava</artifactId>
+            <version>${guava-version}</version>
         </dependency>
 
         <dependency>
