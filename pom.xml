@@ -610,6 +610,5 @@
         <shiro-version>1.2.4</shiro-version>
         <commons-pool2>2.4.2</commons-pool2>
         <testng-version>6.9.10</testng-version>
-        <guava-version>19.0</guava-version>
     </properties>
 </project>
