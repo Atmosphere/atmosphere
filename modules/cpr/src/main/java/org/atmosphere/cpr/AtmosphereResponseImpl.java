@@ -1009,6 +1009,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
         @Override
         public void close() throws java.io.IOException {
+            AtmosphereResponseImpl.this.onComplete();
             if (!validFlushOrClose()
                     || asyncIOWriter instanceof KeepOpenStreamAware) return;
 
@@ -1143,13 +1144,25 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         }
     }
 
+    private boolean isCompletionReset() {
+        return atmosphereRequest != null
+                && Boolean.TRUE == atmosphereRequest.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_RESET);
+    }
+
     @Override
     public void onComplete() {
-        completed = true;
-        try {
-            writeWithBuffering(null);
-        } catch (IOException e) {
-            // ignore as the exception is already handled
+        if (!completed) {
+            completed = true;
+            try {
+                writeWithBuffering(null);
+            } catch (IOException e) {
+                // ignore as the exception is already handled
+            } finally {
+                //reset the completion status for the subsequent push writes
+                if (isCompletionReset()) {
+                    completed = false;
+                }
+            }
         }
     }
 
