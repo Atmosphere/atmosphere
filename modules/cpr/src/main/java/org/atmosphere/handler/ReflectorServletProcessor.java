@@ -167,6 +167,9 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         try {
             if (completionAware) {
                 r.getRequest().setAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE, Boolean.TRUE);
+                if (Boolean.parseBoolean(r.getAtmosphereConfig().getInitParameter(ApplicationConfig.RESPONSE_COMPLETION_RESET))) {
+                    r.getRequest().setAttribute(ApplicationConfig.RESPONSE_COMPLETION_RESET, Boolean.TRUE);
+                }
             }
             wrapper.service(r.getRequest(), r.getResponse());
         } catch (Throwable ex) {

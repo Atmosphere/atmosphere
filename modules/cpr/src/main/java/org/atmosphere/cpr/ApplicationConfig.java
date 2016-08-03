@@ -921,9 +921,19 @@ public interface ApplicationConfig {
      */
     String USE_FORJOINPOOL = "org.atmosphere.useForkJoinPool";
     /**
-     * The completion of response writing is reported to AtmosphereResponse.  
+     * The completion of response writing is reported to AtmosphereResponse. An interceptor can use the completion
+     * status of AtmosphereResponse to change the behavior of its transform method.
+     * <p/>
+     * Default: false
      */
     String RESPONSE_COMPLETION_AWARE = "org.atmosphere.cpr.ResponseCompletionAware";
+    /**
+     * The completion status of AtmosphereResponse is reset after each completion so that the subsequent write operations
+     * are handled as a series of new write operations.
+     * <p/>
+     * Default: false
+     */
+    String RESPONSE_COMPLETION_RESET = "org.atmosphere.cpr.ResponseCompletionReset";
     /**
      * Writes the given data to the given outputstream in two steps with extra flushes to make servers notice if the connection has been closed.
      * This  enables caching the message instead of losing it, if the client is in the progress of reconnecting via a Proxy where

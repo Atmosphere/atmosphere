@@ -348,6 +348,35 @@ public class AtmosphereResourceTest {
         assertEquals(baos.toString(), "hellohello againbye");
     }
 
+    @Test
+    public void testResponseWritingBufferedReset() throws IOException {
+        final ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        AtmosphereRequest request =  mock(AtmosphereRequestImpl.class);
+        when(request.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE)).thenReturn(Boolean.TRUE);
+        when(request.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_RESET)).thenReturn(Boolean.TRUE);
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder()
+                .request(request).asyncIOWriter(new TestAsyncIOWriter(baos)).build();
+        response.getOutputStream();
+        response.write("hello".getBytes());
+        // buffering the data and nothing written
+        assertEquals(baos.toString(), "");
+        response.write("hello again".getBytes());
+        // buffering the new data and writing the previously buffered data
+        assertEquals(baos.toString(), "hello");
+        ((AtmosphereResponseImpl)response).onComplete();
+        // the buffered data is written
+        assertEquals(baos.toString(), "hellohello again");
+        response.write("bye".getBytes());
+        // written buffered again
+        assertEquals(baos.toString(), "hellohello again");
+        response.write("bye again".getBytes());
+        // the buffered data is written
+        assertEquals(baos.toString(), "hellohello againbye");
+        ((AtmosphereResponseImpl)response).onComplete();
+        // the buffered data is flushed
+        assertEquals(baos.toString(), "hellohello againbyebye again");
+    }
+
     private static class TestAsyncIOWriter implements AsyncIOWriter {
         private OutputStream out;
         public TestAsyncIOWriter(OutputStream out) {
