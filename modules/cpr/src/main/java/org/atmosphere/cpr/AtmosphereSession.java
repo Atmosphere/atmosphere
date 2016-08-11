@@ -18,9 +18,9 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * An AtmosphereSession allow an application to keep track of the AtmosphereResource associated with a remote client.
@@ -33,41 +33,38 @@ import java.util.concurrent.atomic.AtomicReference;
  * has called {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} once if you want this class to work.
  *
  * @author Jeanfrancois Arcand
+ * @author Konstantin Gusarov
  */
 public class AtmosphereSession {
 
     protected final Logger logger = LoggerFactory.getLogger(AtmosphereSession.class);
-    protected final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
     protected String uuid;
-    protected final Semaphore latch = new Semaphore(1);
     protected BroadcasterListenerAdapter broadcasterListener;
     protected Broadcaster[] relatedBroadcasters;
-    protected final boolean usesLongPolling;
+    private AtmosphereResource resource;
+
+    private final ReentrantLock lock = new ReentrantLock();
+    private final Condition resourcePresent = lock.newCondition();
 
     public AtmosphereSession(final AtmosphereResource r, Broadcaster... broadcasters) {
-        this.uuid = r.uuid();
-        this.relatedBroadcasters = broadcasters;
-        this.usesLongPolling = AtmosphereResource.TRANSPORT.LONG_POLLING == r.transport();
-        resource.set(r);
+        uuid = r.uuid();
+        relatedBroadcasters = broadcasters;
+        resource = r;
 
         broadcasterListener = new BroadcasterListenerAdapter() {
             @Override
             public void onAddAtmosphereResource(Broadcaster b, AtmosphereResource r) {
-                boolean found = false;
                 if (r.uuid().equalsIgnoreCase(uuid)) {
                     logger.trace("AtmosphereSession tracking :  AtmosphereResource {} added", uuid);
-                    resource.set(r);
-                    found = true;
+                    setResource(r);
                 }
-                if (found && latch.availablePermits() == 0) latch.release();
             }
 
             @Override
             public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
                 if (r.uuid().equalsIgnoreCase(uuid)) {
                     logger.trace("AtmosphereSession tracking :  AtmosphereResource {} removed", uuid);
-                    resource.set(null);
-                    latch.tryAcquire();
+                    setResource(null);
                 }
             }
         };
@@ -94,7 +91,12 @@ public class AtmosphereSession {
      * @return an {@link AtmosphereResource}
      */
     public AtmosphereResource acquire() {
-        return resource.get();
+        enterLock();
+        try {
+            return resource;
+        } finally {
+            releaseLock();
+        }
     }
 
     /**
@@ -122,10 +124,15 @@ public class AtmosphereSession {
      * @return an {@link AtmosphereResource} or {@code null} if the resource was not set and it didn't get set during the timeout
      */
     public AtmosphereResource tryAcquire(int timeInSecond) throws InterruptedException {
-        if (usesLongPolling || resource.get() == null) {
-            latch.tryAcquire(timeInSecond, TimeUnit.SECONDS);
+        if (!enterLockWhenResourcePresent(timeInSecond)) {
+            throw new IllegalStateException("There is no resource for session " + uuid);
         }
-        return resource.get();
+
+        try {
+            return resource;
+        } finally {
+            releaseLock();
+        }
     }
 
     public void close() {
@@ -136,5 +143,107 @@ public class AtmosphereSession {
 
     public String uuid() {
         return uuid;
+    }
+
+    /**
+     * Associate new {@link AtmosphereResource} with the current session in a thread-safe manner
+     *
+     * @param res {@link AtmosphereResource} to be associated with the current session
+     */
+    private void setResource(final AtmosphereResource res) {
+        enterLock();
+
+        try {
+            resource = res;
+        } finally {
+            releaseLock();
+        }
+    }
+
+    /**
+     * Enters the lock ONLY when the resource is present in current session.
+     *
+     * @param timeInSecond The timeToWait before continuing the execution
+     */
+    private boolean enterLockWhenResourcePresent(int timeInSecond) throws InterruptedException {
+        long timeoutNanos = TimeUnit.SECONDS.toNanos(timeInSecond);
+        final boolean reentrant = lock.isHeldByCurrentThread();
+
+        if (!lock.tryLock()) {
+            final long deadline = System.nanoTime() + timeoutNanos;
+            if (!lock.tryLock(timeInSecond, TimeUnit.SECONDS)) {
+                return false;
+            }
+
+            timeoutNanos = deadline - System.nanoTime();
+        }
+
+        boolean satisfied = false;
+        boolean threw = true;
+        try {
+            satisfied = (resource != null) || awaitNanosForResourceToBePresent(timeoutNanos, reentrant);
+            threw = false;
+
+            return satisfied;
+        } finally {
+            if (!satisfied) {
+                try {
+                    if (threw && !reentrant) {
+                        signalWaiter();
+                    }
+                } finally {
+                    lock.unlock();
+                }
+            }
+        }
+    }
+
+    /**
+     * Await given amount of nanoseconds for resource to become present
+     */
+    private boolean awaitNanosForResourceToBePresent(long nanos, boolean signalBeforeWaiting)
+            throws InterruptedException {
+
+        if (signalBeforeWaiting) {
+            signalWaiter();
+        }
+
+        do {
+            if (nanos < 0L) {
+                return false;
+            }
+            nanos = resourcePresent.awaitNanos(nanos);
+        } while (resource == null);
+
+        return true;
+    }
+
+    /**
+     * Grab the current lock
+     */
+    private void enterLock() {
+        lock.lock();
+    }
+
+    /**
+     * Release current lock and signal waiters if any
+     */
+    private void releaseLock() {
+        try {
+            if (lock.getHoldCount() == 1) {
+                signalWaiter();
+            }
+        } finally {
+            lock.unlock();
+        }
+    }
+
+    /**
+     * Check if the resource is present and signal it if necessary
+     */
+    private void signalWaiter() {
+        if (resource != null) {
+            resourcePresent.signal();
+        }
     }
 }
