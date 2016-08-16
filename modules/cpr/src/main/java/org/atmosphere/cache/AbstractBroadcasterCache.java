@@ -102,7 +102,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         }
     }
 
-    protected CacheMessage put(BroadcastMessage message, Long now, String uuid) {
+    protected CacheMessage put(BroadcastMessage message, Long now, String uuid, String broadcasterId) {
         if (!inspect(message)) return null;
 
         logger.trace("Caching message {} for Broadcaster {}", message.message());
@@ -112,7 +112,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
         try {
             boolean hasMessageWithSameId = messagesIds.contains(message.id());
             if (!hasMessageWithSameId) {
-                cacheMessage = new CacheMessage(message.id(), now, message.message(), uuid);
+                cacheMessage = new CacheMessage(message.id(), now, message.message(), uuid, broadcasterId);
                 messages.add(cacheMessage);
                 messagesIds.add(message.id());
             }

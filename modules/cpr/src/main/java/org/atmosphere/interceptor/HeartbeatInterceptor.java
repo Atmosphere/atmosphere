@@ -167,7 +167,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
         resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
         logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", new String[]
-                {new String(paddingBytes), String.valueOf(heartbeatFrequencyInSeconds), String.valueOf(clientHeartbeatFrequencyInSeconds)});
+                {new String(paddingBytes), String.valueOf(clientHeartbeatFrequencyInSeconds), String.valueOf(heartbeatFrequencyInSeconds)});
 
         this.config = config;
     }
