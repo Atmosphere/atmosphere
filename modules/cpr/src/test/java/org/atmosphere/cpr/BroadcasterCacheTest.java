@@ -78,7 +78,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), uuid);
+                CacheMessage c = put(e, System.nanoTime(), uuid, broadcaster.getID());
                 cachedMessage.set(messages);
                 return c;
             }
@@ -103,7 +103,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), uuid);
+                CacheMessage c = put(e, System.nanoTime(), uuid, broadcaster.getID());
                 cachedMessage.set(messages);
                 return c;
             }
@@ -129,7 +129,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), uuid);
+                CacheMessage c = put(e, System.nanoTime(), uuid, broadcaster.getID());
                 cachedMessage.set(messages);
                 latch.countDown();
                 return c;
@@ -157,7 +157,7 @@ public class BroadcasterCacheTest {
         broadcaster.getBroadcasterConfig().setBroadcasterCache(new AbstractBroadcasterCache() {
             @Override
             public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
-                CacheMessage c = put(e, System.nanoTime(), uuid);
+                CacheMessage c = put(e, System.nanoTime(), uuid, broadcaster.getID());
                 cachedMessage.set(messages);
                 latch.countDown();
                 return c;

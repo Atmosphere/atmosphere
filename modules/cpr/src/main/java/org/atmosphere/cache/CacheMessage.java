@@ -25,19 +25,22 @@ public class CacheMessage implements Serializable {
     private final String id;
     private final long createTime;
     private final String uuid;
+    private final String broadcasterId;
 
-    public CacheMessage(String id, Object message, String uuid) {
+    public CacheMessage(String id, Object message, String uuid, String broadcasterId) {
         this.id = id;
         this.message = message;
         this.createTime = System.nanoTime();
         this.uuid = uuid;
+        this.broadcasterId = broadcasterId;
     }
 
-    public CacheMessage(String id, Long now, Object message, String uuid) {
+    public CacheMessage(String id, Long now, Object message, String uuid, String broadcasterId) {
         this.id = id;
         this.message = message;
         this.createTime = now;
         this.uuid = uuid;
+        this.broadcasterId = broadcasterId;
     }
 
     public Object getMessage() {
@@ -62,5 +65,9 @@ public class CacheMessage implements Serializable {
      */
     public String uuid(){
         return uuid;
+    }
+
+    public String getBroadcasterId(){
+        return this.broadcasterId;
     }
 }

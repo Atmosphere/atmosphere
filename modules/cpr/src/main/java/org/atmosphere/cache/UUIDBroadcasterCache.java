@@ -61,7 +61,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private long clientIdleTime = TimeUnit.SECONDS.toMillis(60); // 1 minutes
     private long invalidateCacheInterval = TimeUnit.SECONDS.toMillis(30); // 30 seconds
     private boolean shared = true;
-    protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
     private UUIDProvider uuidProvider;
 
@@ -134,7 +133,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     public void cleanup() {
         messages.clear();
         activeClients.clear();
-        emptyList.clear();
         inspectors.clear();
 
         if (scheduledFuture != null) {
@@ -156,7 +154,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             cache = false;
         }
 
-        CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid);;
+        CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid, broadcasterId);
         if (cache) {
             if (uuid.equals(NULL)) {
                 //no clients are connected right now, caching message for all active clients
@@ -320,13 +318,21 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
         for (String clientId : inactiveClients) {
             activeClients.remove(clientId);
-            messages.remove(clientId);
+            ClientQueue messageQueue = messages.remove(clientId);
+            notifyRemoveCache(messageQueue);
         }
 
-        for (String msg : messages().keySet()) {
-            if (!activeClients().containsKey(msg)) {
-                messages().remove(msg);
+        for (String clientId : messages().keySet()) {
+            if (!activeClients().containsKey(clientId)) {
+                ClientQueue messageQueue = messages().remove(clientId);
+                notifyRemoveCache(messageQueue);
             }
+        }
+    }
+
+    private void notifyRemoveCache(ClientQueue messageQueue) {
+        for(CacheMessage message: messageQueue.getQueue()){
+           notifyRemoveCache(message.getBroadcasterId(), message);
         }
     }
 
