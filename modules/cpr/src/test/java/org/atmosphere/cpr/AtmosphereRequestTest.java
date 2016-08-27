@@ -17,6 +17,7 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -31,9 +32,11 @@ import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 public class AtmosphereRequestTest {
@@ -316,5 +319,28 @@ public class AtmosphereRequestTest {
         assertFalse(e.get().hasString());
         assertEquals(new String(e.get().asBytes()), "test");
 
+    }
+
+    @Test
+    public void testForceContentType() throws Exception {
+        // a non-empty content
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test".getBytes()).build();
+        // default type for a non-empty type
+        assertEquals(request.getContentType(), "text/plain");
+
+
+        // no content
+        request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
+        // no content-type by default
+        assertNull(request.getContentType());
+
+        // no content
+        AtmosphereResource resource = Mockito.mock(AtmosphereResource.class);
+        AtmosphereConfig config = Mockito.mock(AtmosphereConfig.class);
+        when(config.getInitParameter(ApplicationConfig.FORCE_CONTENT_TYPE)).thenReturn("true");
+        when(resource.getAtmosphereConfig()).thenReturn(config);
+        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
+        // force_content_type is enabled
+        assertEquals(request.getContentType(), "text/plain");
     }
 }
