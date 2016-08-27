@@ -963,5 +963,13 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.inject.InjectableObjectFactory.listeners
      */
     String INJECTION_LISTENERS = "org.atmosphere.inject.InjectableObjectFactory.listeners";
+
+    /**
+     * Always propagates the content-type of the original message to a dispathed AtmosphereRequest.
+     * <p/>
+     * Default: null <br>
+     * Vlaue: org.atmosphere.cpr.forceContentType
+     */
+    String FORCE_CONTENT_TYPE = "org.atmosphere.cpr.forceContentType";
 }
 
