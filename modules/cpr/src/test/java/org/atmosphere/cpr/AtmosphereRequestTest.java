@@ -34,6 +34,7 @@ import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 public class AtmosphereRequestTest {
@@ -317,4 +318,21 @@ public class AtmosphereRequestTest {
         assertEquals(new String(e.get().asBytes()), "test");
 
     }
+    @Test
+    public void testForceContentType() throws Exception {
+        // a non-empty body
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test".getBytes()).build();
+        // default type for a non-empty body
+        assertEquals(request.getContentType(), "text/plain");
+        // no body
+        request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
+        // default type for a non-empty type
+        assertEquals(request.getContentType(), "text/plain");
+
+        // no content-type explicitly set
+        request = new AtmosphereRequestImpl.Builder().pathInfo("/a").contentType(null).build();
+        // no content type
+        assertNull(request.getContentType());
+    }
+
 }

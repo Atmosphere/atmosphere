@@ -210,7 +210,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String getContentType() {
-        return b.contentType != null ? b.contentType : b.request.getContentType();
+        return b.contentType != null || b.noContentType ? b.contentType : b.request.getContentType();
     }
 
     @Override
@@ -966,6 +966,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private String encoding = "UTF-8";
         private String methodType;
         private String contentType;
+        private boolean noContentType;
         private Long contentLength;
         private Map<String, String> headers = Collections.synchronizedMap(new HashMap<String, String>());
         private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<String, String[]>());
@@ -1141,6 +1142,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         @Override
         public Builder contentType(String contentType) {
             this.contentType = contentType;
+            if (contentType == null) {
+                noContentType = true;
+            }
             return this;
         }
 
