@@ -276,16 +276,12 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
             AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
             b.method(method != null ? method : "GET").pathInfo(path != null ? path: "/");
-            if (accept != null || type != null) {
+            if (accept != null) {
                 Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-                if (accept != null) {
-                    headers.put("Accept", accept);
-                }
-                if (type != null) {
-                    b.contentType(type);
-                }
+                headers.put("Accept", accept);
                 b.headers(headers);
             }
+            b.contentType(type);
             final int qpos = path.indexOf('?');
             if (qpos > 0) {
                 b.queryString(path.substring(qpos + 1));
