@@ -1399,9 +1399,23 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             s = e.nextElement();
             b.localAttributes.put(s, attributeWithoutException(request, s));
         }
-        return b.request(request).build();
+        return b.request(request).body(getRequestBody(request)).build();
     }
 
+    private static String getRequestBody(final HttpServletRequest request) {
+        String requestBody = null;
+        if (request != null) {
+            try {
+                requestBody = request
+                        .getReader()
+                        .lines()
+                        .reduce("", (result, line) -> result + line);
+            } catch (IOException ex) {
+                logger.warn("Unexpected getRequestBody exception", ex);
+            }
+        }
+        return requestBody;
+    }
 
     /**
      * Copy the HttpServletRequest content inside an AtmosphereRequest. By default the returned AtmosphereRequest

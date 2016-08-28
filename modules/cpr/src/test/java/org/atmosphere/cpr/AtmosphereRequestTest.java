@@ -24,17 +24,20 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.*;
 
 public class AtmosphereRequestTest {
     private AtmosphereFramework framework;
@@ -316,5 +319,47 @@ public class AtmosphereRequestTest {
         assertFalse(e.get().hasString());
         assertEquals(new String(e.get().asBytes()), "test");
 
+    }
+
+    @Test
+    public void testShouldWrapRequestKeepsContentType() throws Exception {
+        //given
+        HttpServletRequest request = getHttpServletRequest("body");
+
+        //when
+        AtmosphereRequest wrappedRequest = AtmosphereRequestImpl.wrap(request);
+
+        //then
+        assertEquals(wrappedRequest.getContentType(), "text/plain");
+    }
+
+    @Test
+    public void testShouldWrapRequestCleansUpContentType() throws Exception {
+        //given
+        HttpServletRequest request = getHttpServletRequest(null);
+
+        //when
+        AtmosphereRequest wrappedRequest = AtmosphereRequestImpl.wrap(request);
+
+        //then
+        assertNull(wrappedRequest.getContentType());
+    }
+
+    private HttpServletRequest getHttpServletRequest(String body) throws IOException {
+        //given
+        Stream<String> stream = mock(Stream.class);
+        BufferedReader reader = mock(BufferedReader.class);
+        Enumeration<String> enumeration = mock(Enumeration.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+
+        //when
+        when(reader.lines()).thenReturn(stream);
+        when(stream.reduce(eq(""), any())).thenReturn(body);
+        when(enumeration.hasMoreElements()).thenReturn(false);
+        when(request.getAttributeNames()).thenReturn(enumeration);
+        when(request.getReader()).thenReturn(reader);
+        when(request.getContentType()).thenReturn("text/plain");
+
+        return request;
     }
 }
