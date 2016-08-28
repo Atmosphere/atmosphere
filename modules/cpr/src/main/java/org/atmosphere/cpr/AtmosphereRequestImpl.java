@@ -210,7 +210,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String getContentType() {
-        return b.contentType != null ? b.contentType : (b.body.isEmpty() && b.reader == null && b.inputStream == null) ? null : b.request.getContentType();
+        return b.contentType != null ? b.contentType : b.request.getContentType();
     }
 
     @Override
