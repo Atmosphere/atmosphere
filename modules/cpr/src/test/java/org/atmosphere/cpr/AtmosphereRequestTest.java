@@ -17,7 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.mockito.Mockito;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -25,19 +24,20 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import java.io.BufferedReader;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 
+import static org.mockito.Matchers.any;
+import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
+import static org.testng.Assert.*;
 
 public class AtmosphereRequestTest {
     private AtmosphereFramework framework;
@@ -322,25 +322,44 @@ public class AtmosphereRequestTest {
     }
 
     @Test
-    public void testForceContentType() throws Exception {
-        // a non-empty content
-        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test".getBytes()).build();
-        // default type for a non-empty type
-        assertEquals(request.getContentType(), "text/plain");
+    public void testShouldWrapRequestKeepsContentType() throws Exception {
+        //given
+        HttpServletRequest request = getHttpServletRequest("body");
 
+        //when
+        AtmosphereRequest wrappedRequest = AtmosphereRequestImpl.wrap(request);
 
-        // no content
-        request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
-        // no content-type by default
-        assertNull(request.getContentType());
+        //then
+        assertEquals(wrappedRequest.getContentType(), "text/plain");
+    }
 
-        // no content
-        AtmosphereResource resource = Mockito.mock(AtmosphereResource.class);
-        AtmosphereConfig config = Mockito.mock(AtmosphereConfig.class);
-        when(config.getInitParameter(ApplicationConfig.FORCE_CONTENT_TYPE)).thenReturn("true");
-        when(resource.getAtmosphereConfig()).thenReturn(config);
-        request.setAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE, resource);
-        // force_content_type is enabled
-        assertEquals(request.getContentType(), "text/plain");
+    @Test
+    public void testShouldWrapRequestCleansUpContentType() throws Exception {
+        //given
+        HttpServletRequest request = getHttpServletRequest(null);
+
+        //when
+        AtmosphereRequest wrappedRequest = AtmosphereRequestImpl.wrap(request);
+
+        //then
+        assertNull(wrappedRequest.getContentType());
+    }
+
+    private HttpServletRequest getHttpServletRequest(String body) throws IOException {
+        //given
+        Stream<String> stream = mock(Stream.class);
+        BufferedReader reader = mock(BufferedReader.class);
+        Enumeration<String> enumeration = mock(Enumeration.class);
+        HttpServletRequest request = mock(HttpServletRequest.class);
+
+        //when
+        when(reader.lines()).thenReturn(stream);
+        when(stream.reduce(eq(""), any())).thenReturn(body);
+        when(enumeration.hasMoreElements()).thenReturn(false);
+        when(request.getAttributeNames()).thenReturn(enumeration);
+        when(request.getReader()).thenReturn(reader);
+        when(request.getContentType()).thenReturn("text/plain");
+
+        return request;
     }
 }
