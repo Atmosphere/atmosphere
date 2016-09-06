@@ -1,6 +1,18 @@
 # Change Log
 
-[Full Changelog](https://github.com/Atmosphere/atmosphere/compare/atmosphere-project-2.4.2...HEAD)
+[Full Changelog](https://github.com/Atmosphere/atmosphere/compare/atmosphere-project-2.4.6...HEAD)
+
+## [atmosphere-project-2.4.3](https://github.com/Atmosphere/atmosphere/tree/atmosphere-project-2.4.6) (2016-09-04)
+[Full Changelog](https://github.com/Atmosphere/atmosphere/compare/atmosphere-project-2.4.5...atmosphere-project-2.4.6)
+
+## [atmosphere-project-2.4.3](https://github.com/Atmosphere/atmosphere/tree/atmosphere-project-2.4.5) (2016-07-01)
+[Full Changelog](https://github.com/Atmosphere/atmosphere/compare/atmosphere-project-2.4.4...atmosphere-project-2.4.5)
+
+## [atmosphere-project-2.4.3](https://github.com/Atmosphere/atmosphere/tree/atmosphere-project-2.4.4) (2016-05-20)
+[Full Changelog](https://github.com/Atmosphere/atmosphere/compare/atmosphere-project-2.4.3...atmosphere-project-2.4.4)
+
+## [atmosphere-project-2.4.3](https://github.com/Atmosphere/atmosphere/tree/atmosphere-project-2.4.3) (2016-03-01)
+[Full Changelog](https://github.com/Atmosphere/atmosphere/compare/atmosphere-project-2.4.2...atmosphere-project-2.4.3)
 
 **Closed issues:**
 
