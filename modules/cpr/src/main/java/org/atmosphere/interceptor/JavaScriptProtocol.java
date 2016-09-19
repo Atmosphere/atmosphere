@@ -29,11 +29,14 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.BroadcastFilter;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
@@ -60,6 +63,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private final TrackMessageSizeFilter f = new TrackMessageSizeFilter();
     private AtmosphereFramework framework;
     private boolean enforceAtmosphereVersion = true;
+    private ScheduledExecutorService executorService;
+    private int delayProtocolInSeconds;
 
     @Override
     public void configure(final AtmosphereConfig config) {
@@ -69,8 +74,10 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         }
 
         enforceAtmosphereVersion = Boolean.valueOf(config.getInitParameter(ApplicationConfig.ENFORCE_ATMOSPHERE_VERSION, "true"));
+        delayProtocolInSeconds = config.getInitParameter(ApplicationConfig.DELAY_PROTOCOL_IN_MINUTES, 0);
 
         framework = config.framework();
+        executorService = ExecutorsFactory.getScheduler(config);
     }
 
     @Override
@@ -124,14 +131,13 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             if (enforceAtmosphereVersion) {
                 // UUID since 1.0.10
                 message = new StringBuilder(r.uuid())
-                    .append(wsDelimiter)
-                    // heartbeat since 2.2
-                    .append(heartbeatInterval)
-                    .append(wsDelimiter)
-                    .append(heartbeatData)
-                    .append(wsDelimiter).toString();
-            }
-            else {
+                        .append(wsDelimiter)
+                        // heartbeat since 2.2
+                        .append(heartbeatInterval)
+                        .append(wsDelimiter)
+                        .append(heartbeatData)
+                        .append(wsDelimiter).toString();
+            } else {
                 // UUID since 1.0.10
                 message = r.uuid();
             }
@@ -151,11 +157,19 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 OnSuspend a = new OnSuspend() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
-                        response.write(protocolMessage.get());
-                        try {
-                            response.flushBuffer();
-                        } catch (IOException e) {
-                            logger.trace("", e);
+                        if (delayProtocolInSeconds > 0) {
+                            executorService.schedule(new Runnable() {
+                                @Override
+                                public void run() {
+                                    response.write(protocolMessage.get());
+                                }
+                            }, delayProtocolInSeconds, TimeUnit.SECONDS);
+                        } else {
+                            try {
+                                response.flushBuffer();
+                            } catch (IOException e) {
+                                logger.trace("", e);
+                            }
                         }
                         r.removeEventListener(this);
                     }
@@ -194,7 +208,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         return this;
     }
 
-    public boolean enforceAtmosphereVersion(){
+    public boolean enforceAtmosphereVersion() {
         return enforceAtmosphereVersion;
     }
 

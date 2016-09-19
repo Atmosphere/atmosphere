@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Async-IO.org
+ * Copyright 2016 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -471,7 +471,7 @@ public interface ApplicationConfig {
     String WEBSOCKET_PROTOCOL_EXECUTION = "org.atmosphere.websocket.WebSocketProtocol.executeAsync";
     /**
      * Suppress the detection of JSR356 support. In Atmosphere 2.4.0 and newer, JSR356 has the
-     * precedence over container specific providers. This option can be used to suppress this ordering.    
+     * precedence over container specific providers. This option can be used to suppress this ordering.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.websocket.suppressJSR356
@@ -963,5 +963,12 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.inject.InjectableObjectFactory.listeners
      */
     String INJECTION_LISTENERS = "org.atmosphere.inject.InjectableObjectFactory.listeners";
+    /**
+     *
+     * <p/>
+     * Default: 0<br>
+     * Value: org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds
+     */
+    String DELAY_PROTOCOL_IN_MINUTES = "org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds";
 }
 
