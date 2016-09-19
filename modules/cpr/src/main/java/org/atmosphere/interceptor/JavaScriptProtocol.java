@@ -39,6 +39,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
+import static org.atmosphere.cpr.ApplicationConfig.DELAY_PROTOCOL_IN_MILLISECONDS;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspend;
 import static org.atmosphere.cpr.FrameworkConfig.CALLBACK_JAVASCRIPT_PROTOCOL;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
@@ -64,7 +65,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private AtmosphereFramework framework;
     private boolean enforceAtmosphereVersion = true;
     private ScheduledExecutorService executorService;
-    private int delayProtocolInSeconds;
+    private int delayProtocolInMilliseconds;
 
     @Override
     public void configure(final AtmosphereConfig config) {
@@ -74,7 +75,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         }
 
         enforceAtmosphereVersion = Boolean.valueOf(config.getInitParameter(ApplicationConfig.ENFORCE_ATMOSPHERE_VERSION, "true"));
-        delayProtocolInSeconds = config.getInitParameter(ApplicationConfig.DELAY_PROTOCOL_IN_SECONDS, 0);
+        delayProtocolInMilliseconds = config.getInitParameter(DELAY_PROTOCOL_IN_MILLISECONDS, 0);
 
         framework = config.framework();
         executorService = ExecutorsFactory.getScheduler(config);
@@ -157,13 +158,13 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 OnSuspend a = new OnSuspend() {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
-                        if (delayProtocolInSeconds > 0) {
+                        if (delayProtocolInMilliseconds > 0) {
                             executorService.schedule(new Runnable() {
                                 @Override
                                 public void run() {
                                     response.write(protocolMessage.get());
                                 }
-                            }, delayProtocolInSeconds, TimeUnit.SECONDS);
+                            }, delayProtocolInMilliseconds, TimeUnit.MILLISECONDS);
                         } else {
                             try {
                                 response.flushBuffer();

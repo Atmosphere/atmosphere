@@ -969,6 +969,6 @@ public interface ApplicationConfig {
      * Default: 0<br>
      * Value: org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds
      */
-    String DELAY_PROTOCOL_IN_SECONDS = "org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds";
+    String DELAY_PROTOCOL_IN_MILLISECONDS = "org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInMilliseconds";
 }
 
