@@ -851,7 +851,12 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public AtmosphereResource resource() {
-        return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+        try {
+            return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+        } catch (Exception ex) {
+            logger.warn("", ex);
+            return null;
+        }
     }
 
     @Override
