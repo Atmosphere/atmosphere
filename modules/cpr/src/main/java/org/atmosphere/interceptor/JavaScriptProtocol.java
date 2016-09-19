@@ -74,7 +74,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         }
 
         enforceAtmosphereVersion = Boolean.valueOf(config.getInitParameter(ApplicationConfig.ENFORCE_ATMOSPHERE_VERSION, "true"));
-        delayProtocolInSeconds = config.getInitParameter(ApplicationConfig.DELAY_PROTOCOL_IN_MINUTES, 0);
+        delayProtocolInSeconds = config.getInitParameter(ApplicationConfig.DELAY_PROTOCOL_IN_SECONDS, 0);
 
         framework = config.framework();
         executorService = ExecutorsFactory.getScheduler(config);

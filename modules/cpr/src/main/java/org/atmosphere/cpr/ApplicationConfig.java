@@ -964,11 +964,11 @@ public interface ApplicationConfig {
      */
     String INJECTION_LISTENERS = "org.atmosphere.inject.InjectableObjectFactory.listeners";
     /**
-     *
+     * Delay the sending of the Atmosphere's first message protocol by X seconds
      * <p/>
      * Default: 0<br>
      * Value: org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds
      */
-    String DELAY_PROTOCOL_IN_MINUTES = "org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds";
+    String DELAY_PROTOCOL_IN_SECONDS = "org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds";
 }
 
