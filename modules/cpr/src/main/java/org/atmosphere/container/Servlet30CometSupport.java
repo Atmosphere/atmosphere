@@ -23,7 +23,6 @@ import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
@@ -123,6 +122,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     public void endAsyncContext(AtmosphereRequest request){
         final Object attribute = request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
         if (attribute instanceof AsyncContext) {
+            request.removeAttribute(FrameworkConfig.ASYNC_CONTEXT);
             AsyncContext asyncContext = (AsyncContext) attribute;
             if (asyncContext != null) {
                 try {
@@ -131,9 +131,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
                     // Already completed. Jetty throw an exception on shutdown with log
                     try {
                         logger.trace("Already resumed!", ex);
-                    } catch (Exception ex2){};
-                } finally {
-                    request.removeAttribute(FrameworkConfig.ASYNC_CONTEXT);
+                    } catch (Exception ex2) {
+                    }
                 }
             }
         }

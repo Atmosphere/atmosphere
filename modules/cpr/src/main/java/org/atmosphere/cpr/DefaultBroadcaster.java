@@ -868,7 +868,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (willBeResumed && !r.atmosphereResourceEventListener().isEmpty()) {
                     listeners.addAll(r.atmosphereResourceEventListener());
                 }
-
                 prepareInvokeOnStateChange(r, event);
             } catch (Throwable t) {
                 logger.debug("Invalid AtmosphereResource state {}. The connection has been remotely" +
@@ -884,15 +883,6 @@ public class DefaultBroadcaster implements Broadcaster {
                 event.setThrowable(t);
                 r.setIsInScope(false);
                 return;
-            }
-
-            try {
-                request.setAttribute(FrameworkConfig.MESSAGE_WRITTEN, "true");
-            } catch (NullPointerException ex) {
-                // GlassFish and Tomcat may have recycled the request at that moment so the operation will fail.
-                // In that case we don't cache the message as it has been successfully written or cached later
-                // in the code.
-                logger.trace("NPE after the message has been written for {}", r.uuid());
             }
         } finally {
             if (notifyListeners) {

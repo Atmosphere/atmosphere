@@ -588,6 +588,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public void setAttribute(String s, Object o) {
+
+        if (destroyed.get()) {
+            return;
+        }
+
         if (o == null) {
             removeAttribute(s);
             return;
@@ -654,6 +659,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public void removeAttribute(String name) {
+
+        if (destroyed.get()) {
+            return;
+        }
+
         b.localAttributes.remove(name);
         if (isNotNoOps()) {
             b.request.removeAttribute(name);
@@ -852,6 +862,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public AtmosphereResource resource() {
         try {
+            Object o = getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+            if (o == null || !(o instanceof AtmosphereResource)){
+                // WebSphere is in trouble.
+                return null;
+            }
             return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
         } catch (Exception ex) {
             logger.warn("", ex);
@@ -936,7 +951,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public void destroy(boolean force) {
         if (!force) return;
-
+        destroyed.set(true);
         b.localAttributes.clear();
         if (bis != null) {
             try {
