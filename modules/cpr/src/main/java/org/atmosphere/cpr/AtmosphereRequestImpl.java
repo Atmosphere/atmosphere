@@ -588,17 +588,12 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public void setAttribute(String s, Object o) {
-
-        if (destroyed.get()) {
-            return;
-        }
-
         if (o == null) {
             removeAttribute(s);
             return;
         }
         b.localAttributes.put(s, o);
-        if (isNotNoOps()) {
+        if (isNotNoOps()&& !destroyed.get()) {
             try {
                 b.request.setAttribute(s, o);
             } catch (NullPointerException ex) {
@@ -660,12 +655,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public void removeAttribute(String name) {
 
-        if (destroyed.get()) {
-            return;
-        }
-
         b.localAttributes.remove(name);
-        if (isNotNoOps()) {
+        if (isNotNoOps() && !destroyed.get()) {
             b.request.removeAttribute(name);
         }
     }
