@@ -515,6 +515,7 @@ public final class AnnotationDetector {
                     // in case of an error we close the ZIP File here
                     stream.close();
                 }
+                throw new IOException(t);
             } finally {
                 // closing InputStream from ZIP Entry is handled by ZipFileIterator
                 if (iterator.isFile()) {
