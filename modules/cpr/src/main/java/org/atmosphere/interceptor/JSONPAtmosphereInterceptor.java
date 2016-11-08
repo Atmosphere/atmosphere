@@ -41,7 +41,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(JSONPAtmosphereInterceptor.class);
     private String endChunk = "\"});";
-    private String startChunk = "({\"message\" : \"";
+    private String startChunk = "({\"message\":\"";
     private AtmosphereConfig config;
 
     @Override
