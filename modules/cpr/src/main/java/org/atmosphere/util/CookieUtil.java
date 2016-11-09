@@ -34,16 +34,7 @@ import java.util.TimeZone;
 public class CookieUtil {
     private static final String OLD_COOKIE_PATTERN =
             "EEE, dd-MMM-yyyy HH:mm:ss z";
-    private static final ThreadLocal<DateFormat> OLD_COOKIE_FORMAT =
-            new ThreadLocal<DateFormat>() {
-                @Override
-                protected DateFormat initialValue() {
-                    DateFormat df =
-                            new SimpleDateFormat(OLD_COOKIE_PATTERN, Locale.US);
-                    df.setTimeZone(TimeZone.getTimeZone("GMT"));
-                    return df;
-                }
-            };
+    
     private static final String tspecials = ",; ";
     private static final String ancientDate;
 
@@ -52,7 +43,9 @@ public class CookieUtil {
     private static final BitSet VALID_COOKIE_ATTRIBUTE_VALUE_OCTETS = validCookieAttributeValueOctets();
 
     static {
-        ancientDate = OLD_COOKIE_FORMAT.get().format(new Date(10000));
+    DateFormat df = new SimpleDateFormat(OLD_COOKIE_PATTERN, Locale.US);
+    df.setTimeZone(TimeZone.getTimeZone("GMT"));
+        ancientDate = df.format(new Date(10000));
     }
 
     public static boolean isToken(String value) {
@@ -140,7 +133,9 @@ public class CookieUtil {
                 if (c.getMaxAge() == 0) {
                     buf.append(ancientDate);
                 } else {
-                    OLD_COOKIE_FORMAT.get().format(
+                DateFormat df = new SimpleDateFormat(OLD_COOKIE_PATTERN, Locale.US);
+                df.setTimeZone(TimeZone.getTimeZone("GMT"));
+                df.format(
                             new Date(System.currentTimeMillis() +
                                     c.getMaxAge() * 1000L),
                             buf, new FieldPosition(0));
