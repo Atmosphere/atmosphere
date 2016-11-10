@@ -166,6 +166,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                                 }
                             }, delayProtocolInMilliseconds, TimeUnit.MILLISECONDS);
                         } else {
+                            response.write(protocolMessage.get());
                             try {
                                 response.flushBuffer();
                             } catch (IOException e) {
