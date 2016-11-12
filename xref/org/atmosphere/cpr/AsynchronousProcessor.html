@@ -204,12 +204,12 @@
 <a class="jxr_linenumber" name="L196" href="#L196">196</a> 
 <a class="jxr_linenumber" name="L197" href="#L197">197</a>         <em class="jxr_comment">// handler interceptor lists</em>
 <a class="jxr_linenumber" name="L198" href="#L198">198</a>         LinkedList&lt;AtmosphereInterceptor&gt; invokedInterceptors = handlerWrapper.interceptors;
-<a class="jxr_linenumber" name="L199" href="#L199">199</a>         <a href="../../../org/atmosphere/cpr/Action.html">Action</a> a = invokeInterceptors(invokedInterceptors, resource, tracing);
-<a class="jxr_linenumber" name="L200" href="#L200">200</a>         <strong class="jxr_keyword">if</strong> (a.type() != Action.TYPE.CONTINUE &amp;&amp; a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-<a class="jxr_linenumber" name="L201" href="#L201">201</a>             <strong class="jxr_keyword">return</strong> a;
-<a class="jxr_linenumber" name="L202" href="#L202">202</a>         }
-<a class="jxr_linenumber" name="L203" href="#L203">203</a> 
-<a class="jxr_linenumber" name="L204" href="#L204">204</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L199" href="#L199">199</a> 
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>             <a href="../../../org/atmosphere/cpr/Action.html">Action</a> a = invokeInterceptors(invokedInterceptors, resource, tracing);
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>             <strong class="jxr_keyword">if</strong> (a.type() != Action.TYPE.CONTINUE &amp;&amp; a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>                 <strong class="jxr_keyword">return</strong> a;
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>             }
 <a class="jxr_linenumber" name="L205" href="#L205">205</a>             <em class="jxr_comment">// Remap occured.</em>
 <a class="jxr_linenumber" name="L206" href="#L206">206</a>             <strong class="jxr_keyword">if</strong> (req.getAttribute(FrameworkConfig.NEW_MAPPING) != <strong class="jxr_keyword">null</strong>) {
 <a class="jxr_linenumber" name="L207" href="#L207">207</a>                 req.removeAttribute(FrameworkConfig.NEW_MAPPING);
@@ -615,6 +615,6 @@
 <a class="jxr_linenumber" name="L607" href="#L607">607</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2016. All rights reserved.</div>
 </body>
 </html>

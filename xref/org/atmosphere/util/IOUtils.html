@@ -355,139 +355,158 @@
 <a class="jxr_linenumber" name="L347" href="#L347">347</a>         <strong class="jxr_keyword">return</strong> false;
 <a class="jxr_linenumber" name="L348" href="#L348">348</a>     }
 <a class="jxr_linenumber" name="L349" href="#L349">349</a> 
-<a class="jxr_linenumber" name="L350" href="#L350">350</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> Class&lt;?&gt; loadClass(Class thisClass, String className) <strong class="jxr_keyword">throws</strong> Exception {
-<a class="jxr_linenumber" name="L351" href="#L351">351</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L352" href="#L352">352</a>             <strong class="jxr_keyword">return</strong> Thread.currentThread().getContextClassLoader().loadClass(className);
-<a class="jxr_linenumber" name="L353" href="#L353">353</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="L354" href="#L354">354</a>             <strong class="jxr_keyword">return</strong> thisClass.getClassLoader().loadClass(className);
-<a class="jxr_linenumber" name="L355" href="#L355">355</a>         }
-<a class="jxr_linenumber" name="L356" href="#L356">356</a>     }
-<a class="jxr_linenumber" name="L357" href="#L357">357</a> 
-<a class="jxr_linenumber" name="L358" href="#L358">358</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isAtmosphere(String className) {
-<a class="jxr_linenumber" name="L359" href="#L359">359</a>         Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereServlet&gt; clazz;
-<a class="jxr_linenumber" name="L360" href="#L360">360</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L361" href="#L361">361</a>             clazz = (Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereServlet&gt;) Thread.currentThread().getContextClassLoader().loadClass(className);
-<a class="jxr_linenumber" name="L362" href="#L362">362</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
-<a class="jxr_linenumber" name="L363" href="#L363">363</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L364" href="#L364">364</a>                 clazz = (Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereServlet&gt;) IOUtils.<strong class="jxr_keyword">class</strong>.getClassLoader().loadClass(className);
-<a class="jxr_linenumber" name="L365" href="#L365">365</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
-<a class="jxr_linenumber" name="L366" href="#L366">366</a>                 <strong class="jxr_keyword">return</strong> false;
-<a class="jxr_linenumber" name="L367" href="#L367">367</a>             }
-<a class="jxr_linenumber" name="L368" href="#L368">368</a>         }
-<a class="jxr_linenumber" name="L369" href="#L369">369</a>         <strong class="jxr_keyword">return</strong> AtmosphereServlet.<strong class="jxr_keyword">class</strong>.isAssignableFrom(clazz);
-<a class="jxr_linenumber" name="L370" href="#L370">370</a>     }
-<a class="jxr_linenumber" name="L371" href="#L371">371</a> 
-<a class="jxr_linenumber" name="L372" href="#L372">372</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L373" href="#L373">373</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
-<a class="jxr_linenumber" name="L374" href="#L374">374</a> <em class="jxr_javadoccomment">     * This method reads the given file stored under "META-INF/services" and accessed through the framework's class loader</em>
-<a class="jxr_linenumber" name="L375" href="#L375">375</a> <em class="jxr_javadoccomment">     * to specify a list of {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction actions} to be done on different</em>
-<a class="jxr_linenumber" name="L376" href="#L376">376</a> <em class="jxr_javadoccomment">     * service classes ({@link org.atmosphere.cpr.AtmosphereInterceptor}, {@link org.atmosphere.cpr.BroadcastFilter}, etc).</em>
-<a class="jxr_linenumber" name="L377" href="#L377">377</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
-<a class="jxr_linenumber" name="L378" href="#L378">378</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
-<a class="jxr_linenumber" name="L379" href="#L379">379</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
-<a class="jxr_linenumber" name="L380" href="#L380">380</a> <em class="jxr_javadoccomment">     * The file content should follows the following format:</em>
-<a class="jxr_linenumber" name="L381" href="#L381">381</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;</em>
-<a class="jxr_linenumber" name="L382" href="#L382">382</a> <em class="jxr_javadoccomment">     * INSTALL</em>
-<a class="jxr_linenumber" name="L383" href="#L383">383</a> <em class="jxr_javadoccomment">     * com.mycompany.MyInterceptor</em>
-<a class="jxr_linenumber" name="L384" href="#L384">384</a> <em class="jxr_javadoccomment">     * com.mycompany.MyFilter</em>
-<a class="jxr_linenumber" name="L385" href="#L385">385</a> <em class="jxr_javadoccomment">     * EXCLUDE</em>
-<a class="jxr_linenumber" name="L386" href="#L386">386</a> <em class="jxr_javadoccomment">     * org.atmosphere.interceptor.HeartbeatInterceptor</em>
-<a class="jxr_linenumber" name="L387" href="#L387">387</a> <em class="jxr_javadoccomment">     * &lt;/pre&gt;</em>
-<a class="jxr_linenumber" name="L388" href="#L388">388</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
-<a class="jxr_linenumber" name="L389" href="#L389">389</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
-<a class="jxr_linenumber" name="L390" href="#L390">390</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
-<a class="jxr_linenumber" name="L391" href="#L391">391</a> <em class="jxr_javadoccomment">     * If you don't specify any {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction} before a class, then</em>
-<a class="jxr_linenumber" name="L392" href="#L392">392</a> <em class="jxr_javadoccomment">     * default action will be {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction#INSTALL}.</em>
-<a class="jxr_linenumber" name="L393" href="#L393">393</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
-<a class="jxr_linenumber" name="L394" href="#L394">394</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
-<a class="jxr_linenumber" name="L395" href="#L395">395</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
-<a class="jxr_linenumber" name="L396" href="#L396">396</a> <em class="jxr_javadoccomment">     * Important note: you must specify a class declared inside a package. Since creating classes in the source root is</em>
-<a class="jxr_linenumber" name="L397" href="#L397">397</a> <em class="jxr_javadoccomment">     * a bad practice, the method does not deal with it to improve its performances.</em>
-<a class="jxr_linenumber" name="L398" href="#L398">398</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
-<a class="jxr_linenumber" name="L399" href="#L399">399</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L400" href="#L400">400</a> <em class="jxr_javadoccomment">     * @param path the service file to read</em>
-<a class="jxr_linenumber" name="L401" href="#L401">401</a> <em class="jxr_javadoccomment">     * @return the map associating class to action</em>
-<a class="jxr_linenumber" name="L402" href="#L402">402</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L403" href="#L403">403</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> Map&lt;String, AtmosphereFramework.MetaServiceAction&gt; readServiceFile(<strong class="jxr_keyword">final</strong> String path) {
-<a class="jxr_linenumber" name="L404" href="#L404">404</a>         <strong class="jxr_keyword">final</strong> Map&lt;String, AtmosphereFramework.MetaServiceAction&gt; b = <strong class="jxr_keyword">new</strong> LinkedHashMap&lt;String, AtmosphereFramework.MetaServiceAction&gt;();
-<a class="jxr_linenumber" name="L405" href="#L405">405</a> 
-<a class="jxr_linenumber" name="L406" href="#L406">406</a>         String line;
-<a class="jxr_linenumber" name="L407" href="#L407">407</a>         InputStream is = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L408" href="#L408">408</a>         BufferedReader reader = <strong class="jxr_keyword">null</strong>;
-<a class="jxr_linenumber" name="L409" href="#L409">409</a>         AtmosphereFramework.MetaServiceAction action = AtmosphereFramework.MetaServiceAction.INSTALL;
-<a class="jxr_linenumber" name="L410" href="#L410">410</a> 
-<a class="jxr_linenumber" name="L411" href="#L411">411</a>         <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L412" href="#L412">412</a>             is = AtmosphereFramework.<strong class="jxr_keyword">class</strong>.getClassLoader().getResourceAsStream(path);
-<a class="jxr_linenumber" name="L413" href="#L413">413</a> 
-<a class="jxr_linenumber" name="L414" href="#L414">414</a>             <strong class="jxr_keyword">if</strong> (is == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L415" href="#L415">415</a>                 logger.trace(<span class="jxr_string">"META-INF/services/{} not found in class loader"</span>, path);
-<a class="jxr_linenumber" name="L416" href="#L416">416</a>                 <strong class="jxr_keyword">return</strong> b;
-<a class="jxr_linenumber" name="L417" href="#L417">417</a>             }
-<a class="jxr_linenumber" name="L418" href="#L418">418</a> 
-<a class="jxr_linenumber" name="L419" href="#L419">419</a>             reader = <strong class="jxr_keyword">new</strong> BufferedReader(<strong class="jxr_keyword">new</strong> InputStreamReader(is));
-<a class="jxr_linenumber" name="L420" href="#L420">420</a> 
-<a class="jxr_linenumber" name="L421" href="#L421">421</a>             <strong class="jxr_keyword">while</strong> (<strong class="jxr_keyword">true</strong>) {
-<a class="jxr_linenumber" name="L422" href="#L422">422</a>                 line = reader.readLine();
-<a class="jxr_linenumber" name="L423" href="#L423">423</a> 
-<a class="jxr_linenumber" name="L424" href="#L424">424</a>                 <strong class="jxr_keyword">if</strong> (line == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L425" href="#L425">425</a>                     <strong class="jxr_keyword">break</strong>;
-<a class="jxr_linenumber" name="L426" href="#L426">426</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (line.isEmpty()) {
-<a class="jxr_linenumber" name="L427" href="#L427">427</a>                     <strong class="jxr_keyword">continue</strong>;
-<a class="jxr_linenumber" name="L428" href="#L428">428</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (line.indexOf('.') == -1) {
-<a class="jxr_linenumber" name="L429" href="#L429">429</a>                     action = AtmosphereFramework.MetaServiceAction.valueOf(line);
-<a class="jxr_linenumber" name="L430" href="#L430">430</a>                 } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L431" href="#L431">431</a>                     b.put(line, action);
-<a class="jxr_linenumber" name="L432" href="#L432">432</a>                 }
-<a class="jxr_linenumber" name="L433" href="#L433">433</a>             }
-<a class="jxr_linenumber" name="L434" href="#L434">434</a>             logger.info(<span class="jxr_string">"Successfully loaded and installed {}"</span>, path);
-<a class="jxr_linenumber" name="L435" href="#L435">435</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
-<a class="jxr_linenumber" name="L436" href="#L436">436</a>             logger.trace(<span class="jxr_string">"Unable to read META-INF/services/{} from class loader"</span>, path, e);
-<a class="jxr_linenumber" name="L437" href="#L437">437</a>         } <strong class="jxr_keyword">finally</strong> {
-<a class="jxr_linenumber" name="L438" href="#L438">438</a>             close(is, reader);
-<a class="jxr_linenumber" name="L439" href="#L439">439</a>         }
-<a class="jxr_linenumber" name="L440" href="#L440">440</a> 
-<a class="jxr_linenumber" name="L441" href="#L441">441</a>         <strong class="jxr_keyword">return</strong> b;
-<a class="jxr_linenumber" name="L442" href="#L442">442</a>     }
-<a class="jxr_linenumber" name="L443" href="#L443">443</a> 
-<a class="jxr_linenumber" name="L444" href="#L444">444</a>     <em class="jxr_javadoccomment">/**</em>
-<a class="jxr_linenumber" name="L445" href="#L445">445</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
-<a class="jxr_linenumber" name="L446" href="#L446">446</a> <em class="jxr_javadoccomment">     * Tries to close the given objects and log the {@link IOException} at INFO level</em>
-<a class="jxr_linenumber" name="L447" href="#L447">447</a> <em class="jxr_javadoccomment">     * to make the code more readable when we assume that the {@link IOException} won't be managed.</em>
-<a class="jxr_linenumber" name="L448" href="#L448">448</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
-<a class="jxr_linenumber" name="L449" href="#L449">449</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
-<a class="jxr_linenumber" name="L450" href="#L450">450</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
-<a class="jxr_linenumber" name="L451" href="#L451">451</a> <em class="jxr_javadoccomment">     * Also ignore {@code null} parameters.</em>
-<a class="jxr_linenumber" name="L452" href="#L452">452</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
-<a class="jxr_linenumber" name="L453" href="#L453">453</a> <em class="jxr_javadoccomment">     *</em>
-<a class="jxr_linenumber" name="L454" href="#L454">454</a> <em class="jxr_javadoccomment">     * @param closeableArray the objects to close</em>
-<a class="jxr_linenumber" name="L455" href="#L455">455</a> <em class="jxr_javadoccomment">     */</em>
-<a class="jxr_linenumber" name="L456" href="#L456">456</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> close(<strong class="jxr_keyword">final</strong> Closeable... closeableArray) {
-<a class="jxr_linenumber" name="L457" href="#L457">457</a>         <strong class="jxr_keyword">for</strong> (Closeable closeable : closeableArray) {
-<a class="jxr_linenumber" name="L458" href="#L458">458</a>             <strong class="jxr_keyword">try</strong> {
-<a class="jxr_linenumber" name="L459" href="#L459">459</a>                 <strong class="jxr_keyword">if</strong> (closeable != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L460" href="#L460">460</a>                     closeable.close();
-<a class="jxr_linenumber" name="L461" href="#L461">461</a>                 }
-<a class="jxr_linenumber" name="L462" href="#L462">462</a>             } <strong class="jxr_keyword">catch</strong> (IOException ioe) {
-<a class="jxr_linenumber" name="L463" href="#L463">463</a>                 logger.info(<span class="jxr_string">"Can't close the object"</span>, ioe);
-<a class="jxr_linenumber" name="L464" href="#L464">464</a>             }
-<a class="jxr_linenumber" name="L465" href="#L465">465</a>         }
-<a class="jxr_linenumber" name="L466" href="#L466">466</a>     }
-<a class="jxr_linenumber" name="L467" href="#L467">467</a> 
-<a class="jxr_linenumber" name="L468" href="#L468">468</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String realPath(ServletContext servletContext, String targetPath) <strong class="jxr_keyword">throws</strong> MalformedURLException {
-<a class="jxr_linenumber" name="L469" href="#L469">469</a>         String realPath = servletContext.getRealPath(targetPath);
-<a class="jxr_linenumber" name="L470" href="#L470">470</a>         <strong class="jxr_keyword">if</strong> (realPath == <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L471" href="#L471">471</a>             URL u = servletContext.getResource(targetPath);
-<a class="jxr_linenumber" name="L472" href="#L472">472</a>             <strong class="jxr_keyword">if</strong> (u != <strong class="jxr_keyword">null</strong>) {
-<a class="jxr_linenumber" name="L473" href="#L473">473</a>                 realPath = u.getPath();
-<a class="jxr_linenumber" name="L474" href="#L474">474</a>             } <strong class="jxr_keyword">else</strong> {
-<a class="jxr_linenumber" name="L475" href="#L475">475</a>                 <strong class="jxr_keyword">return</strong> <span class="jxr_string">""</span>;
-<a class="jxr_linenumber" name="L476" href="#L476">476</a>             }
-<a class="jxr_linenumber" name="L477" href="#L477">477</a>         }
-<a class="jxr_linenumber" name="L478" href="#L478">478</a>         <strong class="jxr_keyword">return</strong> realPath;
-<a class="jxr_linenumber" name="L479" href="#L479">479</a>     }
-<a class="jxr_linenumber" name="L480" href="#L480">480</a> }
+<a class="jxr_linenumber" name="L350" href="#L350">350</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L351" href="#L351">351</a> <em class="jxr_javadoccomment">     * Loading the specified class using some heuristics to support various containers</em>
+<a class="jxr_linenumber" name="L352" href="#L352">352</a> <em class="jxr_javadoccomment">     * The order of preferece is:</em>
+<a class="jxr_linenumber" name="L353" href="#L353">353</a> <em class="jxr_javadoccomment">     *  1. Thread.currentThread().getContextClassLoader()</em>
+<a class="jxr_linenumber" name="L354" href="#L354">354</a> <em class="jxr_javadoccomment">     *  2. Class.forName</em>
+<a class="jxr_linenumber" name="L355" href="#L355">355</a> <em class="jxr_javadoccomment">     *  3. thisClass.getClassLoader()</em>
+<a class="jxr_linenumber" name="L356" href="#L356">356</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L357" href="#L357">357</a> <em class="jxr_javadoccomment">     * @param thisClass</em>
+<a class="jxr_linenumber" name="L358" href="#L358">358</a> <em class="jxr_javadoccomment">     * @param className</em>
+<a class="jxr_linenumber" name="L359" href="#L359">359</a> <em class="jxr_javadoccomment">     * @return</em>
+<a class="jxr_linenumber" name="L360" href="#L360">360</a> <em class="jxr_javadoccomment">     * @throws Exception</em>
+<a class="jxr_linenumber" name="L361" href="#L361">361</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L362" href="#L362">362</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> Class&lt;?&gt; loadClass(Class&lt;?&gt; thisClass, String className) <strong class="jxr_keyword">throws</strong> Exception {
+<a class="jxr_linenumber" name="L363" href="#L363">363</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L364" href="#L364">364</a>             <strong class="jxr_keyword">return</strong> Thread.currentThread().getContextClassLoader().loadClass(className);
+<a class="jxr_linenumber" name="L365" href="#L365">365</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L366" href="#L366">366</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L367" href="#L367">367</a>                 <strong class="jxr_keyword">return</strong> Class.forName(className);
+<a class="jxr_linenumber" name="L368" href="#L368">368</a>             } <strong class="jxr_keyword">catch</strong> (Exception t2) {
+<a class="jxr_linenumber" name="L369" href="#L369">369</a>                 <strong class="jxr_keyword">if</strong> (thisClass != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L370" href="#L370">370</a>                     <strong class="jxr_keyword">return</strong> thisClass.getClassLoader().loadClass(className);
+<a class="jxr_linenumber" name="L371" href="#L371">371</a>                 }
+<a class="jxr_linenumber" name="L372" href="#L372">372</a>                 <strong class="jxr_keyword">throw</strong> t2;
+<a class="jxr_linenumber" name="L373" href="#L373">373</a>             }
+<a class="jxr_linenumber" name="L374" href="#L374">374</a>         }
+<a class="jxr_linenumber" name="L375" href="#L375">375</a>     }
+<a class="jxr_linenumber" name="L376" href="#L376">376</a> 
+<a class="jxr_linenumber" name="L377" href="#L377">377</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isAtmosphere(String className) {
+<a class="jxr_linenumber" name="L378" href="#L378">378</a>         Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereServlet&gt; clazz;
+<a class="jxr_linenumber" name="L379" href="#L379">379</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L380" href="#L380">380</a>             clazz = (Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereServlet&gt;) Thread.currentThread().getContextClassLoader().loadClass(className);
+<a class="jxr_linenumber" name="L381" href="#L381">381</a>         } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L382" href="#L382">382</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L383" href="#L383">383</a>                 clazz = (Class&lt;? <strong class="jxr_keyword">extends</strong> AtmosphereServlet&gt;) IOUtils.<strong class="jxr_keyword">class</strong>.getClassLoader().loadClass(className);
+<a class="jxr_linenumber" name="L384" href="#L384">384</a>             } <strong class="jxr_keyword">catch</strong> (Exception ex) {
+<a class="jxr_linenumber" name="L385" href="#L385">385</a>                 <strong class="jxr_keyword">return</strong> false;
+<a class="jxr_linenumber" name="L386" href="#L386">386</a>             }
+<a class="jxr_linenumber" name="L387" href="#L387">387</a>         }
+<a class="jxr_linenumber" name="L388" href="#L388">388</a>         <strong class="jxr_keyword">return</strong> AtmosphereServlet.<strong class="jxr_keyword">class</strong>.isAssignableFrom(clazz);
+<a class="jxr_linenumber" name="L389" href="#L389">389</a>     }
+<a class="jxr_linenumber" name="L390" href="#L390">390</a> 
+<a class="jxr_linenumber" name="L391" href="#L391">391</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L392" href="#L392">392</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L393" href="#L393">393</a> <em class="jxr_javadoccomment">     * This method reads the given file stored under "META-INF/services" and accessed through the framework's class loader</em>
+<a class="jxr_linenumber" name="L394" href="#L394">394</a> <em class="jxr_javadoccomment">     * to specify a list of {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction actions} to be done on different</em>
+<a class="jxr_linenumber" name="L395" href="#L395">395</a> <em class="jxr_javadoccomment">     * service classes ({@link org.atmosphere.cpr.AtmosphereInterceptor}, {@link org.atmosphere.cpr.BroadcastFilter}, etc).</em>
+<a class="jxr_linenumber" name="L396" href="#L396">396</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L397" href="#L397">397</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L398" href="#L398">398</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L399" href="#L399">399</a> <em class="jxr_javadoccomment">     * The file content should follows the following format:</em>
+<a class="jxr_linenumber" name="L400" href="#L400">400</a> <em class="jxr_javadoccomment">     * &lt;pre&gt;</em>
+<a class="jxr_linenumber" name="L401" href="#L401">401</a> <em class="jxr_javadoccomment">     * INSTALL</em>
+<a class="jxr_linenumber" name="L402" href="#L402">402</a> <em class="jxr_javadoccomment">     * com.mycompany.MyInterceptor</em>
+<a class="jxr_linenumber" name="L403" href="#L403">403</a> <em class="jxr_javadoccomment">     * com.mycompany.MyFilter</em>
+<a class="jxr_linenumber" name="L404" href="#L404">404</a> <em class="jxr_javadoccomment">     * EXCLUDE</em>
+<a class="jxr_linenumber" name="L405" href="#L405">405</a> <em class="jxr_javadoccomment">     * org.atmosphere.interceptor.HeartbeatInterceptor</em>
+<a class="jxr_linenumber" name="L406" href="#L406">406</a> <em class="jxr_javadoccomment">     * &lt;/pre&gt;</em>
+<a class="jxr_linenumber" name="L407" href="#L407">407</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L408" href="#L408">408</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L409" href="#L409">409</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L410" href="#L410">410</a> <em class="jxr_javadoccomment">     * If you don't specify any {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction} before a class, then</em>
+<a class="jxr_linenumber" name="L411" href="#L411">411</a> <em class="jxr_javadoccomment">     * default action will be {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction#INSTALL}.</em>
+<a class="jxr_linenumber" name="L412" href="#L412">412</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L413" href="#L413">413</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L414" href="#L414">414</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L415" href="#L415">415</a> <em class="jxr_javadoccomment">     * Important note: you must specify a class declared inside a package. Since creating classes in the source root is</em>
+<a class="jxr_linenumber" name="L416" href="#L416">416</a> <em class="jxr_javadoccomment">     * a bad practice, the method does not deal with it to improve its performances.</em>
+<a class="jxr_linenumber" name="L417" href="#L417">417</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L418" href="#L418">418</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L419" href="#L419">419</a> <em class="jxr_javadoccomment">     * @param path the service file to read</em>
+<a class="jxr_linenumber" name="L420" href="#L420">420</a> <em class="jxr_javadoccomment">     * @return the map associating class to action</em>
+<a class="jxr_linenumber" name="L421" href="#L421">421</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L422" href="#L422">422</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> Map&lt;String, AtmosphereFramework.MetaServiceAction&gt; readServiceFile(<strong class="jxr_keyword">final</strong> String path) {
+<a class="jxr_linenumber" name="L423" href="#L423">423</a>         <strong class="jxr_keyword">final</strong> Map&lt;String, AtmosphereFramework.MetaServiceAction&gt; b = <strong class="jxr_keyword">new</strong> LinkedHashMap&lt;String, AtmosphereFramework.MetaServiceAction&gt;();
+<a class="jxr_linenumber" name="L424" href="#L424">424</a> 
+<a class="jxr_linenumber" name="L425" href="#L425">425</a>         String line;
+<a class="jxr_linenumber" name="L426" href="#L426">426</a>         InputStream is = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L427" href="#L427">427</a>         BufferedReader reader = <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L428" href="#L428">428</a>         AtmosphereFramework.MetaServiceAction action = AtmosphereFramework.MetaServiceAction.INSTALL;
+<a class="jxr_linenumber" name="L429" href="#L429">429</a> 
+<a class="jxr_linenumber" name="L430" href="#L430">430</a>         <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L431" href="#L431">431</a>             is = AtmosphereFramework.<strong class="jxr_keyword">class</strong>.getClassLoader().getResourceAsStream(path);
+<a class="jxr_linenumber" name="L432" href="#L432">432</a> 
+<a class="jxr_linenumber" name="L433" href="#L433">433</a>             <strong class="jxr_keyword">if</strong> (is == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L434" href="#L434">434</a>                 logger.trace(<span class="jxr_string">"META-INF/services/{} not found in class loader"</span>, path);
+<a class="jxr_linenumber" name="L435" href="#L435">435</a>                 <strong class="jxr_keyword">return</strong> b;
+<a class="jxr_linenumber" name="L436" href="#L436">436</a>             }
+<a class="jxr_linenumber" name="L437" href="#L437">437</a> 
+<a class="jxr_linenumber" name="L438" href="#L438">438</a>             reader = <strong class="jxr_keyword">new</strong> BufferedReader(<strong class="jxr_keyword">new</strong> InputStreamReader(is));
+<a class="jxr_linenumber" name="L439" href="#L439">439</a> 
+<a class="jxr_linenumber" name="L440" href="#L440">440</a>             <strong class="jxr_keyword">while</strong> (<strong class="jxr_keyword">true</strong>) {
+<a class="jxr_linenumber" name="L441" href="#L441">441</a>                 line = reader.readLine();
+<a class="jxr_linenumber" name="L442" href="#L442">442</a> 
+<a class="jxr_linenumber" name="L443" href="#L443">443</a>                 <strong class="jxr_keyword">if</strong> (line == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L444" href="#L444">444</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L445" href="#L445">445</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (line.isEmpty()) {
+<a class="jxr_linenumber" name="L446" href="#L446">446</a>                     <strong class="jxr_keyword">continue</strong>;
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (line.indexOf('.') == -1) {
+<a class="jxr_linenumber" name="L448" href="#L448">448</a>                     action = AtmosphereFramework.MetaServiceAction.valueOf(line);
+<a class="jxr_linenumber" name="L449" href="#L449">449</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L450" href="#L450">450</a>                     b.put(line, action);
+<a class="jxr_linenumber" name="L451" href="#L451">451</a>                 }
+<a class="jxr_linenumber" name="L452" href="#L452">452</a>             }
+<a class="jxr_linenumber" name="L453" href="#L453">453</a>             logger.info(<span class="jxr_string">"Successfully loaded and installed {}"</span>, path);
+<a class="jxr_linenumber" name="L454" href="#L454">454</a>         } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="L455" href="#L455">455</a>             logger.trace(<span class="jxr_string">"Unable to read META-INF/services/{} from class loader"</span>, path, e);
+<a class="jxr_linenumber" name="L456" href="#L456">456</a>         } <strong class="jxr_keyword">finally</strong> {
+<a class="jxr_linenumber" name="L457" href="#L457">457</a>             close(is, reader);
+<a class="jxr_linenumber" name="L458" href="#L458">458</a>         }
+<a class="jxr_linenumber" name="L459" href="#L459">459</a> 
+<a class="jxr_linenumber" name="L460" href="#L460">460</a>         <strong class="jxr_keyword">return</strong> b;
+<a class="jxr_linenumber" name="L461" href="#L461">461</a>     }
+<a class="jxr_linenumber" name="L462" href="#L462">462</a> 
+<a class="jxr_linenumber" name="L463" href="#L463">463</a>     <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L464" href="#L464">464</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L465" href="#L465">465</a> <em class="jxr_javadoccomment">     * Tries to close the given objects and log the {@link IOException} at INFO level</em>
+<a class="jxr_linenumber" name="L466" href="#L466">466</a> <em class="jxr_javadoccomment">     * to make the code more readable when we assume that the {@link IOException} won't be managed.</em>
+<a class="jxr_linenumber" name="L467" href="#L467">467</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L468" href="#L468">468</a> <em class="jxr_javadoccomment">     * &lt;p/&gt;</em>
+<a class="jxr_linenumber" name="L469" href="#L469">469</a> <em class="jxr_javadoccomment">     * &lt;p&gt;</em>
+<a class="jxr_linenumber" name="L470" href="#L470">470</a> <em class="jxr_javadoccomment">     * Also ignore {@code null} parameters.</em>
+<a class="jxr_linenumber" name="L471" href="#L471">471</a> <em class="jxr_javadoccomment">     * &lt;/p&gt;</em>
+<a class="jxr_linenumber" name="L472" href="#L472">472</a> <em class="jxr_javadoccomment">     *</em>
+<a class="jxr_linenumber" name="L473" href="#L473">473</a> <em class="jxr_javadoccomment">     * @param closeableArray the objects to close</em>
+<a class="jxr_linenumber" name="L474" href="#L474">474</a> <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L475" href="#L475">475</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">void</strong> close(<strong class="jxr_keyword">final</strong> Closeable... closeableArray) {
+<a class="jxr_linenumber" name="L476" href="#L476">476</a>         <strong class="jxr_keyword">for</strong> (Closeable closeable : closeableArray) {
+<a class="jxr_linenumber" name="L477" href="#L477">477</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L478" href="#L478">478</a>                 <strong class="jxr_keyword">if</strong> (closeable != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L479" href="#L479">479</a>                     closeable.close();
+<a class="jxr_linenumber" name="L480" href="#L480">480</a>                 }
+<a class="jxr_linenumber" name="L481" href="#L481">481</a>             } <strong class="jxr_keyword">catch</strong> (IOException ioe) {
+<a class="jxr_linenumber" name="L482" href="#L482">482</a>                 logger.info(<span class="jxr_string">"Can't close the object"</span>, ioe);
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>             }
+<a class="jxr_linenumber" name="L484" href="#L484">484</a>         }
+<a class="jxr_linenumber" name="L485" href="#L485">485</a>     }
+<a class="jxr_linenumber" name="L486" href="#L486">486</a> 
+<a class="jxr_linenumber" name="L487" href="#L487">487</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">static</strong> String realPath(ServletContext servletContext, String targetPath) <strong class="jxr_keyword">throws</strong> MalformedURLException {
+<a class="jxr_linenumber" name="L488" href="#L488">488</a>         String realPath = servletContext.getRealPath(targetPath);
+<a class="jxr_linenumber" name="L489" href="#L489">489</a>         <strong class="jxr_keyword">if</strong> (realPath == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L490" href="#L490">490</a>             URL u = servletContext.getResource(targetPath);
+<a class="jxr_linenumber" name="L491" href="#L491">491</a>             <strong class="jxr_keyword">if</strong> (u != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L492" href="#L492">492</a>                 realPath = u.getPath();
+<a class="jxr_linenumber" name="L493" href="#L493">493</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L494" href="#L494">494</a>                 <strong class="jxr_keyword">return</strong> <span class="jxr_string">""</span>;
+<a class="jxr_linenumber" name="L495" href="#L495">495</a>             }
+<a class="jxr_linenumber" name="L496" href="#L496">496</a>         }
+<a class="jxr_linenumber" name="L497" href="#L497">497</a>         <strong class="jxr_keyword">return</strong> realPath;
+<a class="jxr_linenumber" name="L498" href="#L498">498</a>     }
+<a class="jxr_linenumber" name="L499" href="#L499">499</a> }
 </pre>
 <hr/>
-<div id="footer">Copyright &#169; 2015. All rights reserved.</div>
+<div id="footer">Copyright &#169; 2016. All rights reserved.</div>
 </body>
 </html>

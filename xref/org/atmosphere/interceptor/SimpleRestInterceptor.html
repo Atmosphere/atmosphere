@@ -1,0 +1,623 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Transitional//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-transitional.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en_US" lang="en_US">
+<head><meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+<title>SimpleRestInterceptor xref</title>
+<link type="text/css" rel="stylesheet" href="../../../stylesheet.css" />
+</head>
+<body>
+<div id="overview"><a href="../../../../apidocs/org/atmosphere/interceptor/SimpleRestInterceptor.html">View Javadoc</a></div><pre>
+<a class="jxr_linenumber" name="L1" href="#L1">1</a>   <em class="jxr_comment">/*</em>
+<a class="jxr_linenumber" name="L2" href="#L2">2</a>   <em class="jxr_comment"> * Copyright 2016 Async-IO.org</em>
+<a class="jxr_linenumber" name="L3" href="#L3">3</a>   <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="L4" href="#L4">4</a>   <em class="jxr_comment"> * Licensed under the Apache License, Version 2.0 (the "License"); you may not</em>
+<a class="jxr_linenumber" name="L5" href="#L5">5</a>   <em class="jxr_comment"> * use this file except in compliance with the License. You may obtain a copy of</em>
+<a class="jxr_linenumber" name="L6" href="#L6">6</a>   <em class="jxr_comment"> * the License at</em>
+<a class="jxr_linenumber" name="L7" href="#L7">7</a>   <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="L8" href="#L8">8</a>   <em class="jxr_comment"> * <a href="http://www.apache.org/licenses/LICENSE-2." target="alexandria_uri">http://www.apache.org/licenses/LICENSE-2.</a>0</em>
+<a class="jxr_linenumber" name="L9" href="#L9">9</a>   <em class="jxr_comment"> *</em>
+<a class="jxr_linenumber" name="L10" href="#L10">10</a>  <em class="jxr_comment"> * Unless required by applicable law or agreed to in writing, software</em>
+<a class="jxr_linenumber" name="L11" href="#L11">11</a>  <em class="jxr_comment"> * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT</em>
+<a class="jxr_linenumber" name="L12" href="#L12">12</a>  <em class="jxr_comment"> * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the</em>
+<a class="jxr_linenumber" name="L13" href="#L13">13</a>  <em class="jxr_comment"> * License for the specific language governing permissions and limitations under</em>
+<a class="jxr_linenumber" name="L14" href="#L14">14</a>  <em class="jxr_comment"> * the License.</em>
+<a class="jxr_linenumber" name="L15" href="#L15">15</a>  <em class="jxr_comment"> */</em>
+<a class="jxr_linenumber" name="L16" href="#L16">16</a>  <strong class="jxr_keyword">package</strong> org.atmosphere.interceptor;
+<a class="jxr_linenumber" name="L17" href="#L17">17</a>  
+<a class="jxr_linenumber" name="L18" href="#L18">18</a>  <strong class="jxr_keyword">import</strong> java.io.ByteArrayOutputStream;
+<a class="jxr_linenumber" name="L19" href="#L19">19</a>  <strong class="jxr_keyword">import</strong> java.io.IOException;
+<a class="jxr_linenumber" name="L20" href="#L20">20</a>  <strong class="jxr_keyword">import</strong> java.io.Reader;
+<a class="jxr_linenumber" name="L21" href="#L21">21</a>  <strong class="jxr_keyword">import</strong> java.io.StringReader;
+<a class="jxr_linenumber" name="L22" href="#L22">22</a>  <strong class="jxr_keyword">import</strong> java.util.HashMap;
+<a class="jxr_linenumber" name="L23" href="#L23">23</a>  <strong class="jxr_keyword">import</strong> java.util.Map;
+<a class="jxr_linenumber" name="L24" href="#L24">24</a>  <strong class="jxr_keyword">import</strong> java.util.TreeMap;
+<a class="jxr_linenumber" name="L25" href="#L25">25</a>  <strong class="jxr_keyword">import</strong> java.util.UUID;
+<a class="jxr_linenumber" name="L26" href="#L26">26</a>  <strong class="jxr_keyword">import</strong> java.util.concurrent.TimeUnit;
+<a class="jxr_linenumber" name="L27" href="#L27">27</a>  
+<a class="jxr_linenumber" name="L28" href="#L28">28</a>  <strong class="jxr_keyword">import</strong> javax.servlet.ServletException;
+<a class="jxr_linenumber" name="L29" href="#L29">29</a>  
+<a class="jxr_linenumber" name="L30" href="#L30">30</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Action;
+<a class="jxr_linenumber" name="L31" href="#L31">31</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.ApplicationConfig;
+<a class="jxr_linenumber" name="L32" href="#L32">32</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsyncIOInterceptor;
+<a class="jxr_linenumber" name="L33" href="#L33">33</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsyncIOInterceptorAdapter;
+<a class="jxr_linenumber" name="L34" href="#L34">34</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AsyncIOWriter;
+<a class="jxr_linenumber" name="L35" href="#L35">35</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereConfig;
+<a class="jxr_linenumber" name="L36" href="#L36">36</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+<a class="jxr_linenumber" name="L37" href="#L37">37</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereInterceptorWriter;
+<a class="jxr_linenumber" name="L38" href="#L38">38</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequest;
+<a class="jxr_linenumber" name="L39" href="#L39">39</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereRequestImpl;
+<a class="jxr_linenumber" name="L40" href="#L40">40</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResource;
+<a class="jxr_linenumber" name="L41" href="#L41">41</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEvent;
+<a class="jxr_linenumber" name="L42" href="#L42">42</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
+<a class="jxr_linenumber" name="L43" href="#L43">43</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.AtmosphereResponse;
+<a class="jxr_linenumber" name="L44" href="#L44">44</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.Broadcaster;
+<a class="jxr_linenumber" name="L45" href="#L45">45</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.CompletionAware;
+<a class="jxr_linenumber" name="L46" href="#L46">46</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.DefaultBroadcaster;
+<a class="jxr_linenumber" name="L47" href="#L47">47</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.cpr.FrameworkConfig;
+<a class="jxr_linenumber" name="L48" href="#L48">48</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.ChunkConcatReaderPool;
+<a class="jxr_linenumber" name="L49" href="#L49">49</a>  <strong class="jxr_keyword">import</strong> org.atmosphere.util.IOUtils;
+<a class="jxr_linenumber" name="L50" href="#L50">50</a>  <strong class="jxr_keyword">import</strong> org.slf4j.Logger;
+<a class="jxr_linenumber" name="L51" href="#L51">51</a>  <strong class="jxr_keyword">import</strong> org.slf4j.LoggerFactory;
+<a class="jxr_linenumber" name="L52" href="#L52">52</a>  
+<a class="jxr_linenumber" name="L53" href="#L53">53</a>  <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L54" href="#L54">54</a>  <em class="jxr_javadoccomment"> * An Atmosphere interceptor to enable a simple rest binding protocol.</em>
+<a class="jxr_linenumber" name="L55" href="#L55">55</a>  <em class="jxr_javadoccomment"> * This protocol is a simplified version of SwaggerSocket with some new features</em>
+<a class="jxr_linenumber" name="L56" href="#L56">56</a>  <em class="jxr_javadoccomment"> * https://github.com/swagger-api/swaggersocket</em>
+<a class="jxr_linenumber" name="L57" href="#L57">57</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="L58" href="#L58">58</a>  <em class="jxr_javadoccomment"> * This interceptor currently handles both Websocket and SSE protocols.</em>
+<a class="jxr_linenumber" name="L59" href="#L59">59</a>  <em class="jxr_javadoccomment"> * It was originally developed for enabling atmosphere for kafka-rest at</em>
+<a class="jxr_linenumber" name="L60" href="#L60">60</a>  <em class="jxr_javadoccomment"> * https://github.com/elakito/kafka-rest-atmosphere</em>
+<a class="jxr_linenumber" name="L61" href="#L61">61</a>  <em class="jxr_javadoccomment"> *</em>
+<a class="jxr_linenumber" name="L62" href="#L62">62</a>  <em class="jxr_javadoccomment"> * @author elakito</em>
+<a class="jxr_linenumber" name="L63" href="#L63">63</a>  <em class="jxr_javadoccomment"> */</em>
+<a class="jxr_linenumber" name="L64" href="#L64">64</a>  <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/interceptor/SimpleRestInterceptor.html">SimpleRestInterceptor</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/AtmosphereInterceptorAdapter.html">AtmosphereInterceptorAdapter</a> {
+<a class="jxr_linenumber" name="L65" href="#L65">65</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">final</strong> Logger LOG = LoggerFactory.getLogger(SimpleRestInterceptor.<strong class="jxr_keyword">class</strong>);
+<a class="jxr_linenumber" name="L66" href="#L66">66</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L67" href="#L67">67</a>  <em class="jxr_javadoccomment">     * Servlet init property to enable the detached mode in the response</em>
+<a class="jxr_linenumber" name="L68" href="#L68">68</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L69" href="#L69">69</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String PROTOCOL_DETACHED_KEY = <span class="jxr_string">"atmosphere.simple-rest.protocol.detached"</span>;
+<a class="jxr_linenumber" name="L70" href="#L70">70</a>  
+<a class="jxr_linenumber" name="L71" href="#L71">71</a>      <em class="jxr_javadoccomment">/**</em>
+<a class="jxr_linenumber" name="L72" href="#L72">72</a>  <em class="jxr_javadoccomment">     * Connection request property to enable the detached mode in the response</em>
+<a class="jxr_linenumber" name="L73" href="#L73">73</a>  <em class="jxr_javadoccomment">     */</em>
+<a class="jxr_linenumber" name="L74" href="#L74">74</a>      <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED = <span class="jxr_string">"X-Atmosphere-SimpleRestProtocolDetached"</span>;
+<a class="jxr_linenumber" name="L75" href="#L75">75</a>  
+<a class="jxr_linenumber" name="L76" href="#L76">76</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String REQUEST_DISPATCHED = <span class="jxr_string">"request.dispatched"</span>;
+<a class="jxr_linenumber" name="L77" href="#L77">77</a>      <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String REQUEST_ID = <span class="jxr_string">"request.id"</span>;
+<a class="jxr_linenumber" name="L78" href="#L78">78</a>  
+<a class="jxr_linenumber" name="L79" href="#L79">79</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> byte[] RESPONSE_TEMPLATE_HEAD = <span class="jxr_string">"{\&quot;id\&quot;: \&quot;"</span>.getBytes();
+<a class="jxr_linenumber" name="L80" href="#L80">80</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> byte[] RESPONSE_TEMPLATE_BELLY = <span class="jxr_string">"\&quot;, \&quot;data\&quot;: "</span>.getBytes();
+<a class="jxr_linenumber" name="L81" href="#L81">81</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> byte[] RESPONSE_TEMPLATE_BELLY_CONTINUE = <span class="jxr_string">"\&quot;, \&quot;continue\&quot;:true, \&quot;data\&quot;: "</span>.getBytes();
+<a class="jxr_linenumber" name="L82" href="#L82">82</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> byte[] RESPONSE_TEMPLATE_BELLY_DETACHED = <span class="jxr_string">"\&quot;, \&quot;detached\&quot;: true"</span>.getBytes();
+<a class="jxr_linenumber" name="L83" href="#L83">83</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> byte[] RESPONSE_TEMPLATE_BELLY_CONTINUE_DETACHED = <span class="jxr_string">"\&quot;, \&quot;continue\&quot;:true, \&quot;detached\&quot;: true"</span>.getBytes();
+<a class="jxr_linenumber" name="L84" href="#L84">84</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> byte[] RESPONSE_TEMPLATE_TAIL = <span class="jxr_string">"}"</span>.getBytes();
+<a class="jxr_linenumber" name="L85" href="#L85">85</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> byte[] RESPONSE_TEMPLATE_NEWLINE = <span class="jxr_string">"\n"</span>.getBytes();
+<a class="jxr_linenumber" name="L86" href="#L86">86</a>  
+<a class="jxr_linenumber" name="L87" href="#L87">87</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String HEARTBEAT_BROADCASTER_NAME = <span class="jxr_string">"/simple-rest.heartbeat"</span>;
+<a class="jxr_linenumber" name="L88" href="#L88">88</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String HEARTBEAT_SCHEDULED = <span class="jxr_string">"heatbeat.scheduled"</span>;
+<a class="jxr_linenumber" name="L89" href="#L89">89</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> String HEARTBEAT_TEMPLATE = <span class="jxr_string">"{\&quot;heartbeat\&quot;: \&quot;%s\&quot;, \&quot;time\&quot;: %d}"</span>;
+<a class="jxr_linenumber" name="L90" href="#L90">90</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">long</strong> DEFAULT_HEARTBEAT_INTERVAL = 60;
+<a class="jxr_linenumber" name="L91" href="#L91">91</a>  
+<a class="jxr_linenumber" name="L92" href="#L92">92</a>      <strong class="jxr_keyword">private</strong> Map&lt;String, AtmosphereResponse&gt; suspendedResponses = <strong class="jxr_keyword">new</strong> HashMap&lt;String, AtmosphereResponse&gt;();
+<a class="jxr_linenumber" name="L93" href="#L93">93</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/util/ChunkConcatReaderPool.html">ChunkConcatReaderPool</a> readerPool = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/util/ChunkConcatReaderPool.html">ChunkConcatReaderPool</a>();
+<a class="jxr_linenumber" name="L94" href="#L94">94</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> detached;
+<a class="jxr_linenumber" name="L95" href="#L95">95</a>  
+<a class="jxr_linenumber" name="L96" href="#L96">96</a>      <strong class="jxr_keyword">private</strong> <a href="../../../org/atmosphere/cpr/Broadcaster.html">Broadcaster</a> heartbeat;
+<a class="jxr_linenumber" name="L97" href="#L97">97</a>  
+<a class="jxr_linenumber" name="L98" href="#L98">98</a>      <em class="jxr_comment">// REVISIST more appropriate to store this status?</em>
+<a class="jxr_linenumber" name="L99" href="#L99">99</a>      <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> heartbeatScheduled;
+<a class="jxr_linenumber" name="L100" href="#L100">100</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AsyncIOInterceptor.html">AsyncIOInterceptor</a> interceptor = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/TrackMessageSizeB64Interceptor.html">Interceptor</a>();
+<a class="jxr_linenumber" name="L101" href="#L101">101</a> 
+<a class="jxr_linenumber" name="L102" href="#L102">102</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/SimpleRestInterceptor.html">SimpleRestInterceptor</a>() {
+<a class="jxr_linenumber" name="L103" href="#L103">103</a>     }
+<a class="jxr_linenumber" name="L104" href="#L104">104</a> 
+<a class="jxr_linenumber" name="L105" href="#L105">105</a>     @Override
+<a class="jxr_linenumber" name="L106" href="#L106">106</a>     <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> configure(<a href="../../../org/atmosphere/cpr/AtmosphereConfig.html">AtmosphereConfig</a> config) {
+<a class="jxr_linenumber" name="L107" href="#L107">107</a>         <strong class="jxr_keyword">super</strong>.configure(config);
+<a class="jxr_linenumber" name="L108" href="#L108">108</a>         detached = Boolean.parseBoolean(config.getInitParameter(PROTOCOL_DETACHED_KEY));
+<a class="jxr_linenumber" name="L109" href="#L109">109</a>         <em class="jxr_comment">//TODO make the heartbeat configurable</em>
+<a class="jxr_linenumber" name="L110" href="#L110">110</a>         heartbeat = config.getBroadcasterFactory().lookup(DefaultBroadcaster.<strong class="jxr_keyword">class</strong>, getHeartbeatBroadcasterName());
+<a class="jxr_linenumber" name="L111" href="#L111">111</a>         <strong class="jxr_keyword">if</strong> (heartbeat == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L112" href="#L112">112</a>             heartbeat = config.getBroadcasterFactory().get(DefaultBroadcaster.<strong class="jxr_keyword">class</strong>, getHeartbeatBroadcasterName());
+<a class="jxr_linenumber" name="L113" href="#L113">113</a>         }
+<a class="jxr_linenumber" name="L114" href="#L114">114</a>     }
+<a class="jxr_linenumber" name="L115" href="#L115">115</a> 
+<a class="jxr_linenumber" name="L116" href="#L116">116</a>     @Override
+<a class="jxr_linenumber" name="L117" href="#L117">117</a>     <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/Action.html">Action</a> inspect(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L118" href="#L118">118</a>         <strong class="jxr_keyword">if</strong> (AtmosphereResource.TRANSPORT.WEBSOCKET != r.transport()
+<a class="jxr_linenumber" name="L119" href="#L119">119</a>                 &amp;&amp; AtmosphereResource.TRANSPORT.SSE != r.transport()
+<a class="jxr_linenumber" name="L120" href="#L120">120</a>                 &amp;&amp; AtmosphereResource.TRANSPORT.POLLING != r.transport()) {
+<a class="jxr_linenumber" name="L121" href="#L121">121</a>             LOG.debug(<span class="jxr_string">"Skipping for non websocket request"</span>);
+<a class="jxr_linenumber" name="L122" href="#L122">122</a>             <strong class="jxr_keyword">return</strong> Action.CONTINUE;
+<a class="jxr_linenumber" name="L123" href="#L123">123</a>         }
+<a class="jxr_linenumber" name="L124" href="#L124">124</a>         <strong class="jxr_keyword">if</strong> (AtmosphereResource.TRANSPORT.POLLING == r.transport()) {
+<a class="jxr_linenumber" name="L125" href="#L125">125</a>             <strong class="jxr_keyword">final</strong> String saruuid = (String)r.getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+<a class="jxr_linenumber" name="L126" href="#L126">126</a>             <strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> suspendedResponse = suspendedResponses.get(saruuid);
+<a class="jxr_linenumber" name="L127" href="#L127">127</a>             LOG.debug(<span class="jxr_string">"Attaching a proxy writer to suspended response"</span>);
+<a class="jxr_linenumber" name="L128" href="#L128">128</a>             r.getResponse().asyncIOWriter(<strong class="jxr_keyword">new</strong> AtmosphereInterceptorWriter() {
+<a class="jxr_linenumber" name="L129" href="#L129">129</a>                 @Override
+<a class="jxr_linenumber" name="L130" href="#L130">130</a>                 <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a> write(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, String data) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L131" href="#L131">131</a>                     suspendedResponse.write(data);
+<a class="jxr_linenumber" name="L132" href="#L132">132</a>                     suspendedResponse.flushBuffer();
+<a class="jxr_linenumber" name="L133" href="#L133">133</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L134" href="#L134">134</a>                 }
+<a class="jxr_linenumber" name="L135" href="#L135">135</a> 
+<a class="jxr_linenumber" name="L136" href="#L136">136</a>                 @Override
+<a class="jxr_linenumber" name="L137" href="#L137">137</a>                 <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a> write(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, byte[] data) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L138" href="#L138">138</a>                     suspendedResponse.write(data);
+<a class="jxr_linenumber" name="L139" href="#L139">139</a>                     suspendedResponse.flushBuffer();
+<a class="jxr_linenumber" name="L140" href="#L140">140</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L141" href="#L141">141</a>                 }
+<a class="jxr_linenumber" name="L142" href="#L142">142</a> 
+<a class="jxr_linenumber" name="L143" href="#L143">143</a>                 @Override
+<a class="jxr_linenumber" name="L144" href="#L144">144</a>                 <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a> write(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> r, byte[] data, <strong class="jxr_keyword">int</strong> offset, <strong class="jxr_keyword">int</strong> length) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L145" href="#L145">145</a>                     suspendedResponse.write(data, offset, length);
+<a class="jxr_linenumber" name="L146" href="#L146">146</a>                     suspendedResponse.flushBuffer();
+<a class="jxr_linenumber" name="L147" href="#L147">147</a>                     <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">this</strong>;
+<a class="jxr_linenumber" name="L148" href="#L148">148</a>                 }
+<a class="jxr_linenumber" name="L149" href="#L149">149</a> 
+<a class="jxr_linenumber" name="L150" href="#L150">150</a>                 @Override
+<a class="jxr_linenumber" name="L151" href="#L151">151</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L152" href="#L152">152</a>                 }
+<a class="jxr_linenumber" name="L153" href="#L153">153</a>             });
+<a class="jxr_linenumber" name="L154" href="#L154">154</a>             <em class="jxr_comment">// REVISIT we need to keep this response's asyncwriter alive so that data can be written to the</em>
+<a class="jxr_linenumber" name="L155" href="#L155">155</a>             <em class="jxr_comment">//   suspended response, but investigate if there is a better alternative.</em>
+<a class="jxr_linenumber" name="L156" href="#L156">156</a>             r.getResponse().destroyable(false);
+<a class="jxr_linenumber" name="L157" href="#L157">157</a>             <strong class="jxr_keyword">return</strong> Action.CONTINUE;
+<a class="jxr_linenumber" name="L158" href="#L158">158</a>         }
+<a class="jxr_linenumber" name="L159" href="#L159">159</a> 
+<a class="jxr_linenumber" name="L160" href="#L160">160</a>         r.addEventListener(<strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResourceEventListenerAdapter.html">AtmosphereResourceEventListenerAdapter</a>() {
+<a class="jxr_linenumber" name="L161" href="#L161">161</a>             @Override
+<a class="jxr_linenumber" name="L162" href="#L162">162</a>             <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onSuspend(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
+<a class="jxr_linenumber" name="L163" href="#L163">163</a>                 <strong class="jxr_keyword">final</strong> String srid = (String)event.getResource().getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+<a class="jxr_linenumber" name="L164" href="#L164">164</a>                 LOG.debug(<span class="jxr_string">"Registrering suspended resource: {}"</span>, srid);
+<a class="jxr_linenumber" name="L165" href="#L165">165</a>                 suspendedResponses.put(srid, event.getResource().getResponse());
+<a class="jxr_linenumber" name="L166" href="#L166">166</a> 
+<a class="jxr_linenumber" name="L167" href="#L167">167</a>                 <a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a> writer = event.getResource().getResponse().getAsyncIOWriter();
+<a class="jxr_linenumber" name="L168" href="#L168">168</a>                 <strong class="jxr_keyword">if</strong> (writer == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L169" href="#L169">169</a>                     writer = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/cpr/AtmosphereInterceptorWriter.html">AtmosphereInterceptorWriter</a>();
+<a class="jxr_linenumber" name="L170" href="#L170">170</a>                     r.getResponse().asyncIOWriter(writer);
+<a class="jxr_linenumber" name="L171" href="#L171">171</a>                 }
+<a class="jxr_linenumber" name="L172" href="#L172">172</a>                 <strong class="jxr_keyword">if</strong> (writer instanceof AtmosphereInterceptorWriter) {
+<a class="jxr_linenumber" name="L173" href="#L173">173</a>                     ((<a href="../../../org/atmosphere/cpr/AtmosphereInterceptorWriter.html">AtmosphereInterceptorWriter</a>)writer).interceptor(interceptor);
+<a class="jxr_linenumber" name="L174" href="#L174">174</a>                 }
+<a class="jxr_linenumber" name="L175" href="#L175">175</a>             }
+<a class="jxr_linenumber" name="L176" href="#L176">176</a> 
+<a class="jxr_linenumber" name="L177" href="#L177">177</a>             @Override
+<a class="jxr_linenumber" name="L178" href="#L178">178</a>             <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> onDisconnect(<a href="../../../org/atmosphere/cpr/AtmosphereResourceEvent.html">AtmosphereResourceEvent</a> event) {
+<a class="jxr_linenumber" name="L179" href="#L179">179</a>                 <strong class="jxr_keyword">super</strong>.onDisconnect(event);
+<a class="jxr_linenumber" name="L180" href="#L180">180</a>                 <strong class="jxr_keyword">final</strong> String srid = (String)event.getResource().getRequest().getAttribute(ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+<a class="jxr_linenumber" name="L181" href="#L181">181</a>                 LOG.debug(<span class="jxr_string">"Unregistrering suspended resource: {}"</span>, srid);
+<a class="jxr_linenumber" name="L182" href="#L182">182</a>                 suspendedResponses.remove(srid);
+<a class="jxr_linenumber" name="L183" href="#L183">183</a>             }
+<a class="jxr_linenumber" name="L184" href="#L184">184</a> 
+<a class="jxr_linenumber" name="L185" href="#L185">185</a>         });
+<a class="jxr_linenumber" name="L186" href="#L186">186</a> 
+<a class="jxr_linenumber" name="L187" href="#L187">187</a>         <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = r.getRequest();
+<a class="jxr_linenumber" name="L188" href="#L188">188</a>         <strong class="jxr_keyword">if</strong> (request.getAttribute(REQUEST_DISPATCHED) == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L189" href="#L189">189</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L190" href="#L190">190</a>                 <em class="jxr_comment">//REVISIT use a more efficient approach for the detached mode (i.e.,avoid reading the message into a string)</em>
+<a class="jxr_linenumber" name="L191" href="#L191">191</a>                 <em class="jxr_comment">// read the message entity and dispatch a service call</em>
+<a class="jxr_linenumber" name="L192" href="#L192">192</a>                 String body = IOUtils.readEntirelyAsString(r).toString();
+<a class="jxr_linenumber" name="L193" href="#L193">193</a>                 LOG.debug(<span class="jxr_string">"Request message: '{}'"</span>, body);
+<a class="jxr_linenumber" name="L194" href="#L194">194</a>                 <strong class="jxr_keyword">if</strong> (body.length() == 0) {
+<a class="jxr_linenumber" name="L195" href="#L195">195</a>                     <em class="jxr_comment">//TODO we might want to move this heartbeat scheduling after the handshake phase (if that is added)</em>
+<a class="jxr_linenumber" name="L196" href="#L196">196</a>                     <strong class="jxr_keyword">if</strong> ((AtmosphereResource.TRANSPORT.WEBSOCKET == r.transport() ||
+<a class="jxr_linenumber" name="L197" href="#L197">197</a>                             AtmosphereResource.TRANSPORT.SSE == r.transport())
+<a class="jxr_linenumber" name="L198" href="#L198">198</a>                             &amp;&amp; request.getAttribute(HEARTBEAT_SCHEDULED) == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L199" href="#L199">199</a>                         r.suspend();
+<a class="jxr_linenumber" name="L200" href="#L200">200</a>                         scheduleHeartbeat(r);
+<a class="jxr_linenumber" name="L201" href="#L201">201</a>                         request.setAttribute(HEARTBEAT_SCHEDULED, <span class="jxr_string">"true"</span>);
+<a class="jxr_linenumber" name="L202" href="#L202">202</a>                         <strong class="jxr_keyword">return</strong> Action.SUSPEND;
+<a class="jxr_linenumber" name="L203" href="#L203">203</a>                     }
+<a class="jxr_linenumber" name="L204" href="#L204">204</a>                     <strong class="jxr_keyword">return</strong> Action.CANCELLED;
+<a class="jxr_linenumber" name="L205" href="#L205">205</a>                 }
+<a class="jxr_linenumber" name="L206" href="#L206">206</a> 
+<a class="jxr_linenumber" name="L207" href="#L207">207</a>                 <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> ar = createAtmosphereRequest(request, body);
+<a class="jxr_linenumber" name="L208" href="#L208">208</a>                 <strong class="jxr_keyword">if</strong> (ar == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L209" href="#L209">209</a>                     <strong class="jxr_keyword">return</strong> Action.CANCELLED;
+<a class="jxr_linenumber" name="L210" href="#L210">210</a>                 }
+<a class="jxr_linenumber" name="L211" href="#L211">211</a>                 <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response = r.getResponse();
+<a class="jxr_linenumber" name="L212" href="#L212">212</a>                 ar.localAttributes().put(REQUEST_DISPATCHED, <span class="jxr_string">"true"</span>);
+<a class="jxr_linenumber" name="L213" href="#L213">213</a> 
+<a class="jxr_linenumber" name="L214" href="#L214">214</a>                 request.removeAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE);
+<a class="jxr_linenumber" name="L215" href="#L215">215</a>                 response.request(ar);
+<a class="jxr_linenumber" name="L216" href="#L216">216</a> 
+<a class="jxr_linenumber" name="L217" href="#L217">217</a>                 attachWriter(r);
+<a class="jxr_linenumber" name="L218" href="#L218">218</a> 
+<a class="jxr_linenumber" name="L219" href="#L219">219</a>                 <a href="../../../org/atmosphere/cpr/Action.html">Action</a> action = r.getAtmosphereConfig().framework().doCometSupport(ar, response);
+<a class="jxr_linenumber" name="L220" href="#L220">220</a>                 <strong class="jxr_keyword">if</strong> (action.type() == Action.TYPE.SUSPEND) {
+<a class="jxr_linenumber" name="L221" href="#L221">221</a>                     ar.destroyable(false);
+<a class="jxr_linenumber" name="L222" href="#L222">222</a>                     response.destroyable(false);
+<a class="jxr_linenumber" name="L223" href="#L223">223</a>                 }
+<a class="jxr_linenumber" name="L224" href="#L224">224</a>                 <strong class="jxr_keyword">return</strong> Action.CANCELLED;
+<a class="jxr_linenumber" name="L225" href="#L225">225</a>             } <strong class="jxr_keyword">catch</strong> (IOException | ServletException e) {
+<a class="jxr_linenumber" name="L226" href="#L226">226</a>                 LOG.error(<span class="jxr_string">"Failed to process"</span>, e);
+<a class="jxr_linenumber" name="L227" href="#L227">227</a>             }
+<a class="jxr_linenumber" name="L228" href="#L228">228</a>         }
+<a class="jxr_linenumber" name="L229" href="#L229">229</a> 
+<a class="jxr_linenumber" name="L230" href="#L230">230</a>         <strong class="jxr_keyword">return</strong> Action.CONTINUE;
+<a class="jxr_linenumber" name="L231" href="#L231">231</a>     }
+<a class="jxr_linenumber" name="L232" href="#L232">232</a> 
+<a class="jxr_linenumber" name="L233" href="#L233">233</a>     <strong class="jxr_keyword">protected</strong> String getHeartbeatBroadcasterName() {
+<a class="jxr_linenumber" name="L234" href="#L234">234</a>         <strong class="jxr_keyword">return</strong> HEARTBEAT_BROADCASTER_NAME;
+<a class="jxr_linenumber" name="L235" href="#L235">235</a>     }
+<a class="jxr_linenumber" name="L236" href="#L236">236</a> 
+<a class="jxr_linenumber" name="L237" href="#L237">237</a>     <strong class="jxr_keyword">protected</strong> String getHeartbeatTemplate() {
+<a class="jxr_linenumber" name="L238" href="#L238">238</a>         <strong class="jxr_keyword">return</strong> HEARTBEAT_TEMPLATE;
+<a class="jxr_linenumber" name="L239" href="#L239">239</a>     }
+<a class="jxr_linenumber" name="L240" href="#L240">240</a> 
+<a class="jxr_linenumber" name="L241" href="#L241">241</a>     <strong class="jxr_keyword">protected</strong> Object[] getHeartbeatTemplateArguments() {
+<a class="jxr_linenumber" name="L242" href="#L242">242</a>         <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> Object[]{UUID.randomUUID().toString(), System.currentTimeMillis()};
+<a class="jxr_linenumber" name="L243" href="#L243">243</a>     }
+<a class="jxr_linenumber" name="L244" href="#L244">244</a> 
+<a class="jxr_linenumber" name="L245" href="#L245">245</a>     <strong class="jxr_keyword">protected</strong> <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> createAtmosphereRequest(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request, String body) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L246" href="#L246">246</a>         <em class="jxr_comment">//REVISIT find a more efficient way to read and extract the message data</em>
+<a class="jxr_linenumber" name="L247" href="#L247">247</a>         <a href="../../../org/atmosphere/interceptor/SimpleRestInterceptor.html">JSONEnvelopeReader</a> jer = <strong class="jxr_keyword">new</strong> <a href="../../../org/atmosphere/interceptor/SimpleRestInterceptor.html">JSONEnvelopeReader</a>(<strong class="jxr_keyword">new</strong> StringReader(body));
+<a class="jxr_linenumber" name="L248" href="#L248">248</a> 
+<a class="jxr_linenumber" name="L249" href="#L249">249</a>         <strong class="jxr_keyword">final</strong> String id = jer.getHeader(<span class="jxr_string">"id"</span>);
+<a class="jxr_linenumber" name="L250" href="#L250">250</a>         <strong class="jxr_keyword">if</strong> (id != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L251" href="#L251">251</a>             request.localAttributes().put(REQUEST_ID, id);
+<a class="jxr_linenumber" name="L252" href="#L252">252</a>         }
+<a class="jxr_linenumber" name="L253" href="#L253">253</a> 
+<a class="jxr_linenumber" name="L254" href="#L254">254</a>         <strong class="jxr_keyword">boolean</strong> skip = false;
+<a class="jxr_linenumber" name="L255" href="#L255">255</a>         <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">boolean</strong> continued = Boolean.valueOf(jer.getHeader(<span class="jxr_string">"continue"</span>));
+<a class="jxr_linenumber" name="L256" href="#L256">256</a>         Reader reader = readerPool.getReader(id, false);
+<a class="jxr_linenumber" name="L257" href="#L257">257</a>         <strong class="jxr_keyword">if</strong> (reader != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L258" href="#L258">258</a>             skip = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L259" href="#L259">259</a>         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (continued) {
+<a class="jxr_linenumber" name="L260" href="#L260">260</a>             reader = readerPool.getReader(id, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L261" href="#L261">261</a>         }
+<a class="jxr_linenumber" name="L262" href="#L262">262</a> 
+<a class="jxr_linenumber" name="L263" href="#L263">263</a>         <strong class="jxr_keyword">if</strong> (skip) {
+<a class="jxr_linenumber" name="L264" href="#L264">264</a>             <em class="jxr_comment">// add the request data to the prevously dispatched request and skip dispatching a new one</em>
+<a class="jxr_linenumber" name="L265" href="#L265">265</a>             <strong class="jxr_keyword">final</strong> Reader data = jer.getReader();
+<a class="jxr_linenumber" name="L266" href="#L266">266</a>             <strong class="jxr_keyword">if</strong> (data != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L267" href="#L267">267</a>                 readerPool.addChunk(id, data, continued);
+<a class="jxr_linenumber" name="L268" href="#L268">268</a>             }
+<a class="jxr_linenumber" name="L269" href="#L269">269</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L270" href="#L270">270</a>         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L271" href="#L271">271</a>             <em class="jxr_comment">// prepare a new request for dispatching</em>
+<a class="jxr_linenumber" name="L272" href="#L272">272</a>             <strong class="jxr_keyword">final</strong> String method = jer.getHeader(<span class="jxr_string">"method"</span>);
+<a class="jxr_linenumber" name="L273" href="#L273">273</a>             String path = jer.getHeader(<span class="jxr_string">"path"</span>);
+<a class="jxr_linenumber" name="L274" href="#L274">274</a>             <strong class="jxr_keyword">final</strong> String type = jer.getHeader(<span class="jxr_string">"type"</span>);
+<a class="jxr_linenumber" name="L275" href="#L275">275</a>             <strong class="jxr_keyword">final</strong> String accept = jer.getHeader(<span class="jxr_string">"accept"</span>);
+<a class="jxr_linenumber" name="L276" href="#L276">276</a> 
+<a class="jxr_linenumber" name="L277" href="#L277">277</a>             AtmosphereRequest.Builder b = <strong class="jxr_keyword">new</strong> AtmosphereRequestImpl.Builder();
+<a class="jxr_linenumber" name="L278" href="#L278">278</a>             b.method(method != <strong class="jxr_keyword">null</strong> ? method : <span class="jxr_string">"GET"</span>).pathInfo(path != <strong class="jxr_keyword">null</strong> ? path: <span class="jxr_string">"/"</span>);
+<a class="jxr_linenumber" name="L279" href="#L279">279</a>             <strong class="jxr_keyword">if</strong> (accept != <strong class="jxr_keyword">null</strong> || type != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L280" href="#L280">280</a>                 Map&lt;String, String&gt; headers = <strong class="jxr_keyword">new</strong> TreeMap&lt;String, String&gt;(String.CASE_INSENSITIVE_ORDER);
+<a class="jxr_linenumber" name="L281" href="#L281">281</a>                 <strong class="jxr_keyword">if</strong> (accept != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L282" href="#L282">282</a>                     headers.put(<span class="jxr_string">"Accept"</span>, accept);
+<a class="jxr_linenumber" name="L283" href="#L283">283</a>                 }
+<a class="jxr_linenumber" name="L284" href="#L284">284</a>                 <strong class="jxr_keyword">if</strong> (type != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L285" href="#L285">285</a>                     b.contentType(type);
+<a class="jxr_linenumber" name="L286" href="#L286">286</a>                 }
+<a class="jxr_linenumber" name="L287" href="#L287">287</a>                 b.headers(headers);
+<a class="jxr_linenumber" name="L288" href="#L288">288</a>             }
+<a class="jxr_linenumber" name="L289" href="#L289">289</a>             <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">int</strong> qpos = path.indexOf('?');
+<a class="jxr_linenumber" name="L290" href="#L290">290</a>             <strong class="jxr_keyword">if</strong> (qpos &gt; 0) {
+<a class="jxr_linenumber" name="L291" href="#L291">291</a>                 b.queryString(path.substring(qpos + 1));
+<a class="jxr_linenumber" name="L292" href="#L292">292</a>                 path = path.substring(0, qpos);
+<a class="jxr_linenumber" name="L293" href="#L293">293</a>             }
+<a class="jxr_linenumber" name="L294" href="#L294">294</a>             <strong class="jxr_keyword">final</strong> Reader data = jer.getReader();
+<a class="jxr_linenumber" name="L295" href="#L295">295</a>             <strong class="jxr_keyword">if</strong> (data != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L296" href="#L296">296</a>                 <strong class="jxr_keyword">if</strong> (reader != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L297" href="#L297">297</a>                     b.reader(reader);
+<a class="jxr_linenumber" name="L298" href="#L298">298</a>                     readerPool.addChunk(id, data, <strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L299" href="#L299">299</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L300" href="#L300">300</a>                     b.reader(data);
+<a class="jxr_linenumber" name="L301" href="#L301">301</a>                 }
+<a class="jxr_linenumber" name="L302" href="#L302">302</a>             }
+<a class="jxr_linenumber" name="L303" href="#L303">303</a>             String requestURL = request.getRequestURL() + path.substring(request.getRequestURI().length());
+<a class="jxr_linenumber" name="L304" href="#L304">304</a>             b.requestURI(path).requestURL(requestURL).request(request);
+<a class="jxr_linenumber" name="L305" href="#L305">305</a> 
+<a class="jxr_linenumber" name="L306" href="#L306">306</a>             <strong class="jxr_keyword">return</strong> b.build();
+<a class="jxr_linenumber" name="L307" href="#L307">307</a>         }
+<a class="jxr_linenumber" name="L308" href="#L308">308</a>     }
+<a class="jxr_linenumber" name="L309" href="#L309">309</a> 
+<a class="jxr_linenumber" name="L310" href="#L310">310</a>     <strong class="jxr_keyword">protected</strong> byte[] createResponse(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response, byte[] payload) {
+<a class="jxr_linenumber" name="L311" href="#L311">311</a>         <strong class="jxr_keyword">if</strong> (LOG.isDebugEnabled()) {
+<a class="jxr_linenumber" name="L312" href="#L312">312</a>             LOG.debug(<span class="jxr_string">"createResponse for payload {}"</span>, <strong class="jxr_keyword">new</strong> String(payload));
+<a class="jxr_linenumber" name="L313" href="#L313">313</a>         }
+<a class="jxr_linenumber" name="L314" href="#L314">314</a>         <a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request = response.request();
+<a class="jxr_linenumber" name="L315" href="#L315">315</a>         String id = (String)request.getAttribute(REQUEST_ID);
+<a class="jxr_linenumber" name="L316" href="#L316">316</a>         <strong class="jxr_keyword">if</strong> (id == <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L317" href="#L317">317</a>             <em class="jxr_comment">// control response such as heartbeat or plain responses</em>
+<a class="jxr_linenumber" name="L318" href="#L318">318</a>             <strong class="jxr_keyword">return</strong> payload;
+<a class="jxr_linenumber" name="L319" href="#L319">319</a>         }
+<a class="jxr_linenumber" name="L320" href="#L320">320</a>         <em class="jxr_comment">//TODO find a nicer way to build the response entity</em>
+<a class="jxr_linenumber" name="L321" href="#L321">321</a>         ByteArrayOutputStream baos = <strong class="jxr_keyword">new</strong> ByteArrayOutputStream();
+<a class="jxr_linenumber" name="L322" href="#L322">322</a>         <strong class="jxr_keyword">if</strong> (id != <strong class="jxr_keyword">null</strong>) {
+<a class="jxr_linenumber" name="L323" href="#L323">323</a>             <strong class="jxr_keyword">try</strong> {
+<a class="jxr_linenumber" name="L324" href="#L324">324</a>                 baos.write(RESPONSE_TEMPLATE_HEAD);
+<a class="jxr_linenumber" name="L325" href="#L325">325</a>                 baos.write(id.getBytes());
+<a class="jxr_linenumber" name="L326" href="#L326">326</a>                 <strong class="jxr_keyword">if</strong> (isDetached(request)) {
+<a class="jxr_linenumber" name="L327" href="#L327">327</a>                     <em class="jxr_comment">// {"id":...,  "detached": true}\n</em>
+<a class="jxr_linenumber" name="L328" href="#L328">328</a>                     <em class="jxr_comment">// &lt;payload&gt;</em>
+<a class="jxr_linenumber" name="L329" href="#L329">329</a>                     <strong class="jxr_keyword">if</strong> (isLastResponse(request, response)) {
+<a class="jxr_linenumber" name="L330" href="#L330">330</a>                         baos.write(RESPONSE_TEMPLATE_BELLY_DETACHED);
+<a class="jxr_linenumber" name="L331" href="#L331">331</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L332" href="#L332">332</a>                         baos.write(RESPONSE_TEMPLATE_BELLY_CONTINUE_DETACHED);
+<a class="jxr_linenumber" name="L333" href="#L333">333</a>                     }
+<a class="jxr_linenumber" name="L334" href="#L334">334</a>                     baos.write(RESPONSE_TEMPLATE_TAIL);
+<a class="jxr_linenumber" name="L335" href="#L335">335</a>                     baos.write(RESPONSE_TEMPLATE_NEWLINE);
+<a class="jxr_linenumber" name="L336" href="#L336">336</a>                     baos.write(payload);
+<a class="jxr_linenumber" name="L337" href="#L337">337</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L338" href="#L338">338</a>                     <em class="jxr_comment">// {"id":..., "data": &lt;payload&gt;}</em>
+<a class="jxr_linenumber" name="L339" href="#L339">339</a>                     <strong class="jxr_keyword">boolean</strong> isobj = isJSONObject(payload);
+<a class="jxr_linenumber" name="L340" href="#L340">340</a>                     <strong class="jxr_keyword">if</strong> (isLastResponse(request, response)) {
+<a class="jxr_linenumber" name="L341" href="#L341">341</a>                         baos.write(RESPONSE_TEMPLATE_BELLY);
+<a class="jxr_linenumber" name="L342" href="#L342">342</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L343" href="#L343">343</a>                         baos.write(RESPONSE_TEMPLATE_BELLY_CONTINUE);
+<a class="jxr_linenumber" name="L344" href="#L344">344</a>                     }
+<a class="jxr_linenumber" name="L345" href="#L345">345</a>                     <strong class="jxr_keyword">if</strong> (!isobj) {
+<a class="jxr_linenumber" name="L346" href="#L346">346</a>                         baos.write(quote(payload));
+<a class="jxr_linenumber" name="L347" href="#L347">347</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L348" href="#L348">348</a>                         baos.write(payload);
+<a class="jxr_linenumber" name="L349" href="#L349">349</a>                     }
+<a class="jxr_linenumber" name="L350" href="#L350">350</a>                     baos.write(RESPONSE_TEMPLATE_TAIL);
+<a class="jxr_linenumber" name="L351" href="#L351">351</a>                 }
+<a class="jxr_linenumber" name="L352" href="#L352">352</a> 
+<a class="jxr_linenumber" name="L353" href="#L353">353</a>             } <strong class="jxr_keyword">catch</strong> (IOException e) {
+<a class="jxr_linenumber" name="L354" href="#L354">354</a>                 <em class="jxr_comment">//ignore as it can't happen</em>
+<a class="jxr_linenumber" name="L355" href="#L355">355</a>             }
+<a class="jxr_linenumber" name="L356" href="#L356">356</a>         }
+<a class="jxr_linenumber" name="L357" href="#L357">357</a>         <strong class="jxr_keyword">return</strong> baos.toByteArray();
+<a class="jxr_linenumber" name="L358" href="#L358">358</a>     }
+<a class="jxr_linenumber" name="L359" href="#L359">359</a> 
+<a class="jxr_linenumber" name="L360" href="#L360">360</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> scheduleHeartbeat(<a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L361" href="#L361">361</a>         <em class="jxr_comment">//REVISIT make the schedule configurable</em>
+<a class="jxr_linenumber" name="L362" href="#L362">362</a>         heartbeat.addAtmosphereResource(r);
+<a class="jxr_linenumber" name="L363" href="#L363">363</a>         <strong class="jxr_keyword">if</strong> (!heartbeatScheduled) {
+<a class="jxr_linenumber" name="L364" href="#L364">364</a>             heartbeat.scheduleFixedBroadcast(String.format(getHeartbeatTemplate(), getHeartbeatTemplateArguments()),
+<a class="jxr_linenumber" name="L365" href="#L365">365</a>                     DEFAULT_HEARTBEAT_INTERVAL, DEFAULT_HEARTBEAT_INTERVAL, TimeUnit.SECONDS);
+<a class="jxr_linenumber" name="L366" href="#L366">366</a>             heartbeatScheduled = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L367" href="#L367">367</a>         }
+<a class="jxr_linenumber" name="L368" href="#L368">368</a>     }
+<a class="jxr_linenumber" name="L369" href="#L369">369</a> 
+<a class="jxr_linenumber" name="L370" href="#L370">370</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isLastResponse(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request, <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response) {
+<a class="jxr_linenumber" name="L371" href="#L371">371</a>         <strong class="jxr_keyword">return</strong> (response instanceof CompletionAware &amp;&amp; ((CompletionAware)response).completed())
+<a class="jxr_linenumber" name="L372" href="#L372">372</a>                 || Boolean.TRUE != request.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE);
+<a class="jxr_linenumber" name="L373" href="#L373">373</a>     }
+<a class="jxr_linenumber" name="L374" href="#L374">374</a> 
+<a class="jxr_linenumber" name="L375" href="#L375">375</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">boolean</strong> isDetached(<a href="../../../org/atmosphere/cpr/AtmosphereRequest.html">AtmosphereRequest</a> request) {
+<a class="jxr_linenumber" name="L376" href="#L376">376</a>         <em class="jxr_comment">// the default detached setting configured by the init property can be overrriden by the connection property</em>
+<a class="jxr_linenumber" name="L377" href="#L377">377</a>         <strong class="jxr_keyword">final</strong> String prop = request.getHeader(X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED);
+<a class="jxr_linenumber" name="L378" href="#L378">378</a>         <strong class="jxr_keyword">return</strong> (detached &amp;&amp; prop == <strong class="jxr_keyword">null</strong>) || Boolean.valueOf(prop);
+<a class="jxr_linenumber" name="L379" href="#L379">379</a>     }
+<a class="jxr_linenumber" name="L380" href="#L380">380</a> 
+<a class="jxr_linenumber" name="L381" href="#L381">381</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> attachWriter(<strong class="jxr_keyword">final</strong> <a href="../../../org/atmosphere/cpr/AtmosphereResource.html">AtmosphereResource</a> r) {
+<a class="jxr_linenumber" name="L382" href="#L382">382</a>         <a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> res = r.getResponse();
+<a class="jxr_linenumber" name="L383" href="#L383">383</a>         <a href="../../../org/atmosphere/cpr/AsyncIOWriter.html">AsyncIOWriter</a> writer = res.getAsyncIOWriter();
+<a class="jxr_linenumber" name="L384" href="#L384">384</a> 
+<a class="jxr_linenumber" name="L385" href="#L385">385</a>         <strong class="jxr_keyword">if</strong> (writer instanceof AtmosphereInterceptorWriter) {
+<a class="jxr_linenumber" name="L386" href="#L386">386</a>             ((<a href="../../../org/atmosphere/cpr/AtmosphereInterceptorWriter.html">AtmosphereInterceptorWriter</a>)writer).interceptor(interceptor, 0);
+<a class="jxr_linenumber" name="L387" href="#L387">387</a>         }
+<a class="jxr_linenumber" name="L388" href="#L388">388</a>     }
+<a class="jxr_linenumber" name="L389" href="#L389">389</a> 
+<a class="jxr_linenumber" name="L390" href="#L390">390</a>     <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">final</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/interceptor/TrackMessageSizeB64Interceptor.html">Interceptor</a> <strong class="jxr_keyword">extends</strong> <a href="../../../org/atmosphere/cpr/AsyncIOInterceptorAdapter.html">AsyncIOInterceptorAdapter</a> {
+<a class="jxr_linenumber" name="L391" href="#L391">391</a>         @Override
+<a class="jxr_linenumber" name="L392" href="#L392">392</a>         <strong class="jxr_keyword">public</strong> byte[] transformPayload(<a href="../../../org/atmosphere/cpr/AtmosphereResponse.html">AtmosphereResponse</a> response, byte[] responseDraft, byte[] data) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L393" href="#L393">393</a>             <strong class="jxr_keyword">return</strong> createResponse(response, responseDraft);
+<a class="jxr_linenumber" name="L394" href="#L394">394</a>         }
+<a class="jxr_linenumber" name="L395" href="#L395">395</a>     }
+<a class="jxr_linenumber" name="L396" href="#L396">396</a> 
+<a class="jxr_linenumber" name="L397" href="#L397">397</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">boolean</strong> isJSONObject(byte[] b) {
+<a class="jxr_linenumber" name="L398" href="#L398">398</a>         <strong class="jxr_keyword">return</strong> b.length &gt; 0 &amp;&amp; (b[0] == (byte)'[' || b[0] == (byte)'{');
+<a class="jxr_linenumber" name="L399" href="#L399">399</a>     }
+<a class="jxr_linenumber" name="L400" href="#L400">400</a>     <strong class="jxr_keyword">protected</strong> <strong class="jxr_keyword">static</strong> byte[] quote(byte[] b) {
+<a class="jxr_linenumber" name="L401" href="#L401">401</a>         ByteArrayOutputStream baos = <strong class="jxr_keyword">new</strong> ByteArrayOutputStream();
+<a class="jxr_linenumber" name="L402" href="#L402">402</a>         baos.write('&quot;');
+<a class="jxr_linenumber" name="L403" href="#L403">403</a>         <strong class="jxr_keyword">for</strong> (byte c : b) {
+<a class="jxr_linenumber" name="L404" href="#L404">404</a>             <strong class="jxr_keyword">if</strong> (c == '&quot;') {
+<a class="jxr_linenumber" name="L405" href="#L405">405</a>                 baos.write('&#92;&#92;');
+<a class="jxr_linenumber" name="L406" href="#L406">406</a>             }
+<a class="jxr_linenumber" name="L407" href="#L407">407</a>             baos.write(c);
+<a class="jxr_linenumber" name="L408" href="#L408">408</a>         }
+<a class="jxr_linenumber" name="L409" href="#L409">409</a>         baos.write('&quot;');
+<a class="jxr_linenumber" name="L410" href="#L410">410</a>         <strong class="jxr_keyword">return</strong> baos.toByteArray();
+<a class="jxr_linenumber" name="L411" href="#L411">411</a>     }
+<a class="jxr_linenumber" name="L412" href="#L412">412</a> 
+<a class="jxr_linenumber" name="L413" href="#L413">413</a>     <em class="jxr_comment">/*</em>
+<a class="jxr_linenumber" name="L414" href="#L414">414</a> <em class="jxr_comment">     * A custom json envelope reader to parse a character sequence by extracting the key value pairs</em>
+<a class="jxr_linenumber" name="L415" href="#L415">415</a> <em class="jxr_comment">     * but leaves the data value unparsed so that it can be subsequently consumed directly as a chracter seqeunce.</em>
+<a class="jxr_linenumber" name="L416" href="#L416">416</a> <em class="jxr_comment">     */</em>
+<a class="jxr_linenumber" name="L417" href="#L417">417</a>     <strong class="jxr_keyword">static</strong> <strong class="jxr_keyword">class</strong> <a href="../../../org/atmosphere/interceptor/SimpleRestInterceptor.html">JSONEnvelopeReader</a> {
+<a class="jxr_linenumber" name="L418" href="#L418">418</a>         <strong class="jxr_keyword">private</strong> Reader reader;
+<a class="jxr_linenumber" name="L419" href="#L419">419</a>         <strong class="jxr_keyword">private</strong> Map&lt;String, String&gt; headers;
+<a class="jxr_linenumber" name="L420" href="#L420">420</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> datap;
+<a class="jxr_linenumber" name="L421" href="#L421">421</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> detachedp;
+<a class="jxr_linenumber" name="L422" href="#L422">422</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> peek = -1;
+<a class="jxr_linenumber" name="L423" href="#L423">423</a> 
+<a class="jxr_linenumber" name="L424" href="#L424">424</a>         <strong class="jxr_keyword">public</strong> <a href="../../../org/atmosphere/interceptor/SimpleRestInterceptor.html">JSONEnvelopeReader</a>(Reader reader) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L425" href="#L425">425</a>             <strong class="jxr_keyword">this</strong>.reader = reader;
+<a class="jxr_linenumber" name="L426" href="#L426">426</a>             <strong class="jxr_keyword">this</strong>.headers = <strong class="jxr_keyword">new</strong> HashMap&lt;String, String&gt;();
+<a class="jxr_linenumber" name="L427" href="#L427">427</a> 
+<a class="jxr_linenumber" name="L428" href="#L428">428</a>             prepare();
+<a class="jxr_linenumber" name="L429" href="#L429">429</a>         }
+<a class="jxr_linenumber" name="L430" href="#L430">430</a> 
+<a class="jxr_linenumber" name="L431" href="#L431">431</a>         <strong class="jxr_keyword">public</strong> String getHeader(String name) {
+<a class="jxr_linenumber" name="L432" href="#L432">432</a>             <strong class="jxr_keyword">return</strong> headers.get(name);
+<a class="jxr_linenumber" name="L433" href="#L433">433</a>         }
+<a class="jxr_linenumber" name="L434" href="#L434">434</a> 
+<a class="jxr_linenumber" name="L435" href="#L435">435</a>         <strong class="jxr_keyword">public</strong> Map&lt;String, String&gt; getHeaders() {
+<a class="jxr_linenumber" name="L436" href="#L436">436</a>             <strong class="jxr_keyword">return</strong> headers;
+<a class="jxr_linenumber" name="L437" href="#L437">437</a>         }
+<a class="jxr_linenumber" name="L438" href="#L438">438</a> 
+<a class="jxr_linenumber" name="L439" href="#L439">439</a>         <strong class="jxr_keyword">public</strong> Reader getReader() {
+<a class="jxr_linenumber" name="L440" href="#L440">440</a>             <strong class="jxr_keyword">if</strong> (!datap &amp;&amp; !detachedp) {
+<a class="jxr_linenumber" name="L441" href="#L441">441</a>                 <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">null</strong>;
+<a class="jxr_linenumber" name="L442" href="#L442">442</a>             }
+<a class="jxr_linenumber" name="L443" href="#L443">443</a> 
+<a class="jxr_linenumber" name="L444" href="#L444">444</a>             <strong class="jxr_keyword">return</strong> <strong class="jxr_keyword">new</strong> Reader() {
+<a class="jxr_linenumber" name="L445" href="#L445">445</a>                 <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> b;
+<a class="jxr_linenumber" name="L446" href="#L446">446</a>                 @Override
+<a class="jxr_linenumber" name="L447" href="#L447">447</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">int</strong> read(<strong class="jxr_keyword">char</strong>[] cbuf, <strong class="jxr_keyword">int</strong> off, <strong class="jxr_keyword">int</strong> len) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L448" href="#L448">448</a>                     <strong class="jxr_keyword">int</strong> n = reader.read(cbuf, off, len);
+<a class="jxr_linenumber" name="L449" href="#L449">449</a>                     <strong class="jxr_keyword">if</strong> (n &gt; 0) {
+<a class="jxr_linenumber" name="L450" href="#L450">450</a>                         <strong class="jxr_keyword">boolean</strong> escaping = false;
+<a class="jxr_linenumber" name="L451" href="#L451">451</a>                         <strong class="jxr_keyword">char</strong> quot = 0;
+<a class="jxr_linenumber" name="L452" href="#L452">452</a>                         <strong class="jxr_keyword">for</strong> (<strong class="jxr_keyword">int</strong> i = off; i &lt; n; i++) {
+<a class="jxr_linenumber" name="L453" href="#L453">453</a>                             <strong class="jxr_keyword">char</strong> c = cbuf[i];
+<a class="jxr_linenumber" name="L454" href="#L454">454</a>                             <strong class="jxr_keyword">if</strong> (c == '{' &amp;&amp; !escaping) {
+<a class="jxr_linenumber" name="L455" href="#L455">455</a>                                 b++;
+<a class="jxr_linenumber" name="L456" href="#L456">456</a>                             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (c == '}' &amp;&amp; !escaping) {
+<a class="jxr_linenumber" name="L457" href="#L457">457</a>                                 b--;
+<a class="jxr_linenumber" name="L458" href="#L458">458</a>                                 <strong class="jxr_keyword">if</strong> (b &lt; 0) {
+<a class="jxr_linenumber" name="L459" href="#L459">459</a>                                     <em class="jxr_comment">// past the logical eof</em>
+<a class="jxr_linenumber" name="L460" href="#L460">460</a>                                     n--;
+<a class="jxr_linenumber" name="L461" href="#L461">461</a>                                 }
+<a class="jxr_linenumber" name="L462" href="#L462">462</a>                             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> ((c == '&quot;' || c == '\'') &amp;&amp; !escaping) {
+<a class="jxr_linenumber" name="L463" href="#L463">463</a>                                 <strong class="jxr_keyword">if</strong> (c == quot) {
+<a class="jxr_linenumber" name="L464" href="#L464">464</a>                                     quot = 0;
+<a class="jxr_linenumber" name="L465" href="#L465">465</a>                                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L466" href="#L466">466</a>                                     quot = c;
+<a class="jxr_linenumber" name="L467" href="#L467">467</a>                                 }
+<a class="jxr_linenumber" name="L468" href="#L468">468</a>                             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (c == '&#92;&#92;' &amp;&amp; quot != 0 &amp;&amp; !escaping) {
+<a class="jxr_linenumber" name="L469" href="#L469">469</a>                                 escaping = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L470" href="#L470">470</a>                             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (escaping) {
+<a class="jxr_linenumber" name="L471" href="#L471">471</a>                                 escaping = false;
+<a class="jxr_linenumber" name="L472" href="#L472">472</a>                             }
+<a class="jxr_linenumber" name="L473" href="#L473">473</a>                         }
+<a class="jxr_linenumber" name="L474" href="#L474">474</a>                     }
+<a class="jxr_linenumber" name="L475" href="#L475">475</a>                     <strong class="jxr_keyword">return</strong> n;
+<a class="jxr_linenumber" name="L476" href="#L476">476</a>                 }
+<a class="jxr_linenumber" name="L477" href="#L477">477</a> 
+<a class="jxr_linenumber" name="L478" href="#L478">478</a>                 @Override
+<a class="jxr_linenumber" name="L479" href="#L479">479</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">void</strong> close() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L480" href="#L480">480</a>                     reader.close();
+<a class="jxr_linenumber" name="L481" href="#L481">481</a>                 }
+<a class="jxr_linenumber" name="L482" href="#L482">482</a> 
+<a class="jxr_linenumber" name="L483" href="#L483">483</a>                 @Override
+<a class="jxr_linenumber" name="L484" href="#L484">484</a>                 <strong class="jxr_keyword">public</strong> <strong class="jxr_keyword">boolean</strong> ready() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L485" href="#L485">485</a>                     <strong class="jxr_keyword">return</strong> reader.ready();
+<a class="jxr_linenumber" name="L486" href="#L486">486</a>                 }
+<a class="jxr_linenumber" name="L487" href="#L487">487</a>             };
+<a class="jxr_linenumber" name="L488" href="#L488">488</a>         }
+<a class="jxr_linenumber" name="L489" href="#L489">489</a> 
+<a class="jxr_linenumber" name="L490" href="#L490">490</a> 
+<a class="jxr_linenumber" name="L491" href="#L491">491</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> prepare() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L492" href="#L492">492</a>             <strong class="jxr_keyword">int</strong> c = next(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L493" href="#L493">493</a>             <strong class="jxr_keyword">if</strong> (c == '{') {
+<a class="jxr_linenumber" name="L494" href="#L494">494</a>                 <strong class="jxr_keyword">for</strong> (;;) {
+<a class="jxr_linenumber" name="L495" href="#L495">495</a>                     String name = nextName();
+<a class="jxr_linenumber" name="L496" href="#L496">496</a>                     c = next(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L497" href="#L497">497</a>                     <strong class="jxr_keyword">if</strong> (c == ':') {
+<a class="jxr_linenumber" name="L498" href="#L498">498</a>                         <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"data"</span>.equals(name)) {
+<a class="jxr_linenumber" name="L499" href="#L499">499</a>                             datap = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L500" href="#L500">500</a>                             <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L501" href="#L501">501</a>                         } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (<span class="jxr_string">"detached"</span>.equals(name)) {
+<a class="jxr_linenumber" name="L502" href="#L502">502</a>                             <strong class="jxr_keyword">if</strong> (Boolean.valueOf(nextValue())) {
+<a class="jxr_linenumber" name="L503" href="#L503">503</a>                                 detachedp = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L504" href="#L504">504</a>                             }
+<a class="jxr_linenumber" name="L505" href="#L505">505</a>                         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L506" href="#L506">506</a>                             headers.put(name, nextValue());
+<a class="jxr_linenumber" name="L507" href="#L507">507</a>                         }
+<a class="jxr_linenumber" name="L508" href="#L508">508</a>                     } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L509" href="#L509">509</a>                         <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"invalid value: missing name-separator ':'"</span>);
+<a class="jxr_linenumber" name="L510" href="#L510">510</a>                     }
+<a class="jxr_linenumber" name="L511" href="#L511">511</a>                     c = next(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L512" href="#L512">512</a>                     <strong class="jxr_keyword">if</strong> (c != ',') {
+<a class="jxr_linenumber" name="L513" href="#L513">513</a>                         <strong class="jxr_keyword">if</strong> (c == '}' &amp;&amp; detachedp) {
+<a class="jxr_linenumber" name="L514" href="#L514">514</a>                             <strong class="jxr_keyword">while</strong> (c != -1) {
+<a class="jxr_linenumber" name="L515" href="#L515">515</a>                                 c = next(false);
+<a class="jxr_linenumber" name="L516" href="#L516">516</a>                                 <strong class="jxr_keyword">if</strong> (c == '\n') {
+<a class="jxr_linenumber" name="L517" href="#L517">517</a>                                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L518" href="#L518">518</a>                                 }
+<a class="jxr_linenumber" name="L519" href="#L519">519</a>                             }
+<a class="jxr_linenumber" name="L520" href="#L520">520</a>                         } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L521" href="#L521">521</a>                             unread(c);
+<a class="jxr_linenumber" name="L522" href="#L522">522</a>                         }
+<a class="jxr_linenumber" name="L523" href="#L523">523</a>                         <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L524" href="#L524">524</a>                     }
+<a class="jxr_linenumber" name="L525" href="#L525">525</a>                 }
+<a class="jxr_linenumber" name="L526" href="#L526">526</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L527" href="#L527">527</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"invalid object: missing being-object '{'"</span>);
+<a class="jxr_linenumber" name="L528" href="#L528">528</a>             }
+<a class="jxr_linenumber" name="L529" href="#L529">529</a>         }
+<a class="jxr_linenumber" name="L530" href="#L530">530</a> 
+<a class="jxr_linenumber" name="L531" href="#L531">531</a>         <strong class="jxr_keyword">private</strong> String nextName() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L532" href="#L532">532</a>             <strong class="jxr_keyword">int</strong> c = next(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L533" href="#L533">533</a>             <strong class="jxr_keyword">if</strong> (c == '&quot;' || c == '\'') {
+<a class="jxr_linenumber" name="L534" href="#L534">534</a>                 <strong class="jxr_keyword">return</strong> nextQuoted(c);
+<a class="jxr_linenumber" name="L535" href="#L535">535</a>             }
+<a class="jxr_linenumber" name="L536" href="#L536">536</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"invalid name: missing quote '\&quot;'"</span>);
+<a class="jxr_linenumber" name="L537" href="#L537">537</a>         }
+<a class="jxr_linenumber" name="L538" href="#L538">538</a> 
+<a class="jxr_linenumber" name="L539" href="#L539">539</a>         <strong class="jxr_keyword">private</strong> String nextValue() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L540" href="#L540">540</a>             <strong class="jxr_keyword">int</strong> c = next(<strong class="jxr_keyword">true</strong>);
+<a class="jxr_linenumber" name="L541" href="#L541">541</a>             <strong class="jxr_keyword">if</strong> (c == '&quot;' || c == '\'') {
+<a class="jxr_linenumber" name="L542" href="#L542">542</a>                 <em class="jxr_comment">// quoted string</em>
+<a class="jxr_linenumber" name="L543" href="#L543">543</a>                 <strong class="jxr_keyword">return</strong> nextQuoted(c);
+<a class="jxr_linenumber" name="L544" href="#L544">544</a>             } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (c == 't' || c == 'f' || ('0' &lt;= c &amp;&amp; c &lt;= '9')) {
+<a class="jxr_linenumber" name="L545" href="#L545">545</a>                 <em class="jxr_comment">// true, false, or number</em>
+<a class="jxr_linenumber" name="L546" href="#L546">546</a>                 unread(c);
+<a class="jxr_linenumber" name="L547" href="#L547">547</a>                 <strong class="jxr_keyword">return</strong> nextNonQuoted();
+<a class="jxr_linenumber" name="L548" href="#L548">548</a>             }
+<a class="jxr_linenumber" name="L549" href="#L549">549</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"invalid value: unquoted non literals"</span>);
+<a class="jxr_linenumber" name="L550" href="#L550">550</a>         }
+<a class="jxr_linenumber" name="L551" href="#L551">551</a> 
+<a class="jxr_linenumber" name="L552" href="#L552">552</a>         <strong class="jxr_keyword">private</strong> String nextQuoted(<strong class="jxr_keyword">int</strong> quot) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L553" href="#L553">553</a>             StringBuilder sb = <strong class="jxr_keyword">new</strong> StringBuilder();
+<a class="jxr_linenumber" name="L554" href="#L554">554</a>             <strong class="jxr_keyword">boolean</strong> escaping = false;
+<a class="jxr_linenumber" name="L555" href="#L555">555</a>             <strong class="jxr_keyword">int</strong> c;
+<a class="jxr_linenumber" name="L556" href="#L556">556</a>             <strong class="jxr_keyword">while</strong> ((c = next(false)) != -1) {
+<a class="jxr_linenumber" name="L557" href="#L557">557</a>                 <strong class="jxr_keyword">if</strong> (c == '&#92;&#92;' &amp;&amp; !escaping) {
+<a class="jxr_linenumber" name="L558" href="#L558">558</a>                     escaping = <strong class="jxr_keyword">true</strong>;
+<a class="jxr_linenumber" name="L559" href="#L559">559</a>                 } <strong class="jxr_keyword">else</strong> <strong class="jxr_keyword">if</strong> (c == quot &amp;&amp; !escaping) {
+<a class="jxr_linenumber" name="L560" href="#L560">560</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L561" href="#L561">561</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L562" href="#L562">562</a>                     sb.append((<strong class="jxr_keyword">char</strong>) c);
+<a class="jxr_linenumber" name="L563" href="#L563">563</a>                     <strong class="jxr_keyword">if</strong> (escaping) {
+<a class="jxr_linenumber" name="L564" href="#L564">564</a>                         escaping = false;
+<a class="jxr_linenumber" name="L565" href="#L565">565</a>                     }
+<a class="jxr_linenumber" name="L566" href="#L566">566</a>                 }
+<a class="jxr_linenumber" name="L567" href="#L567">567</a>             }
+<a class="jxr_linenumber" name="L568" href="#L568">568</a>             <strong class="jxr_keyword">if</strong> (c != -1) {
+<a class="jxr_linenumber" name="L569" href="#L569">569</a>                 <strong class="jxr_keyword">return</strong> sb.toString();
+<a class="jxr_linenumber" name="L570" href="#L570">570</a>             }
+<a class="jxr_linenumber" name="L571" href="#L571">571</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"invalid quoted string: missing quotation"</span>);
+<a class="jxr_linenumber" name="L572" href="#L572">572</a>         }
+<a class="jxr_linenumber" name="L573" href="#L573">573</a> 
+<a class="jxr_linenumber" name="L574" href="#L574">574</a>         <strong class="jxr_keyword">private</strong> String nextNonQuoted() <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L575" href="#L575">575</a>             StringBuilder sb = <strong class="jxr_keyword">new</strong> StringBuilder();
+<a class="jxr_linenumber" name="L576" href="#L576">576</a>             <strong class="jxr_keyword">int</strong> c;
+<a class="jxr_linenumber" name="L577" href="#L577">577</a>             <strong class="jxr_keyword">while</strong> ((c = next(false)) != -1) {
+<a class="jxr_linenumber" name="L578" href="#L578">578</a>                 <strong class="jxr_keyword">if</strong> (c == '}' || c == ',' || isWS(c)) {
+<a class="jxr_linenumber" name="L579" href="#L579">579</a>                     unread(c);
+<a class="jxr_linenumber" name="L580" href="#L580">580</a>                     <strong class="jxr_keyword">break</strong>;
+<a class="jxr_linenumber" name="L581" href="#L581">581</a>                 } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L582" href="#L582">582</a>                     sb.append((<strong class="jxr_keyword">char</strong>) c);
+<a class="jxr_linenumber" name="L583" href="#L583">583</a>                 }
+<a class="jxr_linenumber" name="L584" href="#L584">584</a>             }
+<a class="jxr_linenumber" name="L585" href="#L585">585</a>             <strong class="jxr_keyword">if</strong> (c != -1) {
+<a class="jxr_linenumber" name="L586" href="#L586">586</a>                 <strong class="jxr_keyword">return</strong> sb.toString();
+<a class="jxr_linenumber" name="L587" href="#L587">587</a>             }
+<a class="jxr_linenumber" name="L588" href="#L588">588</a>             <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> IOException(<span class="jxr_string">"invalid value: non-terminated"</span>);
+<a class="jxr_linenumber" name="L589" href="#L589">589</a>         }
+<a class="jxr_linenumber" name="L590" href="#L590">590</a> 
+<a class="jxr_linenumber" name="L591" href="#L591">591</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">int</strong> next(<strong class="jxr_keyword">boolean</strong> skipws) <strong class="jxr_keyword">throws</strong> IOException {
+<a class="jxr_linenumber" name="L592" href="#L592">592</a>             <strong class="jxr_keyword">int</strong> c;
+<a class="jxr_linenumber" name="L593" href="#L593">593</a>             <strong class="jxr_keyword">if</strong> (peek != -1) {
+<a class="jxr_linenumber" name="L594" href="#L594">594</a>                 c = peek;
+<a class="jxr_linenumber" name="L595" href="#L595">595</a>                 peek = -1;
+<a class="jxr_linenumber" name="L596" href="#L596">596</a>             } <strong class="jxr_keyword">else</strong> {
+<a class="jxr_linenumber" name="L597" href="#L597">597</a>                 <strong class="jxr_keyword">while</strong> ((c = reader.read()) != -1 &amp;&amp; skipws &amp;&amp; isWS(c));
+<a class="jxr_linenumber" name="L598" href="#L598">598</a>             }
+<a class="jxr_linenumber" name="L599" href="#L599">599</a>             <strong class="jxr_keyword">return</strong> c;
+<a class="jxr_linenumber" name="L600" href="#L600">600</a>         }
+<a class="jxr_linenumber" name="L601" href="#L601">601</a> 
+<a class="jxr_linenumber" name="L602" href="#L602">602</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">void</strong> unread(<strong class="jxr_keyword">int</strong> c) {
+<a class="jxr_linenumber" name="L603" href="#L603">603</a>             peek = c;
+<a class="jxr_linenumber" name="L604" href="#L604">604</a>         }
+<a class="jxr_linenumber" name="L605" href="#L605">605</a> 
+<a class="jxr_linenumber" name="L606" href="#L606">606</a>         <strong class="jxr_keyword">private</strong> <strong class="jxr_keyword">boolean</strong> isWS(<strong class="jxr_keyword">int</strong> c) {
+<a class="jxr_linenumber" name="L607" href="#L607">607</a>             <strong class="jxr_keyword">return</strong> c == 0x20 || c == 0x09 || c == 0x0a || c == 0x0d;
+<a class="jxr_linenumber" name="L608" href="#L608">608</a>         }
+<a class="jxr_linenumber" name="L609" href="#L609">609</a>     }
+<a class="jxr_linenumber" name="L610" href="#L610">610</a> }
+</pre>
+<hr/>
+<div id="footer">Copyright &#169; 2016. All rights reserved.</div>
+</body>
+</html>
