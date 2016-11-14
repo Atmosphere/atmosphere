@@ -2983,6 +2983,7 @@ public class AtmosphereFramework {
     }
 
     private AtmosphereFramework configureAtmosphereResourceFactory() {
+        if (arFactory != null) return this;
         try {
             arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
         } catch (InstantiationException e) {
