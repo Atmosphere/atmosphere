@@ -44,7 +44,8 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.Enumeration;
 import java.util.HashMap;
-import java.util.HashSet;
+import java.util.Collection;
+import java.util.ArrayList;
 import java.util.Map;
 
 /**
@@ -64,7 +65,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
     private String servletClassName;
     private final HashMap<String, String> filtersClassAndNames = new HashMap<String, String>();
-    private final HashSet<Filter> filters = new HashSet<Filter>();
+    private final Collection<Filter> filters = new ArrayList<Filter>();
     private final FilterChainServletWrapper wrapper = new FilterChainServletWrapper();
     private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();
     private Servlet servlet;
