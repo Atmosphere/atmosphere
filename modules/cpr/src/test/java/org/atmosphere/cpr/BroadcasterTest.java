@@ -256,16 +256,12 @@ public class BroadcasterTest {
     
     @Test
     public void shouldCleanUpBroadcasterUponDestory(){
-        AtmosphereConfig config = config.getAtmosphereConfig();
         DefaultBroadcasterFactory broadcasterFactory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
-        mFramework.setBroadcasterFactory(broadcasterFactory);
         Broadcaster b1 = broadcasterFactory.lookup("/LEAK/EXISTS", true);
 
-        Assert.assertEquals(1, mMonitorStatistics.getServerPushConnectionsCount());
-
         b1.destroy();
-
-        Assert.assertEquals(0, mMonitorStatistics.getServerPushConnectionsCount());
+        
+        Assert.assertNull(broadcasterFactory.lookup("/LEAJ/EXISTS"));
     }
 
     @Test
