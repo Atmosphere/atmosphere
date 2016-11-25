@@ -188,10 +188,10 @@ public class DefaultBroadcaster implements Broadcaster {
             if (!candidateForPoolable) {
                 if (notifyOnPreDestroy()) return;
 
-                if (destroyed.getAndSet(true)) return;
-
                 logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Policy was {}", getID(), policy);
                 logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Resources are {}", getID(), resources);
+                
+                if (destroyed.getAndSet(true)) return;
 
                 started.set(false);
 
