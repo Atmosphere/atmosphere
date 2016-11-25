@@ -15,15 +15,10 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import static org.mockito.Mockito.mock;
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashSet;
@@ -31,9 +26,17 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import javax.servlet.ServletConfig;
+import javax.servlet.ServletContext;
+import javax.servlet.ServletException;
+
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.util.ExecutorsFactory;
+import org.atmosphere.util.SimpleBroadcaster;
+import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
+import org.testng.annotations.Test;
 
 public class BroadcasterTest {
 
@@ -249,6 +252,20 @@ public class BroadcasterTest {
         };
         config.getBroadcasterFactory().addBroadcasterListener(l).get("/b1").destroy();
         assertTrue(deleted.get());
+    }
+    
+    @Test
+    public void shouldCleanUpBroadcasterUponDestory(){
+        AtmosphereConfig config = config.getAtmosphereConfig();
+        DefaultBroadcasterFactory broadcasterFactory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        mFramework.setBroadcasterFactory(broadcasterFactory);
+        Broadcaster b1 = broadcasterFactory.lookup("/LEAK/EXISTS", true);
+
+        Assert.assertEquals(1, mMonitorStatistics.getServerPushConnectionsCount());
+
+        b1.destroy();
+
+        Assert.assertEquals(0, mMonitorStatistics.getServerPushConnectionsCount());
     }
 
     @Test
