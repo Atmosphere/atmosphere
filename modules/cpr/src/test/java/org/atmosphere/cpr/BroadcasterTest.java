@@ -256,12 +256,10 @@ public class BroadcasterTest {
     
     @Test
     public void shouldCleanUpBroadcasterUponDestory(){
-        DefaultBroadcasterFactory broadcasterFactory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
-        Broadcaster b1 = broadcasterFactory.lookup("/LEAK/EXISTS", true);
-
+        Broadcaster b1 = config.getBroadcasterFactory().lookup("/LEAK/EXISTS", true);
         b1.destroy();
         
-        Assert.assertNull(broadcasterFactory.lookup("/LEAJ/EXISTS"));
+        Assert.assertNull(config.getBroadcasterFactory().lookup("/LEAK/EXISTS"));
     }
 
     @Test
