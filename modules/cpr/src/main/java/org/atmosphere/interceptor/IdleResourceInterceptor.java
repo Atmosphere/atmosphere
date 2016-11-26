@@ -87,7 +87,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
             AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
             try {
                 if (req.getAttribute(MAX_INACTIVE) == null) {
-                    logger.error("Invalid state {}", r);
+                    logger.warn("Invalid state {}", r);
                     r.removeFromAllBroadcasters();
                     config.resourcesFactory().unRegisterUuidForFindCandidate(r);
                     continue;
