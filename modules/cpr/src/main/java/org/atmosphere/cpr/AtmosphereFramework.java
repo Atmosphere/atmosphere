@@ -1807,9 +1807,6 @@ public class AtmosphereFramework {
         closeAtmosphereResource();
         destroyInterceptors();
 
-        // Invoke ShutdownHook.
-        config.destroy();
-
         BroadcasterFactory factory = broadcasterFactory;
         if (factory != null) {
             factory.destroy();
@@ -1832,6 +1829,9 @@ public class AtmosphereFramework {
         WebSocketProcessorFactory.getDefault().destroy();
 
         ExecutorsFactory.reset(config);
+        
+        // Invoke ShutdownHook.
+        config.destroy();
 
         resetStates();
 
