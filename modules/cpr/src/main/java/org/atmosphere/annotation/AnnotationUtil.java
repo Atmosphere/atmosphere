@@ -47,7 +47,7 @@ public class AnnotationUtil {
     };
 
     public static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
-        for (Class i : interceptors) {
+        for (Class<? extends AtmosphereInterceptor> i : interceptors) {
             try {
                 framework.interceptor(framework.newClassInstance(AtmosphereInterceptor.class, i));
             } catch (Throwable e) {

@@ -451,39 +451,39 @@ public class AtmosphereFramework {
             @Override
             public void apply(final AtmosphereFramework fwk, final Class c) throws Exception {
                 if (AtmosphereInterceptor.class.isAssignableFrom(c)) {
-                    fwk.interceptor(fwk.newClassInstance(AtmosphereInterceptor.class, c));
+                    fwk.interceptor(fwk.newClassInstance(AtmosphereInterceptor.class, (Class<AtmosphereInterceptor>)c));
                 } else if (Broadcaster.class.isAssignableFrom(c)) {
                     fwk.setDefaultBroadcasterClassName(c.getName());
                 } else if (BroadcasterListener.class.isAssignableFrom(c)) {
-                    fwk.addBroadcasterListener(fwk.newClassInstance(BroadcasterListener.class, c));
+                    fwk.addBroadcasterListener(fwk.newClassInstance(BroadcasterListener.class, (Class<BroadcasterListener>)c));
                 } else if (BroadcasterCache.class.isAssignableFrom(c)) {
                     fwk.setBroadcasterCacheClassName(c.getName());
                 } else if (BroadcastFilter.class.isAssignableFrom(c)) {
                     fwk.broadcasterFilters.add(c.getName());
                 } else if (BroadcasterCacheInspector.class.isAssignableFrom(c)) {
-                    fwk.inspectors.add(fwk.newClassInstance(BroadcasterCacheInspector.class, c));
+                    fwk.inspectors.add(fwk.newClassInstance(BroadcasterCacheInspector.class, (Class<BroadcasterCacheInspector>)c));
                 } else if (AsyncSupportListener.class.isAssignableFrom(c)) {
-                    fwk.asyncSupportListeners.add(fwk.newClassInstance(AsyncSupportListener.class, c));
+                    fwk.asyncSupportListeners.add(fwk.newClassInstance(AsyncSupportListener.class, (Class<AsyncSupportListener>)c));
                 } else if (AsyncSupport.class.isAssignableFrom(c)) {
-                    fwk.setAsyncSupport(fwk.newClassInstance(AsyncSupport.class, c));
+                    fwk.setAsyncSupport(fwk.newClassInstance(AsyncSupport.class, (Class<AsyncSupport>)c));
                 } else if (BroadcasterCacheListener.class.isAssignableFrom(c)) {
-                    fwk.broadcasterCacheListeners.add(fwk.newClassInstance(BroadcasterCacheListener.class, c));
+                    fwk.broadcasterCacheListeners.add(fwk.newClassInstance(BroadcasterCacheListener.class, (Class<BroadcasterCacheListener>)c));
                 } else if (BroadcasterConfig.FilterManipulator.class.isAssignableFrom(c)) {
-                    fwk.filterManipulators.add(fwk.newClassInstance(BroadcasterConfig.FilterManipulator.class, c));
+                    fwk.filterManipulators.add(fwk.newClassInstance(BroadcasterConfig.FilterManipulator.class, (Class<BroadcasterConfig.FilterManipulator>)c));
                 } else if (WebSocketProtocol.class.isAssignableFrom(c)) {
                     fwk.webSocketProtocolClassName = c.getName();
                 } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
                     fwk.webSocketProcessorClassName = c.getName();
                 } else if (AtmosphereResourceFactory.class.isAssignableFrom(c)) {
-                    fwk.setAndConfigureAtmosphereResourceFactory(fwk.newClassInstance(AtmosphereResourceFactory.class, c));
+                    fwk.setAndConfigureAtmosphereResourceFactory(fwk.newClassInstance(AtmosphereResourceFactory.class, (Class<AtmosphereResourceFactory>)c));
                 } else if (AtmosphereFrameworkListener.class.isAssignableFrom(c)) {
-                    fwk.frameworkListener(fwk.newClassInstance(AtmosphereFrameworkListener.class, c));
+                    fwk.frameworkListener(fwk.newClassInstance(AtmosphereFrameworkListener.class, (Class<AtmosphereFrameworkListener>)c));
                 } else if (WebSocketFactory.class.isAssignableFrom(c)) {
-                    fwk.webSocketFactory(fwk.newClassInstance(WebSocketFactory.class, c));
+                    fwk.webSocketFactory(fwk.newClassInstance(WebSocketFactory.class, (Class<WebSocketFactory>)c));
                 } else if (AtmosphereFramework.class.isAssignableFrom(c)) {
                     // No OPS
                 } else if (EndpointMapper.class.isAssignableFrom(c)) {
-                   fwk.endPointMapper(fwk.newClassInstance(EndpointMapper.class, c));
+                   fwk.endPointMapper(fwk.newClassInstance(EndpointMapper.class, (Class<EndpointMapper>)c));
                 } else {
                     logger.warn("{} is not a framework service that could be installed", c.getName());
                 }
