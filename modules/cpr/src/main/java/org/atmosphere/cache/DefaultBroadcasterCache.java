@@ -19,6 +19,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
+import org.atmosphere.cpr.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -83,5 +84,14 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public void configure(AtmosphereConfig config) {
+    }
+
+    @Override
+    public Serializer getCacheSerializer() {
+        return null;
+    }
+    
+    @Override
+    public void setCacheSerializer(Serializer serializer) {
     }
 }
