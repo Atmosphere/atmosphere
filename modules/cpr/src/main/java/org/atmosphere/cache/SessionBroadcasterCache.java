@@ -17,6 +17,7 @@
 package org.atmosphere.cache;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Serializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -94,5 +95,14 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
             logger.warn("The Session has been invalidated. Unable to retrieve cached messages");
             return Collections.emptyList();
         }
+    }
+
+    @Override
+    public Serializer getCacheSerializer() {
+        return null;
+    }
+    
+    @Override
+    public void setCacheSerializer(Serializer serializer) {
     }
 }
