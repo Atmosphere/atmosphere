@@ -41,6 +41,7 @@ import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.concurrent.RejectedExecutionException;
@@ -643,6 +644,7 @@ public class DefaultBroadcaster implements Broadcaster {
         // We cache first, and if the broadcast succeed, we will remove it.
         switch (deliver.type) {
             case ALL:
+                bc.getBroadcasterCache().setCacheSerializer(getBcSerializer());
                 deliver.cache = bc.getBroadcasterCache().addToCache(getID(), BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
                 break;
             case RESOURCE:
@@ -722,6 +724,17 @@ public class DefaultBroadcaster implements Broadcaster {
                 cacheForSet.clear();
             }
         }
+    }
+
+    private Serializer getBcSerializer() {
+        ConcurrentMap<String, AtmosphereResource> resources = bc.getAtmosphereConfig().resourcesFactory().resources();
+        for (String s : resources.keySet()) {
+            Serializer serializer = resources.get(s).getSerializer();
+            if (serializer != null)
+                return serializer;
+        }
+        
+        return null;
     }
 
     protected boolean endBroadcast(Deliver deliver, AtmosphereResource r, CacheMessage cacheMsg, boolean deliverMessage) {

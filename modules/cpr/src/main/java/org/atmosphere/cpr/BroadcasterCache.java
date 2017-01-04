@@ -84,6 +84,18 @@ public interface BroadcasterCache extends AtmosphereConfigAware {
      * and some future must be cancelled. This method will always be invoked when a {@link Broadcaster} gets destroyed.
      */
     void cleanup();
+    
+    /**
+     * Get serializer for cache messages.
+     * @return The {@link Serializer}.
+     */
+    Serializer getCacheSerializer();
+    
+    /**
+     * Set serializer for cache messages.
+     * @param serializer {@link Serializer}.
+     */
+    void setCacheSerializer(Serializer serializer);
 
     /**
      * Start tracking messages associated with {@link AtmosphereResource} from the cache.

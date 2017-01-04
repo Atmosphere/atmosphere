@@ -550,12 +550,6 @@
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j-version}</version>
         </dependency>
-        
-        <dependency>
-			<groupId>org.atmosphere.extensions</groupId>
-			<artifactId>atmosphere-gwt20-server</artifactId>
-			<version>2.4.3</version>
-		</dependency>
 
         <!-- Move to individual modules / plugins / samples as appropriate -->
         <dependency>

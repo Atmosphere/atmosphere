@@ -35,6 +35,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.BroadcasterCache;
 import org.atmosphere.cpr.BroadcasterCacheListener;
+import org.atmosphere.cpr.Serializer;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
@@ -61,6 +62,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private boolean shared = true;
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
     private UUIDProvider uuidProvider;
+    private Serializer serializer = null;
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -327,7 +329,17 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         activeClients.put(uuid, now);
         return this;
     }
-
+    
+    @Override
+    public Serializer getCacheSerializer() {
+        return serializer;
+    }
+    
+    @Override
+    public void setCacheSerializer(Serializer serializer) {
+        this.serializer = serializer;
+    }
+    
     @Override
     public String toString() {
         return this.getClass().getName();

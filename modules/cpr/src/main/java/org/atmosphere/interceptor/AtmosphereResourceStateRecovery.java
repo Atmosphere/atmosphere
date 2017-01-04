@@ -30,7 +30,6 @@ import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.atmosphere.gwt20.server.GwtRpcSerializer;
 
 import java.io.IOException;
 import java.util.LinkedList;
@@ -287,6 +286,9 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 // We cannot add the resource now. we need to first make sure there is no cached message.
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
                 List<Object> t = cache.retrieveFromCache(b.getID(), r.uuid());
+                
+                if (cache.getCacheSerializer() != null)
+                    r.setSerializer(cache.getCacheSerializer());
 
                 t = b.getBroadcasterConfig().applyFilters(r, t);
                 if (!t.isEmpty()) {
@@ -303,7 +305,6 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     private void writeCache(AtmosphereResource r, List<Object> cachedMessages) {
         try {
             logger.trace("Writing cached messages {} for {}", cachedMessages, r.uuid());
-            r.setSerializer(new GwtRpcSerializer(r));
             r.getAtmosphereHandler().onStateChange(
                     new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
                             .setMessage(cachedMessages));
