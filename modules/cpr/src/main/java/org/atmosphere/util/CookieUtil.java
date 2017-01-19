@@ -223,7 +223,7 @@ public class CookieUtil {
     ///// Server-Side Cookie Decoding code forked from io.netty/netty and modified /////
     
     /*
-     * Copyright 2015 The Netty Project
+     * Copyright 2017 The Netty Project
      *
      * The Netty Project licenses this file to you under the Apache License,
      * version 2.0 (the "License"); you may not use this file except in compliance

@@ -19,7 +19,7 @@
   *
   ****************************************** LICENSE *******************************************
   *
-  * Copyright (c) 2011 - 2013 XIAM Solutions B.V. (http://www.xiam.nl)
+  * Copyright (c) 2011 - 2017 XIAM Solutions B.V. (http://www.xiam.nl)
   *
   * Licensed under the Apache License, Version 2.0 (the "License");
   * you may not use this file except in compliance with the License.
