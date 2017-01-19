@@ -1,5 +1,5 @@
 /*
- * Copyright 2015 Async-IO.org
+ * Copyright 2017 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -19,7 +19,7 @@
   *
   ****************************************** LICENSE *******************************************
   *
-  * Copyright (c) 2011 - 2013 XIAM Solutions B.V. (http://www.xiam.nl)
+  * Copyright (c) 2011 - 2017 XIAM Solutions B.V. (http://www.xiam.nl)
   *
   * Licensed under the Apache License, Version 2.0 (the "License");
   * you may not use this file except in compliance with the License.
