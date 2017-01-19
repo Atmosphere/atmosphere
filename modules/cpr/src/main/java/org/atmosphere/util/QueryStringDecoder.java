@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Async-IO.org
+ * Copyright 2017 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -14,7 +14,7 @@
  * the License.
  */
 /*
- * Copyright 2016 The Netty Project
+ * Copyright 2017 The Netty Project
  *
  * The Netty Project licenses this file to you under the Apache License,
  * version 2.0 (the "License"); you may not use this file except in compliance
