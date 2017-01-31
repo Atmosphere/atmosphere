@@ -87,6 +87,15 @@ public class BroadcasterCacheTest {
             public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
             }
+
+            @Override
+            public Serializer getCacheSerializer() {
+                return null;
+            }
+
+            @Override
+            public void setCacheSerializer(Serializer serializer) {
+            }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override
             public boolean inspect(BroadcastMessage message) {
@@ -111,6 +120,15 @@ public class BroadcasterCacheTest {
             @Override
             public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
+            }
+
+            @Override
+            public Serializer getCacheSerializer() {
+                return null;
+            }
+
+            @Override
+            public void setCacheSerializer(Serializer serializer) {
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override
@@ -139,6 +157,15 @@ public class BroadcasterCacheTest {
             public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
             }
+
+            @Override
+            public Serializer getCacheSerializer() {
+                return null;
+            }
+
+            @Override
+            public void setCacheSerializer(Serializer serializer) {
+            }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override
             public boolean inspect(BroadcastMessage message) {
@@ -166,6 +193,15 @@ public class BroadcasterCacheTest {
             @Override
             public List<Object> retrieveFromCache(String id, String uuid) {
                 return Collections.<Object>emptyList();
+            }
+
+            @Override
+            public Serializer getCacheSerializer() {
+                return null;
+            }
+
+            @Override
+            public void setCacheSerializer(Serializer serializer) {
             }
         }).getBroadcasterCache().inspector(new BroadcasterCacheInspector() {
             @Override

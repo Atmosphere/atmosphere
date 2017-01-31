@@ -91,6 +91,15 @@ public class DefaultBroadcasterTest {
                 }
                 return cacheContents;
             }
+
+            @Override
+            public Serializer getCacheSerializer() {
+                return null;
+            }
+
+            @Override
+            public void setCacheSerializer(Serializer serializer) {
+            }
         });
 
         final AtmosphereResourceImpl ar = new AtmosphereResourceImpl(new AtmosphereFramework().getAtmosphereConfig(),

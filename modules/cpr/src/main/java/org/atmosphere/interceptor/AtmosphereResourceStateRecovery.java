@@ -286,6 +286,9 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                 // We cannot add the resource now. we need to first make sure there is no cached message.
                 cache = b.getBroadcasterConfig().getBroadcasterCache();
                 List<Object> t = cache.retrieveFromCache(b.getID(), r.uuid());
+                
+                if (cache.getCacheSerializer() != null)
+                    r.setSerializer(cache.getCacheSerializer());
 
                 t = b.getBroadcasterConfig().applyFilters(r, t);
                 if (!t.isEmpty()) {
