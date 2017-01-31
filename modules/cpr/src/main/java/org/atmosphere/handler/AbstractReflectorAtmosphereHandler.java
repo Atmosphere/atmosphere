@@ -17,6 +17,7 @@
 
 package org.atmosphere.handler;
 
+import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -86,9 +87,13 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
 
                 if (message instanceof List) {
                     for (Object s : (List<Object>) message) {
+                        if (s instanceof CacheMessage)
+                            s = ((CacheMessage) s).getMessage();
                         resource.getSerializer().write(resource.getResponse().getOutputStream(), s);
                     }
                 } else {
+                    if (message instanceof CacheMessage)
+                        message = ((CacheMessage) message).getMessage();
                     resource.getSerializer().write(resource.getResponse().getOutputStream(), message);
                 }
             } catch (Throwable ex) {
