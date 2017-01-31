@@ -1653,7 +1653,7 @@ public class AtmosphereFramework {
     protected String lookupDefaultBroadcasterType(String defaultB) {
 
         String drop = servletConfig != null ? servletConfig.getInitParameter(ApplicationConfig.AUTODETECT_BROADCASTER) : null;
-        if (drop == null || !Boolean.parseBoolean(drop)) {
+        if (drop == null || Boolean.parseBoolean(drop)) {
             for (String b : broadcasterTypes) {
                 try {
                     Class.forName(b);
