@@ -15,10 +15,6 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <modules>
-        <module>cpr</module>
-        <module>jersey</module>
-	<!-- Only for experimentation
-        <module>websocketd</module>
-	-->
+        <module>runtime</module>
     </modules>
 </project>

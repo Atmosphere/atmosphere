@@ -15,9 +15,6 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <modules>
-        <module>cpr</module>
-        <module>annotations</module>
-        <module>jersey</module>
-        <module>native</module>
+        <module>runtime</module>
     </modules>
 </project>
