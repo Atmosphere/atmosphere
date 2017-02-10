@@ -49,17 +49,19 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samp
 
 [Top](#Top)
 
+### Roadmap to Atmosphere 3.0.0 (October 2017)
+
+[Roadmap](ROADMAP_TO_3.0.0.md)
+
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!.
 
 [Top](#Top)
-
+                                                                                          Z
 #### Atmosphere and JDK Versions
-
-Atmosphere 2.3.x and older can run on JDK 1.6 or newer.
 
 Atmosphere 2.4.x requires JDK 1.7 or newer
 
-Atmosphere 2.5.x requires JDK 1.8
+Atmosphere 3.0.0 & 2.5.x requires JDK 1.8
 
 #### Versions
 
