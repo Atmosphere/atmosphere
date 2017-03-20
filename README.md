@@ -1,17 +1,21 @@
 <p align="center">
 <img src="http://atmosphere.github.io/atmosphere/images/atmosphere.png" alt="LOGO"/>
 </p>
+
 ### Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
+
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Applications. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all major [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers).
 
 <p align="center">Follow us on <a href="http://www.twitter.com/atmo_framework">Twitter</a></p>
+
 Atmosphere transparently supports WebSockets, Server Sent Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
 The Atmosphere Framework Stack consists of: 
 
 <p align="center">
-  <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack" alt="Atmosphere Stack"/>
+  <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack alt="Atmosphere Stack"/>
 </p>
+
 The Atmosphere Framework Stack works on all Servlet based servers including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of extensions like [STOMP](https://github.com/Atmosphere/atmosphere-stomp/), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast), [JMS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jms), [JGroups](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jgroups) and [many more](https://github.com/Atmosphere/atmosphere-extensions/). Support for [Socket.IO](https://github.com/Atmosphere/atmosphere-extensions/tree/master/socketio), [SockJS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/sockjs) and [Cometd](https://github.com/Atmosphere/atmosphere-extensions/tree/master/cometd) are also available.
 
 Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/). 
