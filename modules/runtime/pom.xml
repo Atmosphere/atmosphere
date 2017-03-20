@@ -78,14 +78,6 @@
             <type>jar</type>
             <scope>test</scope>
         </dependency>
-
-        <dependency>
-            <groupId>org.apache.shiro</groupId>
-            <artifactId>shiro-core</artifactId>
-            <version>${shiro-version}</version>
-            <scope>provided</scope>
-        </dependency>
-
         <dependency>
             <groupId>javax.servlet</groupId>
             <artifactId>javax.servlet-api</artifactId>
