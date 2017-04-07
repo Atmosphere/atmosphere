@@ -187,14 +187,20 @@ public class JSR356Endpoint extends Endpoint {
                         // https://issues.jboss.org/browse/UNDERTOW-252
                         l = handshakeRequest.getHeaders().get("Origin");
                     }
-                    String origin;
+                    String origin = null;
                     if (l != null && !l.isEmpty()) {
                         origin = l.get(0);
-                    } else {
+                    } 
+                    
+                    // There is a weird use case when 'Origin' header may contain 
+                    // 'null', not as value but as a string. In this case the requestURL
+                    // become something like 'null/path/to/resource'.
+                    if (origin == null || origin.equalsIgnoreCase("null")) {
                         // Broken WebSocket Spec
                         logger.trace("Unable to retrieve the `origin` header for websocket {}", session);
                         origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").toString();
                     }
+                    
                     requestURL = new StringBuilder(origin).append(requestURL).toString();
                 } else if (requestURL.startsWith("ws://")) {
                     requestURL = requestURL.replace("ws://", "http://");
