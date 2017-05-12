@@ -11,6 +11,7 @@
     <artifactId>atmosphere-runtime-native</artifactId>
     <packaging>bundle</packaging>
     <version>2.4.10-SNAPSHOT</version>
+
     <name>atmosphere-runtime-native</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
