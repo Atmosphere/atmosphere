@@ -91,7 +91,7 @@
         <dependency>
             <groupId>org.eclipse.jetty.websocket</groupId>
             <artifactId>websocket-server</artifactId>
-            <version>${jetty9-version}</version>
+            <version>${jetty9_3-version}</version>
             <scope>provided</scope>
             <optional>true</optional>
             <exclusions>

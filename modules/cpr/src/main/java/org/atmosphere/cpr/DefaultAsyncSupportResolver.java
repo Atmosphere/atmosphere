@@ -14,7 +14,6 @@
  * the License.
  */
 
-
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
@@ -29,6 +28,7 @@ import org.atmosphere.container.JBossAsyncSupportWithWebSocket;
 import org.atmosphere.container.JBossWebCometSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.container.Jetty7CometSupport;
+import org.atmosphere.container.Jetty93AsyncSupportWithWebSocket;
 import org.atmosphere.container.Jetty9AsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyAsyncSupportWithWebSocket;
 import org.atmosphere.container.JettyCometSupport;
@@ -83,8 +83,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
     public DefaultAsyncSupportResolver(final AtmosphereConfig config) {
         this.config = config;
-        this.suppress356 = 
-            Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
+        this.suppress356 =
+                Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
     }
 
     /**
@@ -97,7 +97,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         try {
             final boolean exists = testClass != null && testClass.length() > 0 && IOUtils.loadClass(null, testClass) != null;
             logger.debug(exists ? "Found {}" : "Not found {}", testClass);
-            return exists; 
+            return exists;
         } catch (Exception ex) {
             return false;
         }
@@ -160,8 +160,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         if (testClassExists(TOMCAT_WEBSOCKET))
                             add(Tomcat7Servlet30SupportWithWebSocket.class);
 
-                        if (testClassExists(JETTY_9))
+                        if (testClassExists(JETTY_9)) {
                             add(Jetty9AsyncSupportWithWebSocket.class);
+                            add(Jetty93AsyncSupportWithWebSocket.class);
+                        }
 
                         if (testClassExists(JETTY_8))
                             add(JettyServlet30AsyncSupportWithWebSocket.class);

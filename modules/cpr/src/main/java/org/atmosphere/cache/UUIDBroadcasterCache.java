@@ -24,6 +24,7 @@ import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -52,7 +53,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
-    private final Map<String, ConcurrentLinkedQueue> messages = new ConcurrentHashMap<String, ConcurrentLinkedQueue>();
+    private final Map<String, ClientQueue> messages = new ConcurrentHashMap<String, ClientQueue>();
     private final Map<String, Long> activeClients = new ConcurrentHashMap<String, Long>();
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
     private ScheduledFuture scheduledFuture;
@@ -63,6 +64,30 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected final List<Object> emptyList = Collections.<Object>emptyList();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
     private UUIDProvider uuidProvider;
+
+    /**
+     * This class wraps all messages to be delivered to a client. The class is thread safe to be accessed in a
+     * concurrent context.
+     */
+    public final static class ClientQueue implements Serializable {
+        private static final long serialVersionUID = -126253550299206646L;
+
+        private final ConcurrentLinkedQueue<CacheMessage> queue = new ConcurrentLinkedQueue<CacheMessage>();
+        private final Set<String> ids = Collections.synchronizedSet(new HashSet<String>());
+
+        public ConcurrentLinkedQueue<CacheMessage> getQueue() {
+            return queue;
+        }
+
+        public Set<String> getIds() {
+            return ids;
+        }
+
+        @Override
+        public String toString() {
+            return queue.toString();
+        }
+    }
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -131,7 +156,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             cache = false;
         }
 
-        CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid);
+        CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid);;
         if (cache) {
             if (uuid.equals(NULL)) {
                 //no clients are connected right now, caching message for all active clients
@@ -149,17 +174,23 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, String uuid) {
 
-        ConcurrentLinkedQueue<CacheMessage> clientQueue = messages.get(uuid);
-        CacheMessage message;
         List<Object> result = new ArrayList<Object>();
-        if (clientQueue == null) {
-            logger.debug("client queue is null (not yet created), hence returning back for broadcaster %s and uuid %s",
-                    broadcasterId, uuid);
-            return result;
+
+        ClientQueue clientQueue;
+        cacheCandidate(broadcasterId, uuid);
+        clientQueue = messages.remove(uuid);
+        ConcurrentLinkedQueue<CacheMessage> clientMessages;
+        if (clientQueue != null) {
+            clientMessages = clientQueue.getQueue();
+
+            for (CacheMessage cacheMessage : clientMessages) {
+                result.add(cacheMessage.getMessage());
+            }
         }
 
-        while ((message = clientQueue.poll()) != null) {
-            result.add(message);
+        if (logger.isTraceEnabled()) {
+            logger.trace("Retrieved for AtmosphereResource {} cached messages {}", uuid, result);
+            logger.trace("Available cached message {}", messages);
         }
 
         return result;
@@ -167,15 +198,14 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     @Override
     public BroadcasterCache clearCache(String broadcasterId, String uuid, CacheMessage message) {
-        ConcurrentLinkedQueue<CacheMessage> clientQueue = messages.remove(uuid);
-
-        if (clientQueue == null) {
-            logger.error("Invalid State, no Queue available");
-            return this;
+        ClientQueue clientQueue;
+        clientQueue = messages.get(uuid);
+        if (clientQueue != null) {
+            logger.trace("Removing for AtmosphereResource {} cached message {}", uuid, message.getMessage());
+            notifyRemoveCache(broadcasterId, message);
+            clientQueue.getQueue().remove(message);
+            clientQueue.getIds().remove(message.getId());
         }
-
-        logger.trace("Removing for AtmosphereResource {} cached message {}", uuid, message.getMessage());
-        notifyRemoveCache(broadcasterId, message);
         return this;
     }
 
@@ -210,22 +240,21 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     private void addMessage(String broadcasterId, String clientId, CacheMessage message) {
-        ConcurrentLinkedQueue clientQueue = messages.get(clientId);
+        ClientQueue clientQueue = messages.get(clientId);
         if (clientQueue == null) {
-            synchronized (message) {
-                clientQueue = new ConcurrentLinkedQueue();
-                // Make sure the client is not in the process of being invalidated
-                if (activeClients.get(clientId) != null) {
-                    messages.put(clientId, clientQueue);
-                } else {
-                    // The entry has been invalidated
-                    logger.debug("Client {} is no longer active. Not caching message {}}", clientId, message);
-                    return;
-                }
+            clientQueue = new ClientQueue();
+            // Make sure the client is not in the process of being invalidated
+            if (activeClients.get(clientId) != null) {
+                messages.put(clientId, clientQueue);
+            } else {
+                // The entry has been invalidated
+                logger.debug("Client {} is no longer active. Not caching message {}}", clientId, message);
+                return;
             }
         }
         notifyAddCache(broadcasterId, message);
-        messages.put(clientId, clientQueue);
+        clientQueue.getQueue().offer(message);
+        clientQueue.getIds().add(message.getId());
     }
 
     private void notifyAddCache(String broadcasterId, CacheMessage message) {
@@ -249,11 +278,11 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     }
 
     private boolean hasMessage(String clientId, String messageId) {
-        ConcurrentLinkedQueue clientQueue = messages.get(clientId);
-        return clientQueue != null && clientQueue.contains(messageId);
+        ClientQueue clientQueue = messages.get(clientId);
+        return clientQueue != null && clientQueue.getIds().contains(messageId);
     }
 
-    public Map<String, ConcurrentLinkedQueue> messages() {
+    public Map<String, ClientQueue> messages() {
         return messages;
     }
 
@@ -296,7 +325,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
         for (String msg : messages().keySet()) {
             if (!activeClients().containsKey(msg)) {
-                messages.remove(msg);
+                messages().remove(msg);
             }
         }
     }
