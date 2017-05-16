@@ -1,6 +1,26 @@
+/*
+ * Copyright 2017 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.util.Utils;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -55,9 +75,9 @@ abstract class AbstractJetty9AsyncSupportWithWebSocket extends Servlet30CometSup
                 //policy.setMaxMessageSize(Integer.parseInt(max));
                 Method m;
                 if (isJetty91Plus) {
-                    m = policy.getClass().getMethod("setMaxTextMessageSize", new Class[]{int.class});
+                    m = policy.getClass().getMethod("setMaxTextMessageSize", int.class);
                 } else {
-                    m = policy.getClass().getMethod("setMaxMessageSize", new Class[]{long.class});
+                    m = policy.getClass().getMethod("setMaxMessageSize", long.class);
                 }
                 m.invoke(policy, Integer.parseInt(max));
             }
@@ -67,9 +87,9 @@ abstract class AbstractJetty9AsyncSupportWithWebSocket extends Servlet30CometSup
                 //policy.setMaxMessageSize(Integer.parseInt(max));
                 Method m;
                 if (isJetty91Plus) {
-                    m = policy.getClass().getMethod("setMaxBinaryMessageSize", new Class[]{int.class});
+                    m = policy.getClass().getMethod("setMaxBinaryMessageSize", int.class);
                 } else {
-                    m = policy.getClass().getMethod("setMaxMessageSize", new Class[]{long.class});
+                    m = policy.getClass().getMethod("setMaxMessageSize", long.class);
                 }
                 m.invoke(policy, Integer.parseInt(max));
             }
@@ -129,7 +149,7 @@ abstract class AbstractJetty9AsyncSupportWithWebSocket extends Servlet30CometSup
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        Action action = null;
+        Action action;
         Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;
 
