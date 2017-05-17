@@ -65,7 +65,8 @@ public class JSR356Endpoint extends Endpoint {
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
     private final int webSocketWriteTimeout;
-    private HandshakeRequest handshakeRequest;
+    private HttpSession handshakeSession;
+    private Map<String, List<String>> handshakeHeaders;
 
     public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
@@ -98,7 +99,12 @@ public class JSR356Endpoint extends Endpoint {
     }
 
     public JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
-        this.handshakeRequest = handshakeRequest;
+        this.handshakeSession = (HttpSession) handshakeRequest.getHttpSession();
+        this.handshakeHeaders = new HashMap<>();
+        for (Map.Entry<String, List<String>> e : handshakeRequest.getHeaders()
+                .entrySet()) {
+            handshakeHeaders.put(e.getKey(), e.getValue());
+        }
         return this;
     }
 
@@ -120,7 +126,7 @@ public class JSR356Endpoint extends Endpoint {
 
         Map<String, String> headers = new HashMap<String, String>();
         // TODO: We don't support multi map header, which cause => https://github.com/Atmosphere/atmosphere/issues/1945
-        for (Map.Entry<String, List<String>> e : handshakeRequest.getHeaders().entrySet()) {
+        for (Map.Entry<String, List<String>> e : handshakeHeaders.entrySet()) {
             headers.put(e.getKey(), !e.getValue().isEmpty() ? e.getValue().get(0) : "");
         }
 
@@ -182,17 +188,17 @@ public class JSR356Endpoint extends Endpoint {
             // https://java.net/jira/browse/WEBSOCKET_SPEC-228
             if ((!requestURL.startsWith("http://")) || (!requestURL.startsWith("https://"))) {
                 if (requestURL.startsWith("/")) {
-                    List<String> l = handshakeRequest.getHeaders().get("origin");
+                    List<String> l = handshakeHeaders.get("origin");
                     if (l == null) {
                         // https://issues.jboss.org/browse/UNDERTOW-252
-                        l = handshakeRequest.getHeaders().get("Origin");
+                        l = handshakeHeaders.get("Origin");
                     }
                     String origin = null;
                     if (l != null && !l.isEmpty()) {
                         origin = l.get(0);
-                    } 
-                    
-                    // There is a weird use case when 'Origin' header may contain 
+                    }
+
+                    // There is a weird use case when 'Origin' header may contain
                     // 'null', not as value but as a string. In this case the requestURL
                     // become something like 'null/path/to/resource'.
                     if (origin == null || origin.equalsIgnoreCase("null")) {
@@ -200,7 +206,7 @@ public class JSR356Endpoint extends Endpoint {
                         logger.trace("Unable to retrieve the `origin` header for websocket {}", session);
                         origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").toString();
                     }
-                    
+
                     requestURL = new StringBuilder(origin).append(requestURL).toString();
                 } else if (requestURL.startsWith("ws://")) {
                     requestURL = requestURL.replace("ws://", "http://");
@@ -209,20 +215,20 @@ public class JSR356Endpoint extends Endpoint {
                 }
             }
 
-            List<String> cookieHeaders = handshakeRequest.getHeaders().get("Cookie");
+            List<String> cookieHeaders = handshakeHeaders.get("Cookie");
             Set<Cookie> cookies = null;
             if (cookieHeaders != null) {
                 cookies = new HashSet<Cookie>();
                 for (String cookieHeader : cookieHeaders)
-                cookies.addAll(CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader));
+                    cookies.addAll(CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader));
             }
-            
+
             request = new AtmosphereRequestImpl.Builder()
                     .requestURI(uri.getPath())
                     .requestURL(requestURL)
                     .headers(headers)
                     .cookies(cookies)
-                    .session((HttpSession) handshakeRequest.getHttpSession())
+                    .session(handshakeSession)
                     .servletPath(servletPath)
                     .contextPath(framework.getServletContext().getContextPath())
                     .pathInfo(pathInfo)
@@ -280,7 +286,7 @@ public class JSR356Endpoint extends Endpoint {
                 onClose(session, new CloseReason(CloseReason.CloseCodes.GOING_AWAY, "Session closed already"));
             }
         } catch (Throwable e) {
-            if (session.isOpen()){
+            if (session.isOpen()) {
                 logger.error("", e);
             } else {
                 logger.trace("Session closed during onOpen", e);
