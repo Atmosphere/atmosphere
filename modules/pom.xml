@@ -16,5 +16,6 @@
 
     <modules>
         <module>runtime</module>
+        <module>shiro</module>
     </modules>
 </project>
