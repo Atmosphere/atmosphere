@@ -66,7 +66,6 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
         public void destroy() {
         }
     };
-    private BroadcasterFactory broadcasterFactory;
     private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<String, AtmosphereResource>();
 
     public DefaultAtmosphereResourceFactory(){
@@ -74,7 +73,6 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
 
     @Override
     public void configure(AtmosphereConfig config) {
-        this.broadcasterFactory = config.getBroadcasterFactory();
     }
 
     /**
