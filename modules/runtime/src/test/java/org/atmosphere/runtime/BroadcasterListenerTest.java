@@ -128,7 +128,7 @@ public class BroadcasterListenerTest {
     public void testLongPollingOnBroadcast() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
-        Map<String, String> m = new HashMap<String, String>();
+        Map<String, String> m = new HashMap<>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
@@ -140,7 +140,7 @@ public class BroadcasterListenerTest {
     public void testCachedOnBroadcast() throws IOException, ServletException {
         framework.setBroadcasterCacheClassName(UUIDBroadcasterCache.class.getName()).addAtmosphereHandler("/*", new CachedAR()).init();
 
-        Map<String, String> m = new HashMap<String, String>();
+        Map<String, String> m = new HashMap<>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, UUID.randomUUID().toString());
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();

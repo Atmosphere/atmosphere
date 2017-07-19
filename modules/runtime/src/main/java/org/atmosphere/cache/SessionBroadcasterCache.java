@@ -68,7 +68,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
             throw new IllegalArgumentException("AtmosphereResource can't be null");
         }
 
-        List<Object> result = new ArrayList<Object>();
+        List<Object> result = new ArrayList<>();
         try {
             AtmosphereResource r = config.resourcesFactory().find(uuid);
 

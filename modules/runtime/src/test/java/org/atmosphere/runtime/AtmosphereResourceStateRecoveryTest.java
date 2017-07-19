@@ -149,7 +149,7 @@ public class AtmosphereResourceStateRecoveryTest {
 
     @Test(enabled = false)
     public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
-        final AtomicReference<Object> ref = new AtomicReference<Object>();
+        final AtomicReference<Object> ref = new AtomicReference<>();
         AtmosphereResourceImpl r = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
         r.setBroadcaster(config.getBroadcasterFactory().lookup("/1", true));
 

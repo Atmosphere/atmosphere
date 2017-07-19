@@ -122,7 +122,7 @@ public class TrackMessageSizeInterceptorTest {
             }
         });
 
-        Map<String, String> reqheaders = new HashMap<String, String>();
+        Map<String, String> reqheaders = new HashMap<>();
         if (enabled) {
             reqheaders.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
         }

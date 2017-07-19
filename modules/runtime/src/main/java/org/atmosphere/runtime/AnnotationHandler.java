@@ -46,7 +46,7 @@ public class AnnotationHandler {
     }
 
     public AnnotationHandler flushCoreAnnotations(Set<Class<?>> classes){
-        List<Class<? extends Annotation>> l = new ArrayList<Class<? extends Annotation>>();
+        List<Class<? extends Annotation>> l = new ArrayList<>();
         for (Map.Entry<Class<? extends Annotation>, Class<? extends Processor>> e : annotations.entrySet()) {
             if (e.getValue().getPackage().getName().equals("org.atmosphere.annotation") && classes.contains(e.getValue())) {
                 l.add(e.getKey());

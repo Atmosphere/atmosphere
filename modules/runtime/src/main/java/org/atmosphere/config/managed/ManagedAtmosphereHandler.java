@@ -88,8 +88,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     protected boolean pathParams;
     protected AtmosphereResourceFactory resourcesFactory;
 
-    final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<Method, List<Encoder<?, ?>>>();
-    final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<Method, List<Decoder<?, ?>>>();
+    final Map<Method, List<Encoder<?, ?>>> encoders = new HashMap<>();
+    final Map<Method, List<Decoder<?, ?>>> decoders = new HashMap<>();
 
     public ManagedAtmosphereHandler() {
     }
@@ -269,7 +269,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected List<MethodInfo> populateMessage(Object c, Class<? extends Annotation> annotation) {
-        ArrayList<MethodInfo> methods = new ArrayList<MethodInfo>();
+        ArrayList<MethodInfo> methods = new ArrayList<>();
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(annotation)) {
                 methods.add(new MethodInfo(m));
@@ -293,7 +293,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private void populateEncoders() {
         for (MethodInfo m : onRuntimeMethod) {
-            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
+            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<>();
             for (Class<? extends Encoder> s : m.method.getAnnotation(Message.class).encoders()) {
                 try {
                     l.add(config.framework().newClassInstance(Encoder.class, s));
@@ -305,7 +305,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
 
         if (onReadyMethod != null) {
-            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<Encoder<?, ?>>();
+            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<>();
             for (Class<? extends Encoder> s : onReadyMethod.getAnnotation(Ready.class).encoders()) {
                 try {
                     l.add(config.framework().newClassInstance(Encoder.class, s));
@@ -319,7 +319,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private void populateDecoders() {
         for (MethodInfo m : onRuntimeMethod) {
-            List<Decoder<?, ?>> l = new CopyOnWriteArrayList<Decoder<?, ?>>();
+            List<Decoder<?, ?>> l = new CopyOnWriteArrayList<>();
             for (Class<? extends Decoder> s : m.method.getAnnotation(Message.class).decoders()) {
                 try {
                     l.add(config.framework().newClassInstance(Decoder.class, s));
