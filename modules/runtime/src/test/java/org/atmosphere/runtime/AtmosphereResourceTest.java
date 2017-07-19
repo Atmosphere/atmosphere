@@ -94,8 +94,8 @@ public class AtmosphereResourceTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
 
-        final AtomicReference<String> e = new AtomicReference<String>();
-        final AtomicReference<String> e2 = new AtomicReference<String>();
+        final AtomicReference<String> e = new AtomicReference<>();
+        final AtomicReference<String> e2 = new AtomicReference<>();
 
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
@@ -180,7 +180,7 @@ public class AtmosphereResourceTest {
         }.start();
 
         suspended.await();
-        Map<String, Object> m = new HashMap<String, Object>();
+        Map<String, Object> m = new HashMap<>();
         m.put(SUSPENDED_ATMOSPHERE_RESOURCE_UUID, parentRequest.resource().uuid());
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().attributes(m).pathInfo("/a").queryString(HeaderConfig.WEBSOCKET_X_ATMOSPHERE_TRANSPORT).build();

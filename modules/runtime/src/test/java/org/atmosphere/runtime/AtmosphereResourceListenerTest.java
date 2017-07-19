@@ -75,11 +75,11 @@ public class AtmosphereResourceListenerTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
 
-        final AtomicReference<Boolean> suspended = new AtomicReference<Boolean>();
-        final AtomicReference<Boolean> resumed = new AtomicReference<Boolean>();
-        final AtomicReference<Boolean> disconnected = new AtomicReference<Boolean>();
-        final AtomicReference<Boolean> preSuspended = new AtomicReference<Boolean>();
-        final AtomicReference<Boolean> broadcasted = new AtomicReference<Boolean>();
+        final AtomicReference<Boolean> suspended = new AtomicReference<>();
+        final AtomicReference<Boolean> resumed = new AtomicReference<>();
+        final AtomicReference<Boolean> disconnected = new AtomicReference<>();
+        final AtomicReference<Boolean> preSuspended = new AtomicReference<>();
+        final AtomicReference<Boolean> broadcasted = new AtomicReference<>();
 
         final AtmosphereResourceEventListener listener = new AtmosphereResourceEventListener() {
 
@@ -167,7 +167,7 @@ public class AtmosphereResourceListenerTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
 
-        final AtomicReference<Boolean> closed = new AtomicReference<Boolean>();
+        final AtomicReference<Boolean> closed = new AtomicReference<>();
 
         final AtmosphereResourceEventListener listener = new AtmosphereResourceEventListenerAdapter() {
             @Override
