@@ -92,6 +92,6 @@ Atmosphere 3.0.0 & 2.5.x requires JDK 1.8
 
 ![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)
 
-@Copyright 2016 [Async-IO.org](http://async-io.org)
+@Copyright 2008-2017 [Async-IO.org](http://async-io.org)
 
 
