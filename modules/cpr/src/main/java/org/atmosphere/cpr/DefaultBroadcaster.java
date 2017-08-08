@@ -206,6 +206,8 @@ public class DefaultBroadcaster implements Broadcaster {
                 if (!sharedListeners) {
                     broadcasterListeners.clear();
                 }
+
+                config.framework().removeAtmosphereHandler(name);
             }
 
             resources.clear();
