@@ -344,10 +344,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public void setHeader(String name, String value) {
-        //https://github.com/Atmosphere/atmosphere/issues/1783
-        if (value == null) value = "";
-
-        headers.put(name, value);
+        if (value == null) headers.remove(name);
+        else headers.put(name, value);
 
         if (delegateToNativeResponse) {
             _r().setHeader(name, value);
@@ -360,9 +358,6 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public void addHeader(String name, String value) {
-        //https://github.com/Atmosphere/atmosphere/issues/1783
-        if (value == null) value = "";
-
         headers.put(name, value);
 
         if (delegateToNativeResponse) {
