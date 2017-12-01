@@ -302,7 +302,7 @@ public class JSR356Endpoint extends Endpoint {
     @Override
     public void onError(javax.websocket.Session session, java.lang.Throwable t) {
         try {
-            logger.debug("", t);
+            logger.debug("Problem in web socket session", t);
             webSocketProcessor.notifyListener(webSocket,
                     new WebSocketEventListener.WebSocketEvent<Throwable>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
         } catch (Exception ex) {
