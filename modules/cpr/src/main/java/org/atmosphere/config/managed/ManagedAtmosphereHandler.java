@@ -190,6 +190,12 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
         // Original Value
         AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+
+        if (r == null) {
+            // AtmosphereResourceEvent has been destroyed.
+            return;
+        }
+
         Boolean resumeOnBroadcast = r.resumeOnBroadcast();
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
