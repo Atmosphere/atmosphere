@@ -595,7 +595,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         b.localAttributes.put(s, o);
         if (isNotNoOps()&& !destroyed.get()) {
             try {
-                b.request.setAttribute(s, o);
+                synchronized (b.request) {
+                    b.request.setAttribute(s, o);
+                }
             } catch (NullPointerException ex) {
                 // https://github.com/Atmosphere/atmosphere/issues/1806
                 logger.trace("", ex);
@@ -657,7 +659,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         b.localAttributes.remove(name);
         if (isNotNoOps() && !destroyed.get()) {
-            b.request.removeAttribute(name);
+            synchronized (b.request) {
+                b.request.removeAttribute(name);
+            }
         }
     }
 
@@ -892,7 +896,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         l.addAll(b.localAttributes.unmodifiableMap().keySet());
 
         if (isNotNoOps()) {
-            l.addAll(Collections.list(b.request.getAttributeNames()));
+            synchronized (b.request) {
+                l.addAll(Collections.list(b.request.getAttributeNames()));
+            }
         }
         return Collections.enumeration(l);
     }
@@ -2049,8 +2055,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             s = e.nextElement();
             b.headers.put(s, request.getHeader(s));
         }
-
-        e = request.getAttributeNames();
+        synchronized (b.request) {
+            e = request.getAttributeNames();
+        }
         while (e.hasMoreElements()) {
             s = e.nextElement();
             b.localAttributes.put(s, attributeWithoutException(request, s));
