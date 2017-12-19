@@ -246,8 +246,13 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public boolean resumeOnBroadcast() {
         boolean rob = resumeOnBroadcast.get();
         if (!rob) {
-            Boolean b = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            return b == null ? false : b;
+            try {
+                Boolean b = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
+                return b == null ? false : b;
+            } catch (ClassCastException ex) {
+                // WebSphere is doing something strange here
+                return false;
+            }
         }
         return rob;
     }
