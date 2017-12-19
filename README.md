@@ -41,7 +41,7 @@ The Atmosphere Framework ships with many examples describing how to implement We
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.4.14</version>
+         <version>2.4.16</version>
       </dependency>
 ```
       
@@ -92,6 +92,6 @@ Atmosphere 3.0.0 & 2.5.x requires JDK 1.8
 
 ![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)
 
-@Copyright 2008-2017 [Async-IO.org](http://async-io.org)
+@Copyright 2008-2018 [Async-IO.org](http://async-io.org)
 
 
