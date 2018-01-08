@@ -1,9 +1,7 @@
 # Roadmap
 
 1. Remove J2ee/servlet dependency
-2. Remove long-polling|streaming support
-3. Remove Broadcaster supports, replace it with Kafka topic.
-4. Move to a micro Service architecture
+2. Move to a micro Service architecture
 
 ```java
   @Push
