@@ -46,6 +46,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
+import static org.atmosphere.cpr.ApplicationConfig.FLUSH_BUFFER_HEARTBEAT;
 import static org.atmosphere.cpr.ApplicationConfig.HEARTBEAT_INTERVAL_IN_SECONDS;
 import static org.atmosphere.cpr.ApplicationConfig.HEARTBEAT_PADDING_CHAR;
 import static org.atmosphere.cpr.ApplicationConfig.RESUME_ON_HEARTBEAT;
@@ -82,6 +83,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private int heartbeatFrequencyInSeconds = 60;
     private AtmosphereConfig config;
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
+    private boolean flushBuffer = true;
 
     /**
      * Heartbeat from client disabled by default.
@@ -161,6 +163,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         s = config.getInitParameter(CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS);
         if (s != null) {
             clientHeartbeatFrequencyInSeconds = Integer.valueOf(s);
+        }
+
+        s = config.getInitParameter(FLUSH_BUFFER_HEARTBEAT);
+        if (s != null) {
+            flushBuffer = Boolean.valueOf(s);
         }
 
         heartBeat = ExecutorsFactory.getScheduler(config);
@@ -360,7 +367,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                                 response.write(paddingBytes, false);
                                 if (Utils.resumableTransport(r.transport()) && resumeOnHeartbeat) {
                                     r.resume();
-                                } else {
+                                } else if (flushBuffer) {
                                     response.flushBuffer();
                                 }
                             } catch (Throwable t) {
