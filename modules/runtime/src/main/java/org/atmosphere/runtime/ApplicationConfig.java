@@ -891,5 +891,19 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.inject.InjectableObjectFactory.listeners
      */
     String INJECTION_LISTENERS = "org.atmosphere.inject.InjectableObjectFactory.listeners";
+    /**
+     * Delay the sending of the Atmosphere's first message protocol by X seconds
+     * <p/>
+     * Default: 0<br>
+     * Value: org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInSeconds
+     */
+    String DELAY_PROTOCOL_IN_MILLISECONDS = "org.atmosphere.interceptor.JavaScriptProtocol.delayProtocolInMilliseconds";
+    /**
+     * Invoke flushBuffer when SSE and Streaming is used with the {@link org.atmosphere.interceptor.HeartbeatInterceptor}
+     * <p/>
+     * Default: true<br>
+     * Value: org.atmosphere.interceptor.HeartbeatInterceptor.flushBuffer
+     */
+    String FLUSH_BUFFER_HEARTBEAT = "org.atmosphere.interceptor.HeartbeatInterceptor.flushBuffer";
 }
 

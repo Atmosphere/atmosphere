@@ -709,7 +709,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         try {
             return b.request.getSession(create);
         } catch (java.lang.IllegalStateException ex) {
-            // Jetty
+            // JettyAsyncSupportListenerAdapter
             if (ex.getMessage() != null && ex.getMessage().equals("No SessionManager")) {
                 return null;
             }
