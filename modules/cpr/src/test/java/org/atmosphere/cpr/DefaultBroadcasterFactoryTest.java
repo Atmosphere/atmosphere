@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Jason Burgess
+ * Copyright 2018 Jason Burgess
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
