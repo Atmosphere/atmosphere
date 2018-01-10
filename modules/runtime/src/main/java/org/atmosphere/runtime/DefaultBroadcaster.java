@@ -1363,7 +1363,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
                     if (dup != null && dup != r ) {
                         if ( ! dup.isPendingClose() ) {
-                            logger.warn("Duplicate resource {}. Could be caused by a dead connection not detected by your server. Replacing the old one with the fresh one", r.uuid());
+                            logger.debug("Duplicate resource {}. Could be caused by a dead connection not detected by your server. " +
+                                    "Replacing the old one with the fresh one", r.uuid(), r.transport());
                         } else {
                             logger.debug("Not yet closed resource still active {}", r.uuid());
                         }
