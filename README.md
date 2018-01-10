@@ -53,7 +53,7 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samp
 
 [Top](#Top)
 
-### Roadmap to Atmosphere 3.0.0 (October 2017)
+### Roadmap to Atmosphere 3.0.0 (May 2018)
 
 [Roadmap](ROADMAP_TO_3.0.0.md)
 
