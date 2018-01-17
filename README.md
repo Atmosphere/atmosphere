@@ -4,9 +4,7 @@
 
 ### Welcome to Atmosphere: The Asynchronous WebSocket/Comet Framework
 
-The Atmosphere Framework contains client and server side components for building Asynchronous Web Applications. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all major [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers).
-
-Atmosphere transparently supports WebSockets, Server Sent Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
+The Atmosphere Framework contains client and server side components for building Asynchronous Web Applications. Atmosphere transparently supports WebSockets, Server Sent Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
 The Atmosphere Framework Stack consists of: 
 
@@ -14,9 +12,7 @@ The Atmosphere Framework Stack consists of:
   <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack alt="Atmosphere Stack"/>
 </p>
 
-The Atmosphere Framework Stack works on all Servlet based servers, Spring Boot and frameworks like [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) and [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of extensions like [STOMP](https://github.com/Atmosphere/atmosphere-stomp/), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast), [JMS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jms), [JGroups](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jgroups) and [many more](https://github.com/Atmosphere/atmosphere-extensions/). 
-
-Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/). 
+The Atmosphere Framework Stack works on all Servlet based servers, Spring Boot and frameworks like [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) and [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of [extensions](https://github.com/Atmosphere/atmosphere-extensions/tree/extensions-2.4.x). 
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
@@ -40,6 +36,8 @@ atmosphere-module can be: runtime (main module), jersey, spring, kafka, guice, r
 Get started using this step by step [tutorial](http://async-io.org/tutorial.html).
 
 ### Official Documentation
+Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/). 
+
 Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started as well as [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions). You can also browse the framework's [Javadoc](http://atmosphere.github.com/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API) for Client Components.
 
 ### Quick Start
