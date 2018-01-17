@@ -22,6 +22,8 @@ Using another framework? Look at the list of supported [extensions](https://gith
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
+Main development branch is [atmosphere-2.4.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-2.4.x)
+
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
 
