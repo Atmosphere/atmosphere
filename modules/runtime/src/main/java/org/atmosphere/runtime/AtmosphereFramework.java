@@ -1797,7 +1797,11 @@ public class AtmosphereFramework {
         // We just need one bc to shutdown the shared thread pool
         for (Entry<String, AtmosphereHandlerWrapper> entry : atmosphereHandlers.entrySet()) {
             AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
-            handlerWrapper.atmosphereHandler.destroy();
+            try {
+                handlerWrapper.atmosphereHandler.destroy();
+            }catch (Throwable t) {
+                logger.warn("", t);
+            }
         }
 
         if (metaBroadcaster != null) metaBroadcaster.destroy();
