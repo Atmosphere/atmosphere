@@ -16,7 +16,7 @@ The Atmosphere Framework Stack consists of:
   <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack alt="Atmosphere Stack"/>
 </p>
 
-The Atmosphere Framework Stack works on all Servlet based servers including Tomcat, JBoss Jetty, Resin, GlassFish, Undertow, WebSphere, WebLogic etc. Not running a Servlet Container? [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) or [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of extensions like [STOMP](https://github.com/Atmosphere/atmosphere-stomp/), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast), [JMS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jms), [JGroups](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jgroups) and [many more](https://github.com/Atmosphere/atmosphere-extensions/). Support for [Socket.IO](https://github.com/Atmosphere/atmosphere-extensions/tree/master/socketio), [SockJS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/sockjs) and [Cometd](https://github.com/Atmosphere/atmosphere-extensions/tree/master/cometd) are also available.
+The Atmosphere Framework Stack works on all Servlet based servers, Spring Boot and framework like [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) and [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of extensions like [STOMP](https://github.com/Atmosphere/atmosphere-stomp/), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast), [JMS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jms), [JGroups](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jgroups) and [many more](https://github.com/Atmosphere/atmosphere-extensions/). 
 
 Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/). 
 
@@ -24,6 +24,15 @@ Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atm
 
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
+
+### To use Atmosphere, add the following dependency:
+```xml
+     <dependency>
+         <groupId>org.atmosphere</groupId>
+         <artifactId>atmosphere-{atmosphere-module}</artifactId>
+         <version>2.4.19</version>
+      </dependency>
+```
 
 ### Tutorial
 
@@ -35,15 +44,6 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
 ### Quick Start
 
 The Atmosphere Framework ships with many examples describing how to implement WebSockets, Server-Sent Events, Long-Polling, HTTP Streaming and JSONP client applications. Take a look at [this page](https://github.com/Atmosphere/atmosphere-samples/) to pick the best sample to start with.
-
-### To use Atmosphere, add the following dependency:
-```xml
-     <dependency>
-         <groupId>org.atmosphere</groupId>
-         <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.4.19</version>
-      </dependency>
-```
       
 Where atmosphere-module can be: sockjs, kafka, jersey, runtime (main module), spring, guice, redis, hazelcast, jms, rabbitmq, jgroups or gwt. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
@@ -65,7 +65,7 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 
 Atmosphere 2.4.x requires JDK 1.7 or newer
 
-Atmosphere 3.0.0 & 2.5.x requires JDK 1.8
+Atmosphere 3.0.0 & 2.5.x (both alpha) requires JDK 1.8
 
 #### Versions
 
@@ -88,7 +88,7 @@ Atmosphere 3.0.0 & 2.5.x requires JDK 1.8
 [Top](#Top)
 
 ## Build Status
-[![Build Status](https://travis-ci.org/Atmosphere/atmosphere.svg?branch=master)](https://travis-ci.org/Atmosphere/atmosphere)
+[![Build Status](https://travis-ci.org/Atmosphere/atmosphere.svg?branch=atmosphere-2.4.x)](https://travis-ci.org/Atmosphere/atmosphere)
 
 ![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)
 
