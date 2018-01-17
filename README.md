@@ -6,8 +6,6 @@
 
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Applications. The majority of [popular frameworks](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions) are either supporting Atmosphere or supported natively by the framework. The Atmosphere Framework supports all major [Browsers and Servers](https://github.com/Atmosphere/atmosphere/wiki/Supported-WebServers-and-Browsers).
 
-<p align="center">Follow us on <a href="http://www.twitter.com/atmo_framework">Twitter</a></p>
-
 Atmosphere transparently supports WebSockets, Server Sent Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
 
 The Atmosphere Framework Stack consists of: 
@@ -16,7 +14,7 @@ The Atmosphere Framework Stack consists of:
   <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack alt="Atmosphere Stack"/>
 </p>
 
-The Atmosphere Framework Stack works on all Servlet based servers, Spring Boot and framework like [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) and [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of extensions like [STOMP](https://github.com/Atmosphere/atmosphere-stomp/), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast), [JMS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jms), [JGroups](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jgroups) and [many more](https://github.com/Atmosphere/atmosphere-extensions/). 
+The Atmosphere Framework Stack works on all Servlet based servers, Spring Boot and frameworks like [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) and [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of extensions like [STOMP](https://github.com/Atmosphere/atmosphere-stomp/), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast), [JMS](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jms), [JGroups](https://github.com/Atmosphere/atmosphere-extensions/tree/master/jgroups) and [many more](https://github.com/Atmosphere/atmosphere-extensions/). 
 
 Using another framework? Look at the list of supported [extensions](https://github.com/Atmosphere/atmosphere/wiki/Atmosphere-PlugIns-and-Extensions). Easiest way to learn Atmosphere is by trying a [sample](https://github.com/Atmosphere/atmosphere-samples/). 
 
@@ -35,9 +33,10 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
          <version>2.4.19</version>
       </dependency>
 ```
+      
+atmosphere-module can be: runtime (main module), jersey, spring, kafka, guice, redis, hazelcast, jms, rabbitmq, jgroups etc. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
 ### Tutorial
-
 Get started using this step by step [tutorial](http://async-io.org/tutorial.html).
 
 ### Official Documentation
@@ -46,14 +45,14 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
 ### Quick Start
 
 The Atmosphere Framework ships with many examples describing how to implement WebSockets, Server-Sent Events, Long-Polling, HTTP Streaming and JSONP client applications. Take a look at [this page](https://github.com/Atmosphere/atmosphere-samples/) to pick the best sample to start with.
-      
-Where atmosphere-module can be: sockjs, kafka, jersey, runtime (main module), spring, guice, redis, hazelcast, jms, rabbitmq, jgroups or gwt. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
 #### Jump directly inside the code: WebSockets, Server-Sent Events (SSE), Long-Polling, JSONP and HTTP Streaming!
 
 Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/webapp/index.html#L34)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/java/org/atmosphere/samples/pubsub/JerseyPubSub.java#L36) or the infamous Chat [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/webapp/javascript/application.js#L1)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/java/org/atmosphere/samples/chat/Chat.java#L32) to realize how simple Atmosphere is!
 
 [Top](#Top)
+
+<p align="center">Follow us on <a href="http://www.twitter.com/atmo_framework">Twitter</a></p>
 
 ### Roadmap to Atmosphere 3.0.0 (May 2018)
 
@@ -70,8 +69,6 @@ Atmosphere 2.4.x requires JDK 1.7 or newer
 Atmosphere 3.0.0 & 2.5.x (both alpha) requires JDK 1.8
 
 #### Versions
-
-[Change Log](./CHANGELOG.md)
 
 2.4.x release: [2.4.19](https://github.com/Atmosphere/atmosphere/milestone/9?closed=1) [2.4.18](https://github.com/Atmosphere/atmosphere/milestone/8?closed=1) [2.4.17](https://github.com/Atmosphere/atmosphere/milestone/7?closed=1) [2.4.16](https://github.com/Atmosphere/atmosphere/milestone/6?closed=1) [2.4.13](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.4.13) [2.4.12](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.4.12+is%3Aclosed) [2.4.11](https://github.com/Atmosphere/atmosphere/issues?utf8=%E2%9C%93&q=label%3A2.4.11%20) [2.4.9](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.4.9+is%3Aclosed) [2.4.8](https://github.com/Atmosphere/atmosphere/issues?utf8=%E2%9C%93&q=is%3Aclosed%20label%3A2.4.8%20) [2.4.7](https://github.com/Atmosphere/atmosphere/issues?utf8=%E2%9C%93&q=label%3A2.4.7) [2.4.6](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aclosed+label%3A2.4.6) [2.4.5](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aclosed+label%3A2.4.5) [2.4.4](https://goo.gl/3CZ1qV) [2.4.3](https://goo.gl/n5s5GL) [2.4.2](https://goo.gl/TulSUl) [2.4.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.4.1+is%3Aclosed) [2.4.0](https://goo.gl/GpB1B1)
 
