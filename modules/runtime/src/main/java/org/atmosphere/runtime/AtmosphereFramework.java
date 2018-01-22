@@ -1828,6 +1828,7 @@ public class AtmosphereFramework {
             logger.trace("", ex);
         }
 
+        config.properties().clear();
         return this;
     }
 
