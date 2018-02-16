@@ -195,9 +195,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     public BroadcasterCache clearCache(String broadcasterId, String uuid, CacheMessage message) {
         ClientQueue clientQueue;
         clientQueue = messages.get(uuid);
-        if (clientQueue != null) {
+        if (clientQueue != null && !clientQueue.getQueue().isEmpty()) {
             logger.trace("Removing for AtmosphereResource {} cached message {}", uuid, message.getMessage());
-            notifyRemoveCache(broadcasterId, message);
+            notifyRemoveCache(broadcasterId, new CacheMessage(message.getId(), message.getCreateTime(), message.getMessage(), uuid));
             clientQueue.getQueue().remove(message);
             clientQueue.getIds().remove(message.getId());
         }
