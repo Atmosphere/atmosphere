@@ -627,7 +627,6 @@ public class DefaultBroadcaster implements Broadcaster {
             return;
         }
 
-        notifyOnMessage(deliver);
         Object prevM = deliver.originalMessage;
         deliver.originalMessage = (deliver.originalMessage != deliver.message ? callable(deliver.originalMessage) : finalMsg);
 
@@ -655,6 +654,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 break;
         }
 
+        notifyOnMessage(deliver);
         if (resources.isEmpty()) {
             logger.trace("No resource available for {} and message {}", getID(), finalMsg);
             entryDone(deliver.future);
