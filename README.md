@@ -16,7 +16,7 @@ The Atmosphere Framework Stack works on all Servlet based servers, [Spring Boot]
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
-Main development branch is [atmosphere-2.4.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-2.4.x)
+Main development branch is [atmosphere-2.4.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-2.4.x). Upcoming Atmosphere release is on [master](https://github.com/Atmosphere/atmosphere/tree/master)
 
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
@@ -26,7 +26,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.4.20</version>
+         <version> 2.4.20 | 3.0.0-beta1 </version>
       </dependency>
 ```
       
