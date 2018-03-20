@@ -1,5 +1,5 @@
 /**
- * Copyright 2017 Yulplay.com
+ * Copyright 2018 Yulplay.com
  */
 package org.atmosphere.inject;
 

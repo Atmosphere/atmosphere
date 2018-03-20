@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Async-IO.org
+ * Copyright 2018 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -223,7 +223,7 @@ public class CookieUtil {
     ///// Server-Side Cookie Decoding code forked from io.netty/netty and modified /////
     
     /*
-     * Copyright 2017 The Netty Project
+     * Copyright 2018 The Netty Project
      *
      * The Netty Project licenses this file to you under the Apache License,
      * version 2.0 (the "License"); you may not use this file except in compliance
