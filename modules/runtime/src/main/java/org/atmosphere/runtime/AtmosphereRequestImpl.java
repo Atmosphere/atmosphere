@@ -152,8 +152,14 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     @Override
-    public Flowable<ByteBuffer> getInputFlowable() {
+    public Flowable<ByteBuffer> getFlowable() {
         return flowable;
+    }
+
+    @Override
+    public AtmosphereRequest withFlowable(Flowable<ByteBuffer> flowable) {
+        this.flowable = flowable;
+        return this;
     }
 
     @Override

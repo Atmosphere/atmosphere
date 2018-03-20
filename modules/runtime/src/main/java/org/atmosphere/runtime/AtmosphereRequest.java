@@ -57,7 +57,9 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 public interface AtmosphereRequest extends HttpServletRequest {
 
-    Flowable<ByteBuffer> getInputFlowable();
+    Flowable<ByteBuffer> getFlowable();
+
+    AtmosphereRequest withFlowable(Flowable<ByteBuffer> flowable);
 
     boolean destroyed();
 

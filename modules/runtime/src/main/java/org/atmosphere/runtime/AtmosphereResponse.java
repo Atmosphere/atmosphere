@@ -39,7 +39,9 @@ import java.util.Map;
  */
 public interface AtmosphereResponse extends HttpServletResponse {
 
-    Flowable<ByteBuffer> getOutputFlowable();
+    Flowable<ByteBuffer> getFlowable();
+
+    AtmosphereResponse withFlowable(Flowable<ByteBuffer> flowable);
 
     void destroy();
 
