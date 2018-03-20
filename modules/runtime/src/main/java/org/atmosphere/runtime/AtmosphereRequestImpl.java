@@ -15,6 +15,8 @@
  */
 package org.atmosphere.runtime;
 
+import io.reactivex.Flowable;
+import org.atmosphere.reactive.RequestPublisher;
 import org.atmosphere.util.FakeHttpSession;
 import org.atmosphere.util.QueryStringDecoder;
 import org.atmosphere.util.ReaderInputStream;
@@ -38,7 +40,6 @@ import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.HttpUpgradeHandler;
 import javax.servlet.http.Part;
-
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
@@ -48,6 +49,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.nio.ByteBuffer;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -89,6 +91,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private AtomicBoolean readerSet = new AtomicBoolean();
     private String uuid;
     private boolean noopsAsyncContextStarted;
+    private Flowable<ByteBuffer> flowable;
 
     private AtmosphereRequestImpl(Builder b) {
         super(b.request == null ? new NoOpsRequest() : b.request);
@@ -146,6 +149,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             }
         }
         return br;
+    }
+
+    @Override
+    public Flowable<ByteBuffer> getInputFlowable() {
+        return flowable;
     }
 
     @Override
@@ -635,8 +643,15 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         } else {
             ac = b.request.startAsync();
         }
-        return isCompletionAware()
+        ac = isCompletionAware()
                 ? new CompletionAwareAsyncContext(ac, (CompletionAware)resource().getResponse()) : ac;
+
+        try {
+            flowable = Flowable.fromPublisher(new RequestPublisher(ac, 1));
+        } catch (IOException e) {
+            throw new IllegalStateException(e);
+        }
+        return ac;
     }
 
     @Override

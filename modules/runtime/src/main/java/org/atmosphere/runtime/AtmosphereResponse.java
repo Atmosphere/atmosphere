@@ -15,13 +15,15 @@
  */
 package org.atmosphere.runtime;
 
+import io.reactivex.Flowable;
+
 import javax.servlet.ServletOutputStream;
 import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
-
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.nio.ByteBuffer;
 import java.util.Collection;
 import java.util.Locale;
 import java.util.Map;
@@ -36,6 +38,9 @@ import java.util.Map;
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereResponse extends HttpServletResponse {
+
+    Flowable<ByteBuffer> getOutputFlowable();
+
     void destroy();
 
     void destroy(boolean force);

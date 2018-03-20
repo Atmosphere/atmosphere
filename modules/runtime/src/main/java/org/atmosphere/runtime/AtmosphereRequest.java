@@ -15,6 +15,8 @@
  */
 package org.atmosphere.runtime;
 
+import io.reactivex.Flowable;
+
 import javax.servlet.AsyncContext;
 import javax.servlet.DispatcherType;
 import javax.servlet.RequestDispatcher;
@@ -28,12 +30,12 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpSession;
 import javax.servlet.http.Part;
-
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
 import java.security.Principal;
 import java.util.Collection;
 import java.util.Collections;
@@ -54,6 +56,9 @@ import java.util.concurrent.ConcurrentHashMap;
  * @author Jeanfrancois Arcand
  */
 public interface AtmosphereRequest extends HttpServletRequest {
+
+    Flowable<ByteBuffer> getInputFlowable();
+
     boolean destroyed();
 
     AtmosphereRequest destroyable(boolean destroyable);

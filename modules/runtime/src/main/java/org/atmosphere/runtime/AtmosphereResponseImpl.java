@@ -15,6 +15,7 @@
  */
 package org.atmosphere.runtime;
 
+import io.reactivex.Flowable;
 import org.atmosphere.util.CookieUtil;
 import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.websocket.WebSocket;
@@ -27,14 +28,12 @@ import javax.servlet.WriteListener;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
+import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -89,12 +88,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private AtmosphereRequest atmosphereRequest;
     private static final HttpServletResponse dsr = (HttpServletResponse)
             Proxy.newProxyInstance(AtmosphereResponseImpl.class.getClassLoader(), new Class[]{HttpServletResponse.class},
-                    new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            return ServletProxyFactory.getDefault().proxy(proxy, method, args);
-                        }
-                    });
+                    (proxy, method, args) -> ServletProxyFactory.getDefault().proxy(proxy, method, args));
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private boolean delegateToNativeResponse;
     private boolean destroyable;
@@ -105,6 +99,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private final AtomicReference<Object> buffered = new AtomicReference<Object>(null); 
     private boolean completed;
+    private Flowable<ByteBuffer> flowable;
 
     public AtmosphereResponseImpl(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
         super(dsr);
@@ -211,6 +206,11 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     private HttpServletResponse _r() {
         return HttpServletResponse.class.cast(response);
+    }
+
+    @Override
+    public Flowable<ByteBuffer> getOutputFlowable() {
+        return flowable;
     }
 
     @Override
