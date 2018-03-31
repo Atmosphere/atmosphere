@@ -73,7 +73,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResponseImpl.class);
-    private final static ThreadLocal<Object> NO_BUFFERING = new ThreadLocal<Object>();
+    private final static ThreadLocal<Object> NO_BUFFERING = new ThreadLocal<>();
 
     private final List<Cookie> cookies = new ArrayList<Cookie>();
     private final Map<String, String> headers;
@@ -111,15 +111,6 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         this.headers = new HashMap<>();
         this.delegateToNativeResponse = asyncIOWriter == null;
         this.destroyable = destroyable;
-
-        try {
-            ResponseSubscriber responseSubscriber = new ResponseSubscriber(atmosphereRequest.getAsyncContext());
-            this.flowable = Flowable.just(ByteBuffer.allocate(8192));
-
-            flowable.subscribe(responseSubscriber::onNext, responseSubscriber::onError, responseSubscriber::onComplete);
-        } catch (IOException e) {
-            throw new IllegalStateException(e);
-        }
     }
 
     public AtmosphereResponseImpl(HttpServletResponse r, AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
@@ -128,7 +119,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         this.asyncIOWriter = asyncIOWriter;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
-        this.headers = new HashMap<String, String>();
+        this.headers = new HashMap<>();
         this.delegateToNativeResponse = asyncIOWriter == null;
         this.destroyable = destroyable;
     }
@@ -154,7 +145,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
-        private final Map<String, String> headers = new HashMap<String, String>();
+        private final Map<String, String> headers = new HashMap<>();
         private boolean destroyable = true;
 
         public Builder() {
@@ -220,6 +211,20 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public Flowable<ByteBuffer> getFlowable() {
+
+        synchronized (asyncIOWriter) {
+            if (flowable == null) {
+                try {
+                    ResponseSubscriber responseSubscriber = new ResponseSubscriber(atmosphereRequest.getAsyncContext());
+                    this.flowable = Flowable.just(ByteBuffer.allocate(8192));
+
+                    flowable.subscribe(responseSubscriber::onNext, responseSubscriber::onError, responseSubscriber::onComplete);
+                } catch (IOException e) {
+                    throw new IllegalStateException(e);
+                }
+            }
+        }
+
         return flowable;
     }
 

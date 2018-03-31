@@ -23,15 +23,14 @@ import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.ArrayList;
-import java.util.List;
-
 import javax.servlet.ServletContext;
 import javax.websocket.DeploymentException;
 import javax.websocket.HandshakeResponse;
 import javax.websocket.server.HandshakeRequest;
 import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpointConfig;
+import java.util.ArrayList;
+import java.util.List;
 
 public class JSR356AsyncSupport extends Servlet30CometSupport {
 
@@ -47,7 +46,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         ServerContainer container = (ServerContainer) ctx.getAttribute(ServerContainer.class.getName());
 
         if (container == null) {
-            if (ctx.getServerInfo().contains("WebLogic")) {
+            if (ctx.getServerInfo() != null && ctx.getServerInfo().contains("WebLogic")) {
                 logger.error("{} must use JDK 1.8+ with WebSocket", ctx.getServerInfo());
             }
             throw new IllegalStateException("Unable to configure jsr356 at that stage. ServerContainer is null");
