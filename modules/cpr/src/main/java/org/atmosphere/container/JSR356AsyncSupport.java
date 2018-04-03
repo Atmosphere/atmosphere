@@ -29,11 +29,12 @@ import javax.websocket.HandshakeResponse;
 import javax.websocket.server.HandshakeRequest;
 import javax.websocket.server.ServerContainer;
 import javax.websocket.server.ServerEndpointConfig;
+import java.util.ArrayList;
+import java.util.List;
 
 public class JSR356AsyncSupport extends Servlet30CometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356AsyncSupport.class);
-    private static final String PATH = "/{path";
     private final AtmosphereConfigurator configurator;
 
     public JSR356AsyncSupport(AtmosphereConfig config) {
@@ -61,26 +62,46 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         String servletPath = config.getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH);
         if (servletPath == null) {
             servletPath = IOUtils.guestServletPath(config);
-            if (servletPath.equals("") || servletPath.equals("/") || servletPath.equals("/*")) {
-                servletPath = PATH +"}";
+            if (servletPath.equals("/") || servletPath.equals("/*")) {
+                servletPath = "";
             }
         }
         logger.info("JSR 356 Mapping path {}", servletPath);
         configurator = new AtmosphereConfigurator(config.framework());
 
+        // Register endpoints at
+        // /servletPath
+        // /servletPath/
+        // /servletPath/{path1}
+        // /servletPath/{path1}/
+        // /servletPath/{path1}/{path2}
+        // etc with up to `pathLength` parameters
+
         StringBuilder b = new StringBuilder(servletPath);
+        List<String> endpointPaths = new ArrayList<>();
+        endpointPaths.add(servletPath);
         for (int i = 0; i < pathLength; i++) {
+            b.append("/");
+            endpointPaths.add(b.toString());
+            b.append("{path" + i + "}");
+            endpointPaths.add(b.toString());
+        }
+
+        for (String endpointPath : endpointPaths) {
+            if ("".equals(endpointPath)) {
+                // Spec says: The path is always non-null and always begins with a leading "/".
+                // Root mapping is covered by /{path1}
+                continue;
+            }
             try {
-                container.addEndpoint(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString()).configurator(configurator).build());
+                ServerEndpointConfig endpointConfig = ServerEndpointConfig.Builder.create(JSR356Endpoint.class, endpointPath).configurator(configurator).build();
+                container.addEndpoint(endpointConfig);
             } catch (DeploymentException e) {
                 logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message", servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
                 logger.trace("", e);
                 servletPath = IOUtils.guestServletPath(config);
                 logger.warn("Duplicate guess {}", servletPath, e);
-                b.setLength(0);
-                b.append(servletPath);
             }
-            b.append(PATH).append(i).append("}");
         }
     }
 
