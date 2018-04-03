@@ -80,10 +80,9 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         StringBuilder b = new StringBuilder(servletPath);
         List<String> endpointPaths = new ArrayList<>();
         endpointPaths.add(servletPath);
+        endpointPaths.add("/");
         for (int i = 0; i < pathLength; i++) {
-            b.append("/");
-            endpointPaths.add(b.toString());
-            b.append("{path" + i + "}");
+            b.append("/{path" + i + "}");
             endpointPaths.add(b.toString());
         }
 
