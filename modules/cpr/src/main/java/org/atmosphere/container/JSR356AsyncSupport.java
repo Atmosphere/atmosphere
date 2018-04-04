@@ -72,15 +72,13 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         // Register endpoints at
         // /servletPath
         // /servletPath/
-        // /servletPath/{path1}
-        // /servletPath/{path1}/
-        // /servletPath/{path1}/{path2}
+        // /servletPath/{path0}
+        // /servletPath/{path0}/{path1}
         // etc with up to `pathLength` parameters
 
         StringBuilder b = new StringBuilder(servletPath);
         List<String> endpointPaths = new ArrayList<>();
-        endpointPaths.add(servletPath);
-        endpointPaths.add("/");
+        endpointPaths.add(servletPath.endsWith("/") ? servletPath : servletPath + "/");
         for (int i = 0; i < pathLength; i++) {
             b.append("/{path" + i + "}");
             endpointPaths.add(b.toString());
@@ -89,7 +87,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         for (String endpointPath : endpointPaths) {
             if ("".equals(endpointPath)) {
                 // Spec says: The path is always non-null and always begins with a leading "/".
-                // Root mapping is covered by /{path1}
+                // Root mapping is covered by /{path0}
                 continue;
             }
             try {
