@@ -404,13 +404,14 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             l = w.interceptors;
         }
 
+        // Globally defined
+        int tracing = 0;
+        Action a = asynchronousProcessor.invokeInterceptors(l, resource, tracing);
+        if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
+            return;
+        }
+
         try {
-            // Globally defined
-            int tracing = 0;
-            Action a = asynchronousProcessor.invokeInterceptors(l, resource, tracing);
-            if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-                return;
-            }
 
             //Unit test mock the request and will throw NPE.
             boolean skipAtmosphereHandler = request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) != null

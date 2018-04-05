@@ -47,7 +47,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
  * @author Jeanfrancois Arcand
  */
 public abstract class
-        AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
+AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
@@ -161,7 +161,7 @@ public abstract class
                 if (s != null && s.isNew()) {
                     s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, config.getBroadcasterFactory());
                 }
-            } catch(IllegalStateException ex) {
+            } catch (IllegalStateException ex) {
                 AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(req.resource());
                 logger.warn("Session Expired for {}. Closing the connection", req.uuid(), ex);
                 if (r != null) {
@@ -197,11 +197,13 @@ public abstract class
         // handler interceptor lists
         LinkedList<AtmosphereInterceptor> invokedInterceptors = handlerWrapper.interceptors;
 
+        Action a = invokeInterceptors(invokedInterceptors, resource, tracing);
+        if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
+            return a;
+        }
+
         try {
-            Action a = invokeInterceptors(invokedInterceptors, resource, tracing);
-            if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
-                return a;
-            }
+
             // Remap occured.
             if (req.getAttribute(FrameworkConfig.NEW_MAPPING) != null) {
                 req.removeAttribute(FrameworkConfig.NEW_MAPPING);
@@ -226,8 +228,8 @@ public abstract class
                     throw t;
                 }
             }
-        } finally{
-            postInterceptors(handlerWrapper != null? handlerWrapper.interceptors: invokedInterceptors, resource);
+        } finally {
+            postInterceptors(handlerWrapper != null ? handlerWrapper.interceptors : invokedInterceptors, resource);
         }
 
         Action action = resource.action();
@@ -329,41 +331,46 @@ public abstract class
 
     public Action invokeInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r, int tracing) {
         Action a = Action.CONTINUE;
-        for (AtmosphereInterceptor arc : c) {
+        try {
+            for (AtmosphereInterceptor arc : c) {
 
-            if (!AtmosphereResourceImpl.class.cast(r).isInScope()) {
-                logger.warn("Request closed during processing {} and transport {}", r.uuid(), r.transport());
-                return Action.CANCELLED;
-            }
+                if (!AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                    logger.warn("Request closed during processing {} and transport {}", r.uuid(), r.transport());
+                    return Action.CANCELLED;
+                }
 
-            try {
-                a = arc.inspect(r);
-            } catch (Exception ex) {
-                logger.error("Interceptor {} crashed. Processing will continue with other interceptor.", arc, ex);
-                continue;
-            }
+                try {
+                    a = arc.inspect(r);
+                } catch (Exception ex) {
+                    logger.error("Interceptor {} crashed. Processing will continue with other interceptor.", arc, ex);
+                    continue;
+                }
 
-            if (a == null) {
-                logger.trace("Action was null for {}", arc);
-                a = Action.CANCELLED;
-            }
+                if (a == null) {
+                    logger.trace("Action was null for {}", arc);
+                    a = Action.CANCELLED;
+                }
 
-            boolean skip = a.type() == SKIP_ATMOSPHEREHANDLER;
-            if (skip) {
-                logger.trace("AtmosphereInterceptor {} asked to skip the AtmosphereHandler for {}", arc, r.uuid());
-                r.getRequest().setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
-            }
+                boolean skip = a.type() == SKIP_ATMOSPHEREHANDLER;
+                if (skip) {
+                    logger.trace("AtmosphereInterceptor {} asked to skip the AtmosphereHandler for {}", arc, r.uuid());
+                    r.getRequest().setAttribute(SKIP_ATMOSPHEREHANDLER.name(), Boolean.TRUE);
+                }
 
-            if (a.type() != Action.TYPE.CONTINUE) {
-                logger.trace("Interceptor {} interrupted the dispatch for {} with " + a, arc, r.uuid());
-                return a;
-            }
+                if (a.type() != Action.TYPE.CONTINUE) {
+                    logger.trace("Interceptor {} interrupted the dispatch for {} with " + a, arc, r.uuid());
+                    return a;
+                }
 
-            if (logger.isTraceEnabled()) {
-                logger.trace("\t {}: {} for {}", new String[]{String.valueOf(tracing++), arc.getClass().getName(), r.uuid()});
+                if (logger.isTraceEnabled()) {
+                    logger.trace("\t {}: {} for {}", new String[]{String.valueOf(tracing++), arc.getClass().getName(), r.uuid()});
+                }
             }
+            return a;
+        } catch (Throwable t) {
+            logger.error("", t);
+            return Action.CANCELLED;
         }
-        return a;
     }
 
     public void postInterceptors(List<AtmosphereInterceptor> c, AtmosphereResource r) {
@@ -538,7 +545,7 @@ public abstract class
                             try {
                                 Utils.inject(r);
                             } catch (IllegalAccessException e) {
-                                logger.warn("",e);
+                                logger.warn("", e);
                             }
 
                             atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());

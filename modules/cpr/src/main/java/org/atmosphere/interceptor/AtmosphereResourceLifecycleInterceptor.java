@@ -30,7 +30,6 @@ import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_METHOD;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERERESOURCE_INTERCEPTOR_TIMEOUT;
-import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.POLLING;
 import static org.atmosphere.cpr.AtmosphereResource.TRANSPORT.UNDEFINED;
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnBroadcast;
 
@@ -134,7 +133,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     @Override
     public void postInspect(final AtmosphereResource r) {
 
-        if (r.transport().equals(UNDEFINED) || Utils.webSocketMessage(r) || r.transport().equals(POLLING)) return;
+        if (Utils.pollableTransport(r.transport()) || r.transport().equals(UNDEFINED) || Utils.webSocketMessage(r)) return;
 
         AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
         if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))
