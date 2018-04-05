@@ -46,8 +46,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
  *
  * @author Jeanfrancois Arcand
  */
-public abstract class
-AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
+public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereResourceImpl> {
 
     private static final Logger logger = LoggerFactory.getLogger(AsynchronousProcessor.class);
     protected static final Action timedoutAction = new Action(Action.TYPE.TIMEOUT);
