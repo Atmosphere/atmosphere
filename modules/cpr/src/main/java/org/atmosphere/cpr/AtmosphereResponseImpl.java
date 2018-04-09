@@ -454,7 +454,10 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         } else {
             h = headers.get(name);
         }
-        s.add(h);
+
+        if(headers.containsKey(name)) {
+            s.add(h);
+        }
 
         if (servlet30) {
             Collection<String> r = _r().getHeaders(name);
@@ -463,7 +466,10 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             }
         }
 
-        return Collections.unmodifiableList(s);
+        if(!s.isEmpty()) {
+            return Collections.unmodifiableList(s);
+        }
+        return null;
     }
 
     @Override
