@@ -454,7 +454,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         } else {
             h = headers.get(name);
         }
-        if(h != null) {
+
+        if(headers.containsKey(name)) {
             s.add(h);
         }
 

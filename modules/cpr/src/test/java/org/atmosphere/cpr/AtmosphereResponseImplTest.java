@@ -17,8 +17,7 @@ import org.testng.annotations.Test;
 public class AtmosphereResponseImplTest {
 
     private AtmosphereFramework framework;
-    private AtmosphereConfig config;
-    private AsynchronousProcessor processor;
+
     private final AtmosphereHandler handler = mock(AtmosphereHandler.class);
 
     @BeforeMethod
@@ -46,30 +45,36 @@ public class AtmosphereResponseImplTest {
                 return null;
             }
         });
-        config = framework.getAtmosphereConfig();
-        processor = new AsynchronousProcessor(config) {
-            @Override
-            public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-                return action(req, res);
-            }
-        };
     }
 
     @Test
-    public void headerTest() {
-        framework.addAtmosphereHandler("/*", handler);
-        AtmosphereResponse response = new AtmosphereResponseImpl.Builder().header("header 1", "header 1 value").build();
-        assertEquals(response.getHeaders("header 1"), Collections.singleton("header 1 value"));
-    }
-
-    @Test
-    public void headerTest2() {
+    public void singleHeaderTest() {
         framework.addAtmosphereHandler("/*", handler);
         AtmosphereResponse response = new AtmosphereResponseImpl.Builder()
                 .header("header 1", "header 1 value")
-                .header("header 2", "header 2 value")
-                .header("header 3", null)
+                .header("header 2", null)
                 .build();
         assertEquals(response.getHeaders("header 1"), Collections.singleton("header 1 value"));
+    }
+
+    @Test
+    public void headerNullValueTest() {
+        framework.addAtmosphereHandler("/*", handler);
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder()
+                .header("header 1", "header 1 value")
+                .header("header 2", null)
+                .build();
+        assertEquals(response.getHeaders("header 2"), Collections.singleton(null));
+    }
+
+    @Test
+    public void missingHeaderTest() {
+        framework.addAtmosphereHandler("/*", handler);
+        AtmosphereResponse response = new AtmosphereResponseImpl.Builder()
+                .header("header 1", "header 1 value")
+                .header("header 2", null)
+                .build();
+
+        assertEquals(response.getHeaders("header 3"), null);
     }
 }
