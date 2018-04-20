@@ -18,6 +18,9 @@ Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atm
 
 Main development branch is [atmosphere-2.4.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-2.4.x). Upcoming Atmosphere release is on [master](https://github.com/Atmosphere/atmosphere/tree/master)
 
+### 
+Our next major revision 4.0 is developped under [Atmosph4rX](https://github.com/Atmosphere/Atmosph4rX). 
+
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
 
@@ -26,7 +29,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version> 2.4.24 | 3.0.0-beta1 </version>
+         <version> 2.4.24</version>
       </dependency>
 ```
       
@@ -52,10 +55,6 @@ Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samp
 
 <p align="center">Follow us on <a href="http://www.twitter.com/atmo_framework">Twitter</a></p>
 
-### Roadmap to Atmosphere 3.0.0 (May 2018)
-
-[Roadmap](ROADMAP_TO_3.0.0.md)
-
 If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!.
 
 [Top](#Top)
@@ -63,8 +62,6 @@ If you are interested, subscribe to our [mailing list](http://groups.google.com/
 #### Atmosphere and JDK Versions
 
 Atmosphere 2.4.x requires JDK 1.7 or newer
-
-Atmosphere 3.0.0 & 2.5.x (both alpha) requires JDK 1.8
 
 #### Versions
 
