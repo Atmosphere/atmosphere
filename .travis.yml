@@ -4,3 +4,8 @@ jdk:
   - oraclejdk8
 before_install: 'mvn -version'
 install: 'mvn clean install'
+
+script: "mvn cobertura:cobertura"
+
+after_success:
+  - bash <(curl -s https://codecov.io/bash)
