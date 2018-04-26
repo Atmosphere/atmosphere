@@ -74,17 +74,17 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         // /servletPath
         // /servletPath/
         // /servletPath/{path1}
-        // /servletPath/{path1}/
         // /servletPath/{path1}/{path2}
         // etc with up to `pathLength` parameters 
 
         StringBuilder b = new StringBuilder(servletPath);
         List<String> endpointPaths = new ArrayList<>();
         endpointPaths.add(servletPath);
+        if (!servletPath.endsWith("/")) {
+            endpointPaths.add(servletPath+"/");
+        }
         for (int i = 0; i < pathLength; i++) {
-            b.append("/");
-            endpointPaths.add(b.toString());
-            b.append("{path" + i + "}");
+            b.append("/{path" + i + "}");
             endpointPaths.add(b.toString());
         }
 
