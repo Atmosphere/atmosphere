@@ -178,13 +178,20 @@ public class IOUtils {
     }
 
     public static byte[] readEntirelyAsByte(AtmosphereResource r) throws IOException {
-        AtmosphereRequest request = r.getRequest();
-
         boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
         if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
             logger.debug("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
             return new byte[0];
         }
+
+        return forceReadEntirelyAsByte(r);
+    }
+
+    /**
+     * Reads request body as bytes without respect {@link ApplicationConfig#READ_GET_BODY} parameter
+     */
+    public static byte[] forceReadEntirelyAsByte(AtmosphereResource r) throws IOException {
+        AtmosphereRequest request = r.getRequest();
 
         AtmosphereRequestImpl.Body body = request.body();
         if (request.body().isEmpty()) {
@@ -228,7 +235,7 @@ public class IOUtils {
             return bbIS.toByteArray();
         } else if (body.hasString()) {
             try {
-                return readEntirelyAsString(r).toString().getBytes(request.getCharacterEncoding());
+                return body.asString().getBytes(request.getCharacterEncoding());
             } catch (UnsupportedEncodingException e) {
                 logger.error("", e);
             }
