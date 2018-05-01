@@ -83,6 +83,7 @@
                             org.jboss.servlet*;resolution:=optional,
                             org.apache.coyote*;resolution:=optional,
                             org.mortbay.util.ajax*;resolution:=optional,
+                            org.atmosphere.inject*;resolution:=optional,
                             org.atmosphere.jboss*;resolution:=optional,
                             org.apache.shiro*;resolution:=optional,
                             org.jboss.vfs*;resolution:=optional,
@@ -110,6 +111,16 @@
                             org.atmosphere.lifecycle*,
                             org.atmosphere.websocket.protocol*,
                         </Export-Package>
+                        <Require-Capability>
+                            osgi.extender;filter:="(osgi.extender=osgi.serviceloader.processor)",
+                            osgi.extender;filter:="(osgi.extender=osgi.serviceloader.registrar)",
+                            osgi.serviceloader;filter:="(osgi.serviceloader=org.atmosphere.inject.Injectable)";cardinality:=multiple
+                        </Require-Capability>
+                        <Provide-Capability>
+                            osgi.serviceloader;osgi.serviceloader=javax.servlet.ServletContainerInitializer,
+                            osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.CDIProducer,
+                            osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.Injectable
+                        </Provide-Capability>
                     </instructions>
                 </configuration>
             </plugin>
