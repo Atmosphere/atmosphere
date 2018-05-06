@@ -56,7 +56,7 @@ import static org.atmosphere.runtime.HeaderConfig.X_ATMO_BINARY;
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
     private final static List<String> knownClasses;
-    private final static Pattern SERVLET_PATH_PATTERN = Pattern.compile("([\\/]?[\\w-[.]]+|[\\/]\\*\\*)+");
+    private final static Pattern SERVLET_PATH_PATTERN = Pattern.compile("([/]?[\\w-+.]+|[/]\\*\\*)+");
 
     static {
         knownClasses = new ArrayList<String>() {

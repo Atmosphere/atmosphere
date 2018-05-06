@@ -17,6 +17,7 @@ package org.atmosphere.util;
 
 import org.testng.annotations.Test;
 
+import static org.atmosphere.util.IOUtils.getCleanedServletPath;
 import static org.testng.Assert.assertEquals;
 
 /**
@@ -26,20 +27,14 @@ public class IOUtilsTest {
 
     @Test
     public void testGetCleanedServletPath() {
-        String testFullPath;
-        String testCleanedPath;
-
-        testFullPath = "/foo/bar/*";
-        testCleanedPath = IOUtils.getCleanedServletPath(testFullPath);
-        assertEquals(testCleanedPath, "/foo/bar");
-
-        testFullPath = "foo/bar/**/*";
-        testCleanedPath = IOUtils.getCleanedServletPath(testFullPath);
-        assertEquals(testCleanedPath, "/foo/bar/**");
-
-        testFullPath = "/com.zyxabc.abc.Abc/gwtCometEvent*";
-        testCleanedPath = IOUtils.getCleanedServletPath(testFullPath);
-        assertEquals(testCleanedPath, "/com.zyxabc.abc.Abc/gwtCometEvent");
+        assertEquals(getCleanedServletPath("/foo/bar/*"), "/foo/bar");
+        assertEquals(getCleanedServletPath("/foo/bar/"), "/foo/bar");
+        assertEquals(getCleanedServletPath("foo"), "/foo");
+        assertEquals(getCleanedServletPath("/foo/"), "/foo");
+        assertEquals(getCleanedServletPath("foo/bar/**/*"), "/foo/bar/**");
+        assertEquals(getCleanedServletPath("/com.zyxabc.abc.Abc/gwtCometEvent*"), "/com.zyxabc.abc.Abc/gwtCometEvent");
+        assertEquals(getCleanedServletPath("/com.abc_Abc-abc/"), "/com.abc_Abc-abc");
+        assertEquals(getCleanedServletPath("/com.abc_Abc-abc+bca/"), "/com.abc_Abc-abc+bca");
     }
 
 }
