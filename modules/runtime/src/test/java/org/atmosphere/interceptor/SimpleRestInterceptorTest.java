@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Async-IO.org
+ * Copyright 2018 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -17,6 +17,7 @@ package org.atmosphere.interceptor;
 
 import org.atmosphere.runtime.*;
 import org.atmosphere.util.IOUtils;
+import org.json.JSONObject;
 import org.mockito.Mockito;
 import org.testng.annotations.Test;
 
@@ -42,25 +43,7 @@ public class SimpleRestInterceptorTest {
     public void testCreateRequestNormal() throws Exception {
         setupAtmosphere();
         final String data = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
-                + "\"type\": \"application/json\", \"data\":{\"records\": [{\"value\": \"S2Fma2E=\"}]}}";
-
-        AtmosphereResource resource = createAtmosphereResource("POST", "/", data);
-        SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
-        interceptor.configure(config);
-
-        AtmosphereRequest dipatchedRequest = interceptor.createAtmosphereRequest(resource.getRequest(), IOUtils.readEntirelyAsString(resource).toString());
-        assertEquals(dipatchedRequest.getMethod(), "POST");
-        assertEquals(dipatchedRequest.getRequestURI(), "/topics/test");
-        assertEquals(dipatchedRequest.getContentType(), "application/json");
-
-        assertEquals(extractContent(dipatchedRequest.getReader()), "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
-    }
-
-    @Test
-    public void testCreateRequestDetached() throws Exception {
-        setupAtmosphere();
-        final String data = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
-                + "\"type\": \"application/json\", \"detached\": true}\n{\"records\": [{\"value\": \"S2Fma2E=\"}]}";
+                + "\"type\": \"application/json\", \"detached\": true}{\"records\": [{\"value\": \"S2Fma2E=\"}]}";
 
         AtmosphereResource resource = createAtmosphereResource("POST", "/", data);
         SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
@@ -77,9 +60,9 @@ public class SimpleRestInterceptorTest {
     public void testCreateRequestContinued() throws Exception {
         setupAtmosphere();
         final String data1 = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
-                + "\"type\": \"application/json\", \"detached\": true, \"continue\": true}\n{\"records\": [";
+                + "\"type\": \"application/json\", \"continue\": true}{\"records\": [";
         final String data2 = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
-                + "\"type\": \"application/json\", \"detached\": true}\n{\"value\": \"S2Fma2E=\"}]}";
+                + "\"type\": \"application/json\"}{\"value\": \"S2Fma2E=\"}]}";
 
         AtmosphereResource resource1 = createAtmosphereResource("POST", "/", data1);
         AtmosphereResource resource2 = createAtmosphereResource("POST", "/", data2);
@@ -102,25 +85,12 @@ public class SimpleRestInterceptorTest {
         final String data = "{\"id\": \"123\", \"accept\" : \"text/plain\" }";
         Reader r = new StringReader(data);
 
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
         expectedHeaders.put("accept", "text/plain");
-        verify(jer, expectedHeaders, null);
-    }
-
-    @Test
-    public void testParsingNoDataApos() throws Exception {
-        final String data = "{'id': \"123\", 'accept' : 'text/plain' }";
-        Reader r = new StringReader(data);
-
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
-
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
-        expectedHeaders.put("id", "123");
-        expectedHeaders.put("accept", "text/plain");
-        verify(jer, expectedHeaders, null);
+        verify(jsonpart, r, expectedHeaders, "");
     }
 
     @Test
@@ -128,12 +98,12 @@ public class SimpleRestInterceptorTest {
         final String data = "{\n 'id':\"123\",'accept'\n: 'text/plain'\r }";
         Reader r = new StringReader(data);
 
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
         expectedHeaders.put("accept", "text/plain");
-        verify(jer, expectedHeaders, null);
+        verify(jsonpart, r, expectedHeaders, "");
     }
 
     @Test
@@ -141,12 +111,12 @@ public class SimpleRestInterceptorTest {
         final String data = "{'id': \"123\", \"size\" : 69124, 'ack' : true }";
         Reader r = new StringReader(data);
 
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("size", "69124");
-        expectedHeaders.put("ack", "true");
-        verify(jer, expectedHeaders, null);
+        expectedHeaders.put("size", 69124);
+        expectedHeaders.put("ack", true);
+        verify(jsonpart, r, expectedHeaders, "");
     }
 
     @Test
@@ -154,94 +124,75 @@ public class SimpleRestInterceptorTest {
         final String data = "{'id': \"123\", \"size\":69124, \r\n'ack' :true }";
         Reader r = new StringReader(data);
 
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
-        expectedHeaders.put("size", "69124");
-        expectedHeaders.put("ack", "true");
-        verify(jer, expectedHeaders, null);
+        expectedHeaders.put("size", 69124);
+        expectedHeaders.put("ack", true);
+        verify(jsonpart, r, expectedHeaders, "");
     }
 
     @Test
     public void testParsingWithData() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"data\":{\"records\": [{\"value\": \"S2Fma2E=\"}]}}";
+        final String data = "{\"id\": \"123\", \"type\" : \"application/json\"}{\"records\": [{\"value\": \"S2Fma2E=\"}]}";
         Reader r = new StringReader(data);
 
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
         expectedHeaders.put("type", "application/json");
-        verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
+        verify(jsonpart, r, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
     }
 
     @Test
     public void testParsingWithMoreData() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", "
-                + "\"data\":{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}}";
-        Reader r = new StringReader(data);
-
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
-
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
-        expectedHeaders.put("id", "123");
-        expectedHeaders.put("type", "application/json");
-        verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}");
-    }
-
-    @Test
-    public void testParsingWithDetachedDataWithLF() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"detached\": true}\n"
+        final String data = "{\"id\": \"123\", \"type\" : \"application/json\"}"
                 + "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}";
         Reader r = new StringReader(data);
 
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
         expectedHeaders.put("type", "application/json");
-        verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}");
+        verify(jsonpart, r, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}");
     }
 
     @Test
-    public void testParsingWithDetachedDataWithCRLF() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"application/json\", \"detached\": true}\r\n"
-                + "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}";
-        Reader r = new StringReader(data);
-
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
-
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
-        expectedHeaders.put("id", "123");
-        expectedHeaders.put("type", "application/json");
-        verify(jer, expectedHeaders, "{\"records\": [{\"value\": \"S2Fma2E=\"}, {\"value\": \"S2Fma2E=\"},{\"value\": \"S2Fma2E=\"}]}");
-    }
-
-    @Test
-    public void testParsingWithDetachedTextData() throws Exception {
-        final String data = "{\"id\": \"123\", \"type\" : \"text/plain\", \"detached\": true}\n"
+    public void testParsingWithTextData() throws Exception {
+        final String data = "{\"id\": \"123\", \"type\" : \"text/plain\"}"
                 + "This is just a plain text";
         Reader r = new StringReader(data);
 
-        SimpleRestInterceptor.JSONEnvelopeReader jer = new SimpleRestInterceptor.JSONEnvelopeReader(r);
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
 
-        Map<String, String> expectedHeaders = new HashMap<String, String>();
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
         expectedHeaders.put("id", "123");
         expectedHeaders.put("type", "text/plain");
-        verify(jer, expectedHeaders, "This is just a plain text");
+        verify(jsonpart, r, expectedHeaders, "This is just a plain text");
     }
 
-    private void verify(SimpleRestInterceptor.JSONEnvelopeReader jer, Map<String, String> expectedHeaders, String expectedBody) {
-        Map<String, String> headers = jer.getHeaders();
-        assertEquals(expectedHeaders.size(), headers.size());
+    @Test
+    public void testParsingWithTextDataWithWhitespaces() throws Exception {
+        final String data = "{\"id\": \"123\", \"type\" : \"text/plain\"}\n"
+                + " This is just a plain text";
+        Reader r = new StringReader(data);
+
+        JSONObject jsonpart = SimpleRestInterceptor.parseJsonPart(r);
+
+        Map<String, Object> expectedHeaders = new HashMap<String, Object>();
+        expectedHeaders.put("id", "123");
+        expectedHeaders.put("type", "text/plain");
+        verify(jsonpart, r, expectedHeaders, "\n This is just a plain text");
+    }
+
+    private void verify(JSONObject headers, Reader body, Map<String, Object> expectedHeaders, String expectedBody) {
+        assertEquals(expectedHeaders.size(), headers.length());
         for (String key : expectedHeaders.keySet()) {
             assertEquals(headers.get(key), expectedHeaders.get(key), "value of key " + key + " differs");
         }
-        if (expectedBody == null) {
-            assertNull(jer.getReader());
-        } else {
-            assertEquals(extractContent(jer.getReader()), expectedBody);
-        }
+        assertEquals(extractContent(body), expectedBody);
     }
 
     private String extractContent(Reader reader) {

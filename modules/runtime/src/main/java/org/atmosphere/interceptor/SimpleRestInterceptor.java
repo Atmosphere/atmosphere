@@ -1,5 +1,5 @@
 /*
- * Copyright 2017 Async-IO.org
+ * Copyright 2018 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -47,6 +47,9 @@ import org.atmosphere.runtime.DefaultBroadcaster;
 import org.atmosphere.runtime.FrameworkConfig;
 import org.atmosphere.util.ChunkConcatReaderPool;
 import org.atmosphere.util.IOUtils;
+import org.json.JSONException;
+import org.json.JSONObject;
+import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -65,24 +68,18 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleRestInterceptor.class);
     /**
      * Servlet init property to enable the detached mode in the response
+     * @deprecated always use detached mode
      */
     public final static String PROTOCOL_DETACHED_KEY = "atmosphere.simple-rest.protocol.detached";
 
     /**
      * Connection request property to enable the detached mode in the response
+     * @deprecated always use detached mode
      */
     public final static String X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED = "X-Atmosphere-SimpleRestProtocolDetached";
 
     protected final static String REQUEST_DISPATCHED = "request.dispatched";
     protected final static String REQUEST_ID = "request.id";
-
-    private final static byte[] RESPONSE_TEMPLATE_HEAD = "{\"id\": \"".getBytes();
-    private final static byte[] RESPONSE_TEMPLATE_BELLY = "\", \"data\": ".getBytes();
-    private final static byte[] RESPONSE_TEMPLATE_BELLY_CONTINUE = "\", \"continue\":true, \"data\": ".getBytes();
-    private final static byte[] RESPONSE_TEMPLATE_BELLY_DETACHED = "\", \"detached\": true".getBytes();
-    private final static byte[] RESPONSE_TEMPLATE_BELLY_CONTINUE_DETACHED = "\", \"continue\":true, \"detached\": true".getBytes();
-    private final static byte[] RESPONSE_TEMPLATE_TAIL = "}".getBytes();
-    private final static byte[] RESPONSE_TEMPLATE_NEWLINE = "\n".getBytes();
 
     private final static String HEARTBEAT_BROADCASTER_NAME = "/simple-rest.heartbeat";
     private final static String HEARTBEAT_SCHEDULED = "heatbeat.scheduled";
@@ -91,7 +88,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
     private Map<String, AtmosphereResponse> suspendedResponses = new HashMap<String, AtmosphereResponse>();
     private ChunkConcatReaderPool readerPool = new ChunkConcatReaderPool();
-    private boolean detached;
 
     private Broadcaster heartbeat;
 
@@ -105,7 +101,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         super.configure(config);
-        detached = Boolean.parseBoolean(config.getInitParameter(PROTOCOL_DETACHED_KEY));
         //TODO make the heartbeat configurable
         heartbeat = config.getBroadcasterFactory().lookup(DefaultBroadcaster.class, getHeartbeatBroadcasterName());
         if (heartbeat == null) {
@@ -244,15 +239,15 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
     protected AtmosphereRequest createAtmosphereRequest(AtmosphereRequest request, String body) throws IOException {
         //REVISIT find a more efficient way to read and extract the message data
-        JSONEnvelopeReader jer = new JSONEnvelopeReader(new StringReader(body));
-
-        final String id = jer.getHeader("id");
+        Reader msgreader = new StringReader(body);
+        JSONObject jsonpart = parseJsonPart(msgreader);
+        final String id = getString(jsonpart, "id");
         if (id != null) {
             request.localAttributes().put(REQUEST_ID, id);
         }
 
         boolean skip = false;
-        final boolean continued = Boolean.valueOf(jer.getHeader("continue"));
+        final boolean continued = getBoolean(jsonpart, "continue");
         Reader reader = readerPool.getReader(id, false);
         if (reader != null) {
             skip = true;
@@ -262,41 +257,40 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
         if (skip) {
             // add the request data to the prevously dispatched request and skip dispatching a new one
-            final Reader data = jer.getReader();
-            if (data != null) {
-                readerPool.addChunk(id, data, continued);
-            }
+            readerPool.addChunk(id, msgreader, continued);
             return null;
         } else {
             // prepare a new request for dispatching
-            final String method = jer.getHeader("method");
-            String path = jer.getHeader("path");
-            final String type = jer.getHeader("type");
-            final String accept = jer.getHeader("accept");
+            final String method = getString(jsonpart, "method");
+            String path = getString(jsonpart, "path");
+            final String type = getString(jsonpart, "type");
+            final String accept = getString(jsonpart, "accept");
 
             AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
             b.method(method != null ? method : "GET").pathInfo(path != null ? path: "/");
-            if (accept != null) {
+            if (accept != null || type != null) {
                 Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-                headers.put("Accept", accept);
+                if (accept != null) {
+                    headers.put("Accept", accept);
+                }
+                if (type != null) {
+                    b.contentType(type);
+                }
                 b.headers(headers);
             }
-            b.contentType(type);
             final int qpos = path.indexOf('?');
             if (qpos > 0) {
                 b.queryString(path.substring(qpos + 1));
                 path = path.substring(0, qpos);
             }
-            final Reader data = jer.getReader();
-            if (data != null) {
-                if (reader != null) {
-                    b.reader(reader);
-                    readerPool.addChunk(id, data, true);
-                } else {
-                    b.reader(data);
-                }
+
+            if (reader != null) {
+                b.reader(reader);
+                readerPool.addChunk(id, msgreader, true);
+            } else {
+                b.reader(msgreader);
             }
-            String requestURL = request.getRequestURL() + path.substring(request.getRequestURI().length());
+            final String requestURL = request.getRequestURL() + path.substring(request.getRequestURI().length());
             b.requestURI(path).requestURL(requestURL).request(request);
 
             return b.build();
@@ -313,39 +307,22 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
             // control response such as heartbeat or plain responses
             return payload;
         }
-        //TODO find a nicer way to build the response entity
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         if (id != null) {
             try {
-                baos.write(RESPONSE_TEMPLATE_HEAD);
-                baos.write(id.getBytes());
-                if (isDetached(request)) {
-                    // {"id":...,  "detached": true}\n
-                    // <payload>
-                    if (isLastResponse(request, response)) {
-                        baos.write(RESPONSE_TEMPLATE_BELLY_DETACHED);
-                    } else {
-                        baos.write(RESPONSE_TEMPLATE_BELLY_CONTINUE_DETACHED);
-                    }
-                    baos.write(RESPONSE_TEMPLATE_TAIL);
-                    baos.write(RESPONSE_TEMPLATE_NEWLINE);
-                    baos.write(payload);
-                } else {
-                    // {"id":..., "data": <payload>}
-                    boolean isobj = isJSONObject(payload);
-                    if (isLastResponse(request, response)) {
-                        baos.write(RESPONSE_TEMPLATE_BELLY);
-                    } else {
-                        baos.write(RESPONSE_TEMPLATE_BELLY_CONTINUE);
-                    }
-                    if (!isobj) {
-                        baos.write(quote(payload));
-                    } else {
-                        baos.write(payload);
-                    }
-                    baos.write(RESPONSE_TEMPLATE_TAIL);
+                // {"id":"<id>", "code": code, ...}<payload>
+                JSONObject jsonpart = new JSONObject();
+                jsonpart.put("id", id);
+                jsonpart.put("code", response.getStatus());
+                String ct = response.getContentType();
+                if (ct != null) {
+                    jsonpart.put("type", ct);
                 }
-
+                if (!isLastResponse(request, response)) {
+                    jsonpart.put("continue", true);
+                }
+                baos.write(jsonpart.toString().getBytes("utf-8"));
+                baos.write(payload);
             } catch (IOException e) {
                 //ignore as it can't happen
             }
@@ -366,12 +343,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     protected static boolean isLastResponse(AtmosphereRequest request, AtmosphereResponse response) {
         return (response instanceof CompletionAware && ((CompletionAware)response).completed())
                 || Boolean.TRUE != request.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE);
-    }
-
-    protected boolean isDetached(AtmosphereRequest request) {
-        // the default detached setting configured by the init property can be overrriden by the connection property
-        final String prop = request.getHeader(X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED);
-        return (detached && prop == null) || Boolean.valueOf(prop);
     }
 
     private void attachWriter(final AtmosphereResource r) {
@@ -406,201 +377,23 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         return baos.toByteArray();
     }
 
-    /*
-     * A custom json envelope reader to parse a character sequence by extracting the key value pairs
-     * but leaves the data value unparsed so that it can be subsequently consumed directly as a chracter seqeunce.
-     */
-    static class JSONEnvelopeReader {
-        private Reader reader;
-        private Map<String, String> headers;
-        private boolean datap;
-        private boolean detachedp;
-        private int peek = -1;
+    protected static JSONObject parseJsonPart(Reader reader) throws JSONException {
+        return (JSONObject)(new JSONTokener(reader).nextValue());
+    }
 
-        public JSONEnvelopeReader(Reader reader) throws IOException {
-            this.reader = reader;
-            this.headers = new HashMap<String, String>();
-
-            prepare();
-        }
-
-        public String getHeader(String name) {
-            return headers.get(name);
-        }
-
-        public Map<String, String> getHeaders() {
-            return headers;
-        }
-
-        public Reader getReader() {
-            if (!datap && !detachedp) {
-                return null;
-            }
-
-            return new Reader() {
-                private int b;
-                @Override
-                public int read(char[] cbuf, int off, int len) throws IOException {
-                    int n = reader.read(cbuf, off, len);
-                    if (n > 0) {
-                        boolean escaping = false;
-                        char quot = 0;
-                        for (int i = off; i < n; i++) {
-                            char c = cbuf[i];
-                            if (c == '{' && !escaping) {
-                                b++;
-                            } else if (c == '}' && !escaping) {
-                                b--;
-                                if (b < 0) {
-                                    // past the logical eof
-                                    n--;
-                                }
-                            } else if ((c == '"' || c == '\'') && !escaping) {
-                                if (c == quot) {
-                                    quot = 0;
-                                } else {
-                                    quot = c;
-                                }
-                            } else if (c == '\\' && quot != 0 && !escaping) {
-                                escaping = true;
-                            } else if (escaping) {
-                                escaping = false;
-                            }
-                        }
-                    }
-                    return n;
-                }
-
-                @Override
-                public void close() throws IOException {
-                    reader.close();
-                }
-
-                @Override
-                public boolean ready() throws IOException {
-                    return reader.ready();
-                }
-            };
-        }
-
-
-        private void prepare() throws IOException {
-            int c = next(true);
-            if (c == '{') {
-                for (;;) {
-                    String name = nextName();
-                    c = next(true);
-                    if (c == ':') {
-                        if ("data".equals(name)) {
-                            datap = true;
-                            break;
-                        } else if ("detached".equals(name)) {
-                            if (Boolean.valueOf(nextValue())) {
-                                detachedp = true;
-                            }
-                        } else {
-                            headers.put(name, nextValue());
-                        }
-                    } else {
-                        throw new IOException("invalid value: missing name-separator ':'");
-                    }
-                    c = next(true);
-                    if (c != ',') {
-                        if (c == '}' && detachedp) {
-                            while (c != -1) {
-                                c = next(false);
-                                if (c == '\n') {
-                                    break;
-                                }
-                            }
-                        } else {
-                            unread(c);
-                        }
-                        break;
-                    }
-                }
-            } else {
-                throw new IOException("invalid object: missing being-object '{'");
-            }
-        }
-
-        private String nextName() throws IOException {
-            int c = next(true);
-            if (c == '"' || c == '\'') {
-                return nextQuoted(c);
-            }
-            throw new IOException("invalid name: missing quote '\"'");
-        }
-
-        private String nextValue() throws IOException {
-            int c = next(true);
-            if (c == '"' || c == '\'') {
-                // quoted string
-                return nextQuoted(c);
-            } else if (c == 't' || c == 'f' || ('0' <= c && c <= '9')) {
-                // true, false, or number
-                unread(c);
-                return nextNonQuoted();
-            }
-            throw new IOException("invalid value: unquoted non literals");
-        }
-
-        private String nextQuoted(int quot) throws IOException {
-            StringBuilder sb = new StringBuilder();
-            boolean escaping = false;
-            int c;
-            while ((c = next(false)) != -1) {
-                if (c == '\\' && !escaping) {
-                    escaping = true;
-                } else if (c == quot && !escaping) {
-                    break;
-                } else {
-                    sb.append((char) c);
-                    if (escaping) {
-                        escaping = false;
-                    }
-                }
-            }
-            if (c != -1) {
-                return sb.toString();
-            }
-            throw new IOException("invalid quoted string: missing quotation");
-        }
-
-        private String nextNonQuoted() throws IOException {
-            StringBuilder sb = new StringBuilder();
-            int c;
-            while ((c = next(false)) != -1) {
-                if (c == '}' || c == ',' || isWS(c)) {
-                    unread(c);
-                    break;
-                } else {
-                    sb.append((char) c);
-                }
-            }
-            if (c != -1) {
-                return sb.toString();
-            }
-            throw new IOException("invalid value: non-terminated");
-        }
-
-        private int next(boolean skipws) throws IOException {
-            int c;
-            if (peek != -1) {
-                c = peek;
-                peek = -1;
-            } else {
-                while ((c = reader.read()) != -1 && skipws && isWS(c));
-            }
-            return c;
-        }
-
-        private void unread(int c) {
-            peek = c;
-        }
-
-        private boolean isWS(int c) {
-            return c == 0x20 || c == 0x09 || c == 0x0a || c == 0x0d;
+    protected static String getString(JSONObject obj, String key) {
+        try {
+            return obj.getString(key);
+        } catch (JSONException e) {
+            return null;
         }
     }
+    protected static boolean getBoolean(JSONObject obj, String key) {
+        try {
+            return obj.getBoolean(key);
+        } catch (JSONException e) {
+            return false;
+        }
+    }
+
 }

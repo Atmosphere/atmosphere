@@ -101,6 +101,12 @@
             <version>${commons-pool2}</version>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>org.json</groupId>
+            <artifactId>json</artifactId>
+            <version>20180130</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 </project>
     
