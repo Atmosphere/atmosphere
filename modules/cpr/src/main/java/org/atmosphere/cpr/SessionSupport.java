@@ -27,7 +27,7 @@ public class SessionSupport implements HttpSessionListener {
     private final Logger logger = LoggerFactory.getLogger(SessionSupport.class);
 
     // Quite ugly, but gives hints about current state of Session Support.
-    public static boolean initializationHint;
+    static boolean initializationHint;
 
     public SessionSupport() {
         initializationHint = true;
@@ -43,9 +43,8 @@ public class SessionSupport implements HttpSessionListener {
         logger.trace("Session destroyed");
         try {
             HttpSession s = se.getSession();
-            BroadcasterFactory f = (BroadcasterFactory) s.getAttribute(FrameworkConfig.BROADCASTER_FACTORY);
+            BroadcasterFactory f = Universe.broadcasterFactory();
             if (f != null) {
-                s.setAttribute(FrameworkConfig.BROADCASTER_FACTORY, null);
                 for (Broadcaster b : f.lookupAll()) {
                     for (AtmosphereResource r : b.getAtmosphereResources()) {
                         if (r.session(false) != null && r.session().getId().equals(s.getId())) {
