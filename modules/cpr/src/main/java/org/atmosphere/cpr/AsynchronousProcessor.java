@@ -159,6 +159,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             try {
                 if (s != null && s.isNew()) {
                     s.setAttribute(getClass().getName(), "");
+                    s.removeAttribute(getClass().getName());
                 }
             } catch (IllegalStateException ex) {
                 AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(req.resource());
@@ -174,9 +175,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     res.flushBuffer();
                     return new Action();
                 }
-            } finally {
-                s.removeAttribute(getClass().getName());
-            }
+            } 
         }
 
         req.setAttribute(FrameworkConfig.SUPPORT_SESSION, supportSession());
