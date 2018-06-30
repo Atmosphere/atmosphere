@@ -1650,9 +1650,7 @@ public class AtmosphereFramework {
     }
 
     protected String lookupDefaultBroadcasterType(String defaultB) {
-
-        String drop = servletConfig != null ? servletConfig.getInitParameter(ApplicationConfig.AUTODETECT_BROADCASTER) : null;
-        if (drop == null || !Boolean.parseBoolean(drop)) {
+        if (autodetectBroadcaster()) {
             for (String b : broadcasterTypes) {
                 try {
                     Class.forName(b);
@@ -1667,6 +1665,15 @@ public class AtmosphereFramework {
         }
 
         return defaultB;
+    }
+
+    boolean autodetectBroadcaster() {
+        if (servletConfig == null) {
+            return true;
+        }
+
+        String autodetect = servletConfig.getInitParameter(ApplicationConfig.AUTODETECT_BROADCASTER);
+        return autodetect == null || Boolean.parseBoolean(autodetect);
     }
 
     protected AtmosphereObjectFactory lookupDefaultObjectFactoryType() {
