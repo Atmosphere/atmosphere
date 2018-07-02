@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.ServletContextFactory;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import javax.servlet.ServletConfig;
@@ -30,9 +31,8 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import static org.mockito.Mockito.when;
+import static org.testng.Assert.*;
 
 public class AtmosphereFrameworkTest {
 
@@ -326,5 +326,30 @@ public class AtmosphereFrameworkTest {
                 });
 
         assertTrue(b.get());
+    }
+
+    @DataProvider(name = "autodetectBroadcaster")
+    private Object[][] autodetectBroadcasterDataProvider() {
+        return new Object[][]{{null, true}, {"true", true}, {"false", false}};
+    }
+
+    @Test(dataProvider = "autodetectBroadcaster")
+    public void autodetectBroadcaster(String autodetectBroadcasterConfig, boolean expectedAutodetect) {
+        ServletConfig servletConfig = mock(ServletConfig.class);
+        when(servletConfig.getInitParameter(ApplicationConfig.AUTODETECT_BROADCASTER)).thenReturn(autodetectBroadcasterConfig);
+
+        AtmosphereFramework framework = new AtmosphereFramework();
+        framework.servletConfig = servletConfig;
+
+        boolean actualAutodetect = framework.autodetectBroadcaster();
+        assertEquals(actualAutodetect, expectedAutodetect);
+    }
+
+    @Test
+    public void autodetectBroadcasterServletConfigIsNull() {
+        AtmosphereFramework framework = new AtmosphereFramework();
+
+        boolean actualAutodetect = framework.autodetectBroadcaster();
+        assertTrue(actualAutodetect);
     }
 }
