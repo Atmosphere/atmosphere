@@ -120,7 +120,12 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     public void endAsyncContext(AtmosphereRequest request){
-        final Object attribute = request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+        Object attribute = null;
+        try {
+             attribute = request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+        } catch (Exception e) {
+             logger.warn("Exception occurred in getting attribute from request object", e);
+        }
         if (attribute instanceof AsyncContext) {
             AsyncContext asyncContext = (AsyncContext) attribute;
             if (asyncContext != null) {
