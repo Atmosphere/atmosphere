@@ -68,10 +68,10 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     String callbackName() {
-                        String callback =  request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME);
+                        String callback =  escapeForJavaScript(request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME));
                         if (callback == null) {
                             // Look for extension
-                            String jsonp = (String) config.properties().get(HeaderConfig.JSONP_CALLBACK_NAME);
+                            String jsonp = escapeForJavaScript((String) config.properties().get(HeaderConfig.JSONP_CALLBACK_NAME));
                             if (jsonp != null) {
                                 callback = request.getParameter(jsonp);
                             }
