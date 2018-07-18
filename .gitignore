@@ -2,6 +2,7 @@
 *~
 .*.swp
 .*.swo
+*overlays
 .loadpath
 .buildpath
 .project

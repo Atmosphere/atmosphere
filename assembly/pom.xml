@@ -17,6 +17,5 @@
     <modules>
         <module>cpr</module>
         <module>jersey</module>
-        <module>gwt</module>
     </modules>
 </project>

@@ -167,18 +167,8 @@
         </dependency>
         <dependency>
             <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-compat-jbossweb</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-compat-tomcat</artifactId>
-            <version>${project.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-tomcat7</artifactId>
-            <version>${project.version}</version>
+            <version>2.0.0</version>
         </dependency>
         <dependency>
             <groupId>org.apache.tomcat</groupId>
@@ -220,6 +210,18 @@
             <version>1.8.5</version>
             <type>jar</type>
             <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>catalina</artifactId>
+            <version>6.0.35</version>
+            <scope>compile</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-compat-jbossweb</artifactId>
+            <version>2.0.1</version>
+            <scope>compile</scope>
         </dependency>
     </dependencies>
 </project>

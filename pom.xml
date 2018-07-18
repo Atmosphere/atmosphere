@@ -265,9 +265,6 @@
     <modules>
         <module>modules</module>
         <module>assembly</module>
-        <module>extras</module>
-        <module>samples</module>
-        <module>integration-tests</module>
     </modules>
     <reporting>
         <outputDirectory>target/site</outputDirectory>
@@ -334,26 +331,8 @@
             <url>http://oss.sonatype.org/content/repositories/snapshots</url>
         </repository>
         <repository>
-            <id>scala-tools.org</id>
-            <name>Scala-Tools Maven2 Repository</name>
-            <url>http://scala-tools.org/repo-releases</url>
-        </repository>
-        <repository>
             <id>jboss</id>
             <url>https://repository.jboss.org/nexus/content/groups/public/</url>
-        </repository>
-        <repository>
-            <id>codehaus</id>
-            <name>repository.codehaus.org</name>
-            <url>http://repository.codehaus.org</url>
-        </repository>
-        <repository>
-            <id>codehaus-snapshots</id>
-            <url>http://snapshots.repository.codehaus.org</url>
-        </repository>
-        <repository>
-            <id>maven.java.net</id>
-            <url>https://maven.java.net/content/groups/public/</url>
         </repository>
     </repositories>
     <dependencies>
@@ -478,7 +457,7 @@
         <common-logging-version>1.1.1</common-logging-version>
         <scala.version>2.9.1</scala.version>
         <shade-version>1.2.1</shade-version>
-        <felix-version>1.4.0</felix-version>
+        <felix-version>2.4.0</felix-version>
         <jms-version>1.1</jms-version>
         <guice-version>2.0</guice-version>
         <spring-version>3.0.6.RELEASE</spring-version>
