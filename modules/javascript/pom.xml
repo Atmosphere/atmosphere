@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>1.0.20-SNAPSHOT</version>
+        <version>1.0.20</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-javascript</artifactId>
     <packaging>war</packaging>
-    <version>1.0.20-SNAPSHOT</version>
+    <version>1.0.20</version>
     <name>atmosphere-javascript</name>
     <dependencies>
         <dependency>
