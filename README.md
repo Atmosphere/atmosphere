@@ -29,7 +29,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.4.27</version>
+         <version>2.4.28</version>
       </dependency>
 ```
       
@@ -65,7 +65,7 @@ Atmosphere 2.4.x requires JDK 1.7 or newer
 
 #### Versions
 
-2.4.x release: [2.4.27](https://github.com/Atmosphere/atmosphere/milestone/17?closed=1) [2.4.26](https://github.com/Atmosphere/atmosphere/milestone/16?closed=1) [2.4.24](https://github.com/Atmosphere/atmosphere/milestone/15?closed=1) [2.4.23](https://github.com/Atmosphere/atmosphere/milestones?state=closed) [2.4.22](https://github.com/Atmosphere/atmosphere/milestone/14?closed=1) [2.4.19](https://github.com/Atmosphere/atmosphere/milestone/9?closed=1)
+2.4.x release: [2.4.8]() [2.4.27](https://github.com/Atmosphere/atmosphere/milestone/17?closed=1) [2.4.26](https://github.com/Atmosphere/atmosphere/milestone/16?closed=1) [2.4.24](https://github.com/Atmosphere/atmosphere/milestone/15?closed=1) [2.4.23](https://github.com/Atmosphere/atmosphere/milestones?state=closed) [2.4.22](https://github.com/Atmosphere/atmosphere/milestone/14?closed=1) [2.4.19](https://github.com/Atmosphere/atmosphere/milestone/9?closed=1)
 
 #### End Of Life Versions (go to [http://async-io.org](http://async-io.org) for commercial support)
 
