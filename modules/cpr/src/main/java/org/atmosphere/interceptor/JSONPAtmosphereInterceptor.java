@@ -43,6 +43,8 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private String endChunk = "\"});";
     private String startChunk = "({\"message\" : \"";
     private AtmosphereConfig config;
+    private final static String CONTENT_TYPE = "Content-Type: application/javascript; charset=utf-8";
+    private final static String PATTERN = "[^A-Za-z0-9]";
 
     @Override
     public void configure(AtmosphereConfig config) {
@@ -59,23 +61,27 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         // Shield from Broken server
         String uri = request.getRequestURI() == null ? "" : request.getRequestURI();
 
-        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || uri.indexOf("jsonp") != -1) {
+        final boolean contain = uri.contains("jsonp");
+        if (r.transport().equals(AtmosphereResource.TRANSPORT.JSONP) || contain) {
             super.inspect(r);
 
-            if (uri.indexOf("jsonp") != -1) {
+            if (contain) {
                 startChunk = "(\"";
                 endChunk = "\");\r\n\r\n";
             }
 
+            response.setContentType(CONTENT_TYPE);
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     String callbackName() {
-                        String callback =  escapeForJavaScript(request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME));
+                        String callback =  escapeForJavaScript(request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME))
+                                .replaceAll(PATTERN, "");
                         if (callback == null) {
                             // Look for extension
-                            String jsonp = escapeForJavaScript((String) config.properties().get(HeaderConfig.JSONP_CALLBACK_NAME));
+                            String jsonp = escapeForJavaScript((String) config.properties().get(HeaderConfig.JSONP_CALLBACK_NAME))
+                                    .replaceAll(PATTERN, "");
                             if (jsonp != null) {
                                 callback = request.getParameter(jsonp);
                             }
@@ -107,7 +113,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
         return Action.CONTINUE;
     }
 
-    protected String escapeForJavaScript(String str) {
+    private String escapeForJavaScript(String str) {
         try {
             str = StringEscapeUtils.escapeJavaScript(str);
         } catch (Exception e) {
