@@ -29,6 +29,8 @@ import java.io.IOException;
  */
 public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger logger = LoggerFactory.getLogger(JSONPAtmosphereInterceptor.class);
+    private final static String CONTENT_TYPE = "Content-Type: application/javascript; charset=utf-8";
+    private final static String PATTERN = "[^A-Za-z0-9]";
 
     @Override
     public Action inspect(AtmosphereResource r) {
@@ -39,6 +41,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
+            response.setContentType(CONTENT_TYPE);
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
                 AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptor() {
 
@@ -56,7 +59,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     }
 
                     String callbackName() {
-                        return escapeForJavaScript(request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME));
+                        return escapeForJavaScript(request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME)).replaceAll(PATTERN, "");
                     }
 
                     @Override
