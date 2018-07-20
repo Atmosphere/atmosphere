@@ -78,11 +78,11 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                     String callbackName() {
                         String callback =  escapeForJavaScript(request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME))
                                 .replaceAll(PATTERN, "");
-                        if (callback == null) {
+                        if (!callback.isEmpty()) {
                             // Look for extension
                             String jsonp = escapeForJavaScript((String) config.properties().get(HeaderConfig.JSONP_CALLBACK_NAME))
                                     .replaceAll(PATTERN, "");
-                            if (jsonp != null) {
+                            if (!jsonp.isEmpty()) {
                                 callback = request.getParameter(jsonp);
                             }
                         }
@@ -118,7 +118,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             str = StringEscapeUtils.escapeJavaScript(str);
         } catch (Exception e) {
             logger.error("Failed to escape", e);
-            str = null;
+            str = "";
         }
         return str;
     }
