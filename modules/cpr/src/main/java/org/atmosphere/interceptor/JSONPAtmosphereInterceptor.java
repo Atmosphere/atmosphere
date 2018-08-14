@@ -43,7 +43,7 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private String endChunk = "\"});";
     private String startChunk = "({\"message\" : \"";
     private AtmosphereConfig config;
-    private final static String CONTENT_TYPE = "Content-Type: application/javascript; charset=utf-8";
+    private final static String CONTENT_TYPE = "application/javascript; charset=utf-8";
     private final static String PATTERN = "[^A-Za-z0-9]";
 
     @Override
