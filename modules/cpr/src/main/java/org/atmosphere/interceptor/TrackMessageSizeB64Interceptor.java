@@ -15,25 +15,14 @@
  */
 package org.atmosphere.interceptor;
 
-import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.ApplicationConfig;
-import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
-import org.atmosphere.cpr.AsyncIOWriter;
-import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
-import org.atmosphere.cpr.AtmosphereInterceptorWriter;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereResponseImpl;
-import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.cpr.*;
 import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.xml.bind.DatatypeConverter;
-
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Base64;
 import java.util.HashSet;
 
 import static org.atmosphere.cpr.ApplicationConfig.EXCLUDED_CONTENT_TYPES;
@@ -109,7 +98,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
                     && (response.getContentType() == null
                     || !excludedContentTypes.contains(response.getContentType().toLowerCase()))) {
                 response.setCharacterEncoding(OUT_ENCODING);
-                String s = DatatypeConverter.printBase64Binary(responseDraft);
+                String s = Base64.getEncoder().encodeToString(responseDraft);
                 StringBuilder sb = new StringBuilder();
                 sb.append(s.length()).append(DELIMITER).append(s);
                 return sb.toString().getBytes(OUT_ENCODING);

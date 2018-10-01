@@ -47,7 +47,7 @@ public class ServletProxyFactory {
                 .addMethodHandler("getMajorVersion", new MethodHandler() {
                     @Override
                     public Object handle(Object clazz, Method method, Object[] methodObjects) {
-                        return new Integer(3);
+                        return 3;
                     }
                 });
 
@@ -78,7 +78,7 @@ public class ServletProxyFactory {
     /**
      * A MethodHandler can be added to allow Frameworks using Atmosphere to customize internal behavior.
      */
-    public static interface MethodHandler {
+    public interface MethodHandler {
         /**
          * Same API as the {@link java.lang.reflect.Proxy} class
          *
@@ -87,7 +87,7 @@ public class ServletProxyFactory {
          * @param methodObjects
          * @return this
          */
-        public Object handle(Object clazz, Method method, Object[] methodObjects);
+        Object handle(Object clazz, Method method, Object[] methodObjects);
     }
 
     public static class EchoMethodHandler implements MethodHandler {

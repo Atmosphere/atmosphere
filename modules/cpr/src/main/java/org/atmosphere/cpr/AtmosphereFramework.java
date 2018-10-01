@@ -1550,7 +1550,7 @@ public class AtmosphereFramework {
 
         try {
             URL url = sc.getServletContext().getResource(handlersPath);
-            URLClassLoader urlC = new URLClassLoader(new URL[]{url},
+            ClassLoader urlC = url == null ? getClass().getClassLoader() : new URLClassLoader(new URL[]{url},
                     Thread.currentThread().getContextClassLoader());
             loadAtmosphereDotXml(sc.getServletContext().
                     getResourceAsStream(atmosphereDotXmlPath), urlC);
@@ -1924,7 +1924,7 @@ public class AtmosphereFramework {
      * @param stream The input stream we read from.
      * @param c      The classloader
      */
-    protected void loadAtmosphereDotXml(InputStream stream, URLClassLoader c)
+    protected void loadAtmosphereDotXml(InputStream stream, ClassLoader c)
             throws IOException, ServletException {
 
         if (stream == null) {
@@ -2101,11 +2101,11 @@ public class AtmosphereFramework {
      * is missing.
      *
      * @param servletContext {@link ServletContext}
-     * @param classloader    {@link URLClassLoader} to load the class.
+     * @param classloader    {@link ClassLoader} to load the class.
      * @throws java.net.MalformedURLException
      * @throws java.net.URISyntaxException
      */
-    public void autoDetectAtmosphereHandlers(ServletContext servletContext, URLClassLoader classloader)
+    public void autoDetectAtmosphereHandlers(ServletContext servletContext, ClassLoader classloader)
             throws MalformedURLException, URISyntaxException {
 
         // If Handler has been added
@@ -2125,7 +2125,7 @@ public class AtmosphereFramework {
         loadAtmosphereHandlersFromPath(classloader, realPath);
     }
 
-    public void loadAtmosphereHandlersFromPath(URLClassLoader classloader, String realPath) {
+    public void loadAtmosphereHandlersFromPath(ClassLoader classloader, String realPath) {
         File file = new File(realPath);
 
         if (file.exists() && file.isDirectory()) {
@@ -2156,12 +2156,12 @@ public class AtmosphereFramework {
      * is missing.
      *
      * @param servletContext {@link ServletContext}
-     * @param classloader    {@link URLClassLoader} to load the class.
+     * @param classloader    {@link ClassLoader} to load the class.
      * @throws java.net.MalformedURLException
      * @throws java.net.URISyntaxException
      */
-    protected void autoDetectWebSocketHandler(ServletContext servletContext, URLClassLoader classloader)
-            throws MalformedURLException, URISyntaxException {
+    protected void autoDetectWebSocketHandler(ServletContext servletContext, ClassLoader classloader)
+            throws MalformedURLException {
 
         if (hasNewWebSocketProtocol) return;
 
@@ -2169,7 +2169,7 @@ public class AtmosphereFramework {
         loadWebSocketFromPath(classloader, realPath(servletContext, handlersPath));
     }
 
-    protected void loadWebSocketFromPath(URLClassLoader classloader, String realPath) {
+    protected void loadWebSocketFromPath(ClassLoader classloader, String realPath) {
         File file = new File(realPath);
 
         if (file.exists() && file.isDirectory()) {

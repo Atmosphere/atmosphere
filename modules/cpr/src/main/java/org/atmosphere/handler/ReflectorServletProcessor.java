@@ -28,6 +28,7 @@ import org.atmosphere.util.FilterConfigImpl;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import sun.applet.AppletClassLoader;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
@@ -81,7 +82,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     void loadWebApplication(ServletConfig sc) throws Exception {
 
         URL url = sc.getServletContext().getResource("/WEB-INF/lib/");
-        URLClassLoader urlC = new URLClassLoader(new URL[]{url},
+        ClassLoader urlC = url == null ? getClass().getClassLoader() : new URLClassLoader(new URL[]{url},
                 Thread.currentThread().getContextClassLoader());
 
         loadServlet(sc, urlC);
@@ -92,7 +93,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         }
     }
 
-    private void loadServlet(ServletConfig sc, URLClassLoader urlC) throws Exception {
+    private void loadServlet(ServletConfig sc, ClassLoader urlC) throws Exception {
         if (servletClassName != null && servlet == null) {
             try {
                 servlet = config.framework().newClassInstance(Servlet.class, (Class<Servlet>) urlC.loadClass(servletClassName));
@@ -110,7 +111,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         }
     }
 
-    private void loadFilterClasses(ServletConfig sc, URLClassLoader urlC) throws Exception {
+    private void loadFilterClasses(ServletConfig sc, ClassLoader urlC) throws Exception {
 
         for (Map.Entry<String, String> fClassAndName : filtersClassAndNames.entrySet()) {
             String fClass = fClassAndName.getKey();
@@ -131,7 +132,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
         }
     }
 
-    private Filter loadFilter(URLClassLoader urlC, String fClass) throws Exception {
+    private Filter loadFilter(ClassLoader urlC, String fClass) throws Exception {
         Filter f;
         try {
             f = config.framework().newClassInstance(Filter.class, (Class<Filter>) urlC.loadClass(fClass));
@@ -163,7 +164,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      */
     public void onRequest(AtmosphereResource r)
             throws IOException {
-        final boolean completionAware = 
+        final boolean completionAware =
             Boolean.parseBoolean(r.getAtmosphereConfig().getInitParameter(ApplicationConfig.RESPONSE_COMPLETION_AWARE));
         try {
             if (completionAware) {

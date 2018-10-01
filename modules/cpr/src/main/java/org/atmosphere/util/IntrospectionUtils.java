@@ -113,31 +113,6 @@ public final class IntrospectionUtils {
         return executeM.invoke(proxy, new Object[]{name});
     }
 
-    /**
-     * Construct a URLClassLoader. Will compile and work in JDK1.1 too.
-     */
-    public static ClassLoader getURLClassLoader(URL urls[], ClassLoader parent) {
-        try {
-            Class<?> urlCL = Class.forName("java.net.URLClassLoader");
-            Class<?> paramT[] = new Class[2];
-            paramT[0] = urls.getClass();
-            paramT[1] = ClassLoader.class;
-            Method m = findMethod(urlCL, "newInstance", paramT);
-            if (m == null) {
-                return null;
-            }
-
-            ClassLoader cl = (ClassLoader) m.invoke(urlCL, new Object[]{urls, parent});
-            return cl;
-        } catch (ClassNotFoundException ex) {
-            // jdk1.1
-            return null;
-        } catch (Exception ex) {
-            logger.error("failed getting URLClassLoader", ex);
-            return null;
-        }
-    }
-
 
     /**
      * Find a method with the right name If found, call the method ( if param is
