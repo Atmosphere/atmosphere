@@ -66,6 +66,7 @@ Atmosphere 2.5.x requires JDK 8 or 11. Atmosphere 2.4.x requires JDK 1.7 or newe
 #### Versions
 
 2.5.x release: [2.5.0](https://github.com/Atmosphere/atmosphere/milestone/19)
+
 2.4.x release: [2.4.30](https://github.com/Atmosphere/atmosphere/issues/2349) 
 
 #### End Of Life Versions (go to [http://async-io.org](http://async-io.org) for commercial support)
