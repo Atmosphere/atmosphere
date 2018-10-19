@@ -133,7 +133,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 s = tmp != null && !tmp.equalsIgnoreCase("0") ? tmp : null;
             }
         }
-        uuid = s == null ? config.uuidProvider().generateUuid() : s;
+        this.setUUID( s == null ? config.uuidProvider().generateUuid() : s );
 
         if (config.isSupportSession()) {
             // Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
@@ -148,6 +148,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         closeOnCancel = config.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
         return this;
     }
+
+    protected void setUUID( String uuid ) {
+    	this.uuid = uuid;
+	}
 
 
     protected void register() {
@@ -634,10 +638,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Override
     public AtmosphereResource notifyListeners(AtmosphereResourceEvent event) {
         if (listeners.isEmpty() && config.framework().atmosphereResourceListeners().isEmpty()) {
-            logger.trace("No listener with {}", uuid);
+            logger.trace("No listener with {}", uuid());
             return this;
         }
-        logger.trace("Invoking listener {} for {}", listeners, uuid);
+        logger.trace("Invoking listener {} for {}", listeners, uuid());
 
         Action oldAction = action;
         try {
@@ -795,7 +799,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         try {
             if (!isCancelled.getAndSet(true)) {
                 suspended.set(false);
-                logger.trace("Cancelling {}", uuid);
+                logger.trace("Cancelling {}", uuid());
 
                 if (config.getBroadcasterFactory() != null) {
                     removeFromAllBroadcasters();
@@ -843,7 +847,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     private void unregister() {
-        config.resourcesFactory().remove(uuid);
+        config.resourcesFactory().remove(uuid());
     }
 
     public void _destroy() {
@@ -867,7 +871,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     public String toString() {
         try {
             return "AtmosphereResource{" +
-                    "\n\t uuid=" + uuid +
+                    "\n\t uuid=" + uuid() +
                     ",\n\t transport=" + transport() +
                     ",\n\t isInScope=" + isInScope +
                     ",\n\t isResumed=" + isResumed() +
@@ -880,7 +884,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     '}';
         } catch (NullPointerException ex) {
             // Prevent logger
-            return "AtmosphereResourceImpl{" + uuid + "}";
+            return "AtmosphereResourceImpl{" + uuid() + "}";
         }
     }
 
@@ -1006,14 +1010,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
 
-        if (uuid != null ? !uuid.equals(that.uuid) : that.uuid != null) return false;
+        if (uuid() != null ? !uuid().equals(that.uuid()) : that.uuid() != null) return false;
 
         return true;
     }
 
     @Override
     public int hashCode() {
-        return uuid != null ? uuid.hashCode() : 0;
+        return uuid() != null ? uuid().hashCode() : 0;
     }
 
     public boolean getAndSetInClosingPhase() {
