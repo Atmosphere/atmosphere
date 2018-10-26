@@ -315,6 +315,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public Cookie[] getCookies() {
         if (!cookieComputed) {
+            if (b.cookies == null)
+        		return new Cookie[0];
             cookieComputed = true;
             Cookie[] c = b.request.getCookies();
             if (c != null && c.length > 0) {
