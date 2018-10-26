@@ -29,7 +29,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.4.30 (JDK 8 and lower) | 2.5.0 (JDK 8+)</version>
+         <version>2.4.31 (JDK 8 and lower) | 2.5.1 (JDK 8+)</version>
       </dependency>
 ```
       
