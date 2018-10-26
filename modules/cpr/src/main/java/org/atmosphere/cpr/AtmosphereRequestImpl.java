@@ -316,7 +316,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public Cookie[] getCookies() {
         if (!cookieComputed) {
             if (b.cookies == null)
-        		return new Cookie[0];
+                return new Cookie[0];
             cookieComputed = true;
             Cookie[] c = b.request.getCookies();
             if (c != null && c.length > 0) {
@@ -595,7 +595,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             return;
         }
         b.localAttributes.put(s, o);
-        if (isNotNoOps()&& !destroyed.get()) {
+        if (isNotNoOps() && !destroyed.get()) {
             try {
                 synchronized (b.request) {
                     b.request.setAttribute(s, o);
@@ -622,7 +622,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             ac = b.request.startAsync();
         }
         return isCompletionAware()
-                ? new CompletionAwareAsyncContext(ac, (CompletionAware)resource().getResponse()) : ac;
+                ? new CompletionAwareAsyncContext(ac, (CompletionAware) resource().getResponse()) : ac;
     }
 
     @Override
@@ -635,7 +635,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             ac = b.request.startAsync(request, response);
         }
         return isCompletionAware()
-                ? new CompletionAwareAsyncContext(ac, (CompletionAware)resource().getResponse()) : ac;
+                ? new CompletionAwareAsyncContext(ac, (CompletionAware) resource().getResponse()) : ac;
     }
 
     @Override
@@ -648,7 +648,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             ac = b.request.getAsyncContext();
         }
         return isCompletionAware()
-                ? new CompletionAwareAsyncContext(ac, (CompletionAware)resource().getResponse()) : ac;
+                ? new CompletionAwareAsyncContext(ac, (CompletionAware) resource().getResponse()) : ac;
     }
 
     @Override
@@ -860,7 +860,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public AtmosphereResource resource() {
         try {
             Object o = getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            if (o == null || !(o instanceof AtmosphereResource)){
+            if (o == null || !(o instanceof AtmosphereResource)) {
                 // WebSphere is in trouble.
                 return null;
             }
@@ -1919,7 +1919,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private class CompletionAwareAsyncContext implements AsyncContext {
         private AsyncContext context;
         private CompletionAware callback;
-        
+
         public CompletionAwareAsyncContext(AsyncContext context, CompletionAware callback) {
             this.context = context;
             this.callback = callback;
@@ -1977,8 +1977,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         public void start(Runnable run) {
             context.start(run);
         }
-        
+
     }
+
     private class NoOpsAsyncContext implements AsyncContext {
         private final ServletRequest request;
         private final ServletResponse response;
@@ -2031,7 +2032,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public long getTimeout() {
-           return timeout;
+            return timeout;
         }
 
         @Override
