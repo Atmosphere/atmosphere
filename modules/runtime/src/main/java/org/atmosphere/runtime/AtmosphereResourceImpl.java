@@ -132,7 +132,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 s = tmp != null && !tmp.equalsIgnoreCase("0") ? tmp : null;
             }
         }
-        this.setUUID( s == null ? config.uuidProvider().generateUuid() : s );
+        setUUID(s == null ? config.uuidProvider().generateUuid() : s);
 
         if (config.isSupportSession()) {
             // Keep a reference to an HttpSession in case the associated request get recycled by the underlying container.
@@ -148,9 +148,9 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         return this;
     }
 
-    protected void setUUID( String uuid ) {
-    	this.uuid = uuid;
-	}
+    protected void setUUID(String uuid) {
+        this.uuid = uuid;
+    }
 
 
     protected void register() {
