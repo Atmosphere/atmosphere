@@ -90,6 +90,6 @@ Atmosphere 2.5.x requires JDK 8 or 11. Atmosphere 2.4.x requires JDK 1.7 or newe
 
 ![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)
 
-@Copyright 2008-2018 [Async-IO.org](http://async-io.org)
+@Copyright 2008-2019 [Async-IO.org](http://async-io.org)
 
 
