@@ -213,6 +213,13 @@
         </dependency>
 
         <dependency>
+            <groupId>com.caucho</groupId>
+            <artifactId>resin</artifactId>
+            <version>4.0.46</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-compat-jbossweb</artifactId>
             <version>${compat-version}</version>
