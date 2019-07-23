@@ -45,6 +45,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.CompletionAware;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.FrameworkConfig;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.util.ChunkConcatReaderPool;
 import org.atmosphere.util.IOUtils;
 import org.json.JSONException;
@@ -77,6 +78,11 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
      * @deprecated always use detached mode
      */
     public final static String X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED = "X-Atmosphere-SimpleRestProtocolDetached";
+
+    /**
+     * The internal header consisting of the {tracking-id}#{request-id}
+     */
+    public final static String X_REQUEST_KEY = "X-Request-Key";
 
     protected final static String REQUEST_DISPATCHED = "request.dispatched";
     protected final static String REQUEST_ID = "request.id";
@@ -238,6 +244,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     protected AtmosphereRequest createAtmosphereRequest(AtmosphereRequest request, String body) throws IOException {
+        String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
         //REVISIT find a more efficient way to read and extract the message data
         Reader msgreader = new StringReader(body);
         JSONObject jsonpart = parseJsonPart(msgreader);
@@ -268,16 +275,16 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
             AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
             b.method(method != null ? method : "GET").pathInfo(path != null ? path: "/");
-            if (accept != null || type != null) {
-                Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
-                if (accept != null) {
-                    headers.put("Accept", accept);
-                }
-                if (type != null) {
-                    b.contentType(type);
-                }
-                b.headers(headers);
+            Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+            // put the 'tracking-id#request-id' into the request's headers
+            headers.put(X_REQUEST_KEY, String.format("%s#%s", uuid, id));
+            if (accept != null) {
+                headers.put("Accept", accept);
             }
+            if (type != null) {
+                b.contentType(type);
+            }
+            b.headers(headers);
             final int qpos = path.indexOf('?');
             if (qpos > 0) {
                 b.queryString(path.substring(qpos + 1));

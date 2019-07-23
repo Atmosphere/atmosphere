@@ -30,6 +30,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
@@ -49,7 +50,7 @@ public class SimpleRestInterceptorTest {
         final String data = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
                 + "\"type\": \"application/json\", \"detached\": true}{\"records\": [{\"value\": \"S2Fma2E=\"}]}";
 
-        AtmosphereResource resource = createAtmosphereResource("POST", "/", data);
+        AtmosphereResource resource = createAtmosphereResource("POST", "/", Collections.singletonMap(HeaderConfig.X_ATMOSPHERE_TRACKING_ID, "0123456789"), data);
         SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
         interceptor.configure(config);
 
@@ -58,6 +59,7 @@ public class SimpleRestInterceptorTest {
         assertEquals(dispatchedRequest.getRequestURI(), "/topics/test");
         assertEquals(dispatchedRequest.getContentType(), "application/json");
         assertEquals(extractContent(dispatchedRequest.getReader()), "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
+        assertEquals(dispatchedRequest.getHeader("X-Request-Key"), "0123456789#123");
     }
 
     @Test
@@ -68,8 +70,8 @@ public class SimpleRestInterceptorTest {
         final String data2 = "{\"id\": \"123\", \"method\": \"POST\", \"path\": \"/topics/test\", "
                 + "\"type\": \"application/json\"}{\"value\": \"S2Fma2E=\"}]}";
 
-        AtmosphereResource resource1 = createAtmosphereResource("POST", "/", data1);
-        AtmosphereResource resource2 = createAtmosphereResource("POST", "/", data2);
+        AtmosphereResource resource1 = createAtmosphereResource("POST", "/", Collections.<String, String>emptyMap(), data1);
+        AtmosphereResource resource2 = createAtmosphereResource("POST", "/", Collections.<String, String>emptyMap(), data2);
         SimpleRestInterceptor interceptor = new SimpleRestInterceptor();
         interceptor.configure(config);
 
@@ -240,9 +242,9 @@ public class SimpleRestInterceptorTest {
         config = framework.getAtmosphereConfig();
     }
 
-    private AtmosphereResource createAtmosphereResource(String method, String path, String data) {
+    private AtmosphereResource createAtmosphereResource(String method, String path, Map<String, String> headers, String data) {
         AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
-        AtmosphereRequest request = b.method("POST").pathInfo("/").body(data).build();
+        AtmosphereRequest request = b.method("POST").pathInfo(path).headers(headers).body(data).build();
         AtmosphereResponse response = AtmosphereResponseImpl.newInstance(request);
         response.request(request);
         AtmosphereResourceImpl resource = new AtmosphereResourceImpl();
