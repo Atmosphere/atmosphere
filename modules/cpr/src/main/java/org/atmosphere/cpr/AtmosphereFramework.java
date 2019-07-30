@@ -1914,7 +1914,7 @@ public class AtmosphereFramework {
                 action.getValue().apply(this, c);
             }
         } catch (Exception ex) {
-            logger.error("", ex);
+            logger.warn("", ex);
         }
     }
 
