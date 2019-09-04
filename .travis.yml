@@ -1,12 +1,7 @@
+dist: trusty
+sudo: false
 language: java
 jdk:
-  - oraclejdk7
-  - openjdk7
-branches:
-  only:
-    - master
-    - atmosphere-2.2.x
-    - atmosphere-2.3.x
-    - atmosphere-2.4.x
+  - oraclejdk8
 before_install: 'mvn -version'
 install: 'mvn clean install'
