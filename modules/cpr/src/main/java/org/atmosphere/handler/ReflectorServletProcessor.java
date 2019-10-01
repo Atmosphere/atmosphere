@@ -28,7 +28,6 @@ import org.atmosphere.util.FilterConfigImpl;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import sun.applet.AppletClassLoader;
 
 import javax.servlet.Filter;
 import javax.servlet.FilterChain;
