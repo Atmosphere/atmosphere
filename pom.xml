@@ -595,7 +595,7 @@
         <jetty9_2-version>9.2.13.v20150730</jetty9_2-version>
         <jetty9_3-version>9.3.19.v20170502</jetty9_3-version>
         <tomcat-version>6.0.35</tomcat-version>
-        <tomcat7-version>7.0.35</tomcat7-version>
+        <tomcat7-version>7.0.93</tomcat7-version>
         <shade-version>1.2.1</shade-version>
         <felix-version>2.3.7</felix-version>
         <ahc.version>1.7.7</ahc.version>

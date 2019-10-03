@@ -250,7 +250,7 @@ public class TomcatWebSocketUtil {
         } catch (UnsupportedEncodingException e) {
             throw new ServletException(e);
         }
-        String result = org.apache.catalina.util.Base64.encode(sha1Helper.digest(WS_ACCEPT));
+        String result = org.apache.tomcat.util.codec.binary.Base64.encodeBase64String(sha1Helper.digest(WS_ACCEPT));
 
         sha1Helpers.add(sha1Helper);
 
