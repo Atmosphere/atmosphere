@@ -24,7 +24,6 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.IOUtils;
@@ -33,6 +32,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -160,14 +160,14 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     int size = cb.length();
 
                     String csq = Integer.toString(size) + endString;
-                    ByteBuffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
+                    Buffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
                     CharBuffer cb2 = CharBuffer.wrap(csq);
                     CharsetEncoder encoder = outCharset.newEncoder();
-                    encoder.encode(cb2, bb, false);
-                    encoder.encode(cb, bb, false);
+                    encoder.encode(cb2, (ByteBuffer) bb, false);
+                    encoder.encode(cb, (ByteBuffer) bb, false);
                     bb.flip();
                     byte[] b = new byte[bb.limit()];
-                    bb.get(b);
+                    ((ByteBuffer)bb).get(b);
                     return b;
                 } catch (MalformedInputException ex) {
                     // https://github.com/Atmosphere/atmosphere/issues/1803
