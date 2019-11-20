@@ -572,7 +572,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void deliverPush(Deliver deliver, boolean rec) {
         recentActivity.set(true);
 
-        String prevMessage = deliver.message.toString();
+        Object prevMessage = deliver.message;
         if (rec && !delayedBroadcast.isEmpty()) {
             Iterator<Deliver> i = delayedBroadcast.iterator();
             StringBuilder b = new StringBuilder();
