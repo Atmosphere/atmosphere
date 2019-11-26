@@ -57,6 +57,7 @@ package org.atmosphere.util.uri;
 import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -763,7 +764,7 @@ public class UriComponent {
         if (bb == null)
             bb = ByteBuffer.allocate(1);
         else
-            bb.clear();
+            ((Buffer)bb).clear();
 
         while (true) {
             // Decode the hex digits
@@ -780,8 +781,8 @@ public class UriComponent {
             }
 
             // Check if the byte buffer needs to be increased in size
-            if (bb.position() == bb.capacity()) {
-                bb.flip();
+            if (((Buffer)bb).position() == bb.capacity()) {
+                ((Buffer)bb).flip();
                 // Create a new byte buffer with the maximum number of possible
                 // octets, hence resize should only occur once
                 ByteBuffer bb_new = ByteBuffer.allocate(s.length() / 3);
@@ -790,7 +791,7 @@ public class UriComponent {
             }
         }
 
-        bb.flip();
+        ((Buffer)bb).flip();
         return bb;
     }
 
@@ -801,7 +802,7 @@ public class UriComponent {
      */
     private static int decodeOctets(int i, ByteBuffer bb, StringBuilder sb) {
         // If there is only one octet and is an ASCII character
-        if (bb.limit() == 1 && (bb.get(0) & 0xFF) < 0x80) {
+        if (((Buffer)bb).limit() == 1 && (bb.get(0) & 0xFF) < 0x80) {
             // Octet can be appended directly
             sb.append((char) bb.get(0));
             return i + 2;
@@ -809,7 +810,7 @@ public class UriComponent {
             // 
             CharBuffer cb = UTF_8_CHARSET.decode(bb);
             sb.append(cb.toString());
-            return i + bb.limit() * 3 - 1;
+            return i + ((Buffer)bb).limit() * 3 - 1;
         }
     }
 

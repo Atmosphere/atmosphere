@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Map;
@@ -319,8 +320,8 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         }
 
         try {
-            bb.clear();
-            cb.clear();
+            ((Buffer)bb).clear();
+            ((Buffer)cb).clear();
             // NOTE #1961 if the buffer is cached at thread-local, it needs to be released here.
         } catch (Exception ex) {
             logger.trace("", ex);
