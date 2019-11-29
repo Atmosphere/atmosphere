@@ -41,6 +41,7 @@ import javax.websocket.server.HandshakeRequest;
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -276,7 +277,7 @@ public class JSR356Endpoint extends Endpoint {
                 session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
                     @Override
                     public void onMessage(ByteBuffer bb) {
-                        byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+                        byte[] b = bb.hasArray() ? bb.array() : new byte[((Buffer)bb).limit()];
                         bb.get(b);
                         webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                     }

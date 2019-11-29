@@ -53,6 +53,7 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.io.Serializable;
 import java.io.StringReader;
+import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.util.Enumeration;
@@ -806,17 +807,17 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         ByteBuffer bb = webSocket.bb;
         try {
             while (read > -1) {
-                bb.position(bb.position() + read);
+                ((Buffer)bb).position(((Buffer)bb).position() + read);
                 if (bb.remaining() == 0) {
                     bb = resizeByteBuffer(webSocket);
                 }
-                read = is.read(bb.array(), bb.position(), bb.remaining());
+                read = is.read(bb.array(), ((Buffer)bb).position(), bb.remaining());
             }
-            bb.flip();
+            ((Buffer)bb).flip();
 
-            invokeWebSocketProtocol(webSocket, bb.array(), 0, bb.limit());
+            invokeWebSocketProtocol(webSocket, ((ByteBuffer)bb).array(), 0, ((Buffer)bb).limit());
         } finally {
-            bb.clear();
+            ((Buffer)bb).clear();
         }
     }
 
@@ -825,35 +826,35 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         CharBuffer cb = webSocket.cb;
         try {
             while (read > -1) {
-                cb.position(cb.position() + read);
+                ((Buffer)cb).position(((Buffer)cb).position() + read);
                 if (cb.remaining() == 0) {
                     cb = resizeCharBuffer(webSocket);
                 }
-                read = r.read(cb.array(), cb.position(), cb.remaining());
+                read = r.read(cb.array(), ((Buffer)cb).position(), cb.remaining());
             }
-            cb.flip();
+            ((Buffer)cb).flip();
             invokeWebSocketProtocol(webSocket, cb.toString());
         } finally {
-            cb.clear();
+            ((Buffer)cb).clear();
         }
     }
 
     private ByteBuffer resizeByteBuffer(WebSocket webSocket) throws IOException {
         int maxSize = byteBufferMaxSize;
-        ByteBuffer bb = webSocket.bb;
-        if (bb.limit() >= maxSize) {
+        Buffer bb = webSocket.bb;
+        if (((Buffer)bb).limit() >= maxSize) {
             throw new IOException("Message Buffer too small. Use " + StreamingHttpProtocol.class.getName() + " when streaming over websocket.");
         }
 
-        long newSize = bb.limit() * 2;
+        long newSize = ((Buffer)bb).limit() * 2;
         if (newSize > maxSize) {
             newSize = maxSize;
         }
 
         // Cast is safe. newSize < maxSize and maxSize is an int
         ByteBuffer newBuffer = ByteBuffer.allocate((int) newSize);
-        bb.rewind();
-        newBuffer.put(bb);
+        ((Buffer)bb).rewind();
+        newBuffer.put((ByteBuffer)bb);
         webSocket.bb = newBuffer;
         return newBuffer;
     }
@@ -861,18 +862,18 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private CharBuffer resizeCharBuffer(WebSocket webSocket) throws IOException {
         int maxSize = charBufferMaxSize;
         CharBuffer cb = webSocket.cb;
-        if (cb.limit() >= maxSize) {
+        if (((Buffer)cb).limit() >= maxSize) {
             throw new IOException("Message Buffer too small. Use " + StreamingHttpProtocol.class.getName() + " when streaming over websocket.");
         }
 
-        long newSize = cb.limit() * 2;
+        long newSize = ((Buffer)cb).limit() * 2;
         if (newSize > maxSize) {
             newSize = maxSize;
         }
 
         // Cast is safe. newSize < maxSize and maxSize is an int
         CharBuffer newBuffer = CharBuffer.allocate((int) newSize);
-        cb.rewind();
+        ((Buffer)cb).rewind();
         newBuffer.put(cb);
         webSocket.cb = newBuffer;
         return newBuffer;
