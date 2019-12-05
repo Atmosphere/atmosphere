@@ -376,6 +376,12 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      */
     abstract public void close();
 
+    /**
+     * Allow the underlying WebSocket to close with a code and a reason.
+     */
+    public void close(int statusCode, String reasonText) {
+    }
+
     public String uuid() {
         return uuid;
     }
