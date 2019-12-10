@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Function;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY_TIMEOUT;
@@ -199,40 +200,33 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     }
 
     public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
-        synchronized (c) {
-            logger.trace("About to create {}", id);
-            if (unique && store.get(id) != null) {
-                throw new IllegalStateException("Broadcaster already exists " + id + ". Use BroadcasterFactory.lookup instead");
+        logger.trace("About to create {}", id);
+        T b = (T) store.get(id);
+        if (b != null) {
+            if (unique) {
+                throw new IllegalStateException(
+                        "Broadcaster already exists " + id + ". Use BroadcasterFactory.lookup instead");
             }
 
-            T b = (T) store.get(id);
-            logger.trace("Looking in the store using {} returned {}", id, b);
-            if (b != null && !c.isAssignableFrom(b.getClass())) {
-                String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
-                logger.debug(msg);
-                throw new IllegalStateException(msg);
+            if (b.isDestroyed()) {
+                logger.trace("Removing destroyed Broadcaster {}", b.getID());
+                store.remove(b.getID(), b);
+                createIfNull = true;
+            } else {
+                createIfNull = false;
             }
-
-            if ((b == null && createIfNull) || (b != null && b.isDestroyed())) {
-                if (b != null) {
-                    logger.trace("Removing destroyed Broadcaster {}", b.getID());
-                    store.remove(b.getID(), b);
-                }
-
-                Broadcaster nb = store.get(id);
-                if (nb == null) {
-                    nb = createBroadcaster(c, id);
-                    store.put(id, nb);
-                }
-
-                if (nb == null && logger.isTraceEnabled()) {
-                    logger.trace("Added Broadcaster {} . Factory size: {}", id, store.size());
-                }
-
-                b = (T) nb;
-            }
-            return b;
         }
+
+        if (createIfNull) {
+            b = (T) store.computeIfAbsent(id, new CreateBroacasterFunction(c));
+        }
+        
+        if (b != null && !c.isAssignableFrom(b.getClass())) {
+            String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
+            logger.debug(msg);
+            throw new IllegalStateException(msg);
+        }
+        return b;
     }
 
     @Deprecated
@@ -334,5 +328,23 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     @Override
     public Collection<BroadcasterListener> broadcasterListeners() {
         return broadcasterListeners;
+    }
+
+    private class CreateBroacasterFunction implements Function<Object, Broadcaster> {
+
+        private Class<? extends Broadcaster> c;
+
+        private CreateBroacasterFunction(Class<? extends Broadcaster> c) {
+            this.c = c;
+        }
+
+        @Override
+        public Broadcaster apply(Object id) {
+            Broadcaster b = createBroadcaster(c, id);
+            if (logger.isTraceEnabled()) {
+                logger.trace("Added Broadcaster {} . Factory size: {}", id, store.size());
+            }
+            return b;
+        }
     }
 }
