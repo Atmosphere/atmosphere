@@ -216,7 +216,10 @@ public class JSR356Endpoint extends Endpoint {
                 }
             }
 
-            List<String> cookieHeaders = handshakeHeaders.get("Cookie");
+            List<String> cookieHeaders = handshakeHeaders.get("cookie");
+            if (cookieHeaders == null) {
+                cookieHeaders = handshakeHeaders.get("Cookie");
+            }
             Set<Cookie> cookies = null;
             if (cookieHeaders != null) {
                 cookies = new HashSet<Cookie>();
