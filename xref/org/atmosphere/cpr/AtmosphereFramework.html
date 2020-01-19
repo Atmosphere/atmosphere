@@ -2024,7 +2024,7 @@
 <a class="jxr_linenumber" name="L2016" href="#L2016">2016</a>                         logger.info(<span class="jxr_string">"Installed AtmosphereInterceptor {} mapped to AtmosphereHandler {}"</span>, l, atmoHandler.getClassName());
 <a class="jxr_linenumber" name="L2017" href="#L2017">2017</a>                     }
 <a class="jxr_linenumber" name="L2018" href="#L2018">2018</a>                 }
-<a class="jxr_linenumber" name="L2019" href="#L2019">2019</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
+<a class="jxr_linenumber" name="L2019" href="#L2019">2020</a>             } <strong class="jxr_keyword">catch</strong> (Throwable t) {
 <a class="jxr_linenumber" name="L2020" href="#L2020">2020</a>                 logger.warn(<span class="jxr_string">"Unable to load AtmosphereHandler class: "</span> + atmoHandler.getClassName(), t);
 <a class="jxr_linenumber" name="L2021" href="#L2021">2021</a>                 <strong class="jxr_keyword">throw</strong> <strong class="jxr_keyword">new</strong> ServletException(t);
 <a class="jxr_linenumber" name="L2022" href="#L2022">2022</a>             }
