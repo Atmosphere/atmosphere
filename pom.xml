@@ -459,11 +459,11 @@
         <repository>
             <id>codehaus</id>
             <name>repository.codehaus.org</name>
-            <url>http://repository.codehaus.org</url>
+            <url>https://repository.codehaus.org</url>
         </repository>
         <repository>
             <id>codehaus-snapshots</id>
-            <url>http://snapshots.repository.codehaus.org</url>
+            <url>https://snapshots.repository.codehaus.org</url>
         </repository>
         <repository>
             <id>maven.java.net</id>
