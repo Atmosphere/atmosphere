@@ -55,9 +55,14 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
-        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        AtmosphereRequest request = ((AtmosphereResourceImpl) r).getRequest(false);
         String uuid = r.uuid();
         if (closeMessage(request)) {
+            if (config.resourcesFactory() == null || uuid == null ) {
+                logger.debug("Illegal state for uuid {} and AtmosphereResourceFactory {}", r.uuid(), config.resourcesFactory());
+                return Action.CANCELLED;
+            }
+
             AtmosphereResource ss = config.resourcesFactory().find(uuid);
 
             if (ss == null) {
@@ -65,14 +70,10 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
                 ss = r;
             }
 
-            if (ss == null) {
-                logger.debug("Was unable to execute onDisconnect on {}", r.uuid());
-                return Action.CONTINUE;
-            }
             logger.debug("AtmosphereResource {} disconnected", uuid);
 
             // Block websocket closing detection
-            AtmosphereResourceEventImpl.class.cast(ss.getAtmosphereResourceEvent()).isClosedByClient(true);
+            ((AtmosphereResourceEventImpl) ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
             p.completeLifecycle(ss, false);
             return Action.CANCELLED;
