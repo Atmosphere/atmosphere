@@ -39,14 +39,10 @@ import static org.atmosphere.util.Utils.closeMessage;
 public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(OnDisconnectInterceptor.class);
-    private AsynchronousProcessor p;
     private AtmosphereConfig config;
 
     @Override
     public void configure(AtmosphereConfig config) {
-        if (AsynchronousProcessor.class.isAssignableFrom(config.framework().getAsyncSupport().getClass())) {
-            p = AsynchronousProcessor.class.cast(config.framework().getAsyncSupport());
-        }
         this.config = config;
     }
 
@@ -75,7 +71,9 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
             // Block websocket closing detection
             ((AtmosphereResourceEventImpl) ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
-            p.completeLifecycle(ss, false);
+            if (AsynchronousProcessor.class.isAssignableFrom(config.framework().getAsyncSupport().getClass())) {
+                ((AsynchronousProcessor) config.framework().getAsyncSupport()).completeLifecycle(ss, false);
+            }
             return Action.CANCELLED;
         }
         return Action.CONTINUE;
