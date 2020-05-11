@@ -109,7 +109,7 @@ public class BroadcasterLifecyclePolicyTest {
     public void testIdle() throws IOException, ServletException, InterruptedException {
         B b = framework.getBroadcasterFactory().lookup(B.class, "/test", true);
         b.setBroadcasterLifeCyclePolicy(
-                new BroadcasterLifeCyclePolicy.Builder().policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE).idleTimeInMS(500).build());
+                new BroadcasterLifeCyclePolicy.Builder().policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE).idleTimeInMS(5000).build());
         b.latch = new CountDownLatch(1);
 
         AR ah = new AR();
@@ -117,7 +117,6 @@ public class BroadcasterLifecyclePolicyTest {
         framework.addAtmosphereHandler("/*", ah, b).init();
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        b.removeAtmosphereResource(ah.resource);
 
         b.latch.await();
 
@@ -129,7 +128,7 @@ public class BroadcasterLifecyclePolicyTest {
     public void testIdleDestroy() throws IOException, ServletException, InterruptedException {
         B b = framework.getBroadcasterFactory().lookup(B.class, "/test", true);
         b.setBroadcasterLifeCyclePolicy(
-                new BroadcasterLifeCyclePolicy.Builder().policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY).idleTimeInMS(500).build());
+                new BroadcasterLifeCyclePolicy.Builder().policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY).idleTimeInMS(5000).build());
         b.latch = new CountDownLatch(1);
 
         AR ah = new AR();
@@ -137,7 +136,6 @@ public class BroadcasterLifecyclePolicyTest {
         framework.addAtmosphereHandler("/*", ah, b).init();
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        b.removeAtmosphereResource(ah.resource);
 
         b.latch.await();
 
@@ -149,7 +147,7 @@ public class BroadcasterLifecyclePolicyTest {
     public void testIdleResume() throws IOException, ServletException, InterruptedException {
         B b = framework.getBroadcasterFactory().lookup(B.class, "/test", true);
         b.setBroadcasterLifeCyclePolicy(
-                new BroadcasterLifeCyclePolicy.Builder().policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME).idleTimeInMS(500).build());
+                new BroadcasterLifeCyclePolicy.Builder().policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME).idleTimeInMS(5000).build());
         b.latch = new CountDownLatch(1);
 
         AR ah = new AR();

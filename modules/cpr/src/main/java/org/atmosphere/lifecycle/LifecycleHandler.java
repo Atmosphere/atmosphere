@@ -24,8 +24,10 @@ import org.atmosphere.cpr.DefaultBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.Collection;
 import java.util.concurrent.Future;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
@@ -38,11 +40,13 @@ public class LifecycleHandler {
     private static final Logger logger = LoggerFactory.getLogger(LifecycleHandler.class);
 
     public LifecycleHandler on(final DefaultBroadcaster broadcaster) {
-
         final BroadcasterLifeCyclePolicy lifeCyclePolicy = broadcaster.getBroadcasterLifeCyclePolicy();
-        final BroadcasterConfig bc = broadcaster.getBroadcasterConfig();
-        final Collection<AtmosphereResource>  resources = broadcaster.getAtmosphereResources();
+        if (broadcaster.getID().contains("{") && broadcaster.getID().contains("}")) {
+            logger.trace("Ignoring wildcard {} with lifecycle policy: {}", broadcaster.getID(), lifeCyclePolicy.getLifeCyclePolicy().name());
+            return this;
+        }
 
+        final BroadcasterConfig bc = broadcaster.getBroadcasterConfig();
         final AtomicBoolean recentActivity = broadcaster.recentActivity();
 
         if (logger.isTraceEnabled()) {
@@ -53,7 +57,8 @@ public class LifecycleHandler {
             broadcaster.currentLifecycleTask().cancel(false);
         }
 
-        if (bc != null && bc.getScheduledExecutorService() == null) {
+        ScheduledExecutorService scheduler = bc.getScheduledExecutorService();
+        if (scheduler == null) {
             logger.error("No Broadcaster's SchedulerExecutorService has been configured on {}. BroadcasterLifeCyclePolicy won't work.", broadcaster.getID());
             return this;
         }
@@ -69,7 +74,8 @@ public class LifecycleHandler {
                 throw new IllegalStateException("BroadcasterLifeCyclePolicy time is not set");
             }
 
-            Future<?> currentLifecycleTask = bc.getScheduledExecutorService().scheduleAtFixedRate(new Runnable() {
+            logger.debug("{} new lifecycle policy: {} [expire {} in {}]", broadcaster.getID(), lifeCyclePolicy.getLifeCyclePolicy().name(), time, lifeCyclePolicy.getLifeCyclePolicy());
+            Future<?> currentLifecycleTask = scheduler.scheduleAtFixedRate(new Runnable() {
 
                 @Override
                 public void run() {
@@ -78,23 +84,19 @@ public class LifecycleHandler {
                         // Check for activity since the last execution.
                         if (recentActivity.getAndSet(false)) {
                             return;
-                        } else if (resources.isEmpty()) {
-                            if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE) {
-                                notifyEmptyListener(broadcaster);
-                                notifyIdleListener(broadcaster);
+                        } else if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE) {
+                            notifyIdleListener(broadcaster);
 
-                                broadcaster.releaseExternalResources();
-                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy to Broadcaster {}", broadcaster.getID());
-                                if (broadcaster.currentLifecycleTask() != null) {
-                                    broadcaster.currentLifecycleTask().cancel(true);
-                                }
-                            } else if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY) {
-                                notifyEmptyListener(broadcaster);
-                                notifyIdleListener(broadcaster);
-
-                                destroy(false);
-                                logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_DESTROY policy to Broadcaster {}", broadcaster.getID());
+                            broadcaster.releaseExternalResources();
+                            logger.debug("Applying BroadcasterLifeCyclePolicy IDLE policy to Broadcaster {}", broadcaster.getID());
+                            if (broadcaster.currentLifecycleTask() != null) {
+                                broadcaster.currentLifecycleTask().cancel(true);
                             }
+                        } else if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY) {
+                            notifyIdleListener(broadcaster);
+
+                            destroy(false);
+                            logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_DESTROY policy to Broadcaster {}", broadcaster.getID());
                         } else if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE_RESUME) {
                             notifyIdleListener(broadcaster);
 
@@ -110,12 +112,19 @@ public class LifecycleHandler {
                     }
                 }
 
-
                 void destroy(boolean resume) {
 
                     if (resume) {
                         logger.info("All AtmosphereResource will now be resumed from Broadcaster {}", broadcaster.getID());
                         broadcaster.resumeAll();
+                    } else {
+                        broadcaster.getAtmosphereResources().parallelStream().forEach(f -> {
+                            try {
+                                f.close();
+                            } catch (IOException e) {
+                                logger.trace("", e);
+                            }
+                        });
                     }
 
                     broadcaster.destroy();
@@ -136,7 +145,7 @@ public class LifecycleHandler {
 
     public LifecycleHandler offIfEmpty(DefaultBroadcaster broadcaster) {
         BroadcasterConfig bc = broadcaster.getBroadcasterConfig();
-        Collection<AtmosphereResource>  resources = broadcaster.getAtmosphereResources();
+        Collection<AtmosphereResource> resources = broadcaster.getAtmosphereResources();
         final BroadcasterLifeCyclePolicy lifeCyclePolicy = broadcaster.getBroadcasterLifeCyclePolicy();
 
         if (resources.isEmpty()) {
@@ -170,13 +179,13 @@ public class LifecycleHandler {
     }
 
     protected void notifyDestroyListener(DefaultBroadcaster broadcaster) {
-            for (BroadcasterLifeCyclePolicyListener b : broadcaster.lifeCycleListeners()) {
+        for (BroadcasterLifeCyclePolicyListener b : broadcaster.lifeCycleListeners()) {
             b.onDestroy();
         }
     }
 
     protected void notifyEmptyListener(DefaultBroadcaster broadcaster) {
-            for (BroadcasterLifeCyclePolicyListener b : broadcaster.lifeCycleListeners()) {
+        for (BroadcasterLifeCyclePolicyListener b : broadcaster.lifeCycleListeners()) {
             b.onEmpty();
         }
     }
