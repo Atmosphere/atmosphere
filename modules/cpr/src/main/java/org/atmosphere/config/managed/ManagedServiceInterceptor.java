@@ -48,7 +48,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                     ManagedAnnotation a = managed(ap, request.resource());
                     if (a != null) {
                         String targetPath = a.path();
-                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                        if (targetPath.contains("{") && targetPath.contains("}")) {
                             try {
                                 boolean singleton = ap.target().getClass().getAnnotation(Singleton.class) != null;
                                 if (!singleton) {
