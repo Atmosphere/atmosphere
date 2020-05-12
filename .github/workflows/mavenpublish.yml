@@ -5,6 +5,7 @@ name: Maven Package
 
 on:
   release:
+    branches: atmosphere-2.6.x
     types: [created]
 
 jobs:
