@@ -28,7 +28,9 @@ import org.atmosphere.cpr.Meteor;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.inject.InjectableObjectFactory;
+import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
+import org.atmosphere.websocket.WebSocketProcessor.WebSocketHandlerProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,27 +56,26 @@ public final class Utils {
     /**
      * The logger.
      */
-    private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+    private static Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 
-    public final static boolean webSocketEnabled(HttpServletRequest request) {
+    public static boolean webSocketEnabled(HttpServletRequest request) {
 
         if (closeMessage(request) || !webSocketQueryStringPresentOrNull(request)) return false;
 
-        boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
+        boolean allowWebSocketWithoutHeaders = request.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null;
         if (allowWebSocketWithoutHeaders) return true;
-        boolean webSocketEnabled = rawWebSocket(request);
 
-        return webSocketEnabled;
+        return rawWebSocket(request);
     }
 
-    public final static boolean rawWebSocket(HttpServletRequest request) {
+    public static boolean rawWebSocket(HttpServletRequest request) {
         Enumeration<String> connection = request.getHeaders("Connection");
         if (connection == null || !connection.hasMoreElements()) {
             connection = request.getHeaders("connection");
         }
 
         if (connection != null && connection.hasMoreElements()) {
-            String[] e = connection.nextElement().toString().split(",");
+            String[] e = connection.nextElement().split(",");
             for (String upgrade : e) {
                 if (upgrade.trim().equalsIgnoreCase(WEBSOCKET_UPGRADE)) {
                     return true;
@@ -84,15 +85,15 @@ public final class Utils {
         return false;
     }
 
-    public final static boolean firefoxWebSocketEnabled(HttpServletRequest request) {
+    public static boolean firefoxWebSocketEnabled(HttpServletRequest request) {
         return webSocketEnabled(request)
                 && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL) != null
                 && request.getHeader(HeaderConfig.X_ATMO_PROTOCOL).equals("true")
                 && request.getHeader("User-Agent") != null
-                && request.getHeader("User-Agent").toLowerCase().indexOf("firefox") != -1;
+                && request.getHeader("User-Agent").toLowerCase().contains("firefox");
     }
 
-    public final static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
+    public static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case JSONP:
             case LONG_POLLING:
@@ -106,7 +107,7 @@ public final class Utils {
         }
     }
 
-    public final static boolean webSocketQueryStringPresentOrNull(HttpServletRequest request) {
+    public static boolean webSocketQueryStringPresentOrNull(HttpServletRequest request) {
         String transport = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         if (transport == null) {
             // ignore so other framework client can work
@@ -116,7 +117,7 @@ public final class Utils {
         }
     }
 
-    public final static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
+    public static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case JSONP:
             case LONG_POLLING:
@@ -126,7 +127,7 @@ public final class Utils {
         }
     }
 
-    public final static boolean pollableTransport(AtmosphereResource.TRANSPORT t) {
+    public static boolean pollableTransport(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case POLLING:
             case CLOSE:
@@ -137,7 +138,7 @@ public final class Utils {
         }
     }
 
-    public final static boolean pushMessage(AtmosphereResource.TRANSPORT t) {
+    public static boolean pushMessage(AtmosphereResource.TRANSPORT t) {
         switch (t) {
             case POLLING:
             case UNDEFINED:
@@ -148,13 +149,13 @@ public final class Utils {
         }
     }
 
-    public final static boolean atmosphereProtocol(AtmosphereRequest r) {
+    public static boolean atmosphereProtocol(AtmosphereRequest r) {
         String p = r.getHeader(HeaderConfig.X_ATMO_PROTOCOL);
-        return (p != null && Boolean.valueOf(p));
+        return (Boolean.parseBoolean(p));
     }
 
-    public final static boolean webSocketMessage(AtmosphereResource r) {
-        AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+    public static boolean webSocketMessage(AtmosphereResource r) {
+        AtmosphereRequest request = ((AtmosphereResourceImpl) r).getRequest(false);
         return request.getAttribute(FrameworkConfig.WEBSOCKET_MESSAGE) != null;
     }
 
@@ -167,18 +168,19 @@ public final class Utils {
         boolean isOK = false;
         boolean isWebSocket = (request.getHeader("sec-websocket-version") != null || request.getHeader("Sec-WebSocket-Draft") != null);
         if (connection != null && connection.hasMoreElements()) {
-            String[] e = connection.nextElement().toString().split(",");
+            String[] e = connection.nextElement().split(",");
             for (String upgrade : e) {
                 if (upgrade.trim().equalsIgnoreCase("upgrade")) {
                     isOK = true;
+                    break;
                 }
             }
         }
-        return isWebSocket ? isOK : true;
+        return !isWebSocket || isOK;
     }
 
-    public static final AtmosphereResource websocketResource(AtmosphereResource r) {
-        String parentUUID = (String) AtmosphereResourceImpl.class.cast(r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
+    public static AtmosphereResource websocketResource(AtmosphereResource r) {
+        String parentUUID = (String) ((AtmosphereResourceImpl) r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
         if (parentUUID != null) {
             AtmosphereResource resource = r.getAtmosphereConfig().resourcesFactory().find(parentUUID);
             if (resource != null) {
@@ -188,7 +190,7 @@ public final class Utils {
         return r;
     }
 
-    public static final boolean closeMessage(HttpServletRequest request) {
+    public static boolean closeMessage(HttpServletRequest request) {
         String s = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRANSPORT);
         return s != null && s.equalsIgnoreCase(HeaderConfig.DISCONNECT_TRANSPORT_MESSAGE);
     }
@@ -207,9 +209,7 @@ public final class Utils {
         if (m != null) {
             try {
                 return m.invoke(proxiedInstance, (o == null || m.getParameterTypes().length == 0) ? new Object[]{} : new Object[]{o});
-            } catch (IllegalAccessException e) {
-                LOGGER.debug("", e);
-            } catch (InvocationTargetException e) {
+            } catch (IllegalAccessException | InvocationTargetException e) {
                 LOGGER.debug("", e);
             }
         }
@@ -217,7 +217,7 @@ public final class Utils {
         return null;
     }
 
-    public static final void inject(AtmosphereResource r) throws IllegalAccessException {
+    public static void inject(AtmosphereResource r) throws IllegalAccessException {
         AtmosphereConfig config = r.getAtmosphereConfig();
 
         // No Injectable supports Injection
@@ -225,7 +225,7 @@ public final class Utils {
             return;
         }
 
-        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+        AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
         if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
             return;
         }
@@ -236,18 +236,23 @@ public final class Utils {
         }
     }
 
-    public static final void inject(Object object, Class clazz, AtmosphereResource r) throws IllegalAccessException {
-        InjectableObjectFactory.class.cast(r.getAtmosphereConfig().framework().objectFactory()).requestScoped(object, clazz, r);
+    public static void inject(Object object, Class<?> clazz, AtmosphereResource r) throws IllegalAccessException {
+        ((InjectableObjectFactory) r.getAtmosphereConfig().framework().objectFactory()).requestScoped(object, clazz, r);
     }
 
-    public static final void inject(Object object, Class clazz, AtmosphereConfig config) throws IllegalAccessException {
-        InjectableObjectFactory.class.cast(config.framework().objectFactory()).requestScoped(object, clazz);
+    public static void inject(Object object, Class<?> clazz, AtmosphereConfig config) throws IllegalAccessException {
+        ((InjectableObjectFactory) config.framework().objectFactory()).requestScoped(object, clazz);
     }
 
-    private static final Object injectWith(AtmosphereResource r) {
+    private static Object injectWith(AtmosphereResource r) {
         AtmosphereHandler h = r.getAtmosphereHandler();
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
-            return WebSocketProcessor.WebSocketHandlerProxy.class.cast(AtmosphereResourceImpl.class.cast(r).webSocket().webSocketHandler()).proxied();
+            WebSocket w = ((AtmosphereResourceImpl) r).webSocket();
+            if (w != null &&  w.webSocketHandler() instanceof WebSocketHandlerProxy) {
+                return ((WebSocketHandlerProxy) w.webSocketHandler()).proxied();
+            } else {
+                return null;
+            }
         } else {
             return injectWith(h);
         }
@@ -255,16 +260,16 @@ public final class Utils {
 
     private static Object injectWith(AtmosphereHandler h) {
         if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
-            return AnnotatedProxy.class.cast(h).target();
+            return ((AnnotatedProxy) h).target();
         } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
-            return ReflectorServletProcessor.class.cast(h).getServlet();
+            return ((ReflectorServletProcessor) h).getServlet();
         } else {
             return h;
         }
     }
 
-    public final static Set<Field> getInheritedPrivateFields(Class<?> type) {
-        Set<Field> result = new HashSet<Field>();
+    public static Set<Field> getInheritedPrivateFields(Class<?> type) {
+        Set<Field> result = new HashSet<>();
 
         Class<?> i = type;
         while (i != null && i != Object.class) {
@@ -279,7 +284,7 @@ public final class Utils {
         return result;
     }
 
-    public final static Set<Method> getInheritedPrivateMethod(Class<?> type) {
+    public static Set<Method> getInheritedPrivateMethod(Class<?> type) {
         Set<Method> result = new HashSet<>();
 
         Class<?> i = type;
@@ -295,15 +300,15 @@ public final class Utils {
         return result;
     }
 
-    public final static boolean requestScopedInjection(AtmosphereConfig config, AtmosphereHandler h) {
-        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+    public static boolean requestScopedInjection(AtmosphereConfig config, AtmosphereHandler h) {
+        AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
         if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
             return false;
         }
 
         try {
             Object obj = injectWith(h);
-            return obj == null ? false : InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(obj.getClass());
+            return obj != null && ((InjectableObjectFactory) config.framework().objectFactory()).needRequestScoped(obj.getClass());
         } catch (Exception e) {
             LOGGER.error("", e);
             return false;
@@ -312,30 +317,26 @@ public final class Utils {
 
     /**
      * Inject custom object. This method is mostly for external framework.
-     *
-     * @param config
-     * @param o
-     * @return
      */
-    public static final boolean requestScopedInjection(AtmosphereConfig config, Object o) {
-        AtmosphereObjectFactory injectableFactory = config.framework().objectFactory();
+    public static boolean requestScopedInjection(AtmosphereConfig config, Object o) {
+        AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
         if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
             return false;
         }
 
         try {
-            return InjectableObjectFactory.class.cast(config.framework().objectFactory()).needRequestScoped(o.getClass());
+            return ((InjectableObjectFactory) config.framework().objectFactory()).needRequestScoped(o.getClass());
         } catch (Exception var4) {
             LOGGER.error("", var4);
             return false;
         }
     }
 
-    public final static void destroyMeteor(AtmosphereRequest req) {
+    public static void destroyMeteor(AtmosphereRequest req) {
         try {
             Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
             if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
-                Meteor.class.cast(o).destroy();
+                ((Meteor) o).destroy();
             }
         } catch (Exception ex) {
             LOGGER.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);
@@ -344,7 +345,7 @@ public final class Utils {
 
     public static String pathInfo(AtmosphereRequest request) {
         String pathInfo = null;
-        String path = null;
+        String path;
         try {
             pathInfo = request.getPathInfo();
         } catch (IllegalStateException ex) {
