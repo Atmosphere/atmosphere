@@ -128,7 +128,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         // Server
         String s = config.getInitParameter(HEARTBEAT_INTERVAL_IN_SECONDS);
         if (s != null) {
-            heartbeatFrequencyInSeconds = Integer.valueOf(s);
+            heartbeatFrequencyInSeconds = Integer.parseInt(s);
         }
 
         // Server
@@ -144,12 +144,12 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         // Client
         s = config.getInitParameter(CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS);
         if (s != null) {
-            clientHeartbeatFrequencyInSeconds = Integer.valueOf(s);
+            clientHeartbeatFrequencyInSeconds = Integer.parseInt(s);
         }
 
         s = config.getInitParameter(FLUSH_BUFFER_HEARTBEAT);
         if (s != null) {
-            flushBuffer = Boolean.valueOf(s);
+            flushBuffer = Boolean.parseBoolean(s);
         }
 
         heartBeat = ExecutorsFactory.getScheduler(config);
