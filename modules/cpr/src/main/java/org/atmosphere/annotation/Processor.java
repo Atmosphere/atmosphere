@@ -30,6 +30,6 @@ public interface Processor<T> {
      * @param framework      the {@link org.atmosphere.cpr.AtmosphereFramework}
      * @param annotatedClass the annotated classes.
      */
-    public void handle(final AtmosphereFramework framework, final Class<T> annotatedClass);
+    void handle(final AtmosphereFramework framework, final Class<T> annotatedClass);
 
 }

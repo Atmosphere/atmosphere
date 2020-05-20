@@ -50,7 +50,7 @@ public class WebSocketHandlerServiceProcessor implements Processor<WebSocketHand
             framework.setDefaultBroadcasterClassName(m.broadcaster().getName());
             filters(m.broadcastFilters(), framework);
 
-            final LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            final LinkedList<AtmosphereInterceptor> l = new LinkedList<>();
 
             AtmosphereInterceptor aa = listeners(m.listeners(), framework);
             if (aa != null) {

@@ -46,11 +46,11 @@ public class AtmosphereHandlerServiceProcessor implements Processor<AtmosphereHa
             atmosphereConfig(a.atmosphereConfig(), framework);
             filters(a.broadcastFilters(), framework);
 
-            Class<?>[] interceptors = a.interceptors();
+            Class<? extends AtmosphereInterceptor>[] interceptors = a.interceptors();
             LinkedList<AtmosphereInterceptor> l = new LinkedList<>();
-            for (Class i : interceptors) {
+            for (Class<? extends AtmosphereInterceptor> i : interceptors) {
                 try {
-                    AtmosphereInterceptor ai = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereHandler.class, i);
+                    AtmosphereInterceptor ai = framework.newClassInstance(AtmosphereInterceptor.class, i);
                     l.add(ai);
                 } catch (Throwable e) {
                     logger.warn("", e);

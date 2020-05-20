@@ -46,42 +46,39 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     private final Logger logger = LoggerFactory.getLogger(AbstractBroadcasterCache.class);
 
-    protected final List<CacheMessage> messages = new LinkedList<CacheMessage>();
-    protected final Set<String> messagesIds = new HashSet<String>();
+    protected final List<CacheMessage> messages = new LinkedList<>();
+    protected final Set<String> messagesIds = new HashSet<>();
     protected final ReadWriteLock readWriteLock = new ReentrantReadWriteLock();
-    protected ScheduledFuture scheduledFuture;
+    protected ScheduledFuture<?> scheduledFuture;
     protected long maxCacheTime = TimeUnit.MINUTES.toMillis(2); // 2 minutes
     protected long invalidateCacheInterval = TimeUnit.MINUTES.toMillis(1); // 1 minute
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     protected boolean isShared;
-    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
-    protected final List<Object> emptyList = Collections.<Object>emptyList();
-    protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
+    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<>();
+    protected final List<Object> emptyList = Collections.emptyList();
+    protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
     protected AtmosphereConfig config;
 
     @Override
     public void start() {
-        scheduledFuture = reaper.scheduleAtFixedRate(new Runnable() {
+        scheduledFuture = reaper.scheduleAtFixedRate(() -> {
+            readWriteLock.writeLock().lock();
+            try {
+                long now = System.nanoTime();
+                List<CacheMessage> expiredMessages = new ArrayList<>();
 
-            public void run() {
-                readWriteLock.writeLock().lock();
-                try {
-                    long now = System.nanoTime();
-                    List<CacheMessage> expiredMessages = new ArrayList<CacheMessage>();
-
-                    for (CacheMessage message : messages) {
-                        if (TimeUnit.NANOSECONDS.toMillis(now - message.getCreateTime()) > maxCacheTime) {
-                            expiredMessages.add(message);
-                        }
+                for (CacheMessage message : messages) {
+                    if (TimeUnit.NANOSECONDS.toMillis(now - message.getCreateTime()) > maxCacheTime) {
+                        expiredMessages.add(message);
                     }
-
-                    for (CacheMessage expiredMessage : expiredMessages) {
-                        messages.remove(expiredMessage);
-                        messagesIds.remove(expiredMessage.getId());
-                    }
-                } finally {
-                    readWriteLock.writeLock().unlock();
                 }
+
+                for (CacheMessage expiredMessage : expiredMessages) {
+                    messages.remove(expiredMessage);
+                    messagesIds.remove(expiredMessage.getId());
+                }
+            } finally {
+                readWriteLock.writeLock().unlock();
             }
         }, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
     }
@@ -105,7 +102,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected CacheMessage put(BroadcastMessage message, Long now, String uuid) {
         if (!inspect(message)) return null;
 
-        logger.trace("Caching message {} for Broadcaster {}", message.message());
+        logger.trace("Caching message {} for Broadcaster {}", message.message(), uuid);
 
         readWriteLock.writeLock().lock();
         CacheMessage cacheMessage = null;
@@ -123,7 +120,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     }
 
     protected List<Object> get(long cacheHeaderTime) {
-        List<Object> result = new ArrayList<Object>();
+        List<Object> result = new ArrayList<>();
         readWriteLock.readLock().lock();
         try {
             for (CacheMessage cacheMessage : messages) {

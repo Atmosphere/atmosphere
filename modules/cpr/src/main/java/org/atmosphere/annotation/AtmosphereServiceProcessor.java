@@ -47,15 +47,14 @@ public class AtmosphereServiceProcessor implements Processor<Object> {
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
         try {
-            Class<?> aClass = annotatedClass;
-            AtmosphereService a = aClass.getAnnotation(AtmosphereService.class);
+            AtmosphereService a = annotatedClass.getAnnotation(AtmosphereService.class);
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
 
             atmosphereConfig(a.atmosphereConfig(), framework);
             framework.setDefaultBroadcasterClassName(a.broadcaster().getName());
             filters(a.broadcastFilters(), framework);
 
-            LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            LinkedList<AtmosphereInterceptor> l = new LinkedList<>();
             AtmosphereInterceptor aa = listeners(a.listeners(), framework);
             if (aa != null) {
                 l.add(aa);

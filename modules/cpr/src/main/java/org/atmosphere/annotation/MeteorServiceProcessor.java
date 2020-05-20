@@ -43,7 +43,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
         try {
             ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
             r.setServletClassName(annotatedClass.getName());
-            LinkedList<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            LinkedList<AtmosphereInterceptor> l = new LinkedList<>();
 
             MeteorService m = annotatedClass.getAnnotation(MeteorService.class);
             framework.setBroadcasterCacheClassName(m.broadcasterCache().getName());

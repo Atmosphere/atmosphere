@@ -48,7 +48,7 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public List<Object> retrieveFromCache(String id, String uuid) {
-        return Collections.<Object>emptyList();
+        return Collections.emptyList();
     }
 
     @Override

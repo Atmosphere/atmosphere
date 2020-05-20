@@ -43,11 +43,10 @@ public class ManagedServiceProcessor implements Processor<Object> {
     @Override
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
         try {
-            Class<?> aClass = annotatedClass;
-            ManagedService a = aClass.getAnnotation(ManagedService.class);
+            ManagedService a = annotatedClass.getAnnotation(ManagedService.class);
             framework.setBroadcasterCacheClassName(a.broadcasterCache().getName());
 
-            List<AtmosphereInterceptor> l = new LinkedList<AtmosphereInterceptor>();
+            List<AtmosphereInterceptor> l = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, l);
 
             atmosphereConfig(a.atmosphereConfig(), framework);
@@ -58,7 +57,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
                 l.add(aa);
             }
 
-            Object c = framework.newClassInstance(Object.class, aClass);
+            Object c = framework.newClassInstance(Object.class, annotatedClass);
             AtmosphereHandler handler = framework.newClassInstance(ManagedAtmosphereHandler.class,
                     ManagedAtmosphereHandler.class).configure(framework.getAtmosphereConfig(), c);
 
@@ -66,7 +65,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
                 @Override
                 public Object unwrap(Object o) {
                     if (o != null && ManagedAtmosphereHandler.Managed.class.isAssignableFrom(o.getClass())) {
-                        o = ManagedAtmosphereHandler.Managed.class.cast(o).object();
+                        o = ((ManagedAtmosphereHandler.Managed) o).object();
                     }
                     return o;
                 }

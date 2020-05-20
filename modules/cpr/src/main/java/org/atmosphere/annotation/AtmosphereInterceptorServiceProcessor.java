@@ -17,7 +17,6 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AtmosphereInterceptorService;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.slf4j.Logger;
@@ -31,13 +30,8 @@ public class AtmosphereInterceptorServiceProcessor implements Processor<Atmosphe
     @Override
     public void handle(final AtmosphereFramework framework, Class<AtmosphereInterceptor> annotatedClass) {
         try {
-            final AtmosphereInterceptor a = (AtmosphereInterceptor) framework.newClassInstance(AtmosphereInterceptor.class, annotatedClass);
-            framework.getAtmosphereConfig().startupHook(new AtmosphereConfig.StartupHook() {
-                @Override
-                public void started(AtmosphereFramework framework) {
-                    framework.interceptor(a);
-                }
-            });
+            final AtmosphereInterceptor a = framework.newClassInstance(AtmosphereInterceptor.class, annotatedClass);
+            framework.getAtmosphereConfig().startupHook(framework1 -> framework1.interceptor(a));
         } catch (Throwable e) {
             logger.warn("", e);
         }

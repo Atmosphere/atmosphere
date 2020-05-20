@@ -53,17 +53,20 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     private final static Logger logger = LoggerFactory.getLogger(UUIDBroadcasterCache.class);
 
-    private final Map<String, ClientQueue> messages = new ConcurrentHashMap<String, ClientQueue>();
-    private final Map<String, Long> activeClients = new ConcurrentHashMap<String, Long>();
-    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<BroadcasterCacheInspector>();
-    private ScheduledFuture scheduledFuture;
+    private final Map<String, ClientQueue> messages = new ConcurrentHashMap<>();
+    private final Map<String, Long> activeClients = new ConcurrentHashMap<>();
+    protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<>();
+    private ScheduledFuture<?> scheduledFuture;
     protected ScheduledExecutorService taskScheduler;
     private long clientIdleTime = TimeUnit.SECONDS.toMillis(60); // 1 minutes
     private long invalidateCacheInterval = TimeUnit.SECONDS.toMillis(30); // 30 seconds
     private boolean shared = true;
-    protected final List<Object> emptyList = Collections.<Object>emptyList();
-    protected final List<BroadcasterCacheListener> listeners = new LinkedList<BroadcasterCacheListener>();
+    protected final List<Object> emptyList = Collections.emptyList();
+    protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
     private UUIDProvider uuidProvider;
+
+    public UUIDBroadcasterCache() {
+    }
 
     /**
      * This class wraps all messages to be delivered to a client. The class is thread safe to be accessed in a
@@ -72,8 +75,8 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     public final static class ClientQueue implements Serializable {
         private static final long serialVersionUID = -126253550299206646L;
 
-        private final ConcurrentLinkedQueue<CacheMessage> queue = new ConcurrentLinkedQueue<CacheMessage>();
-        private final Set<String> ids = Collections.synchronizedSet(new HashSet<String>());
+        private final ConcurrentLinkedQueue<CacheMessage> queue = new ConcurrentLinkedQueue<>();
+        private final Set<String> ids = Collections.synchronizedSet(new HashSet<>());
 
         public ConcurrentLinkedQueue<CacheMessage> getQueue() {
             return queue;
@@ -103,22 +106,17 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
 
         clientIdleTime = TimeUnit.SECONDS.toMillis(
-                Long.valueOf(config.getInitParameter(UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
+                Long.parseLong(config.getInitParameter(UUIDBROADCASTERCACHE_CLIENT_IDLETIME, "60")));
 
         invalidateCacheInterval = TimeUnit.SECONDS.toMillis(
-                Long.valueOf(config.getInitParameter(UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
+                Long.parseLong(config.getInitParameter(UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
 
         uuidProvider = config.uuidProvider();
     }
 
     @Override
     public void start() {
-        scheduledFuture = taskScheduler.scheduleWithFixedDelay(new Runnable() {
-            @Override
-            public void run() {
-                invalidateExpiredEntries();
-            }
-        }, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
+        scheduledFuture = taskScheduler.scheduleWithFixedDelay(this::invalidateExpiredEntries, 0, invalidateCacheInterval, TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -156,7 +154,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             cache = false;
         }
 
-        CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid);;
+        CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid);
         if (cache) {
             if (uuid.equals(NULL)) {
                 //no clients are connected right now, caching message for all active clients
@@ -174,7 +172,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     @Override
     public List<Object> retrieveFromCache(String broadcasterId, String uuid) {
 
-        List<Object> result = new ArrayList<Object>();
+        List<Object> result = new ArrayList<>();
 
         ClientQueue clientQueue;
         cacheCandidate(broadcasterId, uuid);
@@ -310,7 +308,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected void invalidateExpiredEntries() {
         long now = System.currentTimeMillis();
 
-        Set<String> inactiveClients = new HashSet<String>();
+        Set<String> inactiveClients = new HashSet<>();
         for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
             if (now - entry.getValue() > clientIdleTime) {
                 logger.trace("Invalidate client {}", entry.getKey());

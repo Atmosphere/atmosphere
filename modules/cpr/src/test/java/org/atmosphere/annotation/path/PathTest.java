@@ -37,6 +37,7 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.WebSocketProcessorFactory;
+import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
@@ -301,7 +302,7 @@ public class PathTest {
     }
 
     @Singleton
-    @AtmosphereHandlerService(path = "/singleton/atmospherehandler/{g}")
+    @AtmosphereHandlerService(path = "/singleton/atmospherehandler/{g}", interceptors = {OnDisconnectInterceptor.class})
     public final static class SingletonAtmosphereHandlerPath implements AtmosphereHandler {
 
         public SingletonAtmosphereHandlerPath() {

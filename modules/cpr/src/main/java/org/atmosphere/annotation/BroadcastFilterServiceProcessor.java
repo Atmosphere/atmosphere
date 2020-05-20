@@ -30,7 +30,7 @@ public class BroadcastFilterServiceProcessor implements Processor<BroadcastFilte
     @Override
     public void handle(AtmosphereFramework framework, Class<BroadcastFilter> annotatedClass) {
         try {
-            framework.broadcasterFilters((BroadcastFilter) framework.newClassInstance(BroadcastFilter.class, annotatedClass));
+            framework.broadcasterFilters(framework.newClassInstance(BroadcastFilter.class, annotatedClass));
         } catch (Exception e) {
             logger.warn("", e);
         }
