@@ -18,7 +18,6 @@ package org.atmosphere.config.managed;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.List;
 
@@ -48,11 +47,7 @@ public class Invoker {
         try {
             objectToEncode = method.invoke(objectToInvoke, method.getParameterTypes().length == 0 ? new Object[]{} : parameters);
             hasMatch = true;
-        } catch (IllegalAccessException e) {
-            logger.trace("", e);
-        } catch (InvocationTargetException e) {
-            logger.error("", e);
-        } catch (java.lang.IllegalArgumentException e) {
+        } catch (IllegalAccessException | IllegalArgumentException e) {
             logger.trace("", e);
         } catch (Throwable e) {
             logger.error("", e);

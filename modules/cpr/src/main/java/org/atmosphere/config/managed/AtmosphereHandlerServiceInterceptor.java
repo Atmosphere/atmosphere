@@ -45,7 +45,7 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
                 if (m != null) {
                     try {
                         String targetPath = m.path();
-                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                        if (targetPath.contains("{") && targetPath.contains("}")) {
                             boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
                             AtmosphereHandler newW = w.atmosphereHandler;
 
@@ -55,7 +55,7 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
 
                             request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
 
-                            AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(newW);
+                            ((AtmosphereResourceImpl) request.resource()).atmosphereHandler(newW);
 
                             config.framework().addAtmosphereHandler(path, newW,
                                     config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
