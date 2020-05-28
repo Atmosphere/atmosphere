@@ -79,7 +79,7 @@ public class JSR356Endpoint extends Endpoint {
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.valueOf(s);
+            webSocketWriteTimeout = Integer.parseInt(s);
         } else {
             webSocketWriteTimeout = -1;
         }
@@ -125,7 +125,7 @@ public class JSR356Endpoint extends Endpoint {
 
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
-        Map<String, String> headers = new HashMap<String, String>();
+        Map<String, String> headers = new HashMap<>();
         // TODO: We don't support multi map header, which cause => https://github.com/Atmosphere/atmosphere/issues/1945
         for (Map.Entry<String, List<String>> e : handshakeHeaders.entrySet()) {
             headers.put(e.getKey(), !e.getValue().isEmpty() ? e.getValue().get(0) : "");
@@ -161,7 +161,7 @@ public class JSR356Endpoint extends Endpoint {
                 pathInfoStartIndex = 2;
             }
             ///contextPath / servletPath / pathInfo or / servletPath / pathInfo
-            StringBuffer b = new StringBuffer("/");
+            StringBuilder b = new StringBuilder("/");
             for (int i = 0; i < paths.length; i++) {
                 if (i >= pathInfoStartIndex) {
                     b.append(paths[i]).append("/");
@@ -205,10 +205,10 @@ public class JSR356Endpoint extends Endpoint {
                     if (origin == null || origin.equalsIgnoreCase("null")) {
                         // Broken WebSocket Spec
                         logger.trace("Unable to retrieve the `origin` header for websocket {}", session);
-                        origin = new StringBuilder("http").append(session.isSecure() ? "s" : "").append("://0.0.0.0:80").toString();
+                        origin = "http" + (session.isSecure() ? "s" : "") + "://0.0.0.0:80";
                     }
 
-                    requestURL = new StringBuilder(origin).append(requestURL).toString();
+                    requestURL = origin + requestURL;
                 } else if (requestURL.startsWith("ws://")) {
                     requestURL = requestURL.replace("ws://", "http://");
                 } else if (requestURL.startsWith("wss://")) {
@@ -222,7 +222,7 @@ public class JSR356Endpoint extends Endpoint {
             }
             Set<Cookie> cookies = null;
             if (cookieHeaders != null) {
-                cookies = new HashSet<Cookie>();
+                cookies = new HashSet<>();
                 for (String cookieHeader : cookieHeaders)
                     cookies.addAll(CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader));
             }
@@ -238,18 +238,8 @@ public class JSR356Endpoint extends Endpoint {
                     .pathInfo(pathInfo)
                     .destroyable(false)
                     .userPrincipal(session.getUserPrincipal())
-                    .remoteInetSocketAddress(new Callable<InetSocketAddress>() {
-                        @Override
-                        public InetSocketAddress call() throws Exception {
-                            return (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS);
-                        }
-                    })
-                    .localInetSocketAddress(new Callable<InetSocketAddress>() {
-                        @Override
-                        public InetSocketAddress call() throws Exception {
-                            return (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS);
-                        }
-                    })
+                    .remoteInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS))
+                    .localInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS))
                     .build()
                     .queryString(session.getQueryString());
 
@@ -270,20 +260,12 @@ public class JSR356Endpoint extends Endpoint {
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 
             if (session.isOpen()) {
-                session.addMessageHandler(new MessageHandler.Whole<String>() {
-                    @Override
-                    public void onMessage(String s) {
-                        webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
-                    }
-                });
+                session.addMessageHandler((MessageHandler.Whole<String>) s -> webSocketProcessor.invokeWebSocketProtocol(webSocket, s));
 
-                session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
-                    @Override
-                    public void onMessage(ByteBuffer bb) {
-                        byte[] b = bb.hasArray() ? bb.array() : new byte[((Buffer)bb).limit()];
-                        bb.get(b);
-                        webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
-                    }
+                session.addMessageHandler((MessageHandler.Whole<ByteBuffer>) bb -> {
+                    byte[] b = bb.hasArray() ? bb.array() : new byte[((Buffer)bb).limit()];
+                    bb.get(b);
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                 });
             } else {
                 logger.trace("Session closed during onOpen {}", session);
@@ -301,9 +283,7 @@ public class JSR356Endpoint extends Endpoint {
             } catch (IOException e1) {
                 logger.trace("", e);
             }
-            return;
         }
-
     }
 
     @Override
@@ -320,7 +300,7 @@ public class JSR356Endpoint extends Endpoint {
         try {
             logger.debug("Problem in web socket session", t);
             webSocketProcessor.notifyListener(webSocket,
-                    new WebSocketEventListener.WebSocketEvent<Throwable>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
+                    new WebSocketEventListener.WebSocketEvent<>(t, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
         } catch (Exception ex) {
             // Ignore completely
             // https://github.com/Atmosphere/atmosphere/issues/1758

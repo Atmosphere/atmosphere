@@ -130,9 +130,7 @@ public final class Action {
         Action action = (Action) o;
 
         if (timeout != action.timeout()) return false;
-        if (type != action.type()) return false;
-
-        return true;
+        return type == action.type();
     }
 
     @Override

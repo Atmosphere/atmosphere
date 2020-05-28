@@ -43,7 +43,7 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
             if (config.handlers().get(path) == null) {
                 // MeteorService
                 if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    ReflectorServletProcessor r = ReflectorServletProcessor.class.cast(w.atmosphereHandler);
+                    ReflectorServletProcessor r = (ReflectorServletProcessor) w.atmosphereHandler;
                     Servlet s = r.getServlet();
                     if (s == null) {
                         logger.warn("Invalid ReflectorServletProcessor state. Servlet is null");
@@ -64,7 +64,7 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
 
                                 request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
 
-                                AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(r);
+                                ((AtmosphereResourceImpl) request.resource()).atmosphereHandler(r);
 
                                 config.framework().addAtmosphereHandler(path, r,
                                         config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);

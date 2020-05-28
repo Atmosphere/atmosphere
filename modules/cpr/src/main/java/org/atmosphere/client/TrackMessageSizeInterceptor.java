@@ -54,7 +54,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
     private String endString = "|";
     private final Charset inCharset = Charset.forName(IN_ENCODING);
     private final Charset outCharset = Charset.forName(OUT_ENCODING);
-    private final HashSet<String> excludedContentTypes = new HashSet<String>();
+    private final HashSet<String> excludedContentTypes = new HashSet<>();
 
     private final Interceptor interceptor = new Interceptor();
 

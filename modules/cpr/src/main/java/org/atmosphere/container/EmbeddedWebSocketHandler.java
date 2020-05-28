@@ -47,7 +47,7 @@ public class EmbeddedWebSocketHandler {
     private final AtmosphereFramework framework;
     private boolean on;
     private WebSocketProcessor processor;
-    private final ConcurrentHashMap<InputStream, WebSocket> webSockets = new ConcurrentHashMap<InputStream, WebSocket>();
+    private final ConcurrentHashMap<InputStream, WebSocket> webSockets = new ConcurrentHashMap<>();
     private String requestURI = "/";
 
     public EmbeddedWebSocketHandler(AtmosphereFramework framework) {
@@ -56,12 +56,9 @@ public class EmbeddedWebSocketHandler {
             public boolean supportWebSocket() {
                 return true;
             }
-        }).getAtmosphereConfig().startupHook(new AtmosphereConfig.StartupHook() {
-            @Override
-            public void started(AtmosphereFramework framework) {
-                if (framework.getAtmosphereConfig().handlers().isEmpty()) {
-                    framework.addAtmosphereHandler("/*", ECHO_ATMOSPHEREHANDLER);
-                }
+        }).getAtmosphereConfig().startupHook(framework1 -> {
+            if (framework1.getAtmosphereConfig().handlers().isEmpty()) {
+                framework1.addAtmosphereHandler("/*", ECHO_ATMOSPHEREHANDLER);
             }
         });
     }
@@ -94,7 +91,7 @@ public class EmbeddedWebSocketHandler {
         return this;
     }
 
-    private WebSocket webSocket(InputStream inputStream) throws IOException {
+    private WebSocket webSocket(InputStream inputStream) {
         WebSocket webSocket = webSockets.get(inputStream);
         if (webSocket == null) {
             webSocket = new ArrayBaseWebSocket();
@@ -129,13 +126,13 @@ public class EmbeddedWebSocketHandler {
         }
 
         @Override
-        public WebSocket write(String s) throws IOException {
+        public WebSocket write(String s) {
             System.out.println(s);
             return this;
         }
 
         @Override
-        public WebSocket write(byte[] b, int offset, int length) throws IOException {
+        public WebSocket write(byte[] b, int offset, int length) {
             System.out.println(new String(b, offset, length));
             return this;
         }

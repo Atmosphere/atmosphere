@@ -83,22 +83,22 @@ public @interface Suspend {
     /**
      * Resume all suspended response on the first broadcast operation.
      */
-    public boolean resumeOnBroadcast() default false;
+    boolean resumeOnBroadcast() default false;
 
     /**
      * Add {@link AtmosphereResourceEventListener} to track internal events.
      */
-    public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
+    Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 
     /**
      * Write the returned entity back to the calling connection. Default is false.
      * @return true if the entity needs to be written back to the calling connection.
      */
-    public boolean writeEntity() default true;
+    boolean writeEntity() default true;
 
     /**
      * If the @Produces annotation is missing, this value will be used instead.
      * @return the default content-type used if the @Produces annotation is missing.
      */
-    public String contentType() default "";
+    String contentType() default "";
 }

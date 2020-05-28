@@ -61,7 +61,7 @@ public final class TypeResolver {
     }
 
     /** Cache of type variable/argument pairs */
-    private static final Map<Class<?>, Reference<Map<TypeVariable<?>, Type>>> typeVariableCache = Collections.synchronizedMap(new WeakHashMap<Class<?>, Reference<Map<TypeVariable<?>, Type>>>());
+    private static final Map<Class<?>, Reference<Map<TypeVariable<?>, Type>>> typeVariableCache = Collections.synchronizedMap(new WeakHashMap<>());
     private static boolean cacheEnabled = true;
 
     /**
@@ -215,7 +215,7 @@ public final class TypeResolver {
         Map<TypeVariable<?>, Type> map = ref != null ? ref.get() : null;
 
         if (map == null) {
-            map = new HashMap<TypeVariable<?>, Type>();
+            map = new HashMap<>();
 
             // Populate interfaces
             buildTypeVariableMap(targetType.getGenericInterfaces(), map);
@@ -243,7 +243,7 @@ public final class TypeResolver {
             }
 
             if (cacheEnabled)
-                typeVariableCache.put(targetType, new WeakReference<Map<TypeVariable<?>, Type>>(map));
+                typeVariableCache.put(targetType, new WeakReference<>(map));
         }
 
         return map;

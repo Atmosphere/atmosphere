@@ -54,11 +54,12 @@ public class TomcatCometSupport extends AsynchronousProcessor {
     public TomcatCometSupport(AtmosphereConfig config) {
         super(config);
         Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM);
-        closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
+        closeConnectionOnInputStream = b == null || Boolean.parseBoolean(b.toString());
         try {
             Class.forName(CometEvent.class.getName());
         } catch (Throwable e) {
-            logger.error("Unable to load class {}. Please make sure you have properly installed Atmosphere http://goo.gl/KEi8pc", e);
+            logger.error("Unable to load class {}. Please make sure you have properly installed " +
+                    "Atmosphere http://goo.gl/KEi8pc", CometEvent.class.getName(), e);
             throw new IllegalStateException(unableToDetectComet());
         }
     }
@@ -68,8 +69,6 @@ public class TomcatCometSupport extends AsynchronousProcessor {
      *
      * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
@@ -119,7 +118,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
             close(event);
         } else if (event.getEventType() == EventType.END) {
             if (req.resource() != null && req.resource().isResumed()) {
-                AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+                ((AtmosphereResourceImpl) req.resource()).cancel();
             } else if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
@@ -147,19 +146,12 @@ public class TomcatCometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         final CometEvent event = (CometEvent) r.getRequest(false).getAttribute(COMET_EVENT);
         if (event == null) return this;
 
         if (!r.isResumed()) {
-            ExecutorsFactory.getScheduler(config).schedule(new Runnable() {
-                @Override
-                public void run() {
-                    close(event);
-                }
-
-                ;
-            }, 500, TimeUnit.MILLISECONDS);
+            ExecutorsFactory.getScheduler(config).schedule(() -> close(event), 500, TimeUnit.MILLISECONDS);
         } else {
             close(event);
         }
@@ -172,7 +164,7 @@ public class TomcatCometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
-        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+        if (req.getAttribute(MAX_INACTIVE) != null && (Long) req.getAttribute(MAX_INACTIVE) == -1) {
             CometEvent event = (CometEvent) req.getAttribute(COMET_EVENT);
             if (event == null) return action;
             try {
@@ -190,11 +182,9 @@ public class TomcatCometSupport extends AsynchronousProcessor {
      * @return an error message describing how to fix the issue.
      */
     private static String unableToDetectComet() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("Tomcat failed to detect this is a Comet application because context.xml ");
-        sb.append("is missing or the Http11NioProtocol Connector is not enabled.");
-        sb.append("You must use the atmosphere-native-runtime dependency in order to use native Comet Support");
-        sb.append("\nIf that's not the case, you can also remove META-INF/context.xml and WEB-INF/lib/atmosphere-compat-tomcat.jar");
-        return sb.toString();
+        return "Tomcat failed to detect this is a Comet application because context.xml " +
+                "is missing or the Http11NioProtocol Connector is not enabled." +
+                "You must use the atmosphere-native-runtime dependency in order to use native Comet Support" +
+                "\nIf that's not the case, you can also remove META-INF/context.xml and WEB-INF/lib/atmosphere-compat-tomcat.jar";
     }
 }

@@ -65,7 +65,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
 
 public class TomcatWebSocketUtil {
     private static final Logger logger = LoggerFactory.getLogger(TomcatWebSocketUtil.class);
-    private static final Queue<MessageDigest> sha1Helpers = new ConcurrentLinkedQueue<MessageDigest>();
+    private static final Queue<MessageDigest> sha1Helpers = new ConcurrentLinkedQueue<>();
     private static byte[] WS_ACCEPT;
 
     static {
@@ -88,14 +88,14 @@ public class TomcatWebSocketUtil {
             // Override the value.
             String s = config.getInitParameter(ApplicationConfig.BUILT_IN_SESSION);
             if (s != null) {
-                useBuildInSession= Boolean.valueOf(s);
+                useBuildInSession= Boolean.parseBoolean(s);
             }
 
             // Information required to send the server handshake message
             String key =  null;
             String subProtocol = null;
 
-            boolean allowWebSocketWithoutHeaders = req.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
+            boolean allowWebSocketWithoutHeaders = req.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null;
             if (!allowWebSocketWithoutHeaders)   {
                 if (!headerContainsToken(req, "Upgrade", "websocket")) {
                     return delegate.doService(req, res);
@@ -123,7 +123,7 @@ public class TomcatWebSocketUtil {
                 return new Action(Action.TYPE.CANCELLED);
             }
 
-            if (Boolean.valueOf(requireSameOrigin) && !verifyOrigin(req)) {
+            if (Boolean.parseBoolean(requireSameOrigin) && !verifyOrigin(req)) {
                 res.sendError(HttpServletResponse.SC_FORBIDDEN, "Origin header does not match expected value");
                 return new Action(Action.TYPE.CANCELLED);
             }
@@ -133,10 +133,6 @@ public class TomcatWebSocketUtil {
             res.setHeader("Connection", "upgrade");
             res.setHeader("Sec-WebSocket-Accept", getWebSocketAccept(key));
 
-            if (subProtocol != null) {
-                res.setHeader("Sec-WebSocket-Protocol", subProtocol);
-            }
-
             HttpServletRequest hsr = req.wrappedRequest();
             while (hsr instanceof HttpServletRequestWrapper)
                 hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
@@ -144,7 +140,7 @@ public class TomcatWebSocketUtil {
             RequestFacade facade = (RequestFacade) hsr;
             boolean isDestroyable = false;
             s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-            if (s != null && Boolean.valueOf(s)) {
+            if (s != null && Boolean.parseBoolean(s)) {
                 isDestroyable = true;
             }
             StreamInbound inbound = new TomcatWebSocketHandler(
@@ -219,7 +215,7 @@ public class TomcatWebSocketUtil {
      */
     private static List<String> getTokensFromHeader(HttpServletRequest req,
                                                     String headerName) {
-        List<String> result = new ArrayList<String>();
+        List<String> result = new ArrayList<>();
 
         Enumeration<String> headers = req.getHeaders(headerName);
         while (headers.hasMoreElements()) {
@@ -257,11 +253,11 @@ public class TomcatWebSocketUtil {
         return result;
     }
 
-    public static interface Delegate {
-        public Action doService(AtmosphereRequest req, AtmosphereResponse res)
+    public interface Delegate {
+        Action doService(AtmosphereRequest req, AtmosphereResponse res)
                 throws IOException, ServletException;
 
-        public Action suspended(AtmosphereRequest request, AtmosphereResponse response)
+        Action suspended(AtmosphereRequest request, AtmosphereResponse response)
                 throws IOException, ServletException;
 
     }

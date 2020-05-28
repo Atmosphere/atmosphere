@@ -40,15 +40,15 @@ public class AtmosphereConfig {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereConfig.class);
 
-    private List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<AtmosphereHandlerConfig>();
+    private List<AtmosphereHandlerConfig> atmosphereHandlerConfig = new ArrayList<>();
 
     private boolean supportSession;
     private boolean sessionTimeoutRemovalAllowed;
     private boolean throwExceptionOnCloned;
     private AtmosphereFramework framework;
-    private final Map<String, Object> properties = new ConcurrentHashMap<String, Object>();
-    protected List<ShutdownHook> shutdownHooks = new ArrayList<ShutdownHook>();
-    protected List<StartupHook> startUpHook = new ArrayList<StartupHook>();
+    private final Map<String, Object> properties = new ConcurrentHashMap<>();
+    protected List<ShutdownHook> shutdownHooks = new ArrayList<>();
+    protected List<StartupHook> startUpHook = new ArrayList<>();
 
     protected AtmosphereConfig(AtmosphereFramework framework) {
         this.framework = framework;
@@ -283,7 +283,7 @@ public class AtmosphereConfig {
         if (s == null) {
             return defaultValue;
         }
-        return Boolean.valueOf(s);
+        return Boolean.parseBoolean(s);
     }
 
     /**
@@ -298,7 +298,7 @@ public class AtmosphereConfig {
         if (s == null) {
             return defaultValue;
         }
-        return Integer.valueOf(s);
+        return Integer.parseInt(s);
     }
 
     /**
@@ -350,7 +350,7 @@ public class AtmosphereConfig {
      * A shutdown hook that will be called when the {@link AtmosphereFramework#destroy} method gets invoked. An
      * Application can register one of more hooks.
      */
-    public static interface ShutdownHook {
+    public interface ShutdownHook {
 
         void shutdown();
     }
@@ -359,7 +359,7 @@ public class AtmosphereConfig {
      * A Startup hook that will be called when the {@link AtmosphereFramework#init} method complete. An
      * Application can register one of more hooks.
      */
-    public static interface StartupHook {
+    public interface StartupHook {
 
         void started(AtmosphereFramework framework);
     }

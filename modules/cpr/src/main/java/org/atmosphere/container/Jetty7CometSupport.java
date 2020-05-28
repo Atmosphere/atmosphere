@@ -77,6 +77,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                             try {
                                 r.cancel();
                             } catch (IOException e) {
+                                logger.trace("", e);
                             }
                         }
                     }
@@ -96,6 +97,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                         try {
                             continuation.complete();
                         } catch (Throwable t) {
+                            logger.trace("", t);
                         }
                     }
                 });
@@ -138,7 +140,7 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         ServletRequest request = r.getRequest(false);
         while (request != null) {
             Continuation c = (Continuation) request.getAttribute(Continuation.class.getName());
@@ -153,10 +155,8 @@ public class Jetty7CometSupport extends AsynchronousProcessor {
                     r.getRequest(false).setAttribute(FrameworkConfig.CANCEL_SUSPEND_OPERATION, true);
                 }
                 request.removeAttribute(Continuation.class.getName());
-                return this;
-            } else {
-                return this;
             }
+            return this;
         }
         return this;
     }

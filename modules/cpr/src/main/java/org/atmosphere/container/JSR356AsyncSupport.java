@@ -54,7 +54,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         int pathLength = 5;
         String s = config.getInitParameter(ApplicationConfig.JSR356_PATH_MAPPING_LENGTH);
         if (s != null) {
-            pathLength = Integer.valueOf(s);
+            pathLength = Integer.parseInt(s);
         }
         logger.trace("JSR356 Path mapping Size {}", pathLength);
 
@@ -100,8 +100,8 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
          * TODO: UGLY!
          * GlassFish/Jetty call modifyHandshake BEFORE getEndpointInstance() where other jsr356 do the reverse.
          */
-        final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<JSR356Endpoint>();
-        final ThreadLocal<HandshakeRequest> hRequest = new ThreadLocal<HandshakeRequest>();
+        final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<>();
+        final ThreadLocal<HandshakeRequest> hRequest = new ThreadLocal<>();
 
         public AtmosphereConfigurator(AtmosphereFramework framework) {
             this.framework = framework;

@@ -48,7 +48,6 @@ import java.io.IOException;
  */
 public class Tomcat7Servlet30SupportWithWebSocket extends Servlet30CometSupport implements TomcatWebSocketUtil.Delegate {
 
-    private static final Logger logger = LoggerFactory.getLogger(Tomcat7Servlet30SupportWithWebSocket.class);
     private static final long serialVersionUID = 1L;
     private final WebSocketProcessor webSocketProcessor;
 

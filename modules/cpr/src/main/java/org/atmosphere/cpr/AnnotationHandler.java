@@ -39,14 +39,14 @@ public class AnnotationHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotationHandler.class);
 
-    private final Map<Class<? extends Annotation>, Class<? extends Processor>> annotations = new HashMap<Class<? extends Annotation>, Class<? extends Processor>>();
-    private final Map<Class<? extends Processor>, Processor> processors = new HashMap<Class<? extends Processor>, Processor>();
+    private final Map<Class<? extends Annotation>, Class<? extends Processor>> annotations = new HashMap<>();
+    private final Map<Class<? extends Processor>, Processor> processors = new HashMap<>();
 
     public AnnotationHandler() {
     }
 
     public AnnotationHandler flushCoreAnnotations(Set<Class<?>> classes){
-        List<Class<? extends Annotation>> l = new ArrayList<Class<? extends Annotation>>();
+        List<Class<? extends Annotation>> l = new ArrayList<>();
         for (Map.Entry<Class<? extends Annotation>, Class<? extends Processor>> e : annotations.entrySet()) {
             if (e.getValue().getPackage().getName().equals("org.atmosphere.annotation") && classes.contains(e.getValue())) {
                 l.add(e.getKey());
@@ -71,7 +71,7 @@ public class AnnotationHandler {
         return null;
     }
 
-    public Class<? extends Annotation>[] handledClass() {
+    public Class[] handledClass() {
         Collection<Class<? extends Annotation>> c = annotations.keySet();
         return c.toArray(new Class[0]);
     }

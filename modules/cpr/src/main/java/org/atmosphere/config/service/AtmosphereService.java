@@ -49,7 +49,7 @@ public @interface AtmosphereService {
     /**
      * Add {@link org.atmosphere.cpr.AtmosphereResourceEventListener} to track internal events.
      */
-    public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
+    Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 
     /**
      * A list of {@link BroadcastFilter}

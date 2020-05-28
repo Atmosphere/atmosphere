@@ -70,7 +70,7 @@ public @interface ManagedService {
     /**
      * Add {@link AtmosphereResourceEventListener} to track internal events.
      */
-    public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
+    Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 
     /**
      * The {@link org.atmosphere.cpr.Broadcaster} class name

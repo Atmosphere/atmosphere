@@ -84,11 +84,8 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
      * @param action The {@link org.atmosphere.cpr.Action}
      * @param req    the {@link AtmosphereRequest}
      * @param res    the {@link AtmosphereResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
-    private void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res)
-            throws IOException, ServletException {
+    private void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res) {
 
         if (!req.isAsyncStarted() && !Utils.webSocketEnabled(req)) {
             AsyncContext asyncContext = req.startAsync(req, res);
@@ -114,29 +111,28 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         endAsyncContext(r.getRequest(false));
         return null;
     }
 
-    public void endAsyncContext(AtmosphereRequest request){
+    public void endAsyncContext(AtmosphereRequest request) {
         Object attribute = null;
         try {
-             attribute = request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
+            attribute = request.getAttribute(FrameworkConfig.ASYNC_CONTEXT);
         } catch (Exception e) {
-             logger.warn("Exception occurred in getting attribute from request object", e);
+            logger.warn("Exception occurred in getting attribute from request object", e);
         }
-        if (attribute != null && attribute instanceof AsyncContext) {
+        if (attribute instanceof AsyncContext) {
             AsyncContext asyncContext = (AsyncContext) attribute;
-            if (asyncContext != null) {
+            try {
+                asyncContext.complete();
+            } catch (IllegalStateException ex) {
+                // Already completed. Jetty throw an exception on shutdown with log
                 try {
-                    asyncContext.complete();
-                } catch (IllegalStateException ex) {
-                    // Already completed. Jetty throw an exception on shutdown with log
-                    try {
-                        logger.trace("Already resumed!", ex);
-                    } catch (Exception ex2) {
-                    }
+                    logger.trace("Already resumed!", ex);
+                } catch (Exception ex2) {
+                    logger.trace("", ex2);
                 }
             }
         }
@@ -147,7 +143,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
-        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+        if (req.getAttribute(MAX_INACTIVE) != null && (Long) req.getAttribute(MAX_INACTIVE) == -1) {
             endAsyncContext(req);
         }
         return action;
@@ -173,7 +169,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         }
 
         @Override
-        public void onComplete(AsyncEvent event) throws IOException {
+        public void onComplete(AsyncEvent event) {
             logger.trace("Resumed (completed): event: {}", uuid);
         }
 

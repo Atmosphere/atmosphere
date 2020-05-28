@@ -36,7 +36,6 @@ import java.io.IOException;
  */
 public class GlassFishServlet30WebSocketSupport extends Servlet30CometSupport {
 
-    private static final Logger logger = LoggerFactory.getLogger(GlassFishServlet30WebSocketSupport.class);
     private GlassFishWebSocketHandler glassfishWebSocketHandler;
 
     public GlassFishServlet30WebSocketSupport(AtmosphereConfig config) {

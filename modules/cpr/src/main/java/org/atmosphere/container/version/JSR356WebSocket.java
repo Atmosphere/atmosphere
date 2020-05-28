@@ -76,7 +76,7 @@ public class JSR356WebSocket extends WebSocket {
             }
         } catch (Throwable e) {
             if (IOException.class.isAssignableFrom(e.getClass())) {
-                throw IOException.class.cast(e);
+                throw (IOException) e;
             }
             handleError(e, acquired);
         }
@@ -102,7 +102,7 @@ public class JSR356WebSocket extends WebSocket {
             }
         } catch (Throwable e) {
             if (IOException.class.isAssignableFrom(e.getClass())) {
-                throw IOException.class.cast(e);
+                throw (IOException) e;
             }
             handleError(e, acquired);
         }

@@ -36,10 +36,10 @@ public @interface Message {
     /**
      * A list of {@link org.atmosphere.config.managed.Encoder}
      */
-    Class<? extends Encoder>[] encoders() default {};
+    Class<? extends Encoder<?,?>>[] encoders() default {};
 
     /**
      * A list of {@link org.atmosphere.config.managed.Decoder}
      */
-    Class<? extends Decoder>[] decoders() default {};
+    Class<? extends Decoder<?,?>>[] decoders() default {};
 }

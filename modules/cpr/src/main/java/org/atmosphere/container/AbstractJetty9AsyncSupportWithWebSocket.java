@@ -66,7 +66,7 @@ abstract class AbstractJetty9AsyncSupportWithWebSocket extends Servlet30CometSup
             String serverInfo = config.getServletConfig().getServletContext().getServerInfo();
             boolean isJetty91Plus = false;
             if (serverInfo != null) {
-                int version = Integer.valueOf(serverInfo.split("/")[1].substring(0, 3).replace(".", ""));
+                int version = Integer.parseInt(serverInfo.split("/")[1].substring(0, 3).replace(".", ""));
                 isJetty91Plus = version > 90;
             }
 
@@ -149,10 +149,10 @@ abstract class AbstractJetty9AsyncSupportWithWebSocket extends Servlet30CometSup
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        Action action;
         Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;
 
+        Action action;
         if (!Utils.webSocketEnabled(req) && req.getAttribute(WebSocket.WEBSOCKET_ACCEPT_DONE) == null) {
             if (req.resource() != null && req.resource().transport() == AtmosphereResource.TRANSPORT.WEBSOCKET) {
                 WebSocket.notSupported(req, res);
@@ -175,7 +175,7 @@ abstract class AbstractJetty9AsyncSupportWithWebSocket extends Servlet30CometSup
             }
         }
 
-        return action == null ? super.service(req, res) : action;
+        return action;
     }
 
     /**

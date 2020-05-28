@@ -31,7 +31,7 @@ import java.lang.annotation.Target;
 @Target(ElementType.METHOD)
 public @interface DeliverTo {
 
-    static enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
+    enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
 
     /**
      * @return the {@link DELIVER_TO}

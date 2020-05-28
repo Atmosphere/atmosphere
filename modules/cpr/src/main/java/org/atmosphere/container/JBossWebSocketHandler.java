@@ -72,7 +72,7 @@ public class JBossWebSocketHandler extends WebSocketServlet {
     }
 
     @Override
-    protected void onSocketClosed(WebSocket socket) throws IOException {
+    protected void onSocketClosed(WebSocket socket) {
         logger.trace("WebSocket.onSocketClosed.");
         webSocketProcessor.close(webSocket, 1005);
     }

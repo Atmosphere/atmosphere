@@ -88,11 +88,6 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
 
     /**
      * Suspend the response
-     *
-     * @param ctx
-     * @param action
-     * @param req
-     * @param res
      */
     private void suspend(CometContext ctx, Action action, AtmosphereRequest req, AtmosphereResponse res) {
         VoidCometHandler c = new VoidCometHandler(req, res);
@@ -119,7 +114,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
 
         if (req.resource() != null) {
             try {
-                AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+                ((AtmosphereResourceImpl) req.resource()).cancel();
             } catch (IOException e) {
                 logger.trace("", e);
             }
@@ -150,7 +145,7 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
-        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+        if (req.getAttribute(MAX_INACTIVE) != null && (Long) req.getAttribute(MAX_INACTIVE) == -1) {
             resume(req, CometEngine.getEngine().getCometContext(atmosphereCtx));
         }
         return action;
@@ -175,15 +170,15 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
         }
 
         @Override
-        public void onEvent(CometEvent ce) throws IOException {
+        public void onEvent(CometEvent ce) {
         }
 
         @Override
-        public void onInitialize(CometEvent ce) throws IOException {
+        public void onInitialize(CometEvent ce) {
         }
 
         @Override
-        public void onTerminate(CometEvent ce) throws IOException {
+        public void onTerminate(CometEvent ce) {
         }
 
         @Override

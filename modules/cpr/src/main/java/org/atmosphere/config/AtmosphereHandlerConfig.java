@@ -31,11 +31,11 @@ public class AtmosphereHandlerConfig {
     private String broadcasterCache;
     private String cometSupport;
 
-    private List<String> broadcastFilterClasses = new ArrayList<String>();
-    private List<String> interceptors = new ArrayList<String>();
-    private List<AtmosphereHandlerProperty> properties = new ArrayList<AtmosphereHandlerProperty>();
-    private List<ApplicationConfiguration> applicationConfig = new ArrayList<ApplicationConfiguration>();
-    private List<FrameworkConfiguration> frameworkConfig = new ArrayList<FrameworkConfiguration>();
+    private List<String> broadcastFilterClasses = new ArrayList<>();
+    private List<String> interceptors = new ArrayList<>();
+    private List<AtmosphereHandlerProperty> properties = new ArrayList<>();
+    private List<ApplicationConfiguration> applicationConfig = new ArrayList<>();
+    private List<FrameworkConfiguration> frameworkConfig = new ArrayList<>();
 
     public String getSupportSession() {
         return supportSession;

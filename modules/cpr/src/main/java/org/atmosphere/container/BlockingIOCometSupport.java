@@ -58,7 +58,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        Action action = null;
+        Action action;
         try {
             action = suspended(req, res);
             if (action.type() == Action.TYPE.SUSPEND) {
@@ -85,7 +85,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                     Class.forName(org.apache.catalina.CometEvent.class.getName());
 
                     if (org.apache.catalina.CometEvent.class.isAssignableFrom(event.getClass())) {
-                        org.apache.catalina.CometEvent.class.cast(event).close();
+                        ((org.apache.catalina.CometEvent) event).close();
                     }
                 } catch (Throwable e) {
                     logger.trace("", e);
@@ -96,7 +96,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                     Class.forName(org.apache.catalina.comet.CometEvent.class.getName());
 
                     if (org.apache.catalina.comet.CometEvent.class.isAssignableFrom(event.getClass())) {
-                        org.apache.catalina.comet.CometEvent.class.cast(event).close();
+                        ((org.apache.catalina.comet.CometEvent) event).close();
                     }
                 } catch (Throwable e) {
                     logger.trace("", e);
@@ -107,7 +107,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 event = req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
                 if (event != null) {
                     Class.forName(org.jboss.servlet.http.HttpEvent.class.getName());
-                    org.jboss.servlet.http.HttpEvent.class.cast(event).close();
+                    ((org.jboss.servlet.http.HttpEvent) event).close();
                 }
             } catch (Throwable e) {
                 logger.trace("", e);
@@ -122,8 +122,6 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
      * @param action The {@link Action}
      * @param req    the {@link AtmosphereRequest}
      * @param res    the {@link AtmosphereResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     protected void suspend(Action action, AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
@@ -152,7 +150,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 if (!ok) {
                     timedout(req, res);
                 } else {
-                    AtmosphereResourceImpl.class.cast(resource).cancel();
+                    ((AtmosphereResourceImpl) resource).cancel();
                 }
             }
         }
@@ -183,7 +181,7 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         AtmosphereRequest req = r.getRequest(false);
         CountDownLatch latch = null;
 

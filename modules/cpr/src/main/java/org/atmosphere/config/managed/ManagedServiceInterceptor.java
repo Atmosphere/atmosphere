@@ -44,7 +44,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
             if (config.handlers().get(path) == null) {
                 // ManagedService
                 if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
+                    AnnotatedProxy ap = (AnnotatedProxy) w.atmosphereHandler;
                     ManagedAnnotation a = managed(ap, request.resource());
                     if (a != null) {
                         String targetPath = a.path();
@@ -63,7 +63,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
                                     request.localAttributes().put(PathParam.class.getName(), new String[]{path, targetPath});
                                 }
 
-                                AtmosphereResourceImpl.class.cast(request.resource()).atmosphereHandler(ap);
+                                ((AtmosphereResourceImpl) request.resource()).atmosphereHandler(ap);
 
                                 config.framework().addAtmosphereHandler(path, ap,
                                         config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
@@ -100,7 +100,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
             }  };
     }
 
-    protected static interface ManagedAnnotation {
+    protected interface ManagedAnnotation {
 
         String path();
 

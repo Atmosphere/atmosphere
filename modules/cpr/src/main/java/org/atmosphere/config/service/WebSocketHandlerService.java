@@ -45,13 +45,13 @@ public @interface WebSocketHandlerService {
     Class<? extends BroadcastFilter>[] broadcastFilters() default {};
 
     /**
-      * The {@link org.atmosphere.cpr.BroadcasterCache} class name. By default, a no-ops {@link DefaultBroadcasterCache}
-      * is installed. It is strongly recommended to install the {@link org.atmosphere.cache.UUIDBroadcasterCache} to prevent
-      * messages being lost.
-      *
-      * @return The {@link org.atmosphere.cpr.Broadcaster} class name
-      */
-     Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
+     * The {@link org.atmosphere.cpr.BroadcasterCache} class name. By default, a no-ops {@link DefaultBroadcasterCache}
+     * is installed. It is strongly recommended to install the {@link org.atmosphere.cache.UUIDBroadcasterCache} to prevent
+     * messages being lost.
+     *
+     * @return The {@link org.atmosphere.cpr.Broadcaster} class name
+     */
+    Class<? extends BroadcasterCache> broadcasterCache() default DefaultBroadcasterCache.class;
 
     /**
      * The mapping path or context-root used to map this WebSocketHandler

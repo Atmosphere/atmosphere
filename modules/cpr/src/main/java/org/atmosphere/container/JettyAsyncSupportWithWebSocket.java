@@ -45,7 +45,7 @@ public class JettyAsyncSupportWithWebSocket extends Jetty7CometSupport {
         WebSocketFactory wsf;
         try {
             String[] jettyVersion = config.getServletContext().getServerInfo().substring(6).split("\\.");
-            if (Integer.valueOf(jettyVersion[0]) > 7 || Integer.valueOf(jettyVersion[0]) == 7 && Integer.valueOf(jettyVersion[1]) > 4) {
+            if (Integer.parseInt(jettyVersion[0]) > 7 || Integer.parseInt(jettyVersion[0]) == 7 && Integer.parseInt(jettyVersion[1]) > 4) {
                 wsf = JettyWebSocketUtil.getFactory(config, webSocketProcessor);
             } else {
                 wsf = null;

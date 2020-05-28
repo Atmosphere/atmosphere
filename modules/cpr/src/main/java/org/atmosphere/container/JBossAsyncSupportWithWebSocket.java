@@ -62,7 +62,7 @@ public class JBossAsyncSupportWithWebSocket extends JBossWebCometSupport {
     @Override
     public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
         
-        boolean allowWebSocketWithoutHeaders = req.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null ? true : false;
+        boolean allowWebSocketWithoutHeaders = req.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null;
         if (!allowWebSocketWithoutHeaders)   {
             if (!headerContainsToken(req, "Upgrade", "websocket")) {
                 return doService(req, res);
@@ -99,12 +99,7 @@ public class JBossAsyncSupportWithWebSocket extends JBossWebCometSupport {
     public boolean supportWebSocket() {
         return true;
     }
-    
-    /**
-     * @param httpEvent
-     * @throws javax.servlet.ServletException
-     * @throws java.io.IOException
-     */
+
     public void dispatch(HttpEvent httpEvent) throws IOException, ServletException {
         if (websocketHandler != null) {
             websocketHandler.event(httpEvent);

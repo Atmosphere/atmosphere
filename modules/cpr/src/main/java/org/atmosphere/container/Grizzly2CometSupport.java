@@ -148,7 +148,7 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
-        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+        if (req.getAttribute(MAX_INACTIVE) != null && (Long) req.getAttribute(MAX_INACTIVE) == -1) {
             resume(req, CometEngine.getEngine().getCometContext(atmosphereCtx));
         }
         return action;
@@ -188,15 +188,15 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
         }
 
         @Override
-        public void onEvent(CometEvent ce) throws IOException {
+        public void onEvent(CometEvent ce) {
         }
 
         @Override
-        public void onInitialize(CometEvent ce) throws IOException {
+        public void onInitialize(CometEvent ce) {
         }
 
         @Override
-        public void onTerminate(CometEvent ce) throws IOException {
+        public void onTerminate(CometEvent ce) {
         }
 
         @Override

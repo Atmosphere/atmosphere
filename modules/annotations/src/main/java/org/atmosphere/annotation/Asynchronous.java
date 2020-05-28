@@ -45,7 +45,7 @@ public @interface Asynchronous {
     /**
      * Add {@link org.atmosphere.cpr.BroadcastFilter} to the broadcast operation.
      */
-    public Class<? extends BroadcastFilter>[] broadcastFilter() default {};
+    Class<? extends BroadcastFilter>[] broadcastFilter() default {};
 
     /**
      * The header value used to create a {@link org.atmosphere.cpr.Broadcaster} that will be used to broadcast the
@@ -63,16 +63,17 @@ public @interface Asynchronous {
     /**
      * Add {@link AtmosphereResourceEventListener} to the broadcast operation.
      */
-    public Class<? extends AtmosphereResourceEventListener>[] eventListeners() default {};
+    Class<? extends AtmosphereResourceEventListener>[] eventListeners() default {};
 
     /**
      * Write the returned entity back to the calling connection. Default is false.
      * @return true if the entity needs to be written back to the calling connection.
      */
-    public boolean writeEntity() default true;
+    boolean writeEntity() default true;
+
     /**
      * If the @Produces annotation is missing, this value will be used instead.
      * @return the default content-type used if the @Produces annotation is missing.
      */
-    public String contentType() default "";
+    String contentType() default "";
 }

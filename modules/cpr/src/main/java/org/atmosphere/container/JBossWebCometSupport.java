@@ -56,7 +56,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     public JBossWebCometSupport(AtmosphereConfig config) {
         super(config);
         Object b = config.getInitParameter(ApplicationConfig.TOMCAT_CLOSE_STREAM);
-        closeConnectionOnInputStream = b == null ? true : Boolean.parseBoolean(b.toString());
+        closeConnectionOnInputStream = b == null || Boolean.parseBoolean(b.toString());
         try {
             Class.forName(HttpEvent.class.getName());
         } catch (Throwable e) {
@@ -117,7 +117,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
                 || event.getType() == HttpEvent.EventType.END) {
 
             if (r != null && r.isResumed()) {
-                AtmosphereResourceImpl.class.cast(req.resource()).cancel();
+                ((AtmosphereResourceImpl) req.resource()).cancel();
             } else if (req.getAttribute(SUSPENDED) != null && closeConnectionOnInputStream) {
                 req.setAttribute(SUSPENDED, null);
                 action = cancelled(req, res);
@@ -143,7 +143,7 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     public Action cancelled(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
-        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+        if (req.getAttribute(MAX_INACTIVE) != null && (Long) req.getAttribute(MAX_INACTIVE) == -1) {
             HttpEvent event = (HttpEvent) req.getAttribute(HTTP_EVENT);
             if (event == null) {
                 return action;
@@ -165,18 +165,13 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
     }
 
     @Override
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         final HttpEvent event = (HttpEvent) r.getRequest(false).getAttribute(HTTP_EVENT);
         // Prevent Deadlock
         // https://github.com/Atmosphere/atmosphere/issues/1782
         if (event != null) {
             if (!r.isResumed()) {
-                ExecutorsFactory.getScheduler(config).schedule(new Runnable() {
-                    @Override
-                    public void run() {
-                        close(event);
-                    }
-                }, 500, TimeUnit.MILLISECONDS);
+                ExecutorsFactory.getScheduler(config).schedule(() -> close(event), 500, TimeUnit.MILLISECONDS);
             } else {
                 close(event);
             }
@@ -190,11 +185,9 @@ public class JBossWebCometSupport extends AsynchronousProcessor {
      * @return an error message describing how to fix the issue.
      */
     private static String unableToDetectComet() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("JBoss failed to detect this is a Comet application because the APR Connector is not enabled. ");
-        sb.append("\nMake sure atmosphere-compat-jboss.jar is not under your WEB-INF/lib and ");
-        sb.append("You must use the atmosphere-native-runtime dependency in order to use native Comet Support");
-        sb.append("\nthere is no context.xml under WEB-INF");
-        return sb.toString();
+        return "JBoss failed to detect this is a Comet application because the APR Connector is not enabled. " +
+                "\nMake sure atmosphere-compat-jboss.jar is not under your WEB-INF/lib and " +
+                "You must use the atmosphere-native-runtime dependency in order to use native Comet Support" +
+                "\nthere is no context.xml under WEB-INF";
     }
 }

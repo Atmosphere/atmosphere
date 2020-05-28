@@ -102,12 +102,13 @@ public class JettyCometSupport extends AsynchronousProcessor {
             try {
                 r.getResponse().flushBuffer();
             } catch (IOException e) {
+                logger.trace("", e);
             }
         }
     }
 
     @Override
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         Continuation c = ContinuationSupport.getContinuation(r.getRequest(false), null);
         if (!c.isNew()) {
             c.resume();
@@ -122,7 +123,7 @@ public class JettyCometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
-        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+        if (req.getAttribute(MAX_INACTIVE) != null && (Long) req.getAttribute(MAX_INACTIVE) == -1) {
             Continuation c = ContinuationSupport.getContinuation(req, null);
             if (c != null) {
                 c.resume();

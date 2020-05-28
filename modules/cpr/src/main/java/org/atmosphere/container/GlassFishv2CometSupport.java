@@ -92,11 +92,6 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
 
     /**
      * Suspend the response
-     *
-     * @param ctx
-     * @param action
-     * @param req
-     * @param res
      */
     private void suspend(CometContext ctx, Action action, AtmosphereRequest req, AtmosphereResponse res) {
         VoidCometHandler c = new VoidCometHandler(req, res);
@@ -133,7 +128,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
         }
     }
 
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         CometContext ctx = CometEngine.getEngine().getCometContext(atmosphereCtx);
         resume(r.getRequest(false), ctx);
         return this;
@@ -144,7 +139,7 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
             throws IOException, ServletException {
 
         Action action = super.cancelled(req, res);
-        if (req.getAttribute(MAX_INACTIVE) != null && Long.class.cast(req.getAttribute(MAX_INACTIVE)) == -1) {
+        if (req.getAttribute(MAX_INACTIVE) != null && (Long) req.getAttribute(MAX_INACTIVE) == -1) {
             resume(req, CometEngine.getEngine().getCometContext(atmosphereCtx));
         }
         return action;

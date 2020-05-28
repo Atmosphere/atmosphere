@@ -52,14 +52,14 @@ public class TomcatWebSocketHandler extends StreamInbound {
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.valueOf(s);
+            webSocketWriteTimeout = Integer.parseInt(s);
         } else {
             webSocketWriteTimeout = -1;
         }
 
         s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE);
         if (s != null) {
-            setOutboundByteBufferSize(Integer.valueOf(s));
+            setOutboundByteBufferSize(Integer.parseInt(s));
             setOutboundCharBufferSize(getOutboundByteBufferSize());
         }
     }
@@ -87,13 +87,13 @@ public class TomcatWebSocketHandler extends StreamInbound {
         }
     }
 
-    protected void onTextMessage(CharBuffer message) throws IOException {
+    protected void onTextMessage(CharBuffer message) {
         logger.trace("WebSocket.onMessage");
         webSocketProcessor.invokeWebSocketProtocol(webSocket, message.toString());
     }
 
     @Override
-    protected final void onBinaryData(InputStream is) throws IOException {
+    protected final void onBinaryData(InputStream is) {
         logger.trace("WebSocket.onBynaryStream");
         webSocketProcessor.invokeWebSocketProtocol(webSocket, is);
     }

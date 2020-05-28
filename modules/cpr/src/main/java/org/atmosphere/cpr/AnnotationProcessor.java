@@ -34,7 +34,7 @@ public interface AnnotationProcessor extends AtmosphereConfigAware{
      * @throws IOException
      * @return this
      */
-    public AnnotationProcessor scan(File rootDir) throws IOException;
+     AnnotationProcessor scan(File rootDir) throws IOException;
 
     /**
      * Scan the package looking for classes annotated with Atmosphere's Service annotation.
@@ -42,17 +42,17 @@ public interface AnnotationProcessor extends AtmosphereConfigAware{
      * @param packageName package name
      * @return this
      */
-    public AnnotationProcessor scan(String packageName) throws IOException;
+     AnnotationProcessor scan(String packageName) throws IOException;
 
     /**
      * Scan all classes on the classpath looking for classes annotated with Atmosphere's Service annotation.
      *
      * @return this
      */
-    public AnnotationProcessor scanAll() throws IOException;
+     AnnotationProcessor scanAll() throws IOException;
 
     /**
      * Destroy all resources associated with this object. Once destroyed, this object can no longer be used.
      */
-    public void destroy();
+     void destroy();
 }

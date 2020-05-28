@@ -71,8 +71,7 @@ public class JettyWebSocketUtil {
             }
 
             Action action = cometSupport.suspended(req, res);
-            if (action.type() == Action.TYPE.SUSPEND) {
-            } else if (action.type() == Action.TYPE.RESUME) {
+            if (action.type() == Action.TYPE.RESUME) {
                 req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
             }
 
@@ -80,13 +79,13 @@ public class JettyWebSocketUtil {
         }
     }
 
-    public final static WebSocketFactory getFactory(final AtmosphereConfig config, final WebSocketProcessor webSocketProcessor) {
+    public static WebSocketFactory getFactory(final AtmosphereConfig config, final WebSocketProcessor webSocketProcessor) {
 
         final AtomicBoolean useBuildInSession = new AtomicBoolean(config.isSupportSession());
         // Override the value.
         String s = config.getInitParameter(ApplicationConfig.BUILT_IN_SESSION);
         if (s != null) {
-            useBuildInSession.set(Boolean.valueOf(s));
+            useBuildInSession.set(Boolean.parseBoolean(s));
         }
 
         WebSocketFactory webSocketFactory = new WebSocketFactory(new WebSocketFactory.Acceptor() {
@@ -101,7 +100,7 @@ public class JettyWebSocketUtil {
 
                 boolean isDestroyable = false;
                 String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-                if (s != null && Boolean.valueOf(s)) {
+                if (Boolean.parseBoolean(s)) {
                     isDestroyable = true;
                 }
 
@@ -117,34 +116,34 @@ public class JettyWebSocketUtil {
 
         int bufferSize = 8192;
         if (config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE) != null) {
-            bufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE));
+            bufferSize = Integer.parseInt(config.getInitParameter(ApplicationConfig.WEBSOCKET_BUFFER_SIZE));
         }
         logger.debug("WebSocket Buffer size {}", bufferSize);
         webSocketFactory.setBufferSize(bufferSize);
 
         int timeOut = 5 * 60000;
         if (config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME) != null) {
-            timeOut = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME));
+            timeOut = Integer.parseInt(config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME));
         }
         logger.debug("WebSocket idle timeout {}", timeOut);
         webSocketFactory.setMaxIdleTime(timeOut);
 
         int maxTextBufferSize = 8192;
         if (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE) != null) {
-            maxTextBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE));
+            maxTextBufferSize = Integer.parseInt(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXTEXTSIZE));
         }
         logger.debug("WebSocket maxTextBufferSize {}", maxTextBufferSize);
         webSocketFactory.setMaxTextMessageSize(maxTextBufferSize);
 
         int maxBinaryBufferSize = 8192;
         if (config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE) != null) {
-            maxBinaryBufferSize = Integer.valueOf(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE));
+            maxBinaryBufferSize = Integer.parseInt(config.getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE));
         }
         logger.debug("WebSocket maxBinaryBufferSize {}", maxBinaryBufferSize);
         webSocketFactory.setMaxBinaryMessageSize(maxBinaryBufferSize);
 
         if (config.getInitParameter(ApplicationConfig.JETTY_WEBSOCKET_MIN_VERSION) != null) {
-            int minVersion = Integer.valueOf(config.getInitParameter(ApplicationConfig.JETTY_WEBSOCKET_MIN_VERSION));
+            int minVersion = Integer.parseInt(config.getInitParameter(ApplicationConfig.JETTY_WEBSOCKET_MIN_VERSION));
             webSocketFactory.setMinVersion(minVersion);
             logger.debug("WebSocket Jetty minVersion {}", minVersion);
         }

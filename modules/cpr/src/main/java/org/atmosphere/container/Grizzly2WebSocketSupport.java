@@ -115,7 +115,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
         public void onClose(WebSocket socket, DataFrame frame) {
             super.onClose(socket, frame);
             LOGGER.trace("onClose {} ", socket);
-            DefaultWebSocket g2w = DefaultWebSocket.class.cast(socket);
+            DefaultWebSocket g2w = (DefaultWebSocket) socket;
             org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getUpgradeRequest().getAttribute("grizzly.webSocket");
             if (webSocket != null) {
                 webSocketProcessor.close(webSocket, 1000);
@@ -131,7 +131,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
                 throw new IllegalStateException();
             }
 
-            DefaultWebSocket g2WebSocket = DefaultWebSocket.class.cast(socket);
+            DefaultWebSocket g2WebSocket = (DefaultWebSocket) socket;
             try {
 
                 AtmosphereRequest r = AtmosphereRequestImpl.wrap(g2WebSocket.getUpgradeRequest());
@@ -147,7 +147,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
         public void onMessage(WebSocket socket, String text) {
             super.onMessage(socket, text);
             LOGGER.trace("onMessage(String) {} ", socket);
-            DefaultWebSocket g2w = DefaultWebSocket.class.cast(socket);
+            DefaultWebSocket g2w = (DefaultWebSocket) socket;
             org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getUpgradeRequest().getAttribute("grizzly.webSocket");
             if (webSocket != null) {
                 webSocketProcessor.invokeWebSocketProtocol(webSocket, text);
@@ -158,7 +158,7 @@ public class Grizzly2WebSocketSupport extends Grizzly2CometSupport {
         public void onMessage(WebSocket socket, byte[] bytes) {
             super.onMessage(socket, bytes);
             LOGGER.trace("onMessage(byte[]) {} ", socket);
-            DefaultWebSocket g2w = DefaultWebSocket.class.cast(socket);
+            DefaultWebSocket g2w = (DefaultWebSocket) socket;
             org.atmosphere.websocket.WebSocket webSocket = (org.atmosphere.websocket.WebSocket) g2w.getUpgradeRequest().getAttribute("grizzly.webSocket");
             if (webSocket != null) {
                 webSocketProcessor.invokeWebSocketProtocol(webSocket, bytes, 0, bytes.length);

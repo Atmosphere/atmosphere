@@ -57,7 +57,6 @@ public class AtmosphereFilter implements Filter {
      * Initialize the {@link Filter}.
      *
      * @param filterConfig The {@link javax.servlet.FilterConfig}
-     * @throws ServletException
      */
     public void init(final FilterConfig filterConfig) throws ServletException {
         logger.info("AtmosphereServlet running as a Filter");
@@ -94,12 +93,6 @@ public class AtmosphereFilter implements Filter {
 
     /**
      * Normal doFilter invocation.
-     *
-     * @param request
-     * @param response
-     * @param chain
-     * @throws IOException
-     * @throws ServletException
      */
     public void doFilter(ServletRequest request, ServletResponse response, FilterChain chain)
             throws IOException, ServletException {

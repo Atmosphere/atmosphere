@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.pool.PoolableBroadcasterFactory;
+
 /**
  * Web.xml init-param configuration supported by Atmosphere.
  *
@@ -874,7 +876,7 @@ public interface ApplicationConfig {
      */
     String SUPPORT_TRACKED_BROADCASTER = "org.atmosphere.pool.trackPooledBroadcaster";
     /**
-     * The {@link org.atmosphere.pool.PoolableProvider} used by the {@lin PoolableBroadcasterFactory}
+     * The {@link org.atmosphere.pool.PoolableProvider} used by the {@link PoolableBroadcasterFactory}
      * <p/>
      * Default: org.atmosphere.pool.UnboundedApachePoolableProvider
      * Value: org.atmosphere.pool.poolableProvider

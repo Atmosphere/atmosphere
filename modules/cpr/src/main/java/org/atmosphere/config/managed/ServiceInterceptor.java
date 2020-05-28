@@ -69,16 +69,11 @@ public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     /**
      * Inspect the request and its mapped {@link org.atmosphere.cpr.AtmosphereHandler} to determine if the '{}' was used when defined the
      * annotation's path value. It will create a new {@link org.atmosphere.cpr.AtmosphereHandler} in case {} is detected .
-     *
-     * @param request
-     * @param w
-     * @return
      */
     protected void mapAnnotatedService(AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
         Broadcaster b = w.broadcaster;
 
         String path;
-        String pathInfo = null;
         boolean reMap = false;
 
         path = Utils.pathInfo(request);

@@ -74,7 +74,9 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         try {
             req = handler.getRequest();
         } catch (IOException ex) {
+            logger.trace("", ex);
         }
+
         if (!webSocketProcessor.handshake(req)) {
             protocolHandler.close(0x00, "");
             throw new IllegalStateException();
@@ -101,7 +103,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
                 }
             }
         } catch (Exception ex) {
-            logger.error("{}", ex);
+            logger.error("", ex);
         }
     }
 
@@ -116,7 +118,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
             throw new IllegalStateException();
         }
 
-        DefaultWebSocket dws = DefaultWebSocket.class.cast(w);
+        DefaultWebSocket dws = (DefaultWebSocket) w;
         wMap.put(w,webSocket);
 
         try {

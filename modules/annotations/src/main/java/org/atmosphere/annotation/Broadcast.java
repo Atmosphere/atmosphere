@@ -32,28 +32,28 @@ import java.lang.annotation.Target;
 @Retention(RetentionPolicy.RUNTIME)
 public @interface Broadcast {
 
-    public String value() default "/*";
+    String value() default "/*";
 
     /**
      * Add {@link BroadcastFilter}s to the broadcast operation.
      */
-    public Class<? extends BroadcastFilter>[] filters() default {};
+    Class<? extends BroadcastFilter>[] filters() default {};
 
     /**
      * Resume all suspended response on the first broadcast operation.
      */
-    public boolean resumeOnBroadcast() default false;
+    boolean resumeOnBroadcast() default false;
 
     /**
      * Should the broadcast be delayed? A value of 0 means
      * the broadcast be delayed until a normal broadcast operation
      * happens. Any other value will be evaluated as seconds
      */
-    public int delay() default -1;
+    int delay() default -1;
 
     /**
      * Write the returned entity back to the calling connection. Default is false.
      * @return true if the entity needs to be written back to the calling connection.
      */
-    public boolean writeEntity() default true;
+    boolean writeEntity() default true;
 }

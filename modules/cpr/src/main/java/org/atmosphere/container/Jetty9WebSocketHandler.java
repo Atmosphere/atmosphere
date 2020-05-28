@@ -91,7 +91,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
         logger.trace("WebSocket.onOpen.");
         webSocket = new Jetty9WebSocket(session, framework.getAtmosphereConfig());
 
-        /**
+        /*
          * https://github.com/Atmosphere/atmosphere/issues/1998
          * The Original Jetty Request will be recycled, hence we must loads its content in memory. We can't do that before
          * as it break Jetty 9.3.0 upgrade process.
@@ -118,7 +118,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
 
     @Override
     public void onWebSocketError(Throwable e) {
-        logger.error("{}", e);
+        logger.error("", e);
         onWebSocketClose(1006, "Unexpected error");
     }
 
@@ -137,7 +137,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
                 f.setAccessible(true);
                 Object o = f.get(request);
                 if (o instanceof HttpServletRequest) {
-                    return HttpServletRequest.class.cast(o);
+                    return (HttpServletRequest) o;
                 }
             }
         } catch (Exception ex) {

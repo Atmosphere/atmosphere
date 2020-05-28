@@ -42,15 +42,14 @@ public interface AsyncSupport<E extends AtmosphereResource> {
      *
      * @return the name of the Java Web Server.
      */
-    public String getContainerName();
+    String getContainerName();
 
     /**
      * Initialize the WebServer using the {@link ServletConfig}
      *
      * @param sc the {@link ServletConfig}
-     * @throws javax.servlet.ServletException
      */
-    public void init(ServletConfig sc) throws ServletException;
+    void init(ServletConfig sc) throws ServletException;
 
     /**
      * Serve the {@link AtmosphereRequest} and the {@link AtmosphereResponse} and return
@@ -59,29 +58,27 @@ public interface AsyncSupport<E extends AtmosphereResource> {
      * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
      * @return the {@link Action} that was manipulated by the {@link AtmosphereHandler}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
-    public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException;
+    Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException;
 
     /**
      * Process an {@link Action} from an {@link ActionEvent} operation like suspend, resume or timed out.
      *
      * @param actionEvent An instance of {@link Action}
      */
-    public void action(E actionEvent);
+    void action(E actionEvent);
 
     /**
      * Return true if this implementation supports the websocket protocol.
      *
      * @return true if supported
      */
-    public boolean supportWebSocket();
+    boolean supportWebSocket();
 
     /**
      * Complete and close the connection associated with an implementation of {@link org.atmosphere.cpr.AtmosphereResource}
      * @param r {@link org.atmosphere.cpr.AtmosphereResource}
      * @return this
      */
-    public AsyncSupport complete(E r);
+    AsyncSupport complete(E r);
 }

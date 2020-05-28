@@ -174,18 +174,18 @@ public class AtmosphereFramework {
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
-    protected final List<String> broadcasterFilters = new ArrayList<String>();
-    protected final List<AsyncSupportListener> asyncSupportListeners = new ArrayList<AsyncSupportListener>();
-    protected final List<AtmosphereResourceListener> atmosphereResourceListeners = new ArrayList<AtmosphereResourceListener>();
-    protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<String>();
-    protected final HashMap<String, String> initParams = new HashMap<String, String>();
+    protected final List<String> broadcasterFilters = new ArrayList<>();
+    protected final List<AsyncSupportListener> asyncSupportListeners = new ArrayList<>();
+    protected final List<AtmosphereResourceListener> atmosphereResourceListeners = new ArrayList<>();
+    protected final ArrayList<String> possibleComponentsCandidate;
+    protected final HashMap<String, String> initParams = new HashMap<>();
     protected final AtmosphereConfig config;
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
     protected final boolean isFilter;
-    protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
-    protected final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<String>();
-    protected final ConcurrentLinkedQueue<String> objectFactoryType = new ConcurrentLinkedQueue<String>();
-    protected final ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors = new ConcurrentLinkedQueue<BroadcasterCacheInspector>();
+    protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers;
+    protected final ConcurrentLinkedQueue<String> broadcasterTypes;
+    protected final ConcurrentLinkedQueue<String> objectFactoryType;
+    protected final ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors = new ConcurrentLinkedQueue<>();
 
     protected String mappingRegex = MAPPING_REGEX;
     protected boolean useNativeImplementation;
@@ -214,15 +214,15 @@ public class AtmosphereFramework {
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
     protected boolean scanDone;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
-    protected final List<BroadcasterListener> broadcasterListeners = Collections.synchronizedList(new ArrayList<BroadcasterListener>());
+    protected final List<BroadcasterListener> broadcasterListeners = Collections.synchronizedList(new ArrayList<>());
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
     protected boolean webSocketProtocolInitialized;
-    protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<AtmosphereHandlerWrapper>();
+    protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<>();
     protected String libPath = DEFAULT_LIB_PATH;
     protected boolean isInit;
     protected boolean sharedThreadPools = true;
-    protected final List<String> packages = new ArrayList<String>();
-    protected final LinkedList<String> annotationPackages = new LinkedList<String>();
+    protected final List<String> packages = new ArrayList<>();
+    protected final LinkedList<String> annotationPackages = new LinkedList<>();
     protected boolean allowAllClassesScan = true;
     protected boolean annotationFound;
     protected boolean executeFirstSet;
@@ -230,18 +230,18 @@ public class AtmosphereFramework {
     protected final AtomicBoolean isDestroyed = new AtomicBoolean();
     protected boolean externalizeDestroy;
     protected AnnotationProcessor annotationProcessor;
-    protected final List<String> excludedInterceptors = new ArrayList<String>();
-    protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<BroadcasterCacheListener>();
-    protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<BroadcasterConfig.FilterManipulator>();
+    protected final List<String> excludedInterceptors = new ArrayList<>();
+    protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<>();
+    protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<>();
     protected AtmosphereResourceFactory arFactory;
     protected MetaBroadcaster metaBroadcaster;
     protected AtmosphereResourceSessionFactory sessionFactory;
     protected String defaultSerializerClassName;
     protected Class<Serializer> defaultSerializerClass;
-    protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<AtmosphereFrameworkListener>();
+    protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<>();
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
     protected Thread shutdownHook;
-    public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = new LinkedList() {
+    public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = new LinkedList<Class<? extends AtmosphereInterceptor>>() {
         {
             // Add CORS support
             add(CorsInterceptor.class);
@@ -560,6 +560,10 @@ public class AtmosphereFramework {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
         config = newAtmosphereConfig();
+        possibleComponentsCandidate = new ArrayList<String>();
+        atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
+        broadcasterTypes = new ConcurrentLinkedQueue<String>();
+        objectFactoryType = new ConcurrentLinkedQueue<String>();
     }
 
     /**

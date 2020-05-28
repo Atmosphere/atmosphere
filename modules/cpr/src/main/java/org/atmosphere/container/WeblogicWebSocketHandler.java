@@ -84,7 +84,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         try {
             webSocketProcessor.open(webSocket, ar, AtmosphereResponseImpl.newInstance(config, ar, webSocket));
         } catch (IOException e) {
-            logger.error("{}", e);
+            logger.error("", e);
         }
 
     }
@@ -137,7 +137,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
         WebSocket webSocket = (WebSocket) webSocketConnection.getWebSocketContext().getServletContext().getAttribute(webSocketConnection.toString());
         webSocketConnection.getWebSocketContext().getServletContext().removeAttribute(webSocketConnection.toString());
 
-        webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<Throwable>(throwable, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
+        webSocketProcessor.notifyListener(webSocket, new WebSocketEventListener.WebSocketEvent<>(throwable, WebSocketEventListener.WebSocketEvent.TYPE.EXCEPTION, webSocket));
     }
 
     @Override
@@ -154,7 +154,7 @@ public class WeblogicWebSocketHandler implements WebSocketListener {
 
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.valueOf(s);
+            webSocketWriteTimeout = Integer.parseInt(s);
         } else {
             webSocketWriteTimeout = -1;
         }

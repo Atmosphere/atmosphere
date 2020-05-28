@@ -87,15 +87,12 @@ import java.util.Set;
 public class AnnotationScanningServletContainerInitializer implements ServletContainerInitializer {
 
     @Override
-    public void onStartup(final Set<Class<?>> classes, final ServletContext servletContext) throws ServletException {
-        final Map<Class<? extends Annotation>, Set<Class<?>>> classesByAnnotation = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
+    public void onStartup(final Set<Class<?>> classes, final ServletContext servletContext) {
+        final Map<Class<? extends Annotation>, Set<Class<?>>> classesByAnnotation = new HashMap<>();
         if (classes != null) {
             for(final Class<?> clazz : classes) {
                 for(Annotation annotation : clazz.getAnnotations()) {
-                    Set<Class<?>> classSet = classesByAnnotation.get(annotation.annotationType());
-                    if(classSet == null) {
-                        classesByAnnotation.put(annotation.annotationType(), classSet = new HashSet<Class<?>>());
-                    }
+                    Set<Class<?>> classSet = classesByAnnotation.computeIfAbsent(annotation.annotationType(), k -> new HashSet<>());
                     classSet.add(clazz);
                 }
             }

@@ -35,18 +35,18 @@ public @interface Schedule {
      *
      * @return
      */
-    public int period() default 60;
+    int period() default 60;
 
     /**
      * The period before starting the broadcast (in second).
      *
      * @return
      */
-    public int waitFor() default 0;
+    int waitFor() default 0;
 
     /**
      * Resume all suspended response on the first broadcast operation.
      */
-    public boolean resumeOnBroadcast() default false;
+    boolean resumeOnBroadcast() default false;
 
 }

@@ -50,13 +50,13 @@ public @interface Subscribe {
     /**
      * Add {@link org.atmosphere.cpr.AtmosphereResourceEventListener} to the broadcast operation.
      */
-    public Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
+    Class<? extends AtmosphereResourceEventListener>[] listeners() default {};
 
     /**
      * Write the returned entity back to the calling connection. Default is false.
      * @return true if the entity needs to be written back to the calling connection.
      */
-    public boolean writeEntity() default true;
+    boolean writeEntity() default true;
 
     /**
      * The timeout in millseconds before the connection is resumed. Default is 30 seconds

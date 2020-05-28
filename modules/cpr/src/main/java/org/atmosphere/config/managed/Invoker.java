@@ -113,7 +113,7 @@ public class Invoker {
         Object encodedObject = encoders.isEmpty() ? instanceType : null;
         for (Encoder d : encoders) {
             Class<?>[] typeArguments = TypeResolver.resolveArguments(d.getClass(), Encoder.class);
-            if (instanceType != null && typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {
+            if (typeArguments.length > 0 && typeArguments[0].isAssignableFrom(instanceType.getClass())) {
                 logger.trace("{} is trying to encode {}", d, instanceType);
                 encodedObject = d.encode(instanceType);
             }

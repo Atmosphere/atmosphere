@@ -54,20 +54,13 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected final AtmosphereConfig config;
     private EndpointMapper<AtmosphereHandlerWrapper> mapper;
     private final long closingTime;
-    private final boolean isServlet30;
     private boolean closeOnCancel;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
-        closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
-        isServlet30 = Servlet30CometSupport.class.isAssignableFrom(this.getClass());
+        closingTime = Long.parseLong(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         closeOnCancel = config.getInitParameter(ApplicationConfig.CLOSE_STREAM_ON_CANCEL, false);
-        config.startupHook(new AtmosphereConfig.StartupHook() {
-            @Override
-            public void started(AtmosphereFramework framework) {
-                mapper = framework.endPointMapper();
-            }
-        });
+        config.startupHook(framework -> mapper = framework.endPointMapper());
     }
 
     @Override
@@ -107,8 +100,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @param request  the {@link AtmosphereRequest}
      * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     public Action suspended(AtmosphereRequest request, AtmosphereResponse response) throws IOException, ServletException {
         return action(request, response);
@@ -120,8 +111,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     Action action(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
 
@@ -162,7 +151,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     s.removeAttribute(getClass().getName());
                 }
             } catch (IllegalStateException ex) {
-                AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(req.resource());
+                AtmosphereResourceImpl r = (AtmosphereResourceImpl) req.resource();
                 logger.warn("Session Expired for {}. Closing the connection", req.uuid(), ex);
                 if (r != null) {
                     logger.trace("Ending request for {}", r.uuid());
@@ -191,7 +180,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         String v = req.getHeader(HeaderConfig.X_ATMO_BINARY);
         if (v != null) {
-            resource.forceBinaryWrite(Boolean.valueOf(v));
+            resource.forceBinaryWrite(Boolean.parseBoolean(v));
         }
 
         // handler interceptor lists
@@ -304,7 +293,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     }
 
     @Override
-    public AsyncSupport complete(AtmosphereResourceImpl r) {
+    public AsyncSupport<AtmosphereResourceImpl> complete(AtmosphereResourceImpl r) {
         return this;
     }
 
@@ -334,7 +323,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         try {
             for (AtmosphereInterceptor arc : c) {
 
-                if (!AtmosphereResourceImpl.class.cast(r).isInScope()) {
+                if (!((AtmosphereResourceImpl) r).isInScope()) {
                     logger.warn("Request closed during processing {} and transport {}", r.uuid(), r.transport());
                     return Action.CANCELLED;
                 }
@@ -363,7 +352,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
 
                 if (logger.isTraceEnabled()) {
-                    logger.trace("\t {}: {} for {}", new String[]{String.valueOf(tracing++), arc.getClass().getName(), r.uuid()});
+                    logger.trace("\t {}: {} for {}", tracing++, arc.getClass().getName(), r.uuid());
                 }
             }
             return a;
@@ -391,9 +380,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      *
      * @param req the {@link AtmosphereResponse}
      * @return the {@link AtmosphereHandler} mapped to the passed servlet-path.
-     * @throws javax.servlet.ServletException
      */
-    protected AtmosphereHandlerWrapper map(AtmosphereRequest req) throws ServletException {
+    protected AtmosphereHandlerWrapper map(AtmosphereRequest req) {
         AtmosphereHandlerWrapper atmosphereHandlerWrapper = mapper.map(req, config.handlers());
         if (atmosphereHandlerWrapper == null) {
             logger.debug("No AtmosphereHandler maps request for {} with mapping {}", req.getRequestURI(), config.handlers());
@@ -411,8 +399,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @param request  the {@link AtmosphereRequest}
      * @param response the {@link AtmosphereResponse}
      * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     public Action resumed(AtmosphereRequest request, AtmosphereResponse response)
             throws IOException, ServletException {
@@ -441,14 +427,12 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     public Action timedout(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
         logger.trace("Timing out {}", req);
-        endRequest(AtmosphereResourceImpl.class.cast(req.resource()), false);
+        endRequest((AtmosphereResourceImpl) req.resource(), false);
         return timedoutAction;
     }
 
@@ -460,9 +444,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @return true if the operation was executed.
      */
     public boolean completeLifecycle(final AtmosphereResource r, boolean cancelled) {
-        if (r != null && !r.isCancelled() && !AtmosphereResourceImpl.class.cast(r).getAndSetInClosingPhase()) {
+        if (r != null && !r.isCancelled() && !((AtmosphereResourceImpl) r).getAndSetInClosingPhase()) {
             logger.trace("Finishing lifecycle for AtmosphereResource {}", r.uuid());
-            final AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
+            final AtmosphereResourceImpl impl = (AtmosphereResourceImpl) r;
             try {
                 if (impl.isCancelled()) {
                     logger.debug("{} is already cancelled", impl.uuid());
@@ -505,6 +489,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                             try {
                                 impl.getResponse(false).getWriter().close();
                             } catch (Throwable t2) {
+                                logger.trace("", t2);
                             }
                         }
                     }
@@ -527,7 +512,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * Invoke the associated {@link AtmosphereHandler}. This method must be synchronized on an AtmosphereResource.
      *
      * @param r a {@link AtmosphereResourceImpl}
-     * @throws IOException
      */
     protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
         AtmosphereRequest req = r.getRequest(false);
@@ -560,7 +544,6 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 }
             } else {
                 logger.trace("AtmosphereResource out of scope {}", r.uuid());
-                return;
             }
         } finally {
             Utils.destroyMeteor(req);
@@ -574,23 +557,17 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @param req the {@link AtmosphereRequest}
      * @param res the {@link AtmosphereResponse}
      * @return action the Action operation.
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     public Action cancelled(final AtmosphereRequest req, final AtmosphereResponse res)
             throws IOException, ServletException {
 
         logger.trace("Cancelling {}", req);
-        final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(req.resource());
+        final AtmosphereResourceImpl r = (AtmosphereResourceImpl) req.resource();
         // Leave a chance to the client to send the disconnect message before processing the connection
         if (closingTime > 0) {
-            ExecutorsFactory.getScheduler(config).schedule(new Callable<Object>() {
-
-                @Override
-                public Object call() throws Exception {
-                    endRequest(r, true);
-                    return null;
-                }
+            ExecutorsFactory.getScheduler(config).schedule(() -> {
+                endRequest(r, true);
+                return null;
             }, closingTime, TimeUnit.MILLISECONDS);
         } else {
             if (completeLifecycle(req.resource(), true)) {

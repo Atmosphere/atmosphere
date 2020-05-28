@@ -37,7 +37,7 @@ public @interface Ready {
      *
      * @deprecated
      */
-    static enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
+    enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
 
     /**
      * Use {@link DeliverTo} annotation instead.
@@ -49,5 +49,5 @@ public @interface Ready {
     /**
      * A list of {@link org.atmosphere.config.managed.Encoder}
      */
-    Class<? extends Encoder>[] encoders() default {};
+    Class<? extends Encoder<?,?>>[] encoders() default {};
 }
