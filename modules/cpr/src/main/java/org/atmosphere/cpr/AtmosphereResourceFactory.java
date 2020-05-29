@@ -195,7 +195,7 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
     /**
      * An interface to use in order to retrieve an {@link AtmosphereResource} inside a cluster.
      */
-    public static interface Async {
+    interface Async {
 
         /**
          * A stub representing an {@link AtmosphereResource} located somewhere in a cluster

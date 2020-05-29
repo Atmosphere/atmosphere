@@ -85,16 +85,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.Comparator;
-import java.util.Enumeration;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.LinkedList;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 import java.util.Map.Entry;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -177,14 +168,14 @@ public class AtmosphereFramework {
     protected final List<String> broadcasterFilters = new ArrayList<>();
     protected final List<AsyncSupportListener> asyncSupportListeners = new ArrayList<>();
     protected final List<AtmosphereResourceListener> atmosphereResourceListeners = new ArrayList<>();
-    protected final ArrayList<String> possibleComponentsCandidate;
+    protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<>();
     protected final HashMap<String, String> initParams = new HashMap<>();
     protected final AtmosphereConfig config;
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
     protected final boolean isFilter;
-    protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers;
-    protected final ConcurrentLinkedQueue<String> broadcasterTypes;
-    protected final ConcurrentLinkedQueue<String> objectFactoryType;
+    protected final Map<String, AtmosphereHandlerWrapper> atmosphereHandlers = new ConcurrentHashMap<>();
+    protected final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<>();
+    protected final ConcurrentLinkedQueue<String> objectFactoryType = new ConcurrentLinkedQueue<>();
     protected final ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors = new ConcurrentLinkedQueue<>();
 
     protected String mappingRegex = MAPPING_REGEX;
@@ -211,7 +202,7 @@ public class AtmosphereFramework {
     private boolean hasNewWebSocketProtocol;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected String metaServicePath = META_SERVICE;
-    protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
+    protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<>();
     protected boolean scanDone;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     protected final List<BroadcasterListener> broadcasterListeners = Collections.synchronizedList(new ArrayList<>());
@@ -275,8 +266,8 @@ public class AtmosphereFramework {
      */
     public final static AtmosphereHandler REFLECTOR_ATMOSPHEREHANDLER = new AbstractReflectorAtmosphereHandler() {
         @Override
-        public void onRequest(AtmosphereResource resource) throws IOException {
-            logger.trace("VoidHandler", resource.uuid());
+        public void onRequest(AtmosphereResource resource) {
+            logger.trace("VoidHandler {}", resource.uuid());
         }
 
         @Override
@@ -318,12 +309,7 @@ public class AtmosphereFramework {
         }
 
         void hookInjection(final AtmosphereConfig config) {
-            config.startupHook(new AtmosphereConfig.StartupHook() {
-                @Override
-                public void started(AtmosphereFramework framework) {
-                    needRequestScopedInjection = Utils.requestScopedInjection(config, atmosphereHandler);
-                }
-            });
+            config.startupHook(framework -> needRequestScopedInjection = Utils.requestScopedInjection(config, atmosphereHandler));
         }
 
         public AtmosphereHandlerWrapper(final AtmosphereHandler atmosphereHandler, Broadcaster broadcaster,
@@ -368,7 +354,7 @@ public class AtmosphereFramework {
      * @version 1.0
      * @since 2.2.0
      */
-    public static enum MetaServiceAction {
+    public enum MetaServiceAction {
 
         /**
          * Install service.
@@ -392,7 +378,7 @@ public class AtmosphereFramework {
          *
          * @param p the enum procedure
          */
-        private MetaServiceAction(final MetaServiceProcedure p) {
+        MetaServiceAction(final MetaServiceProcedure p) {
             procedure = p;
         }
 
@@ -419,7 +405,7 @@ public class AtmosphereFramework {
          * @version 1.0
          * @since 2.2.0
          */
-        private static interface MetaServiceProcedure {
+        private interface MetaServiceProcedure {
 
             /**
              * <p>
@@ -530,7 +516,7 @@ public class AtmosphereFramework {
         }
 
         @Override
-        public AtmosphereObjectFactory allowInjectionOf(java.lang.Object o) {
+        public AtmosphereObjectFactory<Object> allowInjectionOf(java.lang.Object o) {
             return this;
         }
     }
@@ -560,10 +546,6 @@ public class AtmosphereFramework {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
         config = newAtmosphereConfig();
-        possibleComponentsCandidate = new ArrayList<String>();
-        atmosphereHandlers = new ConcurrentHashMap<String, AtmosphereHandlerWrapper>();
-        broadcasterTypes = new ConcurrentLinkedQueue<String>();
-        objectFactoryType = new ConcurrentLinkedQueue<String>();
     }
 
     /**
@@ -639,11 +621,10 @@ public class AtmosphereFramework {
         createWrapperAndConfigureHandler(h, mapping, l).broadcaster = broadcaster;
 
         if (!isInit) {
-            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
-                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+            logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}", h.getClass().getName(), mapping, broadcaster.getClass().getName());
         } else {
             logger.debug("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}",
-                    new String[]{h.getClass().getName(), mapping, broadcaster.getClass().getName()});
+                    h.getClass().getName(), mapping, broadcaster.getClass().getName());
         }
 
         if (!l.isEmpty()) {
@@ -748,7 +729,7 @@ public class AtmosphereFramework {
      * @param broadcaster The {@link Broadcaster} associated with AtmosphereHandler.
      */
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, Broadcaster broadcaster) {
-        addAtmosphereHandler(mapping, h, broadcaster, Collections.<AtmosphereInterceptor>emptyList());
+        addAtmosphereHandler(mapping, h, broadcaster, Collections.emptyList());
         return this;
     }
 
@@ -932,11 +913,7 @@ public class AtmosphereFramework {
                 sharedThreadPools = Boolean.parseBoolean(s);
             }
 
-            this.shutdownHook = new Thread() {
-                public void run() {
-                    AtmosphereFramework.this.destroy();
-                }
-            };
+            this.shutdownHook = new Thread(AtmosphereFramework.this::destroy);
 
             Runtime.getRuntime().addShutdownHook(this.shutdownHook);
 
@@ -975,7 +952,7 @@ public class AtmosphereFramework {
         if (wrap) {
 
             String value = sc.getServletContext().getInitParameter(USE_SERVLET_CONTEXT_PARAMETERS);
-            final boolean useServletContextParameters = value != null && Boolean.valueOf(value);
+            final boolean useServletContextParameters = Boolean.parseBoolean(value);
 
             servletConfig = new ServletConfig() {
 
@@ -1003,10 +980,10 @@ public class AtmosphereFramework {
 
                 public Enumeration<String> getInitParameterNames() {
                     if (!done.getAndSet(true)) {
-                        Enumeration en = sc.getInitParameterNames();
+                        Enumeration<String> en = sc.getInitParameterNames();
                         if (en != null) {
                             while (en.hasMoreElements()) {
-                                String name = (String) en.nextElement();
+                                String name = en.nextElement();
                                 if (!initParams.containsKey(name)) {
                                     initParams.put(name, sc.getInitParameter(name));
                                 }
@@ -1157,7 +1134,7 @@ public class AtmosphereFramework {
                     String clientVersion = null;
                     String nextMajorRelease = null;
                     boolean nextAvailable = false;
-                    if (newVersion.indexOf("SNAPSHOT") == -1) {
+                    if (!newVersion.contains("SNAPSHOT")) {
                         try {
                             while ((inputLine = in.readLine().trim()) != null) {
                                 if (inputLine.startsWith("ATMO23_VERSION=")) {
@@ -1168,8 +1145,8 @@ public class AtmosphereFramework {
                                 } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
                                     nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
                                     if (nextMajorRelease.compareTo(Version.getRawVersion()) > 0
-                                            && nextMajorRelease.toLowerCase().indexOf("rc") == -1
-                                            && nextMajorRelease.toLowerCase().indexOf("beta") == -1) {
+                                            && !nextMajorRelease.toLowerCase().contains("rc")
+                                            && !nextMajorRelease.toLowerCase().contains("beta")) {
                                         nextAvailable = true;
                                     }
                                 }
@@ -1218,8 +1195,7 @@ public class AtmosphereFramework {
             for (String a : list) {
                 try {
                     AtmosphereInterceptor ai = newClassInstance(AtmosphereInterceptor.class,
-                            (Class<AtmosphereInterceptor>) IOUtils
-                                    .loadClass(getClass(), a.trim()));
+                            (Class<AtmosphereInterceptor>) IOUtils.loadClass(getClass(), a.trim()));
                     interceptor(ai);
                 } catch (Exception e) {
                     logger.warn("", e);
@@ -1330,9 +1306,7 @@ public class AtmosphereFramework {
         String packageName = sc.getInitParameter(value);
         if (packageName != null) {
             String[] list = packageName.split(",");
-            for (String a : list) {
-                packages.add(a);
-            }
+            Collections.addAll(packages, list);
         }
     }
 
@@ -1346,7 +1320,7 @@ public class AtmosphereFramework {
     public void configureBroadcasterFactory() {
         try {
             // Check auto supported one
-            if (isBroadcasterSpecified == false) {
+            if (!isBroadcasterSpecified) {
                 broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
             }
 
@@ -1480,7 +1454,7 @@ public class AtmosphereFramework {
         }
 
         if (s != null || SessionSupport.initializationHint) {
-            boolean sessionSupport = Boolean.valueOf(s) || SessionSupport.initializationHint;
+            boolean sessionSupport = Boolean.parseBoolean(s) || SessionSupport.initializationHint;
             config.setSupportSession(sessionSupport);
             if (sessionSupport && (sc.getServletContext().getMajorVersion() < 3 || !SessionSupport.initializationHint)) {
                 logger.warn("SessionSupport error. Make sure you also define {} as a listener in web.xml, see https://github.com/Atmosphere/atmosphere/wiki/Enabling-HttpSession-Support", SessionSupport.class.getName());
@@ -1489,11 +1463,11 @@ public class AtmosphereFramework {
         }
         s = sc.getInitParameter(PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL);
         if (s != null) {
-            config.setSessionTimeoutRemovalAllowed(Boolean.valueOf(s));
+            config.setSessionTimeoutRemovalAllowed(Boolean.parseBoolean(s));
         }
         s = sc.getInitParameter(PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST);
         if (s != null) {
-            config.setThrowExceptionOnCloned(Boolean.valueOf(s));
+            config.setThrowExceptionOnCloned(Boolean.parseBoolean(s));
             isThrowExceptionOnClonedRequestSpecified = true;
         }
         s = sc.getInitParameter(DISABLE_ONSTATE_EVENT);
@@ -1584,7 +1558,7 @@ public class AtmosphereFramework {
 
         String broadcasterClassNameTmp = null;
 
-        boolean isJersey = false;
+        boolean isJersey;
         try {
             IOUtils.loadClass(getClass(), JERSEY_CONTAINER);
             isJersey = true;
@@ -1680,7 +1654,7 @@ public class AtmosphereFramework {
         return autodetect == null || Boolean.parseBoolean(autodetect);
     }
 
-    protected AtmosphereObjectFactory lookupDefaultObjectFactoryType() {
+    protected AtmosphereObjectFactory<?> lookupDefaultObjectFactoryType() {
 
         if (objectFactory != null && !DefaultAtmosphereObjectFactory.class.getName().equals(objectFactory.getClass()
                 .getName())) return objectFactory;
@@ -1688,7 +1662,7 @@ public class AtmosphereFramework {
         for (String b : objectFactoryType) {
             try {
                 Class<?> c = Class.forName(b);
-                objectFactory = (AtmosphereObjectFactory) c.newInstance();
+                objectFactory = (AtmosphereObjectFactory<?>) c.newInstance();
                 break;
             } catch (ClassNotFoundException e) {
                 logger.trace(e.getMessage() + " not found");
@@ -1866,13 +1840,11 @@ public class AtmosphereFramework {
 
     protected void destroyInterceptors() {
         for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
-            if (w.interceptors != null) {
-                for (AtmosphereInterceptor i : w.interceptors) {
-                    try {
-                        i.destroy();
-                    } catch (Throwable ex) {
-                        logger.warn("", ex);
-                    }
+            for (AtmosphereInterceptor i : w.interceptors) {
+                try {
+                    i.destroy();
+                } catch (Throwable ex) {
+                    logger.warn("", ex);
                 }
             }
         }
@@ -1960,7 +1932,7 @@ public class AtmosphereFramework {
 
                 for (AtmosphereHandlerProperty handlerProperty : atmoHandler.getProperties()) {
 
-                    if (handlerProperty.getValue() != null && handlerProperty.getValue().indexOf("jersey") != -1) {
+                    if (handlerProperty.getValue() != null && handlerProperty.getValue().contains("jersey")) {
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
                         broadcasterClassName = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
@@ -1976,7 +1948,7 @@ public class AtmosphereFramework {
                     }
                 }
 
-                sessionSupport(Boolean.valueOf(atmoHandler.getSupportSession()));
+                sessionSupport(Boolean.parseBoolean(atmoHandler.getSupportSession()));
 
                 if (handler != null) {
                     String broadcasterClass = atmoHandler.getBroadcaster();
@@ -2107,10 +2079,9 @@ public class AtmosphereFramework {
      * @param servletContext {@link ServletContext}
      * @param classloader    {@link ClassLoader} to load the class.
      * @throws java.net.MalformedURLException
-     * @throws java.net.URISyntaxException
      */
     public void autoDetectAtmosphereHandlers(ServletContext servletContext, ClassLoader classloader)
-            throws MalformedURLException, URISyntaxException {
+            throws MalformedURLException {
 
         // If Handler has been added
         if (!atmosphereHandlers.isEmpty()) return;
@@ -2162,7 +2133,6 @@ public class AtmosphereFramework {
      * @param servletContext {@link ServletContext}
      * @param classloader    {@link ClassLoader} to load the class.
      * @throws java.net.MalformedURLException
-     * @throws java.net.URISyntaxException
      */
     protected void autoDetectWebSocketHandler(ServletContext servletContext, ClassLoader classloader)
             throws MalformedURLException {
@@ -2187,7 +2157,7 @@ public class AtmosphereFramework {
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
-                        webSocketProtocol = (WebSocketProtocol) newClassInstance(WebSocketProtocol.class, (Class<WebSocketProtocol>) clazz);
+                        webSocketProtocol = newClassInstance(WebSocketProtocol.class, (Class<WebSocketProtocol>) clazz);
                         logger.info("Installed WebSocketProtocol {}", webSocketProtocol);
                     }
                 } catch (Throwable t) {
@@ -2206,7 +2176,7 @@ public class AtmosphereFramework {
         if (scanDone) return;
 
         File[] files = f.listFiles();
-        for (File test : files) {
+        for (File test : Objects.requireNonNull(files)) {
             if (test.isDirectory()) {
                 getFiles(test);
             } else {
@@ -2232,7 +2202,7 @@ public class AtmosphereFramework {
         boolean skip = true;
         String s = config.getInitParameter(ALLOW_QUERYSTRING_AS_REQUEST);
         if (s != null) {
-            skip = Boolean.valueOf(s);
+            skip = Boolean.parseBoolean(s);
         }
 
         if (!skip || req.getAttribute(WEBSOCKET_SUSPEND) == null) {
@@ -2256,7 +2226,7 @@ public class AtmosphereFramework {
         // Lookup for websocket
         if (s == null || s.equals("0")) {
             String unique = config.getInitParameter(ApplicationConfig.UNIQUE_UUID_WEBSOCKET);
-            if (unique != null && Boolean.valueOf(unique)) {
+            if (Boolean.parseBoolean(unique)) {
                 s = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
             }
         }
@@ -2303,7 +2273,7 @@ public class AtmosphereFramework {
             configureRequestResponse(req, res);
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
-            boolean isJBoss = ex.getMessage() == null ? false : ex.getMessage().startsWith("JBoss failed");
+            boolean isJBoss = ex.getMessage() != null && ex.getMessage().startsWith("JBoss failed");
             if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || isJBoss)) {
                 if (!isFilter) {
                     logger.warn("Failed using comet support: {}, error: {} Is the NIO or APR Connector enabled?", asyncSupport.getClass().getName(),
@@ -2861,16 +2831,10 @@ public class AtmosphereFramework {
                 }
 
                 // Always scan library
-                String pathLibs = libPath != DEFAULT_LIB_PATH ? libPath : realPath(sc, DEFAULT_LIB_PATH);
+                String pathLibs = !libPath.equals(DEFAULT_LIB_PATH) ? libPath : realPath(sc, DEFAULT_LIB_PATH);
                 if (pathLibs != null) {
                     File libFolder = new File(pathLibs);
-                    File jars[] = libFolder.listFiles(new FilenameFilter() {
-
-                        @Override
-                        public boolean accept(File arg0, String arg1) {
-                            return arg1.endsWith(".jar");
-                        }
-                    });
+                    File[] jars = libFolder.listFiles((arg0, arg1) -> arg1.endsWith(".jar"));
 
                     if (jars != null) {
                         for (File file : jars) {
@@ -2886,7 +2850,6 @@ public class AtmosphereFramework {
             }
         } catch (Throwable e) {
             logger.error("", e);
-            return;
         } finally {
             if (annotationProcessor != null) {
                 annotationProcessor.destroy();
@@ -2984,7 +2947,7 @@ public class AtmosphereFramework {
      * return this
      */
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler) {
-        addWebSocketHandler(path, handler, REFLECTOR_ATMOSPHEREHANDLER, Collections.EMPTY_LIST);
+        addWebSocketHandler(path, handler, REFLECTOR_ATMOSPHEREHANDLER, Collections.emptyList());
         return this;
     }
 
@@ -2998,7 +2961,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework addWebSocketHandler(String path, WebSocketHandler handler, AtmosphereHandler h) {
-        addWebSocketHandler(path, handler, REFLECTOR_ATMOSPHEREHANDLER, Collections.EMPTY_LIST);
+        addWebSocketHandler(path, handler, REFLECTOR_ATMOSPHEREHANDLER, Collections.emptyList());
         return this;
     }
 
@@ -3249,9 +3212,7 @@ public class AtmosphereFramework {
         synchronized (this) {
             try {
                 arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
-            } catch (InstantiationException e) {
-                logger.error("", e);
-            } catch (IllegalAccessException e) {
+            } catch (InstantiationException | IllegalAccessException e) {
                 logger.error("", e);
             }
             arFactory.configure(config);
@@ -3265,9 +3226,7 @@ public class AtmosphereFramework {
         synchronized (this) {
             try {
                 webSocketFactory = newClassInstance(WebSocketFactory.class, DefaultWebSocketFactory.class);
-            } catch (InstantiationException e) {
-                logger.error("", e);
-            } catch (IllegalAccessException e) {
+            } catch (InstantiationException | IllegalAccessException e) {
                 logger.error("", e);
             }
         }
@@ -3282,9 +3241,7 @@ public class AtmosphereFramework {
         try {
             metaBroadcaster = newClassInstance(MetaBroadcaster.class, DefaultMetaBroadcaster.class);
             metaBroadcaster.configure(config);
-        } catch (InstantiationException e) {
-            logger.error("", e);
-        } catch (IllegalAccessException e) {
+        } catch (InstantiationException | IllegalAccessException e) {
             logger.error("", e);
         }
         return this;

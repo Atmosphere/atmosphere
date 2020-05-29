@@ -31,7 +31,7 @@ public interface AtmosphereResourceEvent {
      *
      * @return the object that was passed to {@link Broadcaster#broadcast(java.lang.Object)}
      */
-    public Object getMessage();
+    Object getMessage();
 
     /**
      * Set an Object that can be retrieved with {@link #getMessage()}. Note that the value may be overridden when
@@ -39,42 +39,42 @@ public interface AtmosphereResourceEvent {
      *
      * @param o an Object that can be retrieved with {@link #getMessage()}.
      */
-    public AtmosphereResourceEvent setMessage(Object o);
+    AtmosphereResourceEvent setMessage(Object o);
 
     /**
      * Return true is the response gets resumed after a timeout.
      *
      * @return true is the response gets resumed after a timeout.
      */
-    public boolean isResumedOnTimeout();
+    boolean isResumedOnTimeout();
 
     /**
      * Return true when the remote client close the connection.
      *
      * @return true when the remote client close the connection.
      */
-    public boolean isCancelled();
+    boolean isCancelled();
 
     /**
      * Return <tt>true</tt> if {@link AtmosphereResource#suspend()} has been invoked and set to <tt>true</tt>.
      *
      * @return <tt>true</tt> if {@link AtmosphereResource#suspend()} has been invoked and set to <tt>true</tt>
      */
-    public boolean isSuspended();
+    boolean isSuspended();
 
     /**
      * Return <tt>true</tt> if {@link AtmosphereResource#resume()} has been invoked.
      *
      * @return <tt>true</tt> if {@link AtmosphereResource#resume()} has been invoked and set to <tt>true</tt>
      */
-    public boolean isResuming();
+    boolean isResuming();
 
     /**
      * Return the {@link AtmosphereResource} associated with this event.
      *
      * @return {@link AtmosphereResource}
      */
-    public AtmosphereResource getResource();
+    AtmosphereResource getResource();
 
     /**
      * Return true if the client closed the connection and send the Atmosphere close message. You must
@@ -83,24 +83,24 @@ public interface AtmosphereResourceEvent {
      *
      * @return
      */
-    public boolean isClosedByClient();
+    boolean isClosedByClient();
 
     /**
      * Return true if the application closed the connection using {@link org.atmosphere.cpr.AtmosphereResource#close()}.
      *
      * @return if the application.
      */
-    public boolean isClosedByApplication();
+    boolean isClosedByApplication();
 
     /**
      * Return a {@link Throwable} if an unexpected exception occured.
      *
      * @return {@link Throwable} if an unexpected exception occured.
      */
-    public Throwable throwable();
+    Throwable throwable();
 
     /**
      * Return the broadcaster associated with the {@link AtmosphereResource} this object contains.
      */
-    public Broadcaster broadcaster();
+    Broadcaster broadcaster();
 }

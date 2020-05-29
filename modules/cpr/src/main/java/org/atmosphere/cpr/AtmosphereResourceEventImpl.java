@@ -16,6 +16,7 @@
 
 package org.atmosphere.cpr;
 
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -77,12 +78,12 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
     @Override
     public boolean isResuming() {
-        return resource == null ? true : resource.isResumed();
+        return resource == null || resource.isResumed();
     }
 
     @Override
     public boolean isSuspended() {
-        return resource == null ? false : resource.isSuspended();
+        return resource != null && resource.isSuspended();
     }
 
     @Override
@@ -149,20 +150,20 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
 
         AtmosphereResourceEventImpl that = (AtmosphereResourceEventImpl) o;
 
-        if (isCancelled != null ? !isCancelled.equals(that.isCancelled) : that.isCancelled != null) return false;
-        if (isResumedOnTimeout != null ? !isResumedOnTimeout.equals(that.isResumedOnTimeout) : that.isResumedOnTimeout != null)
+        if (!isCancelled.equals(that.isCancelled)) return false;
+        if (!isResumedOnTimeout.equals(that.isResumedOnTimeout))
             return false;
-        if (message != null ? !message.equals(that.message) : that.message != null) return false;
-        if (resource != null ? !resource.equals(that.resource) : that.resource != null) return false;
-        if (throwable != null ? !throwable.equals(that.throwable) : that.throwable != null) return false;
+        if (!Objects.equals(message, that.message)) return false;
+        if (!Objects.equals(resource, that.resource)) return false;
+        if (!Objects.equals(throwable, that.throwable)) return false;
 
         return true;
     }
 
     @Override
     public int hashCode() {
-        int result = isCancelled != null ? isCancelled.hashCode() : 0;
-        result = 31 * result + (isResumedOnTimeout != null ? isResumedOnTimeout.hashCode() : 0);
+        int result = isCancelled.hashCode();
+        result = 31 * result + isResumedOnTimeout.hashCode();
         result = 31 * result + (throwable != null ? throwable.hashCode() : 0);
         result = 31 * result + (message != null ? message.hashCode() : 0);
         result = 31 * result + (resource != null ? resource.hashCode() : 0);

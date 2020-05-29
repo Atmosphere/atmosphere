@@ -75,7 +75,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean disconnected = new AtomicBoolean();
 
     private final ConcurrentLinkedQueue<AtmosphereResourceEventListener> listeners =
-            new ConcurrentLinkedQueue<AtmosphereResourceEventListener>();
+            new ConcurrentLinkedQueue<>();
 
     private final AtomicBoolean isSuspendEvent = new AtomicBoolean();
     private AtmosphereHandler atmosphereHandler;
@@ -643,7 +643,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
         logger.trace("Invoking listener {} for {}", listeners, uuid());
 
-        Action oldAction = action;
         try {
             if (HeartbeatAtmosphereResourceEvent.class.isAssignableFrom(event.getClass())) {
                 onHeartbeat(event);
@@ -665,23 +664,23 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 onBroadcast(event);
             }
 
-            if (oldAction.type() != action.type()) {
+            if (action.type() != action.type()) {
                 action().type(Action.TYPE.CREATED);
             }
         } catch (Throwable t) {
-            AtmosphereResourceEventImpl.class.cast(event).setThrowable(t);
+            ((AtmosphereResourceEventImpl) event).setThrowable(t);
             if (event.isSuspended()) {
                 logger.warn("Exception during suspend() operation {}", t.toString());
                 logger.debug("", t);
                 removeFromAllBroadcasters();
             } else {
-                logger.debug("Listener error {}", t);
+                logger.debug("Listener error {}", event, t);
             }
 
             try {
                 onThrowable(event);
             } catch (Throwable t2) {
-                logger.warn("Listener error {}", t2);
+                logger.warn("Listener error {}", event, t2);
             }
         }
         return this;

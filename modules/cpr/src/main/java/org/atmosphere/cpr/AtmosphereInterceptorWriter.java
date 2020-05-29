@@ -88,7 +88,7 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     }
 
-    protected void writeReady(AtmosphereResponse response, byte[] responseDraft) throws IOException {
+    protected void writeReady(AtmosphereResponse response, byte[] responseDraft) {
         response.write(responseDraft);
     }
 

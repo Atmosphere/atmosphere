@@ -236,7 +236,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public Enumeration getHeaders(String name) {
 
-        ArrayList list = new ArrayList<String>();
+        ArrayList list = new ArrayList<>();
         // Never override the parent Request
         if (!name.equalsIgnoreCase("content-type")) {
             list = Collections.list(b.request.getHeaders(name));
@@ -270,12 +270,12 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public Enumeration<String> getHeaderNames() {
-        Set list = new HashSet();
+        Set<String> list = new HashSet<>();
         list.addAll(b.headers.keySet());
 
         list.addAll(Collections.list(b.request.getHeaderNames()));
         if (b.request != null) {
-            Enumeration e = b.request.getAttributeNames();
+            Enumeration<String> e = b.request.getAttributeNames();
             while (e.hasMoreElements()) {
                 String name = e.nextElement().toString();
                 if (name.startsWith(X_ATMOSPHERE)) {
@@ -359,16 +359,16 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 // https://github.com/Atmosphere/atmosphere/issues/1367
                 Object o = attributeWithoutException(b.request, s);
                 if (o == null || String.class.isAssignableFrom(o.getClass())) {
-                    name = String.class.cast(o);
+                    name = (String) o;
                 } else {
                     try {
                         if (HttpServletRequestWrapper.class.isAssignableFrom(b.request.getClass())) {
-                            HttpServletRequest hsr = HttpServletRequestWrapper.class.cast(b.request);
+                            HttpServletRequest hsr = b.request;
                             while (hsr instanceof HttpServletRequestWrapper) {
                                 hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
                                 o = attributeWithoutException(hsr, s);
                                 if (o == null || String.class.isAssignableFrom(o.getClass())) {
-                                    name = String.class.cast(o);
+                                    name = (String) o;
                                     break;
                                 }
                             }
@@ -495,7 +495,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             Map<String, List<String>> m = decoder.getParameters();
             Map<String, String[]> newM = new HashMap<String, String[]>();
             for (Map.Entry<String, List<String>> q : m.entrySet()) {
-                newM.put(q.getKey(), q.getValue().toArray(new String[q.getValue().size()]));
+                newM.put(q.getKey(), q.getValue().toArray(new String[0]));
             }
             b.queryStrings(newM);
         }
@@ -685,7 +685,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         if (resource() != null) {
             // UGLY, but we need to prevent looping here.
-            HttpSession session = AtmosphereResourceImpl.class.cast(resource()).session;
+            HttpSession session = ((AtmosphereResourceImpl) resource()).session;
             try {
                 if (session != null) {
                     // check if session is valid (isNew() will throw if not)
@@ -790,7 +790,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String getServerName() {
-        return b.serverName != "" ? b.serverName : b.request.getServerName();
+        return !b.serverName.equals("") ? b.serverName : b.request.getServerName();
     }
 
     @Override
@@ -860,7 +860,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public AtmosphereResource resource() {
         try {
             Object o = getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            if (o == null || !(o instanceof AtmosphereResource)) {
+            if (!(o instanceof AtmosphereResource)) {
                 // WebSphere is in trouble.
                 return null;
             }
@@ -894,8 +894,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public Enumeration<String> getAttributeNames() {
-        Set<String> l = new HashSet();
-        l.addAll(b.localAttributes.unmodifiableMap().keySet());
+        Set<String> l = new HashSet<>(b.localAttributes.unmodifiableMap().keySet());
 
         if (isNotNoOps()) {
             synchronized (b.request) {
@@ -974,7 +973,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public void setRequest(ServletRequest request) {
         super.setRequest(request);
         if (HttpServletRequest.class.isAssignableFrom(request.getClass())) {
-            b.request = HttpServletRequest.class.cast(request);
+            b.request = (HttpServletRequest) request;
         }
     }
 
@@ -987,8 +986,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private String contentType;
         private boolean noContentType;
         private Long contentLength;
-        private Map<String, String> headers = Collections.synchronizedMap(new HashMap<String, String>());
-        private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<String, String[]>());
+        private Map<String, String> headers = Collections.synchronizedMap(new HashMap<>());
+        private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<>());
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
@@ -1002,8 +1001,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private int localPort;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
-        private Set<Cookie> cookies = Collections.synchronizedSet(new HashSet<Cookie>());
-        private final Set<Locale> locales = Collections.synchronizedSet(new HashSet<Locale>());
+        private Set<Cookie> cookies = Collections.synchronizedSet(new HashSet<>());
+        private final Set<Locale> locales = Collections.synchronizedSet(new HashSet<>());
         private Principal principal;
         private String authType;
         private String contextPath = "";
@@ -1230,7 +1229,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             }
 
             if (NoOpsRequest.class.isAssignableFrom(request.getClass())) {
-                NoOpsRequest.class.cast(request).fake = session;
+                ((NoOpsRequest) request).fake = session;
             } else {
                 webSocketFakeSession = session;
             }
@@ -1412,7 +1411,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public final static AtmosphereRequest wrap(HttpServletRequest request) {
         // Do not rewrap.
         if (AtmosphereRequestImpl.class.isAssignableFrom(request.getClass())) {
-            return AtmosphereRequestImpl.class.cast(request);
+            return (AtmosphereRequestImpl) request;
         }
 
         Builder b = new Builder();
@@ -1438,16 +1437,14 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         HttpServletRequest r;
 
         Cookie[] cs = request.getCookies();
-        Set<Cookie> hs = Collections.synchronizedSet(new HashSet());
+        Set<Cookie> hs = Collections.synchronizedSet(new HashSet<>());
         if (cs != null) {
-            for (Cookie c : cs) {
-                hs.add(c);
-            }
+            Collections.addAll(hs, cs);
         }
 
         boolean isWrapped = false;
         if (AtmosphereRequestImpl.class.isAssignableFrom(request.getClass())) {
-            b = AtmosphereRequestImpl.class.cast(request).b;
+            b = ((AtmosphereRequestImpl) request).b;
             isWrapped = true;
         } else {
             b = new Builder();
@@ -1484,7 +1481,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         if (loadInMemory) {
             String s = (String) attributeWithoutException(request, FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST);
-            boolean throwException = s != null && Boolean.parseBoolean(s);
+            boolean throwException = Boolean.parseBoolean(s);
             r = new NoOpsRequest(throwException);
             if (isWrapped) {
                 load(b.request, b);
@@ -1494,17 +1491,17 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             b.request(r);
         }
 
-        return isWrapped ? AtmosphereRequestImpl.class.cast(request) : b.build();
+        return isWrapped ? (AtmosphereRequestImpl) request : b.build();
     }
 
     public final static class NoOpsRequest implements HttpServletRequest {
 
         private boolean throwExceptionOnCloned;
         public HttpSession fake;
-        private final static Enumeration<String> EMPTY_ENUM_STRING = Collections.enumeration(Collections.<String>emptyList());
-        private final static Enumeration<Locale> EMPTY_ENUM_LOCALE = Collections.enumeration(Collections.<Locale>emptyList());
-        private final static List<Part> EMPTY_ENUM_PART = Collections.<Part>emptyList();
-        private final static Map<String, String[]> EMPTY_MAP_STRING = Collections.<String, String[]>emptyMap();
+        private final static Enumeration<String> EMPTY_ENUM_STRING = Collections.enumeration(Collections.emptyList());
+        private final static Enumeration<Locale> EMPTY_ENUM_LOCALE = Collections.enumeration(Collections.emptyList());
+        private final static List<Part> EMPTY_ENUM_PART = Collections.emptyList();
+        private final static Map<String, String[]> EMPTY_MAP_STRING = Collections.emptyMap();
         private final static String[] EMPTY_ARRAY = new String[0];
         private final StringBuffer EMPTY_STRING_BUFFER = new StringBuffer();
         private final static Cookie[] EMPTY_COOKIE = new Cookie[0];
@@ -1672,7 +1669,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public boolean isUserInRole(String role) {
-            if (this.throwExceptionOnCloned == true) {
+            if (this.throwExceptionOnCloned) {
                 throw new UnsupportedOperationException();
             }
             return false;
@@ -1680,14 +1677,14 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public void login(String username, String password) throws ServletException {
-            if (this.throwExceptionOnCloned == true) {
+            if (this.throwExceptionOnCloned) {
                 throw new ServletException();
             }
         }
 
         @Override
         public void logout() throws ServletException {
-            if (this.throwExceptionOnCloned == true) {
+            if (this.throwExceptionOnCloned) {
                 throw new ServletException();
             }
         }

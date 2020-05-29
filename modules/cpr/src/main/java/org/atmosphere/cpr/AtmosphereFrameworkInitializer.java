@@ -83,7 +83,7 @@ public class AtmosphereFrameworkInitializer {
     protected static AtmosphereFramework newAtmosphereFramework(Class<? extends AtmosphereFramework> frameworkClass, boolean isFilter, boolean autoDetectHandlers, final ServletContext c) {
         AtmosphereFramework framework;
         try {
-            framework = (AtmosphereFramework) frameworkClass.getDeclaredConstructor(
+            framework = frameworkClass.getDeclaredConstructor(
                     new Class[]{boolean.class, boolean.class}).newInstance(isFilter, autoDetectHandlers);
         } catch (Exception e) {
             logger.error("", e);

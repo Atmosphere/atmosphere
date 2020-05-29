@@ -38,12 +38,12 @@ public interface AtmosphereObjectFactory<Z> extends AtmosphereConfigAware {
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-    public <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException;
+    <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException;
 
     /**
      * Pass information to the underlying Dependency Injection Implementation
      * @param z an Z
      * @return this
      */
-    public AtmosphereObjectFactory allowInjectionOf(Z z);
+    AtmosphereObjectFactory allowInjectionOf(Z z);
 }
