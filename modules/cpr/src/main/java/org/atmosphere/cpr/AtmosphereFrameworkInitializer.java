@@ -26,6 +26,7 @@ import javax.servlet.ServletException;
 import java.util.Map;
 
 import static org.atmosphere.cpr.ApplicationConfig.META_SERVICE_PATH;
+import static org.atmosphere.cpr.AtmosphereFramework.ASYNC_IO;
 import static org.atmosphere.cpr.AtmosphereFramework.META_SERVICE;
 
 public class AtmosphereFrameworkInitializer {
@@ -115,10 +116,18 @@ public class AtmosphereFrameworkInitializer {
             sc.setAttribute(AtmosphereFramework.MetaServiceAction.class.getName(), config);
 
             for (final Map.Entry<String, AtmosphereFramework.MetaServiceAction> action : config.entrySet()) {
-                final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
-                if (AtmosphereFramework.class.isAssignableFrom(c)) {
-                    logger.info("Found a definition of AtmosphereFramework {} under {}", c, metaServicePath);
-                    return newAtmosphereFramework(c, isFilter, autoDetectHandlers);
+                try {
+                    final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
+                    if (AtmosphereFramework.class.isAssignableFrom(c)) {
+                        logger.info("Found a definition of AtmosphereFramework {} under {}", c, metaServicePath);
+                        return newAtmosphereFramework(c, isFilter, autoDetectHandlers);
+                    }
+                } catch (ClassNotFoundException ex) {
+                    if (action.getKey().startsWith(ASYNC_IO)) {
+                        logger.trace("Unable to load class {}", ex.getMessage());
+                    } else {
+                        logger.warn("", ex);
+                    }
                 }
             }
         } catch (Exception ex) {

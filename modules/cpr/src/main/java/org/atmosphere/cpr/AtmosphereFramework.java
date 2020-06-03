@@ -162,6 +162,7 @@ public class AtmosphereFramework {
     public static final String DEFAULT_HANDLER_PATH = "/WEB-INF/classes/";
     public static final String META_SERVICE = "META-INF/services/";
     public static final String MAPPING_REGEX = "[a-zA-Z0-9-&.*_~=@;\\?]+";
+    public static final String ASYNC_IO = "io.async";
 
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
@@ -468,7 +469,7 @@ public class AtmosphereFramework {
                 } else if (AtmosphereFramework.class.isAssignableFrom(c)) {
                     // No OPS
                 } else if (EndpointMapper.class.isAssignableFrom(c)) {
-                   fwk.endPointMapper(fwk.newClassInstance(EndpointMapper.class, c));
+                    fwk.endPointMapper(fwk.newClassInstance(EndpointMapper.class, c));
                 } else {
                     logger.warn("{} is not a framework service that could be installed", c.getName());
                 }
@@ -595,7 +596,7 @@ public class AtmosphereFramework {
         if (!isInit) {
             logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
             logger.info("Installed the following AtmosphereInterceptor mapped to AtmosphereHandler {}", h.getClass().getName());
-            if ( !l.isEmpty() ) {
+            if (!l.isEmpty()) {
                 for (AtmosphereInterceptor s : l) {
                     logger.info("\t{} : {}", s.getClass().getName(), s);
                 }
@@ -1720,7 +1721,7 @@ public class AtmosphereFramework {
         checkWebSocketSupportState();
     }
 
-    public void checkWebSocketSupportState(){
+    public void checkWebSocketSupportState() {
         if (atmosphereHandlers.isEmpty() && !SimpleHttpProtocol.class.isAssignableFrom(webSocketProtocol.getClass())) {
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
             addAtmosphereHandler(Broadcaster.ROOT_MASTER, new AbstractReflectorAtmosphereHandler() {
@@ -1808,7 +1809,7 @@ public class AtmosphereFramework {
             AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
             try {
                 handlerWrapper.atmosphereHandler.destroy();
-            }catch (Throwable t) {
+            } catch (Throwable t) {
                 logger.warn("", t);
             }
         }
@@ -1886,8 +1887,16 @@ public class AtmosphereFramework {
             }
 
             for (final Map.Entry<String, MetaServiceAction> action : config.entrySet()) {
-                final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
-                action.getValue().apply(this, c);
+                try {
+                    final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
+                    action.getValue().apply(this, c);
+                } catch (ClassNotFoundException ex) {
+                    if (action.getKey().startsWith(ASYNC_IO)) {
+                        logger.trace("Unable to load class {}", ex.getMessage());
+                    } else {
+                        logger.warn("", ex);
+                    }
+                }
             }
         } catch (Exception ex) {
             logger.warn("", ex);
@@ -3452,6 +3461,7 @@ public class AtmosphereFramework {
 
     /**
      * If a {@link ContainerInitializer} fail, log the excetion here.
+     *
      * @param initializationError
      */
     public void initializationError(IllegalStateException initializationError) {
