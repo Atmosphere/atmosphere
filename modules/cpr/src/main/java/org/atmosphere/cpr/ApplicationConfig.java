@@ -843,5 +843,13 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel
      */
     java.lang.String CLOSE_STREAM_ON_CANCEL = "org.atmosphere.cpr.AsynchronousProcessor.closeOnCancel";
+
+    /**
+     * Set content-type header in the first response.
+     * See {@link org.atmosphere.cpr.AtmosphereFramework#configureRequestResponse}
+     * no default value
+     * value : text/plain; charset=utf-8
+     */
+    String CONTENT_TYPE_FIRST_RESPONSE = "org.atmosphere.cpr.contentTypeFirstResponse";
 }
 
