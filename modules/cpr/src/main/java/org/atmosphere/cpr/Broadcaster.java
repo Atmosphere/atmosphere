@@ -47,7 +47,7 @@ import java.util.concurrent.TimeUnit;
  */
 public interface Broadcaster {
 
-    public final static String ROOT_MASTER = "/*";
+    String ROOT_MASTER = "/*";
 
     enum SCOPE {
         REQUEST, APPLICATION, VM
@@ -64,7 +64,7 @@ public interface Broadcaster {
      * @param config an {@link AtmosphereConfig}
      * @return a usable Broadcaster.
      */
-    public Broadcaster initialize(String name, URI uri, AtmosphereConfig config);
+    Broadcaster initialize(String name, URI uri, AtmosphereConfig config);
 
     /**
      * Set the maximum number of suspended {@link AtmosphereResource}s. If the maximum is reached, Atmosphere will either
@@ -250,7 +250,7 @@ public interface Broadcaster {
      * suspended {@link AtmosphereResource} and some resource (like database connections, JMS queue, etc.) needs to be
      * closed.
      */
-    public void releaseExternalResources();
+    void releaseExternalResources();
 
     /**
      * Set the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}. Make sure you are selecting the right policy
@@ -258,14 +258,14 @@ public interface Broadcaster {
      *
      * @param policy a {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
      */
-    public void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
+    void setBroadcasterLifeCyclePolicy(BroadcasterLifeCyclePolicy policy);
 
     /**
      * Get the {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}.
      *
      * @return {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
      */
-    public BroadcasterLifeCyclePolicy getBroadcasterLifeCyclePolicy();
+    BroadcasterLifeCyclePolicy getBroadcasterLifeCyclePolicy();
 
     /**
      * Add a {@link BroadcasterLifeCyclePolicyListener}.

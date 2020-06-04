@@ -24,10 +24,7 @@ import org.slf4j.LoggerFactory;
 
 import javax.servlet.http.HttpSession;
 import java.io.IOException;
-import java.util.Collections;
-import java.util.Enumeration;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
@@ -60,10 +57,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private AtmosphereRequest req;
     private AtmosphereResponse response;
     private final Action action = new Action();
-    protected final List<Broadcaster> broadcasters = new CopyOnWriteArrayList<Broadcaster>();
+    protected final List<Broadcaster> broadcasters = new CopyOnWriteArrayList<>();
     protected Broadcaster broadcaster;
     private AtmosphereConfig config;
-    protected AsyncSupport asyncSupport;
+    protected AsyncSupport<AtmosphereResourceImpl> asyncSupport;
     private Serializer serializer;
     private final AtomicBoolean isInScope = new AtomicBoolean(true);
     private AtmosphereResourceEventImpl event;
@@ -96,7 +93,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     @Deprecated
     public AtmosphereResourceImpl(AtmosphereConfig config, Broadcaster broadcaster,
                                   AtmosphereRequest req, AtmosphereResponse response,
-                                  AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
+                                  AsyncSupport<AtmosphereResourceImpl> asyncSupport, AtmosphereHandler atmosphereHandler) {
         initialize(config, broadcaster, req, response, asyncSupport, atmosphereHandler);
     }
 
@@ -128,7 +125,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         String s = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
         if (s == null) {
             s = response.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-            if (s == null && req != null) {
+            if (s == null) {
                 String tmp = req.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
                 s = tmp != null && !tmp.equalsIgnoreCase("0") ? tmp : null;
             }
@@ -227,7 +224,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * Manually set the {@link TRANSPORT}
      *
      * @param transport set the {@link TRANSPORT}
-     * @return
      */
     public AtmosphereResourceImpl transport(TRANSPORT transport) {
         this.transport = transport;
@@ -407,7 +403,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
             }
 
-            broadcaster.addAtmosphereResource(this);
+            Objects.requireNonNull(broadcaster).addAtmosphereResource(this);
             if (req.getAttribute(DefaultBroadcaster.CACHED) != null && transport() != null && Utils.resumableTransport(transport())) {
                 action.type(Action.TYPE.CONTINUE);
                 // Do nothing because we have found cached message which was written already, and the handler resumed.
@@ -546,8 +542,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * Protect the object from being used after it got cancelled.
      *
-     * @param isInScope
-     */
+     * */
     public void setIsInScope(boolean isInScope) {
         this.isInScope.set(isInScope);
     }
@@ -564,7 +559,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * Set the {@link Serializer} used to write broadcasted objects.
      *
-     * @param s
      */
     @Override
     public AtmosphereResource setSerializer(Serializer s) {
@@ -701,7 +695,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     /**
      * Notify {@link AtmosphereResourceEventListener} thah an unexpected exception occured.
      *
-     * @pram a {@link Throwable}
      */
     public void onThrowable(Throwable t) {
         onThrowable(new AtmosphereResourceEventImpl(this, false, false, t));
@@ -761,7 +754,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onDisconnect(e);
             if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
-                WebSocketEventListener.class.cast(r).onDisconnect(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
+                ((WebSocketEventListener) r).onDisconnect(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
             }
         }
 
@@ -780,7 +773,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onClose(e);
             if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
-                WebSocketEventListener.class.cast(r).onClose(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
+                ((WebSocketEventListener) r).onClose(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
             }
         }
     }
@@ -816,10 +809,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 try {
                     Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
                     if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
-                        Meteor.class.cast(o).destroy();
+                        ((Meteor) o).destroy();
                     }
                 } catch (Exception ex) {
-                    logger.trace("Meteor exception {}", ex);
+                    logger.trace("Meteor exception", ex);
                 }
 
                 SessionTimeoutSupport.restoreTimeout(req);
@@ -828,14 +821,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 // We must close the underlying WebSocket as well.
                 if (AtmosphereResponseImpl.class.isAssignableFrom(response.getClass())) {
                     if (closeOnCancel) {
-                        AtmosphereResponseImpl.class.cast(response).close();
+                        response.close();
                     }
-                    AtmosphereResponseImpl.class.cast(response).destroy();
+                    response.destroy();
                 }
 
                 if (AtmosphereRequestImpl.class.isAssignableFrom(req.getClass())) {
                     if (closeOnCancel) {
-                        AtmosphereRequestImpl.class.cast(req).destroy();
+                        req.destroy();
                     }
                 }
                 event.destroy();
@@ -877,8 +870,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     ",\n\t isCancelled=" + isCancelled() +
                     ",\n\t isSuspended=" + isSuspended() +
                     ",\n\t broadcasters=" + getBroadcaster().getID() +
-                    ",\n\t isClosedByClient=" + (event != null ? event.isClosedByClient() : false) +
-                    ",\n\t isClosedByApplication=" + (event != null ? event.isClosedByApplication() : false) +
+                    ",\n\t isClosedByClient=" + (event != null && event.isClosedByClient()) +
+                    ",\n\t isClosedByApplication=" + (event != null && event.isClosedByApplication()) +
                     ",\n\t action=" + action +
                     '}';
         } catch (NullPointerException ex) {
@@ -946,10 +939,10 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     }
 
     public AtmosphereResourceImpl cloneState(AtmosphereResource r) {
-        for (AtmosphereResourceEventListener l : AtmosphereResourceImpl.class.cast(r).atmosphereResourceEventListener()) {
+        for (AtmosphereResourceEventListener l : ((AtmosphereResourceImpl) r).atmosphereResourceEventListener()) {
             addEventListener(l);
         }
-        AtmosphereResourceImpl.class.cast(r).session(r.session());
+        ((AtmosphereResourceImpl) r).session(r.session());
         boolean isFirst = true;
         for (Broadcaster b : broadcasters) {
             if (isFirst) {
@@ -1009,9 +1002,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
         AtmosphereResourceImpl that = (AtmosphereResourceImpl) o;
 
-        if (uuid() != null ? !uuid().equals(that.uuid()) : that.uuid() != null) return false;
-
-        return true;
+        return uuid() != null ? uuid().equals(that.uuid()) : that.uuid() == null;
     }
 
     @Override

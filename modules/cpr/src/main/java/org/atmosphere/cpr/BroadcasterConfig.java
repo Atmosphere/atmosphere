@@ -42,8 +42,8 @@ public class BroadcasterConfig {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterConfig.class);
 
-    protected final ConcurrentLinkedQueue<BroadcastFilter> filters = new ConcurrentLinkedQueue<BroadcastFilter>();
-    protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters = new ConcurrentLinkedQueue<PerRequestBroadcastFilter>();
+    protected final ConcurrentLinkedQueue<BroadcastFilter> filters = new ConcurrentLinkedQueue<>();
+    protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters = new ConcurrentLinkedQueue<>();
 
     private ExecutorService executorService;
     private ExecutorService asyncWriteService;
@@ -60,9 +60,6 @@ public class BroadcasterConfig {
     /**
      * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
      *
-     * @param broadcastFilters
-     * @param config
-     * @param broadcasterId
      */
     public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, String broadcasterId) {
         this(broadcastFilters, config, true, broadcasterId);
@@ -71,10 +68,6 @@ public class BroadcasterConfig {
     /**
      * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
      *
-     * @param broadcastFilters
-     * @param config
-     * @param handleExecutors
-     * @param broadcasterId
      */
     public BroadcasterConfig(List<String> broadcastFilters, AtmosphereConfig config, boolean handleExecutors, String broadcasterId) {
         this.config = config;
@@ -87,11 +80,6 @@ public class BroadcasterConfig {
     /**
      * Create a new BroadcasterConfig. Remember to call init() after the object has been created.
      *
-     * @param executorService
-     * @param asyncWriteService
-     * @param scheduler
-     * @param config
-     * @param broadcasterId
      */
     public BroadcasterConfig(ExecutorService executorService, ExecutorService asyncWriteService,
                              ScheduledExecutorService scheduler, AtmosphereConfig config, String broadcasterId) {
@@ -161,7 +149,7 @@ public class BroadcasterConfig {
                     Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
                     if (b != null) {
                         synchronized (mf) {
-                            ClusterBroadcastFilter.class.cast(mf).setBroadcaster(b);
+                            ((ClusterBroadcastFilter) mf).setBroadcaster(b);
                         }
                     }
                 } catch (Throwable t) {
@@ -295,7 +283,7 @@ public class BroadcasterConfig {
             Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
             if (b != null) {
                 synchronized (e) {
-                    ClusterBroadcastFilter.class.cast(e).setBroadcaster(b);
+                    ((ClusterBroadcastFilter) e).setBroadcaster(b);
                 }
             }
         }
@@ -480,11 +468,11 @@ public class BroadcasterConfig {
      * @return the new list of objects.
      */
     public List<Object> applyFilters(AtmosphereResource r, List<Object> cacheMessages) {
-        LinkedList<Object> filteredMessage = new LinkedList<Object>();
+        LinkedList<Object> filteredMessage = new LinkedList<>();
         BroadcastFilter.BroadcastAction a;
         for (Object o : cacheMessages) {
             a = filter(o);
-            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.<Object>emptyList();
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.emptyList();
 
             if (a.action() == BroadcastAction.ACTION.SKIP) {
                 filteredMessage.add(a.message());
@@ -492,7 +480,7 @@ public class BroadcasterConfig {
             }
 
             a = filter(r, a.message(), a.originalMessage());
-            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.<Object>emptyList();
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.emptyList();
 
             if (a.action() == BroadcastAction.ACTION.SKIP) {
                 filteredMessage.add(a.message());
@@ -593,7 +581,7 @@ public class BroadcasterConfig {
     /**
      * Manipulate the message before and after they are getting filtered by {@link org.atmosphere.cpr.BroadcastFilter}
      */
-    public static interface FilterManipulator {
+    public interface FilterManipulator {
 
         Object unwrap(Object o);
 

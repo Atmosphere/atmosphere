@@ -28,7 +28,7 @@ import java.util.concurrent.TimeoutException;
  *
  * @author Jeanfrancois Arcand
  */
-public class BroadcasterFuture<E> implements Future {
+public class BroadcasterFuture<E> implements Future<E> {
 
     private final CountDownLatch latch;
     private boolean isCancelled;
@@ -66,6 +66,7 @@ public class BroadcasterFuture<E> implements Future {
         }
         isCancelled = true;
 
+        assert latch != null;
         while (latch.getCount() > 0) {
             latch.countDown();
         }

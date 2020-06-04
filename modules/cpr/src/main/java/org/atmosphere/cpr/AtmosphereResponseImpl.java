@@ -72,9 +72,9 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResponseImpl.class);
-    private final static ThreadLocal<Object> NO_BUFFERING = new ThreadLocal<Object>();
+    private final static ThreadLocal<Object> NO_BUFFERING = new ThreadLocal<>();
 
-    private final List<Cookie> cookies = new ArrayList<Cookie>();
+    private final List<Cookie> cookies = new ArrayList<>();
     private final Map<String, String> headers;
     private AsyncIOWriter asyncIOWriter;
     private int status = 200;
@@ -88,12 +88,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private AtmosphereRequest atmosphereRequest;
     private static final HttpServletResponse dsr = (HttpServletResponse)
             Proxy.newProxyInstance(AtmosphereResponseImpl.class.getClassLoader(), new Class[]{HttpServletResponse.class},
-                    new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            return ServletProxyFactory.getDefault().proxy(proxy, method, args);
-                        }
-                    });
+                    (proxy, method, args) -> ServletProxyFactory.getDefault().proxy(proxy, method, args));
     private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(false);
     private boolean delegateToNativeResponse;
     private boolean destroyable;
@@ -102,7 +97,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private String uuid = "0";
     private final AtomicBoolean usingStream = new AtomicBoolean(true);
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
-    private final AtomicReference<Object> buffered = new AtomicReference<Object>(null); 
+    private final AtomicReference<Object> buffered = new AtomicReference<Object>(null);
     private boolean completed;
 
     public AtmosphereResponseImpl(AsyncIOWriter asyncIOWriter, AtmosphereRequest atmosphereRequest, boolean destroyable) {
@@ -111,7 +106,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         this.asyncIOWriter = asyncIOWriter;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
-        this.headers = new HashMap<String, String>();
+        this.headers = new HashMap<>();
         this.delegateToNativeResponse = asyncIOWriter == null;
         this.destroyable = destroyable;
     }
@@ -122,7 +117,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         this.asyncIOWriter = asyncIOWriter;
         this.atmosphereRequest = atmosphereRequest;
         this.writeStatusAndHeader.set(false);
-        this.headers = new HashMap<String, String>();
+        this.headers = new HashMap<>();
         this.delegateToNativeResponse = asyncIOWriter == null;
         this.destroyable = destroyable;
     }
@@ -148,7 +143,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
         private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
-        private final Map<String, String> headers = new HashMap<String, String>();
+        private final Map<String, String> headers = new HashMap<>();
         private boolean destroyable = true;
 
         public Builder() {
@@ -209,7 +204,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     private HttpServletResponse _r() {
-        return HttpServletResponse.class.cast(response);
+        return response;
     }
 
     @Override
@@ -244,7 +239,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public boolean containsHeader(String name) {
-        return !delegateToNativeResponse ? (headers.get(name) == null ? false : true) : _r().containsHeader(name);
+        return !delegateToNativeResponse ? (headers.get(name) != null) : _r().containsHeader(name);
     }
 
     @Override
@@ -447,7 +442,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public Collection<String> getHeaders(String name) {
-        ArrayList<String> s = new ArrayList<String>();
+        ArrayList<String> s = new ArrayList<>();
         String h;
         if (name.equalsIgnoreCase("content-type")) {
             h = headers.get("Content-Type");
@@ -455,7 +450,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             h = headers.get(name);
         }
 
-        if(headers.containsKey(name)) {
+        if (headers.containsKey(name)) {
             s.add(h);
         }
 
@@ -466,7 +461,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             }
         }
 
-        if(!s.isEmpty()) {
+        if (!s.isEmpty()) {
             return Collections.unmodifiableList(s);
         }
         return null;
@@ -484,7 +479,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         Set<String> s = headers.keySet();
         if (r != null && !r.isEmpty()) {
             // detach the keyset from the original hashmap
-            s = new HashSet<String>(s);
+            s = new HashSet<>(s);
             s.addAll(r);
         }
 
@@ -560,7 +555,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         } else {
             return _r().getOutputStream() != null ? _r().getOutputStream() : new ServletOutputStream() {
                 @Override
-                public void write(int b) throws IOException {
+                public void write(int b) {
                 }
             };
         }
@@ -573,7 +568,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     private String constructStatusAndHeaders() {
-        StringBuffer b = new StringBuffer("HTTP/1.1")
+        StringBuilder b = new StringBuilder("HTTP/1.1")
                 .append(" ")
                 .append(status)
                 .append(" ")
@@ -727,8 +722,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     private void handleException(Exception ex) {
         AtmosphereResource r = resource();
         if (r != null) {
-            AtmosphereResourceImpl.class.cast(r).notifyListeners(
-                    new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), true, false));
+            r.notifyListeners(
+                    new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, true, false));
             // Don't take any risk and remove it.
             r.getAtmosphereConfig().resourcesFactory().remove(uuid);
         }
@@ -773,7 +768,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         if (resource() != null) {
             boolean force = resource().forceBinaryWrite();
             if (!usingStream.get() && force) {
-                usingStream.set(force);
+                usingStream.set(true);
             }
         }
         return usingStream.get();
@@ -802,6 +797,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                     OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data);
                 } catch (java.lang.IllegalStateException ex) {
+                    logger.trace("", ex);
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
@@ -837,6 +833,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                     OutputStream o = writeUsingOriginalResponse ? _r().getOutputStream() : getOutputStream();
                     o.write(data, offset, length);
                 } catch (java.lang.IllegalStateException ex) {
+                    logger.trace("", ex);
                 }
             } else {
                 PrintWriter w = writeUsingOriginalResponse ? _r().getWriter() : getWriter();
@@ -862,41 +859,34 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     public void setResponse(ServletResponse response) {
         super.setResponse(response);
         if (HttpServletResponse.class.isAssignableFrom(response.getClass())) {
-            this.response = HttpServletResponse.class.cast(response);
+            this.response = (HttpServletResponse) response;
         }
     }
 
     /**
      * Create an instance not associated with any response parent.
      *
-     * @return
      */
-    public final static AtmosphereResponse newInstance() {
+    public static AtmosphereResponse newInstance() {
         return new Builder().build();
     }
 
     /**
      * Create a new instance to use with WebSocket.
      *
-     * @return
      */
-    public final static AtmosphereResponse newInstance(AtmosphereRequest request) {
+    public static AtmosphereResponse newInstance(AtmosphereRequest request) {
         return new AtmosphereResponseImpl(null, request, request.isDestroyable());
     }
 
     /**
      * Create a new instance to use with WebSocket.
      *
-     * @return
      */
-    public final static AtmosphereResponse newInstance(AtmosphereConfig config, AtmosphereRequest request, WebSocket webSocket) {
+    public static AtmosphereResponse newInstance(AtmosphereConfig config, AtmosphereRequest request, WebSocket webSocket) {
         boolean destroyable;
         String s = config.getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-        if (s != null && Boolean.valueOf(s)) {
-            destroyable = true;
-        } else {
-            destroyable = false;
-        }
+        destroyable = Boolean.parseBoolean(s);
         return new AtmosphereResponseImpl(webSocket, request, destroyable);
     }
 
@@ -906,7 +896,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
      * @param response {@link HttpServletResponse}
      * @return an {@link AtmosphereResponse}
      */
-    public final static AtmosphereResponse wrap(HttpServletResponse response) {
+    public static AtmosphereResponse wrap(HttpServletResponse response) {
         return new Builder().response(response).build();
     }
 
@@ -933,6 +923,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     private final class Stream extends ServletOutputStream {
         private boolean buffering;
+
         Stream(boolean buffering) {
             this.buffering = buffering;
         }
@@ -1081,7 +1072,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                 writeStatusAndHeaders();
                 // Prevent StackOverflow
                 forceAsyncIOWriter = false;
-                asyncIOWriter.write(AtmosphereResponseImpl.this, new String(s.substring(offset, lenght)));
+                asyncIOWriter.write(AtmosphereResponseImpl.this, s.substring(offset, lenght));
             } catch (IOException e) {
                 handleException(e);
                 throw new RuntimeException(e);
@@ -1169,22 +1160,20 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     @Override
     public boolean completed() {
         return completed;
-    };
+    }
 
     /**
      * Caches the specified data and writes the previous data if it is not null.
-     * 
-     * @param data
-     * @throws java.io.IOException
+     *
      */
     private void writeWithBuffering(Object data) throws java.io.IOException {
         if (NO_BUFFERING.get() != null) {
             boolean b = forceAsyncIOWriter;
             try {
                 if (data instanceof String) {
-                    asyncIOWriter.write(AtmosphereResponseImpl.this, (String)data);
-                } else if (data instanceof byte[]){
-                    asyncIOWriter.write(AtmosphereResponseImpl.this, (byte[])data);
+                    asyncIOWriter.write(AtmosphereResponseImpl.this, (String) data);
+                } else if (data instanceof byte[]) {
+                    asyncIOWriter.write(AtmosphereResponseImpl.this, (byte[]) data);
                 }
             } catch (IOException e) {
                 handleException(e);
@@ -1200,9 +1189,9 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                     boolean b = forceAsyncIOWriter;
                     try {
                         if (previous instanceof String) {
-                            asyncIOWriter.write(AtmosphereResponseImpl.this, (String)previous);
-                        } else if (previous instanceof byte[]){
-                            asyncIOWriter.write(AtmosphereResponseImpl.this, (byte[])previous);
+                            asyncIOWriter.write(AtmosphereResponseImpl.this, (String) previous);
+                        } else if (previous instanceof byte[]) {
+                            asyncIOWriter.write(AtmosphereResponseImpl.this, (byte[]) previous);
                         }
                     } catch (IOException e) {
                         handleException(e);
@@ -1211,16 +1200,16 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                         forceAsyncIOWriter = b;
                     }
                 }
-                
+
             } finally {
                 NO_BUFFERING.remove();
             }
         }
 
-    }       
+    }
 
     private boolean isBuffering() {
         return atmosphereRequest != null
-            && Boolean.TRUE == atmosphereRequest.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE);
+                && Boolean.TRUE == atmosphereRequest.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE);
     }
 }

@@ -24,15 +24,11 @@ public interface BroadcasterCacheListener {
 
     /**
      * Invoked when a message is added to the cache
-     * @param broadcasterId
-     * @param cacheMessage
      */
     void onAddCache(String broadcasterId, CacheMessage cacheMessage);
 
     /**
      * Invoked when a message is removed from the cache.
-     * @param broadcasterId
-     * @param cacheMessage
      */
     void onRemoveCache(String broadcasterId, CacheMessage cacheMessage);
 

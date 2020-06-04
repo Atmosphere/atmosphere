@@ -196,9 +196,7 @@ public interface AtmosphereResponse extends HttpServletResponse {
 
     /**
      * Close the associated {@link AsyncIOWriter}.
-     *
-     * @throws IOException
-     */
+     **/
     void close() throws IOException;
 
     /**

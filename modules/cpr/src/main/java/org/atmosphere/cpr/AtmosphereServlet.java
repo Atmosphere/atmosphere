@@ -59,7 +59,6 @@ public class AtmosphereServlet extends HttpServlet {
      * Create an Atmosphere Servlet.
      *
      * @param isFilter           true if this instance is used as an {@link org.atmosphere.cpr.AtmosphereFilter}
-     * @param autoDetectHandlers
      */
     public AtmosphereServlet(boolean isFilter, boolean autoDetectHandlers) {
         initializer = new AtmosphereFrameworkInitializer(isFilter, autoDetectHandlers);
@@ -98,8 +97,6 @@ public class AtmosphereServlet extends HttpServlet {
      *
      * @param req the {@link javax.servlet.http.HttpServletRequest}
      * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void doHead(HttpServletRequest req, HttpServletResponse res)
@@ -112,8 +109,6 @@ public class AtmosphereServlet extends HttpServlet {
      *
      * @param req the {@link javax.servlet.http.HttpServletRequest}
      * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void doOptions(HttpServletRequest req, HttpServletResponse res)
@@ -126,8 +121,6 @@ public class AtmosphereServlet extends HttpServlet {
      *
      * @param req the {@link javax.servlet.http.HttpServletRequest}
      * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void doTrace(HttpServletRequest req, HttpServletResponse res)
@@ -140,8 +133,6 @@ public class AtmosphereServlet extends HttpServlet {
      *
      * @param req the {@link javax.servlet.http.HttpServletRequest}
      * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void doDelete(HttpServletRequest req, HttpServletResponse res)
@@ -154,8 +145,6 @@ public class AtmosphereServlet extends HttpServlet {
      *
      * @param req the {@link javax.servlet.http.HttpServletRequest}
      * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void doPut(HttpServletRequest req, HttpServletResponse res)
@@ -168,8 +157,6 @@ public class AtmosphereServlet extends HttpServlet {
      *
      * @param req the {@link javax.servlet.http.HttpServletRequest}
      * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void doGet(HttpServletRequest req, HttpServletResponse res)
@@ -182,8 +169,6 @@ public class AtmosphereServlet extends HttpServlet {
      *
      * @param req the {@link javax.servlet.http.HttpServletRequest}
      * @param res the {@link javax.servlet.http.HttpServletResponse}
-     * @throws java.io.IOException
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void doPost(HttpServletRequest req, HttpServletResponse res)

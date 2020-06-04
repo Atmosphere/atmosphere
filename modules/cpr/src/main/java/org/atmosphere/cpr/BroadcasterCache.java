@@ -65,7 +65,7 @@ import java.util.List;
  * @author Jeanfrancois Arcand
  */
 public interface BroadcasterCache extends AtmosphereConfigAware {
-    public static final String NULL = "null";
+    String NULL = "null";
 
     BroadcasterCache DEFAULT = new DefaultBroadcasterCache();
 

@@ -32,7 +32,7 @@ public interface BroadcasterFactory {
      * @param broadcasterLifeCyclePolicy {@link org.atmosphere.cpr.BroadcasterLifeCyclePolicy}
      * @param c                          {@link org.atmosphere.cpr.AtmosphereConfig}
      */
-    public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c);
+    void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c);
 
     /**
      * Return an instance of the default {@link Broadcaster}.
@@ -40,8 +40,6 @@ public interface BroadcasterFactory {
      * The name of the Broadcaster will be randomly generated.
      *
      * @return an instance of the default {@link Broadcaster}
-     * @throws IllegalAccessException
-     * @throws InstantiationException
      */
     Broadcaster get();
 
@@ -164,9 +162,8 @@ public interface BroadcasterFactory {
      */
     Collection<BroadcasterListener> broadcasterListeners();
 
-
-    public static final class BroadcasterCreationException extends RuntimeException {
-        public BroadcasterCreationException(Throwable t) {
+    final class BroadcasterCreationException extends RuntimeException {
+        BroadcasterCreationException(Throwable t) {
             super(t);
         }
     }

@@ -186,7 +186,7 @@ public class AtmosphereResourceEventImpl implements AtmosphereResourceEvent {
     }
 
     private boolean check() {
-        return resource == null ? false : true;
+        return resource != null;
     }
 
     public AtmosphereResourceEvent setThrowable(Throwable t) {

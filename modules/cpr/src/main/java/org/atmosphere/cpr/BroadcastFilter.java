@@ -30,12 +30,12 @@ public interface BroadcastFilter {
      * When a message is about to get cached and some {@link BroadcastFilter} are defined, and when no {@link AtmosphereResource}
      * is available, a no-op {@link AtmosphereResource} with uuid == -1 will be used to invoke BroadcastFilter.
      */
-    public final static String VOID_ATMOSPHERE_RESOURCE_UUID = "-1";
+    String VOID_ATMOSPHERE_RESOURCE_UUID = "-1";
 
     /**
      * Simple class that tells the {@link Broadcaster} to broadcast or not the transformed value.
      */
-    public class BroadcastAction {
+    class BroadcastAction {
 
         private final ACTION a;
         private final Object o;

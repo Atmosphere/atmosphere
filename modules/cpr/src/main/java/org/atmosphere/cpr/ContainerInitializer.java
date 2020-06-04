@@ -45,7 +45,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 public class ContainerInitializer implements javax.servlet.ServletContainerInitializer {
 
     @Override
-    public void onStartup(Set<Class<?>> classes, final ServletContext c) throws ServletException {
+    public void onStartup(Set<Class<?>> classes, final ServletContext c) {
         c.log("Initializing AtmosphereFramework");
         for (Map.Entry<String, ? extends ServletRegistration> reg : c.getServletRegistrations().entrySet()) {
             String disableSwitchValue = reg.getValue().getInitParameter(ApplicationConfig.DISABLE_ATMOSPHERE_INITIALIZER);

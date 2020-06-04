@@ -37,7 +37,7 @@ import java.util.concurrent.atomic.AtomicReference;
 public class AtmosphereSession {
 
     protected final Logger logger = LoggerFactory.getLogger(AtmosphereSession.class);
-    protected final AtomicReference<AtmosphereResource> resource = new AtomicReference<AtmosphereResource>();
+    protected final AtomicReference<AtmosphereResource> resource = new AtomicReference<>();
     protected String uuid;
     protected final Semaphore latch = new Semaphore(1);
     protected BroadcasterListenerAdapter broadcasterListener;
@@ -81,7 +81,6 @@ public class AtmosphereSession {
      * Track the current {@link AtmosphereResource} with all created {@link Broadcaster}
      *
      * @param resource an {@link AtmosphereResource}
-     * @return this
      */
     public AtmosphereSession(AtmosphereResource resource) {
         this(resource, resource.getAtmosphereConfig().getBroadcasterFactory().lookupAll().toArray(new Broadcaster[]{}));

@@ -24,5 +24,6 @@ package org.atmosphere.cpr;
  */
 public interface CompletionAware {
     void onComplete();
+
     boolean completed();
 }
