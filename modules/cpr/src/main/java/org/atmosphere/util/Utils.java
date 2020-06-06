@@ -29,7 +29,6 @@ import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProcessor.WebSocketHandlerProxy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -210,7 +209,7 @@ public final class Utils {
             try {
                 return m.invoke(proxiedInstance, (o == null || m.getParameterTypes().length == 0) ? new Object[]{} : new Object[]{o});
             } catch (IllegalAccessException | InvocationTargetException e) {
-                LOGGER.debug("", e);
+                LOGGER.error("", e);
             }
         }
         LOGGER.trace("No Method Mapped for {}", o);
