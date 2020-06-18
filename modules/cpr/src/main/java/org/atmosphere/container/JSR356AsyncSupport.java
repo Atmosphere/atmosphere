@@ -15,6 +15,16 @@
  */
 package org.atmosphere.container;
 
+import java.util.ArrayList;
+
+import javax.servlet.ServletContext;
+import javax.websocket.DeploymentException;
+import javax.websocket.Extension;
+import javax.websocket.HandshakeResponse;
+import javax.websocket.server.HandshakeRequest;
+import javax.websocket.server.ServerContainer;
+import javax.websocket.server.ServerEndpointConfig;
+
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -22,13 +32,6 @@ import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import javax.servlet.ServletContext;
-import javax.websocket.DeploymentException;
-import javax.websocket.HandshakeResponse;
-import javax.websocket.server.HandshakeRequest;
-import javax.websocket.server.ServerContainer;
-import javax.websocket.server.ServerEndpointConfig;
 
 public class JSR356AsyncSupport extends Servlet30CometSupport {
 
@@ -71,7 +74,8 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         StringBuilder b = new StringBuilder(servletPath);
         for (int i = 0; i < pathLength; i++) {
             try {
-                container.addEndpoint(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString()).configurator(configurator).build());
+                container.addEndpoint(ServerEndpointConfig.Builder.create(JSR356Endpoint.class, b.toString())
+                        .extensions(new ArrayList<>(container.getInstalledExtensions())).configurator(configurator).build());
             } catch (DeploymentException e) {
                 logger.warn("Duplicate Servlet Mapping Path {}. Use {} init-param to prevent this message", servletPath, ApplicationConfig.JSR356_MAPPING_PATH);
                 logger.trace("", e);
