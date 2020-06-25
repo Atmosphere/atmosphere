@@ -42,21 +42,13 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
     private final static Logger logger = LoggerFactory.getLogger(DefaultAtmosphereResourceFactory.class);
     private final static Broadcaster noOps = (Broadcaster)
             Proxy.newProxyInstance(Broadcaster.class.getClassLoader(), new Class[]{Broadcaster.class},
-                    new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            if (method.getName().equals("isDestroyed")) return false;
-                            return null;
-                        }
+                    (proxy, method, args) -> {
+                        if (method.getName().equals("isDestroyed")) return false;
+                        return null;
                     });
     private final static AtmosphereHandler noOpsHandler = (AtmosphereHandler)
             Proxy.newProxyInstance(AtmosphereHandler.class.getClassLoader(), new Class[]{AtmosphereHandler.class},
-                    new InvocationHandler() {
-                        @Override
-                        public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                            return null;
-                        }
-                    });
+                    (proxy, method, args) -> null);
     private final static AtmosphereHandler voidAtmosphereHandler = new AbstractReflectorAtmosphereHandler() {
         @Override
         public void onRequest(AtmosphereResource resource) throws IOException {

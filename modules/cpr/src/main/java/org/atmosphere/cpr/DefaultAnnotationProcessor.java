@@ -177,12 +177,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             String pathLibs =  IOUtils.realPath(f.getServletContext(), f.getLibPath());
             if (pathLibs != null) {
                 File libFolder = new File(pathLibs);
-                File jars[] = libFolder.listFiles(new FilenameFilter() {
-                    @Override
-                    public boolean accept(File arg0, String arg1) {
-                        return arg1.endsWith(".jar");
-                    }
-                });
+                File[] jars = libFolder.listFiles((arg0, arg1) -> arg1.endsWith(".jar"));
 
                 if (jars != null) {
                     for (File file : jars) {
@@ -206,7 +201,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     private static void fallbackToManualAnnotatedClasses(Class<?> mainClass, AtmosphereFramework f, AnnotationHandler handler) {
         logger.warn("Unable to detect annotations. Application may fail to deploy.");
         f.annotationScanned(true);
-        for (Class a : coreAnnotations) {
+        for (Class<?> a : coreAnnotations) {
             try {
                 handler.handleProcessor(loadClass(mainClass, a.getName()));
             } catch (Exception e) {

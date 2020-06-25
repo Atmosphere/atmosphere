@@ -233,7 +233,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      */
     public AsyncSupport newCometSupport(final Class<? extends AsyncSupport> targetClass) {
         try {
-            return (AsyncSupport) targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
+            return targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                     .newInstance(config);
         } catch (final Exception e) {
             logger.warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
