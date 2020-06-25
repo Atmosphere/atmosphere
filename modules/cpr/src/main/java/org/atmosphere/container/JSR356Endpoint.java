@@ -260,12 +260,20 @@ public class JSR356Endpoint extends Endpoint {
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "true");
 
             if (session.isOpen()) {
-                session.addMessageHandler((MessageHandler.Whole<String>) s -> webSocketProcessor.invokeWebSocketProtocol(webSocket, s));
-
-                session.addMessageHandler((MessageHandler.Whole<ByteBuffer>) bb -> {
-                    byte[] b = bb.hasArray() ? bb.array() : new byte[((Buffer)bb).limit()];
-                    bb.get(b);
-                    webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
+                // https://bz.apache.org/bugzilla/show_bug.cgi?format=multiple&id=57788
+                session.addMessageHandler(new MessageHandler.Whole<String>() {
+                    @Override
+                    public void onMessage(String s) {
+                        webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
+                    }
+                });
+                session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
+                    @Override
+                    public void onMessage(ByteBuffer bb) {
+                        byte[] b = bb.hasArray() ? bb.array() : new byte[((Buffer)bb).limit()];
+                        bb.get(b);
+                        webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
+                    }
                 });
             } else {
                 logger.trace("Session closed during onOpen {}", session);
