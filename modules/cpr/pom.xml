@@ -312,6 +312,11 @@
             <version>20180130</version>
             <optional>true</optional>
         </dependency>
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-websocket</artifactId>
+            <version>7.6.10.v20130312</version>
+        </dependency>
     </dependencies>
 </project>
     
