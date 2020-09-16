@@ -183,6 +183,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
             resource.forceBinaryWrite(Boolean.parseBoolean(v));
         }
 
+        if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET && !Utils.webSocketEnabled(req) && !Utils.isRunningTest()) {
+            logger.warn("Transport not matching webSocketEnabled. Ending request for {}", resource.uuid());
+            return Action.CANCELLED;
+        }
+
         // handler interceptor lists
         LinkedList<AtmosphereInterceptor> invokedInterceptors = handlerWrapper.interceptors;
 

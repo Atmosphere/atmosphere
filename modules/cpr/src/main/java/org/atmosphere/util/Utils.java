@@ -362,4 +362,18 @@ public final class Utils {
         }
         return path;
     }
+
+    public static boolean isRunningTest()
+    {
+        try
+        {
+            // Check if TestNG is on the classpath
+            Class.forName("org.testng.TestNG");
+            return true;
+        } catch (ClassNotFoundException aE)
+        {
+            return false;
+        }
+
+    }
 }
