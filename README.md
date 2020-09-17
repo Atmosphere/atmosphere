@@ -30,7 +30,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.6.1</version>
+         <version>2.6.2</version>
       </dependency>
 ```
       
