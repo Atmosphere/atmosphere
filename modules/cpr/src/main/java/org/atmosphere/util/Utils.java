@@ -52,6 +52,16 @@ import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_UPGRADE;
  */
 public final class Utils {
 
+    private static boolean RUNNING_TEST = false;
+    static {
+        try {
+            // Check if TestNG is on the classpath
+            Class.forName("org.testng.TestNG");
+            RUNNING_TEST = true;
+        } catch (ClassNotFoundException aE) {
+        }
+    }
+
     /**
      * The logger.
      */
@@ -247,7 +257,7 @@ public final class Utils {
         AtmosphereHandler h = r.getAtmosphereHandler();
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
             WebSocket w = ((AtmosphereResourceImpl) r).webSocket();
-            if (w != null &&  w.webSocketHandler() instanceof WebSocketHandlerProxy) {
+            if (w != null && w.webSocketHandler() instanceof WebSocketHandlerProxy) {
                 return ((WebSocketHandlerProxy) w.webSocketHandler()).proxied();
             } else {
                 return null;
@@ -361,5 +371,9 @@ public final class Utils {
             path = "/";
         }
         return path;
+    }
+
+    public static boolean isRunningTest() {
+        return RUNNING_TEST;
     }
 }
