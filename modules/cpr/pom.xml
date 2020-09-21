@@ -316,6 +316,7 @@
             <groupId>org.eclipse.jetty</groupId>
             <artifactId>jetty-websocket</artifactId>
             <version>7.6.10.v20130312</version>
+            <scope>provided</scope>
         </dependency>
     </dependencies>
 </project>
