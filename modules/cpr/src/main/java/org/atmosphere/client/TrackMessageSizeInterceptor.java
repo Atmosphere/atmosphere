@@ -15,7 +15,15 @@
  */
 package org.atmosphere.client;
 
-import org.atmosphere.cpr.*;
+import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
+import org.atmosphere.cpr.AsyncIOWriter;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
+import org.atmosphere.cpr.AtmosphereInterceptorWriter;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;

@@ -73,7 +73,6 @@ import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
 import java.io.BufferedReader;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
@@ -81,12 +80,21 @@ import java.io.UnsupportedEncodingException;
 import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
 import java.net.URI;
-import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLClassLoader;
 import java.net.URLDecoder;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.Comparator;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
@@ -104,6 +112,7 @@ import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_WAIT_TIME;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCAST_FILTER_CLASSES;
+import static org.atmosphere.cpr.ApplicationConfig.CONTENT_TYPE_FIRST_RESPONSE;
 import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
 import static org.atmosphere.cpr.ApplicationConfig.META_SERVICE_PATH;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_ALLOW_SESSION_TIMEOUT_REMOVAL;
@@ -2244,7 +2253,10 @@ public class AtmosphereFramework {
             s = config.uuidProvider().generateUuid();
             res.setHeader(HeaderConfig.X_FIRST_REQUEST, "true");
             res.setHeader(X_ATMOSPHERE_TRACKING_ID, s);
-            res.setHeader("Content-Type", "text/plain; charset=utf-8");
+            String contentType = config.getInitParameter(CONTENT_TYPE_FIRST_RESPONSE);
+            if (contentType != null) {
+                res.setHeader("Content-Type", contentType);
+            }
         } else {
             // This may breaks 1.0.0 application because the WebSocket's associated AtmosphereResource will
             // all have the same UUID, and retrieving the original one for WebSocket, so we don't set it at all.
