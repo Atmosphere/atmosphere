@@ -18,7 +18,7 @@ Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atm
 
 Main development branch is [atmosphere-2.6.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-2.6.x) Only pull request for that branch will be accepted.
 
-![JDK8](https://github.com/Atmosphere/atmosphere/workflows/JDK8/badge.svg) ![JDK11](https://github.com/Atmosphere/atmosphere/workflows/JDK11/badge.svg) ![JDK13](https://github.com/Atmosphere/atmosphere/workflows/JDK13/badge.svg)
+![JDK8](https://github.com/Atmosphere/atmosphere/workflows/JDK8/badge.svg) ![JDK11](https://github.com/Atmosphere/atmosphere/workflows/JDK11/badge.svg) ![JDK13](https://github.com/Atmosphere/atmosphere/workflows/JDK13/badge.svg) ![JDK15](https://github.com/Atmosphere/atmosphere/workflows/JDK15/badge.svg)
 ### News
 Our next major revision 4.0 is developped under [Atmosph4rX](https://github.com/Atmosphere/Atmosph4rX). 
 
