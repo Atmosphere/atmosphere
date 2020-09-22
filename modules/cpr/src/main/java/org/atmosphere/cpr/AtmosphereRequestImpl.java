@@ -1721,7 +1721,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public DispatcherType getDispatcherType() {
-            return null;
+            return DispatcherType.REQUEST;
         }
 
         @Override
