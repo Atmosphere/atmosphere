@@ -590,7 +590,7 @@
         <tomcat-version>6.0.35</tomcat-version>
         <tomcat7-version>7.0.93</tomcat7-version>
         <shade-version>1.2.1</shade-version>
-        <felix-version>4.2.0</felix-version>
+        <felix-version>5.1.1</felix-version>
         <ahc.version>1.7.7</ahc.version>
         <slf4j-impl-version>1.6.1</slf4j-impl-version>
         <slf4j-version>1.7.7</slf4j-version>
