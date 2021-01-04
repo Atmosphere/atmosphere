@@ -1,5 +1,5 @@
 /*
- * Copyright 2018 Jean-Francois Arcand
+ * Copyright 2008-2021 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -20,7 +20,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
