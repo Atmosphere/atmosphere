@@ -16,6 +16,9 @@
 package org.atmosphere.container;
 
 import java.util.ArrayList;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
 
 import javax.servlet.ServletContext;
 import javax.websocket.DeploymentException;
@@ -37,7 +40,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356AsyncSupport.class);
     private static final String PATH = "/{path";
-    private final AtmosphereConfigurator configurator;
+    private final ServerEndpointConfig.Configurator configurator;
 
     public JSR356AsyncSupport(AtmosphereConfig config) {
         this(config, config.getServletContext());
@@ -69,7 +72,8 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             }
         }
         logger.info("JSR 356 Mapping path {}", servletPath);
-        configurator = new AtmosphereConfigurator(config.framework());
+        configurator = IS_RUNNING_ON_QUARKUS ? new QuarkusAtmosphereConfigurator(config.framework())
+                : new AtmosphereConfigurator(config.framework());
 
         StringBuilder b = new StringBuilder(servletPath);
         for (int i = 0; i < pathLength; i++) {
@@ -133,6 +137,68 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             } else {
                 endPoint.get().handshakeRequest(request);
                 endPoint.set(null);
+            }
+        }
+    }
+
+    private static final boolean IS_RUNNING_ON_QUARKUS;
+    static {
+        boolean runningOnQuarkus = false;
+        try {
+            Class.forName("io.quarkus.runtime.Quarkus");
+            runningOnQuarkus = true;
+        } catch (ClassNotFoundException ex) {
+            // class not found, not running on Quarkus. Just ignore the exception.
+        }
+        IS_RUNNING_ON_QUARKUS = runningOnQuarkus;
+    }
+
+    public final static class QuarkusAtmosphereConfigurator extends ServerEndpointConfig.Configurator {
+
+        private final AtmosphereFramework framework;
+        /**
+         * TODO: UGLY!
+         * Quarkus call modifyHandshake BEFORE getEndpointInstance() where other jsr356 do the reverse.
+         * However, because of VertX the thread pool of Undertow handling regular http requests
+         * differ to the thread pool handling websocket requests, so we can't use ThreadLocals to remember
+         * the HandshakeRequest. Use BlockingDeque with the capacity of 1 since we don't want
+         * the requests to get mixed up in case of high concurrency.
+         *
+         * The reasoning for BlockingDeque is that we expect that a call to getEndpointInstance() will
+         * immediately follow call to modifyHandshake(). We will therefore store the request into this deque,
+         * and we will pick it up in getEndpointInstance().
+         *
+         * The deque has a capacity of 1: if there are any concurrent attempts to initialize the endpoint,
+         * any follow-up modifyHandshake() will be delayed until the getEndpointInstance() is called.
+         *
+         * For the ThreadLocal-based solution see the original JSR356AsyncSupport class from Atmosphere.
+         */
+        private final BlockingDeque<HandshakeRequest> requests = new LinkedBlockingDeque<>(1);
+
+        public QuarkusAtmosphereConfigurator(AtmosphereFramework framework) {
+            this.framework = framework;
+        }
+
+        public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
+            if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
+                JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework));
+                final HandshakeRequest request = requests.removeFirst();
+                e.handshakeRequest(request);
+                return (T) e;
+            } else {
+                return super.getEndpointInstance(endpointClass);
+            }
+        }
+
+        public void modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse response) {
+            try {
+                // if there's an ongoing endpoint initialization, delay this call
+                // until the getEndpointInstance() has been called.
+                if (!requests.offer(request, 1, TimeUnit.SECONDS)) {
+                    throw new RuntimeException("Timed out waiting for getEndpointInstance() to be called");
+                }
+            } catch (InterruptedException e) {
+                throw new RuntimeException(e);
             }
         }
     }
