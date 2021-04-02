@@ -69,6 +69,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
+import static org.atmosphere.cpr.ApplicationConfig.ALLOW_WEBSOCKET_STATUS_CODE_1005_AS_DISCONNECT;
 import static org.atmosphere.cpr.ApplicationConfig.INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE;
 import static org.atmosphere.cpr.ApplicationConfig.IN_MEMORY_STREAMING_BUFFER_SIZE;
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
@@ -101,6 +102,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandlerProxy> handlers = new ConcurrentHashMap<String, WebSocketHandlerProxy>();
     private final EndpointMapper<WebSocketHandlerProxy> mapper = new DefaultEndpointMapper<WebSocketHandlerProxy>();
+    private boolean allow1005StatusCode;
     private boolean wildcardMapping;
     // 2MB - like maxPostSize
     private int byteBufferMaxSize = 2097152;
@@ -116,23 +118,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         this.framework = config.framework();
         this.webSocketProtocol = framework.getWebSocketProtocol();
 
-        String s = framework.getAtmosphereConfig().getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-        if (s != null && Boolean.valueOf(s)) {
-            destroyable = true;
-        } else {
-            destroyable = false;
-        }
+        destroyable = Boolean.parseBoolean(framework.getAtmosphereConfig().getInitParameter(RECYCLE_ATMOSPHERE_REQUEST_RESPONSE));
+        executeAsync = Boolean.parseBoolean(framework.getAtmosphereConfig().getInitParameter(WEBSOCKET_PROTOCOL_EXECUTION));
+        allow1005StatusCode = Boolean.parseBoolean(framework.getAtmosphereConfig().getInitParameter(ALLOW_WEBSOCKET_STATUS_CODE_1005_AS_DISCONNECT));
 
-        s = framework.getAtmosphereConfig().getInitParameter(WEBSOCKET_PROTOCOL_EXECUTION);
-        if (s != null && Boolean.valueOf(s)) {
-            executeAsync = true;
-        } else {
-            executeAsync = false;
-        }
-
-        s = framework.getAtmosphereConfig().getInitParameter(IN_MEMORY_STREAMING_BUFFER_SIZE);
+        String s = framework.getAtmosphereConfig().getInitParameter(IN_MEMORY_STREAMING_BUFFER_SIZE);
         if (s != null) {
-            byteBufferMaxSize = Integer.valueOf(s);
+            byteBufferMaxSize = Integer.parseInt(s);
             charBufferMaxSize = byteBufferMaxSize;
         }
 
@@ -147,19 +139,16 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         closingTime = Long.valueOf(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         invokeInterceptors = Boolean.valueOf(config.getInitParameter(INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE, "true"));
-        config.startupHook(new AtmosphereConfig.StartupHook() {
-            @Override
-            public void started(final AtmosphereFramework framework) {
-                if (AsynchronousProcessor.class.isAssignableFrom(framework.getAsyncSupport().getClass())) {
-                    asynchronousProcessor = AsynchronousProcessor.class.cast(framework.getAsyncSupport());
-                } else {
-                    asynchronousProcessor = new AsynchronousProcessor(framework.getAtmosphereConfig()) {
-                        @Override
-                        public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
-                            return framework.getAsyncSupport().service(req, res);
-                        }
-                    };
-                }
+        config.startupHook(framework -> {
+            if (AsynchronousProcessor.class.isAssignableFrom(framework.getAsyncSupport().getClass())) {
+                asynchronousProcessor = AsynchronousProcessor.class.cast(framework.getAsyncSupport());
+            } else {
+                asynchronousProcessor = new AsynchronousProcessor(framework.getAtmosphereConfig()) {
+                    @Override
+                    public Action service(AtmosphereRequest req, AtmosphereResponse res) throws IOException, ServletException {
+                        return framework.getAsyncSupport().service(req, res);
+                    }
+                };
             }
         });
         return this;
@@ -676,7 +665,9 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
     // Highly bogus based on which I/O layer we are using.
     private boolean allowedCloseCode(int closeCode) {
-        return closeCode <= 1001 || closeCode > 1004 ? true : false;
+        // https://github.com/Atmosphere/atmosphere/issues/2431
+        int allowedCode = allow1005StatusCode ? 1004 : 1005;
+        return closeCode <= 1001 || closeCode > allowedCode;
     }
 
     private void finish(WebSocket webSocket, AtmosphereResource resource, AtmosphereRequest r, AtmosphereResponse s, boolean closeWebSocket) {

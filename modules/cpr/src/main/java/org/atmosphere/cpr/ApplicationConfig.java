@@ -986,5 +986,15 @@ public interface ApplicationConfig {
      * value : text/plain; charset=utf-8
      */
     String CONTENT_TYPE_FIRST_RESPONSE = "org.atmosphere.cpr.contentTypeFirstResponse";
+    /**
+     * Allow the WebSocketProtocol to invoke the AsynchronousProcessor when a status of 1005 is received.
+     * This property is required since atmosphere-javascript 3.1.0 in order to prevent the WebSocketProtocol
+     * to wrongly detect an unexpected disconnect. atmosphere-javascript 3.1.0 started to use navigation.sendBeacon() API
+     * to detect disconnect from page reload. This property is for backward compatibility.
+     * <p/>
+     * Default: false<br>
+     * Value: org.atmosphere.websocket.WebSocketProtocol.allow1005disconnectEvent
+     */
+    String ALLOW_WEBSOCKET_STATUS_CODE_1005_AS_DISCONNECT = "org.atmosphere.websocket.WebSocketProtocol.allow1005disconnectEvent";
 }
 
