@@ -28,7 +28,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.6.4</version>
+         <version>2.7.0</version> // MUST BE USED with atmosphere-javascript 3.1.0
       </dependency>
 ```
       
