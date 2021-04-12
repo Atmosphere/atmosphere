@@ -49,14 +49,6 @@ The Atmosphere Framework ships with many examples describing how to implement We
 #### Jump directly inside the code: WebSockets, Server-Sent Events (SSE), Long-Polling, JSONP and HTTP Streaming!
 
 Take a look at the PubSub [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/webapp/index.html#L34)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/jersey-pubsub/src/main/java/org/atmosphere/samples/pubsub/JerseyPubSub.java#L36) or the infamous Chat [Client](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/webapp/javascript/application.js#L1)-[Server](https://github.com/Atmosphere/atmosphere-samples/blob/master/samples/chat/src/main/java/org/atmosphere/samples/chat/Chat.java#L32) to realize how simple Atmosphere is!
-
-[Top](#Top)
-
-<p align="center">Follow us on <a href="http://www.twitter.com/atmo_framework">Twitter</a></p>
-
-If you are interested, subscribe to our [mailing list](http://groups.google.com/group/atmosphere-framework) for more info!.
-
-[Top](#Top)
                                                                                           Z
 #### Atmosphere and JDK Versions
 
@@ -83,13 +75,6 @@ Atmosphere 2.5.x requires JDK 8 or 11. Atmosphere 2.4.x requires JDK 1.7 or newe
 
 1.0 releases: [1.0.21](https://github.com/Atmosphere/atmosphere/issues/2349) [1.0.17](http://goo.gl/y2QImv) [1.0.16](http://goo.gl/aWhhtS) [1.0.14](http://goo.gl/Ni3e5l) [1.0.13](https://github.com/Atmosphere/atmosphere/issues?labels=1.0.13&milestone=&page=1&state=closed) [1.0.11](http://goo.gl/TUzk2) [1.0.10](http://goo.gl/teWkz) [1.0.8](https://github.com/Atmosphere/atmosphere/issues?labels=1.0.8&page=1&state=open) [1.0.6](http://goo.gl/Grd2F) [1.0.5](http://goo.gl/nVRyu) [1.0.4](http://goo.gl/r24xA) [1.0.3](https://github.com/Atmosphere/atmosphere/issues?labels=1.0.3&page=1&state=closed) [1.0.2](http://goo.gl/RqaS9) [1.0.1](http://goo.gl/UILd3 ) [1.0](https://github.com/Atmosphere/atmosphere/issues?labels=1.0.0&page=1&state=closed)
 
-[Top](#Top)
-
-## Build Status
-[![Build Status](https://travis-ci.org/Atmosphere/atmosphere.svg?branch=atmosphere-2.4.x)](https://travis-ci.org/Atmosphere/atmosphere)
-
-![Analytics](https://ga-beacon.appspot.com/UA-31990725-2/Atmosphere/atmosphere)
-
-@Copyright 2008-2020 [Async-IO.org](http://async-io.org)
+@Copyright 2008-2021 [Async-IO.org](http://async-io.org)
 
 
