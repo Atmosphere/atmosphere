@@ -1,6 +1,6 @@
 name: JDK15
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
