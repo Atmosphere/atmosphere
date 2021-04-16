@@ -1,6 +1,6 @@
 name: JDK11
 
-on: [push]
+on: [push, pull_request]
 
 jobs:
   build:
