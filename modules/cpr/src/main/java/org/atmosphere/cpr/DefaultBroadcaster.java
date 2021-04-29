@@ -424,6 +424,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     } catch (Throwable ex) {
                         if (!started.get() || destroyed.get()) {
                             logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
+                            dispatchThread.decrementAndGet();
                             return;
                         } else {
                             logger.warn("This message {} will be lost", msg);
