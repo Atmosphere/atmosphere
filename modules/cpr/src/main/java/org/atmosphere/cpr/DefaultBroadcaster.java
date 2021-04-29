@@ -410,6 +410,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     } catch (InterruptedException ex) {
                         logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
                         logger.trace("", ex);
+                        dispatchThread.decrementAndGet();
                         return;
                     } finally {
                         if (outOfOrderBroadcastSupported.get()) {
@@ -430,6 +431,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     } finally {
                         if (outOfOrderBroadcastSupported.get()) {
+                            dispatchThread.decrementAndGet();
                             return;
                         }
                     }
