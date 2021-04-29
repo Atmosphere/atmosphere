@@ -410,6 +410,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     } catch (InterruptedException ex) {
                         logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
                         logger.trace("", ex);
+                        dispatchThread.decrementAndGet();
                         return;
                     } finally {
                         if (outOfOrderBroadcastSupported.get()) {
@@ -423,6 +424,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     } catch (Throwable ex) {
                         if (!started.get() || destroyed.get()) {
                             logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
+                            dispatchThread.decrementAndGet();
                             return;
                         } else {
                             logger.warn("This message {} will be lost", msg);
@@ -430,6 +432,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     } finally {
                         if (outOfOrderBroadcastSupported.get()) {
+                            dispatchThread.decrementAndGet();
                             return;
                         }
                     }
