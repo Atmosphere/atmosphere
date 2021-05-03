@@ -28,7 +28,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.7.0</version> // MUST BE USED with atmosphere-javascript 3.1.0
+         <version>2.7.1</version> // MUST BE USED with atmosphere-javascript 3.1.0
       </dependency>
 ```
       
@@ -56,7 +56,7 @@ Atmosphere 2.5.x requires JDK 8 or 11. Atmosphere 2.4.x requires JDK 1.7 or newe
 
 #### Versions
 
-2.7.x releases: [2.7.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.0+is%3Aclosed)
+2.7.x releases: [2.7.1](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.1) [2.7.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.0+is%3Aclosed)
 
 2.6.x releases: [2.6.4](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.4+is%3Aclosed) [2.6.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.1+is%3Aclosed) [2.6.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.0+is%3Aclosed)
 
