@@ -1,4 +1,4 @@
-name: JDK15
+name: JDK17
 
 on: [push, pull_request]
 
