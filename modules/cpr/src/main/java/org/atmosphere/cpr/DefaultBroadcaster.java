@@ -743,7 +743,7 @@ public class DefaultBroadcaster implements Broadcaster {
             // The onStateChange/onRequest may change the isResumed value, hence we need to make sure only one thread flip
             // the switch to garantee the Entry will be cached in the order it was broadcasted.
             // Without synchronizing we may end up with a out of order BroadcasterCache queue.
-            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass())) {
                 if (r.isResumed() || r.isCancelled()) {
                     logger.trace("AtmosphereResource {} has been resumed or cancelled, unable to Broadcast message {}", r.uuid(), deliver.message);
 
@@ -1373,7 +1373,7 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // Only synchronize if we have a valid BroadcasterCache
-            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass().getName())) {
+            if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass())) {
                 // In case we are adding messages to the cache, we need to make sure the operation is done before.
                 synchronized (resources) {
                     cacheAndSuspend(r);
