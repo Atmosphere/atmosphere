@@ -336,7 +336,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 try {
                     a = arc.inspect(r);
                 } catch (Exception ex) {
-                    logger.error("Interceptor {} crashed. Processing will continue with other interceptor.", arc, ex);
+                    logger.error("Interceptor " + arc + " crashed. Processing will continue with other interceptor.", ex);
                     continue;
                 }
 
@@ -374,7 +374,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                 arc = c.get(i);
                 arc.postInspect(r);
             } catch (Exception ex) {
-                logger.error("Interceptor {} crashed. Processing will continue with other interceptor.", arc, ex);
+                logger.error("Interceptor " + arc + " crashed. Processing will continue with other interceptor.", ex);
                 continue;
             }
         }
