@@ -141,24 +141,26 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
             && impl.isInScope()) {
 
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());
-            r.addEventListener(new OnBroadcast() {
-                @Override
-                public void onBroadcast(AtmosphereResourceEvent event) {
-                    switch (r.transport()) {
-                        case JSONP:
-                        case AJAX:
-                        case LONG_POLLING:
-                            break;
-                        default:
+
+            switch (r.transport()) {
+                case JSONP:
+                case AJAX:
+                case LONG_POLLING:
+                    break;
+                default:
+                    r.addEventListener(new OnBroadcast() {
+                        @Override
+                        public void onBroadcast(AtmosphereResourceEvent event) {
                             try {
                                 r.getResponse().flushBuffer();
                             } catch (IOException e) {
                                 logger.trace("", e);
                             }
-                            break;
-                    }
-                }
-            }).suspend(timeoutInMilli);
+                        }
+                    });
+            }
+
+            r.suspend(timeoutInMilli);
         }
     }
 
