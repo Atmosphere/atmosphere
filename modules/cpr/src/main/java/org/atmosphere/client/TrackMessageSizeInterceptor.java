@@ -145,6 +145,11 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
                     if (cb.length() == 0) {
                         return responseDraft;
+                    } else if (cb.charAt(0) == ' ') {
+                        if (cb.toString().trim().isEmpty()) {
+                            // This is likely padding written by PaddingAtmosphereInterceptor
+                            return responseDraft;
+                        }
                     }
 
                     AtmosphereResource r = response.resource();

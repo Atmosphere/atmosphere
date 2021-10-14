@@ -33,11 +33,23 @@ import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.stream.IntStream;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
 public class TrackMessageSizeInterceptorTest {
+
+    private static final String PADDING_TEXT;
+
+    static {
+        StringBuilder whitespace = new StringBuilder();
+        for (int i = 0; i < 2048; i++) {
+            whitespace.append(" ");
+        }
+
+        PADDING_TEXT = whitespace.toString();
+    }
 
     private AtmosphereFramework framework;
 
@@ -85,7 +97,12 @@ public class TrackMessageSizeInterceptorTest {
 
     @Test
     public void testTrackMessageSizeDisabled() throws Exception {
-        testTrackMessageSize(false, new TrackMessageSizeInterceptor(),  "yoCometyoWebSocket");
+        testTrackMessageSize(false, new TrackMessageSizeInterceptor(), "yoCometyoWebSocket");
+    }
+
+    @Test
+    public void testTrackMessageSizeForPaddingMessage() throws Exception {
+        testTrackMessageSize(true, new TrackMessageSizeInterceptor(), null, PADDING_TEXT, PADDING_TEXT);
     }
 
     @Test
@@ -95,10 +112,14 @@ public class TrackMessageSizeInterceptorTest {
 
     @Test
     public void testTrackMessageSizeB64Disabled() throws Exception {
-        testTrackMessageSize(false, new TrackMessageSizeB64Interceptor(),  "yoCometyoWebSocket");
+        testTrackMessageSize(false, new TrackMessageSizeB64Interceptor(), "yoCometyoWebSocket");
     }
 
     private void testTrackMessageSize(boolean enabled, AtmosphereInterceptor icp, String expected) throws Exception {
+        testTrackMessageSize(enabled, icp, "yoComet", "yoWebSocket", expected);
+    }
+
+    private void testTrackMessageSize(boolean enabled, AtmosphereInterceptor icp, String bodyMessage, String websocketMessage, String expected) throws Exception {
         ByteArrayOutputStream b = new ByteArrayOutputStream();
         final WebSocket w = new ArrayBaseWebSocket(b);
         final WebSocketProcessor processor = WebSocketProcessorFactory.getDefault()
@@ -126,9 +147,19 @@ public class TrackMessageSizeInterceptorTest {
         if (enabled) {
             reqheaders.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
         }
-        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).headers(reqheaders).body("yoComet").pathInfo("/a").build();
+        AtmosphereRequestImpl.Builder requestBuilder = new AtmosphereRequestImpl.Builder()
+                .destroyable(false)
+                .headers(reqheaders)
+                .pathInfo("/a");
+
+        if (bodyMessage != null) {
+            requestBuilder.body(bodyMessage);
+        }
+
+        AtmosphereRequest request = requestBuilder.build();
+
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
-        processor.invokeWebSocketProtocol(w, "yoWebSocket");
+        processor.invokeWebSocketProtocol(w, websocketMessage);
         assertEquals(b.toString(), expected);
     }
 
