@@ -336,12 +336,6 @@ public final class AnnotationDetector {
                             vfs(url, packageName, streams);
                         }
                     }
-                } else if (isRunningJavaWebStart()) {
-                    try {
-                        loadJarContent((JarURLConnection) url.openConnection(), packageName, streams);
-                    } catch (ClassCastException cce) {
-                        throw new AssertionError("Not a File: " + url.toExternalForm());
-                    }
                 } else {
                     // Resource in Jar File
                     File jarFile;
@@ -410,17 +404,6 @@ public final class AnnotationDetector {
         }
 
         return retval;
-    }
-
-    private boolean isRunningJavaWebStart() {
-        boolean hasJNLP = false;
-        try {
-            Class.forName("javax.jnlp.ServiceManager");
-            hasJNLP = true;
-        } catch (ClassNotFoundException ex) {
-            hasJNLP = false;
-        }
-        return hasJNLP;
     }
 
     private void loadJarContent(JarURLConnection url, String packageName, Set<InputStream> streams) throws IOException {
