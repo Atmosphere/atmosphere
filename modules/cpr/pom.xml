@@ -58,6 +58,7 @@
                             weblogic.websocket*;resolution:=optional,
                             io.quarkus.runtime*;resolution:=optional,
                             javax.jnlp*;resolution:=optional,
+                            org.atmosphere.jersey.util*;resolution:=optional,
                             *,
                         </Import-Package>
                         <Export-Package>
