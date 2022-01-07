@@ -21,11 +21,11 @@ import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletOutputStream;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.HttpServletResponseWrapper;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 
 import java.io.IOException;
 import java.io.OutputStream;
@@ -63,7 +63,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     static {
         Exception exception = null;
         try {
-            Class.forName("javax.servlet.AsyncContext");
+            Class.forName("jakarta.servlet.AsyncContext");
         } catch (Exception ex) {
             exception = ex;
         } finally {

@@ -15,7 +15,7 @@
  */
 package org.atmosphere.util;
 
-import javax.servlet.http.Cookie;
+import jakarta.servlet.http.Cookie;
 
 import java.nio.CharBuffer;
 import java.text.DateFormat;

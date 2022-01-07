@@ -19,8 +19,8 @@ package org.atmosphere.cpr;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -29,7 +29,7 @@ import static org.atmosphere.cpr.AtmosphereResourceImpl.METEOR;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 
 /**
- * A {@link Meteor} is a simple class that can be used from a {@link javax.servlet.Servlet}
+ * A {@link Meteor} is a simple class that can be used from a {@link jakarta.servlet.Servlet}
  * to suspend, broadcast and resume responses. A {@link Meteor} can be created by invoking
  * the build() method.
  * <p><code>

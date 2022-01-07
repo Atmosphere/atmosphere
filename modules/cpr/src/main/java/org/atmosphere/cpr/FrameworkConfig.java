@@ -151,7 +151,7 @@ public interface FrameworkConfig {
      */
     String SECURITY_SUBJECT = AtmosphereRequestImpl.class.getName() + ".subject";
     /**
-     * The {@link javax.servlet.AsyncContext}.
+     * The {@link jakarta.servlet.AsyncContext}.
      */
     String ASYNC_CONTEXT = "org.atmosphere.container.asyncContext";
     /**
@@ -182,7 +182,7 @@ public interface FrameworkConfig {
     /**
      * The Java Inject class
      */
-    String INJECT_LIBARY = "javax.inject.Inject";
+    String INJECT_LIBARY = "jakarta.inject.Inject";
     /**
      * The current installed {@link org.atmosphere.cpr.BroadcasterFactory}
      */

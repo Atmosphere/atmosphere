@@ -37,7 +37,7 @@ import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
 /**
  * Like the {@link org.atmosphere.cpr.AsynchronousProcessor} class, this class is responsible for dispatching WebSocket messages to the
  * proper {@link org.atmosphere.websocket.WebSocket} implementation by wrapping the Websocket message's bytes within
- * an {@link javax.servlet.http.HttpServletRequest}.
+ * an {@link jakarta.servlet.http.HttpServletRequest}.
  * <p/>
  * The content-type is defined using {@link org.atmosphere.cpr.ApplicationConfig#WEBSOCKET_CONTENT_TYPE} property
  * The method is defined using {@link org.atmosphere.cpr.ApplicationConfig#WEBSOCKET_METHOD} property

@@ -108,21 +108,21 @@ public interface ApplicationConfig {
      */
     String PROPERTY_COMET_SUPPORT = "org.atmosphere.cpr.asyncSupport";
     /**
-     * Tell Atmosphere to use {@link javax.servlet.http.HttpSession}.
+     * Tell Atmosphere to use {@link jakarta.servlet.http.HttpSession}.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.sessionSupport
      */
     String PROPERTY_SESSION_SUPPORT = "org.atmosphere.cpr.sessionSupport";
     /**
-     * Tell Atmosphere to create a new {@link javax.servlet.http.HttpSession} when starting and when {@link #PROPERTY_SESSION_SUPPORT} is set to true.
+     * Tell Atmosphere to create a new {@link jakarta.servlet.http.HttpSession} when starting and when {@link #PROPERTY_SESSION_SUPPORT} is set to true.
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.sessionCreate
      */
     String PROPERTY_SESSION_CREATE = "org.atmosphere.cpr.sessionCreate";
     /**
-     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link javax.servlet.http.HttpSession#setMaxInactiveInterval(int)}
+     * Tell Atmosphere to set session max inactive interval to -1 when an atmosphere connection exists. See {@link jakarta.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.cpr.removeSessionTimeout
@@ -207,7 +207,7 @@ public interface ApplicationConfig {
     String WEBSOCKET_IDLETIME = "org.atmosphere.websocket.maxIdleTime";
     /**
      * Timeout of JSR356 write operation.
-     * See {@link javax.websocket.RemoteEndpoint.Async#setSendTimeout(long)}
+     * See {@link jakarta.websocket.RemoteEndpoint.Async#setSendTimeout(long)}
      * <p/>
      * Default: 1 minute<br>
      * Value: org.atmosphere.websocket.writeTimeout
@@ -667,7 +667,7 @@ public interface ApplicationConfig {
      */
     String SCAN_CLASSPATH = "org.atmosphere.cpr.scanClassPath";
     /**
-     * Use a build in {@link javax.servlet.http.HttpSession} when using native WebSocket implementation.
+     * Use a build in {@link jakarta.servlet.http.HttpSession} when using native WebSocket implementation.
      * <p/>
      * Default: false<br>
      * Value: org.atmosphere.cpr.useBuildInSession
@@ -718,7 +718,7 @@ public interface ApplicationConfig {
      */
     String JSR356_MAPPING_PATH = "org.atmosphere.container.JSR356AsyncSupport.mappingPath";
     /**
-     * The default {@link javax.servlet.http.HttpSession#setMaxInactiveInterval(int)}
+     * The default {@link jakarta.servlet.http.HttpSession#setMaxInactiveInterval(int)}
      * <p/>
      * Default: -1<br>
      * Value: org.atmosphere.cpr.session.maxInactiveInterval

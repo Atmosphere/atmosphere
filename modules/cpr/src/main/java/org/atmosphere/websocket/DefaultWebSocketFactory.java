@@ -19,7 +19,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 
 public class DefaultWebSocketFactory implements WebSocketFactory {
 

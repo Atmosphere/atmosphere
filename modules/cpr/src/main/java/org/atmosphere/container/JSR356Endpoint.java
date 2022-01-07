@@ -29,14 +29,14 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.Cookie;
-import javax.servlet.http.HttpSession;
-import javax.websocket.CloseReason;
-import javax.websocket.Endpoint;
-import javax.websocket.EndpointConfig;
-import javax.websocket.MessageHandler;
-import javax.websocket.Session;
-import javax.websocket.server.HandshakeRequest;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpSession;
+import jakarta.websocket.CloseReason;
+import jakarta.websocket.Endpoint;
+import jakarta.websocket.EndpointConfig;
+import jakarta.websocket.MessageHandler;
+import jakarta.websocket.Session;
+import jakarta.websocket.server.HandshakeRequest;
 
 import java.io.IOException;
 import java.net.InetSocketAddress;
@@ -56,8 +56,8 @@ public class JSR356Endpoint extends Endpoint {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356Endpoint.class);
 
-    private final static String JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS = "javax.websocket.endpoint.localAddress";
-    private final static String JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS = "javax.websocket.endpoint.remoteAddress";
+    private final static String JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS = "jakarta.websocket.endpoint.localAddress";
+    private final static String JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS = "jakarta.websocket.endpoint.remoteAddress";
 
     private final WebSocketProcessor webSocketProcessor;
     private final Integer maxBinaryBufferSize;
@@ -295,7 +295,7 @@ public class JSR356Endpoint extends Endpoint {
     }
 
     @Override
-    public void onClose(javax.websocket.Session session, javax.websocket.CloseReason closeCode) {
+    public void onClose(jakarta.websocket.Session session, jakarta.websocket.CloseReason closeCode) {
         logger.trace("{} closed {}", session, closeCode);
         if (request != null) {
             request.destroy();
@@ -304,7 +304,7 @@ public class JSR356Endpoint extends Endpoint {
     }
 
     @Override
-    public void onError(javax.websocket.Session session, java.lang.Throwable t) {
+    public void onError(jakarta.websocket.Session session, java.lang.Throwable t) {
         try {
             logger.debug("Problem in web socket session", t);
             webSocketProcessor.notifyListener(webSocket,

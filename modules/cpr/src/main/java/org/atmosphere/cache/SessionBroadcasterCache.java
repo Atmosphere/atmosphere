@@ -20,13 +20,13 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
 /**
- * Simple {@link org.atmosphere.cpr.BroadcasterCache} that use an {@link javax.servlet.http.HttpSession} to cache
+ * Simple {@link org.atmosphere.cpr.BroadcasterCache} that use an {@link jakarta.servlet.http.HttpSession} to cache
  * messages.
  *
  * @author Jeanfrancois Arcand

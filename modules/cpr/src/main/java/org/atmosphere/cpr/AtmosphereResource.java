@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import javax.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpSession;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;

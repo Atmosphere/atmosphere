@@ -16,8 +16,5 @@
 
     <modules>
         <module>cpr</module>
-        <module>annotations</module>
-        <module>jersey</module>
-        <module>native</module>
     </modules>
 </project>

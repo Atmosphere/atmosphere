@@ -28,7 +28,7 @@ import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Named;
+import jakarta.inject.Named;
 
 public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
     private final Logger logger = LoggerFactory.getLogger(ServiceInterceptor.class);

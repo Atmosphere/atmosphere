@@ -43,19 +43,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Method;
 import java.net.JarURLConnection;
 import java.net.MalformedURLException;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.jar.JarEntry;
@@ -294,53 +291,11 @@ public final class AnnotationDetector {
             final Enumeration<URL> resourceEnum = loader.getResources(packageName);
             while (resourceEnum.hasMoreElements()) {
                 final URL url = resourceEnum.nextElement();
-                // Handle JBoss VFS URL's which look like (example package 'nl.dvelop'):
-                // vfs:/foo/bar/website.war/WEB-INF/classes/nl/dvelop/
-                // vfs:/foo/bar/website.war/WEB-INF/lib/dwebcore-0.0.1.jar/nl/dvelop/
-                // Different vfs protocols include vfs, vfsfile, vfszip, vfsjar, and vfsmemory
-                final boolean isVfs = url.getProtocol() != null && url.getProtocol().startsWith("vfs");
-                if ("file".equals(url.getProtocol()) || isVfs) {
+                if ("file".equals(url.getProtocol())) {
                     final File dir = toFile(url);
                     if (dir.isDirectory()) {
                         files.add(dir);
                         print("Add directory: '%s'", dir);
-                    } else if (isVfs) {
-                        //Jar file via JBoss VFS protocol - strip package name
-                        String jarPath = dir.getPath();
-                        final int idx = jarPath.indexOf(".jar");
-                        if (idx > -1) {
-                            jarPath = jarPath.substring(0, idx + 4);
-                            final File jarFile = new File(jarPath);
-                            if (jarFile.isFile() && jarFile.exists()) {
-                                files.add(jarFile);
-                                print("Add jar file from VFS: '%s'", jarFile);
-                            } else {
-                                try {
-                                    // VirtualFile#getChildren(java.lang.String) may return an object which refers a .jar managed by the deployer
-                                    // The problem is that this .jar file does not contains .class in sub-directories
-                                    // Ex: if your original file contains /foo/bar/Baz.class and /foo/Bar.class, VFS returns a .jar file with:
-                                    // - /foo
-                                    // - /foo/Bar.class
-                                    // - /foo/bar
-                                    // ==> /foo/bar/Baz.class is missing!
-                                    // Resolving child directories recursively solves the issue
-                                    List<org.jboss.vfs.VirtualFile> vfs = getVfsChildren(org.jboss.vfs.VFS.getChild(dir.getPath()));
-                                    for (org.jboss.vfs.VirtualFile f : vfs) {
-                                        files.add(f.getPhysicalFile());
-                                    }
-                                } catch (Throwable ex) {
-                                    vfs(url, packageName, streams);
-                                }
-                            }
-                        } else {
-                            vfs(url, packageName, streams);
-                        }
-                    }
-                } else if (isRunningJavaWebStart()) {
-                    try {
-                        loadJarContent((JarURLConnection) url.openConnection(), packageName, streams);
-                    } catch (ClassCastException cce) {
-                        throw new AssertionError("Not a File: " + url.toExternalForm());
                     }
                 } else {
                     // Resource in Jar File
@@ -390,39 +345,6 @@ public final class AnnotationDetector {
         }
     }
 
-    /**
-     * <p>
-     * This method recursively retrieves VFS files when a directory is detected.
-     * </p>
-     *
-     * @param vfs the root
-     * @return all children files
-     */
-    private List<org.jboss.vfs.VirtualFile> getVfsChildren(final org.jboss.vfs.VirtualFile vfs) {
-        final List<org.jboss.vfs.VirtualFile> retval = new ArrayList<org.jboss.vfs.VirtualFile>();
-
-        for (org.jboss.vfs.VirtualFile f : vfs.getChildren()) {
-            if (f.isDirectory()) {
-                retval.addAll(getVfsChildren(org.jboss.vfs.VFS.getChild(vfs.getPathName() + File.separator + f.getName())));
-            } else {
-                retval.add(f);
-            }
-        }
-
-        return retval;
-    }
-
-    private boolean isRunningJavaWebStart() {
-        boolean hasJNLP = false;
-        try {
-            Class.forName("javax.jnlp.ServiceManager");
-            hasJNLP = true;
-        } catch (ClassNotFoundException ex) {
-            hasJNLP = false;
-        }
-        return hasJNLP;
-    }
-
     private void loadJarContent(JarURLConnection url, String packageName, Set<InputStream> streams) throws IOException {
         // Using a JarURLConnection will load the JAR from the cache when using Webstart 1.6
         // In Webstart 1.5, the URL will point to the cached JAR on the local filesystem
@@ -436,41 +358,6 @@ public final class AnnotationDetector {
         }
     }
 
-    private void vfs(URL url, String packageName, Set<InputStream> streams) {
-//        org.jboss.virtual.VFS vfs = org.jboss.virtual.VFS.getVFS(url);
-//        org.jboss.virtual.VirtualFile root = vfs.getRoot();
-//        List<org.jboss.virtual.VirtualFile> children = root.getChildrenRecursively();
-//        ClassLoader c = Thread.currentThread().getContextClassLoader();
-//        for (org.jboss.virtual.VirtualFile f : children) {
-//            String clazz = f.getPathName();
-//            String classP = (packageName + clazz);
-//            if (clazz != null && clazz.endsWith(".class")) {
-//                streams.add(c.getResourceAsStream(classP));
-//            }
-//        }
-        ClassLoader c = Thread.currentThread().getContextClassLoader();
-
-        try {
-            Class<?> vfs = c.loadClass("org.jboss.virtual.VFS");
-            Method getVFS = vfs.getMethod("getVFS", new Class[]{URL.class});
-            Object vfsInstance = getVFS.invoke(null, url);
-            Method getRoot = vfs.getMethod("getRoot");
-
-            Object virtualFileInstance = getRoot.invoke(vfsInstance);
-            Method getChildrenRecursively = virtualFileInstance.getClass().getMethod("getChildrenRecursively");
-            List<Object> children = (List<Object>) getChildrenRecursively.invoke(virtualFileInstance);
-            Method getPathName = virtualFileInstance.getClass().getMethod("getPathName");
-            for (Object f : children) {
-                String clazz = (String) getPathName.invoke(f);
-                String classP = (packageName + clazz);
-                if (clazz != null && clazz.endsWith(".class")) {
-                    streams.add(c.getResourceAsStream(classP));
-                }
-            }
-        } catch (Throwable t) {
-            logger.trace("", t);
-        }
-    }
 
     /**
      * Report all Java ClassFile files available from the specified files

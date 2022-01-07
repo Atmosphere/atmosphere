@@ -15,18 +15,18 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.GlassFishServ30WebSocketSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRegistration;
-import javax.servlet.ServletRequestEvent;
-import javax.servlet.ServletRequestListener;
-import javax.servlet.annotation.HandlesTypes;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRegistration;
+import jakarta.servlet.ServletRequestEvent;
+import jakarta.servlet.ServletRequestListener;
+import jakarta.servlet.annotation.HandlesTypes;
+import jakarta.servlet.http.HttpServletRequest;
+
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -42,7 +42,7 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
  */
 
 @HandlesTypes({})
-public class ContainerInitializer implements javax.servlet.ServletContainerInitializer {
+public class ContainerInitializer implements jakarta.servlet.ServletContainerInitializer {
 
     @Override
     public void onStartup(Set<Class<?>> classes, final ServletContext c) {
@@ -76,17 +76,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                     try {
                         framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                     } catch (IllegalStateException ex) {
-                        /**
-                         * For an unknown reason, when PrimneFaces Showcase is deployed in GlassFish,
-                         * the ServerContainer is always null.
-                         * For Native usage
-                         */
-                        if (c.getServerInfo().toLowerCase().contains("glassfish") || c.getServerInfo().toLowerCase().contains("payara")) {
-                            framework.setAsyncSupport(new GlassFishServ30WebSocketSupport(framework.getAtmosphereConfig(), c));
-                            framework.initializationError(null);
-                        } else {
-                            framework.initializationError(ex);
-                        }
+                        framework.initializationError(ex);
                     }
                 }
 

@@ -28,7 +28,8 @@ import org.atmosphere.cpr.Broadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletException;
+
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -58,61 +59,25 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     public Action service(AtmosphereRequest req, AtmosphereResponse res)
             throws IOException, ServletException {
 
-        Action action;
-        try {
-            action = suspended(req, res);
-            if (action.type() == Action.TYPE.SUSPEND) {
+        Action action = suspended(req, res);
+        if (action.type() == Action.TYPE.SUSPEND) {
+            suspend(action, req, res);
+        } else if (action.type() == Action.TYPE.RESUME) {
+            CountDownLatch latch = (CountDownLatch) req.getAttribute(LATCH);
+
+            if (latch == null || req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
+                logger.debug("response wasn't suspended: {}", res);
+                return action;
+            }
+
+            latch.countDown();
+
+            Action nextAction = resumed(req, res);
+            if (nextAction.type() == Action.TYPE.SUSPEND) {
                 suspend(action, req, res);
-            } else if (action.type() == Action.TYPE.RESUME) {
-                CountDownLatch latch = (CountDownLatch) req.getAttribute(LATCH);
-
-                if (latch == null || req.getAttribute(AtmosphereResourceImpl.PRE_SUSPEND) == null) {
-                    logger.debug("response wasn't suspended: {}", res);
-                    return action;
-                }
-
-                latch.countDown();
-
-                Action nextAction = resumed(req, res);
-                if (nextAction.type() == Action.TYPE.SUSPEND) {
-                    suspend(action, req, res);
-                }
-            }
-        } finally {
-            Object event = req.getAttribute(TomcatCometSupport.COMET_EVENT);
-            if (event != null) {
-                try {
-                    Class.forName(org.apache.catalina.CometEvent.class.getName());
-
-                    if (org.apache.catalina.CometEvent.class.isAssignableFrom(event.getClass())) {
-                        ((org.apache.catalina.CometEvent) event).close();
-                    }
-                } catch (Throwable e) {
-                    logger.trace("", e);
-                }
-
-
-                try {
-                    Class.forName(org.apache.catalina.comet.CometEvent.class.getName());
-
-                    if (org.apache.catalina.comet.CometEvent.class.isAssignableFrom(event.getClass())) {
-                        ((org.apache.catalina.comet.CometEvent) event).close();
-                    }
-                } catch (Throwable e) {
-                    logger.trace("", e);
-                }
-            }
-
-            try {
-                event = req.getAttribute(JBossWebCometSupport.HTTP_EVENT);
-                if (event != null) {
-                    Class.forName(org.jboss.servlet.http.HttpEvent.class.getName());
-                    ((org.jboss.servlet.http.HttpEvent) event).close();
-                }
-            } catch (Throwable e) {
-                logger.trace("", e);
             }
         }
+
         return action;
     }
 

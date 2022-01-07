@@ -20,16 +20,16 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.FilterConfig;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.FilterConfig;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import java.io.IOException;
 import java.util.Enumeration;
 
@@ -56,7 +56,7 @@ public class AtmosphereFilter implements Filter {
     /**
      * Initialize the {@link Filter}.
      *
-     * @param filterConfig The {@link javax.servlet.FilterConfig}
+     * @param filterConfig The {@link jakarta.servlet.FilterConfig}
      */
     public void init(final FilterConfig filterConfig) throws ServletException {
         logger.info("AtmosphereServlet running as a Filter");

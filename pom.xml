@@ -376,13 +376,6 @@
                 </plugins>
             </build>
         </profile>
-        <profile>
-            <!-- jetty 9.3.x requires jdk8 or higher -->
-            <id>jetty9_3</id>
-            <properties>
-                <jetty9-version>${jetty9_3-version}</jetty9-version>
-            </properties>
-        </profile>
     </profiles>
     <modules>
         <module>buildtools</module>
@@ -475,59 +468,12 @@
     </repositories>
     <dependencies>
         <dependency>
-            <groupId>org.eclipse.jetty</groupId>
-            <artifactId>jetty-websocket</artifactId>
-            <version>${jetty7-version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>javax.servlet</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <version>${testng-version}</version>
             <scope>test</scope>
         </dependency>
-        <dependency>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>jetty</artifactId>
-            <version>${jetty-version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mortbay.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>jetty-util</artifactId>
-            <version>${jetty-version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mortbay.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
-        <dependency>
-            <groupId>org.mortbay.jetty</groupId>
-            <artifactId>jetty-management</artifactId>
-            <version>${jetty-version}</version>
-            <scope>provided</scope>
-            <exclusions>
-                <exclusion>
-                    <groupId>org.mortbay.jetty</groupId>
-                    <artifactId>servlet-api</artifactId>
-                </exclusion>
-            </exclusions>
-        </dependency>
+
         <dependency>
             <groupId>com.ning</groupId>
             <artifactId>async-http-client</artifactId>
@@ -571,6 +517,20 @@
             <scope>test</scope>
         </dependency>
 
+        <dependency>
+            <groupId>org.eclipse.jetty</groupId>
+            <artifactId>jetty-server</artifactId>
+            <version>${jetty-version}</version>
+            <scope>provided</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.tomcat</groupId>
+            <artifactId>tomcat-catalina</artifactId>
+            <version>${tomcat-version}</version>
+            <scope>provided</scope>
+        </dependency>
+
     </dependencies>
 
     <properties>
@@ -585,13 +545,8 @@
         <grizzly2-version>2.3.12</grizzly2-version>
         <jboss-version>2.1.1.GA</jboss-version>
         <grizzly10-version>1.0.31</grizzly10-version>
-        <jetty7-version>7.6.9.v20130131</jetty7-version>
-        <jetty8-version>8.1.17.v20150415</jetty8-version>
-        <jetty9-version>${jetty9_2-version}</jetty9-version>
-        <jetty9_2-version>9.2.13.v20150730</jetty9_2-version>
-        <jetty9_3-version>9.3.19.v20170502</jetty9_3-version>
-        <tomcat-version>6.0.35</tomcat-version>
-        <tomcat7-version>7.0.93</tomcat7-version>
+        <jetty-version>11.0.7</jetty-version>
+        <tomcat-version>10.0.14</tomcat-version>
         <shade-version>1.2.1</shade-version>
         <felix-version>5.1.1</felix-version>
         <ahc.version>1.7.7</ahc.version>

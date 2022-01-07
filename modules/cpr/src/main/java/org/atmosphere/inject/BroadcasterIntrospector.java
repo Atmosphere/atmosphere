@@ -20,7 +20,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.inject.annotation.RequestScoped;
 import org.atmosphere.util.ThreadLocalInvoker;
 
-import javax.inject.Named;
+import jakarta.inject.Named;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;

@@ -29,15 +29,15 @@ import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
-import javax.servlet.http.HttpServlet;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.http.HttpServlet;
 
 import java.io.IOException;
 import java.net.URL;
@@ -50,7 +50,7 @@ import java.util.Map;
 
 /**
  * An implementation of {@link AtmosphereHandler} using the {@link AtmosphereServletProcessor} that delegate the {@link AtmosphereHandler#onRequest}
- * to a set of {@link FilterChain} and {@link Servlet#service(javax.servlet.ServletRequest, javax.servlet.ServletResponse)}
+ * to a set of {@link FilterChain} and {@link Servlet#service(jakarta.servlet.ServletRequest, jakarta.servlet.ServletResponse)}
  * and store the {@link AtmosphereResource} as a {@link AtmosphereRequestImpl#getAttribute(String)} attribute named
  * {@link org.atmosphere.cpr.FrameworkConfig#ATMOSPHERE_RESOURCE}. The {@link AtmosphereResource} can later be retrieved
  * and used to suspend/resume and broadcast.

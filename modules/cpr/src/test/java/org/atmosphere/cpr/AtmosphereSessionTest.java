@@ -20,9 +20,9 @@ import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
 import java.util.concurrent.CountDownLatch;

@@ -28,10 +28,10 @@ import org.atmosphere.util.Utils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.AsyncContext;
-import javax.servlet.AsyncEvent;
-import javax.servlet.AsyncListener;
-import javax.servlet.ServletException;
+import jakarta.servlet.AsyncContext;
+import jakarta.servlet.AsyncEvent;
+import jakarta.servlet.AsyncListener;
+import jakarta.servlet.ServletException;
 import java.io.IOException;
 
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
@@ -51,13 +51,13 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
     }
 
     /**
-     * Return "javax.servlet".
+     * Return "jakarta.servlet".
      *
-     * @return "javax.servlet"
+     * @return "jakarta.servlet"
      */
     @Override
     public String getContainerName() {
-        return super.getContainerName() + " using javax.servlet/3.0";
+        return super.getContainerName() + " using jakarta.servlet/3.0";
     }
 
     @Override

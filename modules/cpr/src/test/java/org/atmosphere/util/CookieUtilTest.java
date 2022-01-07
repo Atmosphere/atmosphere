@@ -18,7 +18,7 @@ package org.atmosphere.util;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.servlet.http.Cookie;
+import jakarta.servlet.http.Cookie;
 
 import org.testng.annotations.Test;
 

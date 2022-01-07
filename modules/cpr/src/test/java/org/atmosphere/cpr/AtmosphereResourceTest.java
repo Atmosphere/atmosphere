@@ -22,7 +22,7 @@ import org.atmosphere.websocket.WebSocket;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.*;
+import jakarta.servlet.*;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;

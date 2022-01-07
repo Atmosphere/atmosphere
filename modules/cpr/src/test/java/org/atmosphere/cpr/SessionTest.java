@@ -19,8 +19,8 @@ import org.atmosphere.cpr.AtmosphereRequestImpl.NoOpsRequest;
 import org.atmosphere.util.FakeHttpSession;
 import org.testng.annotations.Test;
 
-import javax.servlet.ServletException;
-import javax.servlet.http.HttpServletRequest;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.http.HttpServletRequest;
 import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 

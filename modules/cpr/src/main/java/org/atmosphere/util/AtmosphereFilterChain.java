@@ -32,19 +32,19 @@
  */
 package org.atmosphere.util;
 
-import javax.servlet.Filter;
-import javax.servlet.FilterChain;
-import javax.servlet.RequestDispatcher;
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
-import javax.servlet.ServletRequest;
-import javax.servlet.ServletResponse;
+import jakarta.servlet.Filter;
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
- * Implementation of <code>javax.servlet.FilterChain</code> used to manage
+ * Implementation of <code>jakarta.servlet.FilterChain</code> used to manage
  * the execution of a set of filters for a particular request.  When the
  * set of defined filters has all been executed, the next call to
  * <code>doFilter()</code> will execute the servlet's <code>service()</code>
@@ -77,7 +77,7 @@ public final class AtmosphereFilterChain implements FilterChain {
     /**
      * Initialize the {@link Filter}
      *
-     * @throws javax.servlet.ServletException
+     * @throws jakarta.servlet.ServletException
      */
     public void init() throws ServletException {
         for (FilterConfigImpl f : filters) {

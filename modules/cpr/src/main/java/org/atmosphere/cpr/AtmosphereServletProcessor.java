@@ -16,9 +16,9 @@
 
 package org.atmosphere.cpr;
 
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletException;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletException;
 
 /**
  * Simple interface that can be used to wrap a {@link Servlet} from an {@link AtmosphereHandler}.
@@ -29,7 +29,7 @@ public interface AtmosphereServletProcessor extends AtmosphereHandler {
 
     /**
      * Initialize the {@link AtmosphereServletProcessor} using the {@link ServletConfig}.
-     * @param config the {@link javax.servlet.ServletConfig}
+     * @param config the {@link jakarta.servlet.ServletConfig}
      */
     void init(AtmosphereConfig config) throws ServletException;
 }

@@ -37,7 +37,7 @@ import java.lang.annotation.Target;
  * This annotation doesn't install any Atmosphere Component like {@link ManagedService}, {@link org.atmosphere.cpr.AtmosphereHandler}
  * or {@link org.atmosphere.websocket.WebSocketHandler}. The framework supporting the annotation must itself deploy an
  * Atmosphere's Service when specified, The {@link #servlet()} returned value will be used to install a
- * {@link org.atmosphere.handler.ReflectorServletProcessor} that will dispatch requests to the {@link javax.servlet.Servlet}.
+ * {@link org.atmosphere.handler.ReflectorServletProcessor} that will dispatch requests to the {@link jakarta.servlet.Servlet}.
  * You can customize the request dispatch by setting the {@link #dispatch()} to false. When set to false, the
  * {@link org.atmosphere.handler.ReflectorServletProcessor#onRequest(org.atmosphere.cpr.AtmosphereResource)} will never be invoked.
  *

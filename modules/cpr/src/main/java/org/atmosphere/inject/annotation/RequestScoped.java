@@ -17,7 +17,7 @@ package org.atmosphere.inject.annotation;
 
 import org.atmosphere.inject.InjectIntrospector;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

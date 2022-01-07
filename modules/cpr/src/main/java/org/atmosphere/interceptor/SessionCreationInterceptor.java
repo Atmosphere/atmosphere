@@ -23,7 +23,7 @@ import org.atmosphere.util.Utils;
 import java.util.concurrent.ConcurrentLinkedQueue;
 
 /**
- * An interceptor that create an {@link javax.servlet.http.HttpSession} on the fist received request so transport like long-polling
+ * An interceptor that create an {@link jakarta.servlet.http.HttpSession} on the fist received request so transport like long-polling
  * can share the session with request coming after the suspend operation. Without this and because
  * with long-polling cookies aren't read by the browser until the response is resumed, the session id will not
  * be the same so session couldn't be used.

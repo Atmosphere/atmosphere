@@ -17,7 +17,7 @@ package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 
-import javax.inject.Inject;
+import jakarta.inject.Inject;
 import java.lang.reflect.Type;
 
 /**

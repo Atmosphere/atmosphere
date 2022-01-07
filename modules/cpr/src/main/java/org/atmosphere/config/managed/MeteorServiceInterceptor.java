@@ -25,8 +25,8 @@ import org.atmosphere.handler.ReflectorServletProcessor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.inject.Named;
-import javax.servlet.Servlet;
+import jakarta.inject.Named;
+import jakarta.servlet.Servlet;
 
 /**
  * Handle {@link org.atmosphere.config.service.Singleton},{@link org.atmosphere.config.service.MeteorService}

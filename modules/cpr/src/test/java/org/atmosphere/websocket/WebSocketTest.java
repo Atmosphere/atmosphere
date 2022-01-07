@@ -23,8 +23,8 @@ import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
 import java.io.IOException;
 import java.util.Arrays;
 import java.util.Enumeration;

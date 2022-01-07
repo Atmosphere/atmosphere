@@ -24,8 +24,6 @@ import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
 import org.atmosphere.config.FrameworkConfiguration;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.atmosphere.container.Tomcat7BIOSupportWithWebSocket;
-import org.atmosphere.container.WebLogicServlet30WithWebSocket;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.inject.InjectableObjectFactory;
@@ -67,10 +65,11 @@ import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.servlet.Servlet;
-import javax.servlet.ServletConfig;
-import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
+import jakarta.servlet.Servlet;
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletException;
+
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
@@ -539,7 +538,7 @@ public class AtmosphereFramework {
     }
 
     /**
-     * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(javax.servlet.ServletConfig)}.
+     * Create an AtmosphereFramework and initialize it via {@link AtmosphereFramework#init(jakarta.servlet.ServletConfig)}.
      */
     public AtmosphereFramework(ServletConfig sc) throws ServletException {
         this(false, true);
@@ -947,11 +946,6 @@ public class AtmosphereFramework {
         }
         isInit = true;
         config.initComplete();
-
-        // wlc 12.x
-        if (WebLogicServlet30WithWebSocket.class.isAssignableFrom(asyncSupport.getClass())) {
-            servletConfig.getServletContext().setAttribute(AtmosphereConfig.class.getName(), config);
-        }
 
         onPostInit();
 
@@ -1687,7 +1681,7 @@ public class AtmosphereFramework {
                 IOUtils.loadClass(getClass(), INJECT_LIBARY);
                 objectFactory = new InjectableObjectFactory();
             } catch (Exception e) {
-                logger.trace("javax.inject.Inject nor installed. Using DefaultAtmosphereObjectFactory");
+                logger.trace("jakarta.inject.Inject nor installed. Using DefaultAtmosphereObjectFactory");
                 objectFactory = new DefaultAtmosphereObjectFactory();
             }
         }
@@ -1709,7 +1703,7 @@ public class AtmosphereFramework {
      * Initialize {@link AtmosphereServletProcessor}.
      *
      * @param sc the {@link ServletConfig}
-     * @throws javax.servlet.ServletException
+     * @throws jakarta.servlet.ServletException
      * @Deprecated
      */
     public void initAtmosphereHandler(ServletConfig sc) throws ServletException {
@@ -2294,29 +2288,8 @@ public class AtmosphereFramework {
             configureRequestResponse(req, res);
             a = asyncSupport.service(req, res);
         } catch (IllegalStateException ex) {
-            boolean isJBoss = ex.getMessage() != null && ex.getMessage().startsWith("JBoss failed");
-            if (ex.getMessage() != null && (ex.getMessage().startsWith("Tomcat failed") || isJBoss)) {
-                if (!isFilter) {
-                    logger.warn("Failed using comet support: {}, error: {} Is the NIO or APR Connector enabled?", asyncSupport.getClass().getName(),
-                            ex.getMessage());
-                }
-                logger.error("If you have more than one Connector enabled, make sure they both use the same protocol, " +
-                        "e.g NIO/APR or HTTP for all. If not, {} will be used and cannot be changed.", BlockingIOCometSupport.class.getName(), ex);
-
-                AsyncSupport current = asyncSupport;
-                asyncSupport = asyncSupport.supportWebSocket() && !isJBoss ? new Tomcat7BIOSupportWithWebSocket(config) : new BlockingIOCometSupport(config);
-                if (current instanceof AsynchronousProcessor) {
-                    ((AsynchronousProcessor) current).shutdown();
-                }
-
-                asyncSupport.init(config.getServletConfig());
-                logger.warn("Using " + asyncSupport.getClass().getName());
-
-                a = asyncSupport.service(req, res);
-            } else {
-                logger.error("AtmosphereFramework exception", ex);
-                throw ex;
-            }
+            logger.error("AtmosphereFramework exception", ex);
+            throw ex;
         } finally {
             if (a != null) {
                 notify(a.type(), req, res);
