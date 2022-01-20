@@ -33,6 +33,7 @@ import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY_TIMEOUT;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_EMPTY_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.NEVER;
@@ -105,6 +106,8 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_DESTROY).idleTimeInMS(maxIdleTime).build();
         } else if (IDLE_RESUME.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_RESUME).idleTimeInMS(maxIdleTime).build();
+        } else if (IDLE_EMPTY_DESTROY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
+            policy = new BroadcasterLifeCyclePolicy.Builder().policy(IDLE_EMPTY_DESTROY).idleTimeInMS(maxIdleTime).build();
         } else if (NEVER.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
             policy = new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
         } else {
