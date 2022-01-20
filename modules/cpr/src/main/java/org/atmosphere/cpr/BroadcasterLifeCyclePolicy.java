@@ -31,6 +31,7 @@ public class BroadcasterLifeCyclePolicy {
     public final static BroadcasterLifeCyclePolicy IDLE_RESUME = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME);
     public final static BroadcasterLifeCyclePolicy EMPTY = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.EMPTY);
     public final static BroadcasterLifeCyclePolicy EMPTY_DESTROY = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.EMPTY_DESTROY);
+    public final static BroadcasterLifeCyclePolicy IDLE_EMPTY_DESTROY = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.IDLE_EMPTY_DESTROY);
     public final static BroadcasterLifeCyclePolicy NEVER = new BroadcasterLifeCyclePolicy(ATMOSPHERE_RESOURCE_POLICY.NEVER);
 
     public enum ATMOSPHERE_RESOURCE_POLICY {
@@ -68,6 +69,13 @@ public class BroadcasterLifeCyclePolicy {
          * {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked
          */
         EMPTY_DESTROY,
+
+        /**
+         * If there is no {@link org.atmosphere.cpr.AtmosphereResource} associated with the Broadcaster when the idle time expires,
+         * destroy the Broadcaster. This operation removes the Broadcaster from its associated {@link org.atmosphere.cpr.BroadcasterFactory}.
+         * {@link org.atmosphere.cpr.Broadcaster#destroy()} will be invoked
+         */
+        IDLE_EMPTY_DESTROY,
 
         /**
          * Never release or destroy the {@link org.atmosphere.cpr.Broadcaster}.

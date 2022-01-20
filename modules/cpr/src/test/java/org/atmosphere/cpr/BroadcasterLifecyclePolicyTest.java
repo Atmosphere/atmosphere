@@ -162,6 +162,26 @@ public class BroadcasterLifecyclePolicyTest {
         assertTrue(B.class.cast(b).destroy.get());
     }
 
+    @Test
+    public void testIdleEmptyDestroy() throws IOException, ServletException, InterruptedException {
+        B b = framework.getBroadcasterFactory().lookup(B.class, "/test", true);
+        b.setBroadcasterLifeCyclePolicy(
+                new BroadcasterLifeCyclePolicy.Builder().policy(BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_EMPTY_DESTROY).idleTimeInMS(5000).build());
+        b.latch = new CountDownLatch(1);
+
+        AR ah = new AR();
+
+        framework.addAtmosphereHandler("/*", ah, b).init();
+        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
+        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
+        b.removeAtmosphereResource(ah.resource);
+
+        b.latch.await();
+
+        assertFalse(B.class.cast(b).releaseExternalResources.get());
+        assertTrue(B.class.cast(b).destroy.get());
+    }
+
     public final static class AR implements AtmosphereHandler {
 
         private AtmosphereResource resource;
