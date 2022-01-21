@@ -321,7 +321,6 @@ public class ManagedAtmosphereHandlerTest {
         @Message
         public void message(AtmosphereResource resource, String m) {
             message.set(m);
-            assertSame(resource, r.get());
         }
     }
 
