@@ -61,9 +61,7 @@ public class ManagedAtmosphereHandlerTest {
             public void action(AtmosphereResourceImpl r) {
                 try {
                     resumed(r.getRequest(), r.getResponse());
-                } catch (IOException e) {
-                    e.printStackTrace();
-                } catch (ServletException e) {
+                } catch (IOException | ServletException e) {
                     e.printStackTrace();
                 }
             }

@@ -308,9 +308,7 @@ public class ManagedAtmosphereHandlerTest {
 
                     try {
                         event.getResource().getAtmosphereConfig().framework().doCometSupport(request, AtmosphereResponseImpl.newInstance());
-                    } catch (IOException e) {
-                        e.printStackTrace();
-                    } catch (ServletException e) {
+                    } catch (IOException | ServletException e) {
                         e.printStackTrace();
                     }
                 }
@@ -320,8 +318,8 @@ public class ManagedAtmosphereHandlerTest {
 
         @Message
         public void message(AtmosphereResource resource, String m) {
-            message.set(m);
             assertSame(resource, r.get());
+            message.set(m);
         }
     }
 

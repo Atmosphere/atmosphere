@@ -11,7 +11,7 @@
     <artifactId>atmosphere-buildtools</artifactId>
     <version>3.0.0-SNAPSHOT</version>
     <name>atmosphere-buildtools</name>
-    <url>https://github.com/Atmosphere/atmosphere</url>
+    <url>https://github.com/Atmosphere/atmosphere</url>                                                               
 
   <scm>
     <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
