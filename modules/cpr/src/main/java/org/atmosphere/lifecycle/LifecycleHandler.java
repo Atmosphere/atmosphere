@@ -35,12 +35,14 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_DESTROY;
 import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_RESUME;
+import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_POLICY.IDLE_EMPTY_DESTROY;
 
 public class LifecycleHandler {
     private static final Logger logger = LoggerFactory.getLogger(LifecycleHandler.class);
 
     public LifecycleHandler on(final DefaultBroadcaster broadcaster) {
         final BroadcasterLifeCyclePolicy lifeCyclePolicy = broadcaster.getBroadcasterLifeCyclePolicy();
+        final Collection<AtmosphereResource>  resources = broadcaster.getAtmosphereResources();
         if (broadcaster.getID().contains("{") && broadcaster.getID().contains("}")) {
             logger.trace("Ignoring wildcard {} with lifecycle policy: {}", broadcaster.getID(), lifeCyclePolicy.getLifeCyclePolicy().name());
             return this;
@@ -65,7 +67,8 @@ public class LifecycleHandler {
 
         if (lifeCyclePolicy.getLifeCyclePolicy() == IDLE
                 || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_RESUME
-                || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY) {
+                || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_DESTROY
+                || lifeCyclePolicy.getLifeCyclePolicy() == IDLE_EMPTY_DESTROY) {
 
             recentActivity.set(false);
 
@@ -102,7 +105,13 @@ public class LifecycleHandler {
 
                             destroy(true);
                             logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_RESUME policy to Broadcaster {}", broadcaster.getID());
+                        } else if (resources.isEmpty() && lifeCyclePolicy.getLifeCyclePolicy() == IDLE_EMPTY_DESTROY) {
+                            notifyIdleListener(broadcaster);
+
+                            destroy(false);
+                            logger.debug("Applying BroadcasterLifeCyclePolicy IDLE_EMPTY_DESTROY policy to Broadcaster {}", broadcaster.getID());
                         }
+
                     } catch (Throwable t) {
                         if (broadcaster.isDestroyed()) {
                             logger.trace("Scheduled BroadcasterLifeCyclePolicy exception", t);
