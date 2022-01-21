@@ -9,14 +9,13 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-buildtools</artifactId>
-    <version>2.7.4-SNAPSHOT</version>
+    <version>3.0.0-SNAPSHOT</version>
     <name>atmosphere-buildtools</name>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
   <scm>
-    <tag>atmosphere-project-2.7.1</tag>
     <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
     <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
-    <url>http://github.com/Atmosphere/atmosphere</url>
+    <url>https://github.com/Atmosphere/atmosphere</url>
   </scm>
 </project>
