@@ -107,24 +107,6 @@ public class DefaultAsyncSupportResolverTest {
         doReturn(false)
                 .when(defaultAsyncSupportResolver)
                 .testClassExists(DefaultAsyncSupportResolver.SERVLET_30);
-        doReturn(false)
-                .when(defaultAsyncSupportResolver)
-                .testClassExists(DefaultAsyncSupportResolver.TOMCAT_WEBSOCKET);
-        doReturn(false)
-                .when(defaultAsyncSupportResolver)
-                .testClassExists(DefaultAsyncSupportResolver.JETTY_9);
-        doReturn(false)
-                .when(defaultAsyncSupportResolver)
-                .testClassExists(DefaultAsyncSupportResolver.JETTY_8);
-        doReturn(false)
-                .when(defaultAsyncSupportResolver)
-                .testClassExists(DefaultAsyncSupportResolver.GRIZZLY2_WEBSOCKET);
-        doReturn(false)
-                .when(defaultAsyncSupportResolver)
-                .testClassExists(DefaultAsyncSupportResolver.GRIZZLY_WEBSOCKET);
-        doReturn(false)
-                .when(defaultAsyncSupportResolver)
-                .testClassExists(DefaultAsyncSupportResolver.JBOSS_AS7_WEBSOCKET);
 
         Assert.assertEquals(
                 defaultAsyncSupportResolver.resolve(useNativeIfPossible, defaultToBlocking, useServlet30Async).getClass(),

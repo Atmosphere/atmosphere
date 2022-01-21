@@ -15,6 +15,12 @@
  */
 package org.atmosphere.interceptor;
 
+import jakarta.servlet.ServletConfig;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.WriteListener;
+import jakarta.servlet.http.HttpServletResponse;
 import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -24,16 +30,9 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.HeaderConfig;
-import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.mockito.Mockito;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import jakarta.servlet.ServletConfig;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -79,6 +78,15 @@ public class SSEAtmosphereInterceptorTest {
         final ByteArrayOutputStream baos = new ByteArrayOutputStream();
         ServletResponse resp = Mockito.mock(HttpServletResponse.class);
         Mockito.when(resp.getOutputStream()).thenReturn(new ServletOutputStream() {
+            @Override
+            public boolean isReady() {
+                return false;
+            }
+
+            @Override
+            public void setWriteListener(WriteListener writeListener) {
+            }
+
             @Override
             public void write(int b) throws IOException {
                 baos.write(b);

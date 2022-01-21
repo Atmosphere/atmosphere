@@ -15,6 +15,8 @@
  */
 package org.atmosphere.cpr;
 
+import jakarta.servlet.ReadListener;
+import jakarta.servlet.http.HttpUpgradeHandler;
 import org.atmosphere.util.FakeHttpSession;
 import org.atmosphere.util.QueryStringDecoder;
 import org.atmosphere.util.ReaderInputStream;
@@ -585,6 +587,20 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         @Override
         public int read() throws IOException {
             return bis.read();
+        }
+
+        @Override
+        public boolean isFinished() {
+            return false;
+        }
+
+        @Override
+        public boolean isReady() {
+            return false;
+        }
+
+        @Override
+        public void setReadListener(ReadListener readListener) {
         }
     }
 
@@ -1391,6 +1407,20 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         public boolean markSupported() {
             return innerStream.markSupported();
         }
+
+        @Override
+        public boolean isFinished() {
+            return false;
+        }
+
+        @Override
+        public boolean isReady() {
+            return false;
+        }
+
+        @Override
+        public void setReadListener(ReadListener readListener) {
+        }
     }
 
     /**
@@ -1579,6 +1609,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
+        public <T extends HttpUpgradeHandler> T upgrade(Class<T> handlerClass) throws IOException, ServletException {
+            return null;
+        }
+
+        @Override
         public Collection<Part> getParts() throws IOException, ServletException {
             return EMPTY_ENUM_PART;
         }
@@ -1626,6 +1661,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         @Override
         public HttpSession getSession() {
             return fake;
+        }
+
+        @Override
+        public String changeSessionId() {
+            return getSession(false).getId();
         }
 
         @Override
@@ -1711,6 +1751,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public int getContentLength() {
+            return 0;
+        }
+
+        @Override
+        public long getContentLengthLong() {
             return 0;
         }
 

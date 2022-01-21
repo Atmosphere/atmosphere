@@ -15,24 +15,22 @@
  */
 package org.atmosphere.cpr;
 
+import jakarta.servlet.ServletOutputStream;
+import jakarta.servlet.ServletResponse;
+import jakarta.servlet.WriteListener;
+import jakarta.servlet.http.Cookie;
+import jakarta.servlet.http.HttpServletResponse;
+import jakarta.servlet.http.HttpServletResponseWrapper;
 import org.atmosphere.util.CookieUtil;
 import org.atmosphere.util.ServletProxyFactory;
 import org.atmosphere.websocket.WebSocket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.Cookie;
-import jakarta.servlet.http.HttpServletResponse;
-import jakarta.servlet.http.HttpServletResponseWrapper;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -555,6 +553,15 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         } else {
             return _r().getOutputStream() != null ? _r().getOutputStream() : new ServletOutputStream() {
                 @Override
+                public boolean isReady() {
+                    return false;
+                }
+
+                @Override
+                public void setWriteListener(WriteListener writeListener) {
+                }
+
+                @Override
                 public void write(int b) {
                 }
             };
@@ -1018,6 +1025,15 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             } finally {
                 forceAsyncIOWriter = b;
             }
+        }
+
+        @Override
+        public boolean isReady() {
+            return false;
+        }
+
+        @Override
+        public void setWriteListener(WriteListener writeListener) {
         }
     }
 
