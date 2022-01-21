@@ -15,18 +15,7 @@
  */
 package org.atmosphere.interceptor;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.Reader;
-import java.io.StringReader;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.TreeMap;
-import java.util.UUID;
-import java.util.concurrent.TimeUnit;
-
 import jakarta.servlet.ServletException;
-
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOInterceptor;
@@ -54,6 +43,16 @@ import org.json.JSONTokener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.Reader;
+import java.io.StringReader;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.TreeMap;
+import java.util.UUID;
+import java.util.concurrent.TimeUnit;
+
 /**
  * An Atmosphere interceptor to enable a simple rest binding protocol.
  * This protocol is a simplified version of SwaggerSocket with some new features
@@ -65,7 +64,7 @@ import org.slf4j.LoggerFactory;
  *
  * @author elakito
  */
-public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
+public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleRestInterceptor.class);
     /**
      * Servlet init property to enable the detached mode in the response
