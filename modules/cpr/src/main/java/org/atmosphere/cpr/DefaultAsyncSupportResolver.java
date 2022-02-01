@@ -47,6 +47,8 @@ import org.slf4j.LoggerFactory;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.atmosphere.util.Utils.isUnderJDK11AndUp;
+
 /**
  * This is the default implementation of @link {AsyncSupportResolver}.
  *
@@ -87,7 +89,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         this.config = config;
         this.suppress356 =
                 Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
-        isJetty10 = testClassExists(JETTY_10);
+        isJetty10 = isUnderJDK11AndUp() && testClassExists(JETTY_10);
     }
 
     /**
