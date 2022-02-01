@@ -66,6 +66,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public final static String JETTY_7 = "org.eclipse.jetty.servlet.ServletContextHandler";
     public final static String JETTY_8 = "org.eclipse.jetty.continuation.Servlet3Continuation";
     public final static String JETTY_9 = "org.eclipse.jetty.websocket.api.WebSocketPolicy";
+    public final static String JETTY_10 = "org.eclipse.jetty.websocket.server.JettyWebSocketCreator";
     public final static String GRIZZLY = "com.sun.grizzly.http.servlet.ServletAdapter";
     public final static String GRIZZLY2 = "org.glassfish.grizzly.http.servlet.ServletHandler";
     public final static String JBOSSWEB = "org.apache.catalina.connector.HttpEventImpl";
@@ -80,11 +81,13 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     private final AtmosphereConfig config;
 
     private final boolean suppress356;
+    private final boolean isJetty10;
 
     public DefaultAsyncSupportResolver(final AtmosphereConfig config) {
         this.config = config;
         this.suppress356 =
                 Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
+        isJetty10 = testClassExists(JETTY_10);
     }
 
     /**
@@ -114,16 +117,16 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                 if (testClassExists(GLASSFISH_V2))
                     add(GlassFishv2CometSupport.class);
 
-                if (testClassExists(JETTY_9))
+                if (!isJetty10 && testClassExists(JETTY_9))
                     add(Jetty7CometSupport.class);
 
-                if (testClassExists(JETTY_8))
+                if (!isJetty10 && testClassExists(JETTY_8))
                     add(Jetty7CometSupport.class);
 
-                if (testClassExists(JETTY_7))
+                if (!isJetty10 && testClassExists(JETTY_7))
                     add(Jetty7CometSupport.class);
 
-                if (testClassExists(JETTY))
+                if (!isJetty10 && testClassExists(JETTY))
                     add(JettyCometSupport.class);
 
                 if (testClassExists(JBOSSWEB))
@@ -160,13 +163,13 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         if (testClassExists(TOMCAT_WEBSOCKET))
                             add(Tomcat7Servlet30SupportWithWebSocket.class);
 
-                        if (testClassExists(JETTY_9)) {
-                            add(Jetty9AsyncSupportWithWebSocket.class);
-                            add(Jetty93AsyncSupportWithWebSocket.class);
+                        if (!isJetty10) {
+                            if (testClassExists(JETTY_9)) {
+                                add(Jetty9AsyncSupportWithWebSocket.class);
+                                add(Jetty93AsyncSupportWithWebSocket.class);
+                            } else if (testClassExists(JETTY_8))
+                                add(JettyServlet30AsyncSupportWithWebSocket.class);
                         }
-
-                        if (testClassExists(JETTY_8))
-                            add(JettyServlet30AsyncSupportWithWebSocket.class);
 
                         if (testClassExists(GRIZZLY2_WEBSOCKET))
                             add(GlassFishServ30WebSocketSupport.class);
@@ -188,11 +191,13 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
                         if (testClassExists(TOMCAT_WEBSOCKET))
                             add(Tomcat7AsyncSupportWithWebSocket.class);
 
-                        if (testClassExists(JETTY_9))
-                            add(Jetty9AsyncSupportWithWebSocket.class);
+                        if (!isJetty10) {
+                            if (testClassExists(JETTY_9))
+                                add(Jetty9AsyncSupportWithWebSocket.class);
 
-                        if (testClassExists(JETTY_8))
-                            add(JettyAsyncSupportWithWebSocket.class);
+                            if (testClassExists(JETTY_8))
+                                add(JettyAsyncSupportWithWebSocket.class);
+                        }
 
                         if (testClassExists(GRIZZLY_WEBSOCKET))
                             add(GlassFishWebSocketSupport.class);

@@ -580,7 +580,7 @@
         <junit-version>3.8.1</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version>3.0-b74b</servlet-version>
-        <servlet-version-range>[2.5,4)</servlet-version-range>
+        <servlet-version-range>[2.5,5)</servlet-version-range>
         <grizzly-version>1.9.57</grizzly-version>
         <grizzly2-version>2.3.12</grizzly2-version>
         <jboss-version>2.1.1.GA</jboss-version>
@@ -590,6 +590,7 @@
         <jetty9-version>${jetty9_2-version}</jetty9-version>
         <jetty9_2-version>9.2.13.v20150730</jetty9_2-version>
         <jetty9_3-version>9.3.19.v20170502</jetty9_3-version>
+        <jetty10-version>10.0.7</jetty10-version>
         <tomcat-version>6.0.35</tomcat-version>
         <tomcat7-version>7.0.93</tomcat7-version>
         <shade-version>1.2.1</shade-version>

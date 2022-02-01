@@ -83,8 +83,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private boolean cookieComputed;
     private volatile BufferedReader voidReader;
     private final ServletInputStream voidStream = new IS(new ByteArrayInputStream(new byte[0]));
-    private AtomicBoolean streamSet = new AtomicBoolean();
-    private AtomicBoolean readerSet = new AtomicBoolean();
+    private final AtomicBoolean streamSet = new AtomicBoolean();
+    private final AtomicBoolean readerSet = new AtomicBoolean();
     private String uuid;
     private boolean noopsAsyncContextStarted;
 
@@ -805,7 +805,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public boolean isAsyncStarted() {
-        if (AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
+        if (resource() != null && AtmosphereResource.TRANSPORT.WEBSOCKET == resource().transport()) {
             return noopsAsyncContextStarted;
         }
         try {
