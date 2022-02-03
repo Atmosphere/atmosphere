@@ -36,7 +36,7 @@ Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
 ```xml
      <dependency>
          <groupId>org.atmosphere</groupId>
-         <artifactId>atmosphere-{atmosphere-module}</artifactId>
+         <artifactId>atmosphere-runtime</artifactId>
          <version>3.0.0</version> 
       </dependency>
 ```
