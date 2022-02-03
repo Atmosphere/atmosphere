@@ -25,439 +25,456 @@
 <h2>Just replace o.a == org.atmosphere</h2>
 
 <table width="100%" border="1" bgcolor="#ffffff">
-<tr>
-    <td>Name</td>
-    <td>Default Value</td>
-    <td></td>Description</td>
-    <td>When to use it</td>
-</tr>
-<tr>
-    <td>o.a.atmosphereDotXml</td>
-    <td>WEB-INF/atmosphere.xml</td>
-    <td>the location of the atmosphere.xml file.</td>
-    <td>Set a different path for the atmosphere.xml location</td>
-</tr>
-<tr>
-    <td>o.a.jersey.servlet-mapping</td>
-    <td>/</td>
-    <td>The path that will be used to map request to Jersey</td>
-    <td>Set to a different path if you want to use a different mapping path</td>
-</tr>
-<tr>
-    <td>o.a.useBlocking</td>
-    <td>false</td>
-    <td>Set Atmosphere to use the BlockingIOCometSupport, e.g blocking I/O</td>
-    <td>Set it to true if you don't want to use Native Async Support or Servlet 3.0 Async API. Setting this to true
-        means a thread will be blocked when suspending response.
-    </td>
-</tr>
-<tr>
-    <td>o.a.useNative</td>
-    <td>true</td>
-    <td>Set Atmosphere to use the container native Async support instead of using the Servlet 3.0 Async API</td>
-    <td>Most of the time native Async support perform much better than Servlet 3.0 Async API, so it is recommended to
-        set that value to true
-    </td>
-</tr>
-<tr>
-    <td>o.a.useWebSocket</td>
-    <td>true</td>
-    <td>Force Atmosphere to use WebSocket Async support.</td>
-    <td>Set it to false to disable WebSocket support</td>
-</tr>
-<tr>
-    <td>o.a.useStream</td>
-    <td>false</td>
-    <td>Force Atmosphere to use stream when writing bytes. That means AtmosphereRequest.getOutputStream will be called
-        instead of AtmosphereRequest.getWriter
-    </td>
-    <td>If your application only use Stream, set that value to true and make sure you never invoke
-        AtmosphereRequest.getWriter
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcasterFactory</td>
-    <td>o.a.cpr.DefaultBroadcasterFactory</td>
-    <td>The default BroadcasterFactory class. Default is <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>
-    </td>
-    <td>Change it if you want to use your own implementation</td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcasterClass</td>
-    <td>o.a.cpr.DefaulBroadcaster</td>
-    <td>The default Broadcaster class to use. Default is <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a>
-    </td>
-    <td>Change it if you want to use your own implementation</td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcasterCacheClass</td>
-    <td>none</td>
-    <td>The default BroadcasterCache class.</td>
-    <td>Change it if you want to use your own implementation</td>
-</tr>
-<tr>
-    <td>o.a.cpr.asyncSupport</td>
-    <td>the one detected by Atmosphere based on the used WebServer</td>
-    <td>The AsyncSupport class used to support Comet or WebSocket.</td>
-    <td>Change it if you want to use your own implementation</td>
-</tr>
-<tr>
-    <td>o.a.cpr.sessionSupport</td>
-    <td>true</td>
-    <td>Tell Atmosphere to use HttpSession to store its internal object.</td>
-    <td>If you are planning to share Atmosphere's internal object like BroadcasterFactory in a cluster or accross
-        requests, set that value to true so Atmosphere will store those object in the session instead of request's
-        attributes. See the <a
-                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/FrameworkConfig.html">FrameworkConfig</a>
-        class for a list of internal shareable object.
-    </td>
-</tr>
-<tr>
-    <td>o.a.resumeOnBroadcast</td>
-    <td>false</td>
-    <td>Force Atmosphere to invoke <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereResource.html#resume()">
-        after the first Broadcaster#broadcast(Object) invocation.</a>
-    </td>
-    <td>Set the value to true if your application is using only long-polling as transport.</td>
-</tr>
-<tr>
-    <td>o.a.cpr.noCacheHeaders</td>
-    <td>false</td>
-    <td>Tell Atmosphere to not write the <a href="http://en.wikipedia.org/wiki/List_of_HTTP_header_fields">no-cache</a>
-        HTTP header.
-    </td>
-    <td>Set it to false if your application handles the header itself</td>
-</tr>
-<tr>
-    <td>o.a.cpr.dropAccessControlAllowOriginHeader</td>
-    <td>false</td>
-    <td>Tell Atmosphere to not write the access-control header.</td>
-    <td>Set it to true if your application will handle itself those headers</td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcasterLifeCyclePolicy</td>
-    <td>NEVER</td>
-    <td>The <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a>
-        policy to use
-    </td>
-    <td>Read <a href="https://github.com/Atmosphere/atmosphere/wiki/Understanding-Broadcaster">this</a> to decide which
-        value to put and prevent OOM
-    </td>
-</tr>
-<tr>
-    <td>o.a.websocket.WebSocketProtocol</td>
-    <td>o.a.websocket.protocol.SimpleWebSocketProtocol</td>
-    <td>Tell Atmosphere the <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a>
-        to use. Default is <a
-                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/protocol/SimpleHttpProtocol.html">SimpleWebSocketProtocol</a>
-    </td>
-    <td>Change it if you want to use your own implementation</td>
-</tr>
-<tr>
-    <td>o.a.websocket.messageContentType</td>
-    <td>application/json</td>
-    <td>Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest to
-        another framework (ex: Wicket, Jersey)
-    </td>
-    <td>Change it if you want to use your own value</td>
-</tr>
-<tr>
-    <td>o.a.websocket.messageMethod</td>
-    <td>POST</td>
-    <td>Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest</td>
-    <td>Change it if you want to use PUT or custom HTTP method</td>
-</tr>
-<tr>
-    <td>o.a.websocket.maxIdleTime</td>
-    <td>600000</td>
-    <td>Tell Atmosphere how long a WebSocket connection can stay idle. Default is 5 minutes</td>
-    <td>Change it if you want a longer/shorter timeout/td
-    </td>
-</tr>
-<tr>
-    <td>o.a.websocket.bufferSize</td>
-    <td>8192</td>
-    <td>Atmosphere the WebSocket write buffer size.</td>
-    <td>Change it if you want a larger/smaller buffer/td
-    </td>
-</tr>
-<tr>
-    <td>o.a.websocket.pathDelimiter</td>
-    <td></td>
-    <td>Tell Atmosphere the path delimiter to use when parsing a WebSocket message.</td>
-    <td>By default no delimiter are used. If you plan to write your own custom WebSocket protocol, you can use that
-        value to delimiter message. Make sure you set the same value inside your application's javascript.
-    </td>
-</tr>
-<tr>
-    <td>o.a.websocket.maxTextMessageSize</td>
-    <td>-1</td>
-    <td>Set the WebSocket mas text size: size 0 No aggregation of frames to messages, =0 max size of text frame
-        aggregation buffer in character
-    </td>
-    <td>Change it if you want a larger/smaller buffer/td
-    </td>
-</tr>
-<tr>
-    <td>o.a.websocket.maxBinaryMessageSize</td>
-    <td>-1</td>
-    <td>Set the WebSocket mas text size: size=0 max size of text frame aggregation buffer in characters</td>
-    <td>Change it if you want a larger/smaller buffer/td
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.AtmosphereResource</td>
-    <td>o.a.cpr.AtmosphereResourceImpl</td>
-    <td>The Atmosphere resource to use.</td>
-    <td>Change it if you want to use your own implementation</td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcastFilterClasses</td>
-    <td></td>
-    <td>A list of <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcastFilter.html">BroadcastFilter</a>
-        separated with coma that will be added to every new <a
-                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Broadcaster.html">Broadcaster</a>
-    </td>
-    <td>Read the <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcastFilter.html">BroadcastFilter</a>
-        and <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/PerRequestBroadcastFilter.html">PerRequestBroadcaster</a>
-        API to lean about them.
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.AtmosphereServlet.resumeAndKeepAlive</td>
-    <td>false</td>
-    <td>A request attribute used to tell AsyncSupport implementation to keep alive the connection or not. Default is to
-        delegate the talk to the underlying WebServer.
-    </td>
-    <td>Carefully use that property as it can cause memory leak. It is recommend to NOT change that value</td>
-</tr>
-<tr>
-    <td>o.a.cpr.AtmosphereServlet.resumedOnTimeout</td>
-    <td>false</td>
-    <td>This request attribute telling a AsyncSupport if the AtmosphereResource was resumed on timeout or by an
-        application. This attribute is for WebServer that doesn't support times out (like Jetty 6)
-    </td>
-    <td>It is recommend to not change that value if you aren't planning to use Jetty 6</td>
-</tr>
-<tr>
-    <td>o.a.disableOnStateEvent</td>
-    <td>false</td>
-    <td>Disable invoking <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereHandler.html#onStateChange(o.a.cpr.AtmosphereResourceEvent">AtmosphereHandler#onStateChange</a>)
-        when the connection times out or get cancelled.
-    </td>
-    <td>Set it to true if and only if you are using a <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Serializer.html">Serializer</a>
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.CometSupport.maxInactiveActivity</td>
-    <td>-1</td>
-    <td>The maximum time, in mili second, a connection gets idle.</td>
-    <td>This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle
-        connection (idle or remotely closed) should not use that property.
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.allowQueryStreamAsPostOrGet</td>
-    <td>true</td>
-    <td>Allow query string to be decoded and passed as request's header as well as query string.</td>
-    <td>Set it to false only if you are planning to never use Internet Explorer, WebSocket and Server Side Events</td>
-</tr>
-<tr>
-    <td>o.a.cpr.padding</td>
-    <td>ATMOSPHERE</td>
-    <td>Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is ATMOSPHERE
-        <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereResourceImpl.html#createStreamingPadding(java.lang.String">AtmosphereResourceImpl#createStreamingPadding(String)</a>)
-    </td>
-    <td>Change it only if the default padding is causing issue</td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcaster.shareableThreadPool</td>
-    <td>false</td>
-    <td>Configure Broadcaster to share the same java.util.concurrent.ExecutorService amongs them.</td>
-    <td>Set that value to true if you are planning to create a lot of <a
-            href="https://github.com/Atmosphere/atmosphere/wiki/Understanding-Broadcaster">Broadcaster</a>
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcaster.maxProcessingThreads</td>
-    <td>unbounded</td>
-    <td>The maximum number of Thread created when processing broadcast operations <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcasterConfig.html#setExecutorService(java.util.concurrent.ExecutorService">BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)</a>)
-    </td>
-    <td>Make sure to set the appropriate value as it can cause broadcast pause if not enough threads are availaible when
-        broadcasting.
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.broadcaster.maxAsyncWriteThreads</td>
-    <td>unbounded</td>
-    <td>The maximum number of Thread created when writing requests <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcasterConfig.html#setAsyncWriteService(java.util.concurrent.ExecutorService">BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)</a>)
-    </td>
-    <td>Make sure to set the appropriate value as it can cause broadcast pause if not enough threads are availaible when
-        broadcasting.
-    </td>
+    <tr>
+        <td>Name</td>
+        <td>Default Value</td>
+        <td></td>
+        Description</td>
+        <td>When to use it</td>
+    </tr>
+    <tr>
+        <td>o.a.atmosphereDotXml</td>
+        <td>WEB-INF/atmosphere.xml</td>
+        <td>the location of the atmosphere.xml file.</td>
+        <td>Set a different path for the atmosphere.xml location</td>
+    </tr>
+    <tr>
+        <td>o.a.jersey.servlet-mapping</td>
+        <td>/</td>
+        <td>The path that will be used to map request to Jersey</td>
+        <td>Set to a different path if you want to use a different mapping path</td>
+    </tr>
+    <tr>
+        <td>o.a.useBlocking</td>
+        <td>false</td>
+        <td>Set Atmosphere to use the BlockingIOCometSupport, e.g blocking I/O</td>
+        <td>Set it to true if you don't want to use Native Async Support or Servlet 3.0 Async API. Setting this to true
+            means a thread will be blocked when suspending response.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.useNative</td>
+        <td>true</td>
+        <td>Set Atmosphere to use the container native Async support instead of using the Servlet 3.0 Async API</td>
+        <td>Most of the time native Async support perform much better than Servlet 3.0 Async API, so it is recommended
+            to
+            set that value to true
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.useWebSocket</td>
+        <td>true</td>
+        <td>Force Atmosphere to use WebSocket Async support.</td>
+        <td>Set it to false to disable WebSocket support</td>
+    </tr>
+    <tr>
+        <td>o.a.useStream</td>
+        <td>false</td>
+        <td>Force Atmosphere to use stream when writing bytes. That means AtmosphereRequest.getOutputStream will be
+            called
+            instead of AtmosphereRequest.getWriter
+        </td>
+        <td>If your application only use Stream, set that value to true and make sure you never invoke
+            AtmosphereRequest.getWriter
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcasterFactory</td>
+        <td>o.a.cpr.DefaultBroadcasterFactory</td>
+        <td>The default BroadcasterFactory class. Default is <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/DefaultBroadcasterFactory.html">DefaultBroadcasterFactory</a>
+        </td>
+        <td>Change it if you want to use your own implementation</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcasterClass</td>
+        <td>o.a.cpr.DefaulBroadcaster</td>
+        <td>The default Broadcaster class to use. Default is <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/DefaultBroadcaster.html">DefaultBroadcaster</a>
+        </td>
+        <td>Change it if you want to use your own implementation</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcasterCacheClass</td>
+        <td>none</td>
+        <td>The default BroadcasterCache class.</td>
+        <td>Change it if you want to use your own implementation</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.asyncSupport</td>
+        <td>the one detected by Atmosphere based on the used WebServer</td>
+        <td>The AsyncSupport class used to support Comet or WebSocket.</td>
+        <td>Change it if you want to use your own implementation</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.sessionSupport</td>
+        <td>true</td>
+        <td>Tell Atmosphere to use HttpSession to store its internal object.</td>
+        <td>If you are planning to share Atmosphere's internal object like BroadcasterFactory in a cluster or accross
+            requests, set that value to true so Atmosphere will store those object in the session instead of request's
+            attributes. See the <a
+                    href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/FrameworkConfig.html">FrameworkConfig</a>
+            class for a list of internal shareable object.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.resumeOnBroadcast</td>
+        <td>false</td>
+        <td>Force Atmosphere to invoke <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereResource.html#resume()">
+            after the first Broadcaster#broadcast(Object) invocation.</a>
+        </td>
+        <td>Set the value to true if your application is using only long-polling as transport.</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.noCacheHeaders</td>
+        <td>false</td>
+        <td>Tell Atmosphere to not write the <a
+                href="http://en.wikipedia.org/wiki/List_of_HTTP_header_fields">no-cache</a>
+            HTTP header.
+        </td>
+        <td>Set it to false if your application handles the header itself</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.dropAccessControlAllowOriginHeader</td>
+        <td>false</td>
+        <td>Tell Atmosphere to not write the access-control header.</td>
+        <td>Set it to true if your application will handle itself those headers</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcasterLifeCyclePolicy</td>
+        <td>NEVER</td>
+        <td>The <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcasterLifeCyclePolicy.html">BroadcasterLifeCyclePolicy</a>
+            policy to use
+        </td>
+        <td>Read <a href="https://github.com/Atmosphere/atmosphere/wiki/Understanding-Broadcaster">this</a> to decide
+            which
+            value to put and prevent OOM
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.WebSocketProtocol</td>
+        <td>o.a.websocket.protocol.SimpleWebSocketProtocol</td>
+        <td>Tell Atmosphere the <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/WebSocketProcessor.html">WebSocketProcessor</a>
+            to use. Default is <a
+                    href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/protocol/SimpleHttpProtocol.html">SimpleWebSocketProtocol</a>
+        </td>
+        <td>Change it if you want to use your own implementation</td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.messageContentType</td>
+        <td>application/json</td>
+        <td>Tell Atmosphere the content-type to use when a WebSocket message is dispatched as an AtmosphereRequest to
+            another framework (ex: Wicket, Jersey)
+        </td>
+        <td>Change it if you want to use your own value</td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.messageMethod</td>
+        <td>POST</td>
+        <td>Tell Atmosphere the method to use when a WebSocket message is dispatched as an AtmosphereRequest</td>
+        <td>Change it if you want to use PUT or custom HTTP method</td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.maxIdleTime</td>
+        <td>600000</td>
+        <td>Tell Atmosphere how long a WebSocket connection can stay idle. Default is 5 minutes</td>
+        <td>Change it if you want a longer/shorter timeout/td
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.bufferSize</td>
+        <td>8192</td>
+        <td>Atmosphere the WebSocket write buffer size.</td>
+        <td>Change it if you want a larger/smaller buffer/td
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.pathDelimiter</td>
+        <td></td>
+        <td>Tell Atmosphere the path delimiter to use when parsing a WebSocket message.</td>
+        <td>By default no delimiter are used. If you plan to write your own custom WebSocket protocol, you can use that
+            value to delimiter message. Make sure you set the same value inside your application's javascript.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.maxTextMessageSize</td>
+        <td>-1</td>
+        <td>Set the WebSocket mas text size: size 0 No aggregation of frames to messages, =0 max size of text frame
+            aggregation buffer in character
+        </td>
+        <td>Change it if you want a larger/smaller buffer/td
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.maxBinaryMessageSize</td>
+        <td>-1</td>
+        <td>Set the WebSocket mas text size: size=0 max size of text frame aggregation buffer in characters</td>
+        <td>Change it if you want a larger/smaller buffer/td
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.AtmosphereResource</td>
+        <td>o.a.cpr.AtmosphereResourceImpl</td>
+        <td>The Atmosphere resource to use.</td>
+        <td>Change it if you want to use your own implementation</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcastFilterClasses</td>
+        <td></td>
+        <td>A list of <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcastFilter.html">BroadcastFilter</a>
+            separated with coma that will be added to every new <a
+                    href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Broadcaster.html">Broadcaster</a>
+        </td>
+        <td>Read the <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcastFilter.html">BroadcastFilter</a>
+            and
+            <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/PerRequestBroadcastFilter.html">PerRequestBroadcaster</a>
+            API to lean about them.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.AtmosphereServlet.resumeAndKeepAlive</td>
+        <td>false</td>
+        <td>A request attribute used to tell AsyncSupport implementation to keep alive the connection or not. Default is
+            to
+            delegate the talk to the underlying WebServer.
+        </td>
+        <td>Carefully use that property as it can cause memory leak. It is recommend to NOT change that value</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.AtmosphereServlet.resumedOnTimeout</td>
+        <td>false</td>
+        <td>This request attribute telling a AsyncSupport if the AtmosphereResource was resumed on timeout or by an
+            application. This attribute is for WebServer that doesn't support times out (like Jetty 6)
+        </td>
+        <td>It is recommend to not change that value if you aren't planning to use Jetty 6</td>
+    </tr>
+    <tr>
+        <td>o.a.disableOnStateEvent</td>
+        <td>false</td>
+        <td>Disable invoking <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereHandler.html#onStateChange(o.a.cpr.AtmosphereResourceEvent">AtmosphereHandler#onStateChange</a>)
+            when the connection times out or get cancelled.
+        </td>
+        <td>Set it to true if and only if you are using a <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Serializer.html">Serializer</a>
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.CometSupport.maxInactiveActivity</td>
+        <td>-1</td>
+        <td>The maximum time, in mili second, a connection gets idle.</td>
+        <td>This properly can be used with Jetty and BlockingIOCometSupport. Other WebServer supports detection of idle
+            connection (idle or remotely closed) should not use that property.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.allowQueryStreamAsPostOrGet</td>
+        <td>true</td>
+        <td>Allow query string to be decoded and passed as request's header as well as query string.</td>
+        <td>Set it to false only if you are planning to never use Internet Explorer, WebSocket and Server Side Events
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.padding</td>
+        <td>ATMOSPHERE</td>
+        <td>Configure the padding used when streaming is used. Value can be atmosphere or whitespace. Default is
+            ATMOSPHERE
+            <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereResourceImpl.html#createStreamingPadding(java.lang.String">AtmosphereResourceImpl#createStreamingPadding(String)</a>)
+        </td>
+        <td>Change it only if the default padding is causing issue</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcaster.shareableThreadPool</td>
+        <td>false</td>
+        <td>Configure Broadcaster to share the same java.util.concurrent.ExecutorService amongs them.</td>
+        <td>Set that value to true if you are planning to create a lot of <a
+                href="https://github.com/Atmosphere/atmosphere/wiki/Understanding-Broadcaster">Broadcaster</a>
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcaster.maxProcessingThreads</td>
+        <td>unbounded</td>
+        <td>The maximum number of Thread created when processing broadcast operations <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcasterConfig.html#setExecutorService(java.util.concurrent.ExecutorService">BroadcasterConfig#setExecutorService(java.util.concurrent.ExecutorService)</a>)
+        </td>
+        <td>Make sure to set the appropriate value as it can cause broadcast pause if not enough threads are availaible
+            when
+            broadcasting.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.broadcaster.maxAsyncWriteThreads</td>
+        <td>unbounded</td>
+        <td>The maximum number of Thread created when writing requests <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/BroadcasterConfig.html#setAsyncWriteService(java.util.concurrent.ExecutorService">BroadcasterConfig#setAsyncWriteService(java.util.concurrent.ExecutorService)</a>)
+        </td>
+        <td>Make sure to set the appropriate value as it can cause broadcast pause if not enough threads are availaible
+            when
+            broadcasting.
+        </td>
 
-</tr>
-<tr>
-    <td>o.a.cpr.maxBroadcasterLifeCyclePolicyIdleTime</td>
-    <td>300000</td>
-    <td>BroadcasterLifecycle max idle time before executing. Default is 5 minutes.</td>
-    <td>Make sure you read <a href="https://github.com/Atmosphere/atmosphere/wiki/Understanding-Broadcaster">this</a>
-        before changing the value
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.recoverFromDestroyedBroadcaster</td>
-    <td>true</td>
-    <td>Recover from a Broadcaster that has been destroyed and needs to be re-used. Default is true.</td>
-    <td>When Broadcaster are getting marked for destroy, re-use them if they are still available event if they are
-        marked as destroyable.
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.AtmosphereHandler</td>
-    <td></td>
-    <td>Tell Atmosphere which AtmosphereHandler should be used. You can do the same using atmosphere.xml</td>
-    <td>Shortcut to avoid using atmosphere.xml</td>
-</tr>
-<tr>
-    <td>o.a.cpr.AtmosphereHandler.contextRoot</td>
-    <td>/</td>
-    <td>The AtmosphereHandler defined using the property will be mapped to that value. Same as atmosphere.xml</td>
-    <td>Shortcut to avoid using atmosphere.xml</td>
-</tr>
-<tr>
-    <td>o.a.servlet</td>
-    <td></td>
-    <td>The Servlet's name to which Atmosphere will dispatch <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Meteor.html">Meteor</a> to.
-    </td>
-    <td></td>
-</tr>
-<tr>
-    <td>o.a.filter</td>
-    <td></td>
-    <td>The Filter's name to which Atmosphere will dispatch <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Meteor.html">Meteor</a> to.
-    </td>
-    <td></td>
-</tr>
-<tr>
-    <td>o.a.mapping</td>
-    <td>/<em></em>
-    </td>
-    <td>The Servlet's mapping value to the o.a.servlet</td>
-    <td></td>
-</tr>
-<tr>
-    <td>o.a.filter.name</td>
-    <td>/</td>
-    <td>The Filter's mapping value to the o.a.filter</td>
-    <td></td>
-</tr>
-<tr>
-    <td>o.a.cpr.BroadcasterCache.strategy</td>
-    <td>afterFilter</td>
-    <td>Define when a broadcasted message is cached. Value can be 'beforeFilter' or 'afterFilter'. Default is
-        afterFilter
-    </td>
-    <td>Set it to beforeFilter if you want to cache the original message instead of the one transformed by
-        BroadcastFilter
-    </td>
-</tr>
-<tr>
-    <td>o.a.jersey.supportLocationHeader</td>
-    <td>false</td>
-    <td>Support the Jersey location header for resuming. WARNING: this can cause memory leak if the connection is
-        never
-    </td>
-    <td>If enabled, make sure your application resume all it's suspended connection because AtmosphereResource will stay
-        in memory forever and can cause OOM
-    </td>
-</tr>
-<tr>
-    <td>o.a.websocket.bannedVersion</td>
-    <td></td>
-    <td>WebSocket version to exclude and downgrade to comet. Version are separated by comma. Use this property with the
-        <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/WebSocketHandshakeFilter.html">WebSocketHandshakeFilter</a>
-    </td>
-    <td>Set it to -1 if you want to force Atmosphere to re-negotiate the transport with browsers implementing old
-        version of the WebSocket spec (like Safari 5.1)
-    </td>
-</tr>
-<tr>
-    <td>o.a.container.TomcatCometSupport.discardEOF</td>
-    <td>true</td>
-    <td>Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in the
-        tomcat documentation
-    </td>
-    <td>Set it to true if you want Atmosphere to publish disconnect event when the inputstream is fully read (not
-        recommended)
-    </td>
-</tr>
-<tr>
-    <td>o.a.websocket.binaryWrite</td>
-    <td>false</td>
-    <td>Use the binary API for writing WevSocket message instead of text.</td>
-    <td>Some browser may not work when set to true. Make sure you test before.</td>
-</tr>
-<tr>
-    <td>o.a.cpr.recycleAtmosphereRequestResponse</td>
-    <td>false</td>
-    <td>Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it to
-        a Container
-    </td>
-    <td>Set it to true if you are planning to re-use AtmosphereResource after the websocket messages has been digested
-        by your application.
-    </td>
-</tr>
-<tr>
-    <td>o.a.cpr.atmosphereHandlerPath</td>
-    <td>/WEB-INF/classes</td>
-    <td>The location of classes implementing the AtmosphereHandler interface. Default to "/WEB-INF/classes".</td>
-    <td></td>
-</tr>
-<tr>
-    <td>o.a.jersey.containerResponseWriterClass</td>
-    <td></td>
-    <td>Change Jersey's ContainerResponseWriter.</td>
-    <td>See <a href="http://www.mentby.com/paul-sandoz/access-to-raw-xml-in-jersey.html">this</a> as an example</td>
-</tr>
-<tr>
-    <td>o.a.websocket.WebSocketProtocol.executeAsync</td>
-    <td>true</td>
-    <td>Execute the <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/WebSocketProcessor.html#dispatch(o.a.cpr.AtmosphereRequest">WebSocketProtocol#dispatch</a>)
-        asynchronously.
-    </td>
-    <td>Set it to true if you want your application to gets invoked serialialy with websocket messages</td>
-</tr>
-<tr>
-    <td>o.a.cpr.defaultContextType</td>
-    <td>text/plain</td>
-    <td>The default content-type value used when Atmosphere requires one and none are specified. Default is
-        text/plain.
-    </td>
-    <td></td>
-</tr>
-<tr>
-    <td>o.a.cpr.AtmosphereInterceptor</td>
-    <td></td>
-    <td>A comma-separated list of <a
-            href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a>
-        instances to be installed.
-    </td>
-    <td></td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.maxBroadcasterLifeCyclePolicyIdleTime</td>
+        <td>300000</td>
+        <td>BroadcasterLifecycle max idle time before executing. Default is 5 minutes.</td>
+        <td>Make sure you read <a
+                href="https://github.com/Atmosphere/atmosphere/wiki/Understanding-Broadcaster">this</a>
+            before changing the value
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.recoverFromDestroyedBroadcaster</td>
+        <td>true</td>
+        <td>Recover from a Broadcaster that has been destroyed and needs to be re-used. Default is true.</td>
+        <td>When Broadcaster are getting marked for destroy, re-use them if they are still available event if they are
+            marked as destroyable.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.AtmosphereHandler</td>
+        <td></td>
+        <td>Tell Atmosphere which AtmosphereHandler should be used. You can do the same using atmosphere.xml</td>
+        <td>Shortcut to avoid using atmosphere.xml</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.AtmosphereHandler.contextRoot</td>
+        <td>/</td>
+        <td>The AtmosphereHandler defined using the property will be mapped to that value. Same as atmosphere.xml</td>
+        <td>Shortcut to avoid using atmosphere.xml</td>
+    </tr>
+    <tr>
+        <td>o.a.servlet</td>
+        <td></td>
+        <td>The Servlet's name to which Atmosphere will dispatch <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Meteor.html">Meteor</a> to.
+        </td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>o.a.filter</td>
+        <td></td>
+        <td>The Filter's name to which Atmosphere will dispatch <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/Meteor.html">Meteor</a> to.
+        </td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>o.a.mapping</td>
+        <td>/<em></em>
+        </td>
+        <td>The Servlet's mapping value to the o.a.servlet</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>o.a.filter.name</td>
+        <td>/</td>
+        <td>The Filter's mapping value to the o.a.filter</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.BroadcasterCache.strategy</td>
+        <td>afterFilter</td>
+        <td>Define when a broadcasted message is cached. Value can be 'beforeFilter' or 'afterFilter'. Default is
+            afterFilter
+        </td>
+        <td>Set it to beforeFilter if you want to cache the original message instead of the one transformed by
+            BroadcastFilter
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.jersey.supportLocationHeader</td>
+        <td>false</td>
+        <td>Support the Jersey location header for resuming. WARNING: this can cause memory leak if the connection is
+            never
+        </td>
+        <td>If enabled, make sure your application resume all it's suspended connection because AtmosphereResource will
+            stay
+            in memory forever and can cause OOM
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.bannedVersion</td>
+        <td></td>
+        <td>WebSocket version to exclude and downgrade to comet. Version are separated by comma. Use this property with
+            the
+            <a href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/WebSocketHandshakeFilter.html">WebSocketHandshakeFilter</a>
+        </td>
+        <td>Set it to -1 if you want to force Atmosphere to re-negotiate the transport with browsers implementing old
+            version of the WebSocket spec (like Safari 5.1)
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.container.TomcatCometSupport.discardEOF</td>
+        <td>true</td>
+        <td>Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in
+            the
+            tomcat documentation
+        </td>
+        <td>Set it to true if you want Atmosphere to publish disconnect event when the inputstream is fully read (not
+            recommended)
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.binaryWrite</td>
+        <td>false</td>
+        <td>Use the binary API for writing WevSocket message instead of text.</td>
+        <td>Some browser may not work when set to true. Make sure you test before.</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.recycleAtmosphereRequestResponse</td>
+        <td>false</td>
+        <td>Recycle (make them unusable) AtmosphereRequest/Response after wrapping a WebSocket message and delegating it
+            to
+            a Container
+        </td>
+        <td>Set it to true if you are planning to re-use AtmosphereResource after the websocket messages has been
+            digested
+            by your application.
+        </td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.atmosphereHandlerPath</td>
+        <td>/WEB-INF/classes</td>
+        <td>The location of classes implementing the AtmosphereHandler interface. Default to "/WEB-INF/classes".</td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>o.a.jersey.containerResponseWriterClass</td>
+        <td></td>
+        <td>Change Jersey's ContainerResponseWriter.</td>
+        <td>See <a href="http://www.mentby.com/paul-sandoz/access-to-raw-xml-in-jersey.html">this</a> as an example</td>
+    </tr>
+    <tr>
+        <td>o.a.websocket.WebSocketProtocol.executeAsync</td>
+        <td>true</td>
+        <td>Execute the <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/websocket/WebSocketProcessor.html#dispatch(o.a.cpr.AtmosphereRequest">WebSocketProtocol#dispatch</a>)
+            asynchronously.
+        </td>
+        <td>Set it to true if you want your application to gets invoked serialialy with websocket messages</td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.defaultContextType</td>
+        <td>text/plain</td>
+        <td>The default content-type value used when Atmosphere requires one and none are specified. Default is
+            text/plain.
+        </td>
+        <td></td>
+    </tr>
+    <tr>
+        <td>o.a.cpr.AtmosphereInterceptor</td>
+        <td></td>
+        <td>A comma-separated list of <a
+                href="http://atmosphere.github.com/atmosphere/apidocs/org/atmosphere/cpr/AtmosphereInterceptor.html">AtmosphereInterceptor</a>
+            instances to be installed.
+        </td>
+        <td></td>
 
-</tr>
+    </tr>
 </table>
 </body>
 </html>
