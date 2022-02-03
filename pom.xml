@@ -112,12 +112,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-site-plugin</artifactId>
-                <version>3.9.0</version>
+                <version>3.10.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-release-plugin</artifactId>
-                <version>3.0.0-M1</version>
+                <version>3.0.0-M5</version>
             </plugin>
             <plugin>
                 <artifactId>maven-clean-plugin</artifactId>
@@ -143,12 +143,12 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-resources-plugin</artifactId>
-                <version>3.1.0</version>
+                <version>3.2.0</version>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-checkstyle-plugin</artifactId>
-                <version>3.1.1</version>
+                <version>3.1.2</version>
                 <dependencies>
                     <dependency>
                         <groupId>org.atmosphere</groupId>
@@ -158,7 +158,7 @@
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
                         <artifactId>checkstyle</artifactId>
-                        <version>8.32</version>
+                        <version>9.3</version>
                     </dependency>
                 </dependencies>
                 <configuration>
@@ -186,7 +186,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
-                <version>3.13.0</version>
+                <version>3.15.0</version>
                 <dependencies>
                     <dependency>
                         <groupId>org.atmosphere</groupId>
@@ -258,7 +258,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.3.1</version>
                         <configuration>
                             <aggregate>true</aggregate>
                             <source>1.8</source>
@@ -282,7 +282,7 @@
                     <plugin>
                         <groupId>org.codehaus.mojo</groupId>
                         <artifactId>build-helper-maven-plugin</artifactId>
-                        <version>3.1.0</version>
+                        <version>3.3.0</version>
                         <executions>
                             <execution>
                                 <id>add-source</id>
@@ -314,7 +314,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-gpg-plugin</artifactId>
-                        <version>1.1</version>
+                        <version>3.0.1</version>
                         <executions>
                             <execution>
                                 <id>sign-artifacts</id>
@@ -352,7 +352,7 @@
                     <plugin>
                         <groupId>org.apache.maven.plugins</groupId>
                         <artifactId>maven-javadoc-plugin</artifactId>
-                        <version>3.2.0</version>
+                        <version>3.3.1</version>
                         <configuration>
                             <aggregate>true</aggregate>
                             <source>1.6</source>
@@ -388,7 +388,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-javadoc-plugin</artifactId>
-                <version>3.2.0</version>
+                <version>3.3.1</version>
                 <configuration>
                     <aggregate>true</aggregate>
                     <debug>true</debug>
@@ -405,7 +405,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-jxr-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>3.1.1</version>
                 <configuration>
                     <aggregate>true</aggregate>
                 </configuration>
@@ -413,7 +413,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-project-info-reports-plugin</artifactId>
-                <version>3.0.0</version>
+                <version>3.1.2</version>
                 <reportSets>
                     <reportSet>
                         <reports>
@@ -429,7 +429,7 @@
             <dependency>
                 <groupId>org.apache.maven</groupId>
                 <artifactId>maven-plugin-tools-api</artifactId>
-                <version>2.1</version>
+                <version>3.6.4</version>
             </dependency>
             <dependency>
                 <groupId>org.apache.felix</groupId>
@@ -519,19 +519,18 @@
     </dependencies>
 
     <properties>
-        <jaxb-version>2.1</jaxb-version>
-        <junit-version>3.8.1</junit-version>
+        <junit-version>4.13.2</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>[2.5,4)</servlet-version-range>
         <jetty-version>11.0.7</jetty-version>
         <tomcat-version>10.0.14</tomcat-version>
         <shade-version>1.2.1</shade-version>
-        <felix-version>5.1.1</felix-version>
+        <felix-version>5.1.4</felix-version>
         <ahc.version>1.7.7</ahc.version>
-        <slf4j-impl-version>1.7.32</slf4j-impl-version>
-        <slf4j-version>1.7.32</slf4j-version>
-        <logback-version>1.1.2</logback-version>
+        <slf4j-impl-version>1.7.35</slf4j-impl-version>
+        <slf4j-version>1.7.35</slf4j-version>
+        <logback-version>1.2.10</logback-version>
         <commons-pool2>2.3</commons-pool2>
-        <testng-version>6.9.10</testng-version>
+        <testng-version>7.5</testng-version>
     </properties>
 </project>

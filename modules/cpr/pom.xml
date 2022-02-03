@@ -127,7 +127,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>4.1.0</version>
+            <version>4.3.1</version>
             <type>jar</type>
             <scope>test</scope>
         </dependency>
@@ -138,11 +138,11 @@
             <version>${commons-pool2}</version>
             <optional>true</optional>
         </dependency>
-        
+
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20180130</version>
+            <version>20211205</version>
             <optional>true</optional>
         </dependency>
     </dependencies>
