@@ -32,7 +32,15 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
          <version>2.7.5</version> // MUST BE USED with atmosphere-javascript 3.1+
       </dependency>
 ```
-      
+Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
+```xml
+     <dependency>
+         <groupId>org.atmosphere</groupId>
+         <artifactId>atmosphere-{atmosphere-module}</artifactId>
+         <version>3.0.0</version> 
+      </dependency>
+```
+     
 atmosphere-module can be: runtime (main module), jersey, spring, kafka, guice, redis, hazelcast, jms, rabbitmq, jgroups etc. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
 ### Tutorial
