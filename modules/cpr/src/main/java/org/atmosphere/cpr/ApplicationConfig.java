@@ -754,7 +754,7 @@ public interface ApplicationConfig {
      */
     String INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE = "org.atmosphere.websocket.DefaultWebSocketProcessor.invokeInterceptorsOnMessage";
     /**
-     * Disable the Atmosphere Protocol version check. This can be used to supprt version of atmosphere-javascript lower than 2.2.1
+     * Disable the Atmosphere Protocol version check. This can be used to support version of atmosphere-javascript lower than 2.2.1
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.interceptor.JavaScriptProtocol.enforceAtmosphereProtocol
