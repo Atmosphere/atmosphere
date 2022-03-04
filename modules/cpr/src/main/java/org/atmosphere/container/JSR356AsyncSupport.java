@@ -16,9 +16,12 @@
 package org.atmosphere.container;
 
 import java.util.ArrayList;
+import java.util.List;
+import java.util.ServiceLoader;
 import java.util.concurrent.BlockingDeque;
 import java.util.concurrent.LinkedBlockingDeque;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 import javax.servlet.ServletContext;
 import javax.websocket.DeploymentException;
@@ -111,6 +114,12 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
         final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<>();
         final ThreadLocal<HandshakeRequest> hRequest = new ThreadLocal<>();
 
+        private static final AtomicBoolean hasContainerDefaultConfigurator = new AtomicBoolean(Boolean.FALSE);
+
+        static {
+            checkContainerDefaultConfigurator();
+        }
+        
         public AtmosphereConfigurator(AtmosphereFramework framework) {
             this.framework = framework;
         }
@@ -128,6 +137,67 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             } else {
                 return super.getEndpointInstance(endpointClass);
             }
+        }
+
+        /**
+         * Checkes if a javax.websocket.server.ServerEndpointConfig.Configurator can be fetched via ServiceLoader
+         * and stores the result in the boolean variable {@link #hasContainerDefaultConfigurator}.
+         * This is necessary e.g. in a scenario where Jetty >= 10 is used as embedded server in an OSGi application,
+         * beacause in this scenario the ServiceLoader won't work and a RuntimeException is thrown when calling one of the methods
+         * {@link #checkOrigin(String)}, {@link #getNegotiatedSubprotocol(List, List)} or {@link #getNegotiatedExtensions(List, List)}.
+         * 
+         */
+        private static void checkContainerDefaultConfigurator() {
+            for(ServerEndpointConfig.Configurator impl : ServiceLoader.load(javax.websocket.server.ServerEndpointConfig.Configurator.class)) {
+                hasContainerDefaultConfigurator.set(Boolean.TRUE);
+                return;
+            }
+            hasContainerDefaultConfigurator.set(Boolean.FALSE);
+        }
+
+        /**
+         * Calls {@link #checkOrigin(String)} in super class if a Default Configurator could be loaded.
+         * Otherwise <code>true</code> is returned as default. 
+         */
+        public boolean checkOrigin(String originHeaderValue) {
+            if(hasContainerDefaultConfigurator.get()) {
+                return super.checkOrigin(originHeaderValue);
+            }
+            // no default configurator, returning true as fallback
+            return true;
+        }
+
+        /**
+         * Calls {@link #getNegotiatedSubprotocol(List, List)} in super class if a Default Configurator could be loaded.
+         * Otherwise <code>""</code> is returned as default. 
+         */
+        public String getNegotiatedSubprotocol(List<String> supported, List<String> requested) {
+            if(hasContainerDefaultConfigurator.get()) {
+                return super.getNegotiatedSubprotocol(supported, requested);
+            }
+            // no default configurator, returning "" as fallback
+            return "";
+        }
+
+        /**
+         * Calls {@link #getNegotiatedExtensions(List, List)} in super class if a Default Configurator could be loaded.
+         * Otherwise the list of matching extensions is returned as default. 
+         */
+        public List<Extension> getNegotiatedExtensions(List<Extension> installed, List<Extension> requested) {
+            if(hasContainerDefaultConfigurator.get()) {
+                return super.getNegotiatedExtensions(installed, requested);
+            }
+            
+            // no default configurator, find matching extensions as default implementation
+            List<Extension> negotiatedExtensions = new ArrayList<>();
+            for (Extension ext : requested) {
+                // Only choose the first extension if multiple with the same name.
+                long matches = negotiatedExtensions.stream().filter(e -> e.getName().equals(ext.getName())).count();
+                if (matches == 0)
+                    negotiatedExtensions.add(ext);
+            }
+
+            return negotiatedExtensions;
         }
 
         public void modifyHandshake(ServerEndpointConfig sec, HandshakeRequest request, HandshakeResponse response) {
