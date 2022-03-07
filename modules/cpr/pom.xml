@@ -90,6 +90,7 @@
                             osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.CDIProducer,
                             osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.Injectable
                         </Provide-Capability>
+						<Eclipse-BuddyPolicy>registered</Eclipse-BuddyPolicy>
                     </instructions>
                 </configuration>
             </plugin>
