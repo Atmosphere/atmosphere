@@ -15,14 +15,6 @@
  */
 package org.atmosphere.container;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.ServiceLoader;
-import java.util.concurrent.BlockingDeque;
-import java.util.concurrent.LinkedBlockingDeque;
-import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
-
 import jakarta.servlet.ServletContext;
 import jakarta.websocket.DeploymentException;
 import jakarta.websocket.Extension;
@@ -30,7 +22,6 @@ import jakarta.websocket.HandshakeResponse;
 import jakarta.websocket.server.HandshakeRequest;
 import jakarta.websocket.server.ServerContainer;
 import jakarta.websocket.server.ServerEndpointConfig;
-
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -38,6 +29,14 @@ import org.atmosphere.cpr.WebSocketProcessorFactory;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.ServiceLoader;
+import java.util.concurrent.BlockingDeque;
+import java.util.concurrent.LinkedBlockingDeque;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
 public class JSR356AsyncSupport extends Servlet30CometSupport {
 
@@ -148,7 +147,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
          * 
          */
         private static void checkContainerDefaultConfigurator() {
-            for(ServerEndpointConfig.Configurator impl : ServiceLoader.load(javax.websocket.server.ServerEndpointConfig.Configurator.class)) {
+            for(ServerEndpointConfig.Configurator impl : ServiceLoader.load(jakarta.websocket.server.ServerEndpointConfig.Configurator.class)) {
                 hasContainerDefaultConfigurator.set(Boolean.TRUE);
                 return;
             }
