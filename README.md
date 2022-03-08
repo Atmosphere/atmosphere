@@ -29,7 +29,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.7.5</version> // MUST BE USED with atmosphere-javascript 3.1+
+         <version>2.7.6</version> // MUST BE USED with atmosphere-javascript 3.1+
       </dependency>
 ```
 Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
@@ -37,7 +37,7 @@ Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-runtime</artifactId>
-         <version>3.0.0</version> 
+         <version>3.0.1</version> 
       </dependency>
 ```
      
@@ -65,9 +65,9 @@ Atmosphere 2.5.x requires JDK 8 or 11. Atmosphere 2.4.x requires JDK 1.7 or newe
 
 #### Versions
 
-3.0.x releases: [3.0.0](Jakarta Support)
+3.0.x releases: [3.0.1](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aclosed+label%3A3.0.1) [3.0.0](Jakarta Support)
 
-2.7.x releases: [2.7.5](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.5)[2.7.4](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.4) [2.7.3](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.3+is%3Aclosed) [2.7.1](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.1) [2.7.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.0+is%3Aclosed)
+2.7.x releases: [2.7.6](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.6+is%3Aclosed) [2.7.5](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.5)[2.7.4](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.4) [2.7.3](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.3+is%3Aclosed) [2.7.1](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.1) [2.7.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.0+is%3Aclosed)
 
 #### End Of Life Versions (go to [http://async-io.org](http://async-io.org) for commercial support)
 2.6.x releases: [2.6.4](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.4+is%3Aclosed) [2.6.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.1+is%3Aclosed) [2.6.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.0+is%3Aclosed)
