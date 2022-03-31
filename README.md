@@ -65,7 +65,7 @@ Atmosphere 2.5.x requires JDK 8 or 11. Atmosphere 2.4.x requires JDK 1.7 or newe
 
 2.7.x releases: [2.7.6](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.6+is%3Aclosed) [2.7.5](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.5)[2.7.4](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.4) [2.7.3](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.3+is%3Aclosed) [2.7.1](https://github.com/Atmosphere/atmosphere/issues?q=is%3Aissue+is%3Aclosed+label%3A2.7.1) [2.7.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.7.0+is%3Aclosed)
 
-#### End Of Life Versions (go to [http://async-io.org](http://async-io.org) for commercial support)
+#### End Of Life Versions (go to [http://async-io.org](https://www.async-io.org/) for commercial support)
 2.6.x releases: [2.6.4](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.4+is%3Aclosed) [2.6.1](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.1+is%3Aclosed) [2.6.0](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.6.0+is%3Aclosed)
 
 2.5.x releases: [2.5.14](https://github.com/Atmosphere/atmosphere/issues?q=label%3A2.5.14+is%3Aclosed) [2.5.9](https://github.com/Atmosphere/atmosphere/milestone/23?closed=1) [2.5.5](https://github.com/Atmosphere/atmosphere/milestone/24?closed=1) [2.5.3](https://github.com/Atmosphere/atmosphere/milestone/22?closed=1) [2.5.2](https://github.com/Atmosphere/atmosphere/milestone/21?closed=1) [2.5.0](https://github.com/Atmosphere/atmosphere/milestone/19)
