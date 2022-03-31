@@ -1,7 +1,3 @@
-<p align="center">
-<img src="http://atmosphere.github.io/atmosphere/images/atmosphere.png" alt="LOGO"/>
-</p>
-
 ### Welcome to Atmosphere: The Event Driven Framework supporting WebSocket and HTTP
 
 The Atmosphere Framework contains client and server side components for building Asynchronous Web Applications. Atmosphere transparently supports WebSockets, Server Sent Events (SSE), Long-Polling, HTTP Streaming (Forever frame) and JSONP.
