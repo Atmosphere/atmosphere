@@ -30,42 +30,42 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener 
      *
      * @param event {@link WebSocketEvent}
      */
-    void onHandshake(WebSocketEvent event);
+    void onHandshake(WebSocketEvent<?> event);
 
     /**
      * When a message is sent
      *
      * @param event {@link WebSocketEvent}
      */
-    void onMessage(WebSocketEvent event);
+    void onMessage(WebSocketEvent<?> event);
 
     /**
      * When the close occurs
      *
      * @param event {@link WebSocketEvent}
      */
-    void onClose(WebSocketEvent event);
+    void onClose(WebSocketEvent<?> event);
 
     /**
      * When the control occurs
      *
      * @param event {@link WebSocketEvent}
      */
-    void onControl(WebSocketEvent event);
+    void onControl(WebSocketEvent<?> event);
 
     /**
      * When the disconnect occurs
      *
      * @param event {@link WebSocketEvent}
      */
-    void onDisconnect(WebSocketEvent event);
+    void onDisconnect(WebSocketEvent<?> event);
 
     /**
      * When the connect occurs
      *
      * @param event {@link WebSocketEvent}
      */
-    void onConnect(WebSocketEvent event);
+    void onConnect(WebSocketEvent<?> event);
 
 
     final class WebSocketEvent<T> {
@@ -93,7 +93,7 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener 
         /**
          * The WebSocket.
          *
-         * @return
+         * @return WebSocket
          */
         public WebSocket webSocket() {
             return webSocket;
@@ -116,6 +116,5 @@ public interface WebSocketEventListener extends AtmosphereResourceEventListener 
                     ", webSocket=" + webSocket +
                     '}';
         }
-
     }
 }

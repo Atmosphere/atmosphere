@@ -113,7 +113,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
      * Automatically suspend the {@link AtmosphereResource} based on {@link AtmosphereResource.TRANSPORT} value.
      *
      * @param r a {@link AtmosphereResource}
-     * @return
+     * @return {@link Action#CONTINUE}
      */
     @Override
     public Action inspect(AtmosphereResource r) {
@@ -135,7 +135,7 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
 
         if (Utils.pollableTransport(r.transport()) || r.transport().equals(UNDEFINED) || Utils.webSocketMessage(r)) return;
 
-        AtmosphereResourceImpl impl = AtmosphereResourceImpl.class.cast(r);
+        AtmosphereResourceImpl impl = (AtmosphereResourceImpl) r;
         if ( (force || impl.getRequest(false).getMethod().equalsIgnoreCase(method))
             && !impl.action().equals(Action.CANCELLED)
             && impl.isInScope()) {

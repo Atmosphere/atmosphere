@@ -31,17 +31,17 @@ public class WebSocketStreamingHandlerAdapter implements WebSocketStreamingHandl
 
     private final Logger logger = LoggerFactory.getLogger(WebSocketStreamingHandlerAdapter.class);
     @Override
-    public void onBinaryStream(WebSocket webSocket, InputStream inputStream) throws IOException {
+    public void onBinaryStream(WebSocket webSocket, InputStream inputStream) {
         logger.trace("onBinaryStream {}", webSocket);
     }
 
     @Override
-    public void onTextStream(WebSocket webSocket, Reader reader) throws IOException {
+    public void onTextStream(WebSocket webSocket, Reader reader) {
         logger.trace("onTextStream {}", webSocket);
     }
 
     @Override
-    public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException {
+    public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) {
         logger.trace("onByteMessage {}", webSocket);
     }
 

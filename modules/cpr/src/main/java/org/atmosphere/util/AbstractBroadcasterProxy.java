@@ -44,8 +44,8 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     public AbstractBroadcasterProxy() {
         try {
-            Class jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
-            jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", new Class[]{AtmosphereResource.class, AtmosphereResourceEvent.class, Broadcaster.class});
+            Class<?> jerseyBroadcasterUtil = Class.forName("org.atmosphere.jersey.util.JerseyBroadcasterUtil");
+            jerseyBroadcast = jerseyBroadcasterUtil.getMethod("broadcast", AtmosphereResource.class, AtmosphereResourceEvent.class, Broadcaster.class);
         } catch (Exception e) {
             logger.trace("", e);
         }
@@ -69,15 +69,12 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
     @Override
     protected Runnable getBroadcastHandler() {
-        return new Runnable() {
-            public void run() {
-                try {
-                    incomingBroadcast();
-                } catch (Throwable t) {
-                    logger.warn("incomingBroadcast Exception. Broadcaster will be broken unless reconfigured", t);
-                    destroy();
-                    return;
-                }
+        return () -> {
+            try {
+                incomingBroadcast();
+            } catch (Throwable t) {
+                logger.warn("incomingBroadcast Exception. Broadcaster will be broken unless reconfigured", t);
+                destroy();
             }
         };
     }
@@ -95,7 +92,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
     protected void invokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (r.getRequest().getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null) {
             try {
-                jerseyBroadcast.invoke(null, new Object[]{r, e, r.getBroadcaster()});
+                jerseyBroadcast.invoke(null, r, e, r.getBroadcaster());
             } catch (Throwable t) {
                 super.invokeOnStateChange(r, e);
             }
@@ -129,7 +126,7 @@ public abstract class AbstractBroadcasterProxy extends DefaultBroadcaster {
 
         start();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
+        BroadcasterFuture<Object> f = new BroadcasterFuture<>(msg);
         try {
             outgoingBroadcast(msg);
         } finally {

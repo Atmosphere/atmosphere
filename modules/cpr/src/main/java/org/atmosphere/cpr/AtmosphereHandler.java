@@ -87,7 +87,6 @@ public interface AtmosphereHandler {
      * to the server, without marking the connection as asynchronous.
      *
      * @param resource an {@link AtmosphereResource}
-     * @throws java.io.IOException
      */
     void onRequest(AtmosphereResource resource) throws IOException;
 
@@ -103,7 +102,6 @@ public interface AtmosphereHandler {
      * {@link AtmosphereResourceEvent#isResumedOnTimeout} will return <tt>true</tt>.
      *
      * @param event an {@link AtmosphereResourceEvent}
-     * @throws java.io.IOException
      */
     void onStateChange(AtmosphereResourceEvent event) throws IOException;
 

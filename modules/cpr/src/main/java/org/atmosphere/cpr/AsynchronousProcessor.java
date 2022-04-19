@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.util.EndpointMapper;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.Utils;
@@ -30,7 +29,6 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.concurrent.Callable;
 import java.util.concurrent.TimeUnit;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
@@ -54,7 +52,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected final AtmosphereConfig config;
     private EndpointMapper<AtmosphereHandlerWrapper> mapper;
     private final long closingTime;
-    private boolean closeOnCancel;
+    private final boolean closeOnCancel;
 
     public AsynchronousProcessor(AtmosphereConfig config) {
         this.config = config;
@@ -518,7 +516,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      *
      * @param r a {@link AtmosphereResourceImpl}
      */
-    protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) throws IOException {
+    protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) {
         AtmosphereRequest req = r.getRequest(false);
         try {
             // Rely on isInScope instead of synchronization https://github.com/Atmosphere/atmosphere/issues/1865

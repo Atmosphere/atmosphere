@@ -127,7 +127,7 @@ public class UriTemplate {
     /**
      * The regular expression for matching URI templates and names.
      */
-    private static final Pattern TEMPLATE_NAMES_PATTERN = Pattern.compile("\\{(\\w[-\\w\\.]*)\\}");
+    private static final Pattern TEMPLATE_NAMES_PATTERN = Pattern.compile("\\{(\\w[-\\w.]*)}");
     
     /**
      * The empty URI template that matches the null or empty URI path
@@ -429,7 +429,7 @@ public class UriTemplate {
      * @return the URI.
      */
     public final String createURI(String[] values, int offset, int length) {
-        Map<String, String> mapValues = new HashMap<String, String>();
+        Map<String, String> mapValues = new HashMap<>();
         StringBuilder b = new StringBuilder();
         // Find all template variables
         Matcher m = TEMPLATE_NAMES_PATTERN.matcher(normalizedTemplate);
@@ -511,10 +511,10 @@ public class UriTemplate {
      *        contextually encode the template value
      * @return a URI
      */
-    public final static String createURI(final String scheme, 
-            final String userInfo, final String host, final String port, 
-            final String path, final String query, final String fragment,
-            final Map<String, ? extends Object> values, final boolean encode) {
+    public static String createURI(final String scheme,
+                                   final String userInfo, final String host, final String port,
+                                   final String path, final String query, final String fragment,
+                                   final Map<String, ? extends Object> values, final boolean encode) {
         return createURI(scheme, null, userInfo, host, port, path, query, fragment,
                 values, encode);
     }
@@ -545,7 +545,7 @@ public class UriTemplate {
             final String userInfo, final String host, final String port,
             final String path, final String query, final String fragment,
             final Map<String, ? extends Object> values, final boolean encode) {
-        Map<String, String> stringValues = new HashMap<String, String>();
+        Map<String, String> stringValues = new HashMap<>();
         for (Map.Entry<String, ? extends Object> e : values.entrySet()) {
             if (e.getValue() != null)
                 stringValues.put(e.getKey(), e.getValue().toString());
@@ -576,10 +576,10 @@ public class UriTemplate {
      *        contextually encode the template value
      * @return a URI
      */
-    public final static String createURIWithStringValues(final String scheme, 
-            final String userInfo, final String host, final String port, 
-            final String path, final String query, final String fragment,
-            final Map<String, ? extends Object> values, final boolean encode) {
+    public final static String createURIWithStringValues(final String scheme,
+                                                         final String userInfo, final String host, final String port,
+                                                         final String path, final String query, final String fragment,
+                                                         final Map<String, ?> values, final boolean encode) {
         return createURIWithStringValues(scheme, null,
                 userInfo, host, port, path, query, fragment,
                 values, encode);
@@ -606,11 +606,11 @@ public class UriTemplate {
      *        contextually encode the template value
      * @return a URI
      */
-    public final static String createURIWithStringValues(
+    public static String createURIWithStringValues(
             final String scheme, final String authority,
             final String userInfo, final String host, final String port,
             final String path, final String query, final String fragment,
-            final Map<String, ? extends Object> values, final boolean encode) {
+            final Map<String, ?> values, final boolean encode) {
 
         StringBuilder sb = new StringBuilder();
 
@@ -657,7 +657,7 @@ public class UriTemplate {
 
     private static StringBuilder createURIComponent(final UriComponent.Type t, 
             String template,
-            final Map<String, ? extends Object> values, 
+            final Map<String, ?> values,
             final boolean encode, 
             final StringBuilder b) {
         if (template.indexOf('{') == -1) {
@@ -709,10 +709,10 @@ public class UriTemplate {
      *        contextually encode the template value
      * @return a URI
      */
-    public final static String createURI(final String scheme, 
-            final String userInfo, final String host, final String port, 
-            final String path, final String query, final String fragment,
-            final Object[] values, final boolean encode) {
+    public static String createURI(final String scheme,
+                                   final String userInfo, final String host, final String port,
+                                   final String path, final String query, final String fragment,
+                                   final Object[] values, final boolean encode) {
         return createURI(scheme, null,
                 userInfo, host, port, path, query, fragment,
                 values, encode);
@@ -740,7 +740,7 @@ public class UriTemplate {
      *        contextually encode the template value
      * @return a URI
      */
-    public final static String createURI(
+    public static String createURI(
             final String scheme, String authority,
             final String userInfo, final String host, final String port,
             final String path, final String query, final String fragment,
@@ -775,10 +775,10 @@ public class UriTemplate {
      *        contextually encode the template value
      * @return a URI
      */
-    public final static String createURIWithStringValues(final String scheme, 
-            final String userInfo, final String host, final String port, 
-            final String path, final String query, final String fragment,
-            final String[] values, final boolean encode) {
+    public static String createURIWithStringValues(final String scheme,
+                                                   final String userInfo, final String host, final String port,
+                                                   final String path, final String query, final String fragment,
+                                                   final String[] values, final boolean encode) {
         return createURIWithStringValues(
                 scheme, null,
                 userInfo, host, port, path, query, fragment,
@@ -803,13 +803,13 @@ public class UriTemplate {
      *        contextually encode the template value
      * @return a URI
      */
-    public final static String createURIWithStringValues(
+    public static String createURIWithStringValues(
             final String scheme, final String authority,
             final String userInfo, final String host, final String port,
             final String path, final String query, final String fragment,
             final String[] values, final boolean encode) {
 
-        final Map<String, String> mapValues = new HashMap<String, String>();
+        final Map<String, String> mapValues = new HashMap<>();
         final StringBuilder sb = new StringBuilder();
         int offset = 0;
 

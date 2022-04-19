@@ -75,7 +75,7 @@ public final class Utils {
     /**
      * The logger.
      */
-    private static Logger LOGGER = LoggerFactory.getLogger(Utils.class);
+    private static final Logger LOGGER = LoggerFactory.getLogger(Utils.class);
 
     public static boolean webSocketEnabled(HttpServletRequest request) {
 

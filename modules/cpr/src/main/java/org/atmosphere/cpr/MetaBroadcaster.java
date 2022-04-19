@@ -162,7 +162,7 @@ public interface MetaBroadcaster extends AtmosphereConfigAware {
     public final static class ThirtySecondsCache implements MetaBroadcasterCache, Runnable {
 
         private final MetaBroadcaster metaBroadcaster;
-        private final ConcurrentHashMap<String, Object> cache = new ConcurrentHashMap<String, Object>();
+        private final ConcurrentHashMap<String, Object> cache = new ConcurrentHashMap<>();
 
         public ThirtySecondsCache(MetaBroadcaster metaBroadcaster, AtmosphereConfig config) {
             this.metaBroadcaster = metaBroadcaster;

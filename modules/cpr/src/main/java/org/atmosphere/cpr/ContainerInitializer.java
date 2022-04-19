@@ -21,7 +21,6 @@ import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 
 import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 import javax.servlet.ServletRegistration;
 import javax.servlet.ServletRequestEvent;
 import javax.servlet.ServletRequestListener;
@@ -76,7 +75,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                     try {
                         framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                     } catch (IllegalStateException ex) {
-                        /**
+                        /*
                          * For an unknown reason, when PrimneFaces Showcase is deployed in GlassFish,
                          * the ServerContainer is always null.
                          * For Native usage
@@ -98,7 +97,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
 
                         @Override
                         public void requestInitialized(ServletRequestEvent sre) {
-                            HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
+                            HttpServletRequest r = (HttpServletRequest) sre.getServletRequest();
                             AtmosphereConfig config = framework.getAtmosphereConfig();
                             if (config.isSupportSession() && Utils.webSocketEnabled(r)) {
                                 r.getSession(config.getInitParameter(ApplicationConfig.PROPERTY_SESSION_CREATE, true));
@@ -112,7 +111,7 @@ public class ContainerInitializer implements javax.servlet.ServletContainerIniti
                 try {
                     s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
                     if (s != null) {
-                        boolean sessionSupport = Boolean.valueOf(s);
+                        boolean sessionSupport = Boolean.parseBoolean(s);
                         if (sessionSupport && c.getMajorVersion() > 2) {
                             c.addListener(SessionSupport.class);
                             c.log("AtmosphereFramework : Installed " + SessionSupport.class);

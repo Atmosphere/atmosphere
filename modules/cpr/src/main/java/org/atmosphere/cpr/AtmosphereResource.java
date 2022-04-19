@@ -40,7 +40,7 @@ public interface AtmosphereResource {
     /**
      * Set to true to resume the response after the first broadcast. False by default.
      *
-     * @param resumeOnBroadcast
+     * @param resumeOnBroadcast boolean
      */
     AtmosphereResource resumeOnBroadcast(boolean resumeOnBroadcast);
 
@@ -156,7 +156,7 @@ public interface AtmosphereResource {
      *
      * @return this
      */
-    public AtmosphereResource removeFromAllBroadcasters();
+    AtmosphereResource removeFromAllBroadcasters();
 
     /**
      * Set the first {@link Broadcaster} associated with this resource. This {@link org.atmosphere.cpr.Broadcaster}

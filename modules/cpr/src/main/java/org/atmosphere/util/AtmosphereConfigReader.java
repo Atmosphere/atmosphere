@@ -55,13 +55,7 @@ public class AtmosphereConfigReader {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
             return parse(config, factory.newDocumentBuilder().parse(filename));
-        } catch (SAXException e) {
-            logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        } catch (ParserConfigurationException e) {
+        } catch (SAXException | IOException | ParserConfigurationException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }
@@ -73,13 +67,7 @@ public class AtmosphereConfigReader {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         try {
             return parse(config, factory.newDocumentBuilder().parse(stream));
-        } catch (SAXException e) {
-            logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            logger.error(e.getMessage(), e);
-            throw new RuntimeException(e);
-        } catch (ParserConfigurationException e) {
+        } catch (SAXException | IOException | ParserConfigurationException e) {
             logger.error(e.getMessage(), e);
             throw new RuntimeException(e);
         }
@@ -105,27 +93,38 @@ public class AtmosphereConfigReader {
 
                 Node attribute = root.getAttributes().item(j);
 
-                if (attribute.getNodeName().equals("support-session")) {
-                    atmoHandler.setSupportSession(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("context-root")) {
-                    atmoHandler.setContextRoot(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("class-name")) {
-                    atmoHandler.setClassName(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("broadcaster")) {
-                    atmoHandler.setBroadcaster(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("broadcasterCache")) {
-                    atmoHandler.setBroadcasterCache(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("broadcastFilterClasses")) {
-                    String[] values = attribute.getNodeValue().split(",");
-                    for (String value : values) {
-                        atmoHandler.getBroadcastFilterClasses().add(value);
+                switch (attribute.getNodeName()) {
+                    case "support-session":
+                        atmoHandler.setSupportSession(attribute.getNodeValue());
+                        break;
+                    case "context-root":
+                        atmoHandler.setContextRoot(attribute.getNodeValue());
+                        break;
+                    case "class-name":
+                        atmoHandler.setClassName(attribute.getNodeValue());
+                        break;
+                    case "broadcaster":
+                        atmoHandler.setBroadcaster(attribute.getNodeValue());
+                        break;
+                    case "broadcasterCache":
+                        atmoHandler.setBroadcasterCache(attribute.getNodeValue());
+                        break;
+                    case "broadcastFilterClasses": {
+                        String[] values = attribute.getNodeValue().split(",");
+                        for (String value : values) {
+                            atmoHandler.getBroadcastFilterClasses().add(value);
+                        }
+                        break;
                     }
-                } else if (attribute.getNodeName().equals("comet-support")) {
-                    atmoHandler.setCometSupport(attribute.getNodeValue());
-                } else if (attribute.getNodeName().equals("interceptorClasses")) {
-                    String[] values = attribute.getNodeValue().split(",");
-                    for (String value : values) {
-                        atmoHandler.getAtmosphereInterceptorClasses().add(value);
+                    case "comet-support":
+                        atmoHandler.setCometSupport(attribute.getNodeValue());
+                        break;
+                    case "interceptorClasses": {
+                        String[] values = attribute.getNodeValue().split(",");
+                        for (String value : values) {
+                            atmoHandler.getAtmosphereInterceptorClasses().add(value);
+                        }
+                        break;
                     }
                 }
             }
@@ -134,55 +133,57 @@ public class AtmosphereConfigReader {
 
             for (int j = 0; j < list.getLength(); j++) {
                 Node n = list.item(j);
-                if (n.getNodeName().equals("property")) {
-                    String param = n.getAttributes().getNamedItem("name").getNodeValue();
-                    String value = n.getAttributes().getNamedItem("value").getNodeValue();
+                switch (n.getNodeName()) {
+                    case "property": {
+                        String param = n.getAttributes().getNamedItem("name").getNodeValue();
+                        String value = n.getAttributes().getNamedItem("value").getNodeValue();
 
-                    atmoHandler.getProperties().add(new AtmosphereHandlerProperty(param, value));
-                } else if (n.getNodeName().equals("applicationConfig")) {
+                        atmoHandler.getProperties().add(new AtmosphereHandlerProperty(param, value));
+                        break;
+                    }
+                    case "applicationConfig": {
 
-                    String param = null;
-                    String value = null;
-                    for (int k = 0; k < n.getChildNodes().getLength(); k++) {
+                        String param = null;
+                        String value = null;
+                        for (int k = 0; k < n.getChildNodes().getLength(); k++) {
 
-                        Node n2 = n.getChildNodes().item(k);
+                            Node n2 = n.getChildNodes().item(k);
 
-                        if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getFirstChild().getNodeValue();
-                        } else if (n2.getNodeName().equals("param-value")) {
-                            if (n2 != null) {
+                            if (n2.getNodeName().equals("param-name")) {
+                                param = n2.getFirstChild().getNodeValue();
+                            } else if (n2.getNodeName().equals("param-value")) {
+                                value = n2.getFirstChild().getNodeValue();
+                            }
+
+                        }
+
+                        if (param != null) {
+                            atmoHandler.getApplicationConfig().add(new ApplicationConfiguration(param, value));
+                        }
+
+                        break;
+                    }
+                    case "frameworkConfig": {
+                        String param = null;
+                        String value = null;
+                        for (int k = 0; k < n.getChildNodes().getLength(); k++) {
+
+                            Node n2 = n.getChildNodes().item(k);
+
+                            if (n2.getNodeName().equals("param-name")) {
+                                param = n2.getFirstChild().getNodeValue();
+                            } else if (n2.getNodeName().equals("param-value")) {
                                 value = n2.getFirstChild().getNodeValue();
                             }
                         }
 
-                    }
-
-                    if (param != null) {
-                        atmoHandler.getApplicationConfig().add(new ApplicationConfiguration(param, value));
-                    }
-
-                } else if (n.getNodeName().equals("frameworkConfig")) {
-                    String param = null;
-                    String value = null;
-                    for (int k = 0; k < n.getChildNodes().getLength(); k++) {
-
-                        Node n2 = n.getChildNodes().item(k);
-
-                        if (n2.getNodeName().equals("param-name")) {
-                            param = n2.getFirstChild().getNodeValue();
-                        } else if (n2.getNodeName().equals("param-value")) {
-                            if (n2 != null) {
-                                value = n2.getFirstChild().getNodeValue();
-                            }
+                        if (param != null) {
+                            atmoHandler.getFrameworkConfig().add(
+                                    new FrameworkConfiguration(param, value));
                         }
 
+                        break;
                     }
-
-                    if (param != null) {
-                        atmoHandler.getFrameworkConfig().add(
-                                new FrameworkConfiguration(param, value));
-                    }
-
                 }
 
             }

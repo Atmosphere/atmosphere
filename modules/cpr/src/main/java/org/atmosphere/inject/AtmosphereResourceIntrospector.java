@@ -39,7 +39,7 @@ public class AtmosphereResourceIntrospector extends InjectIntrospectorAdapter<At
     @Override
     public AtmosphereResource injectable(final AtmosphereResource r) {
         return (AtmosphereResource) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{AtmosphereResource.class}, new ThreadLocalInvoker() {
+                new Class[]{AtmosphereResource.class}, new ThreadLocalInvoker<AtmosphereResource>() {
                     {
                         set(r);
                     }

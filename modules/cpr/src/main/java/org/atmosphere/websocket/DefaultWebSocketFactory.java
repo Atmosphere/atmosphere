@@ -30,7 +30,7 @@ public class DefaultWebSocketFactory implements WebSocketFactory {
     public WebSocket find(String uuid) {
         AtmosphereResource r = factory.find(uuid);
         if (r != null) {
-            return AtmosphereResourceImpl.class.cast(r).webSocket();
+            return ((AtmosphereResourceImpl) r).webSocket();
         }
         return null;
     }

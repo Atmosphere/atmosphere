@@ -43,7 +43,7 @@ public class BoundedApachePoolableProvider extends UnboundedApachePoolableProvid
     @Override
     public Broadcaster borrowBroadcaster(Object id) {
         try {
-            return DefaultBroadcaster.class.cast(genericObjectPool.borrowObject(waitFor)).rename(id.toString());
+            return ((DefaultBroadcaster) genericObjectPool.borrowObject(waitFor)).rename(id.toString());
         } catch (Exception e) {
             logger.error("", e);
             throw new RuntimeException(e);

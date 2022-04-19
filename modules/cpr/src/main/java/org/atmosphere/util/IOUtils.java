@@ -57,7 +57,7 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMO_BINARY;
 public class IOUtils {
     private final static Logger logger = LoggerFactory.getLogger(IOUtils.class);
     private final static List<String> knownClasses;
-    private final static Pattern SERVLET_PATH_PATTERN = Pattern.compile("([\\/]?[\\w-[.]]+|[\\/]\\*\\*)+");
+    private final static Pattern SERVLET_PATH_PATTERN = Pattern.compile("([/]?[\\w-[.]]+|[/]\\*\\*)+");
 
     static {
         knownClasses = new ArrayList<String>() {
@@ -106,27 +106,22 @@ public class IOUtils {
         return isBodyBinary(request) ? readEntirelyAsByte(r) : readEntirelyAsString(r).toString();
     }
 
-    public final static boolean isBodyBinary(AtmosphereRequest request) {
-        if (request.getContentType() != null
-                && request.getContentType().equalsIgnoreCase(FORCE_BINARY) || request.getHeader(X_ATMO_BINARY) != null)
-            return true;
-        return false;
+    public static boolean isBodyBinary(AtmosphereRequest request) {
+        return request.getContentType() != null
+                && request.getContentType().equalsIgnoreCase(FORCE_BINARY) || request.getHeader(X_ATMO_BINARY) != null;
     }
 
-    public final static boolean isBodyEmpty(Object o) {
-        if (o != null && (String.class.isAssignableFrom(o.getClass()) && String.class.cast(o).isEmpty())
-                || (Byte[].class.isAssignableFrom(o.getClass()) && Byte[].class.cast(o).length == 0)) {
-            return true;
-        } else {
-            return false;
-        }
+    public static boolean isBodyEmpty(Object o) {
+        if (o != null && (String.class.isAssignableFrom(o.getClass()) && ((String) o).isEmpty())) return true;
+        assert o != null;
+        return Byte[].class.isAssignableFrom(o.getClass()) && ((Byte[]) o).length == 0;
     }
 
     public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {
         final StringBuilder stringBuilder = new StringBuilder();
 
         boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
-        if (!readGetBody && AtmosphereResourceImpl.class.cast(r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
+        if (!readGetBody && ((AtmosphereResourceImpl) r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {
             logger.debug("Blocking an I/O read operation from a GET request. To enable GET + body, set {} to true", ApplicationConfig.READ_GET_BODY);
             return stringBuilder;
         }
@@ -350,8 +345,7 @@ public class IOUtils {
         }
 
         // Now try with parent
-        if (scanForAtmosphereFramework(classToScan.getSuperclass())) return true;
-        return false;
+        return scanForAtmosphereFramework(classToScan.getSuperclass());
     }
 
     /**
@@ -427,7 +421,7 @@ public class IOUtils {
      * @return the map associating class to action
      */
     public static Map<String, AtmosphereFramework.MetaServiceAction> readServiceFile(final String path) {
-        final Map<String, AtmosphereFramework.MetaServiceAction> b = new LinkedHashMap<String, AtmosphereFramework.MetaServiceAction>();
+        final Map<String, AtmosphereFramework.MetaServiceAction> b = new LinkedHashMap<>();
 
         String line;
         InputStream is = null;
@@ -450,7 +444,6 @@ public class IOUtils {
                 if (line == null) {
                     break;
                 } else if (line.isEmpty()) {
-                    continue;
                 } else if (line.indexOf('.') == -1) {
                     action = AtmosphereFramework.MetaServiceAction.valueOf(line);
                 } else {

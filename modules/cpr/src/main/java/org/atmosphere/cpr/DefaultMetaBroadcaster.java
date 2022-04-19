@@ -62,8 +62,8 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
     public static final String MAPPING_REGEX = "[/a-zA-Z0-9-&.*=@_;\\?]+";
 
     private final static Logger logger = LoggerFactory.getLogger(DefaultMetaBroadcaster.class);
-    private final static ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
-    private final static MetaBroadcasterFuture E = new MetaBroadcasterFuture(Collections.<Broadcaster>emptyList());
+    private final static ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<>();
+    private final static MetaBroadcasterFuture E = new MetaBroadcasterFuture(Collections.emptyList());
     private MetaBroadcasterCache cache = new NoCache();
     private AtmosphereConfig config;
 
@@ -79,8 +79,8 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
         if (config != null) {
             Collection<Broadcaster> c = config.getBroadcasterFactory().lookupAll();
 
-            final Map<String, String> m = new HashMap<String, String>();
-            List<Broadcaster> l = new ArrayList<Broadcaster>();
+            final Map<String, String> m = new HashMap<>();
+            List<Broadcaster> l = new ArrayList<>();
             logger.trace("Map {}", path);
             UriTemplate t = null;
             try {
@@ -208,7 +208,7 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
         private final CountDownLatch latch;
         private final List<Broadcaster> l;
         private boolean isCancelled;
-        private final List<Future<?>> outerFuture = new ArrayList<Future<?>>();
+        private final List<Future<?>> outerFuture = new ArrayList<>();
 
         private MetaBroadcasterFuture(List<Broadcaster> l) {
             this.latch = new CountDownLatch(l.size());

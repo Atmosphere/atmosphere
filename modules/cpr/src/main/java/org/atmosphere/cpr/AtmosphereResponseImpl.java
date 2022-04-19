@@ -26,13 +26,10 @@ import javax.servlet.ServletResponse;
 import javax.servlet.http.Cookie;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.HttpServletResponseWrapper;
-
 import java.io.IOException;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -142,7 +139,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         private String statusMessage = "OK";
         private AtmosphereRequest atmosphereRequest;
         private HttpServletResponse atmosphereResponse = dsr;
-        private AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
+        private final AtomicBoolean writeStatusAndHeader = new AtomicBoolean(true);
         private final Map<String, String> headers = new HashMap<>();
         private boolean destroyable = true;
 
@@ -922,7 +919,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     private final class Stream extends ServletOutputStream {
-        private boolean buffering;
+        private final boolean buffering;
 
         Stream(boolean buffering) {
             this.buffering = buffering;

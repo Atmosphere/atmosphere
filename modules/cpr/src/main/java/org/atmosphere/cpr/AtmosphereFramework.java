@@ -296,7 +296,7 @@ public class AtmosphereFramework {
         public final AtmosphereHandler atmosphereHandler;
         public Broadcaster broadcaster;
         public String mapping;
-        public final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<AtmosphereInterceptor>();
+        public final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<>();
         public boolean create;
         private boolean needRequestScopedInjection;
         private final boolean wilcardMapping;
@@ -683,7 +683,7 @@ public class AtmosphereFramework {
      * @param h       implementation of an {@link AtmosphereHandler}
      */
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h) {
-        addAtmosphereHandler(mapping, h, Collections.<AtmosphereInterceptor>emptyList());
+        addAtmosphereHandler(mapping, h, Collections.emptyList());
         return this;
     }
 
@@ -714,7 +714,7 @@ public class AtmosphereFramework {
      * @param broadcasterId The {@link Broadcaster#getID} value
      */
     public AtmosphereFramework addAtmosphereHandler(String mapping, AtmosphereHandler h, String broadcasterId) {
-        addAtmosphereHandler(mapping, h, broadcasterId, Collections.<AtmosphereInterceptor>emptyList());
+        addAtmosphereHandler(mapping, h, broadcasterId, Collections.emptyList());
         return this;
     }
 
@@ -966,7 +966,7 @@ public class AtmosphereFramework {
 
             servletConfig = new ServletConfig() {
 
-                AtomicBoolean done = new AtomicBoolean();
+                final AtomicBoolean done = new AtomicBoolean();
 
                 public String getServletName() {
                     return sc.getServletName();
@@ -1049,9 +1049,9 @@ public class AtmosphereFramework {
         ExecutorService executorService = ExecutorsFactory.getMessageDispatcher(config, Broadcaster.ROOT_MASTER);
         if (executorService != null) {
             if (ThreadPoolExecutor.class.isAssignableFrom(executorService.getClass())) {
-                long max = ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize();
+                long max = ((ThreadPoolExecutor) executorService).getMaximumPoolSize();
                 logger.info("Messaging Thread Pool Size: {}",
-                        ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize() == 2147483647 ? "Unlimited" : max);
+                        ((ThreadPoolExecutor) executorService).getMaximumPoolSize() == 2147483647 ? "Unlimited" : max);
             } else {
                 logger.info("Messaging ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
             }
@@ -1061,7 +1061,7 @@ public class AtmosphereFramework {
         if (executorService != null) {
             if (ThreadPoolExecutor.class.isAssignableFrom(executorService.getClass())) {
                 logger.info("Async I/O Thread Pool Size: {}",
-                        ThreadPoolExecutor.class.cast(executorService).getMaximumPoolSize());
+                        ((ThreadPoolExecutor) executorService).getMaximumPoolSize());
             } else {
                 logger.info("Async I/O ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
             }
@@ -1076,7 +1076,7 @@ public class AtmosphereFramework {
         WebSocketProcessor wp = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this);
         boolean b = false;
         if (DefaultWebSocketProcessor.class.isAssignableFrom(wp.getClass())) {
-            b = DefaultWebSocketProcessor.class.cast(wp).invokeInterceptors();
+            b = ((DefaultWebSocketProcessor) wp).invokeInterceptors();
         }
         logger.info("Invoke AtmosphereInterceptor on WebSocket message {}", b);
         logger.info("HttpSession supported: {}", config.isSupportSession());
@@ -1121,74 +1121,72 @@ public class AtmosphereFramework {
         if (!config.getInitParameter(ApplicationConfig.ANALYTICS, true)) return;
 
         final String container = getServletContext().getServerInfo();
-        Thread t = new Thread() {
-            public void run() {
-                try {
-                    logger.debug("Retrieving Atmosphere's latest version from http://async-io.org/version.html");
-                    HttpURLConnection urlConnection = (HttpURLConnection)
-                            URI.create("http://async-io.org/version.html").toURL().openConnection();
-                    urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
-                    urlConnection.setRequestProperty("Connection", "keep-alive");
-                    urlConnection.setRequestProperty("Cache-Control", "max-age=0");
-                    urlConnection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                    urlConnection.setRequestProperty("Accept-Language", "en-US,en;q=0.8");
-                    urlConnection.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                    urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                    urlConnection.setInstanceFollowRedirects(true);
+        Thread t = new Thread(() -> {
+            try {
+                logger.debug("Retrieving Atmosphere's latest version from http://async-io.org/version.html");
+                HttpURLConnection urlConnection = (HttpURLConnection)
+                        URI.create("http://async-io.org/version.html").toURL().openConnection();
+                urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
+                urlConnection.setRequestProperty("Connection", "keep-alive");
+                urlConnection.setRequestProperty("Cache-Control", "max-age=0");
+                urlConnection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
+                urlConnection.setRequestProperty("Accept-Language", "en-US,en;q=0.8");
+                urlConnection.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
+                urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
+                urlConnection.setInstanceFollowRedirects(true);
 
-                    BufferedReader in = new BufferedReader(new InputStreamReader(
-                            urlConnection.getInputStream()));
+                BufferedReader in = new BufferedReader(new InputStreamReader(
+                        urlConnection.getInputStream()));
 
-                    String inputLine;
-                    String newVersion = Version.getRawVersion();
-                    String clientVersion = null;
-                    String nextMajorRelease = null;
-                    boolean nextAvailable = false;
-                    if (!newVersion.contains("SNAPSHOT")) {
-                        try {
-                            while ((inputLine = in.readLine().trim()) != null) {
-                                if (inputLine.startsWith("ATMO23_VERSION=")) {
-                                    newVersion = inputLine.substring("ATMO23_VERSION=".length());
-                                } else if (inputLine.startsWith("CLIENT3_VERSION=")) {
-                                    clientVersion = inputLine.substring("CLIENT3_VERSION=".length());
-                                    break;
-                                } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
-                                    nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
-                                    if (nextMajorRelease.compareTo(Version.getRawVersion()) > 0
-                                            && !nextMajorRelease.toLowerCase().contains("rc")
-                                            && !nextMajorRelease.toLowerCase().contains("beta")) {
-                                        nextAvailable = true;
-                                    }
+                String inputLine;
+                String newVersion = Version.getRawVersion();
+                String clientVersion = null;
+                String nextMajorRelease = null;
+                boolean nextAvailable = false;
+                if (!newVersion.contains("SNAPSHOT")) {
+                    try {
+                        while ((inputLine = in.readLine().trim()) != null) {
+                            if (inputLine.startsWith("ATMO23_VERSION=")) {
+                                newVersion = inputLine.substring("ATMO23_VERSION=".length());
+                            } else if (inputLine.startsWith("CLIENT3_VERSION=")) {
+                                clientVersion = inputLine.substring("CLIENT3_VERSION=".length());
+                                break;
+                            } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
+                                nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
+                                if (nextMajorRelease.compareTo(Version.getRawVersion()) > 0
+                                        && !nextMajorRelease.toLowerCase().contains("rc")
+                                        && !nextMajorRelease.toLowerCase().contains("beta")) {
+                                    nextAvailable = true;
                                 }
                             }
-                        } finally {
-                            if (clientVersion != null) {
-                                logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
-                            }
-                            if (newVersion.compareTo(Version.getRawVersion()) > 0) {
-                                if (nextAvailable) {
-                                    logger.info("\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}", newVersion, nextMajorRelease);
-                                } else {
-                                    logger.info("\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}", newVersion);
-                                }
-                            } else if (nextAvailable) {
-                                logger.info("\n\n\tAtmosphere Framework Updates:\n\tMajor Update available (new features): {}", nextMajorRelease);
-                            }
-                            try {
-                                in.close();
-                            } catch (IOException ex) {
-                            }
-                            urlConnection.disconnect();
                         }
+                    } finally {
+                        if (clientVersion != null) {
+                            logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
+                        }
+                        if (newVersion.compareTo(Version.getRawVersion()) > 0) {
+                            if (nextAvailable) {
+                                logger.info("\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}", newVersion, nextMajorRelease);
+                            } else {
+                                logger.info("\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}", newVersion);
+                            }
+                        } else if (nextAvailable) {
+                            logger.info("\n\n\tAtmosphere Framework Updates:\n\tMajor Update available (new features): {}", nextMajorRelease);
+                        }
+                        try {
+                            in.close();
+                        } catch (IOException ex) {
+                        }
+                        urlConnection.disconnect();
                     }
-
-                    JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
-                    tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
-
-                } catch (Throwable e) {
                 }
+
+                JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
+                tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
+
+            } catch (Throwable e) {
             }
-        };
+        });
         t.setDaemon(true);
         t.start();
     }
@@ -1214,7 +1212,7 @@ public class AtmosphereFramework {
         }
 
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
-        if (s == null || !"true".equalsIgnoreCase(s)) {
+        if (!Boolean.parseBoolean(s)) {
             logger.info("Installing Default AtmosphereInterceptors");
 
             for (Class<? extends AtmosphereInterceptor> a : DEFAULT_ATMOSPHERE_INTERCEPTORS) {
@@ -1971,7 +1969,7 @@ public class AtmosphereFramework {
                 if (handler != null) {
                     String broadcasterClass = atmoHandler.getBroadcaster();
                     Broadcaster b;
-                    /**
+                    /*
                      * If there is more than one AtmosphereHandler defined, their Broadcaster
                      * may clash each other with the BroadcasterFactory. In that case we will use the
                      * last one defined.
@@ -2624,7 +2622,7 @@ public class AtmosphereFramework {
 
     protected void addInterceptorToAllWrappers(AtmosphereInterceptor c) {
         c.configure(config);
-        InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(c.getClass()) ? InvokationOrder.class.cast(c).priority() : InvokationOrder.AFTER_DEFAULT;
+        InvokationOrder.PRIORITY p = InvokationOrder.class.isAssignableFrom(c.getClass()) ? ((InvokationOrder) c).priority() : InvokationOrder.AFTER_DEFAULT;
 
         logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
         //need insert this new interceptor into all the existing handlers
@@ -2636,7 +2634,7 @@ public class AtmosphereFramework {
     protected void addInterceptorToWrapper(AtmosphereHandlerWrapper wrapper, AtmosphereInterceptor c) {
         if (!checkDuplicate(wrapper.interceptors, c.getClass())) {
             wrapper.interceptors.add(c);
-            Collections.sort(wrapper.interceptors, new InterceptorComparator());
+            wrapper.interceptors.sort(new InterceptorComparator());
         }
     }
 
@@ -3106,10 +3104,8 @@ public class AtmosphereFramework {
         if (s != null) {
             try {
                 AtmosphereObjectFactory aci = (AtmosphereObjectFactory) IOUtils.loadClass(getClass(), s).newInstance();
-                if (aci != null) {
-                    logger.debug("Found ObjectFactory {}", aci.getClass().getName());
-                    objectFactory(aci);
-                }
+                logger.debug("Found ObjectFactory {}", aci.getClass().getName());
+                objectFactory(aci);
             } catch (Exception ex) {
                 logger.warn("Unable to load AtmosphereClassInstantiator instance", ex);
             }
@@ -3117,9 +3113,7 @@ public class AtmosphereFramework {
 
         if (!DefaultAtmosphereObjectFactory.class.isAssignableFrom(objectFactory.getClass())) {
             logger.trace("ObjectFactory already set to {}", objectFactory);
-            return;
         }
-
     }
 
     /**
@@ -3330,9 +3324,7 @@ public class AtmosphereFramework {
         if (sessionFactory == null) {
             try {
                 sessionFactory = newClassInstance(AtmosphereResourceSessionFactory.class, DefaultAtmosphereResourceSessionFactory.class);
-            } catch (InstantiationException e) {
-                logger.error("", e);
-            } catch (IllegalAccessException e) {
+            } catch (InstantiationException | IllegalAccessException e) {
                 logger.error("", e);
             }
         }

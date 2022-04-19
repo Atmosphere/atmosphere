@@ -249,7 +249,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (!rob) {
             try {
                 Boolean b = (Boolean) req.getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-                return b == null ? false : b;
+                return b != null && b;
             } catch (ClassCastException ex) {
                 // WebSphere is doing something strange here
                 return false;
@@ -385,10 +385,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             // is unique.
             boolean isJersey = req.getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null;
 
-            boolean skipCreation = false;
-            if (req.getAttribute(SKIP_BROADCASTER_CREATION) != null) {
-                skipCreation = true;
-            }
+            boolean skipCreation = req.getAttribute(SKIP_BROADCASTER_CREATION) != null;
 
             Broadcaster broadcaster = getBroadcaster();
 
@@ -754,7 +751,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onDisconnect(e);
             if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
-                ((WebSocketEventListener) r).onDisconnect(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
+                ((WebSocketEventListener) r).onDisconnect(new WebSocketEventListener.WebSocketEvent<>(1005, CLOSE, webSocket));
             }
         }
 
@@ -773,7 +770,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onClose(e);
             if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
-                ((WebSocketEventListener) r).onClose(new WebSocketEventListener.WebSocketEvent(1005, CLOSE, webSocket));
+                ((WebSocketEventListener) r).onClose(new WebSocketEventListener.WebSocketEvent<>(1005, CLOSE, webSocket));
             }
         }
     }

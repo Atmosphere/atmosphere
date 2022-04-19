@@ -26,7 +26,7 @@ package org.atmosphere.util.analytics;
 public class JGoogleAnalyticsTracker {
 
     private URLBuildingStrategy urlBuildingStrategy;
-    private HTTPGetMethod httpRequest = new HTTPGetMethod();
+    private final HTTPGetMethod httpRequest = new HTTPGetMethod();
 
     /**
      * Simple constructor passing the application name & google analytics tracking code

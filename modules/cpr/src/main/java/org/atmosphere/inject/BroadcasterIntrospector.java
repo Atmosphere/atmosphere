@@ -33,7 +33,7 @@ import java.lang.reflect.Type;
  */
 @RequestScoped
 public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcaster> {
-    private final ThreadLocal<String> nameLocal = new ThreadLocal<String>();
+    private final ThreadLocal<String> nameLocal = new ThreadLocal<>();
 
     @Override
     public boolean supportedType(Type t) {
@@ -57,7 +57,7 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
         final Broadcaster broadcaster = r.getAtmosphereConfig().getBroadcasterFactory().lookup(named, true);
 
         return (Broadcaster) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{Broadcaster.class}, new ThreadLocalInvoker() {
+                new Class[]{Broadcaster.class}, new ThreadLocalInvoker<Broadcaster>() {
                     {
                         set(broadcaster);
                     }

@@ -34,6 +34,7 @@ import java.io.UnsupportedEncodingException;
 import java.net.URI;
 import java.net.URLDecoder;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -71,7 +72,7 @@ import java.util.Map;
 public class QueryStringDecoder {
 
     private static final int DEFAULT_MAX_PARAMS = 1024;
-    public static final Charset UTF_8 = Charset.forName("UTF-8");
+    public static final Charset UTF_8 = StandardCharsets.UTF_8;
 
     private final Charset charset;
     private final String uri;
@@ -242,12 +243,12 @@ public class QueryStringDecoder {
     }
 
     private void decodeParams(String s) {
-        Map<String, List<String>> params = this.params = new LinkedHashMap<String, List<String>>();
+        Map<String, List<String>> params = this.params = new LinkedHashMap<>();
         nParams = 0;
         String name = null;
         int pos = 0; // Beginning of the unprocessed region
         int i;       // End of the unprocessed region
-        char c = 0;  // Current character
+        char c;  // Current character
         for (i = 0; i < s.length(); i++) {
             c = s.charAt(i);
             if (c == '=' && name == null) {
@@ -295,11 +296,8 @@ public class QueryStringDecoder {
             return false;
         }
 
-        List<String> values = params.get(name);
-        if (values == null) {
-            values = new ArrayList<String>(1);  // Often there's only 1 value.
-            params.put(name, values);
-        }
+        List<String> values = params.computeIfAbsent(name, k -> new ArrayList<>(1));
+        // Often there's only 1 value.
         values.add(value);
         nParams ++;
         return true;

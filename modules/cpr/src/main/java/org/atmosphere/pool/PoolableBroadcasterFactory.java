@@ -52,7 +52,7 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
     private static final Logger logger = LoggerFactory.getLogger(PoolableBroadcasterFactory.class);
     private PoolableProvider<? extends Broadcaster,?> poolableProvider;
     private final static String POOLED_ID = "POOLED";
-    private final static Collection emptyCollection = Collections.emptySet();
+    private final static Collection<Broadcaster> emptyCollection = Collections.emptySet();
     private boolean trackPooledBroadcaster;
 
     public PoolableBroadcasterFactory() {

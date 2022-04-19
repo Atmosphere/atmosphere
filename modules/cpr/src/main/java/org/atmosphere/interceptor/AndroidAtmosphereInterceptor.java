@@ -40,7 +40,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private static final String paddingText;
 
     static {
-        StringBuffer whitespace = new StringBuffer();
+        StringBuilder whitespace = new StringBuilder();
         for (int i = 0; i < 4096; i++) {
             whitespace.append(" ");
         }
@@ -54,16 +54,16 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
         if (!r.transport().equals(TRANSPORT.STREAMING)) return Action.CONTINUE;
 
-        final AtmosphereResponse response = AtmosphereResourceImpl.class.cast(r).getResponse(false);
-        String userAgent = AtmosphereResourceImpl.class.cast(r).getRequest(false).getHeader("User-Agent");
+        final AtmosphereResponse response = ((AtmosphereResourceImpl) r).getResponse(false);
+        String userAgent = ((AtmosphereResourceImpl) r).getRequest(false).getHeader("User-Agent");
 
         if (userAgent != null &&
-                (userAgent.indexOf("Android 2.") != -1 || userAgent.indexOf("Android 3.") != -1)) {
+                (userAgent.contains("Android 2.") || userAgent.contains("Android 3."))) {
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
+                ((AtmosphereInterceptorWriter) writer).interceptor(new AsyncIOInterceptorAdapter() {
 
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {

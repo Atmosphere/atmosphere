@@ -46,7 +46,7 @@ public class ServletContextFactory {
         return null;
     }
 
-    public final static ServletContextFactory getDefault() {
+    public static ServletContextFactory getDefault() {
         if (servletContextFactory == null) servletContextFactory = new ServletContextFactory();
         return servletContextFactory;
     }

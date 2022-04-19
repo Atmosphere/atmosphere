@@ -44,9 +44,9 @@ public class ShiroInterceptor extends AtmosphereInterceptorAdapter {
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
-        if (r.getRequest().localAttributes().containsKey(FrameworkConfig.SECURITY_SUBJECT) == false) {
+        if (!r.getRequest().localAttributes().containsKey(FrameworkConfig.SECURITY_SUBJECT)) {
             try {
-                Subject currentUser = null;
+                Subject currentUser;
                 if (r.transport().equals(TRANSPORT.WEBSOCKET)) {
                     WebEnvironment env = WebUtils.getRequiredWebEnvironment(r.getAtmosphereConfig().getServletContext());
                     currentUser = new WebSubject.Builder(env.getSecurityManager(), r.getRequest(), r.getResponse()).buildWebSubject();

@@ -57,6 +57,7 @@ package org.atmosphere.util.uri;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.regex.MatchResult;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -250,7 +251,7 @@ public class UriPattern {
         }
 
         public int groupCount() {
-            return groupIndexes.length - 1;
+            return (groupIndexes != null ? groupIndexes.length : 0) - 1;
         }
     }
 
@@ -296,7 +297,7 @@ public class UriPattern {
 
         // Check for match against the empty pattern
         if (uri == null || uri.length() == 0)
-            return (regexPattern == null) ? true : false;
+            return regexPattern == null;
         else if (regexPattern == null)
             return false;
 
@@ -348,7 +349,7 @@ public class UriPattern {
 
         // Check for match against the empty pattern
         if (uri == null || uri.length() == 0)
-            return (regexPattern == null) ? true : false;
+            return regexPattern == null;
         else if (regexPattern == null)
             return false;
 
@@ -389,8 +390,7 @@ public class UriPattern {
             return false;
         }
         final UriPattern that = (UriPattern) obj;
-        if (this.regex != that.regex &&
-                (this.regex == null || !this.regex.equals(that.regex))) {
+        if (!Objects.equals(this.regex, that.regex)) {
             return false;
         }
         return true;

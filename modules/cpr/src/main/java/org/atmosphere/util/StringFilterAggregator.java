@@ -31,7 +31,7 @@ public class StringFilterAggregator implements BroadcastFilter {
 
     private final int maxBufferedString;
 
-    private final AtomicReference<StringBuilder> bufferedMessage = new AtomicReference<StringBuilder>(new StringBuilder());
+    private final AtomicReference<StringBuilder> bufferedMessage = new AtomicReference<>(new StringBuilder());
 
     public StringFilterAggregator() {
         maxBufferedString = 256;

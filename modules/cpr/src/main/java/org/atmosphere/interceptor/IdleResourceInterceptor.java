@@ -65,11 +65,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
 
         if (maxInactiveTime > 0) {
             logger.info("{} started with idle timeout set to {}", IdleResourceInterceptor.class.getSimpleName(), maxInactiveTime);
-            future = ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(new Runnable() {
-                public void run() {
-                    idleResources();
-                }
-            }, 0, 2, TimeUnit.SECONDS);
+            future = ExecutorsFactory.getScheduler(config).scheduleAtFixedRate(this::idleResources, 0, 2, TimeUnit.SECONDS);
         }
     }
 
@@ -84,7 +80,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                 continue;
             }
 
-            AtmosphereRequest req = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+            AtmosphereRequest req = ((AtmosphereResourceImpl) r).getRequest(false);
             try {
                 if (req.getAttribute(MAX_INACTIVE) == null) {
                     logger.warn("Invalid state {}", r);
@@ -108,11 +104,11 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
                         if (f != null) f.cancel(false);
                         req.removeAttribute(HeartbeatInterceptor.HEARTBEAT_FUTURE);
 
-                        WebSocket webSocket = AtmosphereResourceImpl.class.cast(r).webSocket();
+                        WebSocket webSocket = ((AtmosphereResourceImpl) r).webSocket();
                         if (webSocket != null) {
                             webSocket.close();
                         } else {
-                            AsynchronousProcessor.class.cast(config.framework().getAsyncSupport()).endRequest(AtmosphereResourceImpl.class.cast(r), true);
+                            ((AsynchronousProcessor) config.framework().getAsyncSupport()).endRequest((AtmosphereResourceImpl) r, true);
                         }
                     } finally {
                         r.removeFromAllBroadcasters();
@@ -138,7 +134,7 @@ public class IdleResourceInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public Action inspect(AtmosphereResource r) {
         if (maxInactiveTime > 0 && !Utils.pollableTransport(r.transport())) {
-            AtmosphereResourceImpl.class.cast(r).getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis());
+            ((AtmosphereResourceImpl) r).getRequest(false).setAttribute(MAX_INACTIVE, System.currentTimeMillis());
         }
         return Action.CONTINUE;
     }

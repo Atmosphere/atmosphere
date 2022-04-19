@@ -338,7 +338,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
             b.append((cs != null) ? cs.getCanonicalName() : "null").append(", ");
         }
 
-        b.append(" until you do, Atmosphere will use:" + available.get(0));
+        b.append(" until you do, Atmosphere will use:").append(available.get(0));
         logger.warn("{}", b.toString());
         return newCometSupport(available.get(0));
     }

@@ -24,7 +24,7 @@ package org.atmosphere.util.analytics;
  */
 public interface URLBuildingStrategy {
 
-    public String buildURL(FocusPoint focusPoint);
+    String buildURL(FocusPoint focusPoint);
 
-    public void setRefererURL(String refererURL);
+    void setRefererURL(String refererURL);
 }

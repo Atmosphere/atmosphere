@@ -37,7 +37,7 @@ public class XSSHtmlFilter implements BroadcastFilter {
         if (o instanceof String) {
             String message = (String) o;
 
-            StringBuffer buffer = new StringBuffer(message.length());
+            StringBuilder buffer = new StringBuilder(message.length());
 
             for (int i = 0; i < message.length(); i++) {
                 char c = message.charAt(i);

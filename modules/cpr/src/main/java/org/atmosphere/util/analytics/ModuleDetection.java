@@ -20,7 +20,7 @@ import java.util.Map;
 
 public class ModuleDetection {
 
-    private final static HashMap<String, String> modules = new HashMap<String, String>();
+    private final static HashMap<String, String> modules = new HashMap<>();
 
     static {
         modules.put("gwt2", "org.atmosphere.gwt20.server.GwtRpcInterceptor");
@@ -44,7 +44,7 @@ public class ModuleDetection {
 
     }
 
-    public final static String detect() {
+    public static String detect() {
         for (Map.Entry<String, String> e : modules.entrySet()) {
             if (check(e.getValue())) {
                 return e.getKey();

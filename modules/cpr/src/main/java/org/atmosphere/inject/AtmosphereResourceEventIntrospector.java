@@ -42,7 +42,7 @@ public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapt
         final AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
 
         return (AtmosphereResourceEvent) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{AtmosphereResourceEvent.class}, new ThreadLocalInvoker() {
+                new Class[]{AtmosphereResourceEvent.class}, new ThreadLocalInvoker<AtmosphereResourceEvent>() {
                     {
                         set(e);
                     }

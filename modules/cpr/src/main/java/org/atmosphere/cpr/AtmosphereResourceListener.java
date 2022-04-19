@@ -16,7 +16,7 @@
 package org.atmosphere.cpr;
 
 /**
- * Listener for when {@libk AtmosphereResource} gets suspended and disconnected.
+ * Listener for when {@link AtmosphereResource} gets suspended and disconnected.
  *
  * @author Jeanfrancois Arcand
  */

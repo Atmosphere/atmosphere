@@ -29,7 +29,7 @@ public interface WebSocketFactory {
      * the {@link AtmosphereResource#uuid()} or an application generated one.
      *
      * @param uuid a UUID associated
-     * @return
+     * @return WebSocket
      */
     WebSocket find(String uuid);
 

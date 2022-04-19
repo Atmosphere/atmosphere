@@ -42,7 +42,6 @@ import org.atmosphere.config.service.WebSocketProtocolService;
 
 import javax.servlet.ServletContainerInitializer;
 import javax.servlet.ServletContext;
-import javax.servlet.ServletException;
 import javax.servlet.annotation.HandlesTypes;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;

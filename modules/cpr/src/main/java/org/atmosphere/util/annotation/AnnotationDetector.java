@@ -243,10 +243,10 @@ public final class AnnotationDetector {
     public AnnotationDetector(final Reporter reporter) {
 
         final Class<? extends Annotation>[] a = reporter.annotations();
-        annotations = new HashMap<String, Class<? extends Annotation>>(a.length);
+        annotations = new HashMap<>(a.length);
         // map "raw" type names to Class object
-        for (int i = 0; i < a.length; ++i) {
-            annotations.put("L" + a[i].getName().replace('.', '/') + ";", a[i]);
+        for (Class<? extends Annotation> aClass : a) {
+            annotations.put("L" + aClass.getName().replace('.', '/') + ";", aClass);
         }
         if (reporter instanceof TypeReporter) {
             typeReporter = (TypeReporter) reporter;
@@ -277,7 +277,7 @@ public final class AnnotationDetector {
      *
      * @see #detect(File...)
      */
-    public final void detect(final String... packageNames) throws IOException {
+    public void detect(final String... packageNames) throws IOException {
         final String[] pkgNameFilter = new String[packageNames.length];
         for (int i = 0; i < pkgNameFilter.length; ++i) {
             pkgNameFilter[i] = packageNames[i].replace('.', '/');
@@ -286,8 +286,8 @@ public final class AnnotationDetector {
             }
 
         }
-        final Set<File> files = new HashSet<File>();
-        final Set<InputStream> streams = new HashSet<InputStream>();
+        final Set<File> files = new HashSet<>();
+        final Set<InputStream> streams = new HashSet<>();
 
         for (final String packageName : pkgNameFilter) {
             final ClassLoader loader = Thread.currentThread().getContextClassLoader();
@@ -384,9 +384,9 @@ public final class AnnotationDetector {
         }
 
         if (!files.isEmpty()) {
-            detect(new ClassFileIterator(files.toArray(new File[files.size()]), pkgNameFilter));
+            detect(new ClassFileIterator(files.toArray(new File[0]), pkgNameFilter));
         } else if (!streams.isEmpty()) {
-            detect(new ClassFileIterator(streams.toArray(new InputStream[streams.size()]), pkgNameFilter));
+            detect(new ClassFileIterator(streams.toArray(new InputStream[0]), pkgNameFilter));
         }
     }
 
@@ -399,7 +399,7 @@ public final class AnnotationDetector {
      * @return all children files
      */
     private List<org.jboss.vfs.VirtualFile> getVfsChildren(final org.jboss.vfs.VirtualFile vfs) {
-        final List<org.jboss.vfs.VirtualFile> retval = new ArrayList<org.jboss.vfs.VirtualFile>();
+        final List<org.jboss.vfs.VirtualFile> retval = new ArrayList<>();
 
         for (org.jboss.vfs.VirtualFile f : vfs.getChildren()) {
             if (f.isDirectory()) {
@@ -413,7 +413,7 @@ public final class AnnotationDetector {
     }
 
     private boolean isRunningJavaWebStart() {
-        boolean hasJNLP = false;
+        boolean hasJNLP;
         try {
             Class.forName("javax.jnlp.ServiceManager");
             hasJNLP = true;
@@ -452,7 +452,7 @@ public final class AnnotationDetector {
 
         try {
             Class<?> vfs = c.loadClass("org.jboss.virtual.VFS");
-            Method getVFS = vfs.getMethod("getVFS", new Class[]{URL.class});
+            Method getVFS = vfs.getMethod("getVFS", URL.class);
             Object vfsInstance = getVFS.invoke(null, url);
             Method getRoot = vfs.getMethod("getRoot");
 

@@ -28,7 +28,7 @@ import java.util.concurrent.ConcurrentHashMap;
  */
 
 public class ChunkConcatReaderPool {
-    private Map<String, ChunkConcatReader> readersPool = new ConcurrentHashMap<String, ChunkConcatReader>();
+    private final Map<String, ChunkConcatReader> readersPool = new ConcurrentHashMap<>();
     private static final long DEFAULT_TIMEOUT = 300000;
     private long timeout = DEFAULT_TIMEOUT;
 
@@ -84,8 +84,8 @@ public class ChunkConcatReaderPool {
     }
 
     class ChunkConcatReader extends Reader {
-        private String key;
-        private Deque<Reader> readers = new LinkedList<Reader>();
+        private final String key;
+        private final Deque<Reader> readers = new LinkedList<>();
         private boolean continued;
         private boolean closed;
 

@@ -29,7 +29,7 @@ import java.lang.reflect.Method;
  */
 public interface InjectIntrospector<T> extends Injectable {
 
-    public enum WHEN { DEPLOY, RUNTIME }
+    enum WHEN { DEPLOY, RUNTIME }
 
     /**
      * Introspect the field

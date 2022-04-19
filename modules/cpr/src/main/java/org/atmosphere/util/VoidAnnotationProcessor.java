@@ -19,7 +19,6 @@ import org.atmosphere.cpr.AnnotationProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 
 import java.io.File;
-import java.io.IOException;
 
 /**
  * An {@link org.atmosphere.cpr.AnnotationProcessor} that does nothing.
@@ -28,17 +27,17 @@ import java.io.IOException;
  */
 public class VoidAnnotationProcessor implements AnnotationProcessor {
     @Override
-    public AnnotationProcessor scan(File rootDir) throws IOException {
+    public AnnotationProcessor scan(File rootDir) {
         return this;
     }
 
     @Override
-    public AnnotationProcessor scan(String packageName) throws IOException {
+    public AnnotationProcessor scan(String packageName) {
         return this;
     }
 
     @Override
-    public AnnotationProcessor scanAll() throws IOException {
+    public AnnotationProcessor scanAll() {
         return this;
     }
 

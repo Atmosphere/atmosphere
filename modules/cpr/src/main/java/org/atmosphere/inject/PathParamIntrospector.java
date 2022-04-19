@@ -39,7 +39,7 @@ import java.util.Map;
 @RequestScoped({PathParam.class})
 public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
     private final Logger logger = LoggerFactory.getLogger(PathParamIntrospector.class);
-    protected final ThreadLocal<String> pathLocal = new ThreadLocal<String>();
+    protected final ThreadLocal<String> pathLocal = new ThreadLocal<>();
 
     @Override
     public boolean supportedType(Type t) {
@@ -57,10 +57,10 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
 
             if (w != null) {
                 if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    AnnotatedProxy ap = AnnotatedProxy.class.cast(w.atmosphereHandler);
+                    AnnotatedProxy ap = (AnnotatedProxy) w.atmosphereHandler;
                     if (ap.target().getClass().isAnnotationPresent(ManagedService.class)) {
                         String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
-                        if (targetPath.indexOf("{") != -1 && targetPath.indexOf("}") != -1) {
+                        if (targetPath.contains("{") && targetPath.contains("}")) {
                             paths = new String[] { Utils.pathInfo(r.getRequest()), targetPath };
                         }
                     }

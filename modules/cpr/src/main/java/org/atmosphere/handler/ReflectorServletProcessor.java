@@ -65,7 +65,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
 
     private String servletClassName;
     private final HashMap<String, String> filtersClassAndNames = new HashMap<String, String>();
-    private final Collection<Filter> filters = new ArrayList<Filter>();
+    private final Collection<Filter> filters = new ArrayList<>();
     private final FilterChainServletWrapper wrapper = new FilterChainServletWrapper();
     private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();
     private Servlet servlet;
@@ -159,7 +159,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * value.
      *
      * @param r The {@link AtmosphereResource}
-     * @throws java.io.IOException
      */
     public void onRequest(AtmosphereResource r)
             throws IOException {

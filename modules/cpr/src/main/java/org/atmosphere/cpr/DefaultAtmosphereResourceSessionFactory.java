@@ -22,7 +22,7 @@ import java.util.concurrent.ConcurrentMap;
  * @author uklance (https://github.com/uklance)
  */
 public class DefaultAtmosphereResourceSessionFactory implements AtmosphereResourceSessionFactory {
-    private final ConcurrentMap<String, AtmosphereResourceSession> sessions = new ConcurrentHashMap<String, AtmosphereResourceSession>();
+    private final ConcurrentMap<String, AtmosphereResourceSession> sessions = new ConcurrentHashMap<>();
 
     private final AtmosphereResourceEventListener disconnectListener = new AtmosphereResourceEventListenerAdapter() {
         public void onDisconnect(AtmosphereResourceEvent event) {

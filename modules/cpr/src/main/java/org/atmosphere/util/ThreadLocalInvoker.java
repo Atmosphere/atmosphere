@@ -64,7 +64,7 @@ import java.lang.reflect.Method;
  */
 public class ThreadLocalInvoker<T> implements InvocationHandler {
 
-    private ThreadLocal<T> threadLocalInstance = new ThreadLocal<T>();
+    private final ThreadLocal<T> threadLocalInstance = new ThreadLocal<>();
 
     public void set(T threadLocalInstance) {
         this.threadLocalInstance.set(threadLocalInstance);

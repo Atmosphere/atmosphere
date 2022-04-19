@@ -34,32 +34,32 @@ public class WebSocketEventListenerAdapter implements WebSocketEventListener {
     }
 
     @Override
-    public void onHandshake(WebSocketEvent event) {
+    public void onHandshake(WebSocketEvent<?> event) {
         logger.trace("{}", event);
     }
 
     @Override
-    public void onMessage(WebSocketEvent event) {
+    public void onMessage(WebSocketEvent<?>  event) {
         logger.trace("{}", event);
     }
 
     @Override
-    public void onClose(WebSocketEvent event) {
+    public void onClose(WebSocketEvent<?>  event) {
         logger.trace("{}", event);
     }
 
     @Override
-    public void onControl(WebSocketEvent event) {
+    public void onControl(WebSocketEvent<?>  event) {
         logger.trace("{}", event);
     }
 
     @Override
-    public void onDisconnect(WebSocketEvent event) {
+    public void onDisconnect(WebSocketEvent<?>  event) {
         logger.trace("{}", event);
     }
 
     @Override
-    public void onConnect(WebSocketEvent event) {
+    public void onConnect(WebSocketEvent<?>  event) {
         logger.trace("{}", event);
     }
 

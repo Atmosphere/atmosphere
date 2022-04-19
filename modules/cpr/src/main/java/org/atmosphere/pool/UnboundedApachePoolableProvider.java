@@ -47,7 +47,7 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
     public void configure(AtmosphereConfig config) {
         this.config = config;
         configureGenericObjectPoolConfig();
-        genericObjectPool = new GenericObjectPool<Broadcaster>(new BroadcasterFactory(), poolConfig, abandonedConfig);
+        genericObjectPool = new GenericObjectPool<>(new BroadcasterFactory(), poolConfig, abandonedConfig);
     }
 
     protected void configureGenericObjectPoolConfig(){
@@ -57,7 +57,7 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
     @Override
     public Broadcaster borrowBroadcaster(Object id) {
         try {
-            return DefaultBroadcaster.class.cast(genericObjectPool.borrowObject()).rename(id.toString());
+            return ((DefaultBroadcaster) genericObjectPool.borrowObject()).rename(id.toString());
         } catch (Exception e) {
             logger.error("", e);
             throw new RuntimeException(e);
@@ -95,13 +95,13 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
         @Override
         public Broadcaster create() {
             logger.trace("Creating Broadcaster {}", count.getAndIncrement());
-            return PoolableBroadcasterFactory.class.cast(config.getBroadcasterFactory()).createBroadcaster();
+            return ((PoolableBroadcasterFactory) config.getBroadcasterFactory()).createBroadcaster();
         }
 
         @Override
         public PooledObject<Broadcaster> wrap(Broadcaster broadcaster) {
             logger.trace("Wapping Object {}", broadcaster.getID());
-            return new DefaultPooledObject<Broadcaster>(broadcaster);
+            return new DefaultPooledObject<>(broadcaster);
         }
 
     }
