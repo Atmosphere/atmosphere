@@ -64,7 +64,6 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
      * By default, this method will try to use {@link AtmosphereResponseImpl#getWriter()}.
      *
      * @param event the {@link AtmosphereResourceEvent#getMessage()}
-     * @throws java.io.IOException
      */
     @Override
     public void onStateChange(AtmosphereResourceEvent event)
@@ -196,27 +195,27 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
     /**
      * Inspect the event and decide if the underlying connection must be resumed.
      *
-     * @param event
+     * @param event AtmosphereResourceEvent
      */
     protected final void postStateChange(AtmosphereResourceEvent event) {
         if (event.isCancelled() || event.isResuming()) return;
 
-        AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(event.getResource());
+        AtmosphereResourceImpl r = (AtmosphereResourceImpl) event.getResource();
         // Between event.isCancelled and resource, the connection has been remotly closed.
         if (r == null) {
             logger.trace("Event {} returned a null AtmosphereResource", event);
             return;
         }
-        Boolean resumeOnBroadcast = r.resumeOnBroadcast();
+        boolean resumeOnBroadcast = r.resumeOnBroadcast();
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
             Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
             if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
-                resumeOnBroadcast = Boolean.class.cast(o);
+                resumeOnBroadcast = (Boolean) o;
             }
         }
 
-        if (resumeOnBroadcast != null && resumeOnBroadcast) {
+        if (resumeOnBroadcast) {
             r.resume();
         }
     }

@@ -63,7 +63,7 @@ import java.util.NoSuchElementException;
  */
 public final class FileIterator {
 
-    private final Deque<File> stack = new LinkedList<File>();
+    private final Deque<File> stack = new LinkedList<>();
     private int rootCount;
     private File current;
     

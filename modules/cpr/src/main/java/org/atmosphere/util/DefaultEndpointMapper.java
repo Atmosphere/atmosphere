@@ -42,7 +42,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         U handler = handlers.get(path);
 
         if (handler == null) {
-            final Map<String, String> m = new HashMap<String, String>();
+            final Map<String, String> m = new HashMap<>();
             for (Map.Entry<String, U> e : handlers.entrySet()) {
                 UriTemplate t = null;
                 try {
@@ -126,7 +126,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
                 // (4) try without a path
                 if (handler == null) {
                     String p = path.lastIndexOf("/") <= 0 ? "/" : path.substring(0, path.lastIndexOf("/"));
-                    while (p.length() > 0 && p.indexOf("/") != -1) {
+                    while (p.contains("/")) {
                         handler = match(p, handlers);
 
                         // (3.1) Try path wildcard

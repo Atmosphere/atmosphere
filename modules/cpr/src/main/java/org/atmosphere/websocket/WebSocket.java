@@ -33,6 +33,7 @@ import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -68,7 +69,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
 
     public WebSocket(AtmosphereConfig config) {
         String s = config.getInitParameter(ApplicationConfig.WEBSOCKET_BINARY_WRITE);
-        if (s != null && Boolean.parseBoolean(s)) {
+        if (Boolean.parseBoolean(s)) {
             binaryWrite = true;
         } else {
             binaryWrite = false;
@@ -98,7 +99,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * Switch to binary write, or go back to text write. Default is false.
      *
      * @param binaryWrite true to switch to binary write.
-     * @return
+     * @return WebSocket
      */
     public WebSocket binaryWrite(boolean binaryWrite) {
         this.binaryWrite = binaryWrite;
@@ -120,7 +121,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         // Make sure we carry what was set at the onOpen stage.
         if (this.r != null && r != null) {
             // TODO: This is all over the place and quite ugly (the cast). Need to fix this in 1.1
-            AtmosphereResourceImpl.class.cast(r).cloneState(this.r);
+            ((AtmosphereResourceImpl) r).cloneState(this.r);
         }
         this.r = r;
         if (r != null) uuid = r.uuid();
@@ -130,18 +131,16 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     /**
      * Copy {@link AtmosphereRequestImpl#localAttributes()} that where set when the websocket was opened.
      *
-     * @return this.
      */
-    public synchronized WebSocket shiftAttributes() {
-        attributesAtWebSocketOpen = new ConcurrentHashMap<String, Object>();
-        attributesAtWebSocketOpen.putAll(AtmosphereResourceImpl.class.cast(r).getRequest(false).localAttributes().unmodifiableMap());
-        return this;
+    public synchronized void shiftAttributes() {
+        attributesAtWebSocketOpen = new ConcurrentHashMap<>();
+        attributesAtWebSocketOpen.putAll(((AtmosphereResourceImpl) r).getRequest(false).localAttributes().unmodifiableMap());
     }
 
     /**
      * Return the attribute that was set during the websocket's open operation.
      *
-     * @return
+     * @return Map
      */
     public Map<String, Object> attributes() {
         return attributesAtWebSocketOpen;
@@ -213,9 +212,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
                 data = new String(transform(r, b, 0, b.length), r.getCharacterEncoding());
             }
 
-            if (data != null) {
-                write(data);
-            }
+            write(data);
         }
         lastWrite = System.currentTimeMillis();
         return this;
@@ -240,7 +237,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
         if (!isOpen()) throw new IOException("Connection remotely closed for " + uuid);
 
         if (logger.isTraceEnabled()) {
-            logger.trace("WebSocket.write() {}", new String(b, offset, length, "UTF-8"));
+            logger.trace("WebSocket.write() {}", new String(b, offset, length, StandardCharsets.UTF_8));
         }
 
         boolean transform = !filters.isEmpty() && r.getStatus() < 400;
@@ -253,7 +250,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
                 write(b, 0, b.length);
             }
         } else {
-            String data = null;
+            String data;
             String charset = r.getCharacterEncoding() == null ? "UTF-8" : r.getCharacterEncoding();
             if (transform) {
                 data = new String(transform(r, b, offset, length), charset);
@@ -261,9 +258,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
                 data = new String(b, offset, length, charset);
             }
 
-            if (data != null) {
-                write(data);
-            }
+            write(data);
         }
         lastWrite = System.currentTimeMillis();
         return this;
@@ -345,7 +340,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      *
      * @param s a websocket String message
      * @return this
-     * @throws IOException
      */
     abstract public WebSocket write(String s) throws IOException;
 
@@ -356,7 +350,6 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * @param offset start
      * @param length end
      * @return this
-     * @throws IOException
      */
     abstract public WebSocket write(byte[] b, int offset, int length) throws IOException;
 
@@ -364,8 +357,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * Use the underlying container's websocket to write the byte.
      *
      * @param b      a websocket byte message
-     * @return this
-     * @throws IOException
+     * @return WebSocket
      */
     public WebSocket write(byte[] b) throws IOException {
         return write(b, 0, b.length);

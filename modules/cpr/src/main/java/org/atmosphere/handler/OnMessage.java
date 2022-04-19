@@ -38,7 +38,6 @@ import java.util.List;
  */
 public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
 
-    public final static String MESSAGE_DELIMITER = "|";
     private final Logger logger = LoggerFactory.getLogger(OnMessage.class);
 
     @Override

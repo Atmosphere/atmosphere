@@ -61,8 +61,10 @@ import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -198,7 +200,7 @@ public class UriComponent {
 
         for (int i = 0; i < s.length(); i++) {
             final char c = s.charAt(i);
-            if ((c < 0x80 && c != '%' && !table[c]) || c >= 0x80) {
+            if (c >= 0x80 || (c != '%' && !table[c])) {
                 if (!template || (c != '{' && c != '}')) {
                     return i;
                 }
@@ -311,7 +313,7 @@ public class UriComponent {
 
                 if (sb == null) {
                     sb = new StringBuilder();
-                    sb.append(s.substring(0, i));
+                    sb.append(s, 0, i);
                 }
 
                 if (c < 0x80) {
@@ -354,8 +356,7 @@ public class UriComponent {
     private static boolean[][] creatingEncodingTables() {
         boolean[][] tables = new boolean[Type.values().length][];
 
-        List<String> l = new ArrayList<String>();
-        l.addAll(Arrays.asList(SCHEME));
+        List<String> l = new ArrayList<>(Arrays.asList(SCHEME));
         tables[Type.SCHEME.ordinal()] = creatingEncodingTable(l);
 
         l.clear();
@@ -367,7 +368,7 @@ public class UriComponent {
 
         tables[Type.HOST.ordinal()] = creatingEncodingTable(l);
 
-        tables[Type.PORT.ordinal()] = creatingEncodingTable(Arrays.asList("0-9"));
+        tables[Type.PORT.ordinal()] = creatingEncodingTable(Collections.singletonList("0-9"));
 
         l.add(":");
 
@@ -415,7 +416,7 @@ public class UriComponent {
 
         return table;
     }
-    private static final Charset UTF_8_CHARSET = Charset.forName("UTF-8");
+    private static final Charset UTF_8_CHARSET = StandardCharsets.UTF_8;
 
     /**
      * Decodes characters of a string that are percent-encoded octets using 
@@ -505,13 +506,13 @@ public class UriComponent {
      * @return the multivalued map of query parameters.
      */
     public static Map<String, String> decodeQuery(String q, boolean decode) {
-        Map<String, String> queryParameters = new HashMap<String, String>();
+        Map<String, String> queryParameters = new HashMap<>();
 
         if (q == null || q.length() == 0) {
             return queryParameters;
         }
 
-        int s = 0, e = 0;
+        int s = 0, e;
         do {
             e = q.indexOf('&', s);
 
@@ -605,13 +606,13 @@ public class UriComponent {
      * @return the list of path segments.
      */
     public static List<PathSegmentImpl> decodePath(String path, boolean decode) {
-        List<PathSegmentImpl> segments = new LinkedList<PathSegmentImpl>();
+        List<PathSegmentImpl> segments = new LinkedList<>();
 
         if (path == null) {
             return segments;
         }
 
-        int s = 0;
+        int s;
         int e = -1;
         do {
             s = e + 1;
@@ -654,7 +655,7 @@ public class UriComponent {
      * @return the multivalued map of matrix parameters.
      */
     public static Map<String, String> decodeMatrix(String pathSegment, boolean decode) {
-        Map<String, String> matrixMap = new HashMap<String, String>();
+        Map<String, String> matrixMap = new HashMap<>();
 
         // Skip over path segment
         int s = pathSegment.indexOf(';') + 1;
@@ -662,7 +663,7 @@ public class UriComponent {
             return matrixMap;
         }
 
-        int e = 0;
+        int e;
         do {
             e = pathSegment.indexOf(';', s);
 
@@ -781,7 +782,7 @@ public class UriComponent {
             }
 
             // Check if the byte buffer needs to be increased in size
-            if (((Buffer)bb).position() == bb.capacity()) {
+            if (bb.position() == bb.capacity()) {
                 ((Buffer)bb).flip();
                 // Create a new byte buffer with the maximum number of possible
                 // octets, hence resize should only occur once
@@ -802,15 +803,15 @@ public class UriComponent {
      */
     private static int decodeOctets(int i, ByteBuffer bb, StringBuilder sb) {
         // If there is only one octet and is an ASCII character
-        if (((Buffer)bb).limit() == 1 && (bb.get(0) & 0xFF) < 0x80) {
+        if (bb.limit() == 1 && (bb.get(0) & 0xFF) < 0x80) {
             // Octet can be appended directly
             sb.append((char) bb.get(0));
             return i + 2;
         } else {
             // 
             CharBuffer cb = UTF_8_CHARSET.decode(bb);
-            sb.append(cb.toString());
-            return i + ((Buffer)bb).limit() * 3 - 1;
+            sb.append(cb);
+            return i + bb.limit() * 3 - 1;
         }
     }
 

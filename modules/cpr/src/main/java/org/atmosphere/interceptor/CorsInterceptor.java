@@ -32,8 +32,6 @@ import org.atmosphere.util.Utils;
  */
 public class CorsInterceptor extends AtmosphereInterceptorAdapter {
 
-    private final String EXPOSE_HEADERS = "X-Atmosphere-tracking-id, " + HeaderConfig.X_HEARTBEAT_SERVER;
-
     private boolean enableAccessControl = true;
 
     @Override
@@ -54,6 +52,7 @@ public class CorsInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereRequest req = r.getRequest();
         AtmosphereResponse res = r.getResponse();
 
+        String EXPOSE_HEADERS = "X-Atmosphere-tracking-id, " + HeaderConfig.X_HEARTBEAT_SERVER;
         if (req.getHeader("Origin") != null && res.getHeader("Access-Control-Allow-Origin") == null) {
             res.addHeader("Access-Control-Allow-Origin", req.getHeader("Origin"));
             res.addHeader("Access-Control-Expose-Headers", EXPOSE_HEADERS);

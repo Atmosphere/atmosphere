@@ -112,7 +112,7 @@ public class MeteorServlet extends AtmosphereServlet {
             logger.info("Installed Servlet/Meteor {} mapped to {}", servletClass, mapping == null ? ROOT_MASTER : mapping);
         }
         if (filterClass != null) {
-            logger.info("Installed Filter/Meteor {} mapped to /*", filterClass, mapping);
+            logger.info("Installed Filter/Meteor {} mapped to /* {}", filterClass, mapping);
         }
 
         // The annotation was used.

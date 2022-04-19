@@ -43,7 +43,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
     private final static String OUT_ENCODING = "UTF-8";
     public final static String SKIP_INTERCEPTOR = TrackMessageSizeB64Interceptor.class.getName() + ".skip";
 
-    private final HashSet<String> excludedContentTypes = new HashSet<String>();
+    private final HashSet<String> excludedContentTypes = new HashSet<>();
 
     private final Interceptor interceptor = new Interceptor();
 
@@ -77,7 +77,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
 
         AsyncIOWriter writer = response.getAsyncIOWriter();
         if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-            AtmosphereInterceptorWriter.class.cast(writer).interceptor(interceptor);
+            ((AtmosphereInterceptorWriter) writer).interceptor(interceptor);
         } else {
             logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }
@@ -94,14 +94,12 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
         public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) throws IOException {
 
             if (response.request().getAttribute(SKIP_INTERCEPTOR) == null
-                    && Boolean.valueOf(response.request().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE))
+                    && Boolean.parseBoolean(response.request().getHeader(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE))
                     && (response.getContentType() == null
                     || !excludedContentTypes.contains(response.getContentType().toLowerCase()))) {
                 response.setCharacterEncoding(OUT_ENCODING);
                 String s = Base64.getEncoder().encodeToString(responseDraft);
-                StringBuilder sb = new StringBuilder();
-                sb.append(s.length()).append(DELIMITER).append(s);
-                return sb.toString().getBytes(OUT_ENCODING);
+                return (s.length() + DELIMITER + s).getBytes(OUT_ENCODING);
             } else {
                 return responseDraft;
             }

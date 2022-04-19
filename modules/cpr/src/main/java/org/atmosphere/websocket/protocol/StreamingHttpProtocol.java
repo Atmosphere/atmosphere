@@ -79,11 +79,7 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
         this.delimiter = delimiter;
 
         String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-        if (s != null && Boolean.valueOf(s)) {
-            destroyable = true;
-        } else {
-            destroyable = false;
-        }
+        destroyable = Boolean.parseBoolean(s);
     }
 
     @Override
@@ -98,7 +94,7 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
         AtmosphereRequest request = resource.getRequest();
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.STREAMING_HTTP_OVER_WEBSOCKET);
 
-        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
+        List<AtmosphereRequest> list = new ArrayList<>();
         list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).reader(r).build());
         return list;
     }
@@ -115,7 +111,7 @@ public class StreamingHttpProtocol implements WebSocketProtocolStream {
         AtmosphereRequest request = resource.getRequest();
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.STREAMING_HTTP_OVER_WEBSOCKET);
 
-        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
+        List<AtmosphereRequest> list = new ArrayList<>();
         list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).inputStream(stream).build());
 
         return list;

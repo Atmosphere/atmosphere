@@ -35,8 +35,6 @@ public interface AtmosphereObjectFactory<Z> extends AtmosphereConfigAware {
      *
      * @param classType The class' type to be created
      * @param defaultType a class to be created  @return  an instance of T
-     * @throws InstantiationException
-     * @throws IllegalAccessException
      */
     <T, U extends T> T newClassInstance(Class<T> classType, Class<U> defaultType) throws InstantiationException, IllegalAccessException;
 

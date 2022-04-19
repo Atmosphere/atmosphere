@@ -45,11 +45,11 @@ import static org.atmosphere.cpr.BroadcasterLifeCyclePolicy.ATMOSPHERE_RESOURCE_
  * @author Jason Burgess
  */
 public class DefaultBroadcasterFactory implements BroadcasterFactory {
-    protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<BroadcasterListener>();
+    protected final ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<>();
 
     private static final Logger logger = LoggerFactory.getLogger(DefaultBroadcasterFactory.class);
 
-    protected final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<Object, Broadcaster>();
+    protected final ConcurrentHashMap<Object, Broadcaster> store = new ConcurrentHashMap<>();
 
     protected Class<? extends Broadcaster> clazz;
 
@@ -93,7 +93,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
         s = config.getInitParameter(BROADCASTER_POLICY_TIMEOUT);
         if (s != null) {
-            defaultPolicyInteger = Integer.valueOf(s);
+            defaultPolicyInteger = Integer.parseInt(s);
         }
 
         if (EMPTY.name().equalsIgnoreCase(broadcasterLifeCyclePolicy)) {
@@ -152,7 +152,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
             b.setBroadcasterLifeCyclePolicy(policy);
             if (DefaultBroadcaster.class.isAssignableFrom(clazz)) {
-                DefaultBroadcaster.class.cast(b).start();
+                ((DefaultBroadcaster) b).start();
             }
 
             for (BroadcasterListener l : broadcasterListeners) {
@@ -276,7 +276,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         Enumeration<Broadcaster> e = store.elements();
         Broadcaster b;
         // We just need one when shared.
-        BroadcasterConfig bc = null;
+        BroadcasterConfig bc;
         while (e.hasMoreElements()) {
             try {
                 b = e.nextElement();

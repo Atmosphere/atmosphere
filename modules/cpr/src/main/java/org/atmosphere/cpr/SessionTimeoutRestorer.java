@@ -44,7 +44,7 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
         this.timeout = timeout;
         String s = config.getInitParameter(ApplicationConfig.SESSION_MAX_INACTIVE_INTERVAL);
         if (s != null) {
-            internalSessionTimeout = Integer.valueOf(s);
+            internalSessionTimeout = Integer.parseInt(s);
         } else {
             internalSessionTimeout = -1;
         }
@@ -87,13 +87,12 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
 
     @Override
     public String toString() {
-        StringBuilder sb = new StringBuilder();
-        sb.append("SessionTimeoutRestorer[timeout=");
-        sb.append(timeout);
-        sb.append(", requestCount=");
-        sb.append(requestCount.get());
-        sb.append(']');
-        return sb.toString();
+        String sb = "SessionTimeoutRestorer[timeout=" +
+                timeout +
+                ", requestCount=" +
+                requestCount.get() +
+                ']';
+        return sb;
     }
 
 }

@@ -68,7 +68,7 @@ final class ZipFileIterator {
      * @param entryNameFilter (optional) file name filter. Only entry names starting with
      * one of the specified names in the filter are returned
      */
-    ZipFileIterator(final ZipFile zipFile, final String[] entryNameFilter) throws IOException {
+    ZipFileIterator(final ZipFile zipFile, final String[] entryNameFilter) {
         this.zipFile = zipFile;
         this.entryNameFilter = entryNameFilter;
 

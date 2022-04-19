@@ -15,6 +15,9 @@
  */
 package org.atmosphere.cpr;
 
+import jakarta.servlet.ServletContainerInitializer;
+import jakarta.servlet.ServletContext;
+import jakarta.servlet.annotation.HandlesTypes;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AsyncSupportService;
@@ -40,10 +43,6 @@ import org.atmosphere.config.service.WebSocketHandlerService;
 import org.atmosphere.config.service.WebSocketProcessorService;
 import org.atmosphere.config.service.WebSocketProtocolService;
 
-import jakarta.servlet.ServletContainerInitializer;
-import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
-import jakarta.servlet.annotation.HandlesTypes;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.HashSet;

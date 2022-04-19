@@ -77,7 +77,10 @@ public final class AtmosphereFilterChain implements FilterChain {
     /**
      * Initialize the {@link Filter}
      *
+<<<<<<< HEAD
      * @throws jakarta.servlet.ServletException
+=======
+>>>>>>> 412463d0c... Update code to jdk 8
      */
     public void init() throws ServletException {
         for (FilterConfigImpl f : filters) {
@@ -113,15 +116,11 @@ public final class AtmosphereFilterChain implements FilterChain {
         AtomicInteger pos = ((AtomicInteger) request.getAttribute("pos"));
         if (pos.get() < n) {
             FilterConfigImpl filterConfig = filters[pos.getAndIncrement()];
-            Filter filter = null;
+            Filter filter;
             try {
                 filter = filterConfig.getFilter();
                 filter.doFilter(request, response, this);
-            } catch (IOException e) {
-                throw e;
-            } catch (ServletException e) {
-                throw e;
-            } catch (RuntimeException e) {
+            } catch (IOException | ServletException | RuntimeException e) {
                 throw e;
             } catch (Throwable e) {
                 throw new ServletException("Throwable", e);
@@ -141,11 +140,7 @@ public final class AtmosphereFilterChain implements FilterChain {
                 rd.forward(request, response);
             }
 
-        } catch (IOException e) {
-            throw e;
-        } catch (ServletException e) {
-            throw e;
-        } catch (RuntimeException e) {
+        } catch (IOException | ServletException | RuntimeException e) {
             throw e;
         } catch (Throwable e) {
             throw new ServletException("Throwable", e);
@@ -199,9 +194,9 @@ public final class AtmosphereFilterChain implements FilterChain {
 
     public void destroy() {
         if (n > 0 && filters != null) {
-            for (int i = 0; i < filters.length; i++) {
-                if (filters[i] != null) {
-                    filters[i].recycle();
+            for (FilterConfigImpl filter : filters) {
+                if (filter != null) {
+                    filter.recycle();
                 }
             }
             filters = null;

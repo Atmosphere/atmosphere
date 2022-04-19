@@ -31,7 +31,6 @@ public interface AnnotationProcessor extends AtmosphereConfigAware{
      * Scan the {@link File} looking for classes annotated with Atmosphere's Service annotation.
      *
      * @param rootDir a directory where annotation can possibly be defined
-     * @throws IOException
      * @return this
      */
      AnnotationProcessor scan(File rootDir) throws IOException;

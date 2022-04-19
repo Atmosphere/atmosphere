@@ -47,6 +47,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -64,7 +65,7 @@ import java.util.concurrent.TimeUnit;
  *
  * @author elakito
  */
-public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
+public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleRestInterceptor.class);
     /**
      * Servlet init property to enable the detached mode in the response
@@ -91,8 +92,8 @@ public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private final static String HEARTBEAT_TEMPLATE = "{\"heartbeat\": \"%s\", \"time\": %d}";
     private final static long DEFAULT_HEARTBEAT_INTERVAL = 60;
 
-    private Map<String, AtmosphereResponse> suspendedResponses = new HashMap<String, AtmosphereResponse>();
-    private ChunkConcatReaderPool readerPool = new ChunkConcatReaderPool();
+    private final Map<String, AtmosphereResponse> suspendedResponses = new HashMap<>();
+    private final ChunkConcatReaderPool readerPool = new ChunkConcatReaderPool();
 
     private Broadcaster heartbeat;
 
@@ -148,7 +149,7 @@ public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 }
 
                 @Override
-                public void close(AtmosphereResponse response) throws IOException {
+                public void close(AtmosphereResponse response) {
                 }
             });
             // REVISIT we need to keep this response's asyncwriter alive so that data can be written to the
@@ -274,7 +275,7 @@ public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
             AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
             b.method(method != null ? method : "GET").pathInfo(path != null ? path: "/");
-            Map<String, String> headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
+            Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
             // put the 'tracking-id#request-id' into the request's headers
             headers.put(X_REQUEST_KEY, String.format("%s#%s", uuid, id));
             if (accept != null) {
@@ -284,7 +285,7 @@ public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 b.contentType(type);
             }
             b.headers(headers);
-            final int qpos = path.indexOf('?');
+            final int qpos = path != null ? path.indexOf('?') : 0;
             if (qpos > 0) {
                 b.queryString(path.substring(qpos + 1));
                 path = path.substring(0, qpos);
@@ -296,7 +297,8 @@ public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
             } else {
                 b.reader(msgreader);
             }
-            final String requestURL = request.getRequestURL() + path.substring(request.getRequestURI().length());
+            final String requestURL = request.getRequestURL() +
+                    (path != null ? path.substring(request.getRequestURI().length()) : null);
             b.requestURI(path).requestURL(requestURL).request(request);
 
             return b.build();
@@ -314,24 +316,22 @@ public class    SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
             return payload;
         }
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        if (id != null) {
-            try {
-                // {"id":"<id>", "code": code, ...}<payload>
-                JSONObject jsonpart = new JSONObject();
-                jsonpart.put("id", id);
-                jsonpart.put("code", response.getStatus());
-                String ct = response.getContentType();
-                if (ct != null) {
-                    jsonpart.put("type", ct);
-                }
-                if (!isLastResponse(request, response)) {
-                    jsonpart.put("continue", true);
-                }
-                baos.write(jsonpart.toString().getBytes("utf-8"));
-                baos.write(payload);
-            } catch (IOException e) {
-                //ignore as it can't happen
+        try {
+            // {"id":"<id>", "code": code, ...}<payload>
+            JSONObject jsonpart = new JSONObject();
+            jsonpart.put("id", id);
+            jsonpart.put("code", response.getStatus());
+            String ct = response.getContentType();
+            if (ct != null) {
+                jsonpart.put("type", ct);
             }
+            if (!isLastResponse(request, response)) {
+                jsonpart.put("continue", true);
+            }
+            baos.write(jsonpart.toString().getBytes(StandardCharsets.UTF_8));
+            baos.write(payload);
+        } catch (IOException e) {
+            //ignore as it can't happen
         }
         return baos.toByteArray();
     }

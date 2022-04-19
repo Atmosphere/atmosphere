@@ -77,9 +77,9 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         this.delimiter = delimiter;
 
         String s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-        destroyable = s != null && Boolean.valueOf(s);
+        destroyable = Boolean.parseBoolean(s);
 
-        rewriteUri = Boolean.valueOf(config.getInitParameter(ApplicationConfig.REWRITE_WEBSOCKET_REQUESTURI, "true"));
+        rewriteUri = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.REWRITE_WEBSOCKET_REQUESTURI, "true"));
     }
 
     @Override
@@ -115,7 +115,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
             }
         }
 
-        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
+        List<AtmosphereRequest> list = new ArrayList<>();
         list.add(constructRequest(webSocket, pathInfo, requestURI, methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(message).build());
 
         return list;
@@ -136,7 +136,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
 
         if (!resource.isInScope()) return Collections.emptyList();
 
-        List<AtmosphereRequest> list = new ArrayList<AtmosphereRequest>();
+        List<AtmosphereRequest> list = new ArrayList<>();
         list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());
 
         return list;

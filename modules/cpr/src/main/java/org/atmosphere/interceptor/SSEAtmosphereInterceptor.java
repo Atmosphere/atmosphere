@@ -57,7 +57,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private String contentType = "text/event-stream";
 
     static {
-        StringBuffer whitespace = new StringBuffer();
+        StringBuilder whitespace = new StringBuilder();
         for (int i = 0; i < 2000; i++) {
             whitespace.append(" ");
         }
@@ -135,7 +135,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
             if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                AtmosphereInterceptorWriter.class.cast(writer).interceptor(new AsyncIOInterceptorAdapter() {
+                ((AtmosphereInterceptorWriter) writer).interceptor(new AsyncIOInterceptorAdapter() {
                     private boolean padding() {
                         if (!r.isSuspended()) {
                             return writePadding(response);
@@ -156,7 +156,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft,
-                                                   byte[] data) throws IOException {
+                                                   byte[] data) {
                         boolean noPadding = padding();
                         // The CALLBACK_JAVASCRIPT_PROTOCOL may be called by a framework running on top of Atmosphere
                         // In that case, we must pad/protocol indenendently of the state of the AtmosphereResource
@@ -178,7 +178,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
                             response.write(END, true);
                         }
 
-                        /**
+                        /*
                          * When used with https://github.com/remy/polyfills/blob/master/EventSource.js , we
                          * resume after every message.
                          */

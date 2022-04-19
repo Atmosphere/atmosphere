@@ -137,7 +137,7 @@ public class LifecycleHandler {
                     }
 
                     broadcaster.destroy();
-                    /**
+                    /*
                      * The value may be null if the timeout is too low. Hopefully next execution will
                      * cancel the task properly.
                      */

@@ -40,22 +40,13 @@ public class Version {
         System.out.println(Version.getDotedVersion());
     }
 
-    /** Reads version from properties and parses it. */
+    /* Reads version from properties and parses it. */
     static {
         Properties prop = new Properties();
-        InputStream s = null;
-        try {
-            s = Version.class.getResourceAsStream("version.properties");
+        try (InputStream s = Version.class.getResourceAsStream("version.properties")) {
             prop.load(s);
         } catch (IOException e) {
             e.printStackTrace();
-        } finally {
-            if (s != null) {
-                try {
-                    s.close();
-                } catch (IOException ex) {
-                }
-            }
         }
         version = prop.getProperty("atmosphere.version");
         Matcher matcher = versionPattern.matcher(version);

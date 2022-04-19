@@ -48,6 +48,7 @@ import java.io.Reader;
 import java.io.StringReader;
 import java.io.UnsupportedEncodingException;
 import java.net.InetSocketAddress;
+import java.nio.charset.StandardCharsets;
 import java.security.Principal;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -59,6 +60,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -105,7 +107,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         return voidReader;
     }
 
-    private ServletInputStream configureStream() {
+    private void configureStream() {
         if (bis == null && !streamSet.getAndSet(true)) {
             if (b.inputStream != null) {
                 bis = new IS(b.inputStream);
@@ -113,21 +115,16 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 if (b.body.dataBytes != null) {
                     bis = new ByteInputStream(b.body.dataBytes, b.body.offset, b.body.length);
                 } else if (b.body.data != null) {
-                    try {
-                        byte[] bytes = b.body.data.getBytes("UTF-8");
-                        bis = new ByteInputStream(bytes, 0, bytes.length);
-                    } catch (UnsupportedEncodingException e) {
-                        logger.trace("", e);
-                    }
+                    byte[] bytes = b.body.data.getBytes(StandardCharsets.UTF_8);
+                    bis = new ByteInputStream(bytes, 0, bytes.length);
                 }
             } else {
                 bis = new IS(new ReaderInputStream(b.reader));
             }
         }
-        return bis;
     }
 
-    private BufferedReader configureReader() {
+    private void configureReader() {
         if (br == null && !readerSet.getAndSet(false)) {
             if (b.reader != null) {
                 br = new BufferedReader(b.reader);
@@ -145,7 +142,6 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 br = new BufferedReader(new InputStreamReader(b.inputStream));
             }
         }
-        return br;
     }
 
     @Override
@@ -161,7 +157,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String getPathInfo() {
-        return b.pathInfo != "" ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
+        return !Objects.equals(b.pathInfo, "") ? b.pathInfo : isNotNoOps() ? b.request.getPathInfo() : "";
     }
 
     @Override
@@ -171,7 +167,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String getQueryString() {
-        return b.queryString != "" ? b.queryString : isNotNoOps() ? b.request.getQueryString() : toQs();
+        return !Objects.equals(b.queryString, "") ? b.queryString : isNotNoOps() ? b.request.getQueryString() : toQs();
     }
 
     private String toQs() {
@@ -222,7 +218,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String getServletPath() {
-        return b.servletPath != "" ? b.servletPath : (isNotNoOps() ? b.request.getServletPath() : "");
+        return !Objects.equals(b.servletPath, "") ? b.servletPath : (isNotNoOps() ? b.request.getServletPath() : "");
     }
 
     @Override
@@ -238,10 +234,12 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public Enumeration getHeaders(String name) {
 
-        ArrayList list = new ArrayList<>();
+        ArrayList<? super Object> list = new ArrayList<>();
         // Never override the parent Request
         if (!name.equalsIgnoreCase("content-type")) {
-            list = Collections.list(b.request.getHeaders(name));
+            Enumeration<String> e = b.request.getHeaders(name);
+            while (e.hasMoreElements())
+                list.add(e.nextElement());
         }
 
         if (name.equalsIgnoreCase("content-type")) {
@@ -279,7 +277,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         if (b.request != null) {
             Enumeration<String> e = b.request.getAttributeNames();
             while (e.hasMoreElements()) {
-                String name = e.nextElement().toString();
+                String name = e.nextElement();
                 if (name.startsWith(X_ATMOSPHERE)) {
                     list.add(name);
                 }
@@ -408,7 +406,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public Map<String, String[]> getParameterMap() {
         if (!queryComputed) {
             queryComputed = true;
-            Map<String, String[]> m = (isNotNoOps() ? b.request.getParameterMap() : Collections.<String, String[]>emptyMap());
+            Map<String, String[]> m = (isNotNoOps() ? b.request.getParameterMap() : Collections.emptyMap());
             for (String e : m.keySet()) {
                 b.queryStrings.put(e, getParameterValues(e));
             }
@@ -495,7 +493,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         if (!qs.isEmpty()) {
             QueryStringDecoder decoder = new QueryStringDecoder(getRequestURI() + "?" + qs);
             Map<String, List<String>> m = decoder.getParameters();
-            Map<String, String[]> newM = new HashMap<String, String[]>();
+            Map<String, String[]> newM = new HashMap<>();
             for (Map.Entry<String, List<String>> q : m.entrySet()) {
                 newM.put(q.getKey(), q.getValue().toArray(new String[0]));
             }
@@ -951,7 +949,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String uuid() {
-        if (uuid == "0") {
+        if (Objects.equals(uuid, "0")) {
             this.uuid = resource() != null ? resource().uuid() : "0";
         }
         return uuid;
@@ -1428,7 +1426,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      *
      * @return an instance of this class without an associated {@link HttpServletRequest}
      */
-    public final static AtmosphereRequest newInstance() {
+    public static AtmosphereRequest newInstance() {
         return new Builder().build();
     }
 
@@ -1438,7 +1436,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest wrap(HttpServletRequest request) {
+    public static AtmosphereRequest wrap(HttpServletRequest request) {
         // Do not rewrap.
         if (AtmosphereRequestImpl.class.isAssignableFrom(request.getClass())) {
             return (AtmosphereRequestImpl) request;
@@ -1462,7 +1460,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      * @param request {@link HttpServletRequest}
      * @return an {@link AtmosphereRequest}
      */
-    public final static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable, boolean createSession) {
+    public static AtmosphereRequest cloneRequest(HttpServletRequest request, boolean loadInMemory, boolean copySession, boolean isDestroyable, boolean createSession) {
         Builder b;
         HttpServletRequest r;
 
@@ -1526,7 +1524,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     public final static class NoOpsRequest implements HttpServletRequest {
 
-        private boolean throwExceptionOnCloned;
+        private final boolean throwExceptionOnCloned;
         public HttpSession fake;
         private final static Enumeration<String> EMPTY_ENUM_STRING = Collections.enumeration(Collections.emptyList());
         private final static Enumeration<Locale> EMPTY_ENUM_LOCALE = Collections.enumeration(Collections.emptyList());
@@ -1554,7 +1552,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
-        public boolean authenticate(HttpServletResponse response) throws IOException, ServletException {
+        public boolean authenticate(HttpServletResponse response) {
             return false;
         }
 

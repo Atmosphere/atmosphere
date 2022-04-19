@@ -35,15 +35,12 @@ public class CookieUtil {
     private static final String OLD_COOKIE_PATTERN =
             "EEE, dd-MMM-yyyy HH:mm:ss z";
     private static final ThreadLocal<DateFormat> OLD_COOKIE_FORMAT =
-            new ThreadLocal<DateFormat>() {
-                @Override
-                protected DateFormat initialValue() {
-                    DateFormat df =
-                            new SimpleDateFormat(OLD_COOKIE_PATTERN, Locale.US);
-                    df.setTimeZone(TimeZone.getTimeZone("GMT"));
-                    return df;
-                }
-            };
+            ThreadLocal.withInitial(() -> {
+                DateFormat df =
+                        new SimpleDateFormat(OLD_COOKIE_PATTERN, Locale.US);
+                df.setTimeZone(TimeZone.getTimeZone("GMT"));
+                return df;
+            });
     private static final String tspecials = ",; ";
     private static final String ancientDate;
 
@@ -74,7 +71,7 @@ public class CookieUtil {
             return s;
         }
 
-        StringBuffer b = new StringBuffer();
+        StringBuilder b = new StringBuilder();
         for (int i = 0; i < s.length(); i++) {
             char c = s.charAt(i);
             if (c == '"')
@@ -177,7 +174,7 @@ public class CookieUtil {
             buf.append("\"\"");
         } else if (alreadyQuoted(value)) {
             buf.append('"');
-            buf.append(escapeDoubleQuotes(value, 1, value.length() - 1));
+            buf.append(escapeDoubleQuotes(value, value.length() - 1));
             buf.append('"');
         } else {
             buf.append(value);
@@ -195,18 +192,17 @@ public class CookieUtil {
      * Escapes any double quotes in the given string.
      *
      * @param s          the input string
-     * @param beginIndex start index inclusive
      * @param endIndex   exclusive
      * @return The (possibly) escaped string
      */
-    private static String escapeDoubleQuotes(String s, int beginIndex, int endIndex) {
+    private static String escapeDoubleQuotes(String s, int endIndex) {
 
         if (s == null || s.length() == 0 || s.indexOf('"') == -1) {
             return s;
         }
 
-        StringBuffer b = new StringBuffer();
-        for (int i = beginIndex; i < endIndex; i++) {
+        StringBuilder b = new StringBuilder();
+        for (int i = 1; i < endIndex; i++) {
             char c = s.charAt(i);
             if (c == '\\') {
                 b.append(c);
@@ -226,7 +222,7 @@ public class CookieUtil {
     }
 
     ///// Server-Side Cookie Decoding code forked from io.netty/netty and modified /////
-    
+
     /*
      * Copyright 2018 The Netty Project
      *
@@ -371,8 +367,7 @@ public class CookieUtil {
                 return null;
             }
 
-            Cookie cookie = new Cookie(name, unwrappedValue.toString());
-            return cookie;
+            return new Cookie(name, unwrappedValue.toString());
         }
     }
     public static final class ServerCookieDecoder extends CookieDecoder {
@@ -391,11 +386,6 @@ public class CookieUtil {
          */
         public static final ServerCookieDecoder STRICT = new ServerCookieDecoder(true);
 
-        /**
-         * Lax instance that doesn't validate name and value
-         */
-        public static final ServerCookieDecoder LAX = new ServerCookieDecoder(false);
-
         private ServerCookieDecoder(boolean strict) {
             super(strict);
         }
@@ -407,7 +397,8 @@ public class CookieUtil {
          * @return the decoded {@link Cookie}
          */
         public Set<Cookie> decode(String header) {
-            Set<Cookie> cookies = new HashSet<Cookie>();
+            Set<Cookie> cookies;
+            cookies = new HashSet<>();
             decode(header, cookies);
             return cookies;
         }
@@ -507,5 +498,5 @@ public class CookieUtil {
                 }
             }
         }
-        
+
     }}

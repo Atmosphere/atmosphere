@@ -119,7 +119,7 @@ public class ExecutorsFactory {
             return;
         }
 
-        ThreadPoolExecutor e = ThreadPoolExecutor.class.cast(t);
+        ThreadPoolExecutor e = (ThreadPoolExecutor) t;
         int keepAlive = DEFAULT_KEEP_ALIVE;
         String s = config.getInitParameter(ApplicationConfig.EXECUTORFACTORY_KEEP_ALIVE);
         if (s != null) {
@@ -212,7 +212,7 @@ public class ExecutorsFactory {
         }
     }
 
-    public final static void reset(AtmosphereConfig config) {
+    public static void reset(AtmosphereConfig config) {
         ExecutorService e = (ExecutorService) config.properties().get(ASYNC_WRITE_THREAD_POOL);
         if (e != null) {
             e.shutdown();
