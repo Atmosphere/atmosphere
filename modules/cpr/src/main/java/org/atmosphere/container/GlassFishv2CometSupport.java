@@ -24,11 +24,9 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +59,6 @@ public class GlassFishv2CometSupport extends AsynchronousProcessor {
      * resume the response.
      *
      * @param sc the {@link ServletContext}
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void init(ServletConfig sc) throws ServletException {

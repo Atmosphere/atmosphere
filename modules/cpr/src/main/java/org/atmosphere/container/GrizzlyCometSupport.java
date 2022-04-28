@@ -24,7 +24,6 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.slf4j.Logger;
@@ -58,7 +57,6 @@ public class GrizzlyCometSupport extends AsynchronousProcessor {
      * Init Grizzly's {@link CometContext} that will be used to suspend and resume the response.
      *
      * @param sc the {@link ServletContext}
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void init(ServletConfig sc) throws ServletException {

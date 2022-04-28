@@ -169,8 +169,7 @@ abstract class AbstractJetty9AsyncSupportWithWebSocket extends Servlet30CometSup
             }
 
             action = suspended(req, res);
-            if (action.type() == Action.TYPE.SUSPEND) {
-            } else if (action.type() == Action.TYPE.RESUME) {
+            if (action.type() == Action.TYPE.RESUME) {
                 req.setAttribute(WebSocket.WEBSOCKET_RESUME, true);
             }
         }

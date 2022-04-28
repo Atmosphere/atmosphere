@@ -92,8 +92,7 @@ public class TomcatWebSocketUtil {
             }
 
             // Information required to send the server handshake message
-            String key =  null;
-            String subProtocol = null;
+            String key;
 
             boolean allowWebSocketWithoutHeaders = req.getHeader(HeaderConfig.X_ATMO_WEBSOCKET_PROXY) != null;
             if (!allowWebSocketWithoutHeaders)   {
@@ -140,7 +139,7 @@ public class TomcatWebSocketUtil {
             RequestFacade facade = (RequestFacade) hsr;
             boolean isDestroyable = false;
             s = config.getInitParameter(ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE);
-            if (s != null && Boolean.parseBoolean(s)) {
+            if (Boolean.parseBoolean(s)) {
                 isDestroyable = true;
             }
             StreamInbound inbound = new TomcatWebSocketHandler(

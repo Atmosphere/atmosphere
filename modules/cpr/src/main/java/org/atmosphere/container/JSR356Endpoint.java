@@ -37,11 +37,9 @@ import javax.websocket.EndpointConfig;
 import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 import javax.websocket.server.HandshakeRequest;
-
 import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.URI;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -102,10 +100,7 @@ public class JSR356Endpoint extends Endpoint {
     public JSR356Endpoint handshakeRequest(HandshakeRequest handshakeRequest) {
         this.handshakeSession = (HttpSession) handshakeRequest.getHttpSession();
         this.handshakeHeaders = new HashMap<>();
-        for (Map.Entry<String, List<String>> e : handshakeRequest.getHeaders()
-                .entrySet()) {
-            handshakeHeaders.put(e.getKey(), e.getValue());
-        }
+        handshakeHeaders.putAll(handshakeRequest.getHeaders());
         return this;
     }
 
@@ -261,19 +256,11 @@ public class JSR356Endpoint extends Endpoint {
 
             if (session.isOpen()) {
                 // https://bz.apache.org/bugzilla/show_bug.cgi?format=multiple&id=57788
-                session.addMessageHandler(new MessageHandler.Whole<String>() {
-                    @Override
-                    public void onMessage(String s) {
-                        webSocketProcessor.invokeWebSocketProtocol(webSocket, s);
-                    }
-                });
-                session.addMessageHandler(new MessageHandler.Whole<ByteBuffer>() {
-                    @Override
-                    public void onMessage(ByteBuffer bb) {
-                        byte[] b = bb.hasArray() ? bb.array() : new byte[((Buffer)bb).limit()];
-                        bb.get(b);
-                        webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
-                    }
+                session.addMessageHandler((MessageHandler.Whole<String>) s -> webSocketProcessor.invokeWebSocketProtocol(webSocket, s));
+                session.addMessageHandler((MessageHandler.Whole<ByteBuffer>) bb -> {
+                    byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+                    bb.get(b);
+                    webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                 });
             } else {
                 logger.trace("Session closed during onOpen {}", session);

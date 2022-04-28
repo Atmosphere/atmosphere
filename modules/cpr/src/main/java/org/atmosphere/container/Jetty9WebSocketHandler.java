@@ -105,7 +105,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
                 request = AtmosphereRequestImpl.cloneRequest(r, true, false, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
             } else {
                 // Bad Bad Bad
-                request = AtmosphereRequestImpl.cloneRequest(r, true, true, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
+                request = AtmosphereRequestImpl.cloneRequest(null, true, true, false, framework.getAtmosphereConfig().getInitParameter(PROPERTY_SESSION_CREATE, true));
             }
         }
 

@@ -41,10 +41,10 @@ public class JettyWebSocketUtil {
 
     private static final Logger logger = LoggerFactory.getLogger(JettyWebSocketUtil.class);
 
-    public final static Action doService(AsynchronousProcessor cometSupport,
-                                         AtmosphereRequest req,
-                                         AtmosphereResponse res,
-                                         WebSocketFactory webSocketFactory) throws IOException, ServletException {
+    public static Action doService(AsynchronousProcessor cometSupport,
+                                   AtmosphereRequest req,
+                                   AtmosphereResponse res,
+                                   WebSocketFactory webSocketFactory) throws IOException, ServletException {
 
         Boolean b = (Boolean) req.getAttribute(WebSocket.WEBSOCKET_INITIATED);
         if (b == null) b = Boolean.FALSE;

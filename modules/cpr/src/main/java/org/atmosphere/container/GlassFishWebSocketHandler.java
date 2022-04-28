@@ -154,7 +154,7 @@ public class GlassFishWebSocketHandler extends WebSocketApplication {
         }
 
         Boolean b = mapper.map(path, paths);
-        return b == null? false: b;
+        return b != null && b;
     }
 
     @Override

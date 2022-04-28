@@ -30,18 +30,16 @@ public class Invoker {
 
     private final static Logger logger = LoggerFactory.getLogger(Invoker.class);
 
-    public static Object decode(
-            List<Decoder<?, ?>> decoders,
-            Object instanceType) {
+    public static Object decode(List<Decoder<?, ?>> decoders, Object instanceType) {
 
         Object decodedObject = matchDecoder(instanceType, decoders);
         if (instanceType == null) {
-            logger.trace("No Encoder matching {}", instanceType);
+            logger.trace("No Encoder matching {}", decoders);
         }
         return decodedObject;
     }
 
-    public static Object invokeMethod(Method method, Object objectToInvoke, Object ... parameters) {
+    public static Object invokeMethod(Method method, Object objectToInvoke, Object... parameters) {
         Object objectToEncode = null;
         boolean hasMatch = false;
         try {

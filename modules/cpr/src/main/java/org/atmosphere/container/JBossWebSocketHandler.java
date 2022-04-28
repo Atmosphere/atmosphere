@@ -47,7 +47,6 @@ public class JBossWebSocketHandler extends WebSocketServlet {
 
     private static final Logger logger = LoggerFactory.getLogger(JBossWebSocketHandler.class);
 
-    private static final String JBOSS_WEB_SOCKET_PROCESSOR = "jboss.webSocketProcessor";
     private final AtmosphereConfig config;
     private final WebSocketProcessor webSocketProcessor;
     private org.atmosphere.websocket.WebSocket webSocket;

@@ -112,7 +112,6 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     public void cleanup() {
         messages.clear();
         activeClients.clear();
-        emptyList.clear();
         inspectors.clear();
 
         if (scheduledFuture != null) {
@@ -129,10 +128,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         }
 
         String messageId = uuidProvider.generateUuid();
-        boolean cache = true;
-        if (!inspect(message)) {
-            cache = false;
-        }
+        boolean cache = inspect(message);
 
         CacheMessage cacheMessage = new CacheMessage(messageId, message.message(), uuid);
         if (cache) {

@@ -21,7 +21,6 @@ import org.atmosphere.cpr.AsyncSupport;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.glassfish.grizzly.comet.CometContext;
@@ -61,7 +60,6 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
      * resume the response.
      *
      * @param sc the {@link javax.servlet.ServletContext}
-     * @throws javax.servlet.ServletException
      */
     @Override
     public void init(ServletConfig sc) throws ServletException {
@@ -92,10 +90,6 @@ public class Grizzly2CometSupport extends AsynchronousProcessor {
     /**
      * Suspend the response
      *
-     * @param ctx
-     * @param action
-     * @param req
-     * @param res
      */
     private void suspend(CometContext ctx, Action action, AtmosphereRequest req, AtmosphereResponse res) {
         VoidCometHandler c = new VoidCometHandler(req, res);

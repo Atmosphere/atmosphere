@@ -98,7 +98,7 @@ public class GlassFishServ30WebSocketSupport extends Servlet30CometSupport {
 
     private static final class Grizzly2WebSocketApplication extends WebSocketApplication {
 
-        private AtmosphereConfig config;
+        private final AtmosphereConfig config;
         private final WebSocketProcessor webSocketProcessor;
 
         // -------------------------------------------------------- Constructors
