@@ -38,7 +38,6 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
     private static final Logger logger = LoggerFactory.getLogger(JSR356AsyncSupport.class);
     private static final String PATH = "/{path";
-    private final ServerEndpointConfig.Configurator configurator;
 
     public JSR356AsyncSupport(AtmosphereConfig config) {
         this(config, config.getServletContext());
@@ -70,7 +69,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             }
         }
         logger.info("JSR 356 Mapping path {}", servletPath);
-        configurator = IS_RUNNING_ON_QUARKUS ? new QuarkusAtmosphereConfigurator(config.framework())
+        ServerEndpointConfig.Configurator configurator = IS_RUNNING_ON_QUARKUS ? new QuarkusAtmosphereConfigurator(config.framework())
                 : new AtmosphereConfigurator(config.framework());
 
         StringBuilder b = new StringBuilder(servletPath);
