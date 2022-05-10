@@ -73,7 +73,7 @@ import java.util.regex.PatternSyntaxException;
 public class UriTemplateParser {
     /* package */ static final int[] EMPTY_INT_ARRAY = new int[0];
     
-    private static Set<Character> RESERVED_REGEX_CHARACTERS = createReserved();
+    private static final Set<Character> RESERVED_REGEX_CHARACTERS = createReserved();
 
     private static Set<Character> createReserved() {
         /* TODO need to escape all regex characters present */
@@ -83,7 +83,7 @@ public class UriTemplateParser {
             '(', 
             ')'};
 
-        Set<Character> s = new HashSet<Character>(reserved.length);
+        Set<Character> s = new HashSet<>(reserved.length);
         for (char c : reserved) s.add(c);
         return s;
     }        
@@ -131,11 +131,11 @@ public class UriTemplateParser {
 
     private final String template;
     
-    private final StringBuffer regex = new StringBuffer();;
+    private final StringBuffer regex = new StringBuffer();
 
-    private final StringBuffer normalizedTemplate = new StringBuffer();;
+    private final StringBuffer normalizedTemplate = new StringBuffer();
 
-    private final StringBuffer literalCharactersBuffer = new StringBuffer();;
+    private final StringBuffer literalCharactersBuffer = new StringBuffer();
 
     private int numOfExplicitRegexes;
 
@@ -143,11 +143,11 @@ public class UriTemplateParser {
 
     private final Pattern pattern;
 
-    private final List<String> names = new ArrayList<String>();
+    private final List<String> names = new ArrayList<>();
 
-    private final List<Integer> groupCounts = new ArrayList<Integer>();
+    private final List<Integer> groupCounts = new ArrayList<>();
     
-    private final Map<String, Pattern> nameToPattern = new HashMap<String, Pattern>();
+    private final Map<String, Pattern> nameToPattern = new HashMap<>();
 
     /**
      * Parse a template.
@@ -334,7 +334,7 @@ public class UriTemplateParser {
     private void parseName(CharacterIterator ci) {
         char c = consumeWhiteSpace(ci);
 
-        StringBuffer nameBuffer = new StringBuffer();        
+        StringBuilder nameBuffer = new StringBuilder();
         if (Character.isLetterOrDigit(c) || c == '_') {
             // Template name character
             nameBuffer.append(c);
@@ -410,7 +410,7 @@ public class UriTemplateParser {
     }
 
     private String parseRegex(CharacterIterator ci) {
-        StringBuffer regexBuffer = new StringBuffer();
+        StringBuilder regexBuffer = new StringBuilder();
 
         int braceCount = 1;
         while (true) {

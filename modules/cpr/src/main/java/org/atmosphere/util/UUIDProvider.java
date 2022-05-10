@@ -17,6 +17,6 @@ package org.atmosphere.util;
 
 public interface UUIDProvider {
 
-    public String generateUuid();
+    String generateUuid();
 
 }

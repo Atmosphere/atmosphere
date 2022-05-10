@@ -42,7 +42,7 @@ public class AtmosphereRequestIntrospector extends InjectIntrospectorAdapter<Atm
         final AtmosphereRequest request = r.getRequest();
 
         return (AtmosphereRequest) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{AtmosphereRequest.class}, new ThreadLocalInvoker() {
+                new Class[]{AtmosphereRequest.class}, new ThreadLocalInvoker<AtmosphereRequest>() {
                     {
                         set(request);
                     }

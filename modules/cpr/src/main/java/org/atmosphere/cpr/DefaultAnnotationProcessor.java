@@ -47,7 +47,6 @@ import org.slf4j.LoggerFactory;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.annotation.HandlesTypes;
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;
@@ -144,8 +143,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             delegate = new BytecodeBasedAnnotationProcessor(handler);
             scanForAtmosphereAnnotation = true;
         } else {
-            Map<Class<? extends Annotation>, Set<Class<?>>> clone = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
-            clone.putAll(annotations);
+            Map<Class<? extends Annotation>, Set<Class<?>>> clone = new HashMap<>(annotations);
             delegate = new ServletContainerInitializerAnnotationProcessor(handler, clone, config.framework());
         }
         logger.info("AnnotationProcessor {} being used", delegate.getClass());
@@ -354,8 +352,8 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
     private static final class BytecodeBasedAnnotationProcessor implements AnnotationProcessor {
 
-        protected AnnotationDetector detector;
-        protected final AnnotationHandler handler;
+        private AnnotationDetector detector;
+        private final AnnotationHandler handler;
 
         public BytecodeBasedAnnotationProcessor(AnnotationHandler handler) {
             this.handler = handler;

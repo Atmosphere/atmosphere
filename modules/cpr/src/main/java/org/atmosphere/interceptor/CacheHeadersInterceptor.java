@@ -43,10 +43,10 @@ public class CacheHeadersInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         String nocache = config.getInitParameter(ApplicationConfig.NO_CACHE_HEADERS);
-        injectCacheHeaders = nocache != null ? false : true;
+        injectCacheHeaders = nocache == null;
 
         String wh = config.getInitParameter(FrameworkConfig.WRITE_HEADERS);
-        writeHeaders = wh != null ? Boolean.parseBoolean(wh) : true;
+        writeHeaders = wh == null || Boolean.parseBoolean(wh);
     }
 
     @Override

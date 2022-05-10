@@ -30,8 +30,8 @@ import java.util.Random;
  */
 
 public class GoogleAnalytics_v1_URLBuildingStrategy implements URLBuildingStrategy {
-    private FocusPoint appFocusPoint;
-    private String googleAnalyticsTrackingCode;
+    private final FocusPoint appFocusPoint;
+    private final String googleAnalyticsTrackingCode;
     private String refererURL = "http://async-io.org";
 
     private static final String TRACKING_URL_Prefix = "http://www.google-analytics.com/__utm.gif";
@@ -66,23 +66,21 @@ public class GoogleAnalytics_v1_URLBuildingStrategy implements URLBuildingStrate
         long now = new Date().getTime();
 
         focusPoint.setParentTrackPoint(appFocusPoint);
-        StringBuffer url = new StringBuffer(TRACKING_URL_Prefix);
-        url.append("?utmwv=1"); //Urchin/Analytics version
-        url.append("&utmn=" + random.nextInt());
-        url.append("&utmcs=UTF-8"); //document encoding
-        url.append("&utmsr=1440x900"); //screen resolution
-        url.append("&utmsc=32-bit"); //color depth
-        url.append("&utmul=en-us"); //user language
-        url.append("&utmje=1"); //java enabled
-        url.append("&utmfl=9.0%20%20r28"); //flash
-        url.append("&utmcr=1"); //carriage return
-        url.append("&utmdt=" + focusPoint.getContentTitle()); //The optimum keyword density //document title
-        url.append("&utmhn=" + hostName);//document hostname
-        url.append("&utmr=" + refererURL); //referer URL
-        url.append("&utmp=" + focusPoint.getContentURI());//document page URL
-        url.append("&utmac=" + googleAnalyticsTrackingCode);//Google Analytics account
-        url.append("&utmcc=__utma%3D'" + cookie + "." + randomValue + "." + now + "." + now + "." + now + ".2%3B%2B__utmb%3D" + cookie + "%3B%2B__utmc%3D" + cookie + "%3B%2B__utmz%3D" + cookie + "." + now + ".2.2.utmccn%3D(direct)%7Cutmcsr%3D(direct)%7Cutmcmd%3D(none)%3B%2B__utmv%3D" + cookie);
-        return url.toString();
+        return TRACKING_URL_Prefix + "?utmwv=1" + //Urchin/Analytics version
+                "&utmn=" + random.nextInt() +
+                "&utmcs=UTF-8" + //document encoding
+                "&utmsr=1440x900" + //screen resolution
+                "&utmsc=32-bit" + //color depth
+                "&utmul=en-us" + //user language
+                "&utmje=1" + //java enabled
+                "&utmfl=9.0%20%20r28" + //flash
+                "&utmcr=1" + //carriage return
+                "&utmdt=" + focusPoint.getContentTitle() + //The optimum keyword density //document title
+                "&utmhn=" + hostName +//document hostname
+                "&utmr=" + refererURL + //referer URL
+                "&utmp=" + focusPoint.getContentURI() +//document page URL
+                "&utmac=" + googleAnalyticsTrackingCode +//Google Analytics account
+                "&utmcc=__utma%3D'" + cookie + "." + randomValue + "." + now + "." + now + "." + now + ".2%3B%2B__utmb%3D" + cookie + "%3B%2B__utmc%3D" + cookie + "%3B%2B__utmz%3D" + cookie + "." + now + ".2.2.utmccn%3D(direct)%7Cutmcsr%3D(direct)%7Cutmcmd%3D(none)%3B%2B__utmv%3D" + cookie;
     }
 
     public void setRefererURL(String refererURL) {

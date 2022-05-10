@@ -33,7 +33,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 public class SessionCreationInterceptor extends AtmosphereInterceptorAdapter {
 
     // This can cause memory leak.
-    private ConcurrentLinkedQueue<String> ids = new ConcurrentLinkedQueue<String>();
+    private final ConcurrentLinkedQueue<String> ids = new ConcurrentLinkedQueue<>();
 
     @Override
     public Action inspect(AtmosphereResource r) {

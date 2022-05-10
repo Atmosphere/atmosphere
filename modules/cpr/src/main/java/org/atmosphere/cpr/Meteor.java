@@ -48,7 +48,7 @@ public class Meteor {
 
     private final AtmosphereResource r;
     private Object o;
-    private AtomicBoolean isDestroyed = new AtomicBoolean(false);
+    private final AtomicBoolean isDestroyed = new AtomicBoolean(false);
 
     private Meteor(AtmosphereResource r,
                    List<BroadcastFilter> l, Serializer s) {
@@ -70,7 +70,7 @@ public class Meteor {
      */
     public static Meteor lookup(HttpServletRequest r) {
         Object o = r.getAttribute(METEOR);
-        return o == null ? null : Meteor.class.isAssignableFrom(o.getClass()) ? Meteor.class.cast(o) : null;
+        return o == null ? null : Meteor.class.isAssignableFrom(o.getClass()) ? (Meteor) o : null;
     }
 
     /**
@@ -79,7 +79,7 @@ public class Meteor {
      * @param r an {@link HttpServletRequest}
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
-    public final static Meteor build(HttpServletRequest r) {
+    public static Meteor build(HttpServletRequest r) {
         return build(r, null);
     }
 
@@ -92,7 +92,7 @@ public class Meteor {
      * @param s a {@link Serializer} used when writing broadcast events
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
-    public final static Meteor build(HttpServletRequest r, Serializer s) {
+    public static Meteor build(HttpServletRequest r, Serializer s) {
         return build(r, null, s);
     }
 
@@ -106,7 +106,7 @@ public class Meteor {
      * @param s   a {@link Serializer} used when writing broadcast events
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
-    public final static Meteor build(HttpServletRequest req, List<BroadcastFilter> l, Serializer s) {
+    public static Meteor build(HttpServletRequest req, List<BroadcastFilter> l, Serializer s) {
         return build(req, Broadcaster.SCOPE.APPLICATION, l, s);
     }
 
@@ -121,14 +121,14 @@ public class Meteor {
      * @param s     a {@link Serializer} used when writing broadcast events
      * @return a {@link Meteor} than can be used to resume, suspend and broadcast {@link Object}
      */
-    public final static Meteor build(HttpServletRequest req, Broadcaster.SCOPE scope,
-                                     List<BroadcastFilter> l, Serializer s) {
+    public static Meteor build(HttpServletRequest req, Broadcaster.SCOPE scope,
+                               List<BroadcastFilter> l, Serializer s) {
         AtmosphereResource r =
                 (AtmosphereResource)
                         req.getAttribute(ATMOSPHERE_RESOURCE);
         if (r == null) throw new IllegalStateException("MeteorServlet not defined in web.xml");
 
-        Broadcaster b = null;
+        Broadcaster b;
         if (scope == Broadcaster.SCOPE.REQUEST) {
             try {
                 BroadcasterFactory f = r.getAtmosphereConfig().getBroadcasterFactory();

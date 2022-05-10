@@ -74,7 +74,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             wsDelimiter = s;
         }
 
-        enforceAtmosphereVersion = Boolean.valueOf(config.getInitParameter(ApplicationConfig.ENFORCE_ATMOSPHERE_VERSION, "true"));
+        enforceAtmosphereVersion = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.ENFORCE_ATMOSPHERE_VERSION, "true"));
         delayProtocolInMilliseconds = config.getInitParameter(DELAY_PROTOCOL_IN_MILLISECONDS, 0);
 
         framework = config.framework();
@@ -86,7 +86,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
 
         if (Utils.webSocketMessage(ar)) return Action.CONTINUE;
 
-        final AtmosphereResourceImpl r = AtmosphereResourceImpl.class.cast(ar);
+        final AtmosphereResourceImpl r = (AtmosphereResourceImpl) ar;
         final AtmosphereRequest request = r.getRequest(false);
         final AtmosphereResponse response = r.getResponse(false);
 
@@ -108,6 +108,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                     try {
                         response.flushBuffer();
                     } catch (IOException e) {
+                        logger.trace("response.flushBuffer()", e);
                     }
                     return Action.CANCELLED;
                 }
@@ -121,7 +122,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
 
             for (final AtmosphereInterceptor interceptor : framework.interceptors()) {
                 if (HeartbeatInterceptor.class.isAssignableFrom(interceptor.getClass())) {
-                    final HeartbeatInterceptor heartbeatInterceptor = HeartbeatInterceptor.class.cast(interceptor);
+                    final HeartbeatInterceptor heartbeatInterceptor = (HeartbeatInterceptor) interceptor;
                     heartbeatInterval = heartbeatInterceptor.clientHeartbeatFrequencyInSeconds() * 1000;
                     heartbeatData = new String(heartbeatInterceptor.getPaddingBytes());
                     break;
@@ -131,20 +132,20 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             String message;
             if (enforceAtmosphereVersion) {
                 // UUID since 1.0.10
-                message = new StringBuilder(r.uuid())
-                        .append(wsDelimiter)
+                message = r.uuid() +
+                        wsDelimiter +
                         // heartbeat since 2.2
-                        .append(heartbeatInterval)
-                        .append(wsDelimiter)
-                        .append(heartbeatData)
-                        .append(wsDelimiter).toString();
+                        heartbeatInterval +
+                        wsDelimiter +
+                        heartbeatData +
+                        wsDelimiter;
             } else {
                 // UUID since 1.0.10
                 message = r.uuid();
             }
 
             // https://github.com/Atmosphere/atmosphere/issues/993
-            final AtomicReference<String> protocolMessage = new AtomicReference<String>(message);
+            final AtomicReference<String> protocolMessage = new AtomicReference<>(message);
             if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
                 for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
                     if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
@@ -159,11 +160,8 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                     @Override
                     public void onSuspend(AtmosphereResourceEvent event) {
                         if (delayProtocolInMilliseconds > 0) {
-                            executorService.schedule(new Runnable() {
-                                @Override
-                                public void run() {
-                                    response.write(protocolMessage.get());
-                                }
+                            executorService.schedule(() -> {
+                                response.write(protocolMessage.get());
                             }, delayProtocolInMilliseconds, TimeUnit.MILLISECONDS);
                         } else {
                             response.write(protocolMessage.get());
@@ -198,7 +196,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
     private static int parseVersion(String version) {
         // Remove any qualifier if the version is 1.2.3.qualifier
         String[] parts = version.split("\\.");
-        return Integer.valueOf(parts[0] + parts[1] + parts[2]);
+        return Integer.parseInt(parts[0] + parts[1] + parts[2]);
     }
 
     public String wsDelimiter() {

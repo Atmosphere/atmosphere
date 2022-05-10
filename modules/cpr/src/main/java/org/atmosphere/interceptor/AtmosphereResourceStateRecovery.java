@@ -55,7 +55,7 @@ import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnSuspen
 public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereResourceStateRecovery.class);
-    private final ConcurrentHashMap<String, BroadcasterTracker> states = new ConcurrentHashMap<String, BroadcasterTracker>();
+    private final ConcurrentHashMap<String, BroadcasterTracker> states = new ConcurrentHashMap<>();
     private BroadcasterFactory factory;
     private ScheduledExecutorService stateTracker;
     private long timeout = 5 * 1000 * 60;
@@ -87,17 +87,14 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     }
 
     protected void startStateTracker() {
-        trackerFuture = stateTracker.scheduleAtFixedRate(new Runnable() {
-            @Override
-            public void run() {
-                long now = System.currentTimeMillis();
-                for (Map.Entry<String, BroadcasterTracker> t : states.entrySet()) {
-                    // The resource may still be suspended but we don't want to keep a reference to it, so we swap
-                    // the state and will recover.
-                    if (now - t.getValue().lastTick() > timeout) {
-                        logger.trace("AtmosphereResource {} state destroyed.", t.getKey());
-                        states.remove(t.getKey());
-                    }
+        trackerFuture = stateTracker.scheduleAtFixedRate(() -> {
+            long now = System.currentTimeMillis();
+            for (Map.Entry<String, BroadcasterTracker> t : states.entrySet()) {
+                // The resource may still be suspended but we don't want to keep a reference to it, so we swap
+                // the state and will recover.
+                if (now - t.getValue().lastTick() > timeout) {
+                    logger.trace("AtmosphereResource {} state destroyed.", t.getKey());
+                    states.remove(t.getKey());
                 }
             }
         }, timeout, timeout, TimeUnit.MILLISECONDS);
@@ -122,7 +119,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
                         logger.trace("onSuspend first");
                         final AtomicBoolean doNotSuspend = new AtomicBoolean(false);
-                        /**
+                        /*
                          * If a message gets broadcasted during the execution of the code below, we don't need to
                          * suspend the connection. This code is needed to prevent the connection being suspended
                          * with messages already written.
@@ -149,7 +146,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
                             }
                         }
 
-                        /**
+                        /*
                          * Check the cache to see if messages has been added directly by using
                          * {@link BroadcasterCache#addToCache(String, org.atmosphere.cpr.AtmosphereResource, org.atmosphere.cache.BroadcastMessage)}
                          * after {@link Broadcaster#addAtmosphereResource(org.atmosphere.cpr.AtmosphereResource)} has been
@@ -167,7 +164,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
 
                         // Force doNotSuspend.
                         if (doNotSuspend.get()) {
-                            AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.CONTINUE);
+                            ((AtmosphereResourceImpl) r).action().type(Action.TYPE.CONTINUE);
                         }
                         if (logger.isTraceEnabled()) {
                             logger.trace("doNotSuspend {}", doNotSuspend.get());
@@ -235,7 +232,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         private long tick;
 
         public BroadcasterTracker() {
-            this.broadcasterIds = new ConcurrentLinkedQueue<String>();
+            this.broadcasterIds = new ConcurrentLinkedQueue<>();
             tick = System.currentTimeMillis();
         }
 
@@ -277,7 +274,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
     }
 
     public List<Object> retrieveCache(AtmosphereResource r, BroadcasterTracker tracker, boolean force) {
-        List<Object> cachedMessages = new LinkedList<Object>();
+        List<Object> cachedMessages = new LinkedList<>();
         for (String broadcasterID : tracker.ids()) {
             Broadcaster b = factory.lookup(broadcasterID, false);
             BroadcasterCache cache;
@@ -303,7 +300,7 @@ public class AtmosphereResourceStateRecovery implements AtmosphereInterceptor {
         try {
             logger.trace("Writing cached messages {} for {}", cachedMessages, r.uuid());
             r.getAtmosphereHandler().onStateChange(
-                    new AtmosphereResourceEventImpl(AtmosphereResourceImpl.class.cast(r), false, false, null)
+                    new AtmosphereResourceEventImpl((AtmosphereResourceImpl) r, false, false, null)
                             .setMessage(cachedMessages));
         } catch (IOException e) {
             logger.warn("Unable to recover from state recovery {}", r.uuid(), e);

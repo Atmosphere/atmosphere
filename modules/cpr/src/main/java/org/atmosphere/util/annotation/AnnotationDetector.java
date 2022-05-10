@@ -49,6 +49,7 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -240,10 +241,10 @@ public final class AnnotationDetector {
     public AnnotationDetector(final Reporter reporter) {
 
         final Class<? extends Annotation>[] a = reporter.annotations();
-        annotations = new HashMap<String, Class<? extends Annotation>>(a.length);
+        annotations = new HashMap<>(a.length);
         // map "raw" type names to Class object
-        for (int i = 0; i < a.length; ++i) {
-            annotations.put("L" + a[i].getName().replace('.', '/') + ";", a[i]);
+        for (Class<? extends Annotation> aClass : a) {
+            annotations.put("L" + aClass.getName().replace('.', '/') + ";", aClass);
         }
         if (reporter instanceof TypeReporter) {
             typeReporter = (TypeReporter) reporter;
@@ -274,7 +275,7 @@ public final class AnnotationDetector {
      *
      * @see #detect(File...)
      */
-    public final void detect(final String... packageNames) throws IOException {
+    public void detect(final String... packageNames) throws IOException {
         final String[] pkgNameFilter = new String[packageNames.length];
         for (int i = 0; i < pkgNameFilter.length; ++i) {
             pkgNameFilter[i] = packageNames[i].replace('.', '/');
@@ -283,8 +284,8 @@ public final class AnnotationDetector {
             }
 
         }
-        final Set<File> files = new HashSet<File>();
-        final Set<InputStream> streams = new HashSet<InputStream>();
+        final Set<File> files = new HashSet<>();
+        final Set<InputStream> streams = new HashSet<>();
 
         for (final String packageName : pkgNameFilter) {
             final ClassLoader loader = Thread.currentThread().getContextClassLoader();
@@ -339,9 +340,9 @@ public final class AnnotationDetector {
         }
 
         if (!files.isEmpty()) {
-            detect(new ClassFileIterator(files.toArray(new File[files.size()]), pkgNameFilter));
+            detect(new ClassFileIterator(files.toArray(new File[0]), pkgNameFilter));
         } else if (!streams.isEmpty()) {
-            detect(new ClassFileIterator(streams.toArray(new InputStream[streams.size()]), pkgNameFilter));
+            detect(new ClassFileIterator(streams.toArray(new InputStream[0]), pkgNameFilter));
         }
     }
 
@@ -357,7 +358,6 @@ public final class AnnotationDetector {
             }
         }
     }
-
 
     /**
      * Report all Java ClassFile files available from the specified files

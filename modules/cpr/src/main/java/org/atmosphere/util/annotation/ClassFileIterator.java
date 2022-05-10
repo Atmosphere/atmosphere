@@ -80,8 +80,7 @@ final class ClassFileIterator {
      * defined package names are returned.
      * NOTE: package names must be defined in the native format (using '/' instead of '.').
      */
-    ClassFileIterator(final File[] filesOrDirectories, final String[] pkgNameFilter)
-            throws IOException {
+    ClassFileIterator(final File[] filesOrDirectories, final String[] pkgNameFilter) {
 
         this.fileIterator = new FileIterator(filesOrDirectories);
         this.pkgNameFilter = pkgNameFilter;
@@ -96,8 +95,7 @@ final class ClassFileIterator {
      * defined package names are returned.
      * NOTE: package names must be defined in the native format (using '/' instead of '.').
      */
-    ClassFileIterator(final InputStream[] filesOrDirectories, final String[] pkgNameFilter)
-            throws IOException {
+    ClassFileIterator(final InputStream[] filesOrDirectories, final String[] pkgNameFilter) {
 
         this.fileIterator = null;
         this.pkgNameFilter = pkgNameFilter;

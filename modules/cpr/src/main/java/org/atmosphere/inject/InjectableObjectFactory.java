@@ -87,7 +87,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             try {
                 logger.debug("Adding class {} as injectable", i.getClass());
                 if (InjectIntrospector.class.isAssignableFrom(i.getClass())) {
-                    InjectIntrospector<?> ii = InjectIntrospector.class.cast(i);
+                    InjectIntrospector<?> ii = (InjectIntrospector<?>) i;
 
                     introspectors.addFirst(ii);
                     if (i.getClass().isAnnotationPresent(RequestScoped.class)) {
@@ -137,7 +137,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         Object instance = null;
         final LinkedHashSet<Object> postponedMethodExecution = new LinkedHashSet<>(pushBackInjection);
         while (!pushBackInjection.isEmpty() & maxTryPerCycle-- > 0) {
-            Iterator<Object> t = new LinkedList(pushBackInjection).iterator();
+            Iterator<Object> t = new LinkedList<>(pushBackInjection).iterator();
             pushBackInjection.clear();
             while (t.hasNext()) {
                 instance = t.next();
@@ -246,7 +246,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                     if (c.supportedType(field.getType())) {
 
                         if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
-                            InjectIntrospector.class.cast(c).introspectField(instance.getClass(), field);
+                            ((InjectIntrospector) c).introspectField(instance.getClass(), field);
                         }
 
                         Class<U> clazz = (Class<U>) instance.getClass();
@@ -263,17 +263,17 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                             postFieldInjection(field, instance, clazz);
 
                             if (field.getType().equals(Boolean.TYPE)) {
-                                field.setBoolean(instance, Boolean.class.cast(o).booleanValue());
+                                field.setBoolean(instance, (Boolean) o);
                             } else if (field.getType().equals(Integer.TYPE)) {
-                                field.setInt(instance, Integer.class.cast(o).intValue());
+                                field.setInt(instance, (Integer) o);
                             } else if (field.getType().equals(Byte.TYPE)) {
-                                field.setByte(instance, Byte.class.cast(o).byteValue());
+                                field.setByte(instance, (Byte) o);
                             } else if (field.getType().equals(Double.TYPE)) {
-                                field.setDouble(instance, Double.class.cast(o).doubleValue());
+                                field.setDouble(instance, (Double) o);
                             } else if (field.getType().equals(Long.TYPE)) {
-                                field.setLong(instance, Long.class.cast(o).longValue());
+                                field.setLong(instance, (Long) o);
                             } else if (field.getType().equals(Float.TYPE)) {
-                                field.setFloat(instance, Float.class.cast(o).floatValue());
+                                field.setFloat(instance, (Float) o);
                             } else {
                                 field.set(instance, o);
                             }

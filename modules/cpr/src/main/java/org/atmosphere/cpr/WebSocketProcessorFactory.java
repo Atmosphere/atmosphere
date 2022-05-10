@@ -34,9 +34,9 @@ public class WebSocketProcessorFactory {
 
     private static WebSocketProcessorFactory factory;
 
-    private final Map<AtmosphereFramework, WebSocketProcessor> processors = new WeakHashMap<AtmosphereFramework, WebSocketProcessor>();
+    private final Map<AtmosphereFramework, WebSocketProcessor> processors = new WeakHashMap<>();
 
-    public final static synchronized WebSocketProcessorFactory getDefault() {
+    public static synchronized WebSocketProcessorFactory getDefault() {
         if (factory == null) {
             factory = new WebSocketProcessorFactory();
         }

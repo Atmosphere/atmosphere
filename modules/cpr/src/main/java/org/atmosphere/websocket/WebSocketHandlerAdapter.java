@@ -25,7 +25,7 @@ import java.io.IOException;
 public class WebSocketHandlerAdapter implements WebSocketHandler {
 
     @Override
-    public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException {
+    public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) {
     }
 
     @Override

@@ -20,7 +20,6 @@ import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
 
 import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletRegistration;
 import jakarta.servlet.ServletRequestEvent;
 import jakarta.servlet.ServletRequestListener;
@@ -88,7 +87,7 @@ public class ContainerInitializer implements jakarta.servlet.ServletContainerIni
 
                         @Override
                         public void requestInitialized(ServletRequestEvent sre) {
-                            HttpServletRequest r = HttpServletRequest.class.cast(sre.getServletRequest());
+                            HttpServletRequest r = (HttpServletRequest) sre.getServletRequest();
                             AtmosphereConfig config = framework.getAtmosphereConfig();
                             if (config.isSupportSession() && Utils.webSocketEnabled(r)) {
                                 r.getSession(config.getInitParameter(ApplicationConfig.PROPERTY_SESSION_CREATE, true));
@@ -102,7 +101,7 @@ public class ContainerInitializer implements jakarta.servlet.ServletContainerIni
                 try {
                     s = c.getInitParameter(PROPERTY_SESSION_SUPPORT);
                     if (s != null) {
-                        boolean sessionSupport = Boolean.valueOf(s);
+                        boolean sessionSupport = Boolean.parseBoolean(s);
                         if (sessionSupport && c.getMajorVersion() > 2) {
                             c.addListener(SessionSupport.class);
                             c.log("AtmosphereFramework : Installed " + SessionSupport.class);

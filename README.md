@@ -9,7 +9,7 @@ The Atmosphere Framework contains client and server side components for building
 The Atmosphere Framework Stack consists of: 
 
 <p align="center">
-  <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack alt="Atmosphere Stack"/>
+  <img src="http://atmosphere.github.io/atmosphere/images/stack.png"Atmosphere Framework Stack alt="Atmosphere Framework"/>
 </p>
 
 The Atmosphere Framework Stack works on all Servlet based servers, [Spring Boot](https://projects.spring.io/spring-boot/) and frameworks like [Netty](http://atmosphere.github.io/nettosphere/), [Play! Framework](http://atmosphere.github.io/atmosphere-play/) and [Vert.x](https://github.com/Atmosphere/atmosphere-vertx). We support a variety of [extensions](https://github.com/Atmosphere/atmosphere-extensions/tree/extensions-2.4.x) like [Apache Kafka](https://github.com/Atmosphere/atmosphere-extensions/tree/master/kafka/modules), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast/modules), [RabbitMQ](https://github.com/Atmosphere/atmosphere-extensions/tree/master/rabbitmq/modules), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis/modules) and many more.

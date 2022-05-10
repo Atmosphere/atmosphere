@@ -31,8 +31,8 @@ public class AtmosphereInterceptorWriter extends AsyncIOWriterAdapter {
 
     private final Logger logger = LoggerFactory.getLogger(AtmosphereInterceptorWriter.class);
 
-    protected final LinkedList<AsyncIOInterceptor> filters = new LinkedList<AsyncIOInterceptor>();
-    protected final LinkedList<AsyncIOInterceptor> reversedFilters = new LinkedList<AsyncIOInterceptor>();
+    protected final LinkedList<AsyncIOInterceptor> filters = new LinkedList<>();
+    protected final LinkedList<AsyncIOInterceptor> reversedFilters = new LinkedList<>();
 
     public AtmosphereInterceptorWriter() {
     }

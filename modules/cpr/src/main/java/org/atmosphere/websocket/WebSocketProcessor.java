@@ -103,14 +103,14 @@ public interface WebSocketProcessor {
      *
      * @param closeCode
      */
-    public void close(WebSocket webSocket, int closeCode);
+    void close(WebSocket webSocket, int closeCode);
 
     /**
      * Notify all {@link WebSocketEventListener}
      *
      * @param webSocketEvent
      */
-    void notifyListener(WebSocket webSocket, WebSocketEvent webSocketEvent);
+    void notifyListener(WebSocket webSocket, WebSocketEvent<?> webSocketEvent);
 
 
     /**
@@ -121,7 +121,7 @@ public interface WebSocketProcessor {
     /**
      * An exception that can be used to flag problems with the WebSocket processing.
      */
-    public final static class WebSocketException extends Exception {
+    final class WebSocketException extends Exception {
 
         private final AtmosphereResponse r;
 
@@ -140,7 +140,7 @@ public interface WebSocketProcessor {
         }
     }
 
-    public final static class WebSocketHandlerProxy implements WebSocketHandler {
+    final class WebSocketHandlerProxy implements WebSocketHandler {
 
         final Class<? extends Broadcaster> broadcasterClazz;
         final WebSocketHandler proxied;

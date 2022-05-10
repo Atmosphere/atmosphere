@@ -16,6 +16,7 @@
 package org.atmosphere.client;
 
 import org.atmosphere.cpr.Action;
+import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsyncIOInterceptorAdapter;
 import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -23,6 +24,7 @@ import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereInterceptorWriter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.IOUtils;
@@ -31,7 +33,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
-import java.nio.Buffer;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
 import java.nio.charset.Charset;
@@ -54,7 +55,6 @@ import static org.atmosphere.cpr.ApplicationConfig.MESSAGE_DELIMITER;
 public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     private static final Logger logger = LoggerFactory.getLogger(TrackMessageSizeInterceptor.class);
-    private final static byte[] END = "|".getBytes();
     private final static String IN_ENCODING = "UTF-8";
     private final static String OUT_ENCODING = "UTF-8";
     public final static String SKIP_INTERCEPTOR = TrackMessageSizeInterceptor.class.getName() + ".skip";
@@ -160,14 +160,14 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     int size = cb.length();
 
                     String csq = size + endString;
-                    Buffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
+                    ByteBuffer bb = ByteBuffer.allocate(csq.getBytes().length + responseDraft.length);
                     CharBuffer cb2 = CharBuffer.wrap(csq);
                     CharsetEncoder encoder = outCharset.newEncoder();
-                    encoder.encode(cb2, (ByteBuffer) bb, false);
-                    encoder.encode(cb, (ByteBuffer) bb, false);
+                    encoder.encode(cb2, bb, false);
+                    encoder.encode(cb, bb, false);
                     bb.flip();
                     byte[] b = new byte[bb.limit()];
-                    ((ByteBuffer)bb).get(b);
+                    bb.get(b);
                     return b;
                 } catch (MalformedInputException ex) {
                     // https://github.com/Atmosphere/atmosphere/issues/1803

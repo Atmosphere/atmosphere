@@ -41,7 +41,7 @@ import java.util.Set;
  */
 public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
 
-    private final Set<String> trackedUUID = Collections.synchronizedSet(new HashSet<String>());
+    private final Set<String> trackedUUID = Collections.synchronizedSet(new HashSet<>());
     private final Logger logger = LoggerFactory.getLogger(SuspendTrackerInterceptor.class);
 
     @Override
@@ -49,13 +49,13 @@ public class SuspendTrackerInterceptor extends AtmosphereInterceptorAdapter {
 
         if (Utils.webSocketMessage(r)) return Action.CONTINUE;
 
-        final AtmosphereRequest request = AtmosphereResourceImpl.class.cast(r).getRequest(false);
+        final AtmosphereRequest request = ((AtmosphereResourceImpl) r).getRequest(false);
         boolean connecting = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID) != null && request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID).equals("0");
 
         if (!connecting && !Utils.pollableTransport(r.transport())) {
             if (!trackedUUID.add(r.uuid())) {
                 logger.trace("Blocking {} from suspend", r.uuid());
-                AtmosphereResourceImpl.class.cast(r).disableSuspendEvent(true);
+                ((AtmosphereResourceImpl) r).disableSuspendEvent(true);
             }
 
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {

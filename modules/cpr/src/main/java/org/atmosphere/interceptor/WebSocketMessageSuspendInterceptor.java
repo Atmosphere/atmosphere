@@ -19,7 +19,6 @@ import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
-import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.util.Utils;
 
 /**
@@ -33,7 +32,7 @@ public class WebSocketMessageSuspendInterceptor extends AtmosphereInterceptorAda
     public Action inspect(AtmosphereResource r) {
 
         if (Utils.webSocketMessage(r)){
-            AtmosphereResourceImpl.class.cast(r).action().type(Action.TYPE.SUSPEND_MESSAGE);
+            ((AtmosphereResourceImpl) r).action().type(Action.TYPE.SUSPEND_MESSAGE);
         }
         return Action.CONTINUE;
     }

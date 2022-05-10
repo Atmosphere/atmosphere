@@ -30,7 +30,7 @@ public class BroadcasterLifecyclePolicyHandler extends BroadcasterListenerAdapte
     @Override
     public void onPostCreate(Broadcaster b) {
         if (DefaultBroadcaster.class.isAssignableFrom(b.getClass())) {
-            DefaultBroadcaster broadcaster = DefaultBroadcaster.class.cast(b);
+            DefaultBroadcaster broadcaster = (DefaultBroadcaster) b;
             broadcaster.lifecycleHandler(liferCycleHandler.on(broadcaster));
         }
     }
@@ -41,7 +41,7 @@ public class BroadcasterLifecyclePolicyHandler extends BroadcasterListenerAdapte
     @Override
     public void onPreDestroy(Broadcaster b) {
         if (DefaultBroadcaster.class.isAssignableFrom(b.getClass())) {
-            DefaultBroadcaster broadcaster = DefaultBroadcaster.class.cast(b);
+            DefaultBroadcaster broadcaster = (DefaultBroadcaster) b;
             if (broadcaster.lifecycleHandler() != null) {
                 broadcaster.lifecycleHandler().off(broadcaster);
             }
@@ -54,7 +54,7 @@ public class BroadcasterLifecyclePolicyHandler extends BroadcasterListenerAdapte
     @Override
     public void onRemoveAtmosphereResource(Broadcaster b, AtmosphereResource r) {
         if (DefaultBroadcaster.class.isAssignableFrom(b.getClass())) {
-            DefaultBroadcaster broadcaster = DefaultBroadcaster.class.cast(b);
+            DefaultBroadcaster broadcaster = (DefaultBroadcaster) b;
             if (broadcaster.lifecycleHandler() != null) {
                 broadcaster.lifecycleHandler().offIfEmpty(broadcaster);
             }
