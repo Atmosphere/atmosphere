@@ -25,7 +25,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.7.6</version> // MUST BE USED with atmosphere-javascript 3.1+
+         <version>2.7.7</version> // MUST BE USED with atmosphere-javascript 3.1+
       </dependency>
 ```
 Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
@@ -33,7 +33,7 @@ Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-runtime</artifactId>
-         <version>3.0.1</version> 
+         <version>3.0.2</version> 
       </dependency>
 ```
      
