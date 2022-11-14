@@ -118,7 +118,7 @@ public class Jetty9WebSocketHandler implements WebSocketListener {
 
     @Override
     public void onWebSocketError(Throwable e) {
-        logger.error("", e);
+        logger.debug("WebSocket client error", e);
         onWebSocketClose(1006, "Unexpected error");
     }
 
