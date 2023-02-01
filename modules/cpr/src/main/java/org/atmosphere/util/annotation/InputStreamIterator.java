@@ -53,8 +53,8 @@ public final class InputStreamIterator {
      * in the specified order (depth first)
      */
     public InputStreamIterator(final InputStream... filesOrDirectories) {
-        addReverse(filesOrDirectories);
         stack = new LinkedList<>();
+        addReverse(filesOrDirectories);
         rootCount = 0;
     }
 
