@@ -178,6 +178,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 request.setAttribute(CALLBACK_JAVASCRIPT_PROTOCOL, a);
                 r.addEventListener(a);
             } else {
+                response.setContentType("text/plain");
                 response.write(protocolMessage.get());
             }
 
