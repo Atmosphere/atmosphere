@@ -37,7 +37,7 @@ atmosphere-module can be: runtime (main module), jersey, spring, kafka, guice, r
 Best way is to use OpenAI ChatGPT for getting started with Atmosphere. For example, you can ask `How to build at Atmosphere framework websockets application. Use Typescript for the frontend`. Get also started using this step by step [tutorial](http://async-io.org/tutorial.html). 
 
 ### Official Documentation
-Comple repository of samples [sample](https://github.com/Atmosphere/atmosphere-samples/). 
+Complete repository of samples [sample](https://github.com/Atmosphere/atmosphere-samples/). 
 
 Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started as well as [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions). You can also browse the framework's [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API) for Client Components.
                                                                                          Z
