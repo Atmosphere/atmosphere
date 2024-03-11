@@ -47,12 +47,15 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
 
     private final Interceptor interceptor = new Interceptor();
 
+    private HeartbeatInterceptor heartbeatInterceptor;
+
     @Override
     public void configure(AtmosphereConfig config) {
         String s = config.getInitParameter(EXCLUDED_CONTENT_TYPES);
         if (s != null) {
             excludedContentTypes.addAll(Arrays.asList(s.split(",")));
         }
+        heartbeatInterceptor = config.framework().interceptor(HeartbeatInterceptor.class);
     }
 
     /**
@@ -99,11 +102,25 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
                     || !excludedContentTypes.contains(response.getContentType().toLowerCase()))) {
                 response.setCharacterEncoding(OUT_ENCODING);
                 String s = Base64.getEncoder().encodeToString(responseDraft);
+
+                if (isMessageAlreadyEncoded(new String(data))) {
+                    logger.trace("Message already encoded {}", s);
+                    return responseDraft;
+                }
+
                 return (s.length() + DELIMITER + s).getBytes(OUT_ENCODING);
             } else {
                 return responseDraft;
             }
-
         }
+    }
+
+    public boolean isMessageAlreadyEncoded(String message) {
+
+        if (heartbeatInterceptor != null &&
+                message.endsWith(DELIMITER + new String(heartbeatInterceptor.getPaddingBytes()))) {
+            return true;
+        }
+        return false;
     }
 }

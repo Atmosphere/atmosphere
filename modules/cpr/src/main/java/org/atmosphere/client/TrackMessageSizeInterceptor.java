@@ -26,6 +26,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.HeaderConfig;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.Utils;
@@ -43,7 +44,6 @@ import java.util.HashSet;
 
 import static org.atmosphere.cpr.ApplicationConfig.EXCLUDED_CONTENT_TYPES;
 import static org.atmosphere.cpr.ApplicationConfig.MESSAGE_DELIMITER;
-
 /**
  * An {@link org.atmosphere.cpr.AtmosphereInterceptor} that add a message size and delimiter.
  * <p/>
@@ -66,6 +66,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
 
     private final Interceptor interceptor = new Interceptor();
 
+    private HeartbeatInterceptor heartbeatInterceptor;
+
     @Override
     public void configure(AtmosphereConfig config) {
         String s = config.getInitParameter(MESSAGE_DELIMITER);
@@ -76,6 +78,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         if (s != null) {
             excludedContentTypes.addAll(Arrays.asList(s.split(",")));
         }
+        heartbeatInterceptor = config.framework().interceptor(HeartbeatInterceptor.class);
     }
 
     /**
@@ -150,6 +153,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                             // This is likely padding written by PaddingAtmosphereInterceptor
                             return responseDraft;
                         }
+                    } else if (isMessageAlreadyEncoded(cb.toString())) {
+                        return responseDraft;
                     }
 
                     AtmosphereResource r = response.resource();
@@ -178,6 +183,15 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                 return responseDraft;
             }
         }
+    }
+
+    private boolean isMessageAlreadyEncoded(String message) {
+
+        if (heartbeatInterceptor != null &&
+                message.endsWith(endString + new String(heartbeatInterceptor.getPaddingBytes()))) {
+            return true;
+        }
+        return false;
     }
 
     @Override
