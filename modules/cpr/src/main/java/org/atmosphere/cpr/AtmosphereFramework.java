@@ -2664,12 +2664,14 @@ public class AtmosphereFramework {
         return interceptors;
     }
 
-    /**
-     * Set the {@link AnnotationProcessor} class name.
-     *
-     * @param annotationProcessorClassName the {@link AnnotationProcessor} class name.
-     * @return this
-     */
+    public <T extends AtmosphereInterceptor> T interceptor(Class<T> c) {
+        for (AtmosphereInterceptor i : interceptors) {
+            if (c.isInstance(i)) {
+                return c.cast(i);
+            }
+        }
+        return null;
+    }
     public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
         this.annotationProcessorClassName = annotationProcessorClassName;
         return this;

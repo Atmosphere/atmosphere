@@ -33,7 +33,6 @@ import java.io.OutputStream;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.IntStream;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -113,6 +112,16 @@ public class TrackMessageSizeInterceptorTest {
     @Test
     public void testTrackMessageSizeB64Disabled() throws Exception {
         testTrackMessageSize(false, new TrackMessageSizeB64Interceptor(), "yoCometyoWebSocket");
+    }
+
+    @Test
+    public void testTrackMessageB64AlreadyEncoded() throws Exception {
+        testTrackMessageSize(true, new TrackMessageSizeB64Interceptor(), "1|X", "", "1|X");
+    }
+
+    @Test
+    public void testTrackMessageAlreadyEncoded() throws Exception {
+        testTrackMessageSize(true, new TrackMessageSizeInterceptor(), "1|X", "", "1|X");
     }
 
     private void testTrackMessageSize(boolean enabled, AtmosphereInterceptor icp, String expected) throws Exception {
