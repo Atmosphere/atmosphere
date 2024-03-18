@@ -24,13 +24,17 @@ import org.testng.annotations.Test;
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletContext;
 import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
@@ -334,5 +338,18 @@ public class AtmosphereRequestTest {
         // no content type
         assertNull(request.getContentType());
     }
+
+    @Test
+    public void testWrapMethodWithNullAttributeValue() throws IOException, ServletException {
+        HttpServletRequest mockRequest = mock(HttpServletRequest.class);
+        when(mockRequest.getAttributeNames()).thenReturn(Collections.enumeration(Arrays.asList("org.eclipse.jetty.multipartConfig")));
+        when(mockRequest.getAttribute("org.eclipse.jetty.multipartConfig")).thenReturn(null);
+
+        AtmosphereRequest wrappedRequest = AtmosphereRequestImpl.wrap(mockRequest);
+
+        assertNotNull(wrappedRequest, "Wrapped request should not be null");
+        assertNull(wrappedRequest.getAttribute("org.eclipse.jetty.multipartConfig"), "Attribute value should be null");
+    }
+
 
 }
