@@ -31,6 +31,9 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
@@ -40,6 +43,7 @@ import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
+import static org.testng.AssertJUnit.fail;
 
 public class AtmosphereRequestTest {
     private AtmosphereFramework framework;
@@ -349,6 +353,42 @@ public class AtmosphereRequestTest {
 
         assertNotNull(wrappedRequest, "Wrapped request should not be null");
         assertNull(wrappedRequest.getAttribute("org.eclipse.jetty.multipartConfig"), "Attribute value should be null");
+    }
+
+    public class AtmosphereRequestImplTest {
+
+        @Test
+        public void testGetParameterRaceCondition() throws InterruptedException {
+            final Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<>());
+            queryStrings.put("testParam", new String[]{"testValue"});
+
+            AtmosphereRequestImpl.Builder builder = new AtmosphereRequestImpl.Builder();
+            builder.queryStrings(queryStrings);
+
+            final AtmosphereRequest request = builder.build();
+
+            Runnable addAndRemove = () -> {
+                queryStrings.put("testParam", new String[]{"testValue"});
+                queryStrings.remove("testParam");
+            };
+
+            Runnable getParameter = () -> {
+                try {
+                    request.getParameter("testParam");
+                } catch (NullPointerException e) {
+                    fail("NullPointerException occurred");
+                }
+            };
+
+            ExecutorService executor = Executors.newFixedThreadPool(2);
+            for (int i = 0; i < 10000; i++) {
+                executor.execute(addAndRemove);
+                executor.execute(getParameter);
+            }
+
+            executor.shutdown();
+            executor.awaitTermination(1, TimeUnit.MINUTES);
+        }
     }
 
 
