@@ -8,8 +8,13 @@ Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atm
 
 Main development branch is [atmosphere-2.7.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-2.7.x). Jakarta support is supported on branch `main`
 
-![JDK8](https://github.com/Atmosphere/atmosphere/workflows/JDK8/badge.svg) ![JDK11](https://github.com/Atmosphere/atmosphere/workflows/JDK11/badge.svg) ![JDK13](https://github.com/Atmosphere/atmosphere/workflows/JDK13/badge.svg) ![JDK15](https://github.com/Atmosphere/atmosphere/workflows/JDK15/badge.svg) ![JDK17](https://github.com/Atmosphere/atmosphere/workflows/JDK17/badge.svg) ![JDK18](https://github.com/Atmosphere/atmosphere/workflows/JDK18/badge.svg)
+Atmosphere 2.7.x on JDK 8 up to 21
 
+[![Atmopshere 2.7.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=atmosphere-2.7.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
+
+Atmosphere 3.0.x on JDK 18 and 21
+
+[![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
