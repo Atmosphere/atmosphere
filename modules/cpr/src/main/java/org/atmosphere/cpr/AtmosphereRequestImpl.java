@@ -393,12 +393,14 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public String getParameter(String s) {
         String name = isNotNoOps() ? b.request.getParameter(s) : null;
         if (name == null) {
-            if (b.queryStrings.get(s) != null) {
-                return b.queryStrings.get(s)[0];
+            String[] values = b.queryStrings.get(s);
+            if (values != null) {
+                return values[0];
             }
         }
         return name;
     }
+
 
     @Override
     public Map<String, String[]> getParameterMap() {
