@@ -1447,7 +1447,12 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         String s;
         while (e.hasMoreElements()) {
             s = e.nextElement();
-            b.localAttributes.put(s, attributeWithoutException(request, s));
+            Object value = attributeWithoutException(request, s);
+            if (value != null) { // Check for null values
+                b.localAttributes.put(s, value);
+            } else {
+                logger.warn("Attribute {} is null", s);
+            }
         }
         return b.request(request).build();
     }
