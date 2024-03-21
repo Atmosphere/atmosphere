@@ -15,15 +15,31 @@
  */
 package org.atmosphere.container.version;
 
+import org.atmosphere.container.JSR356Endpoint;
+import org.atmosphere.cpr.ApplicationConfig;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereRequest;
+import org.atmosphere.websocket.WebSocketProcessor;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import javax.servlet.ServletContext;
+import javax.servlet.http.HttpSession;
+import javax.websocket.EndpointConfig;
 import javax.websocket.RemoteEndpoint;
 import javax.websocket.SendHandler;
 import javax.websocket.SendResult;
 import javax.websocket.Session;
+import javax.websocket.server.HandshakeRequest;
+import java.lang.reflect.Field;
+import java.net.URI;
+import java.util.Enumeration;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Vector;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -33,8 +49,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-
-import org.atmosphere.cpr.AtmosphereFramework;
+import static org.testng.Assert.assertEquals;
 
 public class JSR356WebSocketTest {
 
@@ -45,6 +60,9 @@ public class JSR356WebSocketTest {
     @BeforeMethod
     public void setUp() throws Exception {
         session = mock(Session.class);
+        when(session.isOpen()).thenReturn(true);
+        when(session.getRequestURI()).thenReturn(URI.create("/"));
+
         asyncRemoteEndpoint = mock(RemoteEndpoint.Async.class);
         when(session.getAsyncRemote()).thenReturn(asyncRemoteEndpoint);
         webSocket = new JSR356WebSocket(session, new AtmosphereFramework().getAtmosphereConfig()) {
@@ -116,5 +134,50 @@ public class JSR356WebSocketTest {
             }
         }).when(asyncRemoteEndpoint).sendText(anyString(), any(SendHandler.class));
     }
+    
+    @Test
+    public void testAttributePropagationFromHandshakeSessionToAtmosphereRequest() throws NoSuchFieldException, IllegalAccessException {
+        HandshakeRequest mockHandshakeRequest = mock(HandshakeRequest.class);
+        HttpSession mockHttpSession = mock(HttpSession.class);
 
+        Map<String, Object> sessionAttributes = new HashMap<>();
+        sessionAttributes.put("attribute1", "value1");
+        sessionAttributes.put("attribute2", "value2");
+
+        when(mockHandshakeRequest.getHttpSession()).thenReturn(mockHttpSession);
+        when(mockHttpSession.getAttributeNames()).thenReturn(new Vector<>(sessionAttributes.keySet()).elements());
+        when(mockHttpSession.getAttribute("attribute1")).thenReturn(sessionAttributes.get("attribute1"));
+        when(mockHttpSession.getAttribute("attribute2")).thenReturn(sessionAttributes.get("attribute2"));
+
+        EndpointConfig mockEndpointConfig = mock(EndpointConfig.class);
+        when(mockEndpointConfig.getUserProperties()).thenReturn(new HashMap<String, Object>() {{
+          put("handshakeRequest", mockHandshakeRequest);
+        }});
+
+        AtmosphereFramework mockFramework = mock(AtmosphereFramework.class);
+        AtmosphereConfig mockConfig = mock(AtmosphereConfig.class);
+
+        // Stub the getAtmosphereConfig and getInitParameter methods
+        when(mockFramework.getAtmosphereConfig()).thenReturn(mockConfig);
+        when(mockFramework.getServletContext()).thenReturn(mock(ServletContext.class));
+        when(mockConfig.getInitParameter(ApplicationConfig.JSR356_MAPPING_PATH)).thenReturn("/");
+        when(mockConfig.getServletContext()).thenReturn(mock(ServletContext.class));
+
+        WebSocketProcessor webSocketProcessor = mock(WebSocketProcessor.class);
+
+        JSR356Endpoint endpoint = new JSR356Endpoint(mockFramework, webSocketProcessor);
+        endpoint.handshakeRequest(mockHandshakeRequest);
+        endpoint.onOpen(session, mockEndpointConfig);
+
+        Field requestField = JSR356Endpoint.class.getDeclaredField("request");
+        requestField.setAccessible(true);
+        AtmosphereRequest request = (AtmosphereRequest) requestField.get(endpoint);
+
+        Enumeration<String> attributeNames = request.getAttributeNames();
+        while (attributeNames.hasMoreElements()) {
+            String attributeName = attributeNames.nextElement();
+            assertEquals(request.getAttribute(attributeName), sessionAttributes.get(attributeName),
+                    "Attribute value should match the value from the HttpSession");
+        }
+    }
 }
