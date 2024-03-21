@@ -42,12 +42,14 @@ import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 
@@ -223,6 +225,13 @@ public class JSR356Endpoint extends Endpoint {
                     cookies.addAll(CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader));
             }
 
+            Enumeration<String> attributeNames = handshakeSession.getAttributeNames();
+            Map<String, Object> attributes = new ConcurrentHashMap<>();
+            while (attributeNames.hasMoreElements()) {
+                String attributeName = attributeNames.nextElement();
+                attributes.put(attributeName, handshakeSession.getAttribute(attributeName));
+            }
+
             request = new AtmosphereRequestImpl.Builder()
                     .requestURI(uri.getPath())
                     .requestURL(requestURL)
@@ -236,6 +245,7 @@ public class JSR356Endpoint extends Endpoint {
                     .userPrincipal(session.getUserPrincipal())
                     .remoteInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS))
                     .localInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS))
+                    .attributes(attributes)
                     .build()
                     .queryString(session.getQueryString());
 
