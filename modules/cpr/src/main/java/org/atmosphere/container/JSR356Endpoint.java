@@ -38,7 +38,6 @@ import javax.websocket.MessageHandler;
 import javax.websocket.Session;
 import javax.websocket.server.HandshakeRequest;
 import java.io.IOException;
-import java.lang.reflect.Method;
 import java.net.InetSocketAddress;
 import java.net.URI;
 import java.nio.Buffer;
@@ -226,11 +225,13 @@ public class JSR356Endpoint extends Endpoint {
                     cookies.addAll(CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader));
             }
 
-            Enumeration<String> attributeNames = handshakeSession.getAttributeNames();
-            Map<String, Object> attributes = new ConcurrentHashMap<>();
-            while (attributeNames.hasMoreElements()) {
-                String attributeName = attributeNames.nextElement();
-                attributes.put(attributeName, handshakeSession.getAttribute(attributeName));
+            final Map<String, Object> attributes = new ConcurrentHashMap<>();
+            if (handshakeSession != null) {
+                Enumeration<String> attributeNames = handshakeSession.getAttributeNames();
+                while (attributeNames.hasMoreElements()) {
+                    String attributeName = attributeNames.nextElement();
+                    attributes.put(attributeName, handshakeSession.getAttribute(attributeName));
+                }
             }
 
             request = new AtmosphereRequestImpl.Builder()
