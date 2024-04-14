@@ -39,7 +39,28 @@ Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
 atmosphere-module can be: runtime (main module), jersey, spring, kafka, guice, redis, hazelcast, jms, rabbitmq, jgroups etc. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
 ### Getting started
-Best way is to use OpenAI ChatGPT for getting started with Atmosphere. For example, you can ask `How to build at Atmosphere framework websockets application. Use Typescript for the frontend`. Get also started using this step by step [tutorial](http://async-io.org/tutorial.html). 
+Here's how to get your first Atmosphere project off the ground.
+
+#### Prerequisites
+Ensure you have Java 8 (or later) installed on your system. For managing your Java Project and its dependencies, you'll need a build automation tool. We recommend [Maven](https://maven.apache.org/), which is widely used in the Java ecosystem.
+
+#### Project Setup
+Create a new project using Maven. Add Atmosphere as a dependency in your `pom.xml` to access all the necessary libraries.
+
+#### Server Configuration
+In your project, you'll define a server endpoint that listens to incoming connections. Atmosphere's annotations and resource handlers make this process straightforward.
+
+#### Running Your Server
+
+With the server set up, use your IDE or the Maven CLI to compile and run your application.
+
+#### Create a Client
+Your web client will need to establish a connection to your server. You can create a simple HTML page with JavaScript to connect and communicate with your server endpoint.
+
+#### Keep Going!
+Once you've got the basics down, explore the full range of Atmosphere's capabilities to create more sophisticated real-time applications.
+
+For detailed instructions, examples, and advanced configurations, refer to the [official Atmosphere tutorial](https://www.async-io.org/tutorial.html).
 
 ### Official Documentation
 Complete repository of samples [sample](https://github.com/Atmosphere/atmosphere-samples/). 
