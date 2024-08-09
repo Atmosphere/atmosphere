@@ -248,6 +248,7 @@ public class JSR356Endpoint extends Endpoint {
                     .remoteInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS))
                     .localInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS))
                     .attributes(attributes)
+                    .isSSecure(session.isSecure())
                     .build()
                     .queryString(session.getQueryString());
 

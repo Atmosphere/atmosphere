@@ -55,6 +55,7 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertTrue;
 
 public class JSR356WebSocketTest {
 
@@ -220,6 +221,57 @@ public class JSR356WebSocketTest {
         endpoint.onOpen(mockSession, mockConfig);
 
         verify(mockSession, never()).close(Mockito.any());
+    }
 
+    @Test
+    public void testSecureRequestPropertyPropagated() throws NoSuchFieldException, IllegalAccessException {
+        Session mockSession = Mockito.mock(Session.class);
+        HttpSession mockHttpSession = mock(HttpSession.class);
+        HandshakeRequest mockHandshakeRequest = Mockito.mock(HandshakeRequest.class);
+        ServerEndpointConfig mockConfig = Mockito.mock(ServerEndpointConfig.class);
+        WebSocketProcessor mockProcessor = Mockito.mock(WebSocketProcessor.class);
+        RemoteEndpoint.Async mockAsyncRemote = Mockito.mock(RemoteEndpoint.Async.class);
+
+        AtmosphereFramework mockFramework = mock(AtmosphereFramework.class);
+        AtmosphereConfig mockAtmosphereConfig = mock(AtmosphereConfig.class);
+
+        when(mockProcessor.handshake(Mockito.any(AtmosphereRequest.class))).thenReturn(true);
+        when(mockFramework.getAtmosphereConfig()).thenReturn(mockAtmosphereConfig);
+        when(mockFramework.getServletContext()).thenReturn(mock(ServletContext.class));
+        when(mockAtmosphereConfig.getInitParameter(JSR356_MAPPING_PATH)).thenReturn("/");
+        when(mockAtmosphereConfig.getServletContext()).thenReturn(mock(ServletContext.class));
+        when(mockFramework.getAtmosphereConfig()).thenReturn(mockAtmosphereConfig);
+        when(mockFramework.getServletContext()).thenReturn(mock(ServletContext.class));
+        when(mockAtmosphereConfig.getInitParameter(JSR356_MAPPING_PATH)).thenReturn("/");
+        when(mockAtmosphereConfig.getServletContext()).thenReturn(mock(ServletContext.class));
+
+        Map<String, Object> sessionAttributes = new HashMap<>();
+        sessionAttributes.put("attribute1", "value1");
+        sessionAttributes.put("attribute2", "value2");
+
+        when(mockHandshakeRequest.getHttpSession()).thenReturn(mockHttpSession);
+        when(mockHttpSession.getAttributeNames()).thenReturn(new Vector<>(sessionAttributes.keySet()).elements());
+        when(mockHttpSession.getAttribute("attribute1")).thenReturn(sessionAttributes.get("attribute1"));
+        when(mockHttpSession.getAttribute("attribute2")).thenReturn(sessionAttributes.get("attribute2"));
+
+        JSR356Endpoint endpoint = new JSR356Endpoint(mockFramework, mockProcessor);
+
+        when(mockSession.getAsyncRemote()).thenReturn(mockAsyncRemote);
+        when(mockSession.isOpen()).thenReturn(true);
+        when(mockSession.getRequestURI()).thenReturn(URI.create("/"));
+        when(mockSession.isSecure()).thenReturn(true);
+
+        when(mockHandshakeRequest.getHttpSession()).thenReturn(mockHttpSession);
+        when(mockHandshakeRequest.getHeaders()).thenReturn(Collections.emptyMap());
+
+        endpoint.handshakeRequest(mockHandshakeRequest);
+
+        endpoint.onOpen(mockSession, mockConfig);
+
+        Field requestField = JSR356Endpoint.class.getDeclaredField("request");
+        requestField.setAccessible(true);
+        AtmosphereRequest request = (AtmosphereRequest) requestField.get(endpoint);
+
+        assertTrue(request.isSecure());
     }
 }
