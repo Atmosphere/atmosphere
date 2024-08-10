@@ -12,7 +12,7 @@ Atmosphere 2.7.x on JDK 8 up to 21
 
 [![Atmopshere 2.7.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=atmosphere-2.7.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
-Atmosphere 3.0.x on JDK 18 and 21
+Atmosphere 3.0.x on JDK 17 and 21
 
 [![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
@@ -32,7 +32,7 @@ Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-runtime</artifactId>
-         <version>3.0.8</version> 
+         <version>3.0.9</version> 
       </dependency>
 ```
      
@@ -72,5 +72,3 @@ Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/w
 Atmosphere 2.7.x requires JDK 8 or 11. Atmosphere 3.0.x requires JDK 11.
 
 @Copyright 2008-2024 [Async-IO.org](http://async-io.org)
-
-
