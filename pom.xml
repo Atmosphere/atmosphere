@@ -11,13 +11,13 @@
     <artifactId>atmosphere-project</artifactId>
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
-    <version>3.0.10-SNAPSHOT</version>
+    <version>3.0.10</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
         <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
         <url>http://github.com/Atmosphere/atmosphere</url>
-     <tag>atmosphere-project-3.0.7</tag>
+     <tag>atmosphere-project-3.0.10</tag>
   </scm>
     <prerequisites>
         <maven>3.0</maven>
