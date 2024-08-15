@@ -66,7 +66,7 @@ public class JSR356Endpoint extends Endpoint {
     private AtmosphereRequest request;
     private final AtmosphereFramework framework;
     private WebSocket webSocket;
-    private final int webSocketWriteTimeout;
+    private final int webSocketIdleTimeoutMs;
     private HttpSession handshakeSession;
     private Map<String, List<String>> handshakeHeaders;
 
@@ -80,9 +80,9 @@ public class JSR356Endpoint extends Endpoint {
 
         String s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_IDLETIME);
         if (s != null) {
-            webSocketWriteTimeout = Integer.parseInt(s);
+            webSocketIdleTimeoutMs = Integer.parseInt(s);
         } else {
-            webSocketWriteTimeout = -1;
+            webSocketIdleTimeoutMs = -1;
         }
 
         s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.WEBSOCKET_MAXBINARYSIZE);
@@ -118,7 +118,7 @@ public class JSR356Endpoint extends Endpoint {
         }
 
         if (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
-        if (webSocketWriteTimeout != -1) session.setMaxIdleTimeout(webSocketWriteTimeout);
+        if (webSocketIdleTimeoutMs != -1) session.setMaxIdleTimeout(webSocketIdleTimeoutMs);
         if (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
 
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
