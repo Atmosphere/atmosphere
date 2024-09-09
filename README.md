@@ -6,7 +6,7 @@ The Atmosphere Framework works on all Servlet based servers, [Spring Boot](https
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
-Main development branch is [atmosphere-2.7.x](https://github.com/Atmosphere/atmosphere/tree/atmosphere-2.7.x). Jakarta support is supported on branch `main`
+Main development branch is [![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
 Atmosphere 2.7.x on JDK 8 up to 21
 
