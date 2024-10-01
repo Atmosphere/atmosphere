@@ -3439,7 +3439,7 @@ public class AtmosphereFramework {
     }
 
     /**
-     * If a {@link ContainerInitializer} fail, log the excetion here.
+     * If a {@link ContainerInitializer} fails, set the field initializationError for later logging purposes.
      *
      * @param initializationError
      */
