@@ -521,7 +521,7 @@
     <properties>
         <junit-version>4.13.2</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
-        <servlet-version-range>[2.5,4)</servlet-version-range>
+        <servlet-version-range>[5.0,]</servlet-version-range>
         <jetty-version>11.0.7</jetty-version>
         <tomcat-version>10.0.14</tomcat-version>
         <shade-version>1.2.1</shade-version>
