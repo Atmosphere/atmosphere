@@ -6,11 +6,11 @@ The Atmosphere Framework works on all Servlet based servers, [Spring Boot](https
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
-Atmosphere 2.7.x on JDK 8 up to 21
+Atmosphere 2.7.x on JDK 8 up to 23
 
 [![Atmopshere 2.7.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=atmosphere-2.7.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
-Atmosphere 3.0.x on JDK 17 and 21
+Atmosphere 3.0.x on JDK 17 and 23
 
 [![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
@@ -22,7 +22,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.7.14</version>
+         <version>2.7.15</version>
       </dependency>
 ```
 Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
@@ -30,7 +30,7 @@ Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-runtime</artifactId>
-         <version>3.0.10</version>
+         <version>3.0.11</version>
       </dependency>
 ```
      
