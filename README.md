@@ -6,13 +6,14 @@ The Atmosphere Framework works on all Servlet based servers, [Spring Boot](https
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
+Atmosphere 3.0.x on JDK 17 and 23
+
+[![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
+
 Atmosphere 2.7.x on JDK 8 up to 23
 
 [![Atmopshere 2.7.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=atmosphere-2.7.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
-Atmosphere 3.0.x on JDK 17 and 23
-
-[![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
 ### Commercial support
 Commercial Support is available via [Async-IO.org](http://async-io.org) 
@@ -21,21 +22,26 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
 ```xml
      <dependency>
          <groupId>org.atmosphere</groupId>
-         <artifactId>atmosphere-{atmosphere-module}</artifactId>
-         <version>2.7.15</version>
+         <artifactId>atmosphere-runtime</artifactId>
+         <version>3.0.12</version>
       </dependency>
 ```
-Support for Jakarta EE (`jakarta.*`) is available with Atmosphere 3.0.0
+or 
 ```xml
      <dependency>
          <groupId>org.atmosphere</groupId>
-         <artifactId>atmosphere-runtime</artifactId>
-         <version>3.0.11</version>
+         <artifactId>atmosphere-{atmosphere-module}</artifactId>
+         <version>2.7.15</version>
       </dependency>
 ```
      
 atmosphere-module can be: runtime (main module), jersey, spring, kafka, guice, redis, hazelcast, jms, rabbitmq, jgroups etc. Our official releases are available from Maven Central [download](http://search.maven.org/#search|ga|1|atmosphere).
 
+### Official Documentation
+Complete repository of samples [sample](https://github.com/Atmosphere/atmosphere-samples/). 
+
+Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started as well as [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions). You can also browse the framework's [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API) for Client Components.
+ 
 ### Getting started
 Here's how to get your first Atmosphere project off the ground.
 
@@ -59,12 +65,7 @@ Your web client will need to establish a connection to your server. You can crea
 Once you've got the basics down, explore the full range of Atmosphere's capabilities to create more sophisticated real-time applications.
 
 For detailed instructions, examples, and advanced configurations, refer to the [official Atmosphere tutorial](https://www.async-io.org/tutorial.html).
-
-### Official Documentation
-Complete repository of samples [sample](https://github.com/Atmosphere/atmosphere-samples/). 
-
-Our Wiki contains [several tutorials](https://github.com/Atmosphere/atmosphere/wiki) for getting started as well as [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions). You can also browse the framework's [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/) for Server Components, and [atmosphere.js](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API) for Client Components.
-                                                                                         Z
+                                                                                        Z
 #### Supported Atmosphere Versions
 
 Atmosphere 2.7.x requires JDK 8 or 11. Atmosphere 3.0.x requires JDK 11.
