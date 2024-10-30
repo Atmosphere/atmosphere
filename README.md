@@ -23,7 +23,7 @@ Commercial Support is available via [Async-IO.org](http://async-io.org)
      <dependency>
          <groupId>org.atmosphere</groupId>
          <artifactId>atmosphere-runtime</artifactId>
-         <version>3.0.12</version>
+         <version>3.0.13</version>
       </dependency>
 ```
 or 
