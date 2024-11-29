@@ -116,19 +116,20 @@ public class IOUtils {
             return false;
         }
 
-        if (isStringAndEmpty(o)) {
-            return true;
-        }
+        boolean isEmptyString = isStringAndEmpty(o);
+        boolean isEmptyByteArray = isByteArrayAndEmpty(o);
 
-        return isByteArrayAndEmpty(o);
+        return isEmptyString || isEmptyByteArray;
     }
 
     private static boolean isStringAndEmpty(Object o) {
-        return String.class.isAssignableFrom(o.getClass()) && ((String) o).isEmpty();
+        boolean isString = String.class.isAssignableFrom(o.getClass());
+        return isString && ((String) o).isEmpty();
     }
 
     private static boolean isByteArrayAndEmpty(Object o) {
-        return Byte[].class.isAssignableFrom(o.getClass()) && ((Byte[]) o).length == 0;
+        boolean isByteArray = Byte[].class.isAssignableFrom(o.getClass());
+        return isByteArray && ((Byte[]) o).length == 0;
     }
 
     public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {
