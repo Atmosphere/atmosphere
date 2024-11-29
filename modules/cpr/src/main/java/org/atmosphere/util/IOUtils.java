@@ -112,8 +112,22 @@ public class IOUtils {
     }
 
     public static boolean isBodyEmpty(Object o) {
-        if (o != null && (String.class.isAssignableFrom(o.getClass()) && ((String) o).isEmpty())) return true;
-        assert o != null;
+        if (o == null) {
+            return false;
+        }
+
+        if (isStringAndEmpty(o)) {
+            return true;
+        }
+
+        return isByteArrayAndEmpty(o);
+    }
+
+    private static boolean isStringAndEmpty(Object o) {
+        return String.class.isAssignableFrom(o.getClass()) && ((String) o).isEmpty();
+    }
+
+    private static boolean isByteArrayAndEmpty(Object o) {
         return Byte[].class.isAssignableFrom(o.getClass()) && ((Byte[]) o).length == 0;
     }
 
