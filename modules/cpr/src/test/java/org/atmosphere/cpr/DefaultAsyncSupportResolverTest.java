@@ -106,7 +106,7 @@ public class DefaultAsyncSupportResolverTest {
                 .resolveNativeCometSupport(anyList());
         doReturn(false)
                 .when(defaultAsyncSupportResolver)
-                .testClassExists(DefaultAsyncSupportResolver.SERVLET_30);
+                .testClassExists("jakarta.servlet.AsyncListener");
 
         Assert.assertEquals(
                 defaultAsyncSupportResolver.resolve(useNativeIfPossible, defaultToBlocking, useServlet30Async).getClass(),

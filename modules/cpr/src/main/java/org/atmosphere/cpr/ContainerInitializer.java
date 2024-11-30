@@ -71,7 +71,7 @@ public class ContainerInitializer implements jakarta.servlet.ServletContainerIni
                     force = false;
                 }
 
-                if (force || l.size() == size && resolver.testClassExists(DefaultAsyncSupportResolver.JSR356_WEBSOCKET)) {
+                if (force || l.size() == size && resolver.testClassExists("jakarta.websocket.Endpoint")) {
                     try {
                         framework.setAsyncSupport(new JSR356AsyncSupport(framework.getAtmosphereConfig(), c));
                     } catch (IllegalStateException ex) {
