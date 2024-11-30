@@ -41,7 +41,9 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
     @Override
     public void handle(AtmosphereFramework framework, Class<Servlet> annotatedClass) {
         try {
-            ReflectorServletProcessor r = framework.newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
+
+            Class<ReflectorServletProcessor> processorClass = ReflectorServletProcessor.class;
+            ReflectorServletProcessor r = framework.newClassInstance(processorClass, processorClass);
             r.setServletClassName(annotatedClass.getName());
             LinkedList<AtmosphereInterceptor> l = new LinkedList<>();
 
