@@ -70,4 +70,4 @@ For detailed instructions, examples, and advanced configurations, refer to the [
 
 Atmosphere 2.7.x requires JDK 8 or 11. Atmosphere 3.0.x requires JDK 11.
 
-@Copyright 2008-2024 [Async-IO.org](http://async-io.org)
+@Copyright 2008-2025 [Async-IO.org](http://async-io.org)
