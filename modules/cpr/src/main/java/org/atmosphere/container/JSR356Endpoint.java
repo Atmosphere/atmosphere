@@ -23,6 +23,7 @@ import jakarta.websocket.EndpointConfig;
 import jakarta.websocket.MessageHandler;
 import jakarta.websocket.Session;
 import jakarta.websocket.server.HandshakeRequest;
+import org.atmosphere.config.WebSocketSessionConfiguration;
 import org.atmosphere.container.version.JSR356WebSocket;
 import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
@@ -117,9 +118,11 @@ public class JSR356Endpoint extends Endpoint {
             return;
         }
 
-        if (maxBinaryBufferSize != -1) session.setMaxBinaryMessageBufferSize(maxBinaryBufferSize);
-        if (webSocketIdleTimeoutMs != -1) session.setMaxIdleTimeout(webSocketIdleTimeoutMs);
-        if (maxTextBufferSize != -1) session.setMaxTextMessageBufferSize(maxTextBufferSize);
+
+        WebSocketSessionConfiguration sessionConfigurator = new WebSocketSessionConfiguration(
+                session, maxBinaryBufferSize, webSocketIdleTimeoutMs, maxTextBufferSize
+        );
+        sessionConfigurator.configure();
 
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 

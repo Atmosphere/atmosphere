@@ -34,20 +34,68 @@ import java.util.List;
  */
 public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
-    private static final Logger logger = LoggerFactory.getLogger(DefaultAsyncSupportResolver.class);
+    private static Logger logger = LoggerFactory.getLogger(DefaultAsyncSupportResolver.class);
 
-    public final static String SERVLET_30 = "jakarta.servlet.AsyncListener";
-    public final static String NETTY = "org.jboss.netty.channel.Channel";
-    public final static String JSR356_WEBSOCKET = "jakarta.websocket.Endpoint";
+    private static String SERVLET_30 = "jakarta.servlet.AsyncListener";
+    private static String NETTY = "org.jboss.netty.channel.Channel";
+    private static String JSR356_WEBSOCKET = "jakarta.websocket.Endpoint";
 
-    private final AtmosphereConfig config;
-
-    private final boolean suppress356;
+    private AtmosphereConfig config;
+    private boolean suppress356;
 
     public DefaultAsyncSupportResolver(final AtmosphereConfig config) {
         this.config = config;
-        this.suppress356 =
-                Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
+        this.suppress356 = Boolean.parseBoolean(config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356));
+    }
+
+    // Getter and Setter Methods for the variables
+    public static String getServlet30() {
+        return SERVLET_30;
+    }
+
+    public static void setServlet30(String servlet30) {
+        SERVLET_30 = servlet30;
+    }
+
+    public static String getNetty() {
+        return NETTY;
+    }
+
+    public static void setNetty(String netty) {
+        NETTY = netty;
+    }
+
+    public static String getJsr356WebSocket() {
+        return JSR356_WEBSOCKET;
+    }
+
+    public static void setJsr356WebSocket(String jsr356WebSocket) {
+        JSR356_WEBSOCKET = jsr356WebSocket;
+    }
+
+    public AtmosphereConfig getConfig() {
+        return config;
+    }
+
+    public void setConfig(AtmosphereConfig config) {
+        this.config = config;
+    }
+
+    public boolean isSuppress356() {
+        return suppress356;
+    }
+
+    public void setSuppress356(boolean suppress356) {
+        this.suppress356 = suppress356;
+    }
+
+    // Getter and Setter for logger
+    public static Logger getLogger() {
+        return logger;
+    }
+
+    public static void setLogger(Logger logger) {
+        DefaultAsyncSupportResolver.logger = logger;
     }
 
     /**
@@ -59,7 +107,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     protected boolean testClassExists(final String testClass) {
         try {
             final boolean exists = testClass != null && testClass.length() > 0 && IOUtils.loadClass(null, testClass) != null;
-            logger.debug(exists ? "Found {}" : "Not found {}", testClass);
+            getLogger().debug(exists ? "Found {}" : "Not found {}", testClass);
             return exists;
         } catch (Exception ex) {
             return false;
@@ -74,23 +122,22 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public List<Class<? extends AsyncSupport>> detectContainersPresent() {
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
-                if (testClassExists(NETTY))
+                if (testClassExists(getNetty())) {
                     add(NettyCometSupport.class);
+                }
             }
         };
     }
 
     public List<Class<? extends AsyncSupport>> detectWebSocketPresent(final boolean useNativeIfPossible, final boolean useServlet30Async) {
-
         return new LinkedList<Class<? extends AsyncSupport>>() {
             {
                 if (useServlet30Async && !useNativeIfPossible) {
-
-                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
+                    if (!isSuppress356() && testClassExists(getJsr356WebSocket())) {
                         add(JSR356AsyncSupport.class);
                     }
                 } else {
-                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
+                    if (!isSuppress356() && testClassExists(getJsr356WebSocket())) {
                         add(JSR356AsyncSupport.class);
                     }
                 }
@@ -105,10 +152,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @return
      */
     public AsyncSupport defaultCometSupport(final boolean preferBlocking) {
-        if (!preferBlocking && testClassExists(SERVLET_30)) {
-            return new Servlet30CometSupport(config);
+        if (!preferBlocking && testClassExists(getServlet30())) {
+            return new Servlet30CometSupport(getConfig());
         } else {
-            return new BlockingIOCometSupport(config);
+            return new BlockingIOCometSupport(getConfig());
         }
     }
 
@@ -123,13 +170,13 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     public AsyncSupport newCometSupport(final Class<? extends AsyncSupport> targetClass) {
         try {
             return targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
-                    .newInstance(config);
+                    .newInstance(getConfig());
         } catch (final Exception e) {
-            logger.warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
+            getLogger().warn("Failed to create AsyncSupport class: {}, error: {}", targetClass, e);
 
             Throwable cause = e.getCause();
             if (cause != null) {
-                logger.error("Real error: {}", cause.getMessage(), cause);
+                getLogger().error("Real error: {}", cause.getMessage(), cause);
             }
             return null;
         }
@@ -139,12 +186,12 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
             return (AsyncSupport) cl.loadClass(targetClassFQN)
-                    .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
+                    .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(getConfig());
         } catch (final Exception e) {
-            logger.error("Failed to create AsyncSupport class: {}, error: {}", targetClassFQN, e);
+            getLogger().error("Failed to create AsyncSupport class: {}, error: {}", targetClassFQN, e);
             Throwable cause = e.getCause();
             if (cause != null) {
-                logger.error("Real error: {}", cause.getMessage(), cause);
+                getLogger().error("Real error: {}", cause.getMessage(), cause);
             }
             throw new IllegalArgumentException("Unable to create " + targetClassFQN, e);
         }
@@ -174,7 +221,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         AsyncSupport cs = null;
 
         // Validate the value for old Servlet Container.
-        useServlet30Async = testClassExists(SERVLET_30);
+        useServlet30Async = testClassExists(getServlet30());
 
         if (!defaultToBlocking) {
             List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
@@ -201,7 +248,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * This method is called to determine which native comet support to the used.
      *
      * @param available
-     * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available ontainers
+     * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available containers
      */
     protected AsyncSupport resolveNativeCometSupport(final java.util.List<Class<? extends AsyncSupport>> available) {
         if (available == null || available.isEmpty()) return null;
@@ -221,7 +268,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         }
 
         b.append(" until you do, Atmosphere will use:").append(available.get(0));
-        logger.warn("{}", b.toString());
+        getLogger().warn("{}", b.toString());
         return newCometSupport(available.get(0));
     }
 }
+
