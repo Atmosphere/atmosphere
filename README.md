@@ -6,6 +6,8 @@ The Atmosphere Framework works on all Servlet based servers, [Spring Boot](https
 
 Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atmosphere/wasync).
 
+Query the code using [DeepWiki](https://deepwiki.com/Atmosphere/atmosphere)
+
 Atmosphere 3.0.x on JDK 17 and 23
 
 [![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
