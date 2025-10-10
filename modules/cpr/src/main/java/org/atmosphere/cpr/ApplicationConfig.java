@@ -996,5 +996,11 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.WebSocketProtocol.allow1005disconnectEvent
      */
     String ALLOW_WEBSOCKET_STATUS_CODE_1005_AS_DISCONNECT = "org.atmosphere.websocket.WebSocketProtocol.allow1005disconnectEvent";
+    /**
+     * Disable DNS lookups when e.g. retrieving the local or remote address of a request.
+     * <p/>
+     * Default: false<br>
+     * Value: org.atmosphere.cpr.enableDnsLookups
+     */
+    String DISABLE_DNS_LOOKUPS = "org.atmosphere.cpr.disableDnsLookups";
 }
-

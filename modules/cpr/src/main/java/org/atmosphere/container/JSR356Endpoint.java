@@ -69,6 +69,7 @@ public class JSR356Endpoint extends Endpoint {
     private final int webSocketIdleTimeoutMs;
     private HttpSession handshakeSession;
     private Map<String, List<String>> handshakeHeaders;
+    private final boolean disableDnsLookups;
 
     public JSR356Endpoint(AtmosphereFramework framework, WebSocketProcessor webSocketProcessor) {
         this.framework = framework;
@@ -97,6 +98,13 @@ public class JSR356Endpoint extends Endpoint {
             maxTextBufferSize = Integer.valueOf(s);
         } else {
             maxTextBufferSize = -1;
+        }
+
+        s = framework.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_DNS_LOOKUPS);
+        if (s != null) {
+            disableDnsLookups = Boolean.parseBoolean(s);
+        } else {
+            disableDnsLookups = false;
         }
     }
 
@@ -245,8 +253,8 @@ public class JSR356Endpoint extends Endpoint {
                     .pathInfo(pathInfo)
                     .destroyable(false)
                     .userPrincipal(session.getUserPrincipal())
-                    .remoteInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS))
-                    .localInetSocketAddress((Callable<InetSocketAddress>) () -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS))
+                    .remoteInetSocketAddress(() -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_REMOTE_ADDRESS), disableDnsLookups)
+                    .localInetSocketAddress(() -> (InetSocketAddress) endpointConfig.getUserProperties().get(JAVAX_WEBSOCKET_ENDPOINT_LOCAL_ADDRESS), disableDnsLookups)
                     .attributes(attributes)
                     .isSSecure(session.isSecure())
                     .build()

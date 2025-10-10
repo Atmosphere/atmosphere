@@ -15,17 +15,10 @@
  */
 package org.atmosphere.cpr;
 
-import jakarta.servlet.ReadListener;
-import jakarta.servlet.http.HttpUpgradeHandler;
-import org.atmosphere.util.FakeHttpSession;
-import org.atmosphere.util.QueryStringDecoder;
-import org.atmosphere.util.ReaderInputStream;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.AsyncListener;
 import jakarta.servlet.DispatcherType;
+import jakarta.servlet.ReadListener;
 import jakarta.servlet.RequestDispatcher;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
@@ -37,7 +30,13 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletRequestWrapper;
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
+import jakarta.servlet.http.HttpUpgradeHandler;
 import jakarta.servlet.http.Part;
+import org.atmosphere.util.FakeHttpSession;
+import org.atmosphere.util.QueryStringDecoder;
+import org.atmosphere.util.ReaderInputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
@@ -1097,14 +1096,26 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         @Override
+        @Deprecated
         public Builder remoteInetSocketAddress(Callable remoteAddr) {
-            this.lazyRemote = new LazyComputation(remoteAddr);
+            return remoteInetSocketAddress(remoteAddr, false);
+        }
+
+        @Override
+        @Deprecated
+        public Builder localInetSocketAddress(Callable localAddr) {
+            return localInetSocketAddress(localAddr, false);
+        }
+
+        @Override
+        public Builder remoteInetSocketAddress(Callable<InetSocketAddress> remoteAddr, boolean disableDnsLookup) {
+            this.lazyRemote = new LazyComputation(remoteAddr, disableDnsLookup);
             return this;
         }
 
         @Override
-        public Builder localInetSocketAddress(Callable localAddr) {
-            this.lazyLocal = new LazyComputation(localAddr);
+        public Builder localInetSocketAddress(Callable<InetSocketAddress> localAddr, boolean disableDnsLookup) {
+            this.lazyLocal = new LazyComputation(localAddr, disableDnsLookup);
             return this;
         }
 
@@ -1922,9 +1933,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public static final class LazyComputation {
 
         private final Callable<InetSocketAddress> callable;
+        private final boolean disableDnsLookup;
         private InetSocketAddress address;
 
-        public LazyComputation(Callable<InetSocketAddress> callable) {
+        public LazyComputation(Callable<InetSocketAddress> callable, boolean disableDnsLookup) {
+            this.disableDnsLookup = disableDnsLookup;
             this.callable = callable;
         }
 
@@ -1936,7 +1949,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                     logger.warn("", e);
                 }
 
-                // Falback
+                // Fallback
                 if (address == null) {
                     address = new InetSocketAddress(8080);
                 }
@@ -1953,7 +1966,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         public String getHostName() {
-            return address().getHostName();
+            if (disableDnsLookup) {
+                return address().getHostString();
+            } else {
+                return address().getHostName();
+            }
         }
 
     }
