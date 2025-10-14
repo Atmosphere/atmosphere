@@ -5,7 +5,28 @@
     <artifactId>atmosphere-buildtools</artifactId>
     <version>3.0.14-SNAPSHOT</version>
     <name>atmosphere-buildtools</name>
+    <description>Build tools for Atmosphere Framework</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <licenses>
+        <license>
+            <name>CDDL</name>
+            <url>https://glassfish.dev.java.net/public/CDDLv1.0.html</url>
+        </license>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>jfarcand</id>
+            <name>Jeanfrancois Arcand</name>
+            <email>jfarcand@apache.org</email>
+        </developer>
+    </developers>
 
     <build>
         <plugins>
@@ -26,8 +47,28 @@
                     <skip>true</skip>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-gpg-plugin</artifactId>
+                <version>3.0.1</version>
+                <configuration>
+                    <gpgArguments>
+                        <arg>--pinentry-mode</arg>
+                        <arg>loopback</arg>
+                    </gpgArguments>
+                </configuration>
+                <executions>
+                    <execution>
+                        <id>sign-artifacts</id>
+                        <phase>verify</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
         </plugins>
-    </build>                                                               
+    </build>
 
   <scm>
     <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
