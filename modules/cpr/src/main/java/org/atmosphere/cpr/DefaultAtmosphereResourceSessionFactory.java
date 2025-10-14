@@ -15,6 +15,9 @@
  */
 package org.atmosphere.cpr;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -22,11 +25,17 @@ import java.util.concurrent.ConcurrentMap;
  * @author uklance (https://github.com/uklance)
  */
 public class DefaultAtmosphereResourceSessionFactory implements AtmosphereResourceSessionFactory {
+    private static final Logger logger = LoggerFactory.getLogger(DefaultAtmosphereResourceSessionFactory.class);
     private final ConcurrentMap<String, AtmosphereResourceSession> sessions = new ConcurrentHashMap<>();
 
     private final AtmosphereResourceEventListener disconnectListener = new AtmosphereResourceEventListenerAdapter() {
         public void onDisconnect(AtmosphereResourceEvent event) {
-            String uuid = event.getResource().uuid();
+            AtmosphereResource resource = event.getResource();
+            if (resource == null) {
+                logger.trace("Resource already destroyed, skipping session cleanup");
+                return;
+            }
+            String uuid = resource.uuid();
             AtmosphereResourceSession session = sessions.remove(uuid);
             if (session != null) {
                 session.invalidate();
