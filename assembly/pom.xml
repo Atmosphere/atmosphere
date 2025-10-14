@@ -12,6 +12,7 @@
     <version>2.7.16-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>atmosphere-assembly</name>
+    <description>Atmosphere Framework assembly</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <modules>

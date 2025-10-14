@@ -12,6 +12,7 @@
     <packaging>bundle</packaging>
     <version>2.7.16-SNAPSHOT</version>
     <name>atmosphere-jersey</name>
+    <description>Atmosphere Jersey integration module</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
         <defaultGoal>install</defaultGoal>

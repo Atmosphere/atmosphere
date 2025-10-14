@@ -13,6 +13,7 @@
     <version>2.7.16-SNAPSHOT</version>
 
     <name>atmosphere-runtime-native</name>
+    <description>Atmosphere native runtime with embedded dependencies</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <build>
         <defaultGoal>install</defaultGoal>
