@@ -10,6 +10,7 @@
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime-libs</artifactId>
     <name>atmosphere-runtime-libs</name>
+    <description>Atmosphere runtime libraries distribution</description>
     <version>3.0.14-SNAPSHOT</version>
     <packaging>pom</packaging>
 
