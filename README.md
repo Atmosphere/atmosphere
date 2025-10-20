@@ -8,7 +8,7 @@ Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atm
 
 Main development branch is [![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
-Atmosphere 2.7.x on JDK 8 up to 21
+Atmosphere 2.7.x on JDK 8 up to 25
 
 [![Atmopshere 2.7.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=atmosphere-2.7.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
