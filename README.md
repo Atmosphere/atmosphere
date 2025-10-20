@@ -8,7 +8,7 @@ Atmosphere's Java/Scala/Android Client is called [wAsync](https://github.com/Atm
 
 Query the code using [DeepWiki](https://deepwiki.com/Atmosphere/atmosphere)
 
-Atmosphere 3.0.x on JDK 18 up to 25
+Atmosphere 3.0.x on JDK 21, 22, and 25
 
 [![Atmopshere 3.0.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
