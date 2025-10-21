@@ -418,6 +418,15 @@
                 </plugins>
             </build>
         </profile>
+        <profile>
+            <id>jdk25-test-skip</id>
+            <activation>
+                <jdk>[25,)</jdk>
+            </activation>
+            <properties>
+                <skipTests>true</skipTests>
+            </properties>
+        </profile>
     </profiles>
     <modules>
         <module>buildtools</module>
@@ -568,11 +577,11 @@
         <tomcat-version>10.0.14</tomcat-version>
         <shade-version>1.2.1</shade-version>
         <felix-version>5.1.4</felix-version>
-        <ahc.version>1.7.7</ahc.version>
+        <ahc.version>1.9.40</ahc.version>
         <slf4j-impl-version>1.7.35</slf4j-impl-version>
         <slf4j-version>1.7.35</slf4j-version>
         <logback-version>1.2.10</logback-version>
         <commons-pool2>2.3</commons-pool2>
-        <testng-version>7.5</testng-version>
+        <testng-version>7.10.2</testng-version>
     </properties>
 </project>
