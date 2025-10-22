@@ -281,7 +281,7 @@ public class JSR356Endpoint extends Endpoint {
                 if (isWebsocket11Spec()) {
                     session.addMessageHandler(String.class, s -> webSocketProcessor.invokeWebSocketProtocol(webSocket, s));
                     session.addMessageHandler(ByteBuffer.class, bb -> {
-                        byte[] b = bb.hasArray() ? bb.array() : new byte[bb.limit()];
+						byte[] b = new byte[bb.limit()];
                         bb.get(b);
                         webSocketProcessor.invokeWebSocketProtocol(webSocket, b, 0, b.length);
                     });
