@@ -144,7 +144,7 @@
         <dependency>
             <groupId>org.json</groupId>
             <artifactId>json</artifactId>
-            <version>20211205</version>
+            <version>20250517</version>
             <optional>true</optional>
         </dependency>
     </dependencies>
