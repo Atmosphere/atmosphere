@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2025 Async-IO.org
+ * Copyright 2008-2026 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -46,13 +46,13 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
 /**
  * <p>
- * An Interceptor that send back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}.
+ * An Interceptor that sends back to a websocket and http client the value of {@link HeaderConfig#X_ATMOSPHERE_TRACKING_ID}.
  * </p>
  * <p/>
  * <p>
  * Moreover, if any {@link HeartbeatInterceptor} is installed, it provides the configured heartbeat interval in seconds
  * and the value to be sent for each heartbeat by the client. If not interceptor is installed, then "0" is sent to tell
- * he client to not send any heartbeat.
+ * the client to not send any heartbeat.
  * </p>
  *
  * @author Jeanfrancois Arcand
@@ -98,7 +98,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
                 String javascriptVersion = request.getHeader(HeaderConfig.X_ATMOSPHERE_FRAMEWORK);
                 int version = 0;
                 if (javascriptVersion != null) {
-                    version = parseVersion(javascriptVersion.split("-")[0]);
+                    version = tryParseVersion(javascriptVersion.split("-")[0]);
                 }
 
                 if (version < 221) {
@@ -194,10 +194,17 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
         return Action.CONTINUE;
     }
 
-    private static int parseVersion(String version) {
+    // Visible for testing
+    static int tryParseVersion(String version) {
         // Remove any qualifier if the version is 1.2.3.qualifier
         String[] parts = version.split("\\.");
-        return Integer.parseInt(parts[0] + parts[1] + parts[2]);
+        if (parts.length >= 3) {
+            try {
+                return Integer.parseInt(parts[0] + parts[1] + parts[2]);
+            } catch (NumberFormatException ignored) {
+            }
+        }
+        return 0;
     }
 
     public String wsDelimiter() {
