@@ -6,13 +6,13 @@
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
     <description>Atmosphere Framework</description>
-    <version>3.0.16-SNAPSHOT</version>
+    <version>3.0.15-SNAPSHOT</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
         <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
         <url>http://github.com/Atmosphere/atmosphere</url>
-     <tag>atmosphere-project-3.0.14</tag>
+     <tag>HEAD</tag>
   </scm>
     <prerequisites>
         <maven>3.0</maven>
@@ -292,6 +292,8 @@
                             <encoding>UTF-8</encoding>
                             <maxmemory>1g</maxmemory>
                             <doclint>none</doclint>
+                            <failOnError>false</failOnError>
+                            <failOnWarnings>false</failOnWarnings>
                             <links>
                                 <link>http://java.sun.com/javase/6/docs/api/</link>
                             </links>
