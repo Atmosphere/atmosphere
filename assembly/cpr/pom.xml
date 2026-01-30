@@ -3,7 +3,7 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>3.0.15-SNAPSHOT</version>
+        <version>3.0.15</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
@@ -11,14 +11,14 @@
     <artifactId>atmosphere-runtime-libs</artifactId>
     <name>atmosphere-runtime-libs</name>
     <description>Atmosphere runtime libraries distribution</description>
-    <version>3.0.15-SNAPSHOT</version>
+    <version>3.0.15</version>
     <packaging>pom</packaging>
 
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>3.0.15-SNAPSHOT</version>
+            <version>3.0.15</version>
         </dependency>
     </dependencies>
 
