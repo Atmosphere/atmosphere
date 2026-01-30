@@ -3,7 +3,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-buildtools</artifactId>
-    <version>3.0.16-SNAPSHOT</version>
+    <version>3.0.15-SNAPSHOT</version>
     <name>atmosphere-buildtools</name>
     <description>Build tools for Atmosphere Framework</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
@@ -38,7 +38,6 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                     <autoPublish>true</autoPublish>
-                    <skipPublishing>true</skipPublishing>
                 </configuration>
             </plugin>
             <plugin>
