@@ -1,0 +1,277 @@
+---
+---
+
+<section class="satellite" id="satellite">
+  <div class="satellite-container">
+    <div class="satellite-content">
+      <span class="section-label">Enterprise Scaling</span>
+      <h2 class="section-title">Atmosphere Satellite</h2>
+      <p class="section-description">
+        Scale your real-time applications with automatic clustering powered by Redis.
+        Satellite provides elastic scalability, high availability, and fault tolerance
+        for mission-critical deployments.
+      </p>
+
+      <ul class="satellite-features">
+        <li>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Elastic Scalability — add servers and they cluster automatically</span>
+        </li>
+        <li>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>In-memory performance with Redis backend</span>
+        </li>
+        <li>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>High Availability & Fault Tolerance</span>
+        </li>
+        <li>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>100% State Replication across nodes</span>
+        </li>
+        <li>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="20 6 9 17 4 12"></polyline>
+          </svg>
+          <span>Drop-in session clustering for any Atmosphere server</span>
+        </li>
+      </ul>
+
+      <a href="mailto:satellite@async-io.org?subject=Atmosphere%20Satellite%20Inquiry" class="btn btn-accent">
+        Contact Sales
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+    </div>
+
+    <div class="satellite-visual">
+      <div class="cluster-diagram">
+        <div class="node node-center">
+          <span>Redis</span>
+        </div>
+        <div class="node node-1">App 1</div>
+        <div class="node node-2">App 2</div>
+        <div class="node node-3">App 3</div>
+        <div class="node node-4">App N</div>
+        <div class="connection connection-1"></div>
+        <div class="connection connection-2"></div>
+        <div class="connection connection-3"></div>
+        <div class="connection connection-4"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .satellite {
+    padding: var(--space-4xl) var(--space-xl);
+    background: var(--color-bg-secondary);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .satellite::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 1px;
+    background: linear-gradient(90deg, transparent, var(--color-border-accent), transparent);
+  }
+
+  .satellite-container {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-4xl);
+    align-items: center;
+  }
+
+  .section-label {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-md);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-md);
+  }
+
+  .section-description {
+    font-size: 1.0625rem;
+    color: var(--color-text-secondary);
+    line-height: 1.7;
+    margin-bottom: var(--space-xl);
+  }
+
+  .satellite-features {
+    list-style: none;
+    margin-bottom: var(--space-xl);
+  }
+
+  .satellite-features li {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-sm);
+    margin-bottom: var(--space-md);
+    color: var(--color-text-secondary);
+    font-size: 0.9375rem;
+  }
+
+  .satellite-features svg {
+    color: var(--color-accent);
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  .btn-accent {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-xl);
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s var(--ease-out-quad);
+    text-decoration: none;
+  }
+
+  .btn-accent:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 30px var(--color-accent-glow);
+  }
+
+  .satellite-visual {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .cluster-diagram {
+    position: relative;
+    width: 300px;
+    height: 300px;
+  }
+
+  .node {
+    position: absolute;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-accent);
+    border-radius: 8px;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    padding: var(--space-sm) var(--space-md);
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .node:hover {
+    border-color: var(--color-accent);
+    color: var(--color-text-primary);
+  }
+
+  .node-center {
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 80px;
+    height: 80px;
+    border-radius: 50%;
+    background: var(--color-accent-glow);
+    border-color: var(--color-accent);
+    color: var(--color-accent);
+    font-weight: 500;
+  }
+
+  .node-1 { top: 10%; left: 50%; transform: translateX(-50%); }
+  .node-2 { top: 50%; right: 5%; transform: translateY(-50%); }
+  .node-3 { bottom: 10%; left: 50%; transform: translateX(-50%); }
+  .node-4 { top: 50%; left: 5%; transform: translateY(-50%); }
+
+  .connection {
+    position: absolute;
+    background: var(--color-border-accent);
+    opacity: 0.5;
+  }
+
+  .connection-1 {
+    top: 22%;
+    left: 50%;
+    width: 1px;
+    height: 28%;
+    transform: translateX(-50%);
+  }
+
+  .connection-2 {
+    top: 50%;
+    right: 18%;
+    width: 28%;
+    height: 1px;
+    transform: translateY(-50%);
+  }
+
+  .connection-3 {
+    bottom: 22%;
+    left: 50%;
+    width: 1px;
+    height: 28%;
+    transform: translateX(-50%);
+  }
+
+  .connection-4 {
+    top: 50%;
+    left: 18%;
+    width: 28%;
+    height: 1px;
+    transform: translateY(-50%);
+  }
+
+  @media (max-width: 900px) {
+    .satellite-container {
+      grid-template-columns: 1fr;
+      gap: var(--space-2xl);
+    }
+
+    .satellite-visual {
+      order: -1;
+    }
+
+    .cluster-diagram {
+      width: 250px;
+      height: 250px;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .satellite {
+      padding: var(--space-3xl) var(--space-md);
+    }
+  }
+</style>

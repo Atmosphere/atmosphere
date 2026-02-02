@@ -1,0 +1,329 @@
+---
+---
+
+<section class="code-example" id="code">
+  <div class="code-container">
+    <div class="section-header">
+      <span class="section-label">Quick Start</span>
+      <h2 class="section-title">Simple, powerful, familiar</h2>
+      <p class="section-description">
+        Write real-time applications with clean, annotation-based Java on the server
+        and intuitive JavaScript on the client.
+      </p>
+    </div>
+
+    <div class="code-panels">
+      <div class="code-panel">
+        <div class="code-header">
+          <div class="code-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span class="code-filename">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+            ChatService.java
+          </span>
+          <span class="code-lang">Server</span>
+        </div>
+        <pre class="code-block"><code class="language-java"><span class="hl-import">import org.atmosphere.config.service.ManagedService;</span>
+<span class="hl-import">import org.atmosphere.cpr.AtmosphereResponse;</span>
+<span class="hl-import">import org.atmosphere.handler.OnMessage;</span>
+
+<span class="hl-annotation">@ManagedService</span>(path = <span class="hl-string">"/chat"</span>)
+<span class="hl-keyword">public class</span> ChatService &#123;
+
+    <span class="hl-annotation">@Ready</span>
+    <span class="hl-keyword">public void</span> onReady(<span class="hl-type">AtmosphereResource</span> r) &#123;
+        r.getBroadcaster().broadcast(<span class="hl-string">"Welcome!"</span>);
+    &#125;
+
+    <span class="hl-annotation">@Message</span>
+    <span class="hl-keyword">public void</span> onMessage(<span class="hl-type">AtmosphereResponse</span> res, <span class="hl-type">String</span> message) &#123;
+        res.write(<span class="hl-string">"Echo: "</span> + message);
+    &#125;
+&#125;</code></pre>
+      </div>
+
+      <div class="code-panel">
+        <div class="code-header">
+          <div class="code-dots">
+            <span></span>
+            <span></span>
+            <span></span>
+          </div>
+          <span class="code-filename">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
+            </svg>
+            client.js
+          </span>
+          <span class="code-lang">Client</span>
+        </div>
+        <pre class="code-block"><code class="language-javascript"><span class="hl-keyword">import</span> &#123; atmosphere &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js'</span>;
+
+<span class="hl-keyword">const</span> request = &#123;
+  <span class="hl-property">url</span>: <span class="hl-string">'/chat'</span>,
+  <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
+  <span class="hl-property">fallbackTransport</span>: <span class="hl-string">'long-polling'</span>,
+
+  <span class="hl-property">onOpen</span>: (response) =&gt; &#123;
+    <span class="hl-type">console</span>.log(<span class="hl-string">'Connected via'</span>, response.transport);
+  &#125;,
+
+  <span class="hl-property">onMessage</span>: (response) =&gt; &#123;
+    <span class="hl-type">console</span>.log(<span class="hl-string">'Received:'</span>, response.responseBody);
+  &#125;
+&#125;;
+
+<span class="hl-keyword">const</span> socket = atmosphere.subscribe(request);
+socket.push(<span class="hl-string">'Hello, Atmosphere!'</span>);</code></pre>
+      </div>
+    </div>
+
+    <div class="code-cta">
+      <a href="https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Atmosphere" class="btn btn-outline" target="_blank" rel="noopener noreferrer">
+        Read the Tutorial
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a href="https://github.com/Atmosphere/atmosphere/wiki" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">
+        Full Documentation
+      </a>
+    </div>
+  </div>
+</section>
+
+<style>
+  .code-example {
+    padding: var(--space-4xl) var(--space-xl);
+    position: relative;
+  }
+
+  .code-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .section-header {
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto var(--space-3xl);
+  }
+
+  .section-label {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--color-accent);
+    margin-bottom: var(--space-md);
+  }
+
+  .section-title {
+    font-family: var(--font-display);
+    font-size: clamp(2rem, 5vw, 2.75rem);
+    font-weight: 400;
+    line-height: 1.2;
+    letter-spacing: -0.02em;
+    margin-bottom: var(--space-md);
+  }
+
+  .section-description {
+    font-size: 1.0625rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+  }
+
+  .code-panels {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: var(--space-lg);
+    margin-bottom: var(--space-2xl);
+  }
+
+  .code-panel {
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 12px;
+    overflow: hidden;
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .code-panel:hover {
+    border-color: var(--color-border-accent);
+    box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+  }
+
+  .code-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    padding: var(--space-md) var(--space-lg);
+    background: var(--color-bg-tertiary);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .code-dots {
+    display: flex;
+    gap: 6px;
+  }
+
+  .code-dots span {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--color-border-accent);
+  }
+
+  .code-dots span:first-child {
+    background: #ff5f57;
+  }
+
+  .code-dots span:nth-child(2) {
+    background: #febc2e;
+  }
+
+  .code-dots span:nth-child(3) {
+    background: #28c840;
+  }
+
+  .code-filename {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    color: var(--color-text-secondary);
+  }
+
+  .code-lang {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 0.6875rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-muted);
+    padding: var(--space-xs) var(--space-sm);
+    background: var(--color-bg-elevated);
+    border-radius: 4px;
+  }
+
+  .code-block {
+    padding: var(--space-lg);
+    margin: 0;
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    line-height: 1.7;
+    overflow-x: auto;
+    background: transparent;
+    white-space: pre;
+  }
+
+  .code-block code {
+    color: var(--color-text-secondary);
+    white-space: pre;
+    display: block;
+  }
+
+  /* Syntax highlighting */
+  .code-block .hl-keyword {
+    color: #ff79c6;
+  }
+
+  .code-block .hl-annotation {
+    color: #50fa7b;
+  }
+
+  .code-block .hl-string {
+    color: #f1fa8c;
+  }
+
+  .code-block .hl-comment {
+    color: var(--color-text-muted);
+    font-style: italic;
+  }
+
+  .code-block .hl-type {
+    color: #8be9fd;
+  }
+
+  .code-block .hl-import {
+    color: var(--color-text-muted);
+  }
+
+  .code-block .hl-function {
+    color: #50fa7b;
+  }
+
+  .code-block .hl-property {
+    color: var(--color-accent);
+  }
+
+  .code-cta {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-md);
+  }
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-sm);
+    padding: var(--space-md) var(--space-xl);
+    font-family: var(--font-body);
+    font-size: 0.9375rem;
+    font-weight: 500;
+    border-radius: 8px;
+    transition: all 0.2s var(--ease-out-quad);
+    cursor: pointer;
+    border: none;
+  }
+
+  .btn-outline {
+    background: transparent;
+    color: var(--color-accent);
+    border: 1px solid var(--color-accent);
+  }
+
+  .btn-outline:hover {
+    background: var(--color-accent);
+    color: var(--color-bg-primary);
+  }
+
+  .btn-ghost {
+    background: transparent;
+    color: var(--color-text-secondary);
+  }
+
+  .btn-ghost:hover {
+    color: var(--color-text-primary);
+  }
+
+  @media (max-width: 900px) {
+    .code-panels {
+      grid-template-columns: 1fr;
+    }
+  }
+
+  @media (max-width: 640px) {
+    .code-example {
+      padding: var(--space-3xl) var(--space-md);
+    }
+
+    .code-cta {
+      flex-direction: column;
+    }
+
+    .btn {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+</style>

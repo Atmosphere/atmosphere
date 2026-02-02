@@ -1,0 +1,151 @@
+---
+const navLinks = [
+  { href: '#features', label: 'Features' },
+  { href: '#code', label: 'Quick Start' },
+  { href: 'https://github.com/Atmosphere/atmosphere/wiki', label: 'Docs', external: true },
+  { href: 'https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Atmosphere', label: 'Tutorial', external: true },
+  { href: 'https://github.com/Atmosphere/atmosphere', label: 'GitHub', external: true },
+];
+---
+
+<header class="header">
+  <div class="header-inner">
+    <a href="/" class="logo">
+      <img src="/AsyncIO.png" alt="Async-IO" class="logo-img" width="40" height="40" />
+      <span class="logo-text">Atmosphere</span>
+    </a>
+
+    <nav class="nav" aria-label="Main navigation">
+      <ul class="nav-list">
+        {navLinks.map((link) => (
+          <li>
+            <a
+              href={link.href}
+              class="nav-link"
+              {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+            >
+              {link.label}
+              {link.external && (
+                <svg class="external-icon" width="12" height="12" viewBox="0 0 12 12" fill="none">
+                  <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+              )}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </nav>
+
+    <button class="mobile-menu-btn" aria-label="Toggle menu" aria-expanded="false">
+      <span></span>
+      <span></span>
+    </button>
+  </div>
+</header>
+
+<style>
+  .header {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 100;
+    padding: var(--space-md) var(--space-xl);
+    background: linear-gradient(to bottom, var(--color-bg-primary) 0%, transparent 100%);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+  }
+
+  .header-inner {
+    max-width: 1200px;
+    margin: 0 auto;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    color: var(--color-text-primary);
+    transition: color 0.2s var(--ease-out-quad);
+  }
+
+  .logo:hover {
+    color: var(--color-accent);
+  }
+
+  .logo-img {
+    border-radius: 6px;
+  }
+
+  .logo-text {
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    font-weight: 400;
+    letter-spacing: -0.01em;
+  }
+
+  .nav-list {
+    display: flex;
+    align-items: center;
+    gap: var(--space-xl);
+    list-style: none;
+  }
+
+  .nav-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.875rem;
+    font-weight: 500;
+    color: var(--color-text-secondary);
+    transition: color 0.2s var(--ease-out-quad);
+  }
+
+  .nav-link:hover {
+    color: var(--color-text-primary);
+  }
+
+  .external-icon {
+    opacity: 0.5;
+    transition: opacity 0.2s var(--ease-out-quad);
+  }
+
+  .nav-link:hover .external-icon {
+    opacity: 1;
+  }
+
+  .mobile-menu-btn {
+    display: none;
+    flex-direction: column;
+    gap: 6px;
+    padding: var(--space-sm);
+    background: none;
+    border: none;
+    cursor: pointer;
+  }
+
+  .mobile-menu-btn span {
+    display: block;
+    width: 24px;
+    height: 2px;
+    background: var(--color-text-primary);
+    transition: all 0.3s var(--ease-out-expo);
+  }
+
+  @media (max-width: 768px) {
+    .header {
+      padding: var(--space-md);
+    }
+
+    .nav {
+      display: none;
+    }
+
+    .mobile-menu-btn {
+      display: flex;
+    }
+  }
+</style>

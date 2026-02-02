@@ -1,0 +1,240 @@
+---
+const currentYear = new Date().getFullYear();
+
+const footerLinks = [
+  {
+    title: 'Resources',
+    links: [
+      { label: 'Documentation', href: 'https://github.com/Atmosphere/atmosphere/wiki', external: true },
+      { label: 'Tutorial', href: 'https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Atmosphere', external: true },
+      { label: 'Download', href: 'https://github.com/Atmosphere/atmosphere/releases', external: true },
+      { label: 'Maven Central', href: 'https://search.maven.org/search?q=g:org.atmosphere', external: true },
+    ],
+  },
+  {
+    title: 'Enterprise',
+    links: [
+      { label: 'Satellite (Clustering)', href: '#satellite' },
+      { label: 'Support Plans', href: '#support' },
+      { label: 'About Async-IO', href: 'https://async-io.org', external: true },
+      { label: 'Sponsor', href: 'https://github.com/sponsors/Atmosphere', external: true },
+    ],
+  },
+  {
+    title: 'Community',
+    links: [
+      { label: 'GitHub', href: 'https://github.com/Atmosphere/atmosphere', external: true },
+      { label: 'Twitter', href: 'https://twitter.com/asyncio', external: true },
+      { label: 'Ask Claude', href: 'https://claude.ai', external: true },
+    ],
+  },
+];
+---
+
+<footer class="footer">
+  <div class="footer-container">
+    <div class="footer-main">
+      <div class="footer-brand">
+        <a href="/" class="footer-logo">
+          <img src="/AsyncIO.png" alt="Async-IO" width="32" height="32" style="border-radius: 4px;" />
+          <span>Atmosphere</span>
+        </a>
+        <p class="footer-tagline">
+          A battle-tested real-time framework for the JVM.
+          Open source under Apache 2.0 license.
+        </p>
+      </div>
+
+      <nav class="footer-nav">
+        {footerLinks.map((section) => (
+          <div class="footer-section">
+            <h4 class="footer-section-title">{section.title}</h4>
+            <ul class="footer-section-list">
+              {section.links.map((link) => (
+                <li>
+                  <a
+                    href={link.href}
+                    class="footer-link"
+                    {...(link.external ? { target: '_blank', rel: 'noopener noreferrer' } : {})}
+                  >
+                    {link.label}
+                    {link.external && (
+                      <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none">
+                        <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+                      </svg>
+                    )}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </nav>
+    </div>
+
+    <div class="footer-bottom">
+      <p class="footer-copyright">
+        &copy; 2008&ndash;{currentYear} <a href="https://async-io.org" target="_blank" rel="noopener noreferrer">Async-IO.org</a>. All rights reserved.
+      </p>
+      <div class="footer-meta">
+        <span>Made with Astro</span>
+        <span class="footer-divider">&middot;</span>
+        <a href="https://github.com/Atmosphere/atmosphere" target="_blank" rel="noopener noreferrer">
+          Edit on GitHub
+        </a>
+      </div>
+    </div>
+  </div>
+</footer>
+
+<style>
+  .footer {
+    padding: var(--space-4xl) var(--space-xl) var(--space-2xl);
+    background: var(--color-bg-secondary);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .footer-container {
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .footer-main {
+    display: grid;
+    grid-template-columns: 1fr 2fr;
+    gap: var(--space-4xl);
+    padding-bottom: var(--space-3xl);
+    border-bottom: 1px solid var(--color-border);
+  }
+
+  .footer-logo {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-family: var(--font-display);
+    font-size: 1.25rem;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-md);
+    transition: color 0.2s var(--ease-out-quad);
+  }
+
+  .footer-logo:hover {
+    color: var(--color-accent);
+  }
+
+  .footer-tagline {
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+    max-width: 280px;
+  }
+
+  .footer-nav {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-xl);
+  }
+
+  .footer-section-title {
+    font-family: var(--font-body);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: var(--color-text-primary);
+    margin-bottom: var(--space-md);
+  }
+
+  .footer-section-list {
+    list-style: none;
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-sm);
+  }
+
+  .footer-link {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-xs);
+    font-size: 0.9375rem;
+    color: var(--color-text-secondary);
+    transition: color 0.2s var(--ease-out-quad);
+  }
+
+  .footer-link:hover {
+    color: var(--color-text-primary);
+  }
+
+  .external-icon {
+    opacity: 0.5;
+  }
+
+  .footer-bottom {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding-top: var(--space-xl);
+  }
+
+  .footer-copyright {
+    font-size: 0.875rem;
+    color: var(--color-text-muted);
+  }
+
+  .footer-copyright a {
+    color: var(--color-text-secondary);
+    transition: color 0.2s var(--ease-out-quad);
+  }
+
+  .footer-copyright a:hover {
+    color: var(--color-text-primary);
+  }
+
+  .footer-meta {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
+    font-size: 0.8125rem;
+    color: var(--color-text-muted);
+  }
+
+  .footer-meta a {
+    color: var(--color-text-secondary);
+    transition: color 0.2s var(--ease-out-quad);
+  }
+
+  .footer-meta a:hover {
+    color: var(--color-text-primary);
+  }
+
+  .footer-divider {
+    opacity: 0.5;
+  }
+
+  @media (max-width: 900px) {
+    .footer-main {
+      grid-template-columns: 1fr;
+      gap: var(--space-2xl);
+    }
+
+    .footer-nav {
+      grid-template-columns: repeat(2, 1fr);
+    }
+  }
+
+  @media (max-width: 640px) {
+    .footer {
+      padding: var(--space-3xl) var(--space-md) var(--space-xl);
+    }
+
+    .footer-nav {
+      grid-template-columns: 1fr;
+    }
+
+    .footer-bottom {
+      flex-direction: column;
+      gap: var(--space-md);
+      text-align: center;
+    }
+  }
+</style>
