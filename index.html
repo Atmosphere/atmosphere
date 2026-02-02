@@ -1,178 +1,104 @@
-<!DOCTYPE html>
-<html>
-<head>
-    <meta charset='utf-8'>
-    <meta http-equiv="X-UA-Compatible" content="chrome=1">
-    <meta name="keywords" content="Node,Java,WebSockets,Server Sent Events,AJAX,JavaScript">
-    <script src="https://google-code-prettify.googlecode.com/svn/loader/run_prettify.js?lang=css&skin=sunburst"></script>
-    <link rel="stylesheet" type="text/css" href="stylesheets/stylesheet.css" media="screen"/>
-    <link rel="stylesheet" type="text/css" href="stylesheets/pygment_trac.css" media="screen"/>
-    <link rel="stylesheet" type="text/css" href="stylesheets/print.css" media="print"/>
-    <!--[if lt IE 9]>
-    <script src="//html5shiv.googlecode.com/svn/trunk/html5.js"></script>
-    <![endif]-->
-    <link href='https://fonts.googleapis.com/css?family=Chivo:900' rel='stylesheet' type='text/css'>
-    <title>Async-IO.org: Powering the Atmosphere Framework</title>
-</head>
+<!DOCTYPE html><html lang="en"> <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><meta name="description" content="A battle-tested real-time framework for the JVM"><meta name="keywords" content="Java, WebSockets, Server Sent Events, Real-time, Async, JVM, Framework"><link rel="icon" type="image/svg+xml" href="/favicon.svg"><link rel="preconnect" href="https://fonts.googleapis.com"><link rel="preconnect" href="https://fonts.gstatic.com" crossorigin><link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet"><title>Atmosphere - Real-time Framework for the JVM</title><link rel="stylesheet" href="/_astro/index.SwQP4sHI.css"></head> <body>  <header class="header" data-astro-cid-3ef6ksr2> <div class="header-inner" data-astro-cid-3ef6ksr2> <a href="/" class="logo" data-astro-cid-3ef6ksr2> <img src="/AsyncIO.png" alt="Async-IO" class="logo-img" width="40" height="40" data-astro-cid-3ef6ksr2> <span class="logo-text" data-astro-cid-3ef6ksr2>Atmosphere</span> </a> <nav class="nav" aria-label="Main navigation" data-astro-cid-3ef6ksr2> <ul class="nav-list" data-astro-cid-3ef6ksr2> <li data-astro-cid-3ef6ksr2> <a href="#features" class="nav-link" data-astro-cid-3ef6ksr2> Features  </a> </li><li data-astro-cid-3ef6ksr2> <a href="#code" class="nav-link" data-astro-cid-3ef6ksr2> Quick Start  </a> </li><li data-astro-cid-3ef6ksr2> <a href="https://github.com/Atmosphere/atmosphere/wiki" class="nav-link" target="_blank" rel="noopener noreferrer" data-astro-cid-3ef6ksr2> Docs <svg class="external-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" data-astro-cid-3ef6ksr2> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-3ef6ksr2></path> </svg> </a> </li><li data-astro-cid-3ef6ksr2> <a href="https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Atmosphere" class="nav-link" target="_blank" rel="noopener noreferrer" data-astro-cid-3ef6ksr2> Tutorial <svg class="external-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" data-astro-cid-3ef6ksr2> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-3ef6ksr2></path> </svg> </a> </li><li data-astro-cid-3ef6ksr2> <a href="https://github.com/Atmosphere/atmosphere" class="nav-link" target="_blank" rel="noopener noreferrer" data-astro-cid-3ef6ksr2> GitHub <svg class="external-icon" width="12" height="12" viewBox="0 0 12 12" fill="none" data-astro-cid-3ef6ksr2> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-3ef6ksr2></path> </svg> </a> </li> </ul> </nav> <button class="mobile-menu-btn" aria-label="Toggle menu" aria-expanded="false" data-astro-cid-3ef6ksr2> <span data-astro-cid-3ef6ksr2></span> <span data-astro-cid-3ef6ksr2></span> </button> </div> </header>  <main> <section class="hero" data-astro-cid-bbe6dxrz> <div class="hero-bg" data-astro-cid-bbe6dxrz> <div class="grid-lines" data-astro-cid-bbe6dxrz></div> <div class="glow glow-1" data-astro-cid-bbe6dxrz></div> <div class="glow glow-2" data-astro-cid-bbe6dxrz></div> </div> <div class="hero-content" data-astro-cid-bbe6dxrz> <div class="hero-badge" data-astro-cid-bbe6dxrz> <span class="badge-dot" data-astro-cid-bbe6dxrz></span> <span data-astro-cid-bbe6dxrz>Trusted by enterprise since 2008</span> </div> <h1 class="hero-title" data-astro-cid-bbe6dxrz> <span class="title-line" data-astro-cid-bbe6dxrz>Real-time for</span> <span class="title-line title-accent" data-astro-cid-bbe6dxrz>the JVM</span> </h1> <p class="hero-description" data-astro-cid-bbe6dxrz>
+A battle-tested, enterprise-grade asynchronous framework for Java.
+      WebSockets, Server-Sent Events, and graceful fallbacks—write once,
+      deploy anywhere.
+</p> <div class="hero-actions" data-astro-cid-bbe6dxrz> <a href="https://github.com/Atmosphere/atmosphere" class="btn btn-primary" target="_blank" rel="noopener" data-astro-cid-bbe6dxrz> <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" data-astro-cid-bbe6dxrz> <path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0024 12c0-6.63-5.37-12-12-12z" data-astro-cid-bbe6dxrz></path> </svg>
+View on GitHub
+</a> <a href="#code" class="btn btn-secondary" data-astro-cid-bbe6dxrz>
+Quick Start
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" data-astro-cid-bbe6dxrz> <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-bbe6dxrz></path> </svg> </a> </div> <div class="hero-stats" data-astro-cid-bbe6dxrz> <div class="stat" data-astro-cid-bbe6dxrz> <span class="stat-value" data-astro-cid-bbe6dxrz>16+</span> <span class="stat-label" data-astro-cid-bbe6dxrz>Years in Production</span> </div> <div class="stat-divider" data-astro-cid-bbe6dxrz></div> <div class="stat" data-astro-cid-bbe6dxrz> <span class="stat-value" data-astro-cid-bbe6dxrz>3.7k</span> <span class="stat-label" data-astro-cid-bbe6dxrz>GitHub Stars</span> </div> <div class="stat-divider" data-astro-cid-bbe6dxrz></div> <div class="stat" data-astro-cid-bbe6dxrz> <span class="stat-value" data-astro-cid-bbe6dxrz>Apache 2.0</span> <span class="stat-label" data-astro-cid-bbe6dxrz>License</span> </div> </div> </div> </section>  <section class="customers" data-astro-cid-kv2uyi5w> <div class="customers-container" data-astro-cid-kv2uyi5w> <p class="customers-label" data-astro-cid-kv2uyi5w>Trusted by teams at</p> <div class="customers-list" data-astro-cid-kv2uyi5w> <span class="customer-name" data-astro-cid-kv2uyi5w>Dell</span><span class="customer-name" data-astro-cid-kv2uyi5w>Broadcom</span><span class="customer-name" data-astro-cid-kv2uyi5w>JetBrains</span><span class="customer-name" data-astro-cid-kv2uyi5w>Kaiser Permanente</span><span class="customer-name" data-astro-cid-kv2uyi5w>Dow Jones</span><span class="customer-name" data-astro-cid-kv2uyi5w>Upwork</span><span class="customer-name" data-astro-cid-kv2uyi5w>Infomedia</span><span class="customer-name" data-astro-cid-kv2uyi5w>Savant</span> </div> </div> </section>  <section class="features" id="features" data-astro-cid-vnivfuh2> <div class="features-container" data-astro-cid-vnivfuh2> <div class="section-header" data-astro-cid-vnivfuh2> <span class="section-label" data-astro-cid-vnivfuh2>Capabilities</span> <h2 class="section-title" data-astro-cid-vnivfuh2>Everything you need for real-time</h2> <p class="section-description" data-astro-cid-vnivfuh2>
+A complete toolkit for building scalable, real-time applications on the JVM.
+</p> </div> <div class="features-grid" data-astro-cid-vnivfuh2> <article class="feature-card" style="--delay: 0s" data-astro-cid-vnivfuh2> <div class="feature-icon" data-astro-cid-vnivfuh2><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M4.5 16.5c-1.5 1.26-2 5-2 5s3.74-.5 5-2c.71-.84.7-2.13-.09-2.91a2.18 2.18 0 0 0-2.91-.09z"/>
+      <path d="m12 15-3-3a22 22 0 0 1 2-3.95A12.88 12.88 0 0 1 22 2c0 2.72-.78 7.5-6 11a22.35 22.35 0 0 1-4 2z"/>
+      <path d="M9 12H4s.55-3.03 2-4c1.62-1.08 5 0 5 0"/>
+      <path d="M12 15v5s3.03-.55 4-2c1.08-1.62 0-5 0-5"/>
+    </svg></div> <h3 class="feature-title" data-astro-cid-vnivfuh2>WebSocket Native</h3> <p class="feature-description" data-astro-cid-vnivfuh2>First-class WebSocket support with automatic connection management, heartbeats, and reconnection strategies.</p> </article><article class="feature-card" style="--delay: 0.1s" data-astro-cid-vnivfuh2> <div class="feature-icon" data-astro-cid-vnivfuh2><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+      <path d="m9 12 2 2 4-4"/>
+    </svg></div> <h3 class="feature-title" data-astro-cid-vnivfuh2>Graceful Fallbacks</h3> <p class="feature-description" data-astro-cid-vnivfuh2>Seamless degradation to SSE, long-polling, and streaming when WebSockets are unavailable.</p> </article><article class="feature-card" style="--delay: 0.2s" data-astro-cid-vnivfuh2> <div class="feature-icon" data-astro-cid-vnivfuh2><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="2" y="2" width="20" height="8" rx="2" ry="2"/>
+      <rect x="2" y="14" width="20" height="8" rx="2" ry="2"/>
+      <line x1="6" y1="6" x2="6.01" y2="6"/>
+      <line x1="6" y1="18" x2="6.01" y2="18"/>
+    </svg></div> <h3 class="feature-title" data-astro-cid-vnivfuh2>Deploy Anywhere</h3> <p class="feature-description" data-astro-cid-vnivfuh2>Run on Tomcat, Jetty, WebLogic, GlassFish, Netty, Vert.x, and any Servlet 3.0+ container.</p> </article><article class="feature-card" style="--delay: 0.30000000000000004s" data-astro-cid-vnivfuh2> <div class="feature-icon" data-astro-cid-vnivfuh2><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="16 18 22 12 16 6"/>
+      <polyline points="8 6 2 12 8 18"/>
+    </svg></div> <h3 class="feature-title" data-astro-cid-vnivfuh2>Simple API</h3> <p class="feature-description" data-astro-cid-vnivfuh2>Annotation-based programming model. Define endpoints with @ManagedService and handle messages declaratively.</p> </article><article class="feature-card" style="--delay: 0.4s" data-astro-cid-vnivfuh2> <div class="feature-icon" data-astro-cid-vnivfuh2><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/>
+      <polyline points="3.29 7 12 12 20.71 7"/>
+      <line x1="12" y1="22" x2="12" y2="12"/>
+    </svg></div> <h3 class="feature-title" data-astro-cid-vnivfuh2>Scale with Satellite</h3> <p class="feature-description" data-astro-cid-vnivfuh2>Elastic scalability with Atmosphere Satellite. Auto-clustering with Redis for in-memory performance and high availability.</p> </article><article class="feature-card" style="--delay: 0.5s" data-astro-cid-vnivfuh2> <div class="feature-icon" data-astro-cid-vnivfuh2><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+    </svg></div> <h3 class="feature-title" data-astro-cid-vnivfuh2>Battle Tested</h3> <p class="feature-description" data-astro-cid-vnivfuh2>Powering production systems at Dell, VMWare, JetBrains, Kaiser Permanente, and more since 2008.</p> </article> </div> </div> </section>  <section class="code-example" id="code" data-astro-cid-npme2pg4> <div class="code-container" data-astro-cid-npme2pg4> <div class="section-header" data-astro-cid-npme2pg4> <span class="section-label" data-astro-cid-npme2pg4>Quick Start</span> <h2 class="section-title" data-astro-cid-npme2pg4>Simple, powerful, familiar</h2> <p class="section-description" data-astro-cid-npme2pg4>
+Write real-time applications with clean, annotation-based Java on the server
+        and intuitive JavaScript on the client.
+</p> </div> <div class="code-panels" data-astro-cid-npme2pg4> <div class="code-panel" data-astro-cid-npme2pg4> <div class="code-header" data-astro-cid-npme2pg4> <div class="code-dots" data-astro-cid-npme2pg4> <span data-astro-cid-npme2pg4></span> <span data-astro-cid-npme2pg4></span> <span data-astro-cid-npme2pg4></span> </div> <span class="code-filename" data-astro-cid-npme2pg4> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" data-astro-cid-npme2pg4> <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" data-astro-cid-npme2pg4></path> </svg>
+ChatService.java
+</span> <span class="code-lang" data-astro-cid-npme2pg4>Server</span> </div> <pre class="code-block" data-astro-cid-npme2pg4><code class="language-java" data-astro-cid-npme2pg4><span class="hl-import" data-astro-cid-npme2pg4>import org.atmosphere.config.service.ManagedService;</span>
+<span class="hl-import" data-astro-cid-npme2pg4>import org.atmosphere.cpr.AtmosphereResponse;</span>
+<span class="hl-import" data-astro-cid-npme2pg4>import org.atmosphere.handler.OnMessage;</span>
 
-<body>
-<div id="container">
-    <div class="inner">
+<span class="hl-annotation" data-astro-cid-npme2pg4>@ManagedService</span>(path = <span class="hl-string" data-astro-cid-npme2pg4>"/chat"</span>)
+<span class="hl-keyword" data-astro-cid-npme2pg4>public class</span> ChatService &#123;
 
-        <header>
-            <div class="asyncIO">
-                <div class="asyncIO-left">
-                    <br>
+    <span class="hl-annotation" data-astro-cid-npme2pg4>@Ready</span>
+    <span class="hl-keyword" data-astro-cid-npme2pg4>public void</span> onReady(<span class="hl-type" data-astro-cid-npme2pg4>AtmosphereResource</span> r) &#123;
+        r.getBroadcaster().broadcast(<span class="hl-string" data-astro-cid-npme2pg4>"Welcome!"</span>);
+    &#125;
 
-                    <div style="text-align: center;">
-                        <a href="http://async-io.org"><img title="logo" alt="" src="./images/AsyncIO.png"/></a>
-                    </div>
-                </div>
-                <div class="asyncIO-right">
-                    <h1>Welcome to Async-IO!</h1>
-                    <h2>Home of the most popular Real Time, Asynchronous and Non-Blocking Framework for the JVM
-                    </h2>
-                </div>
-            </div>
-        </header>
+    <span class="hl-annotation" data-astro-cid-npme2pg4>@Message</span>
+    <span class="hl-keyword" data-astro-cid-npme2pg4>public void</span> onMessage(<span class="hl-type" data-astro-cid-npme2pg4>AtmosphereResponse</span> res, <span class="hl-type" data-astro-cid-npme2pg4>String</span> message) &#123;
+        res.write(<span class="hl-string" data-astro-cid-npme2pg4>"Echo: "</span> + message);
+    &#125;
+&#125;</code></pre> </div> <div class="code-panel" data-astro-cid-npme2pg4> <div class="code-header" data-astro-cid-npme2pg4> <div class="code-dots" data-astro-cid-npme2pg4> <span data-astro-cid-npme2pg4></span> <span data-astro-cid-npme2pg4></span> <span data-astro-cid-npme2pg4></span> </div> <span class="code-filename" data-astro-cid-npme2pg4> <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" data-astro-cid-npme2pg4> <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" data-astro-cid-npme2pg4></path> </svg>
+client.js
+</span> <span class="code-lang" data-astro-cid-npme2pg4>Client</span> </div> <pre class="code-block" data-astro-cid-npme2pg4><code class="language-javascript" data-astro-cid-npme2pg4><span class="hl-keyword" data-astro-cid-npme2pg4>import</span> &#123; atmosphere &#125; <span class="hl-keyword" data-astro-cid-npme2pg4>from</span> <span class="hl-string" data-astro-cid-npme2pg4>'atmosphere.js'</span>;
 
-        <section id="main_content">
+<span class="hl-keyword" data-astro-cid-npme2pg4>const</span> request = &#123;
+  <span class="hl-property" data-astro-cid-npme2pg4>url</span>: <span class="hl-string" data-astro-cid-npme2pg4>'/chat'</span>,
+  <span class="hl-property" data-astro-cid-npme2pg4>transport</span>: <span class="hl-string" data-astro-cid-npme2pg4>'websocket'</span>,
+  <span class="hl-property" data-astro-cid-npme2pg4>fallbackTransport</span>: <span class="hl-string" data-astro-cid-npme2pg4>'long-polling'</span>,
 
-            <h2>Atmosphere Pro is THE best solution for scaling your app!</h2>
-            <p>Using Atmosphere in Production? Give Atmosphere's SUPERPOWERS with <a href="./AtmospherePro.html">Atmosphere
-                Pro</a></p>
+  <span class="hl-property" data-astro-cid-npme2pg4>onOpen</span>: (response) =&gt; &#123;
+    <span class="hl-type" data-astro-cid-npme2pg4>console</span>.log(<span class="hl-string" data-astro-cid-npme2pg4>'Connected via'</span>, response.transport);
+  &#125;,
 
-            <h3>Why Async-IO.org?</h3>
+  <span class="hl-property" data-astro-cid-npme2pg4>onMessage</span>: (response) =&gt; &#123;
+    <span class="hl-type" data-astro-cid-npme2pg4>console</span>.log(<span class="hl-string" data-astro-cid-npme2pg4>'Received:'</span>, response.responseBody);
+  &#125;
+&#125;;
 
-            <p>Async-IO.org is the company behind the <a href="http://github.com/Atmosphere">Atmosphere Framework!</a>
-                The Atmosphere Framework is the most popular asynchronous application development framework for
-                enterprise Java. The Atmosphere Framework provides the enterprise features required to build massive
-                scalable and real time asynchronous applications using transports like WebSocket, Server Sent Events and
-                traditional Ajax Techniques.
-            </p>
-
-            <ul>
-                <li>It's been proven in production: <a href="http://Dell.com">Dell</a>, <a
-                        href="http://https://healthy.kaiserpermanente.org/">Kaiser Permanente</a>, <a
-                        href="http://vmware.com">VMWare</a>, <a href="http://jetbrains.com">JetBrains</a>, <a
-                        href="https://www.upwork.com/">Upwork</a>, <a href="http://savant.com">Savant</a>, <a
-                        href="http://infomedia.com">Infomedia</a>, <a href="http://gameduell.com">GameDuell</a>, <a
-                        href="http://avaya.com">Avaya</a>,<a
-                        href="http://wsj.com">Wall Street Journal</a>, and many many more!!!!
-                </li>
-                <li>Easy to write portable and asynchronous applications with a really simple API for both client and
-                    server
-                </li>
-                <li>Supports WebSockets and fallback transports transparently</li>
-                <li>Proven to scale</li>
-                <li>Cloud Enabled!</li>
-            </ul>
-
-            </p>
-            <h3>Get Professional Support</h3>
-            <p>Your Async-IO subscription includes enterprise capabilities that extend functionality beyond what’s
-                available in the open source projects to help you successfully design,
-                build and run your mission-critical systems using Atmosphere and Atmosphere Pro.</p>
-            <p>Offered by the creators of Atmosphere, support subscriptions are the best ways to leverage the power of
-                Atmosphere. With timely responses, critical patches and technical support,
-                subscription customers will get the help they need to achieve a higher level of productivity and
-                quality. Focus on your business and let Async-IO Support the rest <a href="./subscription.html">More
-                    info</a></p>
-
-            <p>We offer support for <a href="https://github.com/Atmosphere/atmosphere">Atmosphere</a>, <a
-                    href="https://github.com/Atmosphere/nettosphere">NettoSphere</a> and <a
-                    href="https://github.com/Atmosphere/wasync">AsyncHttpClient/wAsync</a></p>
-
-            <h3>Get Professional Training</h3>
-
-            <p>This training will guide you through the Atmosphere Framework. It’s an in-depth instructor-led training
-                course with case-discussion held by Atmosphere developers. <a href="./training.html">More info</a>
-            </p>
-
-            <h3>Write Once, Deploy Anywhere</h3>
-
-            <p>The Atmosphere Framework mission is to make real time apps possible in every
-                browser,
-                library and mobile
-                device, blurring the differences between the different transport mechanisms. The framework is
-                written in
-                Java and Javascript and support the majority of existing
-                Java/Web Frameworks. Applications written using the Atmosphere Framework can be deployed in all
-                populars
-                Java/Java EE Web Server like WebLogic, Tomcat, Jetty, GlassFish, Vert.x, Netty Framework and many
-                more. </p>
-
-
-            <h3>Getting Started!</h3>
-
-            <div class="example">
-                <div class="example-left">
-                    <h4>Server</h4>
-                    <pre class="prettyprint">import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.cpr.AtmosphereResponse;
-import org.atmosphere.handler.OnMessage;
-
-@ManagedService(path = "/echo")
-public class Echo {
-    @Message
-    public void onMessage(AtmosphereResponse res, String m) {
-        res.write("Echo: " + m);
-    }
-}</pre>
-                </div>
-
-                <div class="example-right">
-                    <h4>Client</h4>
-                    <pre class="prettyprint">$(function () {
-   var request = {
-     url: document.location.toString() + 'echo',
-     transport : "websocket" ,
-     fallbackTransport: 'long-polling'};
-
-   request.onMessage = function (response) {
-     console.log(response.responseBody)
-   };
-   $.atmosphere.subscribe(request).push("Hello");
-}</pre>
-                </div>
-            </div>
-        </section>
-
-
-        <p>Want to learn how to use Atmosphere? Read this super simple <a href="./tutorial.html">tutorial</a></p>
-
-        <p>Want to learn write games using Atmosphere? Read this super simple <a href="./games.html">tutorial</a></p>
-
-        <h3>Download Production Ready Atmosphere or interact with the Community!</h3>
-
-        <p>Atmosphere is the most advanced WebSocket & Asynchronous framework for the JVM. But don't take our word
-            for it, try it <a href="./download.html">yourself!</a></p>
-
-        <h3>Help Making The Atmosphere Framework Better: <a href="https://github.com/sponsors/Atmosphere">Sponsor</a> to
-            keep the project alive!</h3>
-
-        <h1 align="center">The Atmosphere Framework has been nominated as the <a
-                href="https://jaxenter.com/jax-innovation-awards-2014-spotlight-atmosphere-framework-107770.html">Most
-            Innovative Java Technology!</a></h1>
-
-        <footer>
-            <p>©2008-2026 All Rights Reserved - <a href="http://async-io.org/">Async-IO.org</a>. Follow us on <a
-                    href="http://twitter.com/asyncio">Twitter</a></p>
-        </footer>
-
-        <script type="text/javascript">
-            var gaJsHost = (("https:" == document.location.protocol) ? "https://ssl." : "http://www.");
-            document.write(unescape("%3Cscript src='" + gaJsHost + "google-analytics.com/ga.js' type='text/javascript'%3E%3C/script%3E"));
-        </script>
-        <script type="text/javascript">
-            try {
-                var pageTracker = _gat._getTracker("UA-31990725-2");
-                pageTracker._trackPageview();
-            } catch (err) {
-            }
-        </script>
-
-    </div>
-</div>
-</body>
-</html>
+<span class="hl-keyword" data-astro-cid-npme2pg4>const</span> socket = atmosphere.subscribe(request);
+socket.push(<span class="hl-string" data-astro-cid-npme2pg4>'Hello, Atmosphere!'</span>);</code></pre> </div> </div> <div class="code-cta" data-astro-cid-npme2pg4> <a href="https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Atmosphere" class="btn btn-outline" target="_blank" rel="noopener noreferrer" data-astro-cid-npme2pg4>
+Read the Tutorial
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" data-astro-cid-npme2pg4> <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-npme2pg4></path> </svg> </a> <a href="https://github.com/Atmosphere/atmosphere/wiki" class="btn btn-ghost" target="_blank" rel="noopener noreferrer" data-astro-cid-npme2pg4>
+Full Documentation
+</a> </div> </div> </section>  <section class="satellite" id="satellite" data-astro-cid-apnq6kqr> <div class="satellite-container" data-astro-cid-apnq6kqr> <div class="satellite-content" data-astro-cid-apnq6kqr> <span class="section-label" data-astro-cid-apnq6kqr>Enterprise Scaling</span> <h2 class="section-title" data-astro-cid-apnq6kqr>Atmosphere Satellite</h2> <p class="section-description" data-astro-cid-apnq6kqr>
+Scale your real-time applications with automatic clustering powered by Redis.
+        Satellite provides elastic scalability, high availability, and fault tolerance
+        for mission-critical deployments.
+</p> <ul class="satellite-features" data-astro-cid-apnq6kqr> <li data-astro-cid-apnq6kqr> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-astro-cid-apnq6kqr> <polyline points="20 6 9 17 4 12" data-astro-cid-apnq6kqr></polyline> </svg> <span data-astro-cid-apnq6kqr>Elastic Scalability — add servers and they cluster automatically</span> </li> <li data-astro-cid-apnq6kqr> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-astro-cid-apnq6kqr> <polyline points="20 6 9 17 4 12" data-astro-cid-apnq6kqr></polyline> </svg> <span data-astro-cid-apnq6kqr>In-memory performance with Redis backend</span> </li> <li data-astro-cid-apnq6kqr> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-astro-cid-apnq6kqr> <polyline points="20 6 9 17 4 12" data-astro-cid-apnq6kqr></polyline> </svg> <span data-astro-cid-apnq6kqr>High Availability & Fault Tolerance</span> </li> <li data-astro-cid-apnq6kqr> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-astro-cid-apnq6kqr> <polyline points="20 6 9 17 4 12" data-astro-cid-apnq6kqr></polyline> </svg> <span data-astro-cid-apnq6kqr>100% State Replication across nodes</span> </li> <li data-astro-cid-apnq6kqr> <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" data-astro-cid-apnq6kqr> <polyline points="20 6 9 17 4 12" data-astro-cid-apnq6kqr></polyline> </svg> <span data-astro-cid-apnq6kqr>Drop-in session clustering for any Atmosphere server</span> </li> </ul> <a href="mailto:satellite@async-io.org?subject=Atmosphere%20Satellite%20Inquiry" class="btn btn-accent" data-astro-cid-apnq6kqr>
+Contact Sales
+<svg width="16" height="16" viewBox="0 0 16 16" fill="none" data-astro-cid-apnq6kqr> <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-apnq6kqr></path> </svg> </a> </div> <div class="satellite-visual" data-astro-cid-apnq6kqr> <div class="cluster-diagram" data-astro-cid-apnq6kqr> <div class="node node-center" data-astro-cid-apnq6kqr> <span data-astro-cid-apnq6kqr>Redis</span> </div> <div class="node node-1" data-astro-cid-apnq6kqr>App 1</div> <div class="node node-2" data-astro-cid-apnq6kqr>App 2</div> <div class="node node-3" data-astro-cid-apnq6kqr>App 3</div> <div class="node node-4" data-astro-cid-apnq6kqr>App N</div> <div class="connection connection-1" data-astro-cid-apnq6kqr></div> <div class="connection connection-2" data-astro-cid-apnq6kqr></div> <div class="connection connection-3" data-astro-cid-apnq6kqr></div> <div class="connection connection-4" data-astro-cid-apnq6kqr></div> </div> </div> </div> </section>  <section class="support" id="support" data-astro-cid-3c73cdyk> <div class="support-container" data-astro-cid-3c73cdyk> <div class="section-header" data-astro-cid-3c73cdyk> <span class="section-label" data-astro-cid-3c73cdyk>Enterprise Support</span> <h2 class="section-title" data-astro-cid-3c73cdyk>Support Subscriptions</h2> <p class="section-description" data-astro-cid-3c73cdyk>
+Get support from the core team with fast response times.
+        Meet your production schedule and compliance requirements.
+</p> </div> <div class="plans-grid" data-astro-cid-3c73cdyk> <div class="plan-card " data-astro-cid-3c73cdyk> <h3 class="plan-name" data-astro-cid-3c73cdyk>Bronze</h3> <ul class="plan-features" data-astro-cid-3c73cdyk> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Coverage</span> <span class="feature-value" data-astro-cid-3c73cdyk>Business Hours</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S1)</span> <span class="feature-value" data-astro-cid-3c73cdyk>7 Business Days</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S2)</span> <span class="feature-value" data-astro-cid-3c73cdyk>10 Business Days</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Incidents</span> <span class="feature-value" data-astro-cid-3c73cdyk>2 / year</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Phone Support</span> <span class="feature-value no" data-astro-cid-3c73cdyk> — </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Email Support</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Emergency Patches</span> <span class="feature-value no" data-astro-cid-3c73cdyk> — </span> </li> </ul> <a href="mailto:bronze@async-io.org?subject=Quote%20for%20Bronze%20Subscription" class="plan-cta " data-astro-cid-3c73cdyk>
+Get a Quote
+</a> </div><div class="plan-card " data-astro-cid-3c73cdyk> <h3 class="plan-name" data-astro-cid-3c73cdyk>Silver</h3> <ul class="plan-features" data-astro-cid-3c73cdyk> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Coverage</span> <span class="feature-value" data-astro-cid-3c73cdyk>Business Hours</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S1)</span> <span class="feature-value" data-astro-cid-3c73cdyk>1 Business Day</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S2)</span> <span class="feature-value" data-astro-cid-3c73cdyk>2 Business Days</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Incidents</span> <span class="feature-value" data-astro-cid-3c73cdyk>10 / year</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Phone Support</span> <span class="feature-value no" data-astro-cid-3c73cdyk> — </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Email Support</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Emergency Patches</span> <span class="feature-value no" data-astro-cid-3c73cdyk> — </span> </li> </ul> <a href="mailto:silver@async-io.org?subject=Quote%20for%20Silver%20Subscription" class="plan-cta " data-astro-cid-3c73cdyk>
+Get a Quote
+</a> </div><div class="plan-card plan-highlight" data-astro-cid-3c73cdyk> <h3 class="plan-name" data-astro-cid-3c73cdyk>Gold</h3> <ul class="plan-features" data-astro-cid-3c73cdyk> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Coverage</span> <span class="feature-value" data-astro-cid-3c73cdyk>Business Hours</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S1)</span> <span class="feature-value" data-astro-cid-3c73cdyk>4 hours</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S2)</span> <span class="feature-value" data-astro-cid-3c73cdyk>1 Business Day</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Incidents</span> <span class="feature-value" data-astro-cid-3c73cdyk>15 / year</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Phone Support</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Email Support</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Emergency Patches</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> </ul> <a href="mailto:gold@async-io.org?subject=Quote%20for%20Gold%20Subscription" class="plan-cta plan-cta-highlight" data-astro-cid-3c73cdyk>
+Get a Quote
+</a> </div><div class="plan-card " data-astro-cid-3c73cdyk> <h3 class="plan-name" data-astro-cid-3c73cdyk>Platinum</h3> <ul class="plan-features" data-astro-cid-3c73cdyk> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Coverage</span> <span class="feature-value" data-astro-cid-3c73cdyk>24x7</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S1)</span> <span class="feature-value" data-astro-cid-3c73cdyk>1 hour</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Response (S2)</span> <span class="feature-value" data-astro-cid-3c73cdyk>4 hours</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Incidents</span> <span class="feature-value" data-astro-cid-3c73cdyk>Unlimited</span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Phone Support</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Email Support</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> <li data-astro-cid-3c73cdyk> <span class="feature-label" data-astro-cid-3c73cdyk>Emergency Patches</span> <span class="feature-value yes" data-astro-cid-3c73cdyk> ✓ </span> </li> </ul> <a href="mailto:platinum@async-io.org?subject=Quote%20for%20Platinum%20Subscription" class="plan-cta " data-astro-cid-3c73cdyk>
+Get a Quote
+</a> </div> </div> <div class="support-footer" data-astro-cid-3c73cdyk> <p data-astro-cid-3c73cdyk>
+Need professional services on a per-hour basis?
+<a href="mailto:support@async-io.org?subject=Professional%20Services%20Inquiry" data-astro-cid-3c73cdyk>Contact us</a> for a custom quote.
+</p> </div> </div> </section>  </main> <footer class="footer" data-astro-cid-sz7xmlte> <div class="footer-container" data-astro-cid-sz7xmlte> <div class="footer-main" data-astro-cid-sz7xmlte> <div class="footer-brand" data-astro-cid-sz7xmlte> <a href="/" class="footer-logo" data-astro-cid-sz7xmlte> <img src="/AsyncIO.png" alt="Async-IO" width="32" height="32" style="border-radius: 4px;" data-astro-cid-sz7xmlte> <span data-astro-cid-sz7xmlte>Atmosphere</span> </a> <p class="footer-tagline" data-astro-cid-sz7xmlte>
+A battle-tested real-time framework for the JVM.
+          Open source under Apache 2.0 license.
+</p> </div> <nav class="footer-nav" data-astro-cid-sz7xmlte> <div class="footer-section" data-astro-cid-sz7xmlte> <h4 class="footer-section-title" data-astro-cid-sz7xmlte>Resources</h4> <ul class="footer-section-list" data-astro-cid-sz7xmlte> <li data-astro-cid-sz7xmlte> <a href="https://github.com/Atmosphere/atmosphere/wiki" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> Documentation <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li><li data-astro-cid-sz7xmlte> <a href="https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-Atmosphere" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> Tutorial <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li><li data-astro-cid-sz7xmlte> <a href="https://github.com/Atmosphere/atmosphere/releases" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> Download <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li><li data-astro-cid-sz7xmlte> <a href="https://search.maven.org/search?q=g:org.atmosphere" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> Maven Central <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li> </ul> </div><div class="footer-section" data-astro-cid-sz7xmlte> <h4 class="footer-section-title" data-astro-cid-sz7xmlte>Enterprise</h4> <ul class="footer-section-list" data-astro-cid-sz7xmlte> <li data-astro-cid-sz7xmlte> <a href="#satellite" class="footer-link" data-astro-cid-sz7xmlte> Satellite (Clustering)  </a> </li><li data-astro-cid-sz7xmlte> <a href="#support" class="footer-link" data-astro-cid-sz7xmlte> Support Plans  </a> </li><li data-astro-cid-sz7xmlte> <a href="https://async-io.org" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> About Async-IO <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li><li data-astro-cid-sz7xmlte> <a href="https://github.com/sponsors/Atmosphere" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> Sponsor <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li> </ul> </div><div class="footer-section" data-astro-cid-sz7xmlte> <h4 class="footer-section-title" data-astro-cid-sz7xmlte>Community</h4> <ul class="footer-section-list" data-astro-cid-sz7xmlte> <li data-astro-cid-sz7xmlte> <a href="https://github.com/Atmosphere/atmosphere" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> GitHub <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li><li data-astro-cid-sz7xmlte> <a href="https://twitter.com/asyncio" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> Twitter <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li><li data-astro-cid-sz7xmlte> <a href="https://claude.ai" class="footer-link" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte> Ask Claude <svg class="external-icon" width="10" height="10" viewBox="0 0 12 12" fill="none" data-astro-cid-sz7xmlte> <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" data-astro-cid-sz7xmlte></path> </svg> </a> </li> </ul> </div> </nav> </div> <div class="footer-bottom" data-astro-cid-sz7xmlte> <p class="footer-copyright" data-astro-cid-sz7xmlte>
+&copy; 2008&ndash;2026 <a href="https://async-io.org" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte>Async-IO.org</a>. All rights reserved.
+</p> <div class="footer-meta" data-astro-cid-sz7xmlte> <span data-astro-cid-sz7xmlte>Made with Astro</span> <span class="footer-divider" data-astro-cid-sz7xmlte>&middot;</span> <a href="https://github.com/Atmosphere/atmosphere" target="_blank" rel="noopener noreferrer" data-astro-cid-sz7xmlte>
+Edit on GitHub
+</a> </div> </div> </div> </footer>   </body></html>
