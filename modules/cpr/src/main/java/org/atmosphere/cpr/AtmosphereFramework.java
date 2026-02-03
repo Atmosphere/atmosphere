@@ -1543,8 +1543,9 @@ public class AtmosphereFramework {
                     detectSupportedFramework(sc);
                 }
             }
-
-            autoDetectWebSocketHandler(sc.getServletContext(), urlC);
+            if (!initParams.containsKey(ApplicationConfig.WEBSOCKET_PROTOCOL)) {
+                autoDetectWebSocketHandler(sc.getServletContext(), urlC);
+            }
         } catch (Throwable t) {
             throw new ServletException(t);
         }
