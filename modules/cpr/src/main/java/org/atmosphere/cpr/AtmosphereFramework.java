@@ -1394,6 +1394,7 @@ public class AtmosphereFramework {
         s = sc.getInitParameter(WEBSOCKET_PROTOCOL);
         if (s != null) {
             webSocketProtocolClassName = s;
+            hasNewWebSocketProtocol = true;
         }
 
         s = sc.getInitParameter(WEBSOCKET_PROCESSOR);
@@ -2168,8 +2169,8 @@ public class AtmosphereFramework {
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
-                        webSocketProtocol = newClassInstance(WebSocketProtocol.class, (Class<WebSocketProtocol>) clazz);
-                        logger.info("Installed WebSocketProtocol {}", webSocketProtocol);
+                        webSocketProtocolClassName = clazz.getName();
+                        logger.info("Auto-detected WebSocketProtocol {}", webSocketProtocolClassName);
                     }
                 } catch (Throwable t) {
                     logger.trace("failed to load class as an WebSocketProtocol: " + className, t);
@@ -2488,8 +2489,6 @@ public class AtmosphereFramework {
     }
 
     public WebSocketProtocol getWebSocketProtocol() {
-        // TODO: Spagetthi code, needs to rework.
-        // Make sure we initialized the WebSocketProtocol
         initWebSocket();
         return webSocketProtocol;
     }

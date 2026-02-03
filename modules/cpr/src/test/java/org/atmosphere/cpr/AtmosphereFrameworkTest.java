@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.ServletContextFactory;
+import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
@@ -351,5 +352,23 @@ public class AtmosphereFrameworkTest {
 
         boolean actualAutodetect = framework.autodetectBroadcaster();
         assertTrue(actualAutodetect);
+    }
+
+    @Test
+    public void testWebSocketProtocolInitParamPreventsAutoDetection() throws Exception {
+        ServletConfig servletConfig = mock(ServletConfig.class);
+        ServletContext servletContext = mock(ServletContext.class);
+        when(servletConfig.getServletContext()).thenReturn(servletContext);
+        when(servletConfig.getInitParameter(ApplicationConfig.WEBSOCKET_PROTOCOL))
+                .thenReturn(SimpleHttpProtocol.class.getName());
+        when(servletContext.getInitParameter(ApplicationConfig.WEBSOCKET_PROTOCOL))
+                .thenReturn(SimpleHttpProtocol.class.getName());
+
+        AtmosphereFramework framework = new AtmosphereFramework();
+        framework.addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true");
+        framework.addAtmosphereHandler("/*", mock(AtmosphereHandler.class));
+        framework.init(servletConfig);
+
+        assertEquals(framework.getWebSocketProtocol().getClass(), SimpleHttpProtocol.class);
     }
 }
