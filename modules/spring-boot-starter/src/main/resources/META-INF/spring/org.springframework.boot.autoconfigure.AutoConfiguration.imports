@@ -1,0 +1,2 @@
+org.atmosphere.spring.boot.AtmosphereAutoConfiguration
+org.atmosphere.spring.boot.AtmosphereActuatorAutoConfiguration

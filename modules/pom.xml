@@ -17,5 +17,6 @@
 
     <modules>
         <module>cpr</module>
+        <module>spring-boot-starter</module>
     </modules>
 </project>
