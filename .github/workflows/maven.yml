@@ -23,8 +23,5 @@ jobs:
         java-version: ${{ matrix.java-version }}
         distribution: 'temurin'
 
-    - name: Build with Maven
-      run: mvn -B package --file pom.xml
-
-    - name: Test with Maven
-      run: mvn -B test --file pom.xml
+    - name: Build and Test with Maven
+      run: mvn -B install --file pom.xml
