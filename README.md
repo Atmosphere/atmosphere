@@ -13,11 +13,6 @@ Atmosphere is the production-proven framework for building real-time Java applic
 | **Spring Boot** | `atmosphere-spring-boot-starter` | Spring Boot 4.0.2+ |
 | **Quarkus** | `atmosphere-quarkus-extension` | Quarkus 3.21+ |
 | **Any Servlet container** | `atmosphere-runtime` | Servlet 3.0+ |
-| **Netty** | [Nettosphere](http://atmosphere.github.io/nettosphere/) | |
-| **Play** | [atmosphere-play](http://atmosphere.github.io/atmosphere-play/) | |
-| **Vert.x** | [atmosphere-vertx](https://github.com/Atmosphere/atmosphere-vertx) | |
-
-Extend with [Apache Kafka](https://github.com/Atmosphere/atmosphere-extensions/tree/master/kafka/modules), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast/modules), [RabbitMQ](https://github.com/Atmosphere/atmosphere-extensions/tree/master/rabbitmq/modules), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis/modules) and [more](https://github.com/Atmosphere/atmosphere-extensions/tree/extensions-2.4.x).
 
 ### Quick start
 
@@ -166,6 +161,18 @@ Modules: runtime, jersey, spring, kafka, guice, redis, hazelcast, jms, rabbitmq,
 ### Commercial Support
 
 Available via [Async-IO.org](http://async-io.org)
+
+---
+
+### Legacy Integrations
+
+| Stack | Project |
+|-------|---------|
+| **Netty** | [Nettosphere](http://atmosphere.github.io/nettosphere/) |
+| **Play** | [atmosphere-play](http://atmosphere.github.io/atmosphere-play/) |
+| **Vert.x** | [atmosphere-vertx](https://github.com/Atmosphere/atmosphere-vertx) |
+
+Extensions: [Apache Kafka](https://github.com/Atmosphere/atmosphere-extensions/tree/master/kafka/modules), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast/modules), [RabbitMQ](https://github.com/Atmosphere/atmosphere-extensions/tree/master/rabbitmq/modules), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis/modules) and [more](https://github.com/Atmosphere/atmosphere-extensions/tree/extensions-2.4.x).
 
 ---
 
