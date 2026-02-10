@@ -23,5 +23,8 @@ jobs:
         java-version: ${{ matrix.java-version }}
         distribution: 'temurin'
 
-    - name: Build and Test with Maven
-      run: mvn -B install -Dgpg.skip=true --file pom.xml
+    - name: Build and Install (skip tests)
+      run: mvn -B install -DskipTests -Dgpg.skip=true --file pom.xml
+
+    - name: Run Tests
+      run: mvn -B test -Dgpg.skip=true --file pom.xml
