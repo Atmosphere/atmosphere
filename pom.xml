@@ -645,7 +645,7 @@
         <ahc.version>1.9.40</ahc.version>
         <slf4j-impl-version>1.7.35</slf4j-impl-version>
         <slf4j-version>1.7.35</slf4j-version>
-        <logback-version>1.2.10</logback-version>
+        <logback-version>1.5.25</logback-version>
         <commons-pool2>2.3</commons-pool2>
         <testng-version>7.10.2</testng-version>
     </properties>
