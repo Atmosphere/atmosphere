@@ -6,13 +6,13 @@
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
     <description>Atmosphere Framework</description>
-    <version>3.1.0-SNAPSHOT</version>
+    <version>3.1.0</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
         <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
         <url>http://github.com/Atmosphere/atmosphere</url>
-     <tag>HEAD</tag>
+     <tag>atmosphere-project-3.1.0</tag>
   </scm>
     <prerequisites>
         <maven>3.0</maven>
