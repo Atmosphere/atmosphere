@@ -1,0 +1,12 @@
+name: Atmosphere
+description: Provides real-time communication support using Atmosphere Framework with WebSocket and long-polling fallback
+metadata:
+  keywords:
+    - atmosphere
+    - websocket
+    - real-time
+    - long-polling
+    - server-sent-events
+  categories:
+    - "web"
+    - "reactive"

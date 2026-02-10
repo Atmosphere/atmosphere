@@ -3,13 +3,13 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>3.0.16-SNAPSHOT</version>
+        <version>3.1.0-SNAPSHOT</version>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-modules</artifactId>
-    <version>3.0.16-SNAPSHOT</version>
+    <version>3.1.0-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>atmosphere-modules</name>
     <description>Atmosphere Framework modules</description>
@@ -18,5 +18,6 @@
     <modules>
         <module>cpr</module>
         <module>spring-boot-starter</module>
+        <module>quarkus-extension</module>
     </modules>
 </project>
