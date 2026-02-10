@@ -24,4 +24,4 @@ jobs:
         distribution: 'temurin'
 
     - name: Build and Test with Maven
-      run: mvn -B install --file pom.xml
+      run: mvn -B install -Dgpg.skip=true --file pom.xml
