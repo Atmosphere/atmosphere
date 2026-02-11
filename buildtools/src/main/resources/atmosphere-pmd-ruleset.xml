@@ -9,7 +9,8 @@
     <exclude-pattern>.*.txt</exclude-pattern>
 
     <!-- PMD 7+ rule paths -->
-    <rule ref="category/java/multithreading.xml/DoubleCheckedLocking"/>
     <rule ref="category/java/bestpractices.xml/UseCollectionIsEmpty"/>
+    <rule ref="category/java/multithreading.xml/AvoidThreadGroup"/>
+    <rule ref="category/java/multithreading.xml/DontCallThreadRun"/>
  
 </ruleset>
