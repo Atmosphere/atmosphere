@@ -94,7 +94,7 @@ jobs:
     - name: Check Bundle Size
       run: |
         ls -lh dist/
-        SIZE=$(stat -f%z dist/atmosphere.min.js 2>/dev/null || stat -c%s dist/atmosphere.min.js)
+        SIZE=$(stat -f%z dist/index.global.js 2>/dev/null || stat -c%s dist/index.global.js)
         echo "Bundle size: $SIZE bytes"
         if [ $SIZE -gt 10240 ]; then
           echo "❌ Bundle size ($SIZE bytes) exceeds 10KB limit!"
