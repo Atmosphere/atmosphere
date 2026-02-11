@@ -6,6 +6,25 @@ Atmosphere is the production-proven framework for building real-time Java applic
 
 [![Atmosphere 3.1.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
 
+---
+
+## Atmosphere 4.0 Experimental Branch
+
+**EXPERIMENTAL**: Atmosphere 4.0 is an incremental modernization leveraging JDK 21+ features. This is bleeding-edge work and not recommended for production use.
+
+### What's New in 4.0
+
+- **JDK 21 baseline** with Virtual Threads for scalable concurrent connections
+- **Structured Concurrency** for reliable broadcast operations
+- **Scoped Values** replacing ThreadLocal for cleaner context propagation
+- **Modern dependency stack**: Jakarta EE 10+, Servlet 6.1, WebSocket 2.2
+- **Rewritten TypeScript client** (atmosphere.js 5.0) with modern async/await patterns
+- **Integrated samples** in the main repository for easier testing
+
+The 4.0 branch explores preview and incubator features to push Atmosphere's performance and developer experience forward. Track progress on the `atmosphere-4.x` branch.
+
+---
+
 ### Choose your stack
 
 | Stack | Artifact | Min version |
