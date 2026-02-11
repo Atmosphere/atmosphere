@@ -1,0 +1,62 @@
+{
+  "name": "unifont",
+  "type": "module",
+  "version": "0.7.3",
+  "description": "Framework agnostic tools for accessing data from font CDNs and providers",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/unjs/unifont.git"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.mjs"
+  },
+  "main": "./dist/index.mjs",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.mts",
+  "files": [
+    "dist"
+  ],
+  "dependencies": {
+    "css-tree": "^3.1.0",
+    "ofetch": "^1.5.1",
+    "ohash": "^2.0.11"
+  },
+  "devDependencies": {
+    "@antfu/eslint-config": "6.7.3",
+    "@types/css-tree": "2.3.11",
+    "@types/node": "24.10.7",
+    "@vitest/coverage-v8": "4.0.17",
+    "bumpp": "10.3.2",
+    "changelogithub": "14.0.0",
+    "eslint": "9.39.2",
+    "lint-staged": "16.2.7",
+    "simple-git-hooks": "2.13.1",
+    "tsdown": "0.19.0",
+    "typescript": "5.9.3",
+    "unstorage": "1.17.3",
+    "vite": "7.3.1",
+    "vitest": "4.0.17"
+  },
+  "resolutions": {
+    "unifont": "link:."
+  },
+  "simple-git-hooks": {
+    "pre-commit": "npx lint-staged"
+  },
+  "lint-staged": {
+    "*.{js,ts,mjs,cjs,json,.*rc}": [
+      "npx eslint --fix"
+    ]
+  },
+  "scripts": {
+    "build": "tsdown",
+    "dev": "vitest dev",
+    "lint": "eslint .",
+    "release": "bumpp",
+    "test": "pnpm test:unit --coverage && pnpm test:types",
+    "test:unit": "vitest",
+    "test:types": "tsc --noEmit"
+  }
+}

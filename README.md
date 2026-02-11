@@ -1,12 +1,21 @@
-## Atmosphere: Real-Time for Every Java Stack
+## Atmosphere 4.0: Modern Real-Time Java with JDK 21+
 
-Atmosphere is the production-proven framework for building real-time Java applications. WebSocket with automatic fallback to SSE, Long-Polling, HTTP Streaming, and JSONP -- write your handler once, Atmosphere negotiates the best transport.
+> ⚠️ **EXPERIMENTAL BUILD** - Atmosphere 4.0 is a complete rewrite leveraging JDK 21+ features including Virtual Threads, Structured Concurrency, and modern APIs. This is a preview release for early adopters.
 
-**New in 3.1**: first-class [Spring Boot 4](#spring-boot-applications) and [Quarkus 3](#quarkus-applications) starters with zero-configuration setup, CDI/Spring DI bridges, and build-time annotation scanning.
+Atmosphere 4.0 brings cutting-edge Java platform features to real-time web applications. Built on JDK 21-25 with Virtual Threads at its core, offering WebSocket with intelligent fallback to SSE and Long-Polling.
 
-[![Atmosphere 3.1.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
+[![Atmosphere 4.x](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=atmosphere-4.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
 
-### Choose your stack
+### What's New in 4.0
+
+- **Virtual Threads** - Every connection runs on a virtual thread, enabling massive scalability
+- **Structured Concurrency** - Reliable broadcast operations with automatic cancellation
+- **JDK 21-25 Ready** - Preview & incubator features enabled
+- **Monorepo** - Framework, samples, and TypeScript client in one place
+- **Jakarta EE 10+** - Servlet 6.0, WebSocket 2.1, CDI 4.0
+- **TypeScript Client** - Modern atmosphere.js 5.0 with type safety
+
+### Choose Your Stack
 
 | Stack | Artifact | Min version |
 |-------|----------|-------------|

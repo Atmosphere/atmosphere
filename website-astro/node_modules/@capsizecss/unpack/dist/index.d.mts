@@ -1,0 +1,2 @@
+import { a as fromBuffer, i as fromBlob, o as fromUrl, r as SupportedSubsets, s as supportedSubsets, t as Font } from "./shared-CnZ3qQtb.mjs";
+export { type Font, type SupportedSubsets, fromBlob, fromBuffer, fromUrl, supportedSubsets };

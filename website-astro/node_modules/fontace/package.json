@@ -1,0 +1,48 @@
+{
+  "name": "fontace",
+  "version": "0.4.1",
+  "description": "Extract useful information from font files",
+  "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "keywords": [
+    "font",
+    "opentype",
+    "truetype",
+    "woff",
+    "woff2",
+    "css",
+    "font-face"
+  ],
+  "author": "delucis",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/delucis/fontace.git"
+  },
+  "bugs": "https://github.com/delucis/fontace/issues",
+  "homepage": "https://github.com/delucis/fontace#readme",
+  "license": "MIT",
+  "dependencies": {
+    "fontkitten": "^1.0.2"
+  },
+  "devDependencies": {
+    "@changesets/changelog-github": "^0.5.2",
+    "@changesets/cli": "^2.29.8",
+    "@fontsource-variable/inter": "^5.2.5",
+    "@fontsource/roboto": "^5.2.5",
+    "tsdown": "^0.19.0",
+    "vite": "^7.3.1",
+    "vitest": "^4.0.18"
+  },
+  "scripts": {
+    "build": "tsdown --dts --no-fixed-extension",
+    "test": "vitest",
+    "ci-version": "changeset version && pnpm install --no-frozen-lockfile",
+    "ci-publish": "changeset publish"
+  }
+}
