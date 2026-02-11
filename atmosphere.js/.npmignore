@@ -1,0 +1,20 @@
+# Source files
+src/
+tests/
+*.test.ts
+
+# Config files
+tsconfig.json
+tsup.config.ts
+vitest.config.ts
+.eslintrc.json
+.prettierrc
+
+# Dev files
+node_modules/
+*.log
+.DS_Store
+coverage/
+
+# Build artifacts (keep only dist/)
+.turbo/

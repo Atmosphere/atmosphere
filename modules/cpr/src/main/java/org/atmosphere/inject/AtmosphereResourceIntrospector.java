@@ -17,14 +17,11 @@ package org.atmosphere.inject;
 
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.inject.annotation.RequestScoped;
-import org.atmosphere.util.ThreadLocalInvoker;
 
-import java.lang.reflect.Method;
-import java.lang.reflect.Proxy;
 import java.lang.reflect.Type;
 
 /**
- * {@link }AtmosphereResource} injection implementation support.
+ * {@link AtmosphereResource} injection using ScopedValues (JDK 21+).
  *
  * @author Jeanfrancois Arcand
  */
@@ -33,22 +30,11 @@ public class AtmosphereResourceIntrospector extends InjectIntrospectorAdapter<At
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && AtmosphereResource.class.isAssignableFrom((Class) t);
+        return (t instanceof Class<?> c) && AtmosphereResource.class.isAssignableFrom(c);
     }
 
     @Override
     public AtmosphereResource injectable(final AtmosphereResource r) {
-        return (AtmosphereResource) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{AtmosphereResource.class}, new ThreadLocalInvoker<AtmosphereResource>() {
-                    {
-                        set(r);
-                    }
-
-                    @Override
-                    public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
-                        return method.invoke(r, args);
-                    }
-                });
+        return r;
     }
-
 }

@@ -246,14 +246,14 @@ public final class AnnotationDetector {
         for (Class<? extends Annotation> aClass : a) {
             annotations.put("L" + aClass.getName().replace('.', '/') + ";", aClass);
         }
-        if (reporter instanceof TypeReporter) {
-            typeReporter = (TypeReporter) reporter;
+        if (reporter instanceof TypeReporter tr) {
+            typeReporter = tr;
         }
-        if (reporter instanceof FieldReporter) {
-            fieldReporter = (FieldReporter) reporter;
+        if (reporter instanceof FieldReporter fr) {
+            fieldReporter = fr;
         }
-        if (reporter instanceof MethodReporter) {
-            methodReporter = (MethodReporter) reporter;
+        if (reporter instanceof MethodReporter mr) {
+            methodReporter = mr;
         }
         if (typeReporter == null && fieldReporter == null && methodReporter == null) {
             throw new AssertionError("No reporter defined");
@@ -326,8 +326,8 @@ public final class AnnotationDetector {
                             print("Add jar file: '%s'", jarFile);
                         } else {
                             final URLConnection urlConnection = url.openConnection();
-                            if (urlConnection instanceof JarURLConnection) {
-                                loadJarContent((JarURLConnection) (url.openConnection()), packageName, streams);
+                            if (urlConnection instanceof JarURLConnection juc) {
+                                loadJarContent(juc, packageName, streams);
                             } else {
                                 streams.add(url.openConnection().getInputStream());
                             }
@@ -653,8 +653,8 @@ public final class AnnotationDetector {
         final int index = di.readUnsignedShort();
         final Object value = constantPool[index];
         final String s;
-        if (value instanceof Integer) {
-            s = (String) constantPool[(Integer) value];
+        if (value instanceof Integer intVal) {
+            s = (String) constantPool[intVal];
             print("resolveUtf8(%d): %d --> %s", index, value, s);
         } else {
             s = (String) value;

@@ -103,17 +103,10 @@ public final class Utils {
     }
 
     public static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
-        switch (t) {
-            case JSONP:
-            case LONG_POLLING:
-            case STREAMING:
-            case SSE:
-            case POLLING:
-            case HTMLFILE:
-                return true;
-            default:
-                return false;
-        }
+        return switch (t) {
+            case JSONP, LONG_POLLING, STREAMING, SSE, POLLING, HTMLFILE -> true;
+            default -> false;
+        };
     }
 
     public static boolean webSocketQueryStringPresentOrNull(HttpServletRequest request) {
@@ -127,35 +120,24 @@ public final class Utils {
     }
 
     public static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
-        switch (t) {
-            case JSONP:
-            case LONG_POLLING:
-                return true;
-            default:
-                return false;
-        }
+        return switch (t) {
+            case JSONP, LONG_POLLING -> true;
+            default -> false;
+        };
     }
 
     public static boolean pollableTransport(AtmosphereResource.TRANSPORT t) {
-        switch (t) {
-            case POLLING:
-            case CLOSE:
-            case AJAX:
-                return true;
-            default:
-                return false;
-        }
+        return switch (t) {
+            case POLLING, CLOSE, AJAX -> true;
+            default -> false;
+        };
     }
 
     public static boolean pushMessage(AtmosphereResource.TRANSPORT t) {
-        switch (t) {
-            case POLLING:
-            case UNDEFINED:
-            case AJAX:
-                return true;
-            default:
-                return false;
-        }
+        return switch (t) {
+            case POLLING, UNDEFINED, AJAX -> true;
+            default -> false;
+        };
     }
 
     public static boolean atmosphereProtocol(AtmosphereRequest r) {
@@ -257,8 +239,8 @@ public final class Utils {
         AtmosphereHandler h = r.getAtmosphereHandler();
         if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
             WebSocket w = ((AtmosphereResourceImpl) r).webSocket();
-            if (w != null && w.webSocketHandler() instanceof WebSocketHandlerProxy) {
-                return ((WebSocketHandlerProxy) w.webSocketHandler()).proxied();
+            if (w != null && w.webSocketHandler() instanceof WebSocketHandlerProxy proxy) {
+                return proxy.proxied();
             } else {
                 return null;
             }

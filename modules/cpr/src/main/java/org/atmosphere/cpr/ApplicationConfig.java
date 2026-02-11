@@ -917,11 +917,13 @@ public interface ApplicationConfig {
      */
     String USE_SERVLET_CONTEXT_PARAMETERS = "org.atmosphere.cpr.AtmosphereConfig.getInitParameter";
     /**
-     * Use {@link ForkJoinPool} for dispatching messages and executing async I/O) operation
+     * Use Virtual Threads (JDK 21+) for dispatching messages and executing async I/O operations.
+     * Virtual threads provide superior scalability for I/O-bound operations without the overhead
+     * of traditional thread pools. When enabled, thread pool size limits are ignored.
      * Default: true
-     * Value: org.atmosphere.useForkJoinPool
+     * Value: org.atmosphere.useVirtualThreads
      */
-    String USE_FORJOINPOOL = "org.atmosphere.useForkJoinPool";
+    String USE_VIRTUAL_THREADS = "org.atmosphere.useVirtualThreads";
     /**
      * The completion of response writing is reported to AtmosphereResponse. An interceptor can use the completion
      * status of AtmosphereResponse to change the behavior of its transform method.

@@ -17,27 +17,11 @@ package org.atmosphere.cache;
 
 import java.io.Serializable;
 
-public class CacheMessage implements Serializable {
+public record CacheMessage(String id, long createTime, Object message, String uuid) implements Serializable {
     private static final long serialVersionUID = -126253550299206646L;
 
-    private final Object message;
-
-    private final String id;
-    private final long createTime;
-    private final String uuid;
-
     public CacheMessage(String id, Object message, String uuid) {
-        this.id = id;
-        this.message = message;
-        this.createTime = System.nanoTime();
-        this.uuid = uuid;
-    }
-
-    public CacheMessage(String id, Long now, Object message, String uuid) {
-        this.id = id;
-        this.message = message;
-        this.createTime = now;
-        this.uuid = uuid;
+        this(id, System.nanoTime(), message, uuid);
     }
 
     public Object getMessage() {
@@ -48,19 +32,12 @@ public class CacheMessage implements Serializable {
         return id;
     }
 
+    @Override
     public String toString() {
         return message.toString();
     }
 
     public long getCreateTime() {
         return createTime;
-    }
-
-    /**
-     * Return the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
-     * @return {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
-     */
-    public String uuid(){
-        return uuid;
     }
 }

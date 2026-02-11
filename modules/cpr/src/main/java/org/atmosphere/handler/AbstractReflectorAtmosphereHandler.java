@@ -83,8 +83,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
         if (resource.getSerializer() != null) {
             try {
 
-                if (message instanceof List) {
-                    for (Object s : (List<Object>) message) {
+                if (message instanceof List<?> msgList) {
+                    for (Object s : msgList) {
                         resource.getSerializer().write(resource.getResponse().getOutputStream(), s);
                     }
                 } else {
@@ -112,8 +112,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
                 }
             }
 
-            if (message instanceof List) {
-                Iterator<Object> i = ((List) message).iterator();
+            if (message instanceof List<?> msgList) {
+                Iterator<?> i = msgList.iterator();
                 try {
                     Object s;
                     while (i.hasNext()) {

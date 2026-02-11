@@ -1,0 +1,22 @@
+<configuration debug='true'>
+
+    <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%d{HH:mm:ss.SSS} %level [%thread] %logger{10} [%file:%line] %msg%n</pattern>
+        </encoder>
+    </appender>
+
+    <!--<logger name="org.atmosphere" level="TRACE"/>-->
+    <!--<logger name="org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter" level="INFO"/>-->
+    <!--<logger name="org.atmosphere.cpr.AtmosphereResourceEventListener" level="INFO"/>-->
+
+    <!--<logger name="org.atmosphere.cpr.AtmosphereResourceImpl" level="DEBUG"/>-->
+    <!--<logger name="org.atmosphere.cpr.AsyncSupportListenerAdapter" level="INFO"/>-->
+
+
+    <root>
+        <level value="INFO"/>
+        <appender-ref ref="STDOUT"/>
+    </root>
+
+</configuration>

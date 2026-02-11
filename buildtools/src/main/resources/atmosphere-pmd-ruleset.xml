@@ -8,9 +8,8 @@
     <exclude-pattern>.*.js</exclude-pattern>
     <exclude-pattern>.*.txt</exclude-pattern>
 
-    <!-- TODO add more rules after fixing the code -->
-    <rule ref="rulesets/java/basic.xml/DoubleCheckedLocking"/>
-
-    <rule ref="rulesets/java/design.xml/UseCollectionIsEmpty"/>
+    <!-- PMD 7+ rule paths -->
+    <rule ref="category/java/multithreading.xml/DoubleCheckedLocking"/>
+    <rule ref="category/java/bestpractices.xml/UseCollectionIsEmpty"/>
  
 </ruleset>

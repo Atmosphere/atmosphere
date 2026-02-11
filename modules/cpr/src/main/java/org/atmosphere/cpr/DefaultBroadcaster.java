@@ -48,6 +48,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE_STRATEGY;
@@ -97,6 +99,11 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final ConcurrentHashMap<String, WriteQueue> writeQueues = new ConcurrentHashMap<>();
     protected final WriteQueue uniqueWriteQueue = new WriteQueue("-1");
     protected final AtomicInteger dispatchThread = new AtomicInteger();
+    
+    // ReentrantLocks to avoid virtual thread pinning with synchronized blocks
+    private final ReentrantLock resourcesLock = new ReentrantLock();
+    private final ReentrantLock awaitLock = new ReentrantLock();
+    private final Condition awaitCondition = awaitLock.newCondition();
 
     protected Future<?>[] notifierFuture;
     protected Future<?>[] asyncWriteFuture;
@@ -369,14 +376,15 @@ public class DefaultBroadcaster implements Broadcaster {
     @Override
     public Future<Object> awaitAndBroadcast(Object t, long time, TimeUnit timeUnit) {
         if (resources.isEmpty()) {
-            synchronized (awaitBarrier) {
-                try {
-                    logger.trace("Awaiting for AtmosphereResource for {} {}", time, timeUnit);
-                    awaitBarrier.wait(translateTimeUnit(time, timeUnit));
-                } catch (Throwable e) {
-                    logger.warn("awaitAndBroadcast", e);
-                    return null;
-                }
+            awaitLock.lock();
+            try {
+                logger.trace("Awaiting for AtmosphereResource for {} {}", time, timeUnit);
+                awaitCondition.await(translateTimeUnit(time, timeUnit), TimeUnit.MILLISECONDS);
+            } catch (Throwable e) {
+                logger.warn("awaitAndBroadcast", e);
+                return null;
+            } finally {
+                awaitLock.unlock();
             }
         }
         return broadcast(t);
@@ -953,7 +961,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 if (deliver.message != null) {
-                    filteredMessage.addLast(deliver.message);
+                    filteredMessage.addLast(deliver.message);  // SequencedCollection method
                 }
             }
 
@@ -965,7 +973,7 @@ public class DefaultBroadcaster implements Broadcaster {
             final boolean willBeResumed = Utils.resumableTransport(r.transport());
 
             if (willBeResumed) {
-                filteredMessageClone = (LinkedList<Object>) filteredMessage.clone();
+                filteredMessageClone = new LinkedList<>(filteredMessage);  // Copy constructor
             }
 
             List<AtmosphereResourceEventListener> listeners = willBeResumed ? new ArrayList<>() : EMPTY_LISTENERS;
@@ -1376,8 +1384,11 @@ public class DefaultBroadcaster implements Broadcaster {
         } finally {
             // OK reset
             if (!resources.isEmpty()) {
-                synchronized (awaitBarrier) {
-                    awaitBarrier.notifyAll();
+                awaitLock.lock();
+                try {
+                    awaitCondition.signalAll();
+                } finally {
+                    awaitLock.unlock();
                 }
             }
         }

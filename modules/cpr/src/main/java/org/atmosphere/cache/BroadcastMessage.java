@@ -22,26 +22,10 @@ import java.util.UUID;
  *
  * @author Jeanfrancois Arcand
  */
-public final class BroadcastMessage {
-
-    private final String id;
-    private final Object message;
-
-    public BroadcastMessage(String id, Object message) {
-        this.id = id;
-        this.message = message;
-    }
+public record BroadcastMessage(String id, Object message) {
 
     public BroadcastMessage(Object message) {
         this(UUID.randomUUID().toString(), message);
-    }
-
-    public String id() {
-        return id;
-    }
-
-    public Object message() {
-        return message;
     }
 
 }

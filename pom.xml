@@ -6,7 +6,7 @@
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
     <description>Atmosphere Framework</description>
-    <version>3.1.1-SNAPSHOT</version>
+    <version>4.0.0-SNAPSHOT</version>
     <url>http://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
@@ -83,9 +83,9 @@
         <plugins>
             <plugin>
                 <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.1</version>
+                <version>3.13.0</version>
                 <configuration>
-                    <release>17</release>
+                    <release>21</release>
                 </configuration>
             </plugin>
             <plugin>
@@ -212,7 +212,7 @@
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-pmd-plugin</artifactId>
-                <version>3.15.0</version>
+                <version>3.28.0</version>
                 <dependencies>
                     <dependency>
                         <groupId>org.atmosphere</groupId>
@@ -225,7 +225,7 @@
                         <ruleset>atmosphere-pmd-ruleset.xml</ruleset>
                     </rulesets>
                     <sourceEncoding>UTF-8</sourceEncoding>
-                    <targetJdk>17</targetJdk>
+                    <targetJdk>21</targetJdk>
                     <linkXRef>false</linkXRef>
                     <includeTests>true</includeTests>
                     <verbose>true</verbose>
@@ -497,6 +497,10 @@
         <module>buildtools</module>
         <module>modules</module>
         <module>assembly</module>
+        <module>samples/chat</module>
+        <module>samples/embedded-jetty-websocket-chat</module>
+        <module>samples/spring-boot-chat</module>
+        <module>samples/quarkus-chat</module>
     </modules>
     <reporting>
         <outputDirectory>target/site</outputDirectory>
@@ -637,16 +641,16 @@
     <properties>
         <junit-version>4.13.2</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
-        <servlet-version-range>5.0.0</servlet-version-range>
-        <jetty-version>11.0.7</jetty-version>
-        <tomcat-version>10.0.14</tomcat-version>
+        <servlet-version-range>6.0.0</servlet-version-range>
+        <jetty-version>12.0.16</jetty-version>
+        <tomcat-version>11.0.18</tomcat-version>
         <shade-version>1.2.1</shade-version>
-        <felix-version>5.1.4</felix-version>
+        <felix-version>5.1.9</felix-version>
         <ahc.version>1.9.40</ahc.version>
-        <slf4j-impl-version>1.7.35</slf4j-impl-version>
-        <slf4j-version>1.7.35</slf4j-version>
-        <logback-version>1.2.10</logback-version>
-        <commons-pool2>2.3</commons-pool2>
+        <slf4j-impl-version>2.0.16</slf4j-impl-version>
+        <slf4j-version>2.0.16</slf4j-version>
+        <logback-version>1.5.18</logback-version>
+        <commons-pool2>2.12.0</commons-pool2>
         <testng-version>7.10.2</testng-version>
     </properties>
 </project>

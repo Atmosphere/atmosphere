@@ -77,8 +77,8 @@ public final class IntrospectionUtils {
      */
     public static void setAttribute(Object proxy, String name, Object value)
             throws Exception {
-        if (proxy instanceof AttributeHolder) {
-            ((AttributeHolder) proxy).setAttribute(name, value);
+        if (proxy instanceof AttributeHolder ah) {
+            ah.setAttribute(name, value);
             return;
         }
 

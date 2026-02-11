@@ -377,13 +377,17 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         }
     }
 
-    @Override
+    /**
+     * @deprecated As of Jakarta Servlet 6.1, this method is removed.
+     */
+    @Deprecated(since = "4.0.0", forRemoval = true)
     public void setStatus(int status, String statusMessage) {
         if (!delegateToNativeResponse) {
             this.statusMessage = statusMessage;
             this.status = status;
         } else {
-            _r().setStatus(status, statusMessage);
+            // Jakarta Servlet 6.1 removed setStatus(int, String)
+            _r().setStatus(status);
         }
     }
 

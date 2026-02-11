@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Atmosphere 4.0 Chat - Quarkus</title>
+    
+    <script type="text/javascript" src="javascript/atmosphere.js"></script>
+    <script type="text/javascript" src="javascript/atmosphere.js"></script>
+    <script type="text/javascript" src="javascript/application.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+        
+        .container {
+            width: 100%;
+            max-width: 700px;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+        
+        #header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        #header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        
+        #header p {
+            font-size: 14px;
+            opacity: 0.9;
+            line-height: 1.5;
+        }
+        
+        #content {
+            height: 400px;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f8f9fa;
+        }
+        
+        #content::-webkit-scrollbar {
+            width: 8px;
+        }
+        
+        #content::-webkit-scrollbar-track {
+            background: #e9ecef;
+        }
+        
+        #content::-webkit-scrollbar-thumb {
+            background: #adb5bd;
+            border-radius: 4px;
+        }
+        
+        #content p {
+            background: white;
+            padding: 12px 16px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            font-size: 14px;
+            line-height: 1.5;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+            word-wrap: break-word;
+        }
+        
+        .input-container {
+            padding: 20px;
+            background: white;
+            display: flex;
+            gap: 15px;
+            align-items: center;
+            border-top: 1px solid #e9ecef;
+        }
+        
+        #status {
+            font-size: 13px;
+            font-weight: 500;
+            padding: 8px 16px;
+            border-radius: 20px;
+            white-space: nowrap;
+        }
+        
+        #status.connecting {
+            background: #ffc107;
+            color: #000;
+        }
+        
+        #status.connected {
+            background: #28a745;
+            color: white;
+        }
+        
+        #input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #e9ecef;
+            border-radius: 25px;
+            font-size: 14px;
+            transition: all 0.3s ease;
+        }
+        
+        #input:focus {
+            outline: none;
+            border-color: #f093fb;
+            box-shadow: 0 0 0 3px rgba(240, 147, 251, 0.1);
+        }
+        
+        #input:disabled {
+            background: #f8f9fa;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div id="header">
+            <h1>🚀 Atmosphere 4.0 Chat</h1>
+            <p>Quarkus • JDK 21 Virtual Threads • WebSocket with Long-Polling Fallback</p>
+        </div>
+        <div id="content"></div>
+        <div class="input-container">
+            <span id="status" class="connecting">Connecting...</span>
+            <input type="text" id="input" placeholder="Type a message and press Enter..." disabled="disabled"/>
+        </div>
+    </div>
+</body>
+</html>

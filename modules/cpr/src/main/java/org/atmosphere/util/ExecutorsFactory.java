@@ -20,7 +20,6 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.AbstractExecutorService;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
@@ -29,11 +28,9 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.atmosphere.cpr.ApplicationConfig.USE_FORJOINPOOL;
-
 /**
- * Stateless Factory to create {@link ExecutorService} used in all Atmosphere Component. By default they are
- * shared amongst all component. To change the behavior, add {@link ApplicationConfig#BROADCASTER_SHARABLE_THREAD_POOLS}
+ * Factory to create {@link ExecutorService} for Atmosphere components.
+ * Uses Virtual Threads (JDK 21+) by default for unlimited scalability.
  *
  * @author Jeanfrancois Arcand
  */
@@ -67,129 +64,109 @@ public class ExecutorsFactory {
     }
 
     /**
-     * Create an {@link ExecutorService} to be used for dispatching messages, not I/O events.
-     *
-     * @param config the {@link AtmosphereConfig}
-     * @param name   a name to use if shared is false.
-     * @return {@link ExecutorService}
+     * Create an {@link ExecutorService} to be used for dispatching messages.
+     * Uses Virtual Threads by default for unlimited scalability.
      */
     public static ExecutorService getMessageDispatcher(final AtmosphereConfig config, final String name) {
         final boolean shared = config.framework().isShareExecutorServices();
-
-        boolean useForkJoinPool = config.getInitParameter(USE_FORJOINPOOL, true);
+        
         if (!shared || config.properties().get(BROADCASTER_THREAD_POOL) == null) {
-            int numberOfMessageProcessingThread = DEFAULT_MESSAGE_THREAD;
-            String s = config.getInitParameter(ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE);
-            if (s != null) {
-                numberOfMessageProcessingThread = Integer.parseInt(s);
-            }
-
-            if (shared && numberOfMessageProcessingThread == 1) {
-                logger.warn("Not enough numberOfMessageProcessingThread for a shareable thread pool {}, " +
-                        "Setting it to a newCachedThreadPool", numberOfMessageProcessingThread);
-                numberOfMessageProcessingThread = -1;
-            }
-
-            AbstractExecutorService messageService;
-            logger.trace("Max number of DispatchOp {}", numberOfMessageProcessingThread == -1 ? "Unlimited" : numberOfMessageProcessingThread);
-            String threadName = name + "-DispatchOp-";
-
-            if (numberOfMessageProcessingThread == -1) {
-                messageService = !useForkJoinPool ? (ThreadPoolExecutor) Executors.newCachedThreadPool(new AtmosphereThreadFactory(shared, threadName))
-                        : new ForkJoinPool(shared, threadName);
+            boolean useVirtualThreads = config.getInitParameter(ApplicationConfig.USE_VIRTUAL_THREADS, true);
+            ExecutorService service;
+            
+            if (useVirtualThreads) {
+                logger.info("Using Virtual Threads for message dispatching (unlimited scalability)");
+                service = Executors.newVirtualThreadPerTaskExecutor();
             } else {
-                messageService = (ThreadPoolExecutor) Executors.newFixedThreadPool(numberOfMessageProcessingThread,
-                        new AtmosphereThreadFactory(shared, threadName));
+                // Traditional thread pool only when virtual threads explicitly disabled
+                int threads = config.getInitParameter(
+                    ApplicationConfig.BROADCASTER_MESSAGE_PROCESSING_THREADPOOL_MAXSIZE, 
+                    DEFAULT_MESSAGE_THREAD
+                );
+                
+                if (threads == -1) {
+                    logger.info("Using cached thread pool for message dispatching");
+                    service = Executors.newCachedThreadPool(
+                        new AtmosphereThreadFactory(shared, name + "-DispatchOp-")
+                    );
+                } else {
+                    logger.info("Using fixed thread pool ({} threads) for message dispatching", threads);
+                    service = Executors.newFixedThreadPool(threads,
+                        new AtmosphereThreadFactory(shared, name + "-DispatchOp-")
+                    );
+                }
+                
+                configureThreadPool(service, config);
             }
-
-            keepAliveThreads(messageService, config);
 
             if (shared) {
-                config.properties().put(BROADCASTER_THREAD_POOL, messageService);
+                config.properties().put(BROADCASTER_THREAD_POOL, service);
             }
-            return messageService;
+            return service;
         } else {
             return (ExecutorService) config.properties().get(BROADCASTER_THREAD_POOL);
         }
     }
 
-    private static void keepAliveThreads(AbstractExecutorService t, AtmosphereConfig config) {
-
-        if (!ThreadPoolExecutor.class.isAssignableFrom(t.getClass())) {
-            return;
-        }
-
-        ThreadPoolExecutor e = (ThreadPoolExecutor) t;
-        int keepAlive = DEFAULT_KEEP_ALIVE;
-        String s = config.getInitParameter(ApplicationConfig.EXECUTORFACTORY_KEEP_ALIVE);
-        if (s != null) {
-            keepAlive = Integer.parseInt(s);
-        }
-        e.setKeepAliveTime(keepAlive, TimeUnit.SECONDS);
-        e.allowCoreThreadTimeOut(config.getInitParameter(ApplicationConfig.ALLOW_CORE_THREAD_TIMEOUT, true));
-    }
-
     /**
-     * Create an {@link ExecutorService} to be used for dispatching I/O events.
-     *
-     * @param config the {@link AtmosphereConfig}
-     * @param name   a name to use if shared is false.
-     * @return {@link ExecutorService}
+     * Create an {@link ExecutorService} for async I/O operations.
+     * Uses Virtual Threads by default - perfect for I/O-bound work.
      */
     public static ExecutorService getAsyncOperationExecutor(final AtmosphereConfig config, final String name) {
         final boolean shared = config.framework().isShareExecutorServices();
 
         if (!shared || config.properties().get(ASYNC_WRITE_THREAD_POOL) == null) {
-            int numberOfAsyncThread = DEFAULT_ASYNC_THREAD;
-            String s = config.getInitParameter(ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE);
-            if (s != null) {
-                numberOfAsyncThread = Integer.parseInt(s);
-            }
+            boolean useVirtualThreads = config.getInitParameter(ApplicationConfig.USE_VIRTUAL_THREADS, true);
+            ExecutorService service;
 
-            if (shared && numberOfAsyncThread == 1) {
-                logger.warn("Not enough numberOfAsyncThread for a shareable thread pool {}, " +
-                        "Setting it to a newCachedThreadPool", numberOfAsyncThread);
-                numberOfAsyncThread = -1;
-            }
-
-            AbstractExecutorService asyncWriteService;
-            boolean useForkJoinPool = config.getInitParameter(USE_FORJOINPOOL, true);
-            logger.trace("Max number of AsyncOp {}", numberOfAsyncThread == -1 ? "Unlimited" : numberOfAsyncThread);
-            String threadName = name + "-AsyncOp-";
-
-            if (numberOfAsyncThread == -1) {
-                asyncWriteService = !useForkJoinPool ? (ThreadPoolExecutor) Executors.newCachedThreadPool(new AtmosphereThreadFactory(shared, threadName))
-                        : new ForkJoinPool(shared, threadName);
+            if (useVirtualThreads) {
+                logger.info("Using Virtual Threads for async I/O (unlimited scalability)");
+                service = Executors.newVirtualThreadPerTaskExecutor();
             } else {
-                asyncWriteService = (ThreadPoolExecutor) Executors.newFixedThreadPool(numberOfAsyncThread,
-                        new AtmosphereThreadFactory(shared, threadName));
+                // Traditional thread pool only when virtual threads explicitly disabled
+                int threads = config.getInitParameter(
+                    ApplicationConfig.BROADCASTER_ASYNC_WRITE_THREADPOOL_MAXSIZE,
+                    DEFAULT_ASYNC_THREAD
+                );
+                
+                if (threads == -1) {
+                    logger.info("Using cached thread pool for async I/O");
+                    service = Executors.newCachedThreadPool(
+                        new AtmosphereThreadFactory(shared, name + "-AsyncOp-")
+                    );
+                } else {
+                    logger.info("Using fixed thread pool ({} threads) for async I/O", threads);
+                    service = Executors.newFixedThreadPool(threads,
+                        new AtmosphereThreadFactory(shared, name + "-AsyncOp-")
+                    );
+                }
+                
+                configureThreadPool(service, config);
             }
-
-            keepAliveThreads(asyncWriteService, config);
 
             if (shared) {
-                config.properties().put(ASYNC_WRITE_THREAD_POOL, asyncWriteService);
+                config.properties().put(ASYNC_WRITE_THREAD_POOL, service);
             }
-            return asyncWriteService;
+            return service;
         } else {
             return (ExecutorService) config.properties().get(ASYNC_WRITE_THREAD_POOL);
         }
     }
 
     /**
-     * Create a {@link ScheduledExecutorService} used ot schedule I/O and non I/O events.
-     *
-     * @param config the {@link AtmosphereConfig}
-     * @return {@link ScheduledExecutorService}
+     * Create a {@link ScheduledExecutorService} for scheduled tasks.
      */
     public static ScheduledExecutorService getScheduler(final AtmosphereConfig config) {
         final boolean shared = config.framework().isShareExecutorServices();
 
         if (!shared || config.properties().get(SCHEDULER_THREAD_POOL) == null) {
-            int threads = config.getInitParameter(ApplicationConfig.SCHEDULER_THREADPOOL_MAXSIZE, Runtime.getRuntime().availableProcessors());
-            logger.trace("Max number of Atmosphere-Scheduler {}", threads);
+            int threads = config.getInitParameter(
+                ApplicationConfig.SCHEDULER_THREADPOOL_MAXSIZE,
+                Runtime.getRuntime().availableProcessors()
+            );
+            
+            logger.info("Creating scheduler with {} threads", threads);
             ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(threads, new ThreadFactory() {
-
                 private final AtomicInteger count = new AtomicInteger();
 
                 @Override
@@ -204,31 +181,37 @@ public class ExecutorsFactory {
                 config.properties().put(SCHEDULER_THREAD_POOL, scheduler);
             }
 
-            keepAliveThreads((ThreadPoolExecutor) scheduler, config);
-
+            configureThreadPool(scheduler, config);
             return scheduler;
         } else {
             return (ScheduledExecutorService) config.properties().get(SCHEDULER_THREAD_POOL);
         }
     }
 
+    private static void configureThreadPool(ExecutorService service, AtmosphereConfig config) {
+        if (service instanceof ThreadPoolExecutor executor) {
+            int keepAlive = config.getInitParameter(
+                ApplicationConfig.EXECUTORFACTORY_KEEP_ALIVE,
+                DEFAULT_KEEP_ALIVE
+            );
+            executor.setKeepAliveTime(keepAlive, TimeUnit.SECONDS);
+            executor.allowCoreThreadTimeOut(
+                config.getInitParameter(ApplicationConfig.ALLOW_CORE_THREAD_TIMEOUT, true)
+            );
+        }
+    }
+
     public static void reset(AtmosphereConfig config) {
-        ExecutorService e = (ExecutorService) config.properties().get(ASYNC_WRITE_THREAD_POOL);
-        if (e != null) {
-            e.shutdown();
+        shutdown(config, ASYNC_WRITE_THREAD_POOL);
+        shutdown(config, SCHEDULER_THREAD_POOL);
+        shutdown(config, BROADCASTER_THREAD_POOL);
+    }
+    
+    private static void shutdown(AtmosphereConfig config, String poolName) {
+        ExecutorService service = (ExecutorService) config.properties().get(poolName);
+        if (service != null) {
+            service.shutdown();
         }
-        config.properties().remove(ASYNC_WRITE_THREAD_POOL);
-
-        e = (ExecutorService) config.properties().get(SCHEDULER_THREAD_POOL);
-        if (e != null) {
-            e.shutdown();
-        }
-        config.properties().remove(SCHEDULER_THREAD_POOL);
-
-        e = (ExecutorService) config.properties().get(BROADCASTER_THREAD_POOL);
-        if (e != null) {
-            e.shutdown();
-        }
-        config.properties().remove(BROADCASTER_THREAD_POOL);
+        config.properties().remove(poolName);
     }
 }
