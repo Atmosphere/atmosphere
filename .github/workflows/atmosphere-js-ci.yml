@@ -1,0 +1,103 @@
+name: Atmosphere.js CI
+
+on:
+  push:
+    branches: [ atmosphere-4.x ]
+    paths:
+      - 'atmosphere.js/**'
+      - '.github/workflows/atmosphere-js-ci.yml'
+  pull_request:
+    branches: [ atmosphere-4.x ]
+    paths:
+      - 'atmosphere.js/**'
+      - '.github/workflows/atmosphere-js-ci.yml'
+
+jobs:
+  build-and-test:
+    name: Build & Test Client
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18, 20, 22]
+      fail-fast: false
+    
+    defaults:
+      run:
+        working-directory: atmosphere.js
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js ${{ matrix.node-version }}
+      uses: actions/setup-node@v4
+      with:
+        node-version: ${{ matrix.node-version }}
+        cache: 'npm'
+        cache-dependency-path: atmosphere.js/package-lock.json
+    
+    - name: Install Dependencies
+      run: npm ci
+    
+    - name: Lint
+      run: npm run lint
+    
+    - name: Type Check
+      run: npm run typecheck
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Run Tests
+      run: npm test
+    
+    - name: Upload Coverage
+      if: matrix.node-version == 20
+      uses: codecov/codecov-action@v4
+      with:
+        files: ./atmosphere.js/coverage/coverage-final.json
+        flags: atmosphere-js
+        name: atmosphere-js-coverage
+      continue-on-error: true
+    
+    - name: Upload Build Artifacts
+      if: matrix.node-version == 20
+      uses: actions/upload-artifact@v4
+      with:
+        name: atmosphere-js-dist
+        path: atmosphere.js/dist/
+
+  bundle-size:
+    name: Check Bundle Size
+    runs-on: ubuntu-latest
+    
+    defaults:
+      run:
+        working-directory: atmosphere.js
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        cache: 'npm'
+        cache-dependency-path: atmosphere.js/package-lock.json
+    
+    - name: Install Dependencies
+      run: npm ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Check Bundle Size
+      run: |
+        ls -lh dist/
+        SIZE=$(stat -f%z dist/atmosphere.min.js 2>/dev/null || stat -c%s dist/atmosphere.min.js)
+        echo "Bundle size: $SIZE bytes"
+        if [ $SIZE -gt 10240 ]; then
+          echo "❌ Bundle size ($SIZE bytes) exceeds 10KB limit!"
+          exit 1
+        fi
+        echo "✅ Bundle size OK: $SIZE bytes"

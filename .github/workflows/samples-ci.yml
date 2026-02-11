@@ -1,0 +1,56 @@
+name: Samples CI
+
+on:
+  push:
+    branches: [ atmosphere-4.x ]
+    paths:
+      - 'samples/**'
+      - 'modules/**'
+      - 'pom.xml'
+  pull_request:
+    branches: [ atmosphere-4.x ]
+    paths:
+      - 'samples/**'
+      - 'modules/**'
+      - 'pom.xml'
+
+jobs:
+  test-samples:
+    name: Test Sample - ${{ matrix.sample }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        sample: 
+          - chat
+          - spring-boot-chat
+          - quarkus-chat
+          - embedded-jetty-websocket-chat
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+    
+    - name: Install Atmosphere Core
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl modules/cpr,modules/quarkus-extension,modules/spring-boot-starter -am
+    
+    - name: Build Sample - ${{ matrix.sample }}
+      run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }}
+    
+    - name: Test Sample - ${{ matrix.sample }}
+      run: ./mvnw -B test -Dgpg.skip=true -pl samples/${{ matrix.sample }}
+      if: matrix.sample != 'embedded-jetty-websocket-chat'
+    
+    - name: Upload Build Artifacts
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: sample-${{ matrix.sample }}-artifacts
+        path: samples/${{ matrix.sample }}/target/

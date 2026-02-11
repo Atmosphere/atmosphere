@@ -1,0 +1,42 @@
+name: Atmosphere 4.x CI
+
+on:
+  push:
+    branches: [ atmosphere-4.x ]
+  pull_request:
+    branches: [ atmosphere-4.x ]
+
+jobs:
+  build-and-test:
+    name: Build & Test (JDK ${{ matrix.java-version }})
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        java-version: [21, 23, 25]
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Set up JDK ${{ matrix.java-version }}
+      uses: actions/setup-java@v4
+      with:
+        java-version: ${{ matrix.java-version }}
+        distribution: 'temurin'
+        cache: 'maven'
+    
+    - name: Build Core Modules
+      run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
+    
+    - name: Run Core Tests
+      run: ./mvnw -B test -Dgpg.skip=true -pl modules/cpr,modules/quarkus-extension,modules/spring-boot-starter
+    
+    - name: Upload Test Results
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: test-results-jdk-${{ matrix.java-version }}
+        path: |
+          **/target/surefire-reports/
+          **/target/failsafe-reports/

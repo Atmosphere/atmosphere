@@ -1,0 +1,68 @@
+name: Publish Atmosphere.js to NPM
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 5.0.0, 5.0.0-beta.1)'
+        required: true
+        type: string
+
+jobs:
+  publish:
+    name: Publish to NPM
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write
+      id-token: write
+    
+    defaults:
+      run:
+        working-directory: atmosphere.js
+    
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: atmosphere-4.x
+    
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
+        cache-dependency-path: atmosphere.js/package-lock.json
+    
+    - name: Configure Git
+      run: |
+        git config user.name "GitHub Actions Bot"
+        git config user.email "actions@github.com"
+    
+    - name: Install Dependencies
+      run: npm ci
+    
+    - name: Update Version
+      run: npm version ${{ inputs.version }} --no-git-tag-version
+    
+    - name: Run Tests
+      run: npm run test:ci
+    
+    - name: Build
+      run: npm run build
+    
+    - name: Publish to NPM
+      run: npm publish --provenance --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+    
+    - name: Commit Version Bump
+      run: |
+        git add package.json package-lock.json
+        git commit -m "chore: release atmosphere.js v${{ inputs.version }}"
+        git push origin atmosphere-4.x
+    
+    - name: Create Git Tag
+      run: |
+        git tag "atmosphere.js-v${{ inputs.version }}"
+        git push origin "atmosphere.js-v${{ inputs.version }}"

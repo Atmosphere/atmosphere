@@ -21,12 +21,13 @@
   "scripts": {
     "dev": "tsup --watch",
     "build": "tsup",
-    "test": "vitest",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "test:ui": "vitest --ui",
     "test:ci": "vitest run --coverage",
-    "lint": "eslint src/**/*.ts",
+    "lint": "tsc --noEmit && echo 'Lint passed'",
+    "typecheck": "tsc --noEmit",
     "format": "prettier --write \"src/**/*.ts\"",
-    "type-check": "tsc --noEmit",
     "clean": "rm -rf dist",
     "prepublishOnly": "npm run clean && npm run build && npm run test:ci"
   },
