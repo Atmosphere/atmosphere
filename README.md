@@ -21,7 +21,9 @@ Atmosphere is the production-proven framework for building real-time Java applic
 - **Rewritten TypeScript client** (atmosphere.js 5.0) with modern async/await patterns
 - **Integrated samples** in the main repository for easier testing
 
-The 4.0 branch explores preview and incubator features to push Atmosphere's performance and developer experience forward. Track progress on the `atmosphere-4.x` branch.
+The 4.0 branch explores preview and incubator features to push Atmosphere's performance and developer experience forward. 
+
+**[View Atmosphere 4.x README and Documentation →](https://github.com/Atmosphere/atmosphere/tree/atmosphere-4.x#readme)**
 
 ---
 
