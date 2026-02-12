@@ -112,9 +112,24 @@ public class IOUtils {
     }
 
     public static boolean isBodyEmpty(Object o) {
-        if (o != null && (String.class.isAssignableFrom(o.getClass()) && ((String) o).isEmpty())) return true;
-        assert o != null;
-        return Byte[].class.isAssignableFrom(o.getClass()) && ((Byte[]) o).length == 0;
+        if (o == null) {
+            return false;
+        }
+
+        boolean isEmptyString = isStringAndEmpty(o);
+        boolean isEmptyByteArray = isByteArrayAndEmpty(o);
+
+        return isEmptyString || isEmptyByteArray;
+    }
+
+    private static boolean isStringAndEmpty(Object o) {
+        boolean isString = String.class.isAssignableFrom(o.getClass());
+        return isString && ((String) o).isEmpty();
+    }
+
+    private static boolean isByteArrayAndEmpty(Object o) {
+        boolean isByteArray = Byte[].class.isAssignableFrom(o.getClass());
+        return isByteArray && ((Byte[]) o).length == 0;
     }
 
     public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {
