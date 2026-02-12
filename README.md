@@ -50,13 +50,13 @@ public class Chat {
 
 ### Spring Boot Applications
 
-The `atmosphere-spring-boot-starter` provides zero-configuration integration with **Spring Boot 4.0.2+**, including auto-configured servlet, Spring DI bridge, and optional Actuator health indicator.
+The `atmosphere-spring-boot-starter` provides zero-configuration integration with **Spring Boot 3.4+**, including auto-configured servlet, Spring DI bridge, and optional Actuator health indicator.
 
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>3.1.0</version>
+    <version>4.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -92,7 +92,7 @@ The `atmosphere-quarkus-extension` brings Atmosphere to **Quarkus 3.21+** with b
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>3.1.0</version>
+    <version>4.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
