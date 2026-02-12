@@ -38,8 +38,8 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
     
-    - name: Install Atmosphere Core and Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules -am
+    - name: Install Atmosphere Modules
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/spring-boot-starter,modules/quarkus-extension -am
     
     - name: Build Sample - ${{ matrix.sample }}
       run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }}
