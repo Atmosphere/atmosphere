@@ -23,6 +23,7 @@ import java.io.IOException;
 import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -66,7 +67,7 @@ public class BroadcasterTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.destroy();
-        atmosphereHandler.value.set(new HashSet<>());
+        atmosphereHandler.value.set(ConcurrentHashMap.newKeySet());
         config.getBroadcasterFactory().destroy();
         ExecutorsFactory.reset(config);
     }
@@ -195,7 +196,7 @@ public class BroadcasterTest {
 
     public final static class AR implements AtmosphereHandler {
 
-        public AtomicReference<Set<AtmosphereResource>> value = new AtomicReference<>(new HashSet<>());
+        public AtomicReference<Set<AtmosphereResource>> value = new AtomicReference<>(ConcurrentHashMap.newKeySet());
 
         @Override
         public void onRequest(AtmosphereResource e) throws IOException {
