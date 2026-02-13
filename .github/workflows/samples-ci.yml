@@ -7,12 +7,14 @@ on:
       - 'samples/**'
       - 'modules/**'
       - 'pom.xml'
+      - '.github/workflows/samples-ci.yml'
   pull_request:
     branches: [ atmosphere-4.x ]
     paths:
       - 'samples/**'
       - 'modules/**'
       - 'pom.xml'
+      - '.github/workflows/samples-ci.yml'
 
 jobs:
   test-samples:
