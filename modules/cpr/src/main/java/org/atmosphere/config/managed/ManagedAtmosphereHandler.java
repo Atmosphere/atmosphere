@@ -50,7 +50,6 @@ import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -72,7 +71,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private static IllegalArgumentException IAE;
     private final static Logger logger = LoggerFactory.getLogger(ManagedAtmosphereHandler.class);
-    private final static List<Decoder<?, ?>> EMPTY = Collections.emptyList();
+    private final static List<Decoder<?, ?>> EMPTY = List.of();
     private Object proxiedInstance;
     protected List<MethodInfo> onRuntimeMethod;
     private Method onHeartbeatMethod;
@@ -160,8 +159,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             Object body = null;
             if (onPostMethod != null) {
                 body = readEntirely(resource);
-                if (body != null && String.class.isAssignableFrom(body.getClass())) {
-                    resource.getRequest().body((String) body);
+                if (body instanceof String str) {
+                    resource.getRequest().body(str);
                 } else if (body != null) {
                     resource.getRequest().body((byte[]) body);
                 }
@@ -199,7 +198,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
             Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
+            if (o instanceof Boolean) {
                 resumeOnBroadcast = (Boolean) o;
             }
         }
@@ -217,8 +216,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else {
             Object o;
             if (msg != null) {
-                if (Managed.class.isAssignableFrom(msg.getClass())) {
-                    Object newMsg = ((Managed) msg).o;
+                if (msg instanceof Managed managed) {
+                    Object newMsg = managed.o;
                     event.setMessage(newMsg);
                     // encoding might be needed again since BroadcasterFilter might have modified message body
                     // This makes application development more simpler.
@@ -410,16 +409,11 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
                 @Override
                 public DELIVER_TO value() {
-                    switch (ready.value()) {
-                        case ALL:
-                            return DELIVER_TO.ALL;
-
-                        case BROADCASTER:
-                            return DELIVER_TO.BROADCASTER;
-
-                        default:
-                            return null;
-                    }
+                    return switch (ready.value()) {
+                        case ALL -> DELIVER_TO.ALL;
+                        case BROADCASTER -> DELIVER_TO.BROADCASTER;
+                        default -> null;
+                    };
                 }
 
                 @Override

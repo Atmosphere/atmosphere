@@ -114,8 +114,8 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
         super.inspect(r);
 
         AsyncIOWriter writer = response.getAsyncIOWriter();
-        if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-            ((AtmosphereInterceptorWriter) writer).interceptor(interceptor);
+        if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
+            interceptorWriter.interceptor(interceptor);
         } else {
             logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }
@@ -149,7 +149,7 @@ public class TrackMessageSizeInterceptor extends AtmosphereInterceptorAdapter {
                     if (cb.length() == 0) {
                         return responseDraft;
                     } else if (cb.charAt(0) == ' ') {
-                        if (cb.toString().trim().isEmpty()) {
+                        if (cb.toString().isBlank()) {
                             // This is likely padding written by PaddingAtmosphereInterceptor
                             return responseDraft;
                         }

@@ -43,7 +43,7 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && String.class.isAssignableFrom((Class<?>) t);
+        return t instanceof Class<?> c && String.class.isAssignableFrom(c);
     }
 
     @Override
@@ -56,8 +56,7 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
                     r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
             if (w != null) {
-                if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    AnnotatedProxy ap = (AnnotatedProxy) w.atmosphereHandler;
+                if (w.atmosphereHandler instanceof AnnotatedProxy ap) {
                     if (ap.target().getClass().isAnnotationPresent(ManagedService.class)) {
                         String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
                         if (targetPath.contains("{") && targetPath.contains("}")) {

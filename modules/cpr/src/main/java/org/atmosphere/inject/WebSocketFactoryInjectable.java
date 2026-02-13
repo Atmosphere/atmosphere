@@ -25,7 +25,7 @@ import java.lang.reflect.Type;
 public class WebSocketFactoryInjectable implements Injectable<WebSocketFactory> {
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class<?>) && WebSocketFactory.class.isAssignableFrom((Class<?>) t);
+        return t instanceof Class<?> c && WebSocketFactory.class.isAssignableFrom(c);
     }
 
     @Override

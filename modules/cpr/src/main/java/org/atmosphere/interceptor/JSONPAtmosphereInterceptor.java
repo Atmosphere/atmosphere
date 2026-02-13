@@ -72,8 +72,8 @@ public class JSONPAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
 
             response.setContentType(CONTENT_TYPE);
             AsyncIOWriter writer = response.getAsyncIOWriter();
-            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                ((AtmosphereInterceptorWriter) writer).interceptor(new AsyncIOInterceptorAdapter() {
+            if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
+                interceptorWriter.interceptor(new AsyncIOInterceptorAdapter() {
 
                     String callbackName() {
                         String callback =  escapeForJavaScript(request.getParameter(HeaderConfig.JSONP_CALLBACK_NAME))

@@ -358,16 +358,16 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 // Craziness with Struts 2 who wraps String attribute as BigDecimal
                 // https://github.com/Atmosphere/atmosphere/issues/1367
                 Object o = attributeWithoutException(b.request, s);
-                if (o == null || String.class.isAssignableFrom(o.getClass())) {
+                if (o == null || o instanceof String) {
                     name = (String) o;
                 } else {
                     try {
-                        if (HttpServletRequestWrapper.class.isAssignableFrom(b.request.getClass())) {
+                        if (b.request instanceof HttpServletRequestWrapper) {
                             HttpServletRequest hsr = b.request;
                             while (hsr instanceof HttpServletRequestWrapper) {
                                 hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
                                 o = attributeWithoutException(hsr, s);
-                                if (o == null || String.class.isAssignableFrom(o.getClass())) {
+                                if (o == null || o instanceof String) {
                                     name = (String) o;
                                     break;
                                 }
@@ -808,7 +808,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public String getServerName() {
-        return !b.serverName.equals("") ? b.serverName : b.request.getServerName();
+        return !b.serverName.isEmpty() ? b.serverName : b.request.getServerName();
     }
 
     @Override
@@ -866,7 +866,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     private boolean isNotNoOps() {
-        return !NoOpsRequest.class.isAssignableFrom(b.request.getClass());
+        return !(b.request instanceof NoOpsRequest);
     }
 
     @Override
@@ -990,8 +990,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public void setRequest(ServletRequest request) {
         super.setRequest(request);
-        if (HttpServletRequest.class.isAssignableFrom(request.getClass())) {
-            b.request = (HttpServletRequest) request;
+        if (request instanceof HttpServletRequest httpServletRequest) {
+            b.request = httpServletRequest;
         }
     }
 
@@ -1260,8 +1260,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                 request = new NoOpsRequest();
             }
 
-            if (NoOpsRequest.class.isAssignableFrom(request.getClass())) {
-                ((NoOpsRequest) request).fake = session;
+            if (request instanceof NoOpsRequest noOpsRequest) {
+                noOpsRequest.fake = session;
             } else {
                 webSocketFakeSession = session;
             }
@@ -1456,8 +1456,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
      */
     public static AtmosphereRequest wrap(HttpServletRequest request) {
         // Do not rewrap.
-        if (AtmosphereRequestImpl.class.isAssignableFrom(request.getClass())) {
-            return (AtmosphereRequestImpl) request;
+        if (request instanceof AtmosphereRequestImpl atmosphereRequestImpl) {
+            return atmosphereRequestImpl;
         }
 
         Builder b = new Builder();
@@ -1494,8 +1494,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         }
 
         boolean isWrapped = false;
-        if (AtmosphereRequestImpl.class.isAssignableFrom(request.getClass())) {
-            b = ((AtmosphereRequestImpl) request).b;
+        if (request instanceof AtmosphereRequestImpl atmosphereRequestImpl) {
+            b = atmosphereRequestImpl.b;
             isWrapped = true;
         } else {
             b = new Builder();
@@ -1549,10 +1549,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         private final boolean throwExceptionOnCloned;
         public HttpSession fake;
-        private final static Enumeration<String> EMPTY_ENUM_STRING = Collections.enumeration(Collections.emptyList());
-        private final static Enumeration<Locale> EMPTY_ENUM_LOCALE = Collections.enumeration(Collections.emptyList());
-        private final static List<Part> EMPTY_ENUM_PART = Collections.emptyList();
-        private final static Map<String, String[]> EMPTY_MAP_STRING = Collections.emptyMap();
+        private final static Enumeration<String> EMPTY_ENUM_STRING = Collections.enumeration(List.of());
+        private final static Enumeration<Locale> EMPTY_ENUM_LOCALE = Collections.enumeration(List.of());
+        private final static List<Part> EMPTY_ENUM_PART = List.of();
+        private final static Map<String, String[]> EMPTY_MAP_STRING = Map.of();
         private final static String[] EMPTY_ARRAY = new String[0];
         private final StringBuffer EMPTY_STRING_BUFFER = new StringBuffer();
         private final static Cookie[] EMPTY_COOKIE = new Cookie[0];

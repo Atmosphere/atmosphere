@@ -55,7 +55,6 @@
 
 package org.atmosphere.util.uri;
 
-import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
@@ -72,6 +71,11 @@ import java.util.regex.PatternSyntaxException;
  */
 public class UriTemplate {
     /**
+     * The empty URI template that matches the null or empty URI path
+     */
+    public static final UriTemplate EMPTY = new UriTemplate();
+
+    /**
      * Order the templates according according to JAX-RS.
      * <p>
      * Sort the set of matching resource classes using the number of 
@@ -80,59 +84,52 @@ public class UriTemplate {
      * as a secondary key, and the number of explicit regular expression
      * declarations as the tertiary key.
      */
-    static public final Comparator<UriTemplate> COMPARATOR = new Comparator<UriTemplate>() {
-        public int compare(UriTemplate o1, UriTemplate o2) {
-            if (o1 == null && o2 == null)
-                return 0;
-            if (o1 == null)
-                return 1;
-            if (o2 == null)
-                return -1;
-            
-            if (o1 == EMPTY && o2 == EMPTY)
-                return 0;
-            if (o1 == EMPTY)
-                return 1;
-            if (o2 == EMPTY)
-                return -1;
+    static public final Comparator<UriTemplate> COMPARATOR = (o1, o2) -> {
+        if (o1 == null && o2 == null)
+            return 0;
+        if (o1 == null)
+            return 1;
+        if (o2 == null)
+            return -1;
 
-            // Compare the number of explicit characters
-            // Note that it is important that o2 is compared against o1
-            // so that a regular expression with say 10 explicit characters
-            // is less than a regular expression with say 5 explicit characters.
-            int i = o2.getNumberOfExplicitCharacters() - o1.getNumberOfExplicitCharacters();
-            if (i != 0) return i;
+        if (o1 == EMPTY && o2 == EMPTY)
+            return 0;
+        if (o1 == EMPTY)
+            return 1;
+        if (o2 == EMPTY)
+            return -1;
 
-            // If the number of explicit characters is equal
-            // compare the number of template variables
-            // Note that it is important that o2 is compared against o1
-            // so that a regular expression with say 10 template variables
-            // is less than a regular expression with say 5 template variables.
-            i = o2.getNumberOfTemplateVariables() - o1.getNumberOfTemplateVariables();
-            if (i != 0) return i;
+        // Compare the number of explicit characters
+        // Note that it is important that o2 is compared against o1
+        // so that a regular expression with say 10 explicit characters
+        // is less than a regular expression with say 5 explicit characters.
+        int i = o2.getNumberOfExplicitCharacters() - o1.getNumberOfExplicitCharacters();
+        if (i != 0) return i;
 
-            // If the number of template variables is equal
-            // compare the number of explicit regexes
-            i = o2.getNumberOfExplicitRegexes() - o1.getNumberOfExplicitRegexes();
-            if (i != 0) return i;
-            
-            // If the number of explicit characters and template variables
-            // are equal then comapre the regexes
-            // The order does not matter as long as templates with different
-            // explicit characters are distinguishable
-            return o2.pattern.getRegex().compareTo(o1.pattern.getRegex());
-        }
+        // If the number of explicit characters is equal
+        // compare the number of template variables
+        // Note that it is important that o2 is compared against o1
+        // so that a regular expression with say 10 template variables
+        // is less than a regular expression with say 5 template variables.
+        i = o2.getNumberOfTemplateVariables() - o1.getNumberOfTemplateVariables();
+        if (i != 0) return i;
+
+        // If the number of template variables is equal
+        // compare the number of explicit regexes
+        i = o2.getNumberOfExplicitRegexes() - o1.getNumberOfExplicitRegexes();
+        if (i != 0) return i;
+
+        // If the number of explicit characters and template variables
+        // are equal then comapre the regexes
+        // The order does not matter as long as templates with different
+        // explicit characters are distinguishable
+        return o2.pattern.getRegex().compareTo(o1.pattern.getRegex());
     };
     
     /**
      * The regular expression for matching URI templates and names.
      */
     private static final Pattern TEMPLATE_NAMES_PATTERN = Pattern.compile("\\{(\\w[-\\w.]*)}");
-    
-    /**
-     * The empty URI template that matches the null or empty URI path
-     */
-    public static final UriTemplate EMPTY = new UriTemplate();
     
     /**
      * The URI template.
@@ -179,7 +176,7 @@ public class UriTemplate {
         this.template = this.normalizedTemplate = "";
         this.pattern = UriPattern.EMPTY;
         this.endsWithSlash = false;
-        this.templateVariables = Collections.emptyList();
+        this.templateVariables = List.of();
         this.numOfExplicitRegexes = this.numOfCharacters = 0;
     }
     

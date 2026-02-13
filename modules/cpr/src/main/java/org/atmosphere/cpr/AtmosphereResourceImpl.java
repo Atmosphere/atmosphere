@@ -277,8 +277,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 boolean notify = true;
                 for (Broadcaster b : broadcasters) {
                     // We need it as Jetty doesn't support timeout
-                    if (!b.isDestroyed() && b instanceof DefaultBroadcaster) {
-                        ((DefaultBroadcaster) b).broadcastOnResume(this);
+                    if (!b.isDestroyed() && b instanceof DefaultBroadcaster db) {
+                        db.broadcastOnResume(this);
                     }
 
                     if (notify) {
@@ -635,7 +635,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         logger.trace("Invoking listener {} for {}", listeners, uuid());
 
         try {
-            if (HeartbeatAtmosphereResourceEvent.class.isAssignableFrom(event.getClass())) {
+            if (event instanceof HeartbeatAtmosphereResourceEvent) {
                 onHeartbeat(event);
             } else if (event.isClosedByApplication()) {
                 onClose(event);
@@ -719,7 +719,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onSuspend(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             if (disableSuspendEvent) {
-                if (!AllowInterceptor.class.isAssignableFrom(r.getClass())) {
+                if (!(r instanceof AllowInterceptor)) {
                     continue;
                 }
             }
@@ -733,7 +733,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onPreSuspend(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             if (disableSuspendEvent) {
-                if (!AllowInterceptor.class.isAssignableFrom(r.getClass())) {
+                if (!(r instanceof AllowInterceptor)) {
                     continue;
                 }
             }
@@ -750,8 +750,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onDisconnect(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onDisconnect(e);
-            if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
-                ((WebSocketEventListener) r).onDisconnect(new WebSocketEventListener.WebSocketEvent<>(1005, CLOSE, webSocket));
+            if (transport.equals(TRANSPORT.WEBSOCKET) && r instanceof WebSocketEventListener wsel) {
+                wsel.onDisconnect(new WebSocketEventListener.WebSocketEvent<>(1005, CLOSE, webSocket));
             }
         }
 
@@ -769,8 +769,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     void onClose(AtmosphereResourceEvent e) {
         for (AtmosphereResourceEventListener r : listeners) {
             r.onClose(e);
-            if (transport.equals(TRANSPORT.WEBSOCKET) && WebSocketEventListener.class.isAssignableFrom(r.getClass())) {
-                ((WebSocketEventListener) r).onClose(new WebSocketEventListener.WebSocketEvent<>(1005, CLOSE, webSocket));
+            if (transport.equals(TRANSPORT.WEBSOCKET) && r instanceof WebSocketEventListener wsel) {
+                wsel.onClose(new WebSocketEventListener.WebSocketEvent<>(1005, CLOSE, webSocket));
             }
         }
     }
@@ -805,8 +805,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
                 try {
                     Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
-                    if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
-                        ((Meteor) o).destroy();
+                    if (o instanceof Meteor m) {
+                        m.destroy();
                     }
                 } catch (Exception ex) {
                     logger.trace("Meteor exception", ex);
@@ -816,14 +816,14 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 action.type(Action.TYPE.CANCELLED);
                 if (asyncSupport != null) asyncSupport.action(this);
                 // We must close the underlying WebSocket as well.
-                if (AtmosphereResponseImpl.class.isAssignableFrom(response.getClass())) {
+                if (response instanceof AtmosphereResponseImpl) {
                     if (closeOnCancel) {
                         response.close();
                     }
                     response.destroy();
                 }
 
-                if (AtmosphereRequestImpl.class.isAssignableFrom(req.getClass())) {
+                if (req instanceof AtmosphereRequestImpl) {
                     if (closeOnCancel) {
                         req.destroy();
                     }

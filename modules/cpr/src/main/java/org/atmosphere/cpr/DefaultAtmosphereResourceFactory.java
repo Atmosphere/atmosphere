@@ -56,7 +56,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
         public void destroy() {
         }
     };
-    private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<String, AtmosphereResource>();
+    private final ConcurrentHashMap<String, AtmosphereResource> resources = new ConcurrentHashMap<>();
 
     public DefaultAtmosphereResourceFactory(){
     }
@@ -284,7 +284,7 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
     @Deprecated
     public Set<Broadcaster> broadcasters(String uuid) {
         AtmosphereResource r = find(uuid);
-        return new HashSet<Broadcaster>(r.broadcasters());
+        return new HashSet<>(r.broadcasters());
     }
 
     /**

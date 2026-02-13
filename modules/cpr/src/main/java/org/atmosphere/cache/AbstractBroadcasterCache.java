@@ -24,7 +24,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -55,7 +54,7 @@ public abstract class AbstractBroadcasterCache implements BroadcasterCache {
     protected ScheduledExecutorService reaper = Executors.newSingleThreadScheduledExecutor();
     protected boolean isShared;
     protected final List<BroadcasterCacheInspector> inspectors = new LinkedList<>();
-    protected final List<Object> emptyList = Collections.emptyList();
+    protected final List<Object> emptyList = List.of();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
     protected AtmosphereConfig config;
 

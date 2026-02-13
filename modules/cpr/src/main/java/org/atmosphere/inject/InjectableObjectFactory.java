@@ -54,9 +54,9 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
     @SuppressWarnings("rawtypes")
     private final ServiceLoader<Injectable> injectableServiceLoader;
-    private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
-    private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
-    private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
+    private final LinkedList<Injectable<?>> injectables = new LinkedList<>();
+    private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<>();
+    private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<>();
     private final LinkedHashSet<Object> pushBackInjection = new LinkedHashSet<>();
     private final List<InjectionListener> listeners = new LinkedList<>();
     private int maxTry;
@@ -87,8 +87,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         for (Injectable<?> i : injectableServiceLoader) {
             try {
                 logger.debug("Adding class {} as injectable", i.getClass());
-                if (InjectIntrospector.class.isAssignableFrom(i.getClass())) {
-                    InjectIntrospector<?> ii = (InjectIntrospector<?>) i;
+                if (i instanceof InjectIntrospector<?> ii) {
 
                     introspectors.addFirst(ii);
                     if (i.getClass().isAnnotationPresent(RequestScoped.class)) {
@@ -135,7 +134,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
         // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
         // in META-INF/services/org/atmosphere/inject.Injectable
-        Set<Field> fields = new HashSet<Field>();
+        Set<Field> fields = new HashSet<>();
         Object instance = null;
         final LinkedHashSet<Object> postponedMethodExecution = new LinkedHashSet<>(pushBackInjection);
         while (!pushBackInjection.isEmpty() & maxTryPerCycle-- > 0) {
@@ -255,7 +254,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 for (Injectable<?> c : injectable) {
                     if (c.supportedType(field.getType())) {
 
-                        if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
+                        if (c instanceof InjectIntrospector) {
                             @SuppressWarnings("rawtypes")
                             InjectIntrospector raw = (InjectIntrospector) c;
                             raw.introspectField(instance.getClass(), field);

@@ -139,8 +139,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         closingTime = Long.parseLong(config.getInitParameter(ApplicationConfig.CLOSED_ATMOSPHERE_THINK_TIME, "0"));
         invokeInterceptors = Boolean.parseBoolean(config.getInitParameter(INVOKE_ATMOSPHERE_INTERCEPTOR_ON_WEBSOCKET_MESSAGE, "true"));
         config.startupHook(framework -> {
-            if (AsynchronousProcessor.class.isAssignableFrom(framework.getAsyncSupport().getClass())) {
-                asynchronousProcessor = (AsynchronousProcessor) framework.getAsyncSupport();
+            if (framework.getAsyncSupport() instanceof AsynchronousProcessor ap) {
+                asynchronousProcessor = ap;
             } else {
                 asynchronousProcessor = new AsynchronousProcessor(framework.getAtmosphereConfig()) {
                     @Override
@@ -225,7 +225,6 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 if (action.timeout() != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
                     final AtomicReference<Future<?>> f = new AtomicReference<>();
                     f.set(scheduler.scheduleAtFixedRate(() -> {
-                        WebSocket.class.isAssignableFrom(webSocket.getClass());
                         if (System.currentTimeMillis() - webSocket.lastWriteTimeStampInMilliseconds() > action.timeout()) {
                             asynchronousProcessor.endRequest(((AtmosphereResourceImpl) webSocket.resource()), false);
                             f.get().cancel(true);
@@ -363,12 +362,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         }
 
         AtmosphereRequest request = resource.getRequest(false);
-        if (String.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-            request.body((String) webSocketMessageAsBody);
-        } else if (Reader.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-            request.body((Reader) webSocketMessageAsBody);
-        } else if (InputStream.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-            request.body((InputStream) webSocketMessageAsBody);
+        if (webSocketMessageAsBody instanceof String s) {
+            request.body(s);
+        } else if (webSocketMessageAsBody instanceof Reader r) {
+            request.body(r);
+        } else if (webSocketMessageAsBody instanceof InputStream is) {
+            request.body(is);
         } else {
             request.body(new ByteArrayInputStream((byte[]) webSocketMessageAsBody, offset, length));
         }
@@ -398,12 +397,12 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                     ? (Boolean) request.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
             if (!skipAtmosphereHandler) {
                 try {
-                    if (String.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-                        webSocketHandler.onTextMessage(webSocket, (String) webSocketMessageAsBody);
-                    } else if (Reader.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-                        ((WebSocketStreamingHandler) webSocketHandler.proxied).onTextStream(webSocket, (Reader) webSocketMessageAsBody);
-                    } else if (InputStream.class.isAssignableFrom(webSocketMessageAsBody.getClass())) {
-                        ((WebSocketStreamingHandler) webSocketHandler.proxied()).onBinaryStream(webSocket, (InputStream) webSocketMessageAsBody);
+                    if (webSocketMessageAsBody instanceof String s) {
+                        webSocketHandler.onTextMessage(webSocket, s);
+                    } else if (webSocketMessageAsBody instanceof Reader r) {
+                        ((WebSocketStreamingHandler) webSocketHandler.proxied()).onTextStream(webSocket, r);
+                    } else if (webSocketMessageAsBody instanceof InputStream is) {
+                        ((WebSocketStreamingHandler) webSocketHandler.proxied()).onBinaryStream(webSocket, is);
                     } else {
                         webSocketHandler.onByteMessage(webSocket, (byte[]) webSocketMessageAsBody, offset, length);
                     }
@@ -423,7 +422,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler == null) {
-            if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+            if (!(webSocketProtocol instanceof WebSocketProtocolStream)) {
                 List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, webSocketMessage);
                 dispatch(webSocket, list);
             } else {
@@ -432,7 +431,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 return;
             }
         } else {
-            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+            if (!(webSocketHandler.proxied() instanceof WebSocketStreamingHandler)) {
                 try {
                     if (invokeInterceptors) {
                         invokeInterceptors(webSocketHandler, webSocket, webSocketMessage);
@@ -456,7 +455,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler == null) {
-            if (!WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
+            if (!(webSocketProtocol instanceof WebSocketProtocolStream)) {
                 List<AtmosphereRequest> list = webSocketProtocol.onMessage(webSocket, data, offset, length);
                 dispatch(webSocket, list);
             } else {
@@ -465,7 +464,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 return;
             }
         } else {
-            if (!WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+            if (!(webSocketHandler.proxied() instanceof WebSocketStreamingHandler)) {
                 try {
                     if (invokeInterceptors) {
                         invokeInterceptors(webSocketHandler, webSocket, data, offset, length);
@@ -490,19 +489,19 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         try {
             if (webSocketHandler == null) {
-                if (WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
-                    List<AtmosphereRequest> list = ((WebSocketProtocolStream) webSocketProtocol).onBinaryStream(webSocket, stream);
+                if (webSocketProtocol instanceof WebSocketProtocolStream wsps) {
+                    List<AtmosphereRequest> list = wsps.onBinaryStream(webSocket, stream);
                     dispatch(webSocket, list);
                 } else {
                     dispatchStream(webSocket, stream);
                     return;
                 }
             } else {
-                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied.getClass())) {
+                if (webSocketHandler.proxied() instanceof WebSocketStreamingHandler wsh) {
                     if (invokeInterceptors) {
                         invokeInterceptors(webSocketHandler, webSocket, stream);
                     } else {
-                        ((WebSocketStreamingHandler) webSocketHandler.proxied()).onBinaryStream(webSocket, stream);
+                        wsh.onBinaryStream(webSocket, stream);
                     }
                 } else {
                     dispatchStream(webSocket, stream);
@@ -523,19 +522,19 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         try {
             if (webSocketHandler == null) {
-                if (WebSocketProtocolStream.class.isAssignableFrom(webSocketProtocol.getClass())) {
-                    List<AtmosphereRequest> list = ((WebSocketProtocolStream) webSocketProtocol).onTextStream(webSocket, reader);
+                if (webSocketProtocol instanceof WebSocketProtocolStream wsps) {
+                    List<AtmosphereRequest> list = wsps.onTextStream(webSocket, reader);
                     dispatch(webSocket, list);
                 } else {
                     dispatchReader(webSocket, reader);
                     return;
                 }
             } else {
-                if (WebSocketStreamingHandler.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
+                if (webSocketHandler.proxied() instanceof WebSocketStreamingHandler wsh) {
                     if (invokeInterceptors) {
                         invokeInterceptors(webSocketHandler, webSocket, reader);
                     } else {
-                        ((WebSocketStreamingHandler) webSocketHandler.proxied()).onTextStream(webSocket, reader);
+                        wsh.onTextStream(webSocket, reader);
                     }
                 } else {
                     dispatchReader(webSocket, reader);
@@ -714,33 +713,24 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         AtmosphereResourceImpl r = (AtmosphereResourceImpl) resource;
         for (AtmosphereResourceEventListener l : r.atmosphereResourceEventListener()) {
-            if (WebSocketEventListener.class.isAssignableFrom(l.getClass())) {
+            if (l instanceof WebSocketEventListener wsel) {
                 try {
                     switch (event.type()) {
-                        case CONNECT:
-                            ((WebSocketEventListener) l).onConnect(event);
-                            break;
-                        case DISCONNECT:
-                            ((WebSocketEventListener) l).onDisconnect(event);
+                        case CONNECT -> wsel.onConnect(event);
+                        case DISCONNECT -> {
+                            wsel.onDisconnect(event);
                             onDisconnect(event, l);
-                            break;
-                        case CONTROL:
-                            ((WebSocketEventListener) l).onControl(event);
-                            break;
-                        case MESSAGE:
-                            ((WebSocketEventListener) l).onMessage(event);
-                            break;
-                        case HANDSHAKE:
-                            ((WebSocketEventListener) l).onHandshake(event);
-                            break;
-                        case CLOSE:
+                        }
+                        case CONTROL -> wsel.onControl(event);
+                        case MESSAGE -> wsel.onMessage(event);
+                        case HANDSHAKE -> wsel.onHandshake(event);
+                        case CLOSE -> {
                             boolean isClosedByClient = r.getAtmosphereResourceEvent().isClosedByClient();
                             l.onDisconnect(new AtmosphereResourceEventImpl(r, !isClosedByClient, false, isClosedByClient, null));
                             onDisconnect(event, l);
-                            ((WebSocketEventListener) l).onClose(event);
-                            break;
-                        default:
-                            break;
+                            wsel.onClose(event);
+                        }
+                        default -> {}
                     }
                 } catch (Throwable t) {
                     logger.debug("Listener error", t);
@@ -922,8 +912,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler != null &&
-                WebSocketPingPongListener.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
-            ((WebSocketPingPongListener) webSocketHandler.proxied()).onPong(webSocket, payload, offset, length);
+                webSocketHandler.proxied() instanceof WebSocketPingPongListener pingPong) {
+            pingPong.onPong(webSocket, payload, offset, length);
         }
     }
 
@@ -932,8 +922,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         WebSocketHandlerProxy webSocketHandler = webSocketHandlerForMessage(webSocket);
 
         if (webSocketHandler != null &&
-                WebSocketPingPongListener.class.isAssignableFrom(webSocketHandler.proxied().getClass())) {
-            ((WebSocketPingPongListener) webSocketHandler.proxied()).onPing(webSocket, payload, offset, length);
+                webSocketHandler.proxied() instanceof WebSocketPingPongListener pingPong) {
+            pingPong.onPing(webSocket, payload, offset, length);
         }
     }
 }

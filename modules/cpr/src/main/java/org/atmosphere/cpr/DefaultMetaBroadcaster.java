@@ -21,7 +21,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -63,7 +63,7 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
 
     private final static Logger logger = LoggerFactory.getLogger(DefaultMetaBroadcaster.class);
     private final static ConcurrentLinkedQueue<BroadcasterListener> broadcasterListeners = new ConcurrentLinkedQueue<>();
-    private final static MetaBroadcasterFuture E = new MetaBroadcasterFuture(Collections.emptyList());
+    private final static MetaBroadcasterFuture E = new MetaBroadcasterFuture(List.of());
     private MetaBroadcasterCache cache = new NoCache();
     private AtmosphereConfig config;
 
@@ -97,7 +97,7 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
             }
 
             if (l.isEmpty() && cacheMessage) {
-                if (NoCache.class.isAssignableFrom(cache.getClass())) {
+                if (cache instanceof NoCache) {
                     logger.warn("No Broadcaster matches {}. Message {} WILL BE LOST. " +
                             "Make sure you cache it or make sure the Broadcaster exists before.", path, message);
                 } else {

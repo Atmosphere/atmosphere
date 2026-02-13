@@ -71,8 +71,8 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
             // Block websocket closing detection
             ((AtmosphereResourceEventImpl) ss.getAtmosphereResourceEvent()).isClosedByClient(true);
 
-            if (AsynchronousProcessor.class.isAssignableFrom(config.framework().getAsyncSupport().getClass())) {
-                ((AsynchronousProcessor) config.framework().getAsyncSupport()).completeLifecycle(ss, false);
+            if (config.framework().getAsyncSupport() instanceof AsynchronousProcessor asyncProcessor) {
+                asyncProcessor.completeLifecycle(ss, false);
             }
             return Action.CANCELLED;
         }

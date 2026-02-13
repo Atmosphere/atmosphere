@@ -40,12 +40,7 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private static final String paddingText;
 
     static {
-        StringBuilder whitespace = new StringBuilder();
-        for (int i = 0; i < 4096; i++) {
-            whitespace.append(" ");
-        }
-        whitespace.append("\n");
-        paddingText = whitespace.toString();
+        paddingText = " ".repeat(4096) + "\n";
         padding = paddingText.getBytes();
     }
 
@@ -62,8 +57,8 @@ public class AndroidAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
-            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                ((AtmosphereInterceptorWriter) writer).interceptor(new AsyncIOInterceptorAdapter() {
+            if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
+                interceptorWriter.interceptor(new AsyncIOInterceptorAdapter() {
 
                     @Override
                     public void prePayload(AtmosphereResponse response, byte[] data, int offset, int length) {

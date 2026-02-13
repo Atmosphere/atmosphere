@@ -31,25 +31,15 @@ public class ServletProxyFactory {
 
     private final static Logger logger = LoggerFactory.getLogger(ServletProxyFactory.class);
     private static ServletProxyFactory factory;
-    private final Map<String, MethodHandler> methods = new HashMap<String, MethodHandler>();
+    private final Map<String, MethodHandler> methods = new HashMap<>();
     private final static MethodHandler voidMethodHandler = new EchoMethodHandler();
 
     private ServletProxyFactory() {
         addMethodHandler("encodeURL", voidMethodHandler)
                 .addMethodHandler("encodeRedirectURL", voidMethodHandler)
                 .addMethodHandler("getCharacterEncoding", new UTF8Handler())
-                .addMethodHandler("getServerInfo", new MethodHandler(){
-                    @Override
-                    public Object handle(Object clazz, Method method, Object[] methodObjects) {
-                        return "Undefined/0.0";
-                    }
-                })
-                .addMethodHandler("getMajorVersion", new MethodHandler() {
-                    @Override
-                    public Object handle(Object clazz, Method method, Object[] methodObjects) {
-                        return 3;
-                    }
-                });
+                .addMethodHandler("getServerInfo", (clazz, method, methodObjects) -> "Undefined/0.0")
+                .addMethodHandler("getMajorVersion", (clazz, method, methodObjects) -> 3);
 
     }
 

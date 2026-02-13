@@ -43,8 +43,7 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // ManagedService
-                if (AnnotatedProxy.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    AnnotatedProxy ap = (AnnotatedProxy) w.atmosphereHandler;
+                if (w.atmosphereHandler instanceof AnnotatedProxy ap) {
                     ManagedAnnotation a = managed(ap, request.resource());
                     if (a != null) {
                         String targetPath = a.path();

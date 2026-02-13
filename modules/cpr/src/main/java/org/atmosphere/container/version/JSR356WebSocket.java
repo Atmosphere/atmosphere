@@ -75,8 +75,8 @@ public class JSR356WebSocket extends WebSocket {
                 throw new IOException("Socket closed");
             }
         } catch (Throwable e) {
-            if (IOException.class.isAssignableFrom(e.getClass())) {
-                throw (IOException) e;
+            if (e instanceof IOException ioe) {
+                throw ioe;
             }
             handleError(e, acquired);
         }
@@ -101,8 +101,8 @@ public class JSR356WebSocket extends WebSocket {
                 throw new IOException("Socket closed");
             }
         } catch (Throwable e) {
-            if (IOException.class.isAssignableFrom(e.getClass())) {
-                throw (IOException) e;
+            if (e instanceof IOException ioe) {
+                throw ioe;
             }
             handleError(e, acquired);
         }

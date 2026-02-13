@@ -121,8 +121,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             String heartbeatData = "";
 
             for (final AtmosphereInterceptor interceptor : framework.interceptors()) {
-                if (HeartbeatInterceptor.class.isAssignableFrom(interceptor.getClass())) {
-                    final HeartbeatInterceptor heartbeatInterceptor = (HeartbeatInterceptor) interceptor;
+                if (interceptor instanceof HeartbeatInterceptor heartbeatInterceptor) {
                     heartbeatInterval = heartbeatInterceptor.clientHeartbeatFrequencyInSeconds() * 1000;
                     heartbeatData = new String(heartbeatInterceptor.getPaddingBytes());
                     break;
@@ -148,7 +147,7 @@ public class JavaScriptProtocol extends AtmosphereInterceptorAdapter {
             final AtomicReference<String> protocolMessage = new AtomicReference<>(message);
             if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
                 for (BroadcastFilter bf : r.getBroadcaster().getBroadcasterConfig().filters()) {
-                    if (TrackMessageSizeFilter.class.isAssignableFrom(bf.getClass())) {
+                    if (bf instanceof TrackMessageSizeFilter) {
                         protocolMessage.set((String) f.filter(r.getBroadcaster().getID(), r, protocolMessage.get(), protocolMessage.get()).message());
                         break;
                     }

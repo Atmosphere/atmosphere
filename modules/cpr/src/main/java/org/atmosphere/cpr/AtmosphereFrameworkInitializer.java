@@ -54,7 +54,7 @@ public class AtmosphereFrameworkInitializer {
                 } catch (Exception ex) {
                     // Equinox throw an exception (NPE)
                     // WebLogic Crap => https://github.com/Atmosphere/atmosphere/issues/1569
-                    if (UnsupportedOperationException.class.isAssignableFrom(ex.getClass())) {
+                    if (ex instanceof UnsupportedOperationException) {
                         logger.warn("WebLogic 12c unable to retrieve Servlet. Please make sure your servlet-name is 'AtmosphereServlet' " +
                                 "or set org.atmosphere.servlet to the current value");
                         String name = sc.getInitParameter(ApplicationConfig.SERVLET_NAME);

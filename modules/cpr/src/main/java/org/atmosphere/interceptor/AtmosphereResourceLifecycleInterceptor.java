@@ -119,13 +119,8 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
     public Action inspect(AtmosphereResource r) {
 
         switch (r.transport()) {
-            case JSONP:
-            case AJAX:
-            case LONG_POLLING:
-                r.resumeOnBroadcast(true);
-                break;
-            default:
-                break;
+            case JSONP, AJAX, LONG_POLLING -> r.resumeOnBroadcast(true);
+            default -> {}
         }
         return Action.CONTINUE;
     }
@@ -143,12 +138,8 @@ public class AtmosphereResourceLifecycleInterceptor implements AtmosphereInterce
             logger.trace("Marking AtmosphereResource {} for suspend operation", r.uuid());
 
             switch (r.transport()) {
-                case JSONP:
-                case AJAX:
-                case LONG_POLLING:
-                    break;
-                default:
-                    r.addEventListener(new OnBroadcast() {
+                case JSONP, AJAX, LONG_POLLING -> {}
+                default -> r.addEventListener(new OnBroadcast() {
                         @Override
                         public void onBroadcast(AtmosphereResourceEvent event) {
                             try {

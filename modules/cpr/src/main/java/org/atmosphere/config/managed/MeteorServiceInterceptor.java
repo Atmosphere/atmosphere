@@ -42,8 +42,7 @@ public class MeteorServiceInterceptor extends ServiceInterceptor {
         synchronized (config.handlers()) {
             if (config.handlers().get(path) == null) {
                 // MeteorService
-                if (ReflectorServletProcessor.class.isAssignableFrom(w.atmosphereHandler.getClass())) {
-                    ReflectorServletProcessor r = (ReflectorServletProcessor) w.atmosphereHandler;
+                if (w.atmosphereHandler instanceof ReflectorServletProcessor r) {
                     Servlet s = r.getServlet();
                     if (s == null) {
                         logger.warn("Invalid ReflectorServletProcessor state. Servlet is null");

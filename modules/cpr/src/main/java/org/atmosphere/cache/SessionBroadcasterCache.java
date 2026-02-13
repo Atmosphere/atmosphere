@@ -22,7 +22,6 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.http.HttpSession;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 /**
@@ -91,7 +90,7 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
         } catch (IllegalStateException ex) {
             logger.trace("", ex);
             logger.warn("The Session has been invalidated. Unable to retrieve cached messages");
-            return Collections.emptyList();
+            return List.of();
         }
     }
 }

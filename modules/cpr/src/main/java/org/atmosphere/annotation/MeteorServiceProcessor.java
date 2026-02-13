@@ -25,8 +25,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.servlet.Servlet;
-import java.util.Arrays;
 import java.util.LinkedList;
+import java.util.List;
 
 import static org.atmosphere.annotation.AnnotationUtil.atmosphereConfig;
 import static org.atmosphere.annotation.AnnotationUtil.broadcaster;
@@ -58,7 +58,7 @@ public class MeteorServiceProcessor implements Processor<Servlet> {
                 l.add(aa);
             }
 
-            AnnotationUtil.interceptorsForHandler(framework, Arrays.asList(m.interceptors()), l);
+            AnnotationUtil.interceptorsForHandler(framework, List.of(m.interceptors()), l);
 
             if (m.path().contains("{")) {
                 l.addFirst(framework.newClassInstance(AtmosphereInterceptor.class, MeteorServiceInterceptor.class));

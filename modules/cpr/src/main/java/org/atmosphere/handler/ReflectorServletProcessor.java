@@ -63,7 +63,7 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
     private static final Logger logger = LoggerFactory.getLogger(ReflectorServletProcessor.class);
 
     private String servletClassName;
-    private final HashMap<String, String> filtersClassAndNames = new HashMap<String, String>();
+    private final HashMap<String, String> filtersClassAndNames = new HashMap<>();
     private final Collection<Filter> filters = new ArrayList<>();
     private final FilterChainServletWrapper wrapper = new FilterChainServletWrapper();
     private final AtmosphereFilterChain filterChain = new AtmosphereFilterChain();

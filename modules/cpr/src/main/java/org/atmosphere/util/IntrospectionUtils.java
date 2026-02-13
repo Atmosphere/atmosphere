@@ -39,7 +39,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.File;
-import java.io.FilenameFilter;
 import java.io.IOException;
 import java.lang.reflect.Method;
 import java.net.InetAddress;
@@ -359,7 +358,7 @@ public final class IntrospectionUtils {
      * Reverse of Introspector.decapitalize
      */
     public static String capitalize(String name) {
-        if (name == null || name.length() == 0) {
+        if (name == null || name.isEmpty()) {
             return name;
         }
         char chars[] = name.toCharArray();
@@ -368,7 +367,7 @@ public final class IntrospectionUtils {
     }
 
     public static String unCapitalize(String name) {
-        if (name == null || name.length() == 0) {
+        if (name == null || name.isEmpty()) {
             return name;
         }
         char chars[] = name.toCharArray();
@@ -429,14 +428,7 @@ public final class IntrospectionUtils {
         String[] names = null;
         final String lext = ext;
         if (dir.isDirectory()) {
-            names = dir.list(new FilenameFilter() {
-                public boolean accept(File d, String name) {
-                    if (name.endsWith(lext)) {
-                        return true;
-                    }
-                    return false;
-                }
-            });
+            names = dir.list((d, name) -> name.endsWith(lext));
         }
         return names;
     }

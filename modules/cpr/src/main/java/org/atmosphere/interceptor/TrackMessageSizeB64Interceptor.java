@@ -79,8 +79,8 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
         super.inspect(r);
 
         AsyncIOWriter writer = response.getAsyncIOWriter();
-        if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-            ((AtmosphereInterceptorWriter) writer).interceptor(interceptor);
+        if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
+            interceptorWriter.interceptor(interceptor);
         } else {
             logger.warn("Unable to apply {}. Your AsyncIOWriter must implement {}", getClass().getName(), AtmosphereInterceptorWriter.class.getName());
         }

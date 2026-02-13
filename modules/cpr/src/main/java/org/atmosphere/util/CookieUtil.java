@@ -152,7 +152,7 @@ public class CookieUtil {
      * @param value
      */
     private static void maybeQuote(StringBuffer buf, String value) {
-        if (value == null || value.length() == 0) {
+        if (value == null || value.isEmpty()) {
             buf.append("\"\"");
         } else if (alreadyQuoted(value)) {
             buf.append('"');

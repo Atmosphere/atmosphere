@@ -468,8 +468,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     } else {
                         e.setIsResumedOnTimeout(true);
                         Broadcaster b = r.getBroadcaster();
-                        if (b instanceof DefaultBroadcaster) {
-                            ((DefaultBroadcaster) b).broadcastOnResume(r);
+                        if (b instanceof DefaultBroadcaster db) {
+                            db.broadcastOnResume(r);
                         }
 
 

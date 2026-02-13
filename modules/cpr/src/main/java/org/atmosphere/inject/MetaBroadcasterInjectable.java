@@ -26,7 +26,7 @@ public class MetaBroadcasterInjectable implements Injectable<MetaBroadcaster> {
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && MetaBroadcaster.class.isAssignableFrom((Class<?>) t);
+        return t instanceof Class<?> c && MetaBroadcaster.class.isAssignableFrom(c);
     }
 
     @Override

@@ -26,7 +26,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class FakeHttpSession implements HttpSession {
 
     private final long creationTime;
-    private final ConcurrentHashMap<String, Object> attributes = new ConcurrentHashMap<String, Object>();
+    private final ConcurrentHashMap<String, Object> attributes = new ConcurrentHashMap<>();
     private final String sessionId;
     private final ServletContext servletContext;
     private int maxInactiveInterval;

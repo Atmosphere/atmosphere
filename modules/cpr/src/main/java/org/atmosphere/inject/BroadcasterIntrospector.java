@@ -37,7 +37,7 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class<?>) && Broadcaster.class.isAssignableFrom((Class<?>) t);
+        return t instanceof Class<?> c && Broadcaster.class.isAssignableFrom(c);
     }
 
     @Override

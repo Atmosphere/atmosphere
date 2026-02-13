@@ -59,12 +59,7 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     protected static String confPadding(int size) {
-        StringBuilder whitespace = new StringBuilder();
-        for (int i = 0; i < size; i++) {
-            whitespace.append(" ");
-        }
-        whitespace.append("\n");
-        return whitespace.toString();
+        return " ".repeat(size) + "\n";
     }
 
     private void writePadding(AtmosphereResponse response) {
@@ -107,8 +102,8 @@ public class PaddingAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             super.inspect(r);
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
-            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                ((AtmosphereInterceptorWriter) writer).interceptor(new AsyncIOInterceptorAdapter() {
+            if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
+                interceptorWriter.interceptor(new AsyncIOInterceptorAdapter() {
                     private void padding() {
                         if (!r.isSuspended()) {
                             writePadding(response);

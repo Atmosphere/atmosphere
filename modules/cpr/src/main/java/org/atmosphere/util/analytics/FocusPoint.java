@@ -54,18 +54,18 @@ public class FocusPoint {
     }
 
     public String getContentURI() {
-        StringBuffer contentURIBuffer = new StringBuffer();
+        StringBuilder contentURIBuffer = new StringBuilder();
         getContentURI(contentURIBuffer, this);
         return contentURIBuffer.toString();
     }
 
     public String getContentTitle() {
-        StringBuffer titleBuffer = new StringBuffer();
+        StringBuilder titleBuffer = new StringBuilder();
         getContentTitle(titleBuffer, this);
         return titleBuffer.toString();
     }
 
-    private void getContentURI(StringBuffer contentURIBuffer, FocusPoint focusPoint) {
+    private void getContentURI(StringBuilder contentURIBuffer, FocusPoint focusPoint) {
         FocusPoint parentFocuPoint = focusPoint.getParentFocusPoint();
 
         if (parentFocuPoint != null) {
@@ -84,7 +84,7 @@ public class FocusPoint {
         }
     }
 
-    private void getContentTitle(StringBuffer titleBuffer, FocusPoint focusPoint) {
+    private void getContentTitle(StringBuilder titleBuffer, FocusPoint focusPoint) {
         FocusPoint parentFocusPoint = focusPoint.getParentFocusPoint();
 
         if (parentFocusPoint != null) {

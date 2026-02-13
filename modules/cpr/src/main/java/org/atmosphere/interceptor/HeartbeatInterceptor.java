@@ -208,11 +208,11 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     // See https://github.com/Atmosphere/atmosphere/issues/1561
                     final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent((AtmosphereResourceImpl) r);
 
-                    if (AtmosphereResourceHeartbeatEventListener.class.isAssignableFrom(r.getAtmosphereHandler().getClass())) {
+                    if (r.getAtmosphereHandler() instanceof AtmosphereResourceHeartbeatEventListener heartbeatListener) {
                         r.addEventListener(new AtmosphereResourceEventListenerAdapter.OnHeartbeat() {
                             @Override
                             public void onHeartbeat(AtmosphereResourceEvent event) {
-                                ((AtmosphereResourceHeartbeatEventListener) r.getAtmosphereHandler()).onHeartbeat(event);
+                                heartbeatListener.onHeartbeat(event);
                             }
                         });
                     }
@@ -277,9 +277,9 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
             final AsyncIOWriter writer = response.getAsyncIOWriter();
 
             if (!Utils.resumableTransport(r.transport())
-                    && AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())
+                    && writer instanceof AtmosphereInterceptorWriter interceptorWriter
                     && request.getAttribute(INTERCEPTOR_ADDED) == null) {
-                ((AtmosphereInterceptorWriter) writer).interceptor(new AsyncIOInterceptorAdapter() {
+                interceptorWriter.interceptor(new AsyncIOInterceptorAdapter() {
 
                     @Override
                     public byte[] transformPayload(AtmosphereResponse response, byte[] responseDraft, byte[] data) {

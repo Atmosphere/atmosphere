@@ -155,9 +155,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
                 ((DefaultBroadcaster) b).start();
             }
 
-            for (BroadcasterListener l : broadcasterListeners) {
-                b.addBroadcasterListener(l);
-            }
+            broadcasterListeners.forEach(b::addBroadcasterListener);
 
             logger.trace("Broadcaster {} was created {}", id, b);
 
@@ -227,7 +225,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             b = (T) store.computeIfAbsent(id, new CreateBroacasterFunction(c));
         }
         
-        if (b != null && !c.isAssignableFrom(b.getClass())) {
+        if (b != null && !c.isInstance(b)) {
             String msg = "Invalid lookup class " + c.getName() + ". Cached class is: " + b.getClass().getName();
             logger.debug(msg);
             throw new IllegalStateException(msg);

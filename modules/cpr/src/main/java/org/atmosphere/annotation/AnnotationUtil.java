@@ -37,14 +37,12 @@ public class AnnotationUtil {
 
     public static final Logger logger = LoggerFactory.getLogger(AnnotationUtil.class);
 
-    private static final List<Class<? extends AtmosphereInterceptor>> MANAGED_ATMOSPHERE_INTERCEPTORS = new LinkedList<Class<? extends AtmosphereInterceptor>>() {
-        {
-            add(AtmosphereResourceLifecycleInterceptor.class);
-            add(TrackMessageSizeInterceptor.class);
-            add(SuspendTrackerInterceptor.class);
-            add(ManagedServiceInterceptor.class);
-        }
-    };
+    private static final List<Class<? extends AtmosphereInterceptor>> MANAGED_ATMOSPHERE_INTERCEPTORS = List.of(
+            AtmosphereResourceLifecycleInterceptor.class,
+            TrackMessageSizeInterceptor.class,
+            SuspendTrackerInterceptor.class,
+            ManagedServiceInterceptor.class
+    );
 
     public static void interceptors(Class<? extends AtmosphereInterceptor>[] interceptors, AtmosphereFramework framework) {
         for (Class<? extends AtmosphereInterceptor> i : interceptors) {

@@ -143,8 +143,7 @@ public final class TypeResolver {
     public static Class<?>[] resolveArguments(Type genericType, Class<?> targetType) {
         Class<?>[] result = null;
 
-        if (genericType instanceof ParameterizedType) {
-            ParameterizedType paramType = (ParameterizedType) genericType;
+        if (genericType instanceof ParameterizedType paramType) {
             Type[] arguments = paramType.getActualTypeArguments();
             result = new Class[arguments.length];
             for (int i = 0; i < arguments.length; i++)
@@ -163,8 +162,8 @@ public final class TypeResolver {
      */
     public static Type resolveGenericType(Type initialType, Class<?> targetType) {
         Class<?> rawType;
-        if (initialType instanceof ParameterizedType)
-            rawType = (Class<?>) ((ParameterizedType) initialType).getRawType();
+        if (initialType instanceof ParameterizedType pt)
+            rawType = (Class<?>) pt.getRawType();
         else
             rawType = (Class<?>) initialType;
 
@@ -192,22 +191,20 @@ public final class TypeResolver {
      * from the {@code targetType}.
      */
     public static Class<?> resolveClass(Type genericType, Class<?> targetType) {
-        if (genericType instanceof Class) {
-            return (Class<?>) genericType;
-        } else if (genericType instanceof ParameterizedType) {
-            return resolveClass(((ParameterizedType) genericType).getRawType(), targetType);
-        } else if (genericType instanceof GenericArrayType) {
-            GenericArrayType arrayType = (GenericArrayType) genericType;
+        if (genericType instanceof Class<?> c) {
+            return c;
+        } else if (genericType instanceof ParameterizedType pt) {
+            return resolveClass(pt.getRawType(), targetType);
+        } else if (genericType instanceof GenericArrayType arrayType) {
             Class<?> compoment = resolveClass(arrayType.getGenericComponentType(), targetType);
             return Array.newInstance(compoment, 0).getClass();
-        } else if (genericType instanceof TypeVariable) {
-            TypeVariable<?> variable = (TypeVariable<?>) genericType;
+        } else if (genericType instanceof TypeVariable<?> variable) {
             genericType = getTypeVariableMap(targetType).get(variable);
             genericType = genericType == null ? resolveBound(variable) : resolveClass(genericType,
                     targetType);
         }
 
-        return genericType instanceof Class ? (Class<?>) genericType : Unknown.class;
+        return genericType instanceof Class<?> c ? c : Unknown.class;
     }
 
     private static Map<TypeVariable<?>, Type> getTypeVariableMap(final Class<?> targetType) {
@@ -254,14 +251,13 @@ public final class TypeResolver {
      */
     static void buildTypeVariableMap(final Type[] types, final Map<TypeVariable<?>, Type> map) {
         for (Type type : types) {
-            if (type instanceof ParameterizedType) {
-                ParameterizedType parameterizedType = (ParameterizedType) type;
+            if (type instanceof ParameterizedType parameterizedType) {
                 buildTypeVariableMap(parameterizedType, map);
                 Type rawType = parameterizedType.getRawType();
-                if (rawType instanceof Class)
-                    buildTypeVariableMap(((Class<?>) rawType).getGenericInterfaces(), map);
-            } else if (type instanceof Class) {
-                buildTypeVariableMap(((Class<?>) type).getGenericInterfaces(), map);
+                if (rawType instanceof Class<?> c)
+                    buildTypeVariableMap(c.getGenericInterfaces(), map);
+            } else if (type instanceof Class<?> c) {
+                buildTypeVariableMap(c.getGenericInterfaces(), map);
             }
         }
     }
@@ -272,8 +268,8 @@ public final class TypeResolver {
      */
     private static void buildTypeVariableMap(ParameterizedType type,
                                              Map<TypeVariable<?>, Type> typeVariableMap) {
-        if (type.getRawType() instanceof Class) {
-            TypeVariable<?>[] typeVariables = ((Class<?>) type.getRawType()).getTypeParameters();
+        if (type.getRawType() instanceof Class<?> rawClass) {
+            TypeVariable<?>[] typeVariables = rawClass.getTypeParameters();
             Type[] typeArguments = type.getActualTypeArguments();
 
             for (int i = 0; i < typeArguments.length; i++) {
@@ -286,8 +282,7 @@ public final class TypeResolver {
                     typeVariableMap.put(variable, typeArgument);
                 } else if (typeArgument instanceof ParameterizedType) {
                     typeVariableMap.put(variable, typeArgument);
-                } else if (typeArgument instanceof TypeVariable) {
-                    TypeVariable<?> typeVariableArgument = (TypeVariable<?>) typeArgument;
+                } else if (typeArgument instanceof TypeVariable<?> typeVariableArgument) {
                     Type resolvedType = typeVariableMap.get(typeVariableArgument);
                     if (resolvedType == null)
                         resolvedType = resolveBound(typeVariableArgument);

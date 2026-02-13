@@ -398,7 +398,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public ServletResponse getResponse() {
-        if (Proxy.class.isAssignableFrom(response.getClass())) {
+        if (response instanceof Proxy) {
             return this;
         } else {
             return super.getResponse();
@@ -744,7 +744,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     @Override
     public AtmosphereResponse write(String data, boolean writeUsingOriginalResponse) {
 
-        if (Proxy.class.isAssignableFrom(response.getClass())) {
+        if (response instanceof Proxy) {
             writeUsingOriginalResponse = false;
         }
 
@@ -798,7 +798,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             return this;
         }
 
-        if (Proxy.class.isAssignableFrom(response.getClass())) {
+        if (response instanceof Proxy) {
             writeUsingOriginalResponse = false;
         }
 
@@ -834,7 +834,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
             return this;
         }
 
-        if (Proxy.class.isAssignableFrom(response.getClass())) {
+        if (response instanceof Proxy) {
             writeUsingOriginalResponse = false;
         }
 
@@ -869,8 +869,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     @Override
     public void setResponse(ServletResponse response) {
         super.setResponse(response);
-        if (HttpServletResponse.class.isAssignableFrom(response.getClass())) {
-            this.response = (HttpServletResponse) response;
+        if (response instanceof HttpServletResponse httpServletResponse) {
+            this.response = httpServletResponse;
         }
     }
 

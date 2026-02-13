@@ -59,14 +59,12 @@ public class IOUtils {
     private final static Pattern SERVLET_PATH_PATTERN = Pattern.compile("([/]?[\\w-[.]]+|[/]\\*\\*)+");
 
     static {
-        knownClasses = new ArrayList<String>() {
-            {
-                add(AtmosphereServlet.class.getName());
-                add(MeteorServlet.class.getName());
-                add("com.vaadin.server.VaadinServlet");
-                add("org.primefaces.push.PushServlet");
-            }
-        };
+        knownClasses = List.of(
+                AtmosphereServlet.class.getName(),
+                MeteorServlet.class.getName(),
+                "com.vaadin.server.VaadinServlet",
+                "org.primefaces.push.PushServlet"
+        );
     }
 
     /**
@@ -85,18 +83,13 @@ public class IOUtils {
                                final AtmosphereResource r) {
         final DeliverTo.DELIVER_TO deliverTo = deliverConfig == null ? defaultDeliver : deliverConfig.value();
         switch (deliverTo) {
-            case RESOURCE:
-                r.getBroadcaster().broadcast(o, r);
-                break;
-            case BROADCASTER:
-                r.getBroadcaster().broadcast(o);
-                break;
-            case ALL:
+            case RESOURCE -> r.getBroadcaster().broadcast(o, r);
+            case BROADCASTER -> r.getBroadcaster().broadcast(o);
+            case ALL -> {
                 for (Broadcaster b : r.getAtmosphereConfig().getBroadcasterFactory().lookupAll()) {
                     b.broadcast(o);
                 }
-                break;
-
+            }
         }
     }
 
@@ -111,9 +104,9 @@ public class IOUtils {
     }
 
     public static boolean isBodyEmpty(Object o) {
-        if (o != null && (String.class.isAssignableFrom(o.getClass()) && ((String) o).isEmpty())) return true;
+        if (o instanceof String s && s.isEmpty()) return true;
         assert o != null;
-        return Byte[].class.isAssignableFrom(o.getClass()) && ((Byte[]) o).length == 0;
+        return o instanceof Byte[] bytes && bytes.length == 0;
     }
 
     public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {

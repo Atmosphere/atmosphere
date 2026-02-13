@@ -28,7 +28,7 @@ public class VoidServletConfig implements ServletConfig {
     private final Map<String, String> initParams;
 
     public VoidServletConfig() {
-        initParams = Collections.emptyMap();
+        initParams = Map.of();
     }
 
     public VoidServletConfig(Map<String, String> initParams) {

@@ -50,6 +50,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.Condition;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Consumer;
 
 import static org.atmosphere.cpr.ApplicationConfig.BACKWARD_COMPATIBLE_WEBSOCKET_BEHAVIOR;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE_STRATEGY;
@@ -167,7 +168,7 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcasterListeners = new ConcurrentLinkedQueue<>();
         }
 
-        candidateForPoolable = PoolableBroadcasterFactory.class.isAssignableFrom(config.getBroadcasterFactory().getClass());
+        candidateForPoolable = config.getBroadcasterFactory() instanceof PoolableBroadcasterFactory;
 
         return this;
     }
@@ -254,7 +255,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     /**
                      * REQUEST_SCOPE means one BroadcasterCache per Broadcaster,
                      */
-                    if (DefaultBroadcaster.class.isAssignableFrom(this.getClass())) {
+                    if (this instanceof DefaultBroadcaster) {
                         BroadcasterCache cache = config.framework().newClassInstance(BroadcasterCache.class, bc.getBroadcasterCache().getClass());
                         cache.configure(config);
                         b.getBroadcasterConfig().setBroadcasterCache(cache);
@@ -403,44 +404,42 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Runnable getBroadcastHandler() {
-        return new Runnable() {
-            public void run() {
-                while (!isDestroyed()) {
-                    Deliver msg = null;
-                    try {
-                        msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
-                        if (msg == null) {
-                            dispatchThread.decrementAndGet();
-                            return;
-                        }
-                    } catch (InterruptedException ex) {
-                        logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
-                        logger.trace("", ex);
+        return () -> {
+            while (!isDestroyed()) {
+                Deliver msg = null;
+                try {
+                    msg = messages.poll(waitTime, TimeUnit.MILLISECONDS);
+                    if (msg == null) {
                         dispatchThread.decrementAndGet();
                         return;
-                    } finally {
-                        if (outOfOrderBroadcastSupported.get()) {
-                            bc.getExecutorService().submit(this);
-                        }
                     }
+                } catch (InterruptedException ex) {
+                    logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
+                    logger.trace("", ex);
+                    dispatchThread.decrementAndGet();
+                    return;
+                } finally {
+                    if (outOfOrderBroadcastSupported.get()) {
+                        bc.getExecutorService().submit(getBroadcastHandler());
+                    }
+                }
 
-                    try {
-                        logger.trace("{} is about to broadcast {}", getID(), msg);
-                        push(msg);
-                    } catch (Throwable ex) {
-                        if (!started.get() || destroyed.get()) {
-                            logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
-                            dispatchThread.decrementAndGet();
-                            return;
-                        } else {
-                            logger.warn("This message {} will be lost", msg);
-                            logger.warn("Failed to submit broadcast handler runnable to for Broadcaster" + getID(), ex);
-                        }
-                    } finally {
-                        if (outOfOrderBroadcastSupported.get()) {
-                            dispatchThread.decrementAndGet();
-                            return;
-                        }
+                try {
+                    logger.trace("{} is about to broadcast {}", getID(), msg);
+                    push(msg);
+                } catch (Throwable ex) {
+                    if (!started.get() || destroyed.get()) {
+                        logger.trace("Failed to submit broadcast handler runnable on shutdown for Broadcaster {}", getID(), ex);
+                        dispatchThread.decrementAndGet();
+                        return;
+                    } else {
+                        logger.warn("This message {} will be lost", msg);
+                        logger.warn("Failed to submit broadcast handler runnable for Broadcaster {}", getID(), ex);
+                    }
+                } finally {
+                    if (outOfOrderBroadcastSupported.get()) {
+                        dispatchThread.decrementAndGet();
+                        return;
                     }
                 }
             }
@@ -448,57 +447,55 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     protected Runnable getAsyncWriteHandler(final WriteQueue writeQueue) {
-        return new Runnable() {
-            public void run() {
-                while (!isDestroyed()) {
-                    AsyncWriteToken token;
-                    try {
-                        token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
-                        if (token == null && !outOfOrderBroadcastSupported.get()) {
-                            synchronized (writeQueue) {
-                                if (writeQueue.queue.isEmpty()) {
-                                    writeQueue.monitored.set(false);
-                                    writeQueues.remove(writeQueue.uuid);
-                                    return;
+        return () -> {
+            while (!isDestroyed()) {
+                AsyncWriteToken token;
+                try {
+                    token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
+                    if (token == null && !outOfOrderBroadcastSupported.get()) {
+                        synchronized (writeQueue) {
+                            if (writeQueue.queue.isEmpty()) {
+                                writeQueue.monitored.set(false);
+                                writeQueues.remove(writeQueue.uuid);
+                                return;
+                            }
+                        }
+                    } else if (token == null) {
+                        return;
+                    }
+                } catch (InterruptedException ex) {
+                    logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
+                    logger.trace("", ex);
+                    return;
+                } finally {
+                    if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
+                        bc.getAsyncWriteService().submit(getAsyncWriteHandler(writeQueue));
+                    }
+                }
+
+                // Shield us from https://github.com/Atmosphere/atmosphere/issues/1187
+                if (token != null) {
+                    synchronized (token.resource) {
+                        try {
+                            logger.trace("About to write to {}", token.resource);
+                            executeAsyncWrite(token);
+                        } catch (Throwable ex) {
+                            if (!started.get() || destroyed.get()) {
+                                logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
+                                return;
+                            } else {
+                                try {
+                                    logger.warn("This message {} will be lost for AtmosphereResource {}, adding it to the BroadcasterCache",
+                                            token.originalMessage, token.resource != null ? token.resource.uuid() : "null");
+                                    cacheLostMessage(token.resource, token, true);
+                                } finally {
+                                    removeAtmosphereResource(token.resource, false);
+                                    logger.warn("Failed to execute a write operation for Broadcaster {}", getID(), ex);
                                 }
                             }
-                        } else if (token == null) {
-                            return;
-                        }
-                    } catch (InterruptedException ex) {
-                        logger.trace("{} got interrupted for Broadcaster {}", Thread.currentThread().getName(), getID());
-                        logger.trace("", ex);
-                        return;
-                    } finally {
-                        if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
-                            bc.getAsyncWriteService().submit(this);
-                        }
-                    }
-
-                    // Shield us from https://github.com/Atmosphere/atmosphere/issues/1187
-                    if (token != null) {
-                        synchronized (token.resource) {
-                            try {
-                                logger.trace("About to write to {}", token.resource);
-                                executeAsyncWrite(token);
-                            } catch (Throwable ex) {
-                                if (!started.get() || destroyed.get()) {
-                                    logger.trace("Failed to execute a write operation. Broadcaster is destroyed or not yet started for Broadcaster {}", getID(), ex);
-                                    return;
-                                } else {
-                                    try {
-                                        logger.warn("This message {} will be lost for AtmosphereResource {}, adding it to the BroadcasterCache",
-                                                token.originalMessage, token.resource != null ? token.resource.uuid() : "null");
-                                        cacheLostMessage(token.resource, token, true);
-                                    } finally {
-                                        removeAtmosphereResource(token.resource, false);
-                                        logger.warn("Failed to execute a write operation for Broadcaster " + getID(), ex);
-                                    }
-                                }
-                            } finally {
-                                if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
-                                    return;
-                                }
+                        } finally {
+                            if (!bc.getAsyncWriteService().isShutdown() && outOfOrderBroadcastSupported.get()) {
+                                return;
                             }
                         }
                     }
@@ -608,7 +605,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     "associated with this Broadcaster resumed.", deliver.message);
             entryDone(deliver.future);
             switch (deliver.type) {
-                case ALL:
+                case ALL -> {
                     synchronized (resources) {
                         for (AtmosphereResource r : resources) {
                             if (Utils.resumableTransport(r.transport()))
@@ -619,15 +616,13 @@ public class DefaultBroadcaster implements Broadcaster {
                                 }
                         }
                     }
-                    break;
-                case RESOURCE:
-                    deliver.resource.resume();
-                    break;
-                case SET:
+                }
+                case RESOURCE -> deliver.resource.resume();
+                case SET -> {
                     for (AtmosphereResource r : deliver.resources) {
                         r.resume();
                     }
-                    break;
+                }
             }
             return;
         }
@@ -646,17 +641,15 @@ public class DefaultBroadcaster implements Broadcaster {
         Map<String, CacheMessage> cacheForSet = deliver.type == Deliver.TYPE.SET ? new HashMap<>() : null;
         // We cache first, and if the broadcast succeed, we will remove it.
         switch (deliver.type) {
-            case ALL:
+            case ALL ->
                 deliver.cache = bc.getBroadcasterCache().addToCache(getID(), BroadcasterCache.NULL, new BroadcastMessage(deliver.originalMessage));
-                break;
-            case RESOURCE:
+            case RESOURCE ->
                 deliver.cache = bc.getBroadcasterCache().addToCache(getID(), deliver.resource.uuid(), new BroadcastMessage(deliver.originalMessage));
-                break;
-            case SET:
+            case SET -> {
                 for (AtmosphereResource r : deliver.resources) {
                     cacheForSet.put(r.uuid(), bc.getBroadcasterCache().addToCache(getID(), r.uuid(), new BroadcastMessage(deliver.originalMessage)));
                 }
-                break;
+            }
         }
 
         notifyOnMessage(deliver);
@@ -679,7 +672,7 @@ public class DefaultBroadcaster implements Broadcaster {
             boolean hasFilters = bc.hasPerRequestFilters();
             Object beforeProcessingMessage = deliver.message;
             switch (deliver.type) {
-                case ALL:
+                case ALL -> {
                     AtomicInteger count = new AtomicInteger(resources.size());
 
                     for (AtmosphereResource r : resources) {
@@ -692,22 +685,22 @@ public class DefaultBroadcaster implements Broadcaster {
                             queueWriteIO(r, hasFilters ? new Deliver(r, deliver) : deliver, count);
                         }
                     }
-                    break;
-                case RESOURCE:
+                }
+                case RESOURCE -> {
                     boolean deliverMessage = perRequestFilter(deliver.resource, deliver);
 
-                    if (endBroadcast(deliver, deliver.resource, deliver.cache,  deliverMessage)) return;
+                    if (endBroadcast(deliver, deliver.resource, deliver.cache, deliverMessage)) return;
 
                     if (deliver.writeLocally) {
                         queueWriteIO(deliver.resource, deliver, new AtomicInteger(1));
                     }
-                    break;
-                case SET:
-                    count = new AtomicInteger(deliver.resources.size());
+                }
+                case SET -> {
+                    AtomicInteger count = new AtomicInteger(deliver.resources.size());
 
                     for (AtmosphereResource r : deliver.resources) {
                         deliver.message = beforeProcessingMessage;
-                        deliverMessage = perRequestFilter(r, deliver);
+                        boolean deliverMessage = perRequestFilter(r, deliver);
 
                         CacheMessage cacheMsg = cacheForSet.remove(r.uuid());
 
@@ -717,7 +710,7 @@ public class DefaultBroadcaster implements Broadcaster {
                             queueWriteIO(r, new Deliver(r, deliver, cacheMsg), count);
                         }
                     }
-                    break;
+                }
             }
 
             deliver.message = prevMessage;
@@ -831,9 +824,9 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     private Object callable(Object msg) {
-        if (Callable.class.isAssignableFrom(msg.getClass())) {
+        if (msg instanceof Callable<?> c) {
             try {
-                return ((Callable<?>) msg).call();
+                return c.call();
             } catch (Exception e) {
                 logger.warn("Callable exception", e);
                 return null;
@@ -1006,21 +999,18 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 switch (r.transport()) {
-                    case UNDEFINED:
-                    case JSONP:
-                    case AJAX:
-                    case LONG_POLLING:
+                    case UNDEFINED, JSONP, AJAX, LONG_POLLING -> {
                         return true;
-                    case SSE:
-                        break;
-                    default:
+                    }
+                    case SSE -> {}
+                    default -> {
                         try {
                             r.getResponse().flushBuffer();
                         } catch (IOException ioe) {
                             logger.trace("", ioe);
                             ((AtmosphereResourceImpl) r)._destroy();
                         }
-                        break;
+                    }
                 }
             }
         }
@@ -1042,7 +1032,7 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.trace("{} is broadcasting to {}", name, r.uuid());
             r.getAtmosphereHandler().onStateChange(e);
         } catch (Throwable t) {
-            if (!InterruptedException.class.isAssignableFrom(t.getClass())) {
+            if (!(t instanceof InterruptedException)) {
                 onException(t, r);
             }
         }
@@ -1448,44 +1438,30 @@ public class DefaultBroadcaster implements Broadcaster {
         if (f != null) f.done();
     }
 
-    protected void notifyBroadcastListener() {
+    private void forEachListener(Consumer<BroadcasterListener> action) {
         for (BroadcasterListener b : broadcasterListeners) {
             try {
-                b.onComplete(this);
+                action.accept(b);
             } catch (Exception ex) {
                 logger.warn("", ex);
             }
         }
+    }
+
+    protected void notifyBroadcastListener() {
+        forEachListener(b -> b.onComplete(this));
     }
 
     protected void notifyOnAddAtmosphereResourceListener(AtmosphereResource r) {
-        for (BroadcasterListener b : broadcasterListeners) {
-            try {
-                b.onAddAtmosphereResource(this, r);
-            } catch (Exception ex) {
-                logger.warn("", ex);
-            }
-        }
+        forEachListener(b -> b.onAddAtmosphereResource(this, r));
     }
 
     protected void notifyOnRemoveAtmosphereResourceListener(AtmosphereResource r) {
-        for (BroadcasterListener b : broadcasterListeners) {
-            try {
-                b.onRemoveAtmosphereResource(this, r);
-            } catch (Exception ex) {
-                logger.warn("", ex);
-            }
-        }
+        forEachListener(b -> b.onRemoveAtmosphereResource(this, r));
     }
 
     protected void notifyOnMessage(Deliver deliver) {
-        for (BroadcasterListener b : broadcasterListeners) {
-            try {
-                b.onMessage(this, deliver);
-            } catch (Exception ex) {
-                logger.warn("", ex);
-            }
-        }
+        forEachListener(b -> b.onMessage(this, deliver));
     }
 
     @Override
@@ -1562,9 +1538,9 @@ public class DefaultBroadcaster implements Broadcaster {
         if (delay > 0) {
             f = bc.getScheduledExecutorService().schedule(() -> {
                 delayedBroadcast.remove(e);
-                if (Callable.class.isAssignableFrom(o.getClass())) {
+                if (o instanceof Callable<?> c) {
                     try {
-                        Object r = ((Callable<?>) o).call();
+                        Object r = c.call();
                         final Object msg1 = filter(r);
                         if (msg1 != null) {
                             Deliver deliver = new Deliver(msg1, future, r);
@@ -1613,9 +1589,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
         @SuppressWarnings("unchecked")
         Future<Object> result = (Future<Object>) bc.getScheduledExecutorService().scheduleWithFixedDelay(() -> {
-            if (Callable.class.isAssignableFrom(o.getClass())) {
+            if (o instanceof Callable<?> c) {
                 try {
-                    Object r = Callable.class.cast(o).call();
+                    Object r = c.call();
                     final Object msg1 = filter(r);
                     if (msg1 != null) {
                         Deliver deliver = new Deliver(msg1, f, r);
@@ -1689,24 +1665,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
     private long translateTimeUnit(long period, TimeUnit tu) {
         if (period == -1) return period;
-
-        switch (tu) {
-            case SECONDS:
-                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.SECONDS);
-            case MINUTES:
-                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.MINUTES);
-            case HOURS:
-                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.HOURS);
-            case DAYS:
-                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.DAYS);
-            case MILLISECONDS:
-                return period;
-            case MICROSECONDS:
-                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.MICROSECONDS);
-            case NANOSECONDS:
-                return TimeUnit.MILLISECONDS.convert(period, TimeUnit.NANOSECONDS);
-        }
-        return period;
+        return tu.toMillis(period);
     }
 
     boolean notifyOnPreDestroy() {
@@ -1714,7 +1673,7 @@ public class DefaultBroadcaster implements Broadcaster {
             try {
                 b.onPreDestroy(this);
             } catch (RuntimeException ex) {
-                if (BroadcasterListener.BroadcastListenerException.class.isAssignableFrom(ex.getClass())) {
+                if (ex instanceof BroadcasterListener.BroadcastListenerException) {
                     logger.trace("onPreDestroy", ex);
                     return true;
                 }

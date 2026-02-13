@@ -57,12 +57,7 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
     private String contentType = "text/event-stream";
 
     static {
-        StringBuilder whitespace = new StringBuilder();
-        for (int i = 0; i < 2000; i++) {
-            whitespace.append(" ");
-        }
-        whitespace.append("\n");
-        paddingText = whitespace.toString();
+        paddingText = " ".repeat(2000) + "\n";
         padding = paddingText.getBytes();
     }
 
@@ -134,8 +129,8 @@ public class SSEAtmosphereInterceptor extends AtmosphereInterceptorAdapter {
             r.addEventListener(new P(response));
 
             AsyncIOWriter writer = response.getAsyncIOWriter();
-            if (AtmosphereInterceptorWriter.class.isAssignableFrom(writer.getClass())) {
-                ((AtmosphereInterceptorWriter) writer).interceptor(new AsyncIOInterceptorAdapter() {
+            if (writer instanceof AtmosphereInterceptorWriter interceptorWriter) {
+                interceptorWriter.interceptor(new AsyncIOInterceptorAdapter() {
                     private boolean padding() {
                         if (!r.isSuspended()) {
                             return writePadding(response);

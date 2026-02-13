@@ -79,13 +79,14 @@ public class EmbeddedWebSocketHandler {
 
 
     public EmbeddedWebSocketHandler serve(InputStream inputStream) throws IOException {
-        BufferedReader br = new BufferedReader(new InputStreamReader(inputStream));
-        String a = "";
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(inputStream))) {
+            String a = "";
 
-        while (!(a.equals("===quit"))) {
-            a = br.readLine();
-            logger.info("Received WebSocket Message {}", a);
-            processor.invokeWebSocketProtocol(webSocket(inputStream), a);
+            while (!(a.equals("===quit"))) {
+                a = br.readLine();
+                logger.info("Received WebSocket Message {}", a);
+                processor.invokeWebSocketProtocol(webSocket(inputStream), a);
+            }
         }
         return this;
     }

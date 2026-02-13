@@ -24,9 +24,8 @@ import jakarta.servlet.Filter;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletException;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
+import java.util.List;
 
 import static org.atmosphere.cpr.ApplicationConfig.FILTER_CLASS;
 import static org.atmosphere.cpr.ApplicationConfig.FILTER_NAME;
@@ -66,7 +65,7 @@ public class MeteorServlet extends AtmosphereServlet {
     }
 
     public MeteorServlet(Servlet delegate, String delegateMapping, Filter... filters) {
-        this(delegate, delegateMapping, Arrays.asList(filters));
+        this(delegate, delegateMapping, List.of(filters));
     }
 
     public MeteorServlet(Servlet delegate, String delegateMapping, Collection<Filter> filters) {
@@ -77,7 +76,7 @@ public class MeteorServlet extends AtmosphereServlet {
         this.delegate = delegate;
         this.delegateMapping = delegateMapping;
         if (filters == null) {
-            this.filters = Collections.emptyList();
+            this.filters = List.of();
         } else {
             this.filters = filters;
         }

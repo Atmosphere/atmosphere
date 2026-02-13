@@ -24,6 +24,7 @@ import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -72,30 +73,26 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @return
      */
     public List<Class<? extends AsyncSupport<?>>> detectContainersPresent() {
-        return new LinkedList<Class<? extends AsyncSupport<?>>>() {
-            {
-                if (testClassExists(NETTY))
-                    add(NettyCometSupport.class);
-            }
-        };
+        List<Class<? extends AsyncSupport<?>>> result = new ArrayList<>();
+        if (testClassExists(NETTY)) {
+            result.add(NettyCometSupport.class);
+        }
+        return result;
     }
 
     public List<Class<? extends AsyncSupport<?>>> detectWebSocketPresent(final boolean useNativeIfPossible, final boolean useServlet30Async) {
 
-        return new LinkedList<Class<? extends AsyncSupport<?>>>() {
-            {
-                if (useServlet30Async && !useNativeIfPossible) {
-
-                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
-                        add(JSR356AsyncSupport.class);
-                    }
-                } else {
-                    if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
-                        add(JSR356AsyncSupport.class);
-                    }
-                }
+        List<Class<? extends AsyncSupport<?>>> result = new ArrayList<>();
+        if (useServlet30Async && !useNativeIfPossible) {
+            if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
+                result.add(JSR356AsyncSupport.class);
             }
-        };
+        } else {
+            if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
+                result.add(JSR356AsyncSupport.class);
+            }
+        }
+        return result;
     }
 
     /**

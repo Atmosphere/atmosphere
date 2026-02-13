@@ -119,15 +119,15 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
                     Object s;
                     while (i.hasNext()) {
                         s = i.next();
-                        if (String.class.isAssignableFrom(s.getClass())) {
+                        if (s instanceof String str) {
                             if (isUsingStream) {
-                                r.getOutputStream().write(s.toString().getBytes(r.getCharacterEncoding()));
+                                r.getOutputStream().write(str.getBytes(r.getCharacterEncoding()));
                             } else {
-                                r.getWriter().write(s.toString());
+                                r.getWriter().write(str);
                             }
-                        } else if (byte[].class.isAssignableFrom(s.getClass())) {
+                        } else if (s instanceof byte[] bytes) {
                             if (isUsingStream) {
-                                r.getOutputStream().write((byte[]) s);
+                                r.getOutputStream().write(bytes);
                             } else {
                                 r.getWriter().write(s.toString());
                             }
@@ -211,7 +211,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
             Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            if (o != null && Boolean.class.isAssignableFrom(o.getClass())) {
+            if (o instanceof Boolean) {
                 resumeOnBroadcast = (Boolean) o;
             }
         }

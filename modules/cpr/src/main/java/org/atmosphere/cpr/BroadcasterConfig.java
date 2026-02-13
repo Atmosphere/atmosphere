@@ -25,7 +25,6 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -145,12 +144,12 @@ public class BroadcasterConfig {
 
     protected void initClusterExtension() {
         for (BroadcastFilter mf : filters) {
-            if (ClusterBroadcastFilter.class.isAssignableFrom(mf.getClass())) {
+            if (mf instanceof ClusterBroadcastFilter cbf) {
                 try {
                     Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
                     if (b != null) {
                         synchronized (mf) {
-                            ((ClusterBroadcastFilter) mf).setBroadcaster(b);
+                            cbf.setBroadcaster(b);
                         }
                     }
                 } catch (Throwable t) {
@@ -280,11 +279,11 @@ public class BroadcasterConfig {
             ((BroadcastFilterLifecycle) e).init(config);
         }
 
-        if (init && ClusterBroadcastFilter.class.isAssignableFrom(e.getClass())) {
+        if (init && e instanceof ClusterBroadcastFilter cbf) {
             Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
             if (b != null) {
                 synchronized (e) {
-                    ((ClusterBroadcastFilter) e).setBroadcaster(b);
+                    cbf.setBroadcaster(b);
                 }
             }
         }
@@ -298,7 +297,7 @@ public class BroadcasterConfig {
 
     private void logDuplicateFilter(BroadcastFilter e) {
         for (BroadcastFilter f : filters) {
-            if (f.getClass().isAssignableFrom(e.getClass())) {
+            if (f.getClass().isInstance(e)) {
                 logger.trace("Duplicate Filter instance {}", f.getClass());
             }
         }
@@ -393,7 +392,7 @@ public class BroadcasterConfig {
             return false;
         } else {
             for (BroadcastFilter b : filters) {
-                if (PerRequestBroadcastFilter.class.isAssignableFrom(b.getClass())) {
+                if (b instanceof PerRequestBroadcastFilter) {
                     return true;
                 }
             }
@@ -473,7 +472,7 @@ public class BroadcasterConfig {
         BroadcastFilter.BroadcastAction a;
         for (Object o : cacheMessages) {
             a = filter(o);
-            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.emptyList();
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return List.of();
 
             if (a.action() == BroadcastAction.ACTION.SKIP) {
                 filteredMessage.add(a.message());
@@ -481,7 +480,7 @@ public class BroadcasterConfig {
             }
 
             a = filter(r, a.message(), a.originalMessage());
-            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return Collections.emptyList();
+            if (a.action() == BroadcastFilter.BroadcastAction.ACTION.ABORT) return List.of();
 
             if (a.action() == BroadcastAction.ACTION.SKIP) {
                 filteredMessage.add(a.message());

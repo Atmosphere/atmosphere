@@ -29,7 +29,6 @@ import org.slf4j.LoggerFactory;
 import java.io.Serializable;
 import java.net.URI;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 import static org.atmosphere.websocket.protocol.ProtocolUtil.constructRequest;
@@ -92,7 +91,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         AtmosphereRequest request = resource.getRequest(false);
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 
-        if (!resource.isInScope()) return Collections.emptyList();
+        if (!resource.isInScope()) return List.of();
 
         String pathInfo = request.getPathInfo();
         String requestURI = request.getRequestURI();
@@ -134,7 +133,7 @@ public class SimpleHttpProtocol implements WebSocketProtocol, Serializable {
         AtmosphereRequest request = resource.getRequest(false);
         request.setAttribute(FrameworkConfig.WEBSOCKET_SUBPROTOCOL, FrameworkConfig.SIMPLE_HTTP_OVER_WEBSOCKET);
 
-        if (!resource.isInScope()) return Collections.emptyList();
+        if (!resource.isInScope()) return List.of();
 
         List<AtmosphereRequest> list = new ArrayList<>();
         list.add(constructRequest(webSocket, request.getPathInfo(), request.getRequestURI(), methodType, contentType.equalsIgnoreCase(TEXT) ? null : contentType, destroyable).body(d, offset, length).build());

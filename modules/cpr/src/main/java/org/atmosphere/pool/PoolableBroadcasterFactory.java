@@ -25,7 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Collection;
-import java.util.Collections;
+import java.util.Set;
 
 import static org.atmosphere.cpr.ApplicationConfig.POOLEABLE_PROVIDER;
 import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKED_BROADCASTER;
@@ -52,7 +52,7 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
     private static final Logger logger = LoggerFactory.getLogger(PoolableBroadcasterFactory.class);
     private PoolableProvider<Broadcaster, ?> poolableProvider;
     private final static String POOLED_ID = "POOLED";
-    private final static Collection<Broadcaster> emptyCollection = Collections.emptySet();
+    private final static Collection<Broadcaster> emptyCollection = Set.of();
     private boolean trackPooledBroadcaster;
 
     public PoolableBroadcasterFactory() {

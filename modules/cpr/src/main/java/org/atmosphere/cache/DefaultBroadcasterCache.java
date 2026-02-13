@@ -22,7 +22,6 @@ import org.atmosphere.cpr.BroadcasterCacheListener;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.List;
 
 public class DefaultBroadcasterCache implements BroadcasterCache {
@@ -48,7 +47,7 @@ public class DefaultBroadcasterCache implements BroadcasterCache {
 
     @Override
     public List<Object> retrieveFromCache(String id, String uuid) {
-        return Collections.emptyList();
+        return List.of();
     }
 
     @Override

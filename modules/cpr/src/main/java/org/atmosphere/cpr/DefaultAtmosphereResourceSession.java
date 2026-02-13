@@ -24,7 +24,7 @@ import java.util.concurrent.ConcurrentMap;
  * @author uklance (https://github.com/uklance)
  */
 public class DefaultAtmosphereResourceSession implements AtmosphereResourceSession {
-    private final ConcurrentMap<String, Object> attributes = new ConcurrentHashMap<String, Object>();
+    private final ConcurrentMap<String, Object> attributes = new ConcurrentHashMap<>();
     private volatile boolean valid = true;
 
     @Override

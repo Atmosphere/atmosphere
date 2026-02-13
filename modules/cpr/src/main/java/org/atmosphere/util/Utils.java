@@ -217,7 +217,7 @@ public final class Utils {
         }
 
         AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
-        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+        if (!(injectableFactory instanceof InjectableObjectFactory)) {
             return;
         }
 
@@ -237,7 +237,7 @@ public final class Utils {
 
     private static Object injectWith(AtmosphereResource r) {
         AtmosphereHandler h = r.getAtmosphereHandler();
-        if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isAssignableFrom(h.getClass())) {
+        if (AtmosphereFramework.REFLECTOR_ATMOSPHEREHANDLER.getClass().isInstance(h)) {
             WebSocket w = ((AtmosphereResourceImpl) r).webSocket();
             if (w != null && w.webSocketHandler() instanceof WebSocketHandlerProxy proxy) {
                 return proxy.proxied();
@@ -250,10 +250,10 @@ public final class Utils {
     }
 
     private static Object injectWith(AtmosphereHandler h) {
-        if (AnnotatedProxy.class.isAssignableFrom(h.getClass())) {
-            return ((AnnotatedProxy) h).target();
-        } else if (ReflectorServletProcessor.class.isAssignableFrom(h.getClass())) {
-            return ((ReflectorServletProcessor) h).getServlet();
+        if (h instanceof AnnotatedProxy annotatedProxy) {
+            return annotatedProxy.target();
+        } else if (h instanceof ReflectorServletProcessor reflectorServletProcessor) {
+            return reflectorServletProcessor.getServlet();
         } else {
             return h;
         }
@@ -293,7 +293,7 @@ public final class Utils {
 
     public static boolean requestScopedInjection(AtmosphereConfig config, AtmosphereHandler h) {
         AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
-        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+        if (!(injectableFactory instanceof InjectableObjectFactory)) {
             return false;
         }
 
@@ -311,7 +311,7 @@ public final class Utils {
      */
     public static boolean requestScopedInjection(AtmosphereConfig config, Object o) {
         AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
-        if (!InjectableObjectFactory.class.isAssignableFrom(injectableFactory.getClass())) {
+        if (!(injectableFactory instanceof InjectableObjectFactory)) {
             return false;
         }
 
@@ -326,8 +326,8 @@ public final class Utils {
     public static void destroyMeteor(AtmosphereRequest req) {
         try {
             Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
-            if (o != null && Meteor.class.isAssignableFrom(o.getClass())) {
-                ((Meteor) o).destroy();
+            if (o instanceof Meteor meteor) {
+                meteor.destroy();
             }
         } catch (Exception ex) {
             LOGGER.debug("Meteor resume exception: Cannot resume an already resumed/cancelled request", ex);

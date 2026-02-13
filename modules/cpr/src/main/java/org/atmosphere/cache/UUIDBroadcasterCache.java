@@ -24,7 +24,6 @@ import org.atmosphere.util.UUIDProvider;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Collections;
 import java.util.HashSet;
 import java.util.LinkedList;
 import java.util.List;
@@ -39,7 +38,6 @@ import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import java.util.stream.Collectors;
 
 import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_CLIENT_IDLETIME;
 import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL;
@@ -65,7 +63,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     private long clientIdleTime = TimeUnit.SECONDS.toMillis(60); // 1 minutes
     private long invalidateCacheInterval = TimeUnit.SECONDS.toMillis(30); // 30 seconds
     private boolean shared = true;
-    protected final List<Object> emptyList = Collections.emptyList();
+    protected final List<Object> emptyList = List.of();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
     private UUIDProvider uuidProvider;
 
@@ -157,9 +155,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                     logger.trace("Retrieved for AtmosphereResource {} cached messages {}", uuid, (long) clientQueue.size());
                     logger.trace("Available cached message {}", messages);
                 }
-                return clientQueue.parallelStream().map(CacheMessage::getMessage).collect(Collectors.toList());
+                return clientQueue.parallelStream().map(CacheMessage::getMessage).toList();
             } else {
-                return Collections.emptyList();
+                return List.of();
             }
         } finally {
             readWriteLock.writeLock().unlock();

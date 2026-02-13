@@ -26,7 +26,6 @@ import org.atmosphere.cpr.BroadcasterConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Arrays;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -64,8 +63,8 @@ public class ManagedServiceProcessor implements Processor<Object> {
             framework.filterManipulator(new BroadcasterConfig.FilterManipulator() {
                 @Override
                 public Object unwrap(Object o) {
-                    if (o != null && ManagedAtmosphereHandler.Managed.class.isAssignableFrom(o.getClass())) {
-                        o = ((ManagedAtmosphereHandler.Managed) o).object();
+                    if (o instanceof ManagedAtmosphereHandler.Managed m) {
+                        o = m.object();
                     }
                     return o;
                 }
@@ -80,7 +79,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
                 }
             });
 
-            AnnotationUtil.interceptorsForManagedService(framework, Arrays.asList(a.interceptors()), l);
+            AnnotationUtil.interceptorsForManagedService(framework, List.of(a.interceptors()), l);
             framework.addAtmosphereHandler(a.path(), handler, broadcaster(framework, a.broadcaster(), a.path()), l);
         } catch (Throwable e) {
             logger.warn("", e);

@@ -64,7 +64,6 @@ import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedList;
 import java.util.List;
@@ -368,7 +367,7 @@ public class UriComponent {
 
         tables[Type.HOST.ordinal()] = creatingEncodingTable(l);
 
-        tables[Type.PORT.ordinal()] = creatingEncodingTable(Collections.singletonList("0-9"));
+        tables[Type.PORT.ordinal()] = creatingEncodingTable(List.of("0-9"));
 
         l.add(":");
 
