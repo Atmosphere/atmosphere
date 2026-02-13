@@ -39,7 +39,7 @@ jobs:
         cache: 'maven'
     
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/spring-boot-starter,modules/quarkus-extension -am
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/spring-boot-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment -am
     
     - name: Build Sample - ${{ matrix.sample }}
       run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }}
