@@ -107,6 +107,7 @@ public class BroadcasterConfig {
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     private void configureBroadcasterCache() {
         try {
             String className = config.framework().getBroadcasterCacheClassName();
@@ -539,6 +540,7 @@ public class BroadcasterConfig {
         return broadcasterCache;
     }
 
+    @SuppressWarnings("unchecked")
     void configureBroadcasterFilter(List<String> list) {
         for (String broadcastFilter : list) {
             BroadcastFilter bf = null;

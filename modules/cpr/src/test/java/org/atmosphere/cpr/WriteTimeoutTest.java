@@ -44,7 +44,8 @@ public class WriteTimeoutTest {
             .addInitParameter("org.atmosphere.cpr.Broadcaster.writeTimeout", "2000")
             .addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true")
             .init().getAtmosphereConfig();
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
     }
@@ -61,7 +62,8 @@ public class WriteTimeoutTest {
         final CountDownLatch guard = new CountDownLatch(1);
 
         atmosphereHandler = new AR(latch);
-        ar = new AtmosphereResourceImpl(config,
+        ar = new AtmosphereResourceImpl();
+        ar.initialize(config,
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
                 AtmosphereResponseImpl.newInstance(),
@@ -87,7 +89,8 @@ public class WriteTimeoutTest {
     @Test
     public void testNoWriteTimeout() throws ExecutionException, InterruptedException, ServletException {
         atmosphereHandler = new AR(null);
-        ar = new AtmosphereResourceImpl(config,
+        ar = new AtmosphereResourceImpl();
+        ar.initialize(config,
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
                 AtmosphereResponseImpl.newInstance(),

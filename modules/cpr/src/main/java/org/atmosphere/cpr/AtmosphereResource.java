@@ -330,5 +330,5 @@ public interface AtmosphereResource {
      */
     public AtmosphereResource initialize(AtmosphereConfig config, Broadcaster broadcaster,
                                          AtmosphereRequest req, AtmosphereResponse response,
-                                         AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler);
+                                         AsyncSupport<?> asyncSupport, AtmosphereHandler atmosphereHandler);
 }

@@ -71,8 +71,8 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      *
      * @return
      */
-    public List<Class<? extends AsyncSupport>> detectContainersPresent() {
-        return new LinkedList<Class<? extends AsyncSupport>>() {
+    public List<Class<? extends AsyncSupport<?>>> detectContainersPresent() {
+        return new LinkedList<Class<? extends AsyncSupport<?>>>() {
             {
                 if (testClassExists(NETTY))
                     add(NettyCometSupport.class);
@@ -80,9 +80,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         };
     }
 
-    public List<Class<? extends AsyncSupport>> detectWebSocketPresent(final boolean useNativeIfPossible, final boolean useServlet30Async) {
+    public List<Class<? extends AsyncSupport<?>>> detectWebSocketPresent(final boolean useNativeIfPossible, final boolean useServlet30Async) {
 
-        return new LinkedList<Class<? extends AsyncSupport>>() {
+        return new LinkedList<Class<? extends AsyncSupport<?>>>() {
             {
                 if (useServlet30Async && !useNativeIfPossible) {
 
@@ -104,7 +104,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @param preferBlocking
      * @return
      */
-    public AsyncSupport defaultCometSupport(final boolean preferBlocking) {
+    public AsyncSupport<?> defaultCometSupport(final boolean preferBlocking) {
         if (!preferBlocking && testClassExists(SERVLET_30)) {
             return new Servlet30CometSupport(config);
         } else {
@@ -120,7 +120,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @param targetClass
      * @return an instance of the specified class or null if the class cannot be instantiated
      */
-    public AsyncSupport newCometSupport(final Class<? extends AsyncSupport> targetClass) {
+    public AsyncSupport<?> newCometSupport(final Class<? extends AsyncSupport<?>> targetClass) {
         try {
             return targetClass.getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                     .newInstance(config);
@@ -135,10 +135,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         }
     }
 
-    public AsyncSupport newCometSupport(final String targetClassFQN) {
+    public AsyncSupport<?> newCometSupport(final String targetClassFQN) {
         try {
             ClassLoader cl = Thread.currentThread().getContextClassLoader();
-            return (AsyncSupport) cl.loadClass(targetClassFQN)
+            return (AsyncSupport<?>) cl.loadClass(targetClassFQN)
                     .getDeclaredConstructor(new Class[]{AtmosphereConfig.class}).newInstance(config);
         } catch (final Exception e) {
             logger.error("Failed to create AsyncSupport class: {}, error: {}", targetClassFQN, e);
@@ -157,10 +157,10 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @param defaultToBlocking   - should the resolver default to blocking IO comet support?
      * @return an instance of AsyncSupport
      */
-    public AsyncSupport resolve(final boolean useNativeIfPossible, final boolean defaultToBlocking) {
-        final AsyncSupport servletAsyncSupport = defaultCometSupport(defaultToBlocking);
+    public AsyncSupport<?> resolve(final boolean useNativeIfPossible, final boolean defaultToBlocking) {
+        final AsyncSupport<?> servletAsyncSupport = defaultCometSupport(defaultToBlocking);
 
-        final AsyncSupport nativeSupport;
+        final AsyncSupport<?> nativeSupport;
         if (!defaultToBlocking && (useNativeIfPossible ||
                 servletAsyncSupport.getClass().getName().equals(BlockingIOCometSupport.class.getName()))) {
             nativeSupport = resolveNativeCometSupport(detectContainersPresent());
@@ -170,14 +170,14 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     }
 
     @Override
-    public AsyncSupport resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useServlet30Async) {
-        AsyncSupport cs = null;
+    public AsyncSupport<?> resolve(boolean useNativeIfPossible, boolean defaultToBlocking, boolean useServlet30Async) {
+        AsyncSupport<?> cs = null;
 
         // Validate the value for old Servlet Container.
         useServlet30Async = testClassExists(SERVLET_30);
 
         if (!defaultToBlocking) {
-            List<Class<? extends AsyncSupport>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
+            List<Class<? extends AsyncSupport<?>>> l = detectWebSocketPresent(useNativeIfPossible, useServlet30Async);
 
             if (!l.isEmpty()) {
                 cs = resolveWebSocket(l);
@@ -185,14 +185,14 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
         }
 
         if (cs == null) {
-            AsyncSupport nativeSupport = resolveNativeCometSupport(detectContainersPresent());
+            AsyncSupport<?> nativeSupport = resolveNativeCometSupport(detectContainersPresent());
             return nativeSupport == null ? defaultCometSupport(defaultToBlocking) : nativeSupport;
         } else {
             return cs;
         }
     }
 
-    public AsyncSupport resolveWebSocket(final java.util.List<Class<? extends AsyncSupport>> available) {
+    public AsyncSupport<?> resolveWebSocket(final java.util.List<Class<? extends AsyncSupport<?>>> available) {
         if (available == null || available.isEmpty()) return null;
         else return newCometSupport(available.get(0));
     }
@@ -203,7 +203,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @param available
      * @return the result of @link {resolveMultipleNativeSupportConflict} if there are more than 1 item in the list of available ontainers
      */
-    protected AsyncSupport resolveNativeCometSupport(final java.util.List<Class<? extends AsyncSupport>> available) {
+    protected AsyncSupport<?> resolveNativeCometSupport(final java.util.List<Class<? extends AsyncSupport<?>>> available) {
         if (available == null || available.isEmpty()) return null;
         else if (available.size() == 1) return newCometSupport(available.get(0));
         else return resolveMultipleNativeSupportConflict(available);
@@ -214,9 +214,9 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      *
      * @return a AsyncSupport instance
      */
-    protected AsyncSupport resolveMultipleNativeSupportConflict(final List<Class<? extends AsyncSupport>> available) {
+    protected AsyncSupport<?> resolveMultipleNativeSupportConflict(final List<Class<? extends AsyncSupport<?>>> available) {
         final StringBuilder b = new StringBuilder("Found multiple containers, please specify which one to use: ");
-        for (Class<? extends AsyncSupport> cs : available) {
+        for (Class<? extends AsyncSupport<?>> cs : available) {
             b.append((cs != null) ? cs.getCanonicalName() : "null").append(", ");
         }
 

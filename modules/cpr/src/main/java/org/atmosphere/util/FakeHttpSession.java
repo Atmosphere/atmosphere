@@ -60,7 +60,7 @@ public class FakeHttpSession implements HttpSession {
         return sessionId;
     }
 
-    // TODO: Not supported for now. Must update on every WebSocket Message
+    // Returns 0 as last-accessed tracking is not supported in this fake session
     @Override
     public long getLastAccessedTime() {
         if (!valid.get()) throw new IllegalStateException();
@@ -82,6 +82,7 @@ public class FakeHttpSession implements HttpSession {
         return maxInactiveInterval;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public HttpSessionContext getSessionContext() {
         return null;

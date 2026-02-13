@@ -47,6 +47,7 @@ public abstract class OnMessage<T> extends AbstractReflectorAtmosphereHandler {
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public final void onStateChange(AtmosphereResourceEvent event) throws IOException {
         AtmosphereResponse response = ((AtmosphereResourceImpl) event.getResource()).getResponse(false);

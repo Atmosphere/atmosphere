@@ -50,7 +50,7 @@ import static org.atmosphere.cpr.ApplicationConfig.SUPPORT_TRACKED_BROADCASTER;
 public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
 
     private static final Logger logger = LoggerFactory.getLogger(PoolableBroadcasterFactory.class);
-    private PoolableProvider<? extends Broadcaster,?> poolableProvider;
+    private PoolableProvider<Broadcaster, ?> poolableProvider;
     private final static String POOLED_ID = "POOLED";
     private final static Collection<Broadcaster> emptyCollection = Collections.emptySet();
     private boolean trackPooledBroadcaster;
@@ -65,13 +65,14 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
         super(clazz, broadcasterLifeCyclePolicy, c);
     }
 
+    @SuppressWarnings("unchecked")
     protected void configure(String broadcasterLifeCyclePolicy) {
         super.configure(broadcasterLifeCyclePolicy);
 
         String poolableProviderClass = config.getInitParameter(POOLEABLE_PROVIDER, UnboundedApachePoolableProvider.class.getName());
         try {
             poolableProvider = config.framework().newClassInstance(PoolableProvider.class,
-                    (Class<PoolableProvider>) IOUtils.loadClass(PoolableProvider.class, poolableProviderClass));
+                    (Class<PoolableProvider<?, ?>>) IOUtils.loadClass(PoolableProvider.class, poolableProviderClass));
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
@@ -103,6 +104,7 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
         return false;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
         Broadcaster broadcaster = null;
@@ -116,6 +118,7 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
         return (T) broadcaster;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public void removeAllAtmosphereResource(AtmosphereResource r) {
         logger.debug("Operation no supported");
@@ -173,7 +176,7 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
      *
      * @return current {@link org.atmosphere.pool.PoolableProvider}
      */
-    public PoolableProvider<? extends Broadcaster, ?> poolableProvider() {
+    public PoolableProvider<Broadcaster, ?> poolableProvider() {
         return poolableProvider;
     }
 
@@ -183,8 +186,9 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
      * @param poolableProvider the implementation of {@link org.atmosphere.pool.PoolableProvider}
      * @return this
      */
+    @SuppressWarnings("unchecked")
     public PoolableBroadcasterFactory poolableProvider(PoolableProvider<? extends Broadcaster, ?> poolableProvider) {
-        this.poolableProvider = poolableProvider;
+        this.poolableProvider = (PoolableProvider<Broadcaster, ?>) poolableProvider;
         this.poolableProvider.configure(config);
         return this;
     }

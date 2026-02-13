@@ -38,6 +38,7 @@ public class ExcludeSessionBroadcasterTest {
     private AR atmosphereHandler;
     private AtmosphereConfig config;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
@@ -59,19 +60,19 @@ public class ExcludeSessionBroadcasterTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
-        atmosphereHandler.value.set(new HashSet());
+        atmosphereHandler.value.set(new HashSet<>());
         config.getBroadcasterFactory().destroy();
     }
 
     @Test
     public void testDirectBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(atmosphereHandler.value.get(), new HashSet());
+        assertEquals(atmosphereHandler.value.get(), new HashSet<>());
     }
 
     public final static class AR implements AtmosphereHandler {
 
-        public AtomicReference<Set> value = new AtomicReference<Set>(new HashSet());
+        public AtomicReference<Set<AtmosphereResource>> value = new AtomicReference<>(new HashSet<>());
 
         @Override
         public void onRequest(AtmosphereResource e) throws IOException {

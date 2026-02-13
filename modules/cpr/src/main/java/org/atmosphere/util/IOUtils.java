@@ -40,7 +40,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.io.UnsupportedEncodingException;
-import java.lang.reflect.Field;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.ArrayList;
@@ -322,31 +321,7 @@ public class IOUtils {
         return servletPath;
     }
 
-    private static boolean scanForAtmosphereFramework(Class<?> classToScan) {
-        if (classToScan == null) return false;
 
-        logger.trace("Scanning {}", classToScan.getName());
-
-        // Before doing the Siberian traversal, look locally
-        if (knownClasses.contains(classToScan.getName())) {
-            return true;
-        }
-
-        try {
-            Field[] fields = classToScan.getDeclaredFields();
-            for (Field f : fields) {
-                f.setAccessible(true);
-                if (AtmosphereFramework.class.isAssignableFrom(f.getType())) {
-                    return true;
-                }
-            }
-        } catch (Exception ex) {
-            logger.trace("", ex);
-        }
-
-        // Now try with parent
-        return scanForAtmosphereFramework(classToScan.getSuperclass());
-    }
 
     /**
      * Loading the specified class using some heuristics to support various containers
@@ -375,6 +350,7 @@ public class IOUtils {
         }
     }
 
+    @SuppressWarnings("unchecked")
     public static boolean isAtmosphere(String className) {
         Class<? extends AtmosphereServlet> clazz;
         try {

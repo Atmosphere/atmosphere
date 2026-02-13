@@ -259,11 +259,9 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         if (resource == null) {
-            // TODO: cast is dangerous
             resource = (AtmosphereResourceImpl)
                     config.resourcesFactory().create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
         } else {
-            // TODO: REDESIGN, UGLY.
             try {
                 // Make sure it wasn't set before
                 resource.getBroadcaster();
@@ -300,6 +298,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         return this;
     }
 
+    @SuppressWarnings("unused")
     private String path(AtmosphereRequest request) {
         String path;
         String pathInfo = null;
@@ -473,8 +472,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                             ((DefaultBroadcaster) b).broadcastOnResume(r);
                         }
 
-                        // TODO: Was it there for legacy reason?
-                        // impl.getAtmosphereResourceEvent().setIsResumedOnTimeout(impl.resumeOnBroadcast());
+
                     }
                 }
                 invokeAtmosphereHandler(impl);

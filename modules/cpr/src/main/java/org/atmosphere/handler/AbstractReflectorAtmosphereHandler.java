@@ -65,6 +65,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
      *
      * @param event the {@link AtmosphereResourceEvent#getMessage()}
      */
+    @SuppressWarnings("unchecked")
     @Override
     public void onStateChange(AtmosphereResourceEvent event)
             throws IOException {
@@ -140,7 +141,7 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
                         i.remove();
                     }
                 } catch (IOException ex) {
-                    event.setMessage(new ArrayList<String>().addAll((List) message));
+                    event.setMessage(new ArrayList<String>().addAll((List<String>) message));
                     throw ex;
                 }
 

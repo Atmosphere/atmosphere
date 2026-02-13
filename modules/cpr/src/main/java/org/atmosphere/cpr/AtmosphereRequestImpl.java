@@ -231,9 +231,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     @Override
-    public Enumeration getHeaders(String name) {
+    public Enumeration<String> getHeaders(String name) {
 
-        ArrayList<? super Object> list = new ArrayList<>();
+        ArrayList<String> list = new ArrayList<>();
         // Never override the parent Request
         if (!name.equalsIgnoreCase("content-type")) {
             Enumeration<String> e = b.request.getHeaders(name);
@@ -253,8 +253,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
             if (isNotNoOps()) {
                 if (list.isEmpty() && name.startsWith(X_ATMOSPHERE)) {
-                    if (attributeWithoutException(b.request, name) != null) {
-                        list.add(attributeWithoutException(b.request, name));
+                    Object attr = attributeWithoutException(b.request, name);
+                    if (attr != null) {
+                        list.add(attr.toString());
                     }
                 }
             }
@@ -469,6 +470,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         return br;
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public String getRealPath(String path) {
         return b.request.getRealPath(path);
@@ -748,6 +750,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         return b.request.isRequestedSessionIdFromCookie();
     }
 
+    @SuppressWarnings("deprecation")
     @Override
     public boolean isRequestedSessionIdFromUrl() {
         return b.request.isRequestedSessionIdFromUrl();
@@ -1097,14 +1100,16 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         @Deprecated
-        public Builder remoteInetSocketAddress(Callable remoteAddr) {
-            return remoteInetSocketAddress(remoteAddr, false);
+        @SuppressWarnings("unchecked")
+        public Builder remoteInetSocketAddress(Callable<?> remoteAddr) {
+            return remoteInetSocketAddress((Callable<InetSocketAddress>) remoteAddr, false);
         }
 
         @Override
         @Deprecated
-        public Builder localInetSocketAddress(Callable localAddr) {
-            return localInetSocketAddress(localAddr, false);
+        @SuppressWarnings("unchecked")
+        public Builder localInetSocketAddress(Callable<?> localAddr) {
+            return localInetSocketAddress((Callable<InetSocketAddress>) localAddr, false);
         }
 
         @Override

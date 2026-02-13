@@ -26,7 +26,7 @@ public class AtmosphereResourceSessionFactoryInjectable implements Injectable<At
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && AtmosphereResourceSessionFactory.class.isAssignableFrom((Class) t);
+        return (t instanceof Class<?>) && AtmosphereResourceSessionFactory.class.isAssignableFrom((Class<?>) t);
     }
 
     @Override

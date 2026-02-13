@@ -141,7 +141,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
      * {@inheritDoc}
      */
     @Override
-    Enumeration getHeaders(String name);
+    Enumeration<String> getHeaders(String name);
 
     /**
      * {@inheritDoc}
@@ -346,6 +346,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
      * @return the locally added attributes
      * @deprecated Use {@link #localAttributes()}
      */
+    @Deprecated
     LocalAttributes attributes();
 
     /**
@@ -639,13 +640,13 @@ public interface AtmosphereRequest extends HttpServletRequest {
          * @deprecated use {@link #remoteInetSocketAddress(Callable, boolean)} instead
          */
         @Deprecated
-        Builder remoteInetSocketAddress(Callable remoteAddr);
+        Builder remoteInetSocketAddress(Callable<?> remoteAddr);
 
         /**
          * @deprecated use {@link #localInetSocketAddress(Callable, boolean)} instead
          */
         @Deprecated
-        Builder localInetSocketAddress(Callable localAddr);
+        Builder localInetSocketAddress(Callable<?> localAddr);
 
         Builder remoteInetSocketAddress(Callable<InetSocketAddress> remoteAddr, boolean disableDnsLookup);
 

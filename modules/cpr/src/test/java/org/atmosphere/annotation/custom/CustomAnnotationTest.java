@@ -51,6 +51,7 @@ import static org.testng.Assert.assertNotNull;
 public class CustomAnnotationTest {
     private AtmosphereFramework framework;
     private static final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
+    @SuppressWarnings("unused")
     private static final AtomicReference<String> message = new AtomicReference<String>();
 
     @BeforeMethod

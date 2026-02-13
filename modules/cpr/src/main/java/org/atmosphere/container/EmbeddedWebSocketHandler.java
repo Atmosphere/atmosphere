@@ -15,7 +15,6 @@
  */
 package org.atmosphere.container;
 
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;

@@ -23,12 +23,12 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @AtmosphereAnnotation(EndpointMapperService.class)
-public class EndpointMapperServiceProcessor implements Processor<EndpointMapper> {
+public class EndpointMapperServiceProcessor implements Processor<EndpointMapper<?>> {
 
     private static final Logger logger = LoggerFactory.getLogger(EndpointMapperServiceProcessor.class);
 
     @Override
-    public void handle(AtmosphereFramework framework, Class<EndpointMapper> annotatedClass) {
+    public void handle(AtmosphereFramework framework, Class<EndpointMapper<?>> annotatedClass) {
         try {
             framework.endPointMapper((EndpointMapper<?>) framework.newClassInstance(EndpointMapper.class, annotatedClass));
         } catch (Throwable e) {

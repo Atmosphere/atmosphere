@@ -81,7 +81,7 @@ public class ChunkConcatReaderPoolTest {
         pool.addChunk("123", new StringReader(TEST_MESSAGES[0]), true);
         assertNotNull(reader);
         try {
-            String s = readAll(reader, 512, false);
+            readAll(reader, 512, false);
             fail("IOException expected");
         } catch (IOException e) {
             // ignore

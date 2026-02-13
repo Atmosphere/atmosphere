@@ -34,12 +34,12 @@ import java.util.concurrent.atomic.AtomicLong;
  *
  * @author Jean-Francois Arcand
  */
-public class UnboundedApachePoolableProvider implements PoolableProvider<Broadcaster, GenericObjectPool> {
+public class UnboundedApachePoolableProvider implements PoolableProvider<Broadcaster, GenericObjectPool<Broadcaster>> {
     private final Logger logger = LoggerFactory.getLogger(UnboundedApachePoolableProvider.class);
 
     protected GenericObjectPool<Broadcaster> genericObjectPool;
     protected AtmosphereConfig config;
-    protected final GenericObjectPoolConfig poolConfig = new GenericObjectPoolConfig();
+    protected final GenericObjectPoolConfig<Broadcaster> poolConfig = new GenericObjectPoolConfig<>();
     protected final AbandonedConfig abandonedConfig = new AbandonedConfig();
     private final AtomicLong count = new AtomicLong();
 
@@ -65,7 +65,7 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
     }
 
     @Override
-    public PoolableProvider returnBroadcaster(Broadcaster b) {
+    public PoolableProvider<Broadcaster, GenericObjectPool<Broadcaster>> returnBroadcaster(Broadcaster b) {
         logger.trace("Return {} now at size {}", b.getID(), genericObjectPool.getNumActive());
         try {
             genericObjectPool.returnObject(b);
@@ -86,7 +86,7 @@ public class UnboundedApachePoolableProvider implements PoolableProvider<Broadca
     }
 
     @Override
-    public GenericObjectPool implementation() {
+    public GenericObjectPool<Broadcaster> implementation() {
         return genericObjectPool;
     }
 

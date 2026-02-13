@@ -106,7 +106,6 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
         private final AtmosphereFramework framework;
         /**
-         * TODO: UGLY!
          * GlassFish/Jetty call modifyHandshake BEFORE getEndpointInstance() where other jsr356 do the reverse.
          */
         final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<>();
@@ -122,6 +121,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             this.framework = framework;
         }
 
+        @SuppressWarnings("unchecked")
         public <T> T getEndpointInstance(java.lang.Class<T> endpointClass) throws java.lang.InstantiationException {
             if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
                 JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework));
@@ -145,8 +145,9 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
          * {@link #checkOrigin(String)}, {@link #getNegotiatedSubprotocol(List, List)} or {@link #getNegotiatedExtensions(List, List)}.
          * 
          */
+        @SuppressWarnings("unused")
         private static void checkContainerDefaultConfigurator() {
-            for(ServerEndpointConfig.Configurator impl : ServiceLoader.load(jakarta.websocket.server.ServerEndpointConfig.Configurator.class)) {
+            for(ServerEndpointConfig.Configurator ignored : ServiceLoader.load(jakarta.websocket.server.ServerEndpointConfig.Configurator.class)) {
                 hasContainerDefaultConfigurator.set(Boolean.TRUE);
                 return;
             }
@@ -225,7 +226,6 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
 
         private final AtmosphereFramework framework;
         /**
-         * TODO: UGLY!
          * Quarkus call modifyHandshake BEFORE getEndpointInstance() where other jsr356 do the reverse.
          * However, because of VertX the thread pool of Undertow handling regular http requests
          * differ to the thread pool handling websocket requests, so we can't use ThreadLocals to remember
@@ -247,6 +247,7 @@ public class JSR356AsyncSupport extends Servlet30CometSupport {
             this.framework = framework;
         }
 
+        @SuppressWarnings("unchecked")
         public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
             if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
                 JSR356Endpoint e = new JSR356Endpoint(framework, WebSocketProcessorFactory.getDefault().getWebSocketProcessor(framework));

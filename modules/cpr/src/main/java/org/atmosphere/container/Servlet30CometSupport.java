@@ -158,6 +158,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         private final String uuid;
 
         // For JBoss 7 https://github.com/Atmosphere/atmosphere/issues/240
+        @SuppressWarnings("unused")
         public CometListener() {
             this.uuid = "-1";
             p = null;

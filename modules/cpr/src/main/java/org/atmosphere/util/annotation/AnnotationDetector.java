@@ -49,7 +49,6 @@ import java.net.URISyntaxException;
 import java.net.URL;
 import java.net.URLConnection;
 import java.net.URLDecoder;
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -315,7 +314,7 @@ public final class AnnotationDetector {
                                 }
                                 u = u.substring(0, u.indexOf("!"));
                             }
-                            jarFile = toFile(new URL(u));
+                            jarFile = toFile(java.net.URI.create(u).toURL());
                         } catch (Exception ex) {
                             throw new AssertionError("Not a File: " + url.toExternalForm());
                         }

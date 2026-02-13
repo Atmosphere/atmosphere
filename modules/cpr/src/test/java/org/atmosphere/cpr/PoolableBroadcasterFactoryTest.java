@@ -47,6 +47,7 @@ public class PoolableBroadcasterFactoryTest {
     private AtmosphereConfig config;
     private PoolableBroadcasterFactory factory;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         AtmosphereFramework f = new AtmosphereFramework();
@@ -98,9 +99,10 @@ public class PoolableBroadcasterFactoryTest {
         assertNotNull(factory.poolableProvider());
         assertNotNull(factory.poolableProvider().implementation());
         assertEquals(factory.poolableProvider().implementation().getClass(), GenericObjectPool.class);
-        GenericObjectPool nativePool = (GenericObjectPool) factory.poolableProvider().implementation();
+        @SuppressWarnings("unchecked")
+        GenericObjectPool<Broadcaster> nativePool = (GenericObjectPool<Broadcaster>) factory.poolableProvider().implementation();
         assertTrue(nativePool.getLifo());
-        GenericObjectPoolConfig c = new GenericObjectPoolConfig();
+        GenericObjectPoolConfig<Broadcaster> c = new GenericObjectPoolConfig<>();
         c.setMaxTotal(1);
         nativePool.setConfig(c);
         assertEquals(1, nativePool.getMaxTotal());
@@ -108,7 +110,6 @@ public class PoolableBroadcasterFactoryTest {
 
     @Test
     public void concurrentLookupTest() throws InterruptedException {
-        String id = "id";
         final CountDownLatch latch = new CountDownLatch(100);
         final AtomicInteger created = new AtomicInteger();
 

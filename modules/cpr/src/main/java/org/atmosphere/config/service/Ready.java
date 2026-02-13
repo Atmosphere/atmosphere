@@ -37,13 +37,15 @@ public @interface Ready {
      *
      * @deprecated
      */
-    enum DELIVER_TO { RESOURCE, BROADCASTER, ALL}
+    @Deprecated
+    enum DELIVER_TO { @Deprecated RESOURCE, @Deprecated BROADCASTER, @Deprecated ALL}
 
     /**
      * Use {@link DeliverTo} annotation instead.
      *
      * @deprecated
      */
+    @Deprecated
     DELIVER_TO value() default DELIVER_TO.RESOURCE;
 
     /**

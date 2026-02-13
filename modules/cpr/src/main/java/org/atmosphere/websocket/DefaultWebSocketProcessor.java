@@ -172,7 +172,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         if (framework.isDestroyed()) return;
 
-        // TODO: Fix this. Instead add an Interceptor.
+        // Auto-register a default handler when none is configured
         if (framework.getAtmosphereConfig().handlers().isEmpty()) {
             synchronized (framework) {
                 if (handlers.isEmpty()) {
@@ -738,6 +738,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             l.onDisconnect(new AtmosphereResourceEventImpl(r, !isClosedByClient, false, isClosedByClient, null));
                             onDisconnect(event, l);
                             ((WebSocketEventListener) l).onClose(event);
+                            break;
+                        default:
                             break;
                     }
                 } catch (Throwable t) {

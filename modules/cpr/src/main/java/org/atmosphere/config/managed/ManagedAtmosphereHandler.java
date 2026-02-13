@@ -223,7 +223,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                     // encoding might be needed again since BroadcasterFilter might have modified message body
                     // This makes application development more simpler.
                     // Chaining of encoder is not supported.
-                    // TODO: This could be problematic with String + method
+                    // Re-encode if BroadcasterFilters may have modified the message body
                     if (r.getBroadcaster().getBroadcasterConfig().hasFilters()) {
                         for (MethodInfo m : onRuntimeMethod) {
                             o = Invoker.encode(encoders.get(m.method), newMsg);
@@ -394,6 +394,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         return proxiedInstance;
     }
 
+    @SuppressWarnings("deprecation")
     protected void processReady(AtmosphereResource r) {
         final DeliverTo deliverTo;
         final Ready ready = onReadyMethod.getAnnotation(Ready.class);
@@ -415,9 +416,10 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
                         case BROADCASTER:
                             return DELIVER_TO.BROADCASTER;
-                    }
 
-                    return null;
+                        default:
+                            return null;
+                    }
                 }
 
                 @Override

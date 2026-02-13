@@ -117,10 +117,12 @@ public class AtmosphereFrameworkInitializer {
 
             for (final Map.Entry<String, AtmosphereFramework.MetaServiceAction> action : config.entrySet()) {
                 try {
-                    final Class c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
+                    final Class<?> c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
                     if (AtmosphereFramework.class.isAssignableFrom(c)) {
                         logger.info("Found a definition of AtmosphereFramework {} under {}", c, metaServicePath);
-                        return newAtmosphereFramework(c, isFilter, autoDetectHandlers);
+                        @SuppressWarnings("unchecked")
+                        Class<? extends AtmosphereFramework> fwClass = (Class<? extends AtmosphereFramework>) c;
+                        return newAtmosphereFramework(fwClass, isFilter, autoDetectHandlers);
                     }
                 } catch (ClassNotFoundException ex) {
                     if (action.getKey().startsWith(ASYNC_IO)) {

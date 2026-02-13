@@ -43,8 +43,9 @@ import static org.testng.Assert.assertEquals;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
-    private static final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
-    private static final AtomicReference<String> message = new AtomicReference<String>();
+    private static final AtomicReference<AtmosphereResource> r = new AtomicReference<>();
+    @SuppressWarnings("unused")
+    private static final AtomicReference<String> message = new AtomicReference<>();
 
     @BeforeMethod
     public void create() throws Throwable {

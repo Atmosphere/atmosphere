@@ -100,8 +100,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final WriteQueue uniqueWriteQueue = new WriteQueue("-1");
     protected final AtomicInteger dispatchThread = new AtomicInteger();
     
-    // ReentrantLocks to avoid virtual thread pinning with synchronized blocks
-    private final ReentrantLock resourcesLock = new ReentrantLock();
+    // ReentrantLock to avoid virtual thread pinning with synchronized blocks
     private final ReentrantLock awaitLock = new ReentrantLock();
     private final Condition awaitCondition = awaitLock.newCondition();
 
@@ -116,7 +115,6 @@ public class DefaultBroadcaster implements Broadcaster {
             .policy(NEVER).build();
     protected URI uri;
     protected AtmosphereConfig config;
-    private final Object[] awaitBarrier = new Object[0];
     private final AtomicBoolean outOfOrderBroadcastSupported = new AtomicBoolean(false);
     protected int writeTimeoutInSecond = -1;
     protected int waitTime = POLLING_DEFAULT;
@@ -835,7 +833,7 @@ public class DefaultBroadcaster implements Broadcaster {
     private Object callable(Object msg) {
         if (Callable.class.isAssignableFrom(msg.getClass())) {
             try {
-                return ((Callable) msg).call();
+                return ((Callable<?>) msg).call();
             } catch (Exception e) {
                 logger.warn("Callable exception", e);
                 return null;
@@ -934,15 +932,16 @@ public class DefaultBroadcaster implements Broadcaster {
         return true;
     }
 
+    @SuppressWarnings("unchecked")
     protected boolean checkCachedAndPush(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         boolean cache = retrieveTrackedBroadcast(r, e);
 
         if (!cache) return false;
 
-        if (!((List) e.getMessage()).isEmpty()) {
+        if (!((List<?>) e.getMessage()).isEmpty()) {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
 
-            List<Object> cacheMessages = (List) e.getMessage();
+            List<Object> cacheMessages = (List<Object>) e.getMessage();
             BroadcasterFuture<Object> f = new BroadcasterFuture<>(e.getMessage(), 1);
             LinkedList<Object> filteredMessage = new LinkedList<>();
             LinkedList<Object> filteredMessageClone = null;
@@ -1331,13 +1330,14 @@ public class DefaultBroadcaster implements Broadcaster {
             if (maxSuspendResource.get() > 0 && resources.size() >= maxSuspendResource.get()) {
                 // Resume the first in.
                 if (policy == POLICY.FIFO) {
-                    // TODO handle null return from poll()
                     AtmosphereResource resource = resources.poll();
-                    try {
-                        logger.warn("Too many resource. Forcing resume of {} ", resource.uuid());
-                        resource.resume();
-                    } catch (Throwable t) {
-                        logger.warn("failed to resume resource {} ", resource, t);
+                    if (resource != null) {
+                        try {
+                            logger.warn("Too many resource. Forcing resume of {} ", resource.uuid());
+                            resource.resume();
+                        } catch (Throwable t) {
+                            logger.warn("failed to resume resource {} ", resource, t);
+                        }
                     }
                 } else if (policy == POLICY.REJECT) {
                     throw new RejectedExecutionException(String.format("Maximum suspended AtmosphereResources %s", maxSuspendResource));
@@ -1564,7 +1564,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 delayedBroadcast.remove(e);
                 if (Callable.class.isAssignableFrom(o.getClass())) {
                     try {
-                        Object r = ((Callable) o).call();
+                        Object r = ((Callable<?>) o).call();
                         final Object msg1 = filter(r);
                         if (msg1 != null) {
                             Deliver deliver = new Deliver(msg1, future, r);
@@ -1611,7 +1611,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
         final BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
 
-        return (Future<Object>) bc.getScheduledExecutorService().scheduleWithFixedDelay(() -> {
+        @SuppressWarnings("unchecked")
+        Future<Object> result = (Future<Object>) bc.getScheduledExecutorService().scheduleWithFixedDelay(() -> {
             if (Callable.class.isAssignableFrom(o.getClass())) {
                 try {
                     Object r = Callable.class.cast(o).call();
@@ -1629,6 +1630,7 @@ public class DefaultBroadcaster implements Broadcaster {
             final Deliver e = new Deliver(msg1, f, o);
             push(e);
         }, waitFor, period, t);
+        return result;
     }
 
     @Override
@@ -1642,12 +1644,12 @@ public class DefaultBroadcaster implements Broadcaster {
 
         AtmosphereResource resource;
         Object msg;
-        BroadcasterFuture future;
+        BroadcasterFuture<?> future;
         Object originalMessage;
         CacheMessage cache;
         AtomicInteger count;
 
-        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage, AtomicInteger count) {
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture<?> future, Object originalMessage, AtomicInteger count) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;
@@ -1655,7 +1657,7 @@ public class DefaultBroadcaster implements Broadcaster {
             this.count = count;
         }
 
-        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture future, Object originalMessage, CacheMessage cache, AtomicInteger count) {
+        public AsyncWriteToken(AtmosphereResource resource, Object msg, BroadcasterFuture<?> future, Object originalMessage, CacheMessage cache, AtomicInteger count) {
             this.resource = resource;
             this.msg = msg;
             this.future = future;

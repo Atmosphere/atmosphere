@@ -3,13 +3,11 @@ package org.atmosphere.cpr;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
-import java.io.IOException;
 import java.util.Collections;
 import java.util.Enumeration;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletException;
 
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;

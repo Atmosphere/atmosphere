@@ -23,10 +23,6 @@ import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
-import jakarta.servlet.ServletOutputStream;
-import jakarta.servlet.ServletResponse;
-import jakarta.servlet.http.HttpServletResponse;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
@@ -41,8 +37,6 @@ import static org.testng.Assert.assertNull;
 public class SimpleRestInterceptorTest {
     private AtmosphereFramework framework;
     private AtmosphereConfig config;
-
-    //TODO tests other part of the inteceptors
 
     @Test
     public void testCreateRequestNormal() throws Exception {

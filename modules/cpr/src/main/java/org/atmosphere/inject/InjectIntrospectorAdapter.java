@@ -28,7 +28,7 @@ import java.lang.reflect.Type;
  * @param <T>
  * @author Jeanfrancois Arcand
  */
-public class InjectIntrospectorAdapter<T> implements InjectIntrospector {
+public class InjectIntrospectorAdapter<T> implements InjectIntrospector<T> {
 
     @Override
     public boolean supportedType(Type t) {
@@ -36,7 +36,7 @@ public class InjectIntrospectorAdapter<T> implements InjectIntrospector {
     }
 
     @Override
-    public void introspectField(Class clazz, Field f) {
+    public void introspectField(Class<T> clazz, Field f) {
     }
 
     @Override
@@ -44,7 +44,7 @@ public class InjectIntrospectorAdapter<T> implements InjectIntrospector {
     }
 
     @Override
-    public Object injectable(AtmosphereResource resource) {
+    public T injectable(AtmosphereResource resource) {
         return null;
     }
 

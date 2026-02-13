@@ -58,7 +58,7 @@ public class ContainerInitializer implements jakarta.servlet.ServletContainerIni
                 final AtmosphereFramework framework = AtmosphereFrameworkInitializer.newAtmosphereFramework(c, false, true);
                 // Hack to make jsr356 works. Pretty ugly.
                 DefaultAsyncSupportResolver resolver = new DefaultAsyncSupportResolver(framework.getAtmosphereConfig());
-                List<Class<? extends AsyncSupport>> l = resolver.detectWebSocketPresent(false, true);
+                List<Class<? extends AsyncSupport<?>>> l = resolver.detectWebSocketPresent(false, true);
 
                 // Don't use WebLogic Native WebSocket support if JSR356 is available
                 int size = c.getServerInfo().toLowerCase().contains("weblogic") ? 1 : 0;

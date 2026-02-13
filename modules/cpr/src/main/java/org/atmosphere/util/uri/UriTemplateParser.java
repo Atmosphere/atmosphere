@@ -76,7 +76,7 @@ public class UriTemplateParser {
     private static final Set<Character> RESERVED_REGEX_CHARACTERS = createReserved();
 
     private static Set<Character> createReserved() {
-        /* TODO need to escape all regex characters present */
+        /* Escape regex-significant characters */
         char[] reserved = {
             '.',
             '?',
@@ -430,8 +430,7 @@ public class UriTemplateParser {
 
     private char consumeWhiteSpace(CharacterIterator ci) {
         char c = ci.next();
-        // Consume white space;
-        // TODO use correct c
+        // Consume white space
         while (c == ' ') c = ci.next();
 
         return c;

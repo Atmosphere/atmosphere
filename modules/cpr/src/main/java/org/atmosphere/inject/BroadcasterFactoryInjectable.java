@@ -26,7 +26,7 @@ public class BroadcasterFactoryInjectable implements Injectable<BroadcasterFacto
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && BroadcasterFactory.class.isAssignableFrom((Class) t);
+        return (t instanceof Class) && BroadcasterFactory.class.isAssignableFrom((Class<?>) t);
     }
 
     @Override

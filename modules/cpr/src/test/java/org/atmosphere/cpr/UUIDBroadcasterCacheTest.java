@@ -42,6 +42,7 @@ public class UUIDBroadcasterCacheTest {
     private UUIDBroadcasterCache broadcasterCache;
     private AtmosphereConfig config;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();

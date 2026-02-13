@@ -42,7 +42,8 @@ import static org.testng.Assert.assertEquals;
 public class DefaultBroadcasterTest {
 
     private Broadcaster broadcaster;
-    private final AtomicReference<List<CacheMessage>> cachedMessage = new AtomicReference<List<CacheMessage>>();
+    @SuppressWarnings("unused")
+    private final AtomicReference<List<CacheMessage>> cachedMessage = new AtomicReference<>();
 
     public static final class B extends DefaultBroadcaster {
 
@@ -65,6 +66,7 @@ public class DefaultBroadcasterTest {
         framework.addInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY, "beforeFilter");
         AtmosphereConfig config = framework.getAtmosphereConfig();
 
+        @SuppressWarnings("deprecation")
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(B.class, "NEVER", config);
         broadcaster = factory.get("test");
         config.framework().setBroadcasterFactory(factory);
@@ -93,6 +95,7 @@ public class DefaultBroadcasterTest {
             }
         });
 
+        @SuppressWarnings("deprecation")
         final AtmosphereResourceImpl ar = new AtmosphereResourceImpl(new AtmosphereFramework().getAtmosphereConfig(),
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
@@ -134,7 +137,7 @@ public class DefaultBroadcasterTest {
             Object eventMessage = ar.getAtmosphereResourceEvent().getMessage();
             Object retrievedMessage;
             if (eventMessage instanceof List) {
-                retrievedMessage = ((List) eventMessage).get(0);
+                retrievedMessage = ((List<?>) eventMessage).get(0);
             } else {
                 retrievedMessage = eventMessage;
             }

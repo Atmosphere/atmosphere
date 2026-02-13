@@ -40,7 +40,6 @@ import java.util.Enumeration;
 
 import static org.testng.Assert.assertEquals;
 
-//REVISIT mock more artifacts to speed up the test when only testing the output serialization
 public class SSEAtmosphereInterceptorTest {
     private AtmosphereFramework framework;
     private AtmosphereConfig config;

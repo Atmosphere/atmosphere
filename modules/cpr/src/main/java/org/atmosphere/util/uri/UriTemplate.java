@@ -626,7 +626,7 @@ public class UriTemplate {
                     append('@');
 
             if (host != null) {
-                // TODO check IPv6 address
+                // IPv6 addresses are not explicitly validated here
                 createURIComponent(UriComponent.Type.HOST, host, values, encode, sb);
             }
 
@@ -829,7 +829,7 @@ public class UriTemplate {
             }
 
             if (host != null) {
-                // TODO check IPv6 address
+                // IPv6 addresses are not explicitly validated here
                 offset = createURIComponent(UriComponent.Type.HOST, host, values,
                         offset, encode, mapValues, sb);
             }

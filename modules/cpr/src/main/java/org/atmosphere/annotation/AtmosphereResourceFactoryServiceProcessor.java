@@ -17,10 +17,8 @@ package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.config.service.AtmosphereResourceFactoryService;
-import org.atmosphere.config.service.BroadcasterFactoryService;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

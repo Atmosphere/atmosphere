@@ -74,7 +74,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
     public static final String ANNOTATION_ATTRIBUTE = "org.atmosphere.cpr.ANNOTATION_MAP";
 
     // Annotation in java is broken.
-    private static final Class[] coreAnnotations = {
+    private static final Class<?>[] coreAnnotations = {
             AtmosphereHandlerService.class,
             BroadcasterCacheService.class,
             BroadcasterFilterService.class,
@@ -129,6 +129,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         this.handler = new AnnotationHandler();
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public void configure(final AtmosphereConfig config) {
         ServletContext sc = config.framework().getServletContext();
@@ -363,7 +364,6 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
         public void configure(final AtmosphereConfig config) {
 
             final AnnotationDetector.TypeReporter reporter = new AnnotationDetector.TypeReporter() {
-                @SuppressWarnings("unchecked")
                 @Override
                 public Class<? extends Annotation>[] annotations() {
                     return handler.handledClass();

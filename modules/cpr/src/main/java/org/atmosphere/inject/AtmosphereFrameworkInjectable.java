@@ -26,7 +26,7 @@ public class AtmosphereFrameworkInjectable implements Injectable<AtmosphereFrame
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && AtmosphereFramework.class.isAssignableFrom((Class) t);
+        return (t instanceof Class) && AtmosphereFramework.class.isAssignableFrom((Class<?>) t);
     }
 
     @Override

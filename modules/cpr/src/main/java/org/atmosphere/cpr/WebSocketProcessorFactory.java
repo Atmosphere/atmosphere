@@ -71,6 +71,7 @@ public class WebSocketProcessorFactory {
         processors.clear();
     }
 
+    @SuppressWarnings("unchecked")
     private WebSocketProcessor createProcessor(AtmosphereFramework framework) {
         WebSocketProcessor processor = null;
 

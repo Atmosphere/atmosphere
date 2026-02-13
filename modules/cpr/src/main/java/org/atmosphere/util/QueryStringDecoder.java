@@ -340,7 +340,6 @@ public class QueryStringDecoder {
      * @throws IllegalArgumentException if the string contains a malformed
      * escape sequence.
      */
-    @SuppressWarnings("fallthrough")
     public static String decodeComponent(final String s,
                                          final Charset charset) {
         if (s == null) {

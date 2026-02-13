@@ -30,7 +30,7 @@ public class ObjectMapperInjectable implements Injectable<ObjectMapper> {
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && ObjectMapper.class.equals((Class) t);
+        return (t instanceof Class) && ObjectMapper.class.equals((Class<?>) t);
     }
 
     @Override

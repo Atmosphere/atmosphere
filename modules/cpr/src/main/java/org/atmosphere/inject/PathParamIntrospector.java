@@ -43,7 +43,7 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && String.class.isAssignableFrom((Class) t);
+        return (t instanceof Class) && String.class.isAssignableFrom((Class<?>) t);
     }
 
     @Override
@@ -91,7 +91,7 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
     }
 
     @Override
-    public void introspectField(Class clazz, Field f) {
+    public void introspectField(Class<String> clazz, Field f) {
         if (f.isAnnotationPresent(PathParam.class)) {
             String name = f.getAnnotation(PathParam.class).value();
 

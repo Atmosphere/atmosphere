@@ -17,8 +17,6 @@ package org.atmosphere.util;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
-import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.Collections;
 import java.util.Enumeration;

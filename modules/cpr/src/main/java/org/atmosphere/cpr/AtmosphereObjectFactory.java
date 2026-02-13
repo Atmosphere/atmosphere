@@ -43,5 +43,5 @@ public interface AtmosphereObjectFactory<Z> extends AtmosphereConfigAware {
      * @param z an Z
      * @return this
      */
-    AtmosphereObjectFactory allowInjectionOf(Z z);
+    AtmosphereObjectFactory<Z> allowInjectionOf(Z z);
 }

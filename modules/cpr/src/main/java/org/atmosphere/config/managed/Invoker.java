@@ -88,6 +88,7 @@ public class Invoker {
         return encodedObject == null ? objectToEncode : encodedObject;
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public static Object matchDecoder(Object instanceType, List<Decoder<?, ?>> decoders) {
         Object decodedObject = decoders.isEmpty() ? instanceType : null;
         for (Decoder d : decoders) {
@@ -105,6 +106,7 @@ public class Invoker {
         return decodedObject;
     }
 
+    @SuppressWarnings({"rawtypes", "unchecked"})
     public static Object matchEncoder(Object instanceType, List<Encoder<?, ?>> encoders) {
         if (instanceType == null) return null;
 

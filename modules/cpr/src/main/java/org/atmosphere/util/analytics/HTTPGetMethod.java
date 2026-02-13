@@ -20,6 +20,7 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
+import java.net.URI;
 import java.net.URL;
 
 /**
@@ -55,7 +56,7 @@ public class HTTPGetMethod {
     public void request(String urlString) {
         HttpURLConnection urlConnection = null;
         try {
-            URL url = new URL(urlString);
+            URL url = URI.create(urlString).toURL();
             urlConnection = openURLConnection(url);
             urlConnection.setInstanceFollowRedirects(true);
             urlConnection.setRequestMethod(GET_METHOD_NAME);

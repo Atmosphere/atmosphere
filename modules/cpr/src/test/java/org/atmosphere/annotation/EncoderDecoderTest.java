@@ -55,7 +55,7 @@ public class EncoderDecoderTest {
     private AtmosphereFramework framework;
     private static final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
     private static final AtomicReference<String> message = new AtomicReference<String>();
-    private static final AtomicReference<CountDownLatch> latch = new AtomicReference(1);
+    private static final AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
 
     @BeforeMethod
     public void create() throws Throwable {
@@ -245,7 +245,7 @@ public class EncoderDecoderTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/h").method("GET").build();
         AtmosphereResponse response = AtmosphereResponseImpl.newInstance();
-        final AtomicReference<String> ref = new AtomicReference();
+        final AtomicReference<String> ref = new AtomicReference<>();
 
         response.asyncIOWriter(new AsyncIOWriterAdapter() {
             @Override

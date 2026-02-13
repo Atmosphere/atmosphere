@@ -70,7 +70,7 @@ public class WebSocketProcessorAdapter implements WebSocketProcessor {
     }
 
     @Override
-    public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent webSocketEvent) {
+    public void notifyListener(WebSocket webSocket, WebSocketEventListener.WebSocketEvent<?> webSocketEvent) {
     }
 
     @Override

@@ -31,6 +31,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 
+@SuppressWarnings("deprecation")
 public class ConcurrentBroadcasterTest {
 
     private AtmosphereResource ar;
@@ -96,7 +97,6 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testOrderedConcurrentBroadcast() throws InterruptedException {
-        long t1 = System.currentTimeMillis();
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(broadcaster.getBroadcasterConfig().getAtmosphereConfig(),
                 broadcaster,
@@ -134,7 +134,6 @@ public class ConcurrentBroadcasterTest {
 
     @Test
     public void testMultipleConcurrentBroadcast() throws InterruptedException {
-        long t1 = System.currentTimeMillis();
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
@@ -178,7 +177,6 @@ public class ConcurrentBroadcasterTest {
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
 
-        long t1 = System.currentTimeMillis();
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
@@ -222,7 +220,6 @@ public class ConcurrentBroadcasterTest {
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
-        long t1 = System.currentTimeMillis();
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
@@ -263,7 +260,6 @@ public class ConcurrentBroadcasterTest {
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
-        long t1 = System.currentTimeMillis();
         AR2 a = new AR2();
         int count = 50;
         int client = 100;
@@ -304,7 +300,6 @@ public class ConcurrentBroadcasterTest {
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
-        long t1 = System.currentTimeMillis();
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(broadcaster.getBroadcasterConfig().getAtmosphereConfig(),
                 broadcaster,

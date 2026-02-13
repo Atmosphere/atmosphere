@@ -38,7 +38,7 @@ public interface PoolableProvider<T extends Broadcaster, U> extends AtmosphereCo
      * @param b {@link org.atmosphere.cpr.Broadcaster}
      * @return this
      */
-    <T extends Broadcaster, U> PoolableProvider returnBroadcaster(T b);
+    PoolableProvider<T, U> returnBroadcaster(T b);
 
     /**
      * The current Pool Size

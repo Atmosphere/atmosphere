@@ -34,7 +34,7 @@ public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapt
 
     @Override
     public boolean supportedType(Type t) {
-        return (t instanceof Class) && AtmosphereResourceEvent.class.isAssignableFrom((Class) t);
+        return (t instanceof Class<?>) && AtmosphereResourceEvent.class.isAssignableFrom((Class<?>) t);
     }
 
     @Override

@@ -22,6 +22,6 @@ package org.atmosphere.cpr;
  * @author Viktor Klang
  */
 public interface AsyncSupportResolver {
-    AsyncSupport resolve(final boolean useNativeIfPossible, final boolean defaultToBlocking,
-                         final boolean useWebsocketIfPossible);
+    AsyncSupport<?> resolve(final boolean useNativeIfPossible, final boolean defaultToBlocking,
+                         final boolean useServlet30Async);
 }

@@ -38,6 +38,7 @@ import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+@SuppressWarnings("deprecation")
 public class BroadcasterTest {
 
     private AtmosphereResource ar;
@@ -65,7 +66,7 @@ public class BroadcasterTest {
     @AfterMethod
     public void unSetUp() throws Exception {
         broadcaster.destroy();
-        atmosphereHandler.value.set(new HashSet());
+        atmosphereHandler.value.set(new HashSet<>());
         config.getBroadcasterFactory().destroy();
         ExecutorsFactory.reset(config);
     }
@@ -81,7 +82,7 @@ public class BroadcasterTest {
         broadcaster.resumeAll();
 
         broadcaster.broadcast("foo").get();
-        assertEquals(atmosphereHandler.value.get(), new HashSet());
+        assertEquals(atmosphereHandler.value.get(), new HashSet<>());
     }
 
     @Test
@@ -194,7 +195,7 @@ public class BroadcasterTest {
 
     public final static class AR implements AtmosphereHandler {
 
-        public AtomicReference<Set> value = new AtomicReference<Set>(new HashSet());
+        public AtomicReference<Set<AtmosphereResource>> value = new AtomicReference<>(new HashSet<>());
 
         @Override
         public void onRequest(AtmosphereResource e) throws IOException {

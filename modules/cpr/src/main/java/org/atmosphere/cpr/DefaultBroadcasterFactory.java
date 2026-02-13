@@ -187,11 +187,13 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         return lookup(c, id, false);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Broadcaster lookup(Object id) {
         return lookup(clazz, id, false);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Broadcaster lookup(Object id, boolean createIfNull) {
         return lookup(clazz, id, createIfNull);
@@ -202,6 +204,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         return lookup(c, id, createIfNull, false);
     }
 
+    @SuppressWarnings("unchecked")
     public <T extends Broadcaster> T lookup(Class<T> c, Object id, boolean createIfNull, boolean unique) {
         logger.trace("About to create {}", id);
         T b = (T) store.get(id);

@@ -80,13 +80,12 @@ import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertSame;
 import static org.testng.Assert.assertTrue;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
-    private static final AtomicReference<AtmosphereResource> r = new AtomicReference<AtmosphereResource>();
-    private static final AtomicReference<String> message = new AtomicReference<String>();
+    private static final AtomicReference<AtmosphereResource> r = new AtomicReference<>();
+    private static final AtomicReference<String> message = new AtomicReference<>();
 
 
     public final class ArrayBaseWebSocket extends WebSocket {
@@ -443,8 +442,8 @@ public class ManagedAtmosphereHandlerTest {
 
         @Message
         public void message(Reader reader) {
-            try {
-                message.set(new BufferedReader(reader).readLine());
+            try (BufferedReader br = new BufferedReader(reader)) {
+                message.set(br.readLine());
             } catch (IOException e) {
                 e.printStackTrace();
             }

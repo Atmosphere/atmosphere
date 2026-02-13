@@ -52,12 +52,13 @@ import static org.atmosphere.util.Utils.getInheritedPrivateMethod;
  */
 public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectable<?>> {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
+    @SuppressWarnings("rawtypes")
     private final ServiceLoader<Injectable> injectableServiceLoader;
     private final LinkedList<Injectable<?>> injectables = new LinkedList<Injectable<?>>();
     private final LinkedList<InjectIntrospector<?>> introspectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedList<InjectIntrospector<?>> requestScopedIntrospectors = new LinkedList<InjectIntrospector<?>>();
     private final LinkedHashSet<Object> pushBackInjection = new LinkedHashSet<>();
-    private final List<InjectionListener> listeners = new LinkedList();
+    private final List<InjectionListener> listeners = new LinkedList<>();
     private int maxTry;
 
     private AtmosphereConfig config;
@@ -76,7 +77,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
             String[] listeners = s.split(",");
             for (String l : listeners) {
                 try {
-                    listener((InjectionListener) IOUtils.loadClass(getClass(), l).newInstance());
+                    listener((InjectionListener) IOUtils.loadClass(getClass(), l).getDeclaredConstructor().newInstance());
                 } catch (Exception ex) {
                     logger.warn("", ex);
                 }
@@ -128,6 +129,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         });
     }
 
+    @SuppressWarnings("unchecked")
     protected void retryInjection(AtmosphereFramework framework){
         int maxTryPerCycle = maxTry;
         // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
@@ -165,11 +167,17 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public <T, U extends T> U newClassInstance(Class<T> classType,
                                                Class<U> defaultType) throws InstantiationException, IllegalAccessException {
 
-        U instance = defaultType.newInstance();
+        U instance;
+        try {
+            instance = defaultType.getDeclaredConstructor().newInstance();
+        } catch (ReflectiveOperationException e) {
+            throw new InstantiationException(e.getMessage());
+        }
 
         injectInjectable(instance, defaultType, config.framework());
         applyMethods(instance, defaultType);
@@ -185,7 +193,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @throws InstantiationException
      * @throws IllegalAccessException
      */
-    /* @Override */
+    @SuppressWarnings("unchecked")
     public <T> T inject(T instance) throws InstantiationException, IllegalAccessException {
 
         injectInjectable(instance, instance.getClass(), config.framework());
@@ -209,9 +217,10 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
     }
 
+    @SuppressWarnings("unchecked")
     private <U> void injectMethods(Set<Method> methods, U instance) throws IllegalAccessException {
         for (Method m : methods) {
-            for (Injectable c : introspectors) {
+            for (Injectable<?> c : introspectors) {
                 if (!pushBackInjection.contains(instance)) {
                     try {
                         preMethodInjection(m, instance, (Class<U>) instance.getClass());
@@ -239,14 +248,17 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         injectFields(fields, instance, framework, injectables);
     }
 
+    @SuppressWarnings("unchecked")
     public <U> void injectFields(Set<Field> fields, U instance, AtmosphereFramework framework, LinkedList<Injectable<?>> injectable) throws IllegalAccessException {
         for (Field field : fields) {
             if (field.isAnnotationPresent(Inject.class)) {
-                for (Injectable c : injectable) {
+                for (Injectable<?> c : injectable) {
                     if (c.supportedType(field.getType())) {
 
                         if (InjectIntrospector.class.isAssignableFrom(c.getClass())) {
-                            ((InjectIntrospector) c).introspectField(instance.getClass(), field);
+                            @SuppressWarnings("rawtypes")
+                            InjectIntrospector raw = (InjectIntrospector) c;
+                            raw.introspectField(instance.getClass(), field);
                         }
 
                         Class<U> clazz = (Class<U>) instance.getClass();
@@ -290,11 +302,11 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
     }
 
-    public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable) {
+    public AtmosphereObjectFactory<Injectable<?>> allowInjectionOf(Injectable<?> injectable) {
         return allowInjectionOf(injectable, false);
     }
 
-    public AtmosphereObjectFactory allowInjectionOf(Injectable<?> injectable, boolean first) {
+    public AtmosphereObjectFactory<Injectable<?>> allowInjectionOf(Injectable<?> injectable, boolean first) {
         if (first) {
             injectables.addFirst(injectable);
         } else {
@@ -316,8 +328,9 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
      * @param <U> the type
      * @return the class if exists, null if not
      */
+    @SuppressWarnings("unchecked")
     public <U> U getInjectable(Class<U> u) {
-        for (Injectable c : injectables) {
+        for (Injectable<?> c : injectables) {
             if (c.supportedType(u)) {
                 return (U) c.injectable(config);
             }
@@ -325,7 +338,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         return null;
     }
 
-    public void requestScoped(Object instance, Class defaultType, AtmosphereResource r) throws IllegalAccessException {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void requestScoped(Object instance, Class<?> defaultType, AtmosphereResource r) throws IllegalAccessException {
         Set<Field> fields = new HashSet<>();
         fields.addAll(getInheritedPrivateFields(defaultType));
 
@@ -352,7 +366,8 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
     }
 
-    public void requestScoped(Object instance, Class defaultType) throws IllegalAccessException {
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void requestScoped(Object instance, Class<?> defaultType) throws IllegalAccessException {
         Set<Field> fields = new HashSet<>();
         fields.addAll(getInheritedPrivateFields(defaultType));
 
@@ -379,12 +394,12 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         }
     }
 
-    public boolean needRequestScoped(Class defaultType) throws IllegalAccessException {
+    public boolean needRequestScoped(Class<?> defaultType) throws IllegalAccessException {
         Set<Field> fields = new HashSet<>();
         fields.addAll(getInheritedPrivateFields(defaultType));
 
         for (Field field : fields) {
-            for (InjectIntrospector c : requestScopedIntrospectors) {
+            for (InjectIntrospector<?> c : requestScopedIntrospectors) {
                 if (c.supportedType(field.getType())) {
                     return true;
                 }

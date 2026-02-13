@@ -16,7 +16,6 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 
 import java.io.InputStream;
 import java.io.Reader;

@@ -88,7 +88,7 @@ public class MeteorTest {
         framework.interceptor(new AtmosphereInterceptorAdapter() {
             @Override
             public Action inspect(AtmosphereResource r) {
-                Meteor m = Meteor.build(r.getRequest());
+                Meteor.build(r.getRequest());
                 return Action.CONTINUE;
             }
 

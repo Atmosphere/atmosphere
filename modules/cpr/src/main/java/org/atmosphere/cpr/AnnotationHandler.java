@@ -39,15 +39,15 @@ public class AnnotationHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AnnotationHandler.class);
 
-    private final Map<Class<? extends Annotation>, Class<? extends Processor>> annotations = new HashMap<>();
-    private final Map<Class<? extends Processor>, Processor> processors = new HashMap<>();
+    private final Map<Class<? extends Annotation>, Class<? extends Processor<?>>> annotations = new HashMap<>();
+    private final Map<Class<? extends Processor<?>>, Processor<?>> processors = new HashMap<>();
 
     public AnnotationHandler() {
     }
 
     public AnnotationHandler flushCoreAnnotations(Set<Class<?>> classes){
         List<Class<? extends Annotation>> l = new ArrayList<>();
-        for (Map.Entry<Class<? extends Annotation>, Class<? extends Processor>> e : annotations.entrySet()) {
+        for (Map.Entry<Class<? extends Annotation>, Class<? extends Processor<?>>> e : annotations.entrySet()) {
             if (e.getValue().getPackage().getName().equals("org.atmosphere.annotation") && classes.contains(e.getValue())) {
                 l.add(e.getKey());
             }
@@ -59,9 +59,10 @@ public class AnnotationHandler {
         return this;
     }
 
-    public Class<? extends Processor> handleProcessor(Class<?> clazz) {
+    @SuppressWarnings("unchecked")
+    public Class<? extends Processor<?>> handleProcessor(Class<?> clazz) {
         if (Processor.class.isAssignableFrom(clazz)) {
-            Class<Processor> p = (Class<Processor>) clazz;
+            Class<Processor<?>> p = (Class<Processor<?>>) (Class<?>) clazz;
             if (logger.isTraceEnabled()) {
                 logger.trace("Processor {} associated with {}", p, p.getAnnotation(AtmosphereAnnotation.class).value());
             }
@@ -71,21 +72,23 @@ public class AnnotationHandler {
         return null;
     }
 
-    public Class[] handledClass() {
+    @SuppressWarnings("unchecked")
+    public Class<? extends Annotation>[] handledClass() {
         Collection<Class<? extends Annotation>> c = annotations.keySet();
         return c.toArray(new Class[0]);
     }
 
+    @SuppressWarnings({"unchecked", "rawtypes"})
     public AnnotationHandler handleAnnotation(final AtmosphereFramework framework, final Class<? extends Annotation> annotation, final Class<?> discoveredClass) {
         logger.info("Found Annotation in {} being scanned: {}", discoveredClass, annotation);
         framework.annotationScanned(true);
-        Class<? extends Processor> a = annotations.get(annotation);
+        Class<? extends Processor<?>> a = annotations.get(annotation);
 
         if (a != null) {
             Processor p = processors.get(a);
             if (p == null) {
                 try {
-                    p = framework.newClassInstance(Processor.class, a);
+                    p = framework.newClassInstance(Processor.class, (Class<Processor>) (Class<?>) a);
                 } catch (Exception e) {
                     logger.warn("Unable to create Processor {}", p);
                 }

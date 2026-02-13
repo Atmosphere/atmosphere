@@ -62,13 +62,9 @@ public class DefaultAsyncSupportResolverTest {
         boolean defaultToBlocking = false;
         boolean useServlet30Async = true;
 
-        // FIXME: interface method argument name mismatch for AsyncSupportResolver.resolve
-        // Interface:                   final boolean useNativeIfPossible, final boolean defaultToBlocking, final boolean useWebsocketIfPossible
-        // DefaultAsyncSupportResolver:       boolean useNativeIfPossible,       boolean defaultToBlocking,       boolean useServlet30Async
-
         // Override the container detection mechanism to use an invalid Async Support class only
         defaultAsyncSupportResolver = spy(defaultAsyncSupportResolver);
-        List<Class<? extends AsyncSupport>> asyncSupportList = new ArrayList(){{
+        List<Class<? extends AsyncSupport<?>>> asyncSupportList = new ArrayList<>(){{
             add(InvalidAsyncSupportClass.class);
         }};
         doReturn(asyncSupportList)
@@ -89,13 +85,9 @@ public class DefaultAsyncSupportResolverTest {
         boolean defaultToBlocking = false;
         boolean useServlet30Async = true;
 
-        // FIXME: interface method argument mismatch for AsyncSupportResolver.resolve
-        // Interface:                   final boolean useNativeIfPossible, final boolean defaultToBlocking, final boolean useWebsocketIfPossible
-        // DefaultAsyncSupportResolver:       boolean useNativeIfPossible,       boolean defaultToBlocking,       boolean useServlet30Async
-
         // Override the container detection mechanism to use an invalid Async Support class only
         defaultAsyncSupportResolver = spy(defaultAsyncSupportResolver);
-        List<Class<? extends AsyncSupport>> asyncSupportList = new ArrayList(){{
+        List<Class<? extends AsyncSupport<?>>> asyncSupportList = new ArrayList<>(){{
             add(InvalidAsyncSupportClass.class);
         }};
         doReturn(asyncSupportList)
@@ -113,7 +105,7 @@ public class DefaultAsyncSupportResolverTest {
                 BlockingIOCometSupport.class);
     }
 
-    class InvalidAsyncSupportClass implements AsyncSupport{
+    class InvalidAsyncSupportClass implements AsyncSupport<AtmosphereResource> {
 
         public InvalidAsyncSupportClass(AtmosphereConfig config) throws InvocationTargetException {
             throw new InvocationTargetException(new Exception(),
@@ -146,7 +138,7 @@ public class DefaultAsyncSupportResolverTest {
         }
 
         @Override
-        public AsyncSupport complete(AtmosphereResource r) {
+        public AsyncSupport<AtmosphereResource> complete(AtmosphereResource r) {
             return null;
         }
     }

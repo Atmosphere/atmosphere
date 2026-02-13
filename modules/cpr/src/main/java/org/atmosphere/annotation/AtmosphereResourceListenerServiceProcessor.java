@@ -16,9 +16,7 @@
 package org.atmosphere.annotation;
 
 import org.atmosphere.config.AtmosphereAnnotation;
-import org.atmosphere.config.service.AsyncSupportListenerService;
 import org.atmosphere.config.service.AtmosphereResourceListenerService;
-import org.atmosphere.cpr.AsyncSupportListener;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResourceListener;
 import org.slf4j.Logger;

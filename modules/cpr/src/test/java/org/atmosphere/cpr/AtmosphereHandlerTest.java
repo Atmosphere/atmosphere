@@ -117,7 +117,9 @@ public class AtmosphereHandlerTest {
     @Test
     public void testByteCachedList() throws Exception {
         AtmosphereFramework f = new AtmosphereFramework();
-        f.setBroadcasterFactory(new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", f.getAtmosphereConfig()));
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", f.getAtmosphereConfig());
+        f.setBroadcasterFactory(factory);
         assertNotNull(f.getBroadcasterFactory());
         broadcaster = f.getBroadcasterFactory().get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
@@ -131,7 +133,8 @@ public class AtmosphereHandlerTest {
                 return this;
             }
         });
-        ar = new AtmosphereResourceImpl(f.getAtmosphereConfig(),
+        ar = new AtmosphereResourceImpl();
+        ar.initialize(f.getAtmosphereConfig(),
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
                 r,

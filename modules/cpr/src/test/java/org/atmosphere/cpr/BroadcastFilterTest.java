@@ -43,14 +43,16 @@ public class BroadcastFilterTest {
     @BeforeMethod
     public void setUp() throws Exception {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
         HashMap<String, String> m = new HashMap<String, String>();
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
         AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
-        ar = new AtmosphereResourceImpl(config,
+        ar = new AtmosphereResourceImpl();
+        ar.initialize(config,
                 broadcaster,
                 req,
                 AtmosphereResponseImpl.newInstance(),
@@ -96,10 +98,12 @@ public class BroadcastFilterTest {
                 })
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
-        ar = new AtmosphereResourceImpl(config,
+        ar = new AtmosphereResourceImpl();
+        ar.initialize(config,
                 broadcaster,
                 mock(AtmosphereRequestImpl.class),
                 AtmosphereResponseImpl.newInstance(),
@@ -238,12 +242,14 @@ public class BroadcastFilterTest {
         m.put(HeaderConfig.X_ATMOSPHERE_TRACKMESSAGESIZE, "true");
         AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         for (int i = 0; i < 10; i++) {
-            broadcaster.addAtmosphereResource(new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
+            AtmosphereResourceImpl res = new AtmosphereResourceImpl();
+            res.initialize(ar.getAtmosphereConfig(),
                     broadcaster,
                     req,
                     AtmosphereResponseImpl.newInstance(),
                     mock(BlockingIOCometSupport.class),
-                    new AR()));
+                    new AR());
+            broadcaster.addAtmosphereResource(res);
         }
 
         broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
@@ -258,8 +264,10 @@ public class BroadcastFilterTest {
         AtmosphereRequest req = new AtmosphereRequestImpl.Builder().headers(m).build();
         Set<AtmosphereResource> s = new HashSet<AtmosphereResource>();
         s.add(ar);
+        AtmosphereConfig cfg = ar.getAtmosphereConfig();
         for (int i = 0; i < 10; i++) {
-            ar = new AtmosphereResourceImpl(ar.getAtmosphereConfig(),
+            ar = new AtmosphereResourceImpl();
+            ar.initialize(cfg,
                     broadcaster,
                     req,
                     AtmosphereResponseImpl.newInstance(),

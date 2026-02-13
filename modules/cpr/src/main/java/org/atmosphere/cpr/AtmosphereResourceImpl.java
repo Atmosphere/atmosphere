@@ -108,14 +108,15 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
      * @param atmosphereHandler The {@link AtmosphereHandler}
      * @return this
      */
+    @SuppressWarnings("unchecked")
     @Override
     public AtmosphereResource initialize(AtmosphereConfig config, Broadcaster broadcaster,
                                          AtmosphereRequest req, AtmosphereResponse response,
-                                         AsyncSupport asyncSupport, AtmosphereHandler atmosphereHandler) {
+                                         AsyncSupport<?> asyncSupport, AtmosphereHandler atmosphereHandler) {
         this.req = req;
         this.response = response;
         this.config = config;
-        this.asyncSupport = asyncSupport;
+        this.asyncSupport = (AsyncSupport<AtmosphereResourceImpl>) asyncSupport;
         this.atmosphereHandler = atmosphereHandler;
         this.event = new AtmosphereResourceEventImpl(this);
 
@@ -381,8 +382,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             action.type(Action.TYPE.SUSPEND);
             action.timeout(timeout);
 
-            // TODO: We can possibly optimize that call by avoiding creating a Broadcaster if we are sure the Broadcaster
-            // is unique.
+            // Optimization opportunity: avoid creating a Broadcaster when the Broadcaster is unique
             boolean isJersey = req.getAttribute(FrameworkConfig.CONTAINER_RESPONSE) != null;
 
             boolean skipCreation = req.getAttribute(SKIP_BROADCASTER_CREATION) != null;
@@ -497,7 +497,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         if (newB == null) {
             return this;
         }
-        // TODO: performance bottleneck
+        // Linear scan — potential performance bottleneck for large broadcaster sets
         for (Broadcaster b: broadcasters) {
             if (b.getID() != null && b.getID().equalsIgnoreCase(newB.getID())) {
                 logger.trace("Duplicate Broadcaster {}", newB);

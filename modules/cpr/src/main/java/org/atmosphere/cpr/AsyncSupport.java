@@ -80,5 +80,5 @@ public interface AsyncSupport<E extends AtmosphereResource> {
      * @param r {@link org.atmosphere.cpr.AtmosphereResource}
      * @return this
      */
-    AsyncSupport complete(E r);
+    AsyncSupport<E> complete(E r);
 }

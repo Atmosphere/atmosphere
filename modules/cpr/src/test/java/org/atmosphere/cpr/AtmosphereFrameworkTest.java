@@ -82,7 +82,9 @@ public class AtmosphereFrameworkTest {
     @Test
     public void testBroadcasterFactory() throws Exception {
         AtmosphereFramework f = new AtmosphereFramework();
-        f.setBroadcasterFactory(new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", f.getAtmosphereConfig()));
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", f.getAtmosphereConfig());
+        f.setBroadcasterFactory(factory);
         assertNotNull(f.getBroadcasterFactory());
     }
 

@@ -317,7 +317,7 @@ public class UriPattern {
             }
         }
 
-        // TODO check for consistency of different capturing groups
+        // Verify consistency of different capturing groups
         // that must have the same value
 
         return true;

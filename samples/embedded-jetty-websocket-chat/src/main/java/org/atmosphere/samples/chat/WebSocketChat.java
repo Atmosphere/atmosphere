@@ -57,9 +57,10 @@ public class WebSocketChat extends WebSocketStreamingHandlerAdapter {
         });
     }
 
+    @Override
     public void onTextStream(WebSocket webSocket, Reader reader) {
-        try {
-            webSocket.broadcast(mapper.writeValueAsString(mapper.readValue(new BufferedReader(reader).readLine(), Data.class)));
+        try (BufferedReader br = new BufferedReader(reader)) {
+            webSocket.broadcast(mapper.writeValueAsString(mapper.readValue(br.readLine(), Data.class)));
         } catch (Exception e) {
             logger.error("Failed to parse JSON", e);
         }

@@ -16,9 +16,6 @@
 
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereResourceEventImpl;
-import org.atmosphere.cpr.AtmosphereResourceImpl;
-
 /**
  * <p>
  * Specifies to the observable that {@link org.atmosphere.cpr.AtmosphereResourceEventListener#onHeartbeat(org.atmosphere.cpr.AtmosphereResourceEvent)}

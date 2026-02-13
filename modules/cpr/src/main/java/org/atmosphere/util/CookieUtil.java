@@ -65,24 +65,6 @@ public class CookieUtil {
         return true;
     }
 
-    private static String escapeDoubleQuotes(String s) {
-
-        if (s == null || s.length() == 0 || s.indexOf('"') == -1) {
-            return s;
-        }
-
-        StringBuilder b = new StringBuilder();
-        for (int i = 0; i < s.length(); i++) {
-            char c = s.charAt(i);
-            if (c == '"')
-                b.append('\\').append('"');
-            else
-                b.append(c);
-        }
-
-        return b.toString();
-    }
-
     public static String toString(Cookie c) {
         StringBuffer buf = new StringBuffer();
         // Servlet implementation checks name

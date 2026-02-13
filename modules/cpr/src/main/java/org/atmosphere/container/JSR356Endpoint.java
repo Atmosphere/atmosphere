@@ -48,7 +48,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.concurrent.Callable;
 import java.util.concurrent.ConcurrentHashMap;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
@@ -132,7 +131,7 @@ public class JSR356Endpoint extends Endpoint {
         webSocket = new JSR356WebSocket(session, framework.getAtmosphereConfig());
 
         Map<String, String> headers = new HashMap<>();
-        // TODO: We don't support multi map header, which cause => https://github.com/Atmosphere/atmosphere/issues/1945
+        // Multi-value headers are flattened to single values; see https://github.com/Atmosphere/atmosphere/issues/1945
         for (Map.Entry<String, List<String>> e : handshakeHeaders.entrySet()) {
             headers.put(e.getKey(), !e.getValue().isEmpty() ? e.getValue().get(0) : "");
         }
@@ -269,7 +268,7 @@ public class JSR356Endpoint extends Endpoint {
                 return;
             }
 
-            // TODO: Fix this crazy code.
+            // Temporarily disable querystring-as-request to avoid re-processing during WebSocket open
             framework.addInitParameter(ALLOW_QUERYSTRING_AS_REQUEST, "false");
 
             webSocketProcessor.open(webSocket, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, webSocket));

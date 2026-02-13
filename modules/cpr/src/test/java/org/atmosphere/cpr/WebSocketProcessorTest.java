@@ -249,7 +249,7 @@ public class WebSocketProcessorTest {
             public void onRequest(AtmosphereResource resource) throws IOException {
                 resource.addEventListener(new WebSocketEventListenerAdapter() {
                     @Override
-                    public void onDisconnect(WebSocketEvent event) {
+                    public void onDisconnect(WebSocketEvent<?> event) {
                         uuid.set((String) event.webSocket().resource().getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
                     }
                 });
@@ -267,7 +267,7 @@ public class WebSocketProcessorTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Disconnect", DISCONNECT, w));
+        processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent<>("Disconnect", DISCONNECT, w));
 
         assertNotNull(uuid.get());
         assertEquals(uuid.get(), request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
@@ -287,7 +287,7 @@ public class WebSocketProcessorTest {
             public void onRequest(final AtmosphereResource resource) throws IOException {
                 resource.addEventListener(new WebSocketEventListenerAdapter() {
                     @Override
-                    public void onClose(WebSocketEvent event) {
+                    public void onClose(WebSocketEvent<?> event) {
                         closed.set(true);
                     }
                 });
@@ -326,7 +326,7 @@ public class WebSocketProcessorTest {
             public void onRequest(AtmosphereResource resource) throws IOException {
                 resource.addEventListener(new WebSocketEventListenerAdapter() {
                     @Override
-                    public void onClose(WebSocketEvent event) {
+                    public void onClose(WebSocketEvent<?> event) {
                         uuid.set((String) event.webSocket().resource().getRequest().getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
                     }
                 });
@@ -344,7 +344,7 @@ public class WebSocketProcessorTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
+        processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent<>("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
 
         assertNotNull(uuid.get());
         assertEquals(uuid.get(), request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));

@@ -16,7 +16,6 @@
 package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.List;

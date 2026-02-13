@@ -78,7 +78,7 @@ import java.util.Map;
  */
 public class UriComponent {
 
-    // TODO rewrite to use masks and not lookup tables
+    // Consider rewriting to use masks instead of lookup tables
     /**
      * The URI component type.
      */
@@ -162,7 +162,7 @@ public class UriComponent {
      */
     public static void validate(String s, Type t, boolean template) {
         int i = _valid(s, t, template);
-        if (i > -1) // TODO localize
+        if (i > -1)
         {
             throw new IllegalArgumentException("The string '" + s +
                     "' for the URI component " + t +
@@ -460,13 +460,13 @@ public class UriComponent {
             }
         } else {
             // Malformed percent-escaped octet at the end
-            if (n < 2) // TODO localize
+            if (n < 2)
             {
                 throw new IllegalArgumentException("Malformed percent-encoded octet at index 1");
             }
 
             // Malformed percent-escaped octet at the end
-            if (s.charAt(n - 2) == '%') // TODO localize
+            if (s.charAt(n - 2) == '%')
             {
                 throw new IllegalArgumentException("Malformed percent-encoded octet at index " + (n - 2));
             }
@@ -555,7 +555,7 @@ public class UriComponent {
         private final Map<String, String> matrixParameters;
 
         PathSegmentImpl(String path, boolean decode) {
-            this(path, decode, new HashMap<String, String> ());
+            this(path, decode, new HashMap<>());
         }
 
         PathSegmentImpl(String path, boolean decode, Map<String, String> matrixParameters) {
@@ -563,10 +563,12 @@ public class UriComponent {
             this.matrixParameters = matrixParameters;
         }
 
+        @SuppressWarnings("unused")
         public String getPath() {
             return path;
         }
 
+        @SuppressWarnings("unused")
         public Map<String, String> getMatrixParameters() {
             return matrixParameters;
         }
@@ -817,7 +819,7 @@ public class UriComponent {
 
     private static int decodeHex(String s, int i) {
         final int v = decodeHex(s.charAt(i));
-        if (v == -1) // TODO localize
+        if (v == -1)
         {
             throw new IllegalArgumentException("Malformed percent-encoded octet at index " + i +
                     ", invalid hexadecimal digit '" + s.charAt(i) + "'");

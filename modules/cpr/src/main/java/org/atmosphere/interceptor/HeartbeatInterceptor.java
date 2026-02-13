@@ -169,7 +169,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
         heartBeat = ExecutorsFactory.getScheduler(config);
 
         resumeOnHeartbeat = config.getInitParameter(RESUME_ON_HEARTBEAT, true);
-        logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", new String[]
+        logger.info("HeartbeatInterceptor configured with padding value '{}', client frequency {} seconds and server frequency {} seconds", (Object[]) new String[]
                 {new String(paddingBytes), String.valueOf(clientHeartbeatFrequencyInSeconds), String.valueOf(heartbeatFrequencyInSeconds)});
 
         this.config = config;
@@ -205,7 +205,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
                 if (Arrays.equals(paddingBytes, bytes)) {
                     // Dispatch an event to notify that a heartbeat has been intercepted
-                    // TODO: see https://github.com/Atmosphere/atmosphere/issues/1561
+                    // See https://github.com/Atmosphere/atmosphere/issues/1561
                     final AtmosphereResourceEvent event = new HeartbeatAtmosphereResourceEvent((AtmosphereResourceImpl) r);
 
                     if (AtmosphereResourceHeartbeatEventListener.class.isAssignableFrom(r.getAtmosphereHandler().getClass())) {

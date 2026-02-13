@@ -75,7 +75,7 @@ public final class FilterConfigImpl implements FilterConfig {
     }
 
     @Override
-    public Enumeration getInitParameterNames() {
+    public Enumeration<String> getInitParameterNames() {
         return sc.getInitParameterNames();
     }
 

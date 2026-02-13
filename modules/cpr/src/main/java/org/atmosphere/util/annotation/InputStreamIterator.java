@@ -39,7 +39,6 @@ import java.util.LinkedList;
 public final class InputStreamIterator {
 
     private final Deque<InputStream> stack;
-    private final int rootCount;
     private InputStream current;
 
     /**
@@ -55,7 +54,6 @@ public final class InputStreamIterator {
     public InputStreamIterator(final InputStream... filesOrDirectories) {
         stack = new LinkedList<>();
         addReverse(filesOrDirectories);
-        rootCount = 0;
     }
 
     /**

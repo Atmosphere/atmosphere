@@ -17,7 +17,6 @@ package org.atmosphere.websocket.protocol;
 
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
-import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;

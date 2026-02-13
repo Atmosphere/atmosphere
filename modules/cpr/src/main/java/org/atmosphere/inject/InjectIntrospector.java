@@ -27,6 +27,7 @@ import java.lang.reflect.Method;
  * @param <T> the Object to inject.
  * @author Jeanfrancois Arcand
  */
+@SuppressWarnings("rawtypes")
 public interface InjectIntrospector<T> extends Injectable {
 
     enum WHEN { DEPLOY, RUNTIME }

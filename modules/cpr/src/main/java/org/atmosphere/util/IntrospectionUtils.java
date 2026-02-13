@@ -160,7 +160,7 @@ public final class IntrospectionUtils {
                     if ("java.lang.Integer".equals(paramType.getName())
                             || "int".equals(paramType.getName())) {
                         try {
-                            params[0] = new Integer(value);
+                            params[0] = Integer.valueOf(value);
                         } catch (NumberFormatException ex) {
                             ok = false;
                         }
@@ -168,7 +168,7 @@ public final class IntrospectionUtils {
                     } else if ("java.lang.Long".equals(paramType.getName())
                             || "long".equals(paramType.getName())) {
                         try {
-                            params[0] = new Long(value);
+                            params[0] = Long.valueOf(value);
                         } catch (NumberFormatException ex) {
                             ok = false;
                         }
@@ -176,7 +176,7 @@ public final class IntrospectionUtils {
                         // Try a setFoo ( boolean )
                     } else if ("java.lang.Boolean".equals(paramType.getName())
                             || "boolean".equals(paramType.getName())) {
-                        params[0] = new Boolean(value);
+                        params[0] = Boolean.valueOf(value);
 
                         // Try a setFoo ( InetAddress )
                     } else if ("java.net.InetAddress".equals(paramType
@@ -237,12 +237,7 @@ public final class IntrospectionUtils {
         } catch (IllegalArgumentException e) {
             logger.info("failed, object: " + object + ", setter: " + setter + ", value: " + value, e);
         } catch (Exception e) {
-            if (dbg > 0) {
-                debug(e.getClass().getSimpleName() + " for " + object.getClass() + " " + setter + "=" + value + ")");
-            }
-            if (dbg > 1) {
-                logger.debug("", e);
-            }
+            logger.trace("{} for {} {}={})", e.getClass().getSimpleName(), object.getClass(), setter, value);
         }
 
         return false;
@@ -281,12 +276,7 @@ public final class IntrospectionUtils {
         } catch (IllegalArgumentException e) {
             logger.info("failed, object: " + object + ", name: " + name, e);
         } catch (Exception e) {
-            if (dbg > 0) {
-                debug(e.getClass().getSimpleName() + " for " + object.getClass() + " " + name + ")");
-            }
-            if (dbg > 1) {
-                logger.debug("", e);
-            }
+            logger.trace("{} for {} {})", e.getClass().getSimpleName(), object.getClass(), name);
         }
 
         return null;
@@ -298,7 +288,6 @@ public final class IntrospectionUtils {
         String setter = "set" + capitalize(name);
         try {
             Method methods[] = findMethods(object.getClass());
-            Method setPropertyMethod = null;
             // find setFoo() method
             for (int i = 0; i < methods.length; i++) {
                 Class<?> paramT[] = methods[i].getParameterTypes();
@@ -308,12 +297,7 @@ public final class IntrospectionUtils {
                 }
             }
         } catch (Exception e) {
-            if (dbg > 0) {
-                debug("Exception for " + object.getClass() + " " + name);
-            }
-            if (dbg > 1) {
-                logger.debug("", e);
-            }
+            logger.trace("Exception for {} {}", object.getClass(), name);
         }
     }
 
@@ -338,7 +322,7 @@ public final class IntrospectionUtils {
                 prev = pos + 1;
             } else if (value.charAt(pos + 1) != '{') {
                 sb.append('$');
-                prev = pos + 1; // XXX
+                prev = pos + 1; 
             } else {
                 int endName = value.indexOf('}', pos);
                 if (endName < 0) {
@@ -398,7 +382,6 @@ public final class IntrospectionUtils {
      * Add all the jar files in a dir to the classpath, represented as a Vector
      * of URLs.
      */
-    @SuppressWarnings("unchecked")
     public static void addToClassPath(Vector<URL> cpV, String dir) {
         try {
             String cpComp[] = getFilesByExt(dir, ".jar");
@@ -415,7 +398,6 @@ public final class IntrospectionUtils {
         }
     }
 
-    @SuppressWarnings("unchecked")
     public static void addToolsJar(Vector<URL> v) {
         try {
             // Add tools.jar in any case
@@ -431,7 +413,7 @@ public final class IntrospectionUtils {
                             System.getProperty("java.home"));
                 }
             }
-            URL url = new URL("file", "", f.getAbsolutePath());
+            URL url = f.toURI().toURL();
 
             v.addElement(url);
         } catch (MalformedURLException ex) {
@@ -473,7 +455,7 @@ public final class IntrospectionUtils {
             if (!f.exists()) {
                 return null;
             }
-            return new URL("file", "", path);
+            return new File(path).toURI().toURL();
         } catch (Exception ex) {
             logger.debug("failed to get url, base: " + base + ", file: " + file, ex);
             return null;
@@ -491,11 +473,9 @@ public final class IntrospectionUtils {
      * @throws IOException           If an I/O error occurs
      * @throws MalformedURLException Doh ;)
      */
-    @SuppressWarnings("unchecked")
     public static void addJarsFromClassPath(Vector<URL> jars, String cp)
             throws IOException, MalformedURLException {
         String sep = System.getProperty("path.separator");
-        String token;
         StringTokenizer st;
         if (cp != null) {
             st = new StringTokenizer(cp, sep);
@@ -505,7 +485,7 @@ public final class IntrospectionUtils {
                 if (f.isDirectory()) {
                     path += "/";
                 }
-                URL url = new URL("file", "", path);
+                URL url = new File(path).toURI().toURL();
                 if (!jars.contains(url)) {
                     jars.addElement(url);
                 }
@@ -528,7 +508,6 @@ public final class IntrospectionUtils {
      * Construct a URL classpath from files in a directory, a cpath property,
      * and tools.jar.
      */
-    @SuppressWarnings("unchecked")
     public static URL[] getClassPath(String dir, String cpath,
                                      String cpathProp, boolean addTools) throws IOException,
             MalformedURLException {
@@ -557,10 +536,11 @@ public final class IntrospectionUtils {
 
     // -------------------- Mapping command line params to setters
 
+    @SuppressWarnings("unchecked")
     public static boolean processArgs(Object proxy, String args[])
             throws Exception {
         String args0[] = null;
-        if (null != findMethod(proxy.getClass(), "getOptions1", new Class[]{})) {
+        if (null != findMethod(proxy.getClass(), "getOptions1", new Class<?>[]{})) {
             args0 = (String[]) callMethod0(proxy, "getOptions1");
         }
 
@@ -570,7 +550,7 @@ public final class IntrospectionUtils {
         }
         Hashtable<String, String> h = null;
         if (null != findMethod(proxy.getClass(), "getOptionAliases",
-                new Class[]{})) {
+                new Class<?>[]{})) {
             h = (Hashtable<String, String>) callMethod0(proxy, "getOptionAliases");
         }
         return processArgs(proxy, args, args0, null, h);
@@ -626,7 +606,6 @@ public final class IntrospectionUtils {
         objectMethods.clear();
     }
 
-    @SuppressWarnings("unchecked")
     public static String[] findVoidSetters(Class<?> c) {
         Method m[] = findMethods(c);
         if (m == null)
@@ -646,7 +625,6 @@ public final class IntrospectionUtils {
         return s;
     }
 
-    @SuppressWarnings("unchecked")
     public static String[] findBooleanSetters(Class<?> c) {
         Method m[] = findMethods(c);
         if (m == null)
@@ -671,7 +649,6 @@ public final class IntrospectionUtils {
     static Hashtable<Class<?>, Method[]> objectMethods =
             new Hashtable<Class<?>, Method[]>();
 
-    @SuppressWarnings("unchecked")
     public static Method[] findMethods(Class<?> c) {
         Method methods[] = (Method[]) objectMethods.get(c);
         if (methods != null)
@@ -744,7 +721,6 @@ public final class IntrospectionUtils {
     public static void callMain(Class<?> c, String args[]) throws Exception {
         Class<?> p[] = new Class[1];
         p[0] = args.getClass();
-        @SuppressWarnings("unchecked")
         Method m = c.getMethod("main", p);
         m.invoke(c, new Object[]{args});
     }
@@ -754,10 +730,6 @@ public final class IntrospectionUtils {
         if (target == null || param1 == null) {
             debug("Assert: Illegal params " + target + " " + param1);
         }
-        if (dbg > 0)
-            debug("callMethod1 " + target.getClass().getName() + " " + param1.getClass().getName() + " " +
-                    typeParam1);
-
         Class<?> params[] = new Class[1];
         if (typeParam1 == null) {
             params[0] = param1.getClass();
@@ -777,11 +749,7 @@ public final class IntrospectionUtils {
             debug("Assert: Illegal params " + target);
             return null;
         }
-        if (dbg > 0) {
-            debug("callMethod0 " + target.getClass().getName() + "." + methodN);
-        }
-
-        Class params[] = new Class[0];
+        Class<?> params[] = new Class<?>[0];
         Method m = findMethod(target.getClass(), methodN, params);
         if (m == null) {
             throw new NoSuchMethodException(target.getClass().getName() + " " + methodN);
@@ -801,18 +769,6 @@ public final class IntrospectionUtils {
         }
         Object o = m.invoke(target, params);
 
-        if (dbg > 0) {
-            // debug
-            StringBuffer sb = new StringBuffer();
-            sb.append("" + target.getClass().getName() + "." + methodN + "( ");
-            for (int i = 0; i < params.length; i++) {
-                if (i > 0)
-                    sb.append(", ");
-                sb.append(params[i]);
-            }
-            sb.append(")");
-            debug(sb.toString());
-        }
         return o;
     }
 
@@ -823,13 +779,13 @@ public final class IntrospectionUtils {
         } else if ("java.lang.Integer".equals(paramType.getName())
                 || "int".equals(paramType.getName())) {
             try {
-                result = new Integer(object);
+                result = Integer.valueOf(object);
             } catch (NumberFormatException ex) {
             }
             // Try a setFoo ( boolean )
         } else if ("java.lang.Boolean".equals(paramType.getName())
                 || "boolean".equals(paramType.getName())) {
-            result = new Boolean(object);
+            result = Boolean.valueOf(object);
 
             // Try a setFoo ( InetAddress )
         } else if ("java.net.InetAddress".equals(paramType
@@ -866,7 +822,6 @@ public final class IntrospectionUtils {
     }
 
     // debug --------------------
-    static final int dbg = 0;
 
     static void debug(String s) {
         logger.debug("IntrospectionUtils: {}", s);

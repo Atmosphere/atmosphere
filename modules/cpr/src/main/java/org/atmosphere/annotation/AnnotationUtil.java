@@ -148,6 +148,7 @@ public class AnnotationUtil {
         return framework.getBroadcasterFactory().lookup(broadcasterClass(framework, broadcaster), path, true);
     }
 
+    @SuppressWarnings("unchecked")
     public static Class<? extends Broadcaster> broadcasterClass(AtmosphereFramework framework, Class<? extends Broadcaster> broadcaster) throws Exception {
         if (framework.isBroadcasterSpecified()) {
             try {

@@ -48,6 +48,7 @@ public class BroadcasterCacheTest {
     private final AtomicReference<List<CacheMessage>> cachedMessage = new AtomicReference<List<CacheMessage>>();
     private AtmosphereConfig config;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();

@@ -210,7 +210,7 @@ public class AtmosphereResourceTest {
 
         assertEquals(res0, res1);
 
-        HashSet set = new HashSet();
+        HashSet<AtmosphereResource> set = new HashSet<>();
         set.add(res0);
         set.add(res1);
 

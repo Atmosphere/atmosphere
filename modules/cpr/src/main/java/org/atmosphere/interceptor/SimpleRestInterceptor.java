@@ -71,12 +71,14 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
      * Servlet init property to enable the detached mode in the response
      * @deprecated always use detached mode
      */
+    @Deprecated
     public final static String PROTOCOL_DETACHED_KEY = "atmosphere.simple-rest.protocol.detached";
 
     /**
      * Connection request property to enable the detached mode in the response
      * @deprecated always use detached mode
      */
+    @Deprecated
     public final static String X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED = "X-Atmosphere-SimpleRestProtocolDetached";
 
     /**
@@ -107,7 +109,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     @Override
     public void configure(AtmosphereConfig config) {
         super.configure(config);
-        //TODO make the heartbeat configurable
         heartbeat = config.getBroadcasterFactory().lookup(DefaultBroadcaster.class, getHeartbeatBroadcasterName());
         if (heartbeat == null) {
             heartbeat = config.getBroadcasterFactory().get(DefaultBroadcaster.class, getHeartbeatBroadcasterName());
@@ -152,8 +153,8 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                 public void close(AtmosphereResponse response) {
                 }
             });
-            // REVISIT we need to keep this response's asyncwriter alive so that data can be written to the
-            //   suspended response, but investigate if there is a better alternative.
+            // Keep the response's AsyncWriter alive so that data can be written to the
+            //   suspended response.
             r.getResponse().destroyable(false);
             return Action.CONTINUE;
         }
@@ -188,12 +189,11 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereRequest request = r.getRequest();
         if (request.getAttribute(REQUEST_DISPATCHED) == null) {
             try {
-                //REVISIT use a more efficient approach for the detached mode (i.e.,avoid reading the message into a string)
-                // read the message entity and dispatch a service call
+                // Read the message entity and dispatch a service call
                 String body = IOUtils.readEntirelyAsString(r).toString();
                 LOG.debug("Request message: '{}'", body);
                 if (body.length() == 0) {
-                    //TODO we might want to move this heartbeat scheduling after the handshake phase (if that is added)
+                    // Schedule heartbeat on first empty-body WebSocket/SSE message
                     if ((AtmosphereResource.TRANSPORT.WEBSOCKET == r.transport() ||
                             AtmosphereResource.TRANSPORT.SSE == r.transport())
                             && request.getAttribute(HEARTBEAT_SCHEDULED) == null) {
@@ -245,7 +245,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
     protected AtmosphereRequest createAtmosphereRequest(AtmosphereRequest request, String body) throws IOException {
         String uuid = request.getHeader(HeaderConfig.X_ATMOSPHERE_TRACKING_ID);
-        //REVISIT find a more efficient way to read and extract the message data
         Reader msgreader = new StringReader(body);
         JSONObject jsonpart = parseJsonPart(msgreader);
         final String id = getString(jsonpart, "id");
@@ -337,7 +336,6 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     private void scheduleHeartbeat(AtmosphereResource r) {
-        //REVISIT make the schedule configurable
         heartbeat.addAtmosphereResource(r);
         if (!heartbeatScheduled) {
             heartbeat.scheduleFixedBroadcast(String.format(getHeartbeatTemplate(), getHeartbeatTemplateArguments()),

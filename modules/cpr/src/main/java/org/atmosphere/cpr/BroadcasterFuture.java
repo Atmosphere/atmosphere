@@ -104,6 +104,7 @@ public class BroadcasterFuture<E> implements Future<E> {
         return this;
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public E get() throws InterruptedException, ExecutionException {
         if (innerFuture != null) {
@@ -115,6 +116,7 @@ public class BroadcasterFuture<E> implements Future<E> {
 
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public E get(long l, TimeUnit tu) throws InterruptedException, ExecutionException, TimeoutException {
 
