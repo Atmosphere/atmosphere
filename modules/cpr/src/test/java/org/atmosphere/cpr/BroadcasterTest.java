@@ -24,7 +24,10 @@ import java.util.Enumeration;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import jakarta.servlet.ServletConfig;
@@ -210,6 +213,73 @@ public class BroadcasterTest {
         @Override
         public void destroy() {
         }
+    }
+
+    @Test
+    public void testConcurrentSetBroadcast() throws InterruptedException {
+        AtmosphereConfig config = new AtmosphereFramework()
+                .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
+                .getAtmosphereConfig();
+
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        Broadcaster b = factory.get(DefaultBroadcaster.class, "concurrent-set");
+
+        AtomicInteger deliveryCount = new AtomicInteger();
+        AtmosphereHandler handler = new AtmosphereHandler() {
+            @Override
+            public void onRequest(AtmosphereResource e) throws IOException {
+            }
+
+            @Override
+            public void onStateChange(AtmosphereResourceEvent e) throws IOException {
+                deliveryCount.incrementAndGet();
+            }
+
+            @Override
+            public void destroy() {
+            }
+        };
+
+        AtmosphereResource r1 = new AtmosphereResourceImpl(config, b,
+                mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class), handler);
+        AtmosphereResource r2 = new AtmosphereResourceImpl(config, b,
+                mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class), handler);
+
+        b.addAtmosphereResource(r1).addAtmosphereResource(r2);
+
+        Set<AtmosphereResource> set = new HashSet<>();
+        set.add(r1);
+        set.add(r2);
+
+        int messageCount = 20;
+        final CountDownLatch latch = new CountDownLatch(messageCount);
+        b.addBroadcasterListener(new BroadcasterListenerAdapter() {
+            @Override
+            public void onPostCreate(Broadcaster br) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster br) {
+                latch.countDown();
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster br) {
+            }
+        });
+
+        for (int i = 0; i < messageCount; i++) {
+            b.broadcast("message-" + i, set);
+        }
+        latch.await(60, TimeUnit.SECONDS);
+
+        assertEquals(deliveryCount.get(), messageCount * set.size());
+
+        b.destroy();
+        ExecutorsFactory.reset(config);
     }
 
     @Test

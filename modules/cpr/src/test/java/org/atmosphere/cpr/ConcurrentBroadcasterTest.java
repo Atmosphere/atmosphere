@@ -23,6 +23,8 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -333,6 +335,95 @@ public class ConcurrentBroadcasterTest {
         latch.await(60, TimeUnit.SECONDS);
 
         assertEquals(atmosphereHandler.value.get().toString(), b.toString());
+    }
+
+    @Test
+    public void testNonOrderedSetBroadcast() throws InterruptedException {
+        AtmosphereConfig config = new AtmosphereFramework()
+                .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
+                .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
+                .getAtmosphereConfig();
+
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
+
+        AR2 a = new AR2();
+        AtmosphereResource ar1 = newAR(a);
+        AtmosphereResource ar2 = newAR(a);
+        AtmosphereResource ar3 = newAR(a);
+        broadcaster.addAtmosphereResource(ar1).addAtmosphereResource(ar2).addAtmosphereResource(ar3);
+
+        Set<AtmosphereResource> set = new HashSet<>();
+        set.add(ar1);
+        set.add(ar2);
+
+        int count = 10;
+        final CountDownLatch latch = new CountDownLatch(count);
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+                latch.countDown();
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        });
+
+        for (int i = 0; i < count; i++) {
+            broadcaster.broadcast("message-" + i, set);
+        }
+        latch.await(60, TimeUnit.SECONDS);
+
+        assertEquals(a.count.get(), count * set.size());
+    }
+
+    @Test
+    public void testNonOrderedDirectResourceBroadcast() throws InterruptedException {
+        AtmosphereConfig config = new AtmosphereFramework()
+                .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
+                .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
+                .getAtmosphereConfig();
+
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+        broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
+
+        AR2 target = new AR2();
+        AR2 other = new AR2();
+        AtmosphereResource ar1 = newAR(target);
+        AtmosphereResource ar2 = newAR(other);
+        broadcaster.addAtmosphereResource(ar1).addAtmosphereResource(ar2);
+
+        int count = 10;
+        final CountDownLatch latch = new CountDownLatch(count);
+        broadcaster.addBroadcasterListener(new BroadcasterListenerAdapter() {
+            @Override
+            public void onPostCreate(Broadcaster b) {
+            }
+
+            @Override
+            public void onComplete(Broadcaster b) {
+                latch.countDown();
+            }
+
+            @Override
+            public void onPreDestroy(Broadcaster b) {
+            }
+        });
+
+        for (int i = 0; i < count; i++) {
+            broadcaster.broadcast("message-" + i, ar1);
+        }
+        latch.await(60, TimeUnit.SECONDS);
+
+        assertEquals(target.count.get(), count);
+        assertEquals(other.count.get(), 0);
     }
 
     AtmosphereResource newAR(AtmosphereHandler a) {
