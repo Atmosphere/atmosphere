@@ -140,3 +140,74 @@ export interface RetryStrategy {
   maxDelay: number;
   customCalculate?: (attempt: number) => number;
 }
+
+// --- Room & Presence types ---
+
+/**
+ * Presence event types
+ */
+export type PresenceEventType = 'join' | 'leave';
+
+/**
+ * A member in a room
+ */
+export interface RoomMember {
+  /** Unique connection ID (atmosphere resource uuid) */
+  readonly id: string;
+  /** Optional display name or user metadata */
+  readonly info?: Record<string, unknown>;
+}
+
+/**
+ * Presence event fired when a member joins or leaves a room
+ */
+export interface PresenceEvent {
+  readonly type: PresenceEventType;
+  readonly room: string;
+  readonly member: RoomMember;
+  readonly timestamp: number;
+}
+
+/**
+ * Room protocol message envelope sent over the wire.
+ * The server-side RoomInterceptor parses these.
+ */
+export interface RoomMessage {
+  readonly type: 'join' | 'leave' | 'broadcast' | 'direct' | 'presence';
+  readonly room: string;
+  readonly data?: unknown;
+  readonly target?: string;
+  readonly member?: RoomMember;
+}
+
+/**
+ * Event handlers for room-level events
+ */
+export interface RoomHandlers<T = unknown> {
+  /** Called when a message is received in the room */
+  message?: (data: T, member: RoomMember) => void;
+  /** Called when a member joins the room */
+  join?: (event: PresenceEvent) => void;
+  /** Called when a member leaves the room */
+  leave?: (event: PresenceEvent) => void;
+  /** Called when the local client has successfully joined the room */
+  joined?: (room: string, members: RoomMember[]) => void;
+  /** Called on error */
+  error?: (error: Error) => void;
+}
+
+/**
+ * A client-side room handle
+ */
+export interface RoomHandle {
+  /** The room name */
+  readonly name: string;
+  /** Current members in the room */
+  readonly members: ReadonlyMap<string, RoomMember>;
+  /** Broadcast a message to all room members */
+  broadcast(data: unknown): void;
+  /** Send a direct message to a specific member by ID */
+  sendTo(memberId: string, data: unknown): void;
+  /** Leave this room */
+  leave(): void;
+}

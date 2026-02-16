@@ -32,6 +32,9 @@ export { BaseTransport } from './transports/base';
 // Export protocol utilities
 export { AtmosphereProtocol } from './utils/protocol';
 
+// Export room support
+export { AtmosphereRooms } from './room/rooms';
+
 // Export logger for configuration
 export { logger } from './utils/logger';
 
