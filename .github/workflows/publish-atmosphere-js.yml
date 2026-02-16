@@ -24,7 +24,7 @@ jobs:
     steps:
     - uses: actions/checkout@v4
       with:
-        ref: atmosphere-4.x
+        ref: main
     
     - name: Setup Node.js 20
       uses: actions/setup-node@v4
@@ -60,7 +60,7 @@ jobs:
       run: |
         git add package.json package-lock.json
         git commit -m "chore: release atmosphere.js v${{ inputs.version }}"
-        git push origin atmosphere-4.x
+        git push origin main
     
     - name: Create Git Tag
       run: |

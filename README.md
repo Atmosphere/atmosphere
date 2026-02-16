@@ -4,7 +4,7 @@
 
 Atmosphere 4.0 brings cutting-edge Java platform features to real-time web applications. Built on JDK 21-25 with Virtual Threads at its core, offering WebSocket with intelligent fallback to SSE and Long-Polling.
 
-[![Atmosphere 4.x](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=atmosphere-4.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
+[![Atmosphere CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
 
 ### What's New in 4.0
 

@@ -2,14 +2,14 @@ name: Samples CI
 
 on:
   push:
-    branches: [ atmosphere-4.x ]
+    branches: [ main ]
     paths:
       - 'samples/**'
       - 'modules/**'
       - 'pom.xml'
       - '.github/workflows/samples-ci.yml'
   pull_request:
-    branches: [ atmosphere-4.x ]
+    branches: [ main ]
     paths:
       - 'samples/**'
       - 'modules/**'

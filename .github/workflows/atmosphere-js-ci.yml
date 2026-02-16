@@ -2,12 +2,12 @@ name: Atmosphere.js CI
 
 on:
   push:
-    branches: [ atmosphere-4.x ]
+    branches: [ main ]
     paths:
       - 'atmosphere.js/**'
       - '.github/workflows/atmosphere-js-ci.yml'
   pull_request:
-    branches: [ atmosphere-4.x ]
+    branches: [ main ]
     paths:
       - 'atmosphere.js/**'
       - '.github/workflows/atmosphere-js-ci.yml'

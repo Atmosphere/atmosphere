@@ -1,10 +1,10 @@
-name: Atmosphere 4.x CI
+name: Atmosphere CI
 
 on:
   push:
-    branches: [ atmosphere-4.x ]
+    branches: [ main ]
   pull_request:
-    branches: [ atmosphere-4.x ]
+    branches: [ main ]
 
 jobs:
   build-and-test:
