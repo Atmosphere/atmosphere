@@ -44,6 +44,7 @@ document.addEventListener('DOMContentLoaded', async function() {
             {
                 url: `${window.location.protocol}//${window.location.host}/atmosphere/chat`,
                 transport: 'websocket',
+                fallbackTransport: 'long-polling',
                 reconnect: true,
                 reconnectInterval: 5000,
                 maxReconnectOnClose: 10,
@@ -61,6 +62,12 @@ document.addEventListener('DOMContentLoaded', async function() {
                     status.textContent = 'Enter name';
                     status.classList.remove('connecting');
                     status.classList.add('connected');
+                },
+
+                transportFailure: (reason, request) => {
+                    console.warn('Transport failed:', reason);
+                    addMessage(`⚠️ ${request.transport} failed — falling back to ${request.fallbackTransport}`,
+                        'text-align: center; color: #e67e22;');
                 },
                 
                 message: (response) => {
