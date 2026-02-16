@@ -19,48 +19,57 @@ import type { AtmosphereResponse } from '../types';
 import { logger } from '../utils/logger';
 
 /**
- * WebSocket transport implementation.
+ * Server-Sent Events (SSE) transport implementation.
  *
- * Full-duplex communication via the browser WebSocket API.
- * Supports the Atmosphere protocol handshake, heartbeat, and
- * length-delimited message tracking.
+ * Uses the browser EventSource API for server-to-client streaming.
+ * Messages are sent via HTTP POST (XHR).
  */
-export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
-  private ws: WebSocket | null = null;
+export class SSETransport<T = unknown> extends BaseTransport<T> {
+  private eventSource: EventSource | null = null;
   private reconnectAttempts = 0;
   private reconnectTimer: ReturnType<typeof setTimeout> | null = null;
 
   get name(): string {
-    return 'websocket';
+    return 'sse';
+  }
+
+  static isAvailable(): boolean {
+    return typeof EventSource !== 'undefined';
   }
 
   async connect(): Promise<void> {
+    if (!SSETransport.isAvailable()) {
+      throw new Error('SSE (EventSource) is not supported in this environment');
+    }
+
     return new Promise((resolve, reject) => {
       try {
         this._state = 'connecting';
-        const wsUrl = this.buildWebSocketUrl(this.request.url);
+        const url = this.protocol.buildUrl(this.request);
 
-        logger.debug(`Connecting to WebSocket: ${wsUrl}`);
-        this.ws = new WebSocket(wsUrl);
-        this.ws.binaryType = 'arraybuffer';
+        logger.debug(`Connecting SSE: ${url}`);
 
-        this.ws.onopen = () => {
+        this.eventSource = new EventSource(url, {
+          withCredentials: this.request.withCredentials ?? false,
+        });
+
+        this.eventSource.onopen = () => {
           this.handleOpen();
           resolve();
         };
 
-        this.ws.onmessage = (event) => {
+        this.eventSource.onmessage = (event) => {
           this.handleMessage(event);
         };
 
-        this.ws.onerror = () => {
-          const error = new Error('WebSocket connection error');
-          this.handleError(error);
-          reject(error);
-        };
-
-        this.ws.onclose = (event) => {
-          this.handleClose(event);
+        this.eventSource.onerror = () => {
+          if (this._state === 'connecting') {
+            const error = new Error('SSE connection failed');
+            this.handleError(error);
+            reject(error);
+          } else {
+            this.handleClose();
+          }
         };
       } catch (error) {
         this.handleError(error as Error);
@@ -70,36 +79,39 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   }
 
   async disconnect(): Promise<void> {
-    if (this.reconnectTimer) {
+    if (this.reconnectTimer !== null) {
       clearTimeout(this.reconnectTimer);
       this.reconnectTimer = null;
     }
     this.protocol.stopHeartbeat();
 
-    if (this.ws?.readyState === WebSocket.OPEN) {
-      this.ws.close();
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
     }
 
-    this.ws = null;
     this._state = 'disconnected';
   }
 
   send(message: string | ArrayBuffer): void {
-    if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
-      throw new Error('WebSocket is not connected');
-    }
-    this.ws.send(message);
-  }
+    // SSE is server-to-client only; send via HTTP POST
+    const url = this.protocol.buildUrl(this.request);
+    const data = message instanceof ArrayBuffer
+      ? new Blob([message])
+      : message;
 
-  private buildWebSocketUrl(_url: string): string {
-    const fullUrl = new URL(this.protocol.buildUrl(this.request), window.location.href);
-    fullUrl.protocol = fullUrl.protocol.replace('http', 'ws');
-    return fullUrl.toString();
+    const xhr = new XMLHttpRequest();
+    xhr.open('POST', url, true);
+    xhr.setRequestHeader('Content-Type', this.request.contentType ?? 'text/plain');
+    if (this.request.withCredentials) {
+      xhr.withCredentials = true;
+    }
+    xhr.send(data);
   }
 
   private handleOpen(): void {
     this.reconnectAttempts = 0;
-    logger.info('WebSocket connection established');
+    logger.info('SSE connection established');
 
     this.protocol.setPushFunction((msg) => this.send(msg));
 
@@ -110,7 +122,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
       messages: [],
       headers: {},
       state: 'open',
-      transport: 'websocket',
+      transport: 'sse',
       error: null,
       request: this.request,
     };
@@ -122,23 +134,6 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleMessage(event: MessageEvent): void {
-    // Binary messages pass through directly
-    if (event.data instanceof ArrayBuffer) {
-      const response: AtmosphereResponse<T> = {
-        status: 200,
-        reasonPhrase: 'OK',
-        responseBody: event.data as T,
-        messages: [event.data],
-        headers: {},
-        state: 'messageReceived',
-        transport: 'websocket',
-        error: null,
-        request: this.request,
-      };
-      this.notifyMessage(response);
-      return;
-    }
-
     const result = this.protocol.processMessage(event.data, this.request);
 
     if (result === null) {
@@ -151,7 +146,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
           messages: [],
           headers: {},
           state: 'open',
-          transport: 'websocket',
+          transport: 'sse',
           error: null,
           request: this.request,
         };
@@ -173,7 +168,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
         messages: [msg],
         headers: {},
         state: 'messageReceived',
-        transport: 'websocket',
+        transport: 'sse',
         error: null,
         request: this.request,
       };
@@ -181,27 +176,28 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     }
   }
 
-  private handleClose(event: CloseEvent): void {
-    if (this.request.closed) {
-      return;
-    }
-
-    logger.info(`WebSocket closed: code=${event.code}, reason=${event.reason}`);
+  private handleClose(): void {
+    logger.info('SSE connection closed');
     this.protocol.stopHeartbeat();
 
     const response: AtmosphereResponse<T> = {
-      status: event.code,
-      reasonPhrase: event.reason || 'Connection closed',
+      status: 0,
+      reasonPhrase: 'SSE connection lost',
       responseBody: '' as T,
       messages: [],
       headers: {},
       state: 'closed',
-      transport: 'websocket',
+      transport: 'sse',
       error: null,
       request: this.request,
     };
 
     this.notifyClose(response);
+
+    if (this.eventSource) {
+      this.eventSource.close();
+      this.eventSource = null;
+    }
 
     if (
       this.request.reconnect &&
@@ -212,7 +208,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
   }
 
   private handleError(error: Error): void {
-    logger.error('WebSocket error:', error);
+    logger.error('SSE error:', error);
     this.protocol.stopHeartbeat();
     this.notifyError(error);
   }
@@ -221,22 +217,31 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     const delay = this.calculateReconnectDelay();
     this.reconnectAttempts++;
 
-    logger.info(
-      `Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`,
-    );
+    logger.info(`SSE reconnect attempt ${this.reconnectAttempts} in ${delay}ms`);
+
+    this.notifyReconnect(this.request, {
+      status: 0,
+      reasonPhrase: 'Reconnecting',
+      responseBody: '' as T,
+      messages: [],
+      headers: {},
+      state: 'reconnecting',
+      transport: 'sse',
+      error: null,
+      request: this.request,
+    });
 
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();
       this.connect().catch((error) => {
-        logger.error('Reconnection failed:', error);
+        logger.error('SSE reconnection failed:', error);
       });
     }, delay);
   }
 
   private calculateReconnectDelay(): number {
     const baseDelay = this.request.reconnectInterval ?? 1000;
-    const exponentialDelay =
-      baseDelay * Math.pow(2, Math.min(this.reconnectAttempts, 5));
+    const exponentialDelay = baseDelay * Math.pow(2, Math.min(this.reconnectAttempts, 5));
     const jitter = 0.5 + Math.random() * 0.5;
     return exponentialDelay * jitter;
   }

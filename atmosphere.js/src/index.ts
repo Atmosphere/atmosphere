@@ -24,7 +24,13 @@ export type * from './types';
 
 // Export transports for advanced use
 export { WebSocketTransport } from './transports/websocket';
+export { SSETransport } from './transports/sse';
+export { LongPollingTransport } from './transports/long-polling';
+export { StreamingTransport } from './transports/streaming';
 export { BaseTransport } from './transports/base';
+
+// Export protocol utilities
+export { AtmosphereProtocol } from './utils/protocol';
 
 // Export logger for configuration
 export { logger } from './utils/logger';
@@ -33,4 +39,4 @@ export { logger } from './utils/logger';
 export const atmosphere = new Atmosphere();
 
 // Version
-export const VERSION = '5.0.0-alpha.1';
+export { VERSION } from './version';

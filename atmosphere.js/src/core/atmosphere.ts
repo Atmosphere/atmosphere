@@ -20,16 +20,23 @@ import type {
   Subscription,
   SubscriptionHandlers,
   ConnectionState,
+  TransportType,
 } from '../types';
 import { WebSocketTransport } from '../transports/websocket';
+import { SSETransport } from '../transports/sse';
+import { LongPollingTransport } from '../transports/long-polling';
+import { StreamingTransport } from '../transports/streaming';
 import { BaseTransport } from '../transports/base';
 import { logger } from '../utils/logger';
 
 /**
- * Main Atmosphere client class
+ * Main Atmosphere client class.
+ *
+ * Manages subscriptions with automatic transport selection and fallback.
+ * Default fallback chain: WebSocket → SSE → Streaming → Long-Polling.
  */
 export class Atmosphere {
-  readonly version = '5.0.0-alpha.1';
+  readonly version = '5.0.0-alpha.2';
   private subscriptions = new Map<string, Subscription>();
   private subscriptionId = 0;
   private config: AtmosphereConfig;
@@ -42,29 +49,45 @@ export class Atmosphere {
   }
 
   /**
-   * Subscribe to an Atmosphere endpoint
+   * Subscribe to an Atmosphere endpoint.
+   *
+   * If the primary transport fails and `fallbackTransport` is configured,
+   * the client will automatically retry with the fallback transport.
    */
   async subscribe<T = unknown>(
     request: AtmosphereRequest,
     handlers: SubscriptionHandlers<T> = {},
   ): Promise<Subscription> {
     const id = `sub-${++this.subscriptionId}`;
+    const transport = request.transport || this.config.defaultTransport || 'websocket';
+    const fallback = request.fallbackTransport ?? this.config.fallbackTransport;
 
-    logger.info(`Creating subscription ${id} to ${request.url}`);
+    logger.info(`Creating subscription ${id} to ${request.url} via ${transport}`);
 
-    // Select appropriate transport
-    const transport = this.createTransport(request, handlers);
+    const mergedRequest = { ...request, transport };
+    let activeTransport: BaseTransport<T>;
 
-    // Connect
-    await transport.connect();
+    try {
+      activeTransport = this.createTransport(mergedRequest, handlers);
+      await activeTransport.connect();
+    } catch (primaryError) {
+      if (fallback && fallback !== transport) {
+        logger.info(`${transport} failed, falling back to ${fallback}`);
+        const fallbackRequest = { ...mergedRequest, transport: fallback };
+        activeTransport = this.createTransport(fallbackRequest, handlers);
+        await activeTransport.connect();
+      } else {
+        throw primaryError;
+      }
+    }
 
-    // Create subscription object
+    const currentTransport = activeTransport;
     const eventHandlers = new Map<string, Set<(...args: unknown[]) => void>>();
 
     const subscription: Subscription = {
       id,
       get state(): ConnectionState {
-        return transport.state;
+        return currentTransport.state;
       },
       push: (message: string | object | ArrayBuffer) => {
         const data =
@@ -73,10 +96,10 @@ export class Atmosphere {
             : message instanceof ArrayBuffer
               ? message
               : JSON.stringify(message);
-        transport.send(data);
+        currentTransport.send(data);
       },
       close: async () => {
-        await transport.disconnect();
+        await currentTransport.disconnect();
         this.subscriptions.delete(id);
         logger.info(`Subscription ${id} closed`);
       },
@@ -99,7 +122,7 @@ export class Atmosphere {
   }
 
   /**
-   * Close all active subscriptions
+   * Close all active subscriptions.
    */
   async closeAll(): Promise<void> {
     logger.info('Closing all subscriptions');
@@ -110,7 +133,7 @@ export class Atmosphere {
   }
 
   /**
-   * Get all active subscriptions
+   * Get all active subscriptions.
    */
   getSubscriptions(): Subscription[] {
     return Array.from(this.subscriptions.values());
@@ -120,12 +143,17 @@ export class Atmosphere {
     request: AtmosphereRequest,
     handlers: SubscriptionHandlers<T>,
   ): BaseTransport<T> {
-    const transport = request.transport || this.config.defaultTransport || 'websocket';
+    const transport: TransportType = request.transport || this.config.defaultTransport || 'websocket';
 
     switch (transport) {
       case 'websocket':
         return new WebSocketTransport<T>(request, handlers);
-      // TODO: Add other transports (SSE, long-polling, etc.)
+      case 'sse':
+        return new SSETransport<T>(request, handlers);
+      case 'long-polling':
+        return new LongPollingTransport<T>(request, handlers);
+      case 'streaming':
+        return new StreamingTransport<T>(request, handlers);
       default:
         throw new Error(`Unsupported transport: ${transport}`);
     }

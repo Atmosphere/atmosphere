@@ -21,18 +21,24 @@ import type {
   ConnectionState,
 } from '../types';
 import { logger } from '../utils/logger';
+import { AtmosphereProtocol } from '../utils/protocol';
 
 /**
- * Base class for all transport implementations
+ * Base class for all transport implementations.
+ *
+ * Provides protocol handling (handshake, heartbeat, message tracking),
+ * lifecycle notifications, and URL building shared by all transports.
  */
 export abstract class BaseTransport<T = unknown> {
   protected request: AtmosphereRequest;
   protected handlers: SubscriptionHandlers<T>;
   protected _state: ConnectionState = 'disconnected';
+  protected protocol: AtmosphereProtocol;
 
   constructor(request: AtmosphereRequest, handlers: SubscriptionHandlers<T>) {
     this.request = request;
     this.handlers = handlers;
+    this.protocol = new AtmosphereProtocol();
   }
 
   abstract connect(): Promise<void>;
@@ -42,6 +48,11 @@ export abstract class BaseTransport<T = unknown> {
 
   get state(): ConnectionState {
     return this._state;
+  }
+
+  /** The server-assigned UUID for this connection. */
+  get uuid(): string {
+    return this.protocol.uuid;
   }
 
   protected notifyOpen(response: AtmosphereResponse<T>): void {
@@ -71,23 +82,5 @@ export abstract class BaseTransport<T = unknown> {
     this._state = 'reconnecting';
     logger.info(`${this.name} reconnecting...`);
     this.handlers.reconnect?.(request, response);
-  }
-
-  protected buildUrl(baseUrl: string): string {
-    try {
-      const url = new URL(baseUrl, window.location.href);
-
-      // Add headers as query parameters if configured
-      if (this.request.headers) {
-        Object.entries(this.request.headers).forEach(([key, value]) => {
-          url.searchParams.set(key, value);
-        });
-      }
-
-      return url.toString();
-    } catch (error) {
-      logger.error('Failed to build URL:', error);
-      return baseUrl;
-    }
   }
 }

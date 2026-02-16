@@ -184,11 +184,12 @@ describe('WebSocketTransport', () => {
       }
       await connectPromise;
 
+      // Wire format: LENGTH|PAYLOAD (e.g., "4|msg15|hello")
       if (mockWebSocket.onmessage) {
-        mockWebSocket.onmessage({ data: 'msg1|msg2|msg3' });
+        mockWebSocket.onmessage({ data: '4|msg15|hello' });
       }
 
-      expect(mockHandlers.message).toHaveBeenCalledTimes(3);
+      expect(mockHandlers.message).toHaveBeenCalledTimes(2);
     });
   });
 
