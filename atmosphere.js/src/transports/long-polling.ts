@@ -66,9 +66,10 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
 
   send(message: string | ArrayBuffer): void {
     const url = this.protocol.buildUrl(this.request);
-    const data = message instanceof ArrayBuffer
-      ? new Blob([message])
-      : message;
+    const outgoing = this.applyOutgoing(message);
+    const data = outgoing instanceof ArrayBuffer
+      ? new Blob([outgoing])
+      : outgoing;
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
@@ -81,6 +82,10 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
 
   private async poll(isFirst: boolean): Promise<void> {
     if (this.aborted) return;
+    if (this.isMaxRequestReached()) {
+      logger.info('Long-polling maxRequest reached');
+      return;
+    }
 
     return new Promise<void>((resolve, reject) => {
       const url = this.protocol.buildUrl(this.request);
@@ -151,6 +156,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       };
 
       xhr.send(null);
+      this._requestCount++;
     });
   }
 
@@ -169,7 +175,7 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       const response: AtmosphereResponse<T> = {
         status: 200,
         reasonPhrase: 'OK',
-        responseBody: msg as T,
+        responseBody: this.applyIncoming(msg) as T,
         messages: [msg],
         headers: {},
         state: 'messageReceived',
@@ -216,6 +222,8 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
       this.reconnectAttempts < (this.request.maxReconnectOnClose ?? 5)
     ) {
       this.scheduleReconnect();
+    } else if (this._polling && this.request.reconnect) {
+      this.notifyFailureToReconnect(response);
     }
   }
 

@@ -27,6 +27,7 @@ export type ConnectionState =
   | 'connecting'
   | 'connected'
   | 'reconnecting'
+  | 'suspended'
   | 'closed'
   | 'error';
 
@@ -54,9 +55,11 @@ export interface AtmosphereRequest {
   fallbackTransport?: TransportType;
   contentType?: string;
   timeout?: number;
+  connectTimeout?: number;
   reconnect?: boolean;
   reconnectInterval?: number;
   maxReconnectOnClose?: number;
+  maxRequest?: number;
   trackMessageLength?: boolean;
   messageDelimiter?: string;
   enableProtocol?: boolean;
@@ -81,6 +84,12 @@ export interface SubscriptionHandlers<T = unknown> {
   error?: (error: Error) => void;
   reconnect?: (request: AtmosphereRequest, response: AtmosphereResponse<T>) => void;
   clientTimeout?: (request: AtmosphereRequest) => void;
+  /** Called when the primary transport fails and a fallback is attempted. */
+  transportFailure?: (reason: string, request: AtmosphereRequest) => void;
+  /** Called when all reconnection attempts have been exhausted. */
+  failureToReconnect?: (request: AtmosphereRequest, response: AtmosphereResponse<T>) => void;
+  /** Called when a connection is re-established after a disconnect (not on first open). */
+  reopen?: (response: AtmosphereResponse<T>) => void;
 }
 
 /**
@@ -91,6 +100,8 @@ export interface Subscription {
   readonly state: ConnectionState;
   push(message: string | object | ArrayBuffer): void;
   close(): Promise<void>;
+  suspend(): void;
+  resume(): Promise<void>;
   on(event: string, handler: (...args: unknown[]) => void): void;
   off(event: string, handler: (...args: unknown[]) => void): void;
 }
@@ -102,6 +113,21 @@ export interface AtmosphereConfig {
   logLevel?: 'debug' | 'info' | 'warn' | 'error' | 'silent';
   defaultTransport?: TransportType;
   fallbackTransport?: TransportType;
+  interceptors?: AtmosphereInterceptor[];
+}
+
+/**
+ * Request/response interceptor for transforming data in the pipeline.
+ *
+ * Interceptors are applied in order for outgoing messages, and in
+ * reverse order for incoming messages — like a middleware stack.
+ */
+export interface AtmosphereInterceptor {
+  readonly name?: string;
+  /** Transform outgoing message before it is sent. Return the transformed data. */
+  onOutgoing?: (data: string | ArrayBuffer) => string | ArrayBuffer;
+  /** Transform incoming message before it reaches the handler. Return the transformed body. */
+  onIncoming?: (body: string) => string;
 }
 
 /**

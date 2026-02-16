@@ -145,9 +145,10 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
 
   send(message: string | ArrayBuffer): void {
     const url = this.protocol.buildUrl(this.request);
-    const data = message instanceof ArrayBuffer
-      ? new Blob([message])
-      : message;
+    const outgoing = this.applyOutgoing(message);
+    const data = outgoing instanceof ArrayBuffer
+      ? new Blob([outgoing])
+      : outgoing;
 
     const xhr = new XMLHttpRequest();
     xhr.open('POST', url, true);
@@ -189,7 +190,7 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
       const response: AtmosphereResponse<T> = {
         status: 200,
         reasonPhrase: 'OK',
-        responseBody: msg as T,
+        responseBody: this.applyIncoming(msg) as T,
         messages: [msg],
         headers: {},
         state: 'messageReceived',
@@ -224,6 +225,8 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
       this.reconnectAttempts < (this.request.maxReconnectOnClose ?? 5)
     ) {
       this.scheduleReconnect();
+    } else if (!this.aborted && this.request.reconnect) {
+      this.notifyFailureToReconnect(response);
     }
   }
 

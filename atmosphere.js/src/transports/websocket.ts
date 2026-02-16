@@ -88,7 +88,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     if (!this.ws || this.ws.readyState !== WebSocket.OPEN) {
       throw new Error('WebSocket is not connected');
     }
-    this.ws.send(message);
+    this.ws.send(this.applyOutgoing(message));
   }
 
   private buildWebSocketUrl(_url: string): string {
@@ -169,7 +169,7 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
       const response: AtmosphereResponse<T> = {
         status: 200,
         reasonPhrase: 'OK',
-        responseBody: msg as T,
+        responseBody: this.applyIncoming(msg) as T,
         messages: [msg],
         headers: {},
         state: 'messageReceived',
@@ -208,6 +208,8 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
       this.reconnectAttempts < (this.request.maxReconnectOnClose ?? 5)
     ) {
       this.scheduleReconnect();
+    } else if (this.request.reconnect) {
+      this.notifyFailureToReconnect(response);
     }
   }
 
@@ -224,6 +226,18 @@ export class WebSocketTransport<T = unknown> extends BaseTransport<T> {
     logger.info(
       `Scheduling reconnection attempt ${this.reconnectAttempts} in ${delay}ms`,
     );
+
+    this.notifyReconnect(this.request, {
+      status: 0,
+      reasonPhrase: 'Reconnecting',
+      responseBody: '' as T,
+      messages: [],
+      headers: {},
+      state: 'reconnecting',
+      transport: 'websocket',
+      error: null,
+      request: this.request,
+    });
 
     this.reconnectTimer = setTimeout(() => {
       this.protocol.reset();

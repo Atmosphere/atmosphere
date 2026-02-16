@@ -17,6 +17,7 @@
 import type {
   AtmosphereConfig,
   AtmosphereRequest,
+  AtmosphereInterceptor,
   Subscription,
   SubscriptionHandlers,
   ConnectionState,
@@ -52,7 +53,8 @@ export class Atmosphere {
    * Subscribe to an Atmosphere endpoint.
    *
    * If the primary transport fails and `fallbackTransport` is configured,
-   * the client will automatically retry with the fallback transport.
+   * the client will automatically retry with the fallback transport and
+   * notify via the `transportFailure` handler.
    */
   async subscribe<T = unknown>(
     request: AtmosphereRequest,
@@ -69,13 +71,15 @@ export class Atmosphere {
 
     try {
       activeTransport = this.createTransport(mergedRequest, handlers);
-      await activeTransport.connect();
+      await activeTransport.connectWithTimeout();
     } catch (primaryError) {
       if (fallback && fallback !== transport) {
+        const reason = primaryError instanceof Error ? primaryError.message : String(primaryError);
         logger.info(`${transport} failed, falling back to ${fallback}`);
+        handlers.transportFailure?.(reason, mergedRequest);
         const fallbackRequest = { ...mergedRequest, transport: fallback };
         activeTransport = this.createTransport(fallbackRequest, handlers);
-        await activeTransport.connect();
+        await activeTransport.connectWithTimeout();
       } else {
         throw primaryError;
       }
@@ -102,6 +106,12 @@ export class Atmosphere {
         await currentTransport.disconnect();
         this.subscriptions.delete(id);
         logger.info(`Subscription ${id} closed`);
+      },
+      suspend: () => {
+        currentTransport.suspend();
+      },
+      resume: async () => {
+        await currentTransport.resume();
       },
       on: (event: string, handler: (...args: unknown[]) => void) => {
         if (!eventHandlers.has(event)) {
@@ -144,16 +154,17 @@ export class Atmosphere {
     handlers: SubscriptionHandlers<T>,
   ): BaseTransport<T> {
     const transport: TransportType = request.transport || this.config.defaultTransport || 'websocket';
+    const interceptors: AtmosphereInterceptor[] = this.config.interceptors ?? [];
 
     switch (transport) {
       case 'websocket':
-        return new WebSocketTransport<T>(request, handlers);
+        return new WebSocketTransport<T>(request, handlers, interceptors);
       case 'sse':
-        return new SSETransport<T>(request, handlers);
+        return new SSETransport<T>(request, handlers, interceptors);
       case 'long-polling':
-        return new LongPollingTransport<T>(request, handlers);
+        return new LongPollingTransport<T>(request, handlers, interceptors);
       case 'streaming':
-        return new StreamingTransport<T>(request, handlers);
+        return new StreamingTransport<T>(request, handlers, interceptors);
       default:
         throw new Error(`Unsupported transport: ${transport}`);
     }
