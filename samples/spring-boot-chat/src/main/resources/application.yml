@@ -1,2 +1,12 @@
 atmosphere:
   packages: org.atmosphere.samples.springboot.chat
+
+# Expose Atmosphere health and metrics via Actuator
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,metrics
+  endpoint:
+    health:
+      show-details: always

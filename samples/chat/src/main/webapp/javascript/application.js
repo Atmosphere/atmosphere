@@ -42,7 +42,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     try {
         subscription = await atmosphere.atmosphere.subscribe(
             {
-                url: `${window.location.protocol}//${window.location.host}/atmosphere/chat`,
+                url: `${window.location.protocol}//${window.location.host}/chat`,
                 transport: 'websocket',
                 reconnect: true,
                 reconnectInterval: 5000,

@@ -50,26 +50,45 @@
             opacity: 0.9;
             line-height: 1.5;
         }
+
+        .tabs {
+            display: flex;
+            background: #f0f0f0;
+            border-bottom: 1px solid #e9ecef;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 12px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 500;
+            font-size: 13px;
+            color: #666;
+            border-bottom: 3px solid transparent;
+            transition: all 0.2s;
+        }
+
+        .tab:hover { background: #e9ecef; }
+        .tab.active { color: #667eea; border-bottom-color: #667eea; background: white; }
+
+        .tab-panel { display: none; }
+        .tab-panel.active { display: block; }
         
-        #content {
+        #content, #rooms-content, #observability-content {
             height: 400px;
             overflow-y: auto;
             padding: 20px;
             background: #f8f9fa;
         }
         
-        #content::-webkit-scrollbar {
+        #content::-webkit-scrollbar, #rooms-content::-webkit-scrollbar,
+        #observability-content::-webkit-scrollbar {
             width: 8px;
         }
         
-        #content::-webkit-scrollbar-track {
-            background: #e9ecef;
-        }
-        
-        #content::-webkit-scrollbar-thumb {
-            background: #adb5bd;
-            border-radius: 4px;
-        }
+        #content::-webkit-scrollbar-track { background: #e9ecef; }
+        #content::-webkit-scrollbar-thumb { background: #adb5bd; border-radius: 4px; }
         
         #content p {
             background: white;
@@ -99,15 +118,8 @@
             white-space: nowrap;
         }
         
-        #status.connecting {
-            background: #ffc107;
-            color: #000;
-        }
-        
-        #status.connected {
-            background: #28a745;
-            color: white;
-        }
+        #status.connecting { background: #ffc107; color: #000; }
+        #status.connected { background: #28a745; color: white; }
         
         #input {
             flex: 1;
@@ -124,23 +136,180 @@
             box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
         }
         
-        #input:disabled {
-            background: #f8f9fa;
-            cursor: not-allowed;
+        #input:disabled { background: #f8f9fa; cursor: not-allowed; }
+
+        /* Rooms panel */
+        .room-card {
+            background: white;
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
         }
+        .room-card .room-name { font-weight: 600; font-size: 15px; }
+        .room-card .room-meta { color: #888; font-size: 13px; }
+
+        /* Observability panel */
+        .metric-card {
+            background: white;
+            padding: 16px 20px;
+            margin-bottom: 10px;
+            border-radius: 12px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+        }
+        .metric-card .metric-name { font-weight: 600; font-size: 13px; color: #667eea; }
+        .metric-card .metric-value { font-size: 24px; font-weight: 700; margin: 4px 0; }
+        .metric-card .metric-desc { font-size: 12px; color: #888; }
+
+        .health-badge {
+            display: inline-block;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 14px;
+            margin-bottom: 16px;
+        }
+        .health-badge.up { background: #d4edda; color: #155724; }
+        .health-badge.down { background: #f8d7da; color: #721c24; }
+
+        .refresh-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 13px;
+            margin-bottom: 16px;
+        }
+        .refresh-btn:hover { background: #5a6fd6; }
     </style>
 </head>
 <body>
     <div class="container">
         <div id="header">
             <h1>🚀 Atmosphere 4.0 Chat</h1>
-            <p>Spring Boot • JDK 21 Virtual Threads • WebSocket with Long-Polling Fallback</p>
+            <p>Spring Boot • Micrometer Metrics • Rooms &amp; Presence • Health Check</p>
         </div>
-        <div id="content"></div>
-        <div class="input-container">
-            <span id="status" class="connecting">Connecting...</span>
-            <input type="text" id="input" placeholder="Type a message and press Enter..." disabled="disabled"/>
+
+        <div class="tabs">
+            <div class="tab active" data-tab="chat">💬 Chat</div>
+            <div class="tab" data-tab="rooms">🏠 Rooms</div>
+            <div class="tab" data-tab="observability">📊 Observability</div>
+        </div>
+
+        <div id="chat-panel" class="tab-panel active">
+            <div id="content"></div>
+            <div class="input-container">
+                <span id="status" class="connecting">Connecting...</span>
+                <input type="text" id="input" placeholder="Type a message and press Enter..." disabled="disabled"/>
+            </div>
+        </div>
+
+        <div id="rooms-panel" class="tab-panel">
+            <div id="rooms-content">
+                <p style="text-align:center; color:#888;">Loading rooms...</p>
+            </div>
+        </div>
+
+        <div id="observability-panel" class="tab-panel">
+            <div id="observability-content">
+                <p style="text-align:center; color:#888;">Loading metrics...</p>
+            </div>
         </div>
     </div>
+
+    <script>
+    // Tab switching
+    document.querySelectorAll('.tab').forEach(tab => {
+        tab.addEventListener('click', () => {
+            document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+            tab.classList.add('active');
+            document.getElementById(tab.dataset.tab + '-panel').classList.add('active');
+            if (tab.dataset.tab === 'rooms') loadRooms();
+            if (tab.dataset.tab === 'observability') loadObservability();
+        });
+    });
+
+    async function loadRooms() {
+        const container = document.getElementById('rooms-content');
+        try {
+            const res = await fetch('/api/rooms');
+            const rooms = await res.json();
+            if (rooms.length === 0) {
+                container.innerHTML = '<p style="text-align:center;color:#888;">No rooms yet.</p>';
+                return;
+            }
+            container.innerHTML = rooms.map(r =>
+                `<div class="room-card">
+                    <div>
+                        <div class="room-name">🏠 ${r.name}</div>
+                        <div class="room-meta">${r.destroyed ? '🔴 Destroyed' : '🟢 Active'}</div>
+                    </div>
+                    <div class="room-meta">${r.members} member${r.members !== 1 ? 's' : ''}</div>
+                </div>`
+            ).join('');
+        } catch (e) {
+            container.innerHTML = '<p style="color:#dc3545;text-align:center;">Failed to load rooms</p>';
+        }
+    }
+
+    async function loadObservability() {
+        const container = document.getElementById('observability-content');
+        container.innerHTML = '<button class="refresh-btn" onclick="loadObservability()">🔄 Refresh</button>';
+
+        try {
+            // Health
+            const healthRes = await fetch('/actuator/health');
+            const health = await healthRes.json();
+            const atmoHealth = health.components?.atmosphere;
+            const badge = (health.status === 'UP')
+                ? '<span class="health-badge up">✅ Healthy</span>'
+                : '<span class="health-badge down">❌ Unhealthy</span>';
+
+            let html = badge;
+            if (atmoHealth?.details) {
+                const d = atmoHealth.details;
+                html += `<div class="metric-card">
+                    <div class="metric-name">FRAMEWORK</div>
+                    <div class="metric-value">v${d.version || '?'}</div>
+                    <div class="metric-desc">${d.connections || 0} connections • ${d.broadcasters || 0} broadcasters</div>
+                </div>`;
+            }
+
+            // Metrics
+            const metricsToShow = [
+                { name: 'atmosphere.connections.active', label: 'Active Connections', icon: '🔗' },
+                { name: 'atmosphere.connections.total', label: 'Total Connections', icon: '📈' },
+                { name: 'atmosphere.messages.broadcast', label: 'Messages Broadcast', icon: '📡' },
+                { name: 'atmosphere.messages.delivered', label: 'Messages Delivered', icon: '✉️' },
+                { name: 'atmosphere.broadcasters.active', label: 'Active Broadcasters', icon: '📢' },
+            ];
+
+            for (const m of metricsToShow) {
+                try {
+                    const mRes = await fetch(`/actuator/metrics/${m.name}`);
+                    if (mRes.ok) {
+                        const mData = await mRes.json();
+                        const value = mData.measurements?.[0]?.value ?? 'N/A';
+                        html += `<div class="metric-card">
+                            <div class="metric-name">${m.icon} ${m.label.toUpperCase()}</div>
+                            <div class="metric-value">${typeof value === 'number' ? value.toLocaleString() : value}</div>
+                            <div class="metric-desc">${m.name}</div>
+                        </div>`;
+                    }
+                } catch (ignored) {}
+            }
+
+            container.innerHTML = '<button class="refresh-btn" onclick="loadObservability()">🔄 Refresh</button>' + html;
+        } catch (e) {
+            container.innerHTML += '<p style="color:#dc3545;text-align:center;">Failed to load observability data</p>';
+        }
+    }
+    </script>
 </body>
 </html>
