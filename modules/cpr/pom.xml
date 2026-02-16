@@ -147,6 +147,13 @@
             <version>20250517</version>
             <optional>true</optional>
         </dependency>
+
+        <dependency>
+            <groupId>io.micrometer</groupId>
+            <artifactId>micrometer-core</artifactId>
+            <version>1.14.5</version>
+            <optional>true</optional>
+        </dependency>
     </dependencies>
 </project>
 
