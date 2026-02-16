@@ -2,9 +2,9 @@ name: Atmopshere 3.x CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ atmosphere-3.x ]
   pull_request:
-    branches: [ main ]
+    branches: [ atmosphere-3.x ]
 
 jobs:
   build:

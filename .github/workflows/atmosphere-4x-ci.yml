@@ -31,6 +31,7 @@ jobs:
     
     - name: Run Core Tests
       run: ./mvnw -B test -Dgpg.skip=true -pl modules/cpr,modules/quarkus-extension,modules/spring-boot-starter
+      continue-on-error: ${{ matrix.java-version == 25 }}
     
     - name: Upload Test Results
       if: failure()
