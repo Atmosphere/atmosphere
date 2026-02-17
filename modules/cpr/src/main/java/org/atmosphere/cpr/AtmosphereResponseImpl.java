@@ -269,7 +269,8 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     @Override
     public void sendError(int sc, String msg) throws IOException {
         if (forceAsyncIOWriter || !delegateToNativeResponse) {
-            setStatus(sc, msg);
+            setStatus(sc);
+            this.statusMessage = msg;
 
             // Prevent StackOverflow
             boolean b = forceAsyncIOWriter;
@@ -373,20 +374,6 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         if (!delegateToNativeResponse) {
             this.status = status;
         } else {
-            _r().setStatus(status);
-        }
-    }
-
-    /**
-     * @deprecated As of Jakarta Servlet 6.1, this method is removed.
-     */
-    @Deprecated(since = "4.0.0", forRemoval = true)
-    public void setStatus(int status, String statusMessage) {
-        if (!delegateToNativeResponse) {
-            this.statusMessage = statusMessage;
-            this.status = status;
-        } else {
-            // Jakarta Servlet 6.1 removed setStatus(int, String)
             _r().setStatus(status);
         }
     }

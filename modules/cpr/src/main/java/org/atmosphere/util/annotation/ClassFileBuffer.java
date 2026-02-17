@@ -220,14 +220,9 @@ final class ClassFileBuffer implements DataInput {
         return Double.longBitsToDouble(readLong());
     }
 
-    /**
-     * This methods throws an {@link UnsupportedOperationException} because the method
-     * is deprecated and not used in the context of this implementation.
-     */
     @Override
-    @Deprecated
     public String readLine() throws IOException {
-        throw new UnsupportedOperationException("readLine() is deprecated and not supported");
+        throw new UnsupportedOperationException("readLine() is not supported");
     }
 
     @Override

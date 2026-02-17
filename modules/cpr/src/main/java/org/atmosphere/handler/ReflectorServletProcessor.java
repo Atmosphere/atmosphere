@@ -209,28 +209,6 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
      * Set the Servlet class.
      *
      * @return the servletClass
-     * @deprecated - use getServletClassName
-     */
-    @Deprecated
-    public String getServletClass() {
-        return servletClassName;
-    }
-
-    /**
-     * Return the Servlet class name.
-     *
-     * @param servletClass the servletClass to set
-     * @deprecated - use setServletClassName
-     */
-    @Deprecated
-    public void setServletClass(String servletClass) {
-        this.servletClassName = servletClass;
-    }
-
-    /**
-     * Set the Servlet class.
-     *
-     * @return the servletClass
      */
     public String getServletClassName() {
         return servletClassName;

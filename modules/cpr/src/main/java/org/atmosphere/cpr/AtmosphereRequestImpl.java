@@ -685,11 +685,6 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     @Override
-    public LocalAttributes attributes() {
-        return b.localAttributes;
-    }
-
-    @Override
     public HttpSession getSession() {
         return getSession(true);
     }
@@ -1096,20 +1091,6 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         public Builder localPort(int localPort) {
             this.localPort = localPort;
             return this;
-        }
-
-        @Override
-        @Deprecated
-        @SuppressWarnings("unchecked")
-        public Builder remoteInetSocketAddress(Callable<?> remoteAddr) {
-            return remoteInetSocketAddress((Callable<InetSocketAddress>) remoteAddr, false);
-        }
-
-        @Override
-        @Deprecated
-        @SuppressWarnings("unchecked")
-        public Builder localInetSocketAddress(Callable<?> localAddr) {
-            return localInetSocketAddress((Callable<InetSocketAddress>) localAddr, false);
         }
 
         @Override

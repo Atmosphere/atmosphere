@@ -271,23 +271,6 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
     }
 
     /**
-     * Return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}, e.g for which
-     * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} has been called. Note that this
-     * method is not synchronized and may not return all the {@link Broadcaster} in case
-     * {@link Broadcaster#addAtmosphereResource(AtmosphereResource)} is being called concurrently.
-     *
-     * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
-     * @return all {@link Broadcaster} associated with a {@link AtmosphereResource#uuid}
-     * @deprecated Use {@link org.atmosphere.cpr.AtmosphereResourceFactory#find(String)}.broadcasters() instead
-     */
-    @Override
-    @Deprecated
-    public Set<Broadcaster> broadcasters(String uuid) {
-        AtmosphereResource r = find(uuid);
-        return new HashSet<>(r.broadcasters());
-    }
-
-    /**
      * Register an {@link AtmosphereResource} for being a candidate to {@link #find(String)} operation.
      *
      * @param r {@link AtmosphereResource}

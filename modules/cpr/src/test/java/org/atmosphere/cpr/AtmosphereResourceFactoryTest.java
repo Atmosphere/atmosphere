@@ -118,8 +118,7 @@ public class AtmosphereResourceFactoryTest {
         b2.addAtmosphereResource(r);
 
         assertNotNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
-        @SuppressWarnings("deprecation")
-        int size = framework.getAtmosphereConfig().resourcesFactory().broadcasters(r.uuid()).size();
+        int size = framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()).broadcasters().size();
         assertEquals(2, size);
 
     }

@@ -137,14 +137,6 @@ public class QueryStringDecoder {
     }
 
     /**
-     * @deprecated Use {@link #QueryStringDecoder(String, Charset)} instead.
-     */
-    @Deprecated
-    public QueryStringDecoder(String uri, String charset) {
-        this(uri, Charset.forName(charset));
-    }
-
-    /**
      * Creates a new decoder that decodes the specified URI. The decoder will
      * assume that the query string is encoded in UTF-8.
      */
@@ -191,14 +183,6 @@ public class QueryStringDecoder {
         this.charset = charset;
         this.maxParams = maxParams;
 
-    }
-
-    /**
-     * @deprecated Use {@link #QueryStringDecoder(URI, Charset)} instead.
-     */
-    @Deprecated
-    public QueryStringDecoder(URI uri, String charset) {
-        this(uri, Charset.forName(charset));
     }
 
     /**

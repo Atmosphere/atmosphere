@@ -341,15 +341,6 @@ public interface AtmosphereRequest extends HttpServletRequest {
     void removeAttribute(String name);
 
     /**
-     * Return the locally added attributes.
-     *
-     * @return the locally added attributes
-     * @deprecated Use {@link #localAttributes()}
-     */
-    @Deprecated
-    LocalAttributes attributes();
-
-    /**
      * {@inheritDoc}
      */
     @Override
@@ -635,18 +626,6 @@ public interface AtmosphereRequest extends HttpServletRequest {
         Builder localName(String localName);
 
         Builder localPort(int localPort);
-
-        /**
-         * @deprecated use {@link #remoteInetSocketAddress(Callable, boolean)} instead
-         */
-        @Deprecated
-        Builder remoteInetSocketAddress(Callable<?> remoteAddr);
-
-        /**
-         * @deprecated use {@link #localInetSocketAddress(Callable, boolean)} instead
-         */
-        @Deprecated
-        Builder localInetSocketAddress(Callable<?> localAddr);
 
         Builder remoteInetSocketAddress(Callable<InetSocketAddress> remoteAddr, boolean disableDnsLookup);
 
