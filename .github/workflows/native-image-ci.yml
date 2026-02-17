@@ -1,0 +1,119 @@
+name: Native Image CI
+
+on:
+  push:
+    branches: [ main ]
+    paths:
+      - 'modules/cpr/**'
+      - 'modules/spring-boot-starter/**'
+      - 'modules/quarkus-extension/**'
+      - 'samples/spring-boot-chat/**'
+      - 'samples/quarkus-chat/**'
+      - '.github/workflows/native-image-ci.yml'
+  pull_request:
+    branches: [ main ]
+    paths:
+      - 'modules/cpr/**'
+      - 'modules/spring-boot-starter/**'
+      - 'modules/quarkus-extension/**'
+      - 'samples/spring-boot-chat/**'
+      - 'samples/quarkus-chat/**'
+      - '.github/workflows/native-image-ci.yml'
+
+jobs:
+  spring-boot-native:
+    name: Spring Boot Native Image
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up GraalVM 21
+      uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: '21'
+        distribution: 'graalvm'
+        cache: 'maven'
+
+    - name: Install Atmosphere Modules
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/spring-boot-starter -am
+
+    - name: Build Spring Boot Native Image
+      run: ./mvnw -B -Pnative package -DskipTests -Dgpg.skip=true -pl samples/spring-boot-chat
+      timeout-minutes: 20
+
+    - name: Verify Native Binary Exists
+      run: |
+        ls -lh samples/spring-boot-chat/target/atmosphere-spring-boot-chat
+        file samples/spring-boot-chat/target/atmosphere-spring-boot-chat
+
+    - name: Smoke Test Native Binary
+      run: |
+        samples/spring-boot-chat/target/atmosphere-spring-boot-chat &
+        PID=$!
+        # Wait for startup (native images start fast)
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:8080/actuator/health > /dev/null 2>&1; then
+            echo "Application started successfully"
+            kill $PID
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Application failed to start within 30 seconds"
+        kill $PID 2>/dev/null || true
+        exit 1
+
+    - name: Upload Native Binary
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: spring-boot-native-artifacts
+        path: samples/spring-boot-chat/target/
+
+  quarkus-native:
+    name: Quarkus Native Image
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+
+    - name: Set up GraalVM 21
+      uses: graalvm/setup-graalvm@v1
+      with:
+        java-version: '21'
+        distribution: 'graalvm'
+        cache: 'maven'
+
+    - name: Install Atmosphere Modules
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment -am
+
+    - name: Build Quarkus Native Image
+      run: ./mvnw -B -Pnative package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat
+      timeout-minutes: 20
+
+    - name: Verify Native Binary Exists
+      run: |
+        ls -lh samples/quarkus-chat/target/*-runner
+        file samples/quarkus-chat/target/*-runner
+
+    - name: Smoke Test Native Binary
+      run: |
+        samples/quarkus-chat/target/*-runner &
+        PID=$!
+        for i in $(seq 1 30); do
+          if curl -sf http://localhost:8080/ > /dev/null 2>&1; then
+            echo "Application started successfully"
+            kill $PID
+            exit 0
+          fi
+          sleep 1
+        done
+        echo "Application failed to start within 30 seconds"
+        kill $PID 2>/dev/null || true
+        exit 1
+
+    - name: Upload Native Binary
+      if: failure()
+      uses: actions/upload-artifact@v4
+      with:
+        name: quarkus-native-artifacts
+        path: samples/quarkus-chat/target/
