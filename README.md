@@ -1,7 +1,5 @@
 ## Atmosphere 4.0: Modern Real-Time Java with JDK 21+
 
-> ⚠️ **EXPERIMENTAL BUILD** - Atmosphere 4.0 is a complete rewrite leveraging JDK 21+ features including Virtual Threads, Structured Concurrency, and modern APIs. This is a preview release for early adopters.
-
 Atmosphere 4.0 brings cutting-edge Java platform features to real-time web applications. Built on JDK 21-25 with Virtual Threads at its core, offering WebSocket with intelligent fallback to SSE and Long-Polling.
 
 [![Atmosphere CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
@@ -126,7 +124,7 @@ For Tomcat, Jetty, Undertow, or any Servlet 3.0+ container:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <version>3.1.0</version>
+    <version>4.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -150,7 +148,7 @@ Modules: runtime, jersey, spring, kafka, guice, redis, hazelcast, jms, rabbitmq,
 
 | Branch | Java | Spring Boot | Quarkus |
 |--------|------|-------------|---------|
-| 3.1.x (main) | 17+ | 4.0.2+ | 3.21+ |
+| 4.0.x (main) | 21+ | 4.0.2+ | 3.21+ |
 | 2.7.x | 8 -- 25 | -- | -- |
 
 ### Documentation
