@@ -18,8 +18,10 @@ package org.atmosphere.quarkus.deployment;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import io.quarkus.deployment.annotations.BuildProducer;
 import io.quarkus.deployment.annotations.BuildStep;
@@ -28,6 +30,7 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.IndexDependencyBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.undertow.deployment.IgnoredServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
@@ -144,11 +147,14 @@ class AtmosphereProcessor {
 
         reflectiveClasses.produce(
                 ReflectiveClassBuildItem.builder(
+                                // Quarkus runtime classes
                                 "org.atmosphere.quarkus.runtime.QuarkusAtmosphereObjectFactory",
                                 "org.atmosphere.quarkus.runtime.QuarkusAtmosphereServlet",
                                 "org.atmosphere.quarkus.runtime.QuarkusJSR356AsyncSupport",
                                 "org.atmosphere.quarkus.runtime.LazyAtmosphereConfigurator",
+                                // JSR-356 WebSocket endpoint
                                 "org.atmosphere.container.JSR356Endpoint",
+                                // Core framework classes
                                 "org.atmosphere.cpr.AtmosphereFramework",
                                 "org.atmosphere.cpr.DefaultBroadcaster",
                                 "org.atmosphere.cpr.DefaultBroadcasterFactory",
@@ -156,12 +162,90 @@ class AtmosphereProcessor {
                                 "org.atmosphere.cpr.DefaultMetaBroadcaster",
                                 "org.atmosphere.cpr.DefaultAtmosphereResourceSessionFactory",
                                 "org.atmosphere.inject.InjectableObjectFactory",
-                                "org.atmosphere.inject.AtmosphereProducers")
+                                "org.atmosphere.inject.AtmosphereProducers",
+                                // Injectable SPI implementations (loaded via ServiceLoader)
+                                "org.atmosphere.inject.AtmosphereConfigInjectable",
+                                "org.atmosphere.inject.AtmosphereFrameworkInjectable",
+                                "org.atmosphere.inject.AtmosphereResourceFactoryInjectable",
+                                "org.atmosphere.inject.AtmosphereResourceSessionFactoryInjectable",
+                                "org.atmosphere.inject.BroadcasterFactoryInjectable",
+                                "org.atmosphere.inject.MetaBroadcasterInjectable",
+                                "org.atmosphere.inject.WebSocketFactoryInjectable",
+                                "org.atmosphere.inject.PostConstructIntrospector",
+                                "org.atmosphere.inject.BroadcasterIntrospector",
+                                "org.atmosphere.inject.AtmosphereResourceIntrospector",
+                                "org.atmosphere.inject.AtmosphereRequestIntrospector",
+                                "org.atmosphere.inject.AtmosphereResponseIntrospector",
+                                "org.atmosphere.inject.AtmosphereResourceEventIntrospector",
+                                "org.atmosphere.inject.PathParamIntrospector",
+                                // Core classes instantiated via newClassInstance / getDeclaredConstructor
+                                "org.atmosphere.cpr.AtmosphereResourceImpl",
+                                "org.atmosphere.cpr.AtmosphereRequestImpl",
+                                "org.atmosphere.cpr.AtmosphereResponseImpl",
+                                "org.atmosphere.config.managed.ManagedAtmosphereHandler",
+                                "org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor",
+                                "org.atmosphere.inject.DefaultAtmosphereObjectFactory",
+                                // AsyncSupport implementations (resolved by DefaultAsyncSupportResolver)
+                                "org.atmosphere.container.JSR356AsyncSupport",
+                                "org.atmosphere.container.Servlet30CometSupport",
+                                // Pool implementations (configurable via ApplicationConfig.POOLEABLE_PROVIDER)
+                                "org.atmosphere.pool.UnboundedApachePoolableProvider",
+                                "org.atmosphere.pool.BoundedApachePoolableProvider",
+                                // WebSocket internals
+                                "org.atmosphere.websocket.DefaultWebSocketProcessor",
+                                "org.atmosphere.websocket.DefaultWebSocketFactory",
+                                // Protocol
+                                "org.atmosphere.cpr.SimpleHttpProtocol")
                         .constructors()
                         .methods()
                         .fields()
                         .reason("Atmosphere core classes require reflection")
                         .build());
+    }
+
+    @BuildStep
+    void registerServiceResources(BuildProducer<NativeImageResourceBuildItem> resources) {
+        resources.produce(new NativeImageResourceBuildItem(
+                "META-INF/services/org.atmosphere.inject.Injectable",
+                "META-INF/services/org.atmosphere.inject.CDIProducer"));
+    }
+
+    @BuildStep
+    void registerEncoderDecoderClasses(CombinedIndexBuildItem combinedIndex,
+                                       BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
+        IndexView index = combinedIndex.getIndex();
+        Set<String> classes = new HashSet<>();
+
+        // @Message has encoders() and decoders()
+        var messageName = DotName.createSimple("org.atmosphere.config.service.Message");
+        for (AnnotationInstance ann : index.getAnnotations(messageName)) {
+            extractClassArrayValues(ann, "encoders", classes);
+            extractClassArrayValues(ann, "decoders", classes);
+        }
+
+        // @Ready has encoders() only
+        var readyName = DotName.createSimple("org.atmosphere.config.service.Ready");
+        for (AnnotationInstance ann : index.getAnnotations(readyName)) {
+            extractClassArrayValues(ann, "encoders", classes);
+        }
+
+        if (!classes.isEmpty()) {
+            reflectiveClasses.produce(
+                    ReflectiveClassBuildItem.builder(classes.toArray(new String[0]))
+                            .constructors()
+                            .methods()
+                            .reason("Atmosphere Encoder/Decoder classes from @Message/@Ready")
+                            .build());
+        }
+    }
+
+    private void extractClassArrayValues(AnnotationInstance ann, String member, Set<String> out) {
+        var value = ann.value(member);
+        if (value != null) {
+            for (var type : value.asClassArray()) {
+                out.add(type.name().toString());
+            }
+        }
     }
 
     /**
