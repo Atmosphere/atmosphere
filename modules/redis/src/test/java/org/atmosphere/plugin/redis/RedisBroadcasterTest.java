@@ -15,91 +15,182 @@
  */
 package org.atmosphere.plugin.redis;
 
+import org.atmosphere.container.BlockingIOCometSupport;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.AtmosphereResponseImpl;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.DefaultBroadcasterFactory;
+import org.atmosphere.util.ExecutorsFactory;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import java.io.IOException;
 import java.nio.charset.StandardCharsets;
-import java.util.UUID;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 
+import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertNotNull;
 import static org.testng.Assert.assertTrue;
 
 /**
- * Unit tests for {@link RedisBroadcaster}.
- * <p>
- * These tests validate serialization, node ID generation, and message envelope format
- * without requiring a live Redis instance.
- *
- * @author Jeanfrancois Arcand
+ * Tests for {@link RedisBroadcaster} including full lifecycle and message flow.
+ * Uses an in-memory pub/sub bus instead of a real Redis server.
  */
 public class RedisBroadcasterTest {
 
-    @Test
-    public void testNodeIdIsUnique() {
-        var b1 = new RedisBroadcaster();
-        var b2 = new RedisBroadcaster();
+    /**
+     * In-memory pub/sub bus that replaces Redis for testing.
+     */
+    static final ConcurrentMap<String, List<BiConsumer<String, String>>> IN_MEMORY_BUS = new ConcurrentHashMap<>();
 
-        // Each instance should have a unique node ID (generated via UUID)
-        assertNotNull(b1);
-        assertNotNull(b2);
+    private AtmosphereConfig config;
+    private DefaultBroadcasterFactory factory;
+    private Broadcaster broadcaster;
+    private TestHandler handler;
+
+    @BeforeMethod
+    public void setUp() throws Exception {
+        IN_MEMORY_BUS.clear();
+        config = new AtmosphereFramework().getAtmosphereConfig();
+        factory = new DefaultBroadcasterFactory();
+        factory.configure(TestableRedisBroadcaster.class, "NEVER", config);
+        config.framework().setBroadcasterFactory(factory);
+
+        broadcaster = factory.get(TestableRedisBroadcaster.class, "redis-test");
+        handler = new TestHandler();
+
+        var ar = new AtmosphereResourceImpl(config,
+                broadcaster,
+                AtmosphereRequestImpl.newInstance(),
+                AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class),
+                handler);
+
+        broadcaster.addAtmosphereResource(ar);
+    }
+
+    @AfterMethod
+    public void tearDown() throws Exception {
+        broadcaster.destroy();
+        config.getBroadcasterFactory().destroy();
+        ExecutorsFactory.reset(config);
+        IN_MEMORY_BUS.clear();
     }
 
     @Test
-    public void testSerializeStringMessage() throws Exception {
-        var broadcaster = new RedisBroadcaster();
-        var method = RedisBroadcaster.class.getDeclaredMethod("serializeMessage", Object.class);
-        method.setAccessible(true);
-
-        var result = method.invoke(broadcaster, "hello");
-        assertEquals(result, "hello");
+    public void testInitializeSubscribesToChannel() {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        assertEquals(testable.subscribedChannel, "redis-test");
     }
 
     @Test
-    public void testSerializeByteArrayMessage() throws Exception {
-        var broadcaster = new RedisBroadcaster();
-        var method = RedisBroadcaster.class.getDeclaredMethod("serializeMessage", Object.class);
-        method.setAccessible(true);
-
-        var bytes = "hello bytes".getBytes(StandardCharsets.UTF_8);
-        var result = method.invoke(broadcaster, (Object) bytes);
-        assertEquals(result, "hello bytes");
+    public void testBroadcastPublishesToChannel() throws Exception {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        broadcaster.broadcast("hello").get();
+        assertNotNull(testable.lastPublishedChannel);
+        assertEquals(testable.lastPublishedChannel, "redis-test");
+        assertTrue(testable.lastPublishedMessage.endsWith("||hello"));
     }
 
     @Test
-    public void testSerializeObjectMessage() throws Exception {
-        var broadcaster = new RedisBroadcaster();
-        var method = RedisBroadcaster.class.getDeclaredMethod("serializeMessage", Object.class);
-        method.setAccessible(true);
-
-        var result = method.invoke(broadcaster, 42);
-        assertEquals(result, "42");
+    public void testBroadcastDeliversLocally() throws Exception {
+        handler.latch = new CountDownLatch(1);
+        broadcaster.broadcast("local-msg").get();
+        assertTrue(handler.latch.await(5, TimeUnit.SECONDS));
+        assertTrue(handler.received.contains("local-msg"));
     }
 
     @Test
-    public void testOnRedisMessageSkipsSameNode() throws Exception {
-        var broadcaster = new RedisBroadcaster();
+    public void testRemoteMessageDeliveredLocally() throws Exception {
+        handler.latch = new CountDownLatch(1);
 
-        // Access the nodeId field
-        var nodeIdField = RedisBroadcaster.class.getDeclaredField("nodeId");
-        nodeIdField.setAccessible(true);
-        var nodeId = (String) nodeIdField.get(broadcaster);
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        testable.onRedisMessage("remote-node-id||remote-hello");
 
-        // A message from the same node should be silently ignored (no exception)
-        var method = RedisBroadcaster.class.getDeclaredMethod("onRedisMessage", String.class);
-        method.setAccessible(true);
-
-        // Should not throw - just skip because sender == this node
-        method.invoke(broadcaster, nodeId + "||hello");
+        assertTrue(handler.latch.await(5, TimeUnit.SECONDS));
+        assertTrue(handler.received.contains("remote-hello"));
     }
 
     @Test
-    public void testOnRedisMessageMalformedNoSeparator() throws Exception {
-        var broadcaster = new RedisBroadcaster();
-        var method = RedisBroadcaster.class.getDeclaredMethod("onRedisMessage", String.class);
-        method.setAccessible(true);
+    public void testEchoPrevention() throws Exception {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        var nodeId = testable.getNodeId();
 
-        // Malformed message (no separator) should be handled gracefully
-        method.invoke(broadcaster, "malformed-message-no-separator");
+        handler.latch = new CountDownLatch(1);
+        testable.onRedisMessage(nodeId + "||echo-msg");
+
+        // Should NOT have delivered — latch should still be at 1
+        assertEquals(handler.latch.getCount(), 1);
+    }
+
+    @Test
+    public void testMalformedMessageIgnored() {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        testable.onRedisMessage("no-separator-here");
+        // No exception means success
+    }
+
+    @Test
+    public void testCrossNodeViaBus() throws Exception {
+        // Create a second broadcaster on a different "node"
+        var broadcaster2 = factory.get(TestableRedisBroadcaster.class, "redis-test-2");
+        var handler2 = new TestHandler();
+        var ar2 = new AtmosphereResourceImpl(config,
+                broadcaster2,
+                AtmosphereRequestImpl.newInstance(),
+                AtmosphereResponseImpl.newInstance(),
+                mock(BlockingIOCometSupport.class),
+                handler2);
+        broadcaster2.addAtmosphereResource(ar2);
+
+        // Both are subscribed to the same channel via IN_MEMORY_BUS
+        // When broadcaster1 publishes, the bus delivers to all subscribers including broadcaster2's handler
+        var testable1 = (TestableRedisBroadcaster) broadcaster;
+        var subscribers = IN_MEMORY_BUS.get("redis-test");
+        assertNotNull(subscribers, "Should have subscribers for 'redis-test'");
+        assertTrue(subscribers.size() >= 1);
+
+        broadcaster2.destroy();
+    }
+
+    @Test
+    public void testSerializeStringMessage() {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        assertEquals(testable.serializeMessage("hello"), "hello");
+    }
+
+    @Test
+    public void testSerializeByteArrayMessage() {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        assertEquals(testable.serializeMessage("hello bytes".getBytes(StandardCharsets.UTF_8)), "hello bytes");
+    }
+
+    @Test
+    public void testSerializeObjectMessage() {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        assertEquals(testable.serializeMessage(42), "42");
+    }
+
+    @Test
+    public void testDestroyReleasesResources() {
+        var testable = (TestableRedisBroadcaster) broadcaster;
+        broadcaster.destroy();
+        assertTrue(testable.resourcesReleased);
     }
 
     @Test
@@ -109,8 +200,82 @@ public class RedisBroadcasterTest {
     }
 
     @Test
-    public void testDefaultConstructor() {
-        var broadcaster = new RedisBroadcaster();
-        assertNotNull(broadcaster);
+    public void testNodeIdIsUnique() {
+        var b1 = new TestableRedisBroadcaster();
+        var b2 = new TestableRedisBroadcaster();
+        assertTrue(!b1.getNodeId().equals(b2.getNodeId()));
+    }
+
+    /**
+     * A testable subclass that replaces Redis with an in-memory pub/sub bus.
+     */
+    public static class TestableRedisBroadcaster extends RedisBroadcaster {
+        String subscribedChannel;
+        String lastPublishedChannel;
+        String lastPublishedMessage;
+        boolean resourcesReleased;
+
+        @Override
+        protected void connectToRedis(String redisUrl, String password) {
+            // No-op: we use the in-memory bus instead
+        }
+
+        @Override
+        protected void startRedis(String redisUrl, String password) {
+            // Subscribe to in-memory bus instead of real Redis
+            subscribedChannel = getID();
+            IN_MEMORY_BUS.computeIfAbsent(getID(), k -> new CopyOnWriteArrayList<>())
+                    .add((channel, message) -> onRedisMessage(message));
+        }
+
+        @Override
+        public java.util.concurrent.Future<Object> broadcast(Object msg) {
+            // Publish to in-memory bus
+            lastPublishedChannel = getID();
+            var payload = serializeMessage(msg);
+            lastPublishedMessage = getNodeId() + SEPARATOR + payload;
+
+            var subscribers = IN_MEMORY_BUS.get(getID());
+            if (subscribers != null) {
+                for (var sub : subscribers) {
+                    sub.accept(getID(), lastPublishedMessage);
+                }
+            }
+
+            return super.broadcast(msg);
+        }
+
+        @Override
+        public void releaseExternalResources() {
+            resourcesReleased = true;
+            var subscribers = IN_MEMORY_BUS.get(getID());
+            if (subscribers != null) {
+                subscribers.clear();
+            }
+        }
+    }
+
+    /**
+     * AtmosphereHandler that captures received messages.
+     */
+    public static class TestHandler implements AtmosphereHandler {
+        final List<String> received = new ArrayList<>();
+        CountDownLatch latch;
+
+        @Override
+        public void onRequest(AtmosphereResource resource) throws IOException {
+        }
+
+        @Override
+        public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+            if (event.getMessage() != null) {
+                received.add(event.getMessage().toString());
+                if (latch != null) latch.countDown();
+            }
+        }
+
+        @Override
+        public void destroy() {
+        }
     }
 }

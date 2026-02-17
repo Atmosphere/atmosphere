@@ -19,7 +19,6 @@ import io.lettuce.core.RedisClient;
 import io.lettuce.core.RedisURI;
 import io.lettuce.core.pubsub.RedisPubSubAdapter;
 import io.lettuce.core.pubsub.StatefulRedisPubSubConnection;
-import io.lettuce.core.pubsub.api.sync.RedisPubSubCommands;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
@@ -49,7 +48,7 @@ import java.util.concurrent.Future;
 public class RedisBroadcaster extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisBroadcaster.class);
-    private static final String SEPARATOR = "||";
+    static final String SEPARATOR = "||";
 
     public static final String REDIS_URL = "org.atmosphere.redis.url";
     public static final String REDIS_PASSWORD = "org.atmosphere.redis.password";
@@ -70,14 +69,16 @@ public class RedisBroadcaster extends DefaultBroadcaster {
         var redisUrl = config.getInitParameter(REDIS_URL, "redis://localhost:6379");
         var password = config.getInitParameter(REDIS_PASSWORD);
 
-        var redisUri = RedisURI.create(redisUrl);
-        if (password != null && !password.isEmpty()) {
-            redisUri.setPassword(password.toCharArray());
-        }
+        startRedis(redisUrl, password);
 
-        redisClient = RedisClient.create(redisUri);
-        pubConnection = redisClient.connectPubSub();
-        subConnection = redisClient.connectPubSub();
+        return this;
+    }
+
+    /**
+     * Start Redis connections and subscribe to the channel. Override in tests to skip real Redis.
+     */
+    protected void startRedis(String redisUrl, String password) {
+        connectToRedis(redisUrl, password);
 
         subConnection.addListener(new RedisPubSubAdapter<>() {
             @Override
@@ -88,8 +89,19 @@ public class RedisBroadcaster extends DefaultBroadcaster {
 
         subConnection.sync().subscribe(getID());
         logger.info("RedisBroadcaster {} subscribed to Redis channel '{}'", nodeId, getID());
+    }
 
-        return this;
+    /**
+     * Connect to Redis. Override in tests to inject mock connections.
+     */
+    protected void connectToRedis(String redisUrl, String password) {
+        var redisUri = RedisURI.create(redisUrl);
+        if (password != null && !password.isEmpty()) {
+            redisUri.setPassword(password.toCharArray());
+        }
+        redisClient = RedisClient.create(redisUri);
+        pubConnection = redisClient.connectPubSub();
+        subConnection = redisClient.connectPubSub();
     }
 
     @Override
@@ -135,7 +147,7 @@ public class RedisBroadcaster extends DefaultBroadcaster {
         }
     }
 
-    private void onRedisMessage(String envelope) {
+    void onRedisMessage(String envelope) {
         var separatorIndex = envelope.indexOf(SEPARATOR);
         if (separatorIndex < 0) {
             logger.warn("Malformed Redis message received on channel '{}': no separator", getID());
@@ -144,7 +156,6 @@ public class RedisBroadcaster extends DefaultBroadcaster {
 
         var senderId = envelope.substring(0, separatorIndex);
         if (nodeId.equals(senderId)) {
-            // Skip messages originating from this node
             return;
         }
 
@@ -153,7 +164,11 @@ public class RedisBroadcaster extends DefaultBroadcaster {
         super.broadcast(deserializeMessage(payload));
     }
 
-    private String serializeMessage(Object msg) {
+    String getNodeId() {
+        return nodeId;
+    }
+
+    String serializeMessage(Object msg) {
         return switch (msg) {
             case String s -> s;
             case byte[] bytes -> new String(bytes, StandardCharsets.UTF_8);
@@ -161,7 +176,7 @@ public class RedisBroadcaster extends DefaultBroadcaster {
         };
     }
 
-    private Object deserializeMessage(String payload) {
+    Object deserializeMessage(String payload) {
         return payload;
     }
 }

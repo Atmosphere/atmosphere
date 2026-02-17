@@ -61,7 +61,7 @@ import java.util.concurrent.atomic.AtomicBoolean;
 public class KafkaBroadcaster extends DefaultBroadcaster {
 
     private static final Logger logger = LoggerFactory.getLogger(KafkaBroadcaster.class);
-    private static final String NODE_ID_HEADER = "atmosphere-node-id";
+    static final String NODE_ID_HEADER = "atmosphere-node-id";
 
     public static final String KAFKA_BOOTSTRAP_SERVERS = "org.atmosphere.kafka.bootstrap.servers";
     public static final String KAFKA_TOPIC_PREFIX = "org.atmosphere.kafka.topic.prefix";
@@ -88,21 +88,17 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
 
         topicName = topicPrefix + sanitizeTopicName(getID());
 
-        producer = new KafkaProducer<>(Map.of(
-                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName(),
-                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName(),
-                ProducerConfig.ACKS_CONFIG, "1"
-        ));
+        startKafka(bootstrapServers, groupId);
 
-        consumer = new KafkaConsumer<>(Map.of(
-                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
-                ConsumerConfig.GROUP_ID_CONFIG, groupId,
-                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName(),
-                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
-                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest",
-                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true"
-        ));
+        return this;
+    }
+
+    /**
+     * Start Kafka producer and consumer. Override in tests to skip real Kafka connections.
+     */
+    protected void startKafka(String bootstrapServers, String groupId) {
+        producer = createProducer(bootstrapServers);
+        consumer = createConsumer(bootstrapServers, groupId);
 
         consumer.subscribe(List.of(topicName));
         consuming.set(true);
@@ -112,8 +108,32 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
                 .start(this::consumeLoop);
 
         logger.info("KafkaBroadcaster {} subscribed to Kafka topic '{}'", nodeId, topicName);
+    }
 
-        return this;
+    /**
+     * Create the Kafka producer. Override in tests to provide a mock.
+     */
+    protected KafkaProducer<String, byte[]> createProducer(String bootstrapServers) {
+        return new KafkaProducer<>(Map.of(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG, StringSerializer.class.getName(),
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG, ByteArraySerializer.class.getName(),
+                ProducerConfig.ACKS_CONFIG, "1"
+        ));
+    }
+
+    /**
+     * Create the Kafka consumer. Override in tests to provide a mock.
+     */
+    protected KafkaConsumer<String, byte[]> createConsumer(String bootstrapServers, String groupId) {
+        return new KafkaConsumer<>(Map.of(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, bootstrapServers,
+                ConsumerConfig.GROUP_ID_CONFIG, groupId,
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer.class.getName(),
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, ByteArrayDeserializer.class.getName(),
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "latest",
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG, "true"
+        ));
     }
 
     @Override
@@ -148,7 +168,7 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
         logger.info("KafkaBroadcaster {} released Kafka resources for topic '{}'", nodeId, topicName);
     }
 
-    private void publishToKafka(Object msg) {
+    void publishToKafka(Object msg) {
         try {
             var payload = serializeMessage(msg);
             var record = new ProducerRecord<>(topicName, getID(), payload);
@@ -187,7 +207,15 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
         }
     }
 
-    private String extractNodeId(org.apache.kafka.common.header.Headers headers) {
+    String getNodeId() {
+        return nodeId;
+    }
+
+    String getTopicName() {
+        return topicName;
+    }
+
+    String extractNodeId(org.apache.kafka.common.header.Headers headers) {
         Header header = headers.lastHeader(NODE_ID_HEADER);
         if (header != null) {
             return new String(header.value(), StandardCharsets.UTF_8);
@@ -195,7 +223,7 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
         return null;
     }
 
-    private byte[] serializeMessage(Object msg) {
+    byte[] serializeMessage(Object msg) {
         return switch (msg) {
             case byte[] bytes -> bytes;
             case String s -> s.getBytes(StandardCharsets.UTF_8);
@@ -207,7 +235,7 @@ public class KafkaBroadcaster extends DefaultBroadcaster {
      * Sanitize broadcaster ID to be a valid Kafka topic name.
      * Kafka topics allow alphanumerics, dots, hyphens, and underscores.
      */
-    private String sanitizeTopicName(String id) {
+    static String sanitizeTopicName(String id) {
         return id.replaceAll("[^a-zA-Z0-9._\\-]", "_");
     }
 }

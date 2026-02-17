@@ -49,7 +49,7 @@ import static org.atmosphere.plugin.redis.RedisBroadcaster.REDIS_URL;
 public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
 
     private static final Logger logger = LoggerFactory.getLogger(RedisClusterBroadcastFilter.class);
-    private static final String SEPARATOR = "||";
+    static final String SEPARATOR = "||";
 
     private final String nodeId = UUID.randomUUID().toString();
 
@@ -58,23 +58,13 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
     private StatefulRedisPubSubConnection<String, String> subConnection;
     private Broadcaster broadcaster;
     private String uri;
-    private AtmosphereConfig config;
 
     @Override
     public void init(AtmosphereConfig config) {
-        this.config = config;
-
         var redisUrl = config.getInitParameter(REDIS_URL, "redis://localhost:6379");
         var password = config.getInitParameter(REDIS_PASSWORD);
 
-        var redisUri = RedisURI.create(redisUrl);
-        if (password != null && !password.isEmpty()) {
-            redisUri.setPassword(password.toCharArray());
-        }
-
-        redisClient = RedisClient.create(redisUri);
-        pubConnection = redisClient.connectPubSub();
-        subConnection = redisClient.connectPubSub();
+        connectToRedis(redisUrl, password);
 
         subConnection.addListener(new RedisPubSubAdapter<>() {
             @Override
@@ -84,6 +74,19 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
         });
 
         logger.info("RedisClusterBroadcastFilter {} initialized", nodeId);
+    }
+
+    /**
+     * Connect to Redis. Override in tests to inject mock connections.
+     */
+    protected void connectToRedis(String redisUrl, String password) {
+        var redisUri = RedisURI.create(redisUrl);
+        if (password != null && !password.isEmpty()) {
+            redisUri.setPassword(password.toCharArray());
+        }
+        redisClient = RedisClient.create(redisUri);
+        pubConnection = redisClient.connectPubSub();
+        subConnection = redisClient.connectPubSub();
     }
 
     @Override
@@ -140,6 +143,10 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
         return broadcaster;
     }
 
+    String getNodeId() {
+        return nodeId;
+    }
+
     private void publishToRedis(Object msg) {
         if (broadcaster == null) return;
         try {
@@ -152,7 +159,7 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
         }
     }
 
-    private void onRedisMessage(String envelope) {
+    void onRedisMessage(String envelope) {
         var separatorIndex = envelope.indexOf(SEPARATOR);
         if (separatorIndex < 0) {
             logger.warn("Malformed Redis message: no separator");
@@ -171,7 +178,7 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
         }
     }
 
-    private String serializeMessage(Object msg) {
+    String serializeMessage(Object msg) {
         return switch (msg) {
             case String s -> s;
             case byte[] bytes -> new String(bytes, StandardCharsets.UTF_8);
