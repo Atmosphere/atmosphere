@@ -1,0 +1,72 @@
+#!/bin/bash
+# Pre-commit hook for Atmosphere Framework
+# Checks copyright headers on Java source files and blocks suspicious files
+
+set -e
+
+# Check for files with suspicious patterns (backups, old files, etc.)
+check_suspicious_files() {
+    local suspicious_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.(bak|orig|tmp|swp)$|_old\.|old_|\.old\.' || true)
+
+    if [ -n "$suspicious_files" ]; then
+        echo "ERROR: Commit blocked - Found suspicious files:"
+        echo "$suspicious_files" | sed 's/^/  - /'
+        echo ""
+        echo "These files appear to be backups or old versions."
+        echo "Please remove them or rename them before committing."
+        return 1
+    fi
+    return 0
+}
+
+# Check for Apache 2.0 copyright headers in Java source files
+check_copyright_headers() {
+    local missing_headers=""
+
+    # Get staged Java files (added or modified) in src/ directories
+    local java_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.java$' | grep -v '/target/' || true)
+
+    for file in $java_files; do
+        if [ -f "$file" ] && ! grep -q "Copyright 2008-20[0-9][0-9] Async-IO.org" "$file" 2>/dev/null; then
+            missing_headers="$missing_headers\n  - $file"
+        fi
+    done
+
+    if [ -n "$missing_headers" ]; then
+        echo "ERROR: Commit blocked - Missing copyright headers:"
+        echo -e "$missing_headers"
+        echo ""
+        echo "All Java source files must have the Atmosphere copyright header:"
+        echo "  /*"
+        echo "   * Copyright 2008-2026 Async-IO.org"
+        echo "   *"
+        echo "   * Licensed under the Apache License, Version 2.0 ..."
+        echo "   */"
+        echo ""
+        echo "Please add the header to the listed files."
+        return 1
+    fi
+    return 0
+}
+
+# Main execution
+main() {
+    local checks_passed=true
+
+    if ! check_suspicious_files; then
+        checks_passed=false
+    fi
+
+    if ! check_copyright_headers; then
+        checks_passed=false
+    fi
+
+    if [ "$checks_passed" = false ]; then
+        exit 1
+    fi
+
+    echo "All pre-commit checks passed"
+    exit 0
+}
+
+main "$@"
