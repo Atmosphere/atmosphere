@@ -63,12 +63,14 @@ import org.springframework.boot.web.servlet.ServletRegistrationBean;
 import org.springframework.context.ApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ClassPathScanningCandidateComponentProvider;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.type.filter.AnnotationTypeFilter;
 
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(AtmosphereServlet.class)
 @EnableConfigurationProperties(AtmosphereProperties.class)
+@ImportRuntimeHints(AtmosphereRuntimeHints.class)
 public class AtmosphereAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereAutoConfiguration.class);
@@ -117,19 +119,7 @@ public class AtmosphereAutoConfiguration {
         // the results into the servlet context right before framework.init() reads them.
         Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap = scanAnnotations(properties);
 
-        AtmosphereServlet servlet = new AtmosphereServlet() {
-            @Override
-            public void init(ServletConfig sc) throws ServletException {
-                // Set the annotation map just before framework.init() reads it.
-                // This must happen here (not in a ServletContextInitializer) because
-                // Atmosphere's AnnotationScanningServletContainerInitializer runs
-                // after Spring's initializers and overwrites the attribute with an
-                // empty map.
-                sc.getServletContext().setAttribute(
-                        DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, annotationMap);
-                super.init(sc);
-            }
-        };
+        var servlet = new AnnotationAwareAtmosphereServlet(annotationMap);
         servlet.framework().objectFactory(objectFactory);
         return servlet;
     }
@@ -229,5 +219,33 @@ public class AtmosphereAutoConfiguration {
         initParams.putAll(properties.getInitParams());
 
         return registration;
+    }
+
+    /**
+     * Named subclass of {@link AtmosphereServlet} that injects the pre-scanned
+     * annotation map into the servlet context before framework initialization.
+     * Using a named class (instead of an anonymous one) ensures stable class
+     * naming for Spring AOT / GraalVM native image support.
+     */
+    static class AnnotationAwareAtmosphereServlet extends AtmosphereServlet {
+
+        private final Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap;
+
+        AnnotationAwareAtmosphereServlet(
+                Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap) {
+            this.annotationMap = annotationMap;
+        }
+
+        @Override
+        public void init(ServletConfig sc) throws ServletException {
+            // Set the annotation map just before framework.init() reads it.
+            // This must happen here (not in a ServletContextInitializer) because
+            // Atmosphere's AnnotationScanningServletContainerInitializer runs
+            // after Spring's initializers and overwrites the attribute with an
+            // empty map.
+            sc.getServletContext().setAttribute(
+                    DefaultAnnotationProcessor.ANNOTATION_ATTRIBUTE, annotationMap);
+            super.init(sc);
+        }
     }
 }

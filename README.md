@@ -82,6 +82,25 @@ atmosphere:
 
 </details>
 
+<details>
+<summary>GraalVM Native Image (Spring Boot)</summary>
+
+The starter includes Spring AOT runtime hints (`AtmosphereRuntimeHints`) that register all required reflection and resource metadata automatically. No manual configuration is needed -- just activate the `native` Maven profile:
+
+```bash
+# Build a native executable
+./mvnw -Pnative package -pl samples/spring-boot-chat
+
+# Run it
+./samples/spring-boot-chat/target/atmosphere-spring-boot-chat
+```
+
+**Requirements:** GraalVM JDK 21+ (or Mandrel). The `native-maven-plugin` is inherited from `spring-boot-starter-parent`.
+
+If your application uses custom `AtmosphereHandler`, `BroadcasterCache`, or encoder/decoder classes, add `@RegisterReflectionForBinding` or manual `RuntimeHintsRegistrar` entries for those classes.
+
+</details>
+
 ### Quarkus Applications
 
 The `atmosphere-quarkus-extension` brings Atmosphere to **Quarkus 3.21+** with build-time annotation scanning via Jandex, Arc CDI integration, and native image support.
@@ -113,6 +132,25 @@ quarkus.atmosphere.packages=com.example.chat
 | `quarkus.atmosphere.broadcaster-cache-class` | | Custom BroadcasterCache FQCN |
 | `quarkus.atmosphere.heartbeat-interval-in-seconds` | | Server heartbeat frequency |
 | `quarkus.atmosphere.init-params` | | Map of any `ApplicationConfig` key/value |
+
+</details>
+
+<details>
+<summary>GraalVM Native Image (Quarkus)</summary>
+
+The Quarkus extension registers all reflection hints, ServiceLoader resources, and encoder/decoder classes at build time via `@BuildStep` processors. Native builds work out of the box:
+
+```bash
+# Build a native executable
+./mvnw -Pnative package -pl samples/quarkus-chat
+
+# Run it
+./samples/quarkus-chat/target/atmosphere-quarkus-chat-*-runner
+```
+
+**Requirements:** GraalVM JDK 21+ (or Mandrel). Alternatively, use `-Dquarkus.native.container-build=true` to build inside a container without a local GraalVM installation.
+
+Custom encoder/decoder classes annotated with Quarkus-scanned annotations are automatically registered for reflection. For classes loaded purely via `ApplicationConfig` init-params, add `@RegisterForReflection` to those classes.
 
 </details>
 
