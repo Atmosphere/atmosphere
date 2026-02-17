@@ -674,7 +674,6 @@
     </dependencies>
 
     <properties>
-        <junit-version>4.13.2</junit-version>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>6.0.0</servlet-version-range>
         <jetty-version>12.0.16</jetty-version>
