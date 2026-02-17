@@ -47,7 +47,8 @@ public class ConcurrentBroadcasterTest {
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
     }
@@ -175,7 +176,8 @@ public class ConcurrentBroadcasterTest {
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
 
@@ -218,7 +220,8 @@ public class ConcurrentBroadcasterTest {
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(SimpleBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
@@ -258,7 +261,8 @@ public class ConcurrentBroadcasterTest {
     public void testMultipleOrderedSimpleBroadcast() throws InterruptedException {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(SimpleBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
@@ -298,7 +302,8 @@ public class ConcurrentBroadcasterTest {
     public void testOrderedSimpleBroadcast() throws InterruptedException {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(SimpleBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(SimpleBroadcaster.class, "test");
 
@@ -344,7 +349,8 @@ public class ConcurrentBroadcasterTest {
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
 
@@ -390,7 +396,8 @@ public class ConcurrentBroadcasterTest {
                 .addInitParameter(ApplicationConfig.OUT_OF_ORDER_BROADCAST, "true")
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = (DefaultBroadcaster) factory.get(DefaultBroadcaster.class, "test");
 

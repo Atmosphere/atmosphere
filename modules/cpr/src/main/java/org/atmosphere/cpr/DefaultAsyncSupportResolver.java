@@ -18,7 +18,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.container.JSR356AsyncSupport;
-import org.atmosphere.container.NettyCometSupport;
 import org.atmosphere.container.Servlet30CometSupport;
 import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
@@ -38,7 +37,6 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
     private static final Logger logger = LoggerFactory.getLogger(DefaultAsyncSupportResolver.class);
 
     public final static String SERVLET_30 = "jakarta.servlet.AsyncListener";
-    public final static String NETTY = "org.jboss.netty.channel.Channel";
     public final static String JSR356_WEBSOCKET = "jakarta.websocket.Endpoint";
 
     private final AtmosphereConfig config;
@@ -73,11 +71,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @return
      */
     public List<Class<? extends AsyncSupport<?>>> detectContainersPresent() {
-        List<Class<? extends AsyncSupport<?>>> result = new ArrayList<>();
-        if (testClassExists(NETTY)) {
-            result.add(NettyCometSupport.class);
-        }
-        return result;
+        return new ArrayList<>();
     }
 
     public List<Class<? extends AsyncSupport<?>>> detectWebSocketPresent(final boolean useNativeIfPossible, final boolean useServlet30Async) {

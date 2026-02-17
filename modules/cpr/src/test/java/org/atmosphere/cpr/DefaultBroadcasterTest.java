@@ -67,7 +67,8 @@ public class DefaultBroadcasterTest {
         AtmosphereConfig config = framework.getAtmosphereConfig();
 
         @SuppressWarnings("deprecation")
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(B.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(B.class, "NEVER", config);
         broadcaster = factory.get("test");
         config.framework().setBroadcasterFactory(factory);
     }

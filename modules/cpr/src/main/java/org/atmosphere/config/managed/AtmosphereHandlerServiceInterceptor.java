@@ -28,7 +28,7 @@ import org.slf4j.LoggerFactory;
 import jakarta.inject.Named;
 
 /**
- * Handle {@link org.atmosphere.config.service.Singleton},{@link org.atmosphere.config.service.MeteorService} and
+ * Handle {@link org.atmosphere.config.service.Singleton} and
  * {@link org.atmosphere.config.service.AtmosphereHandlerService} processing.
  *
  * @author Jeanfrancois Arcand

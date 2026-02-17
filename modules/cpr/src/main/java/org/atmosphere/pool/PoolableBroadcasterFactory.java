@@ -59,12 +59,6 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
         super();
     }
 
-    // Testing
-    @Deprecated
-    public PoolableBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
-        super(clazz, broadcasterLifeCyclePolicy, c);
-    }
-
     @SuppressWarnings("unchecked")
     protected void configure(String broadcasterLifeCyclePolicy) {
         super.configure(broadcasterLifeCyclePolicy);
@@ -116,15 +110,6 @@ public class PoolableBroadcasterFactory extends DefaultBroadcasterFactory {
             broadcaster = poolableProvider.borrowBroadcaster(id);
         }
         return (T) broadcaster;
-    }
-
-    @SuppressWarnings("deprecation")
-    @Override
-    public void removeAllAtmosphereResource(AtmosphereResource r) {
-        logger.debug("Operation no supported");
-        if (trackPooledBroadcaster) {
-            super.removeAllAtmosphereResource(r);
-        }
     }
 
     @Override

@@ -68,20 +68,6 @@ import java.util.concurrent.TimeUnit;
 public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger LOG = LoggerFactory.getLogger(SimpleRestInterceptor.class);
     /**
-     * Servlet init property to enable the detached mode in the response
-     * @deprecated always use detached mode
-     */
-    @Deprecated
-    public final static String PROTOCOL_DETACHED_KEY = "atmosphere.simple-rest.protocol.detached";
-
-    /**
-     * Connection request property to enable the detached mode in the response
-     * @deprecated always use detached mode
-     */
-    @Deprecated
-    public final static String X_ATMOSPHERE_SIMPLE_REST_PROTOCOL_DETACHED = "X-Atmosphere-SimpleRestProtocolDetached";
-
-    /**
      * The internal header consisting of the {tracking-id}#{request-id}
      */
     public final static String X_REQUEST_KEY = "X-Request-Key";

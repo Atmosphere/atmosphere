@@ -49,8 +49,7 @@ import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.OnBroadc
  * <p/>
  * <p>Use this class when you don't want to manage the suspend/resume operation from your
  * particular Atmosphere framework implementation classes ({@link org.atmosphere.cpr.AtmosphereHandler},
- * {@link org.atmosphere.websocket.WebSocketHandler}, or
- * {@link org.atmosphere.cpr.Meteor} instances) or extensions (GWT, Jersey, Wicket, etc...)
+ * {@link org.atmosphere.websocket.WebSocketHandler} instances) or extensions (GWT, Jersey, Wicket, etc...)
  * </p>
  * <strong>For this mechanism to work properly, each client must set the
  * {@link org.atmosphere.cpr.HeaderConfig#X_ATMOSPHERE_TRANSPORT} header. Your AtmosphereHandler must also extends the

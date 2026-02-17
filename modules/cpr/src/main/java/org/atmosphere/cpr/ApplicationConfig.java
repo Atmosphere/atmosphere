@@ -250,15 +250,6 @@ public interface ApplicationConfig {
      */
     String WEBSOCKET_REQUIRE_SAME_ORIGIN = "org.atmosphere.websocket.requireSameOrigin";
     /**
-     * Set the minimum WebSocket version that Jetty should accept. If not set, Jetty defaults to version 13 (RFC6455).
-     * <p/>
-     * Jetty 7 and 8 is able to support buggy pre-draft versions of WebSocket. Set to 0 or -1 to let Jetty support all accept all supported versions.
-     * <p/>
-     * Default: [nothing]<br>
-     * Value: org.atmosphere.websocket.jetty.minVersion
-     */
-    String JETTY_WEBSOCKET_MIN_VERSION = "org.atmosphere.websocket.jetty.minVersion";
-    /**
      * The {@link AtmosphereResource}.
      * <p/>
      * Default: org.atmosphere.cpr.AtmosphereResourceImpl<br>
@@ -378,14 +369,14 @@ public interface ApplicationConfig {
      */
     String ATMOSPHERE_HANDLER_MAPPING = "org.atmosphere.cpr.AtmosphereHandler.contextRoot";
     /**
-     * The Servlet's name where {@link Meteor} will be available.
+     * The Servlet's name where Atmosphere will be available.
      * <p/>
      * Default: ""<br>
      * Value: org.atmosphere.servlet
      */
     String SERVLET_CLASS = "org.atmosphere.servlet";
     /**
-     * The Filter's name where {@link Meteor} will be available.
+     * The Filter's name where Atmosphere will be available.
      * <p/>
      * Default: ""<br>
      * Value: org.atmosphere.filter
@@ -427,14 +418,6 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.websocket.bannedVersion
      */
     String WEB_SOCKET_BANNED_VERSION = "org.atmosphere.websocket.bannedVersion";
-    /**
-     * Prevent Tomcat from closing connection when inputStream#read() reach the end of the stream, as documented in
-     * the tomcat documentation.
-     * <p/>
-     * Default: true<br>
-     * Value: org.atmosphere.container.TomcatCometSupport.discardEOF
-     */
-    String TOMCAT_CLOSE_STREAM = "org.atmosphere.container.TomcatCometSupport.discardEOF";
     /**
      * Write binary instead of String.
      * <p/>

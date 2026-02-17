@@ -52,7 +52,8 @@ public class PoolableBroadcasterFactoryTest {
     public void setUp() throws Exception {
         AtmosphereFramework f = new AtmosphereFramework();
         config = f.getAtmosphereConfig();
-        factory = new PoolableBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        factory = new PoolableBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         factory.poolableProvider(new BoundedApachePoolableProvider());
         f.setBroadcasterFactory(factory);
     }

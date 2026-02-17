@@ -53,7 +53,6 @@ class AtmosphereProcessor {
             DotName.createSimple("org.atmosphere.config.service.BroadcasterFilterService"),
             DotName.createSimple("org.atmosphere.config.service.BroadcasterFactoryService"),
             DotName.createSimple("org.atmosphere.config.service.BroadcasterService"),
-            DotName.createSimple("org.atmosphere.config.service.MeteorService"),
             DotName.createSimple("org.atmosphere.config.service.WebSocketFactoryService"),
             DotName.createSimple("org.atmosphere.config.service.WebSocketHandlerService"),
             DotName.createSimple("org.atmosphere.config.service.WebSocketProtocolService"),

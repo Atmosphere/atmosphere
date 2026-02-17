@@ -296,11 +296,6 @@ public class AtmosphereFrameworkTest {
         }
 
         @Override
-        public void removeAllAtmosphereResource(AtmosphereResource r) {
-
-        }
-
-        @Override
         public boolean remove(Object id) {
             return false;
         }

@@ -46,7 +46,8 @@ public class UUIDBroadcasterCacheTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         config.framework().setBroadcasterFactory(factory);
 

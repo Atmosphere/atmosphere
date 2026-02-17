@@ -120,7 +120,7 @@ public class AtmosphereConfigReader {
                         break;
                     }
                     case "comet-support":
-                        atmoHandler.setCometSupport(attribute.getNodeValue());
+                        atmoHandler.setAsyncSupport(attribute.getNodeValue());
                         break;
                     case "interceptorClasses": {
                         String[] values = attribute.getNodeValue().split(",");

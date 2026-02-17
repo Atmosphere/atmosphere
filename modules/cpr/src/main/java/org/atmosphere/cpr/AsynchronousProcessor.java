@@ -515,39 +515,34 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
      * @param r a {@link AtmosphereResourceImpl}
      */
     protected void invokeAtmosphereHandler(AtmosphereResourceImpl r) {
-        AtmosphereRequest req = r.getRequest(false);
-        try {
-            // Rely on isInScope instead of synchronization https://github.com/Atmosphere/atmosphere/issues/1865
-            if (r.isInScope()) {
-                String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
-                r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
-                try {
-                    if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
-                        AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
+        // Rely on isInScope instead of synchronization https://github.com/Atmosphere/atmosphere/issues/1865
+        if (r.isInScope()) {
+            String disableOnEvent = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.DISABLE_ONSTATE_EVENT);
+            r.getAtmosphereResourceEvent().setMessage(r.writeOnTimeout());
+            try {
+                if (disableOnEvent == null || !disableOnEvent.equals(String.valueOf(true))) {
+                    AtmosphereHandler atmosphereHandler = r.getAtmosphereHandler();
 
-                        if (atmosphereHandler != null && r.isInScope()) {
+                    if (atmosphereHandler != null && r.isInScope()) {
 
-                            try {
-                                Utils.inject(r);
-                            } catch (IllegalAccessException e) {
-                                logger.warn("", e);
-                            }
-
-                            atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
+                        try {
+                            Utils.inject(r);
+                        } catch (IllegalAccessException e) {
+                            logger.warn("", e);
                         }
-                    }
-                } catch (IOException ex) {
-                    try {
-                        r.onThrowable(ex);
-                    } catch (Throwable t) {
-                        logger.warn("failed calling onThrowable()", ex);
+
+                        atmosphereHandler.onStateChange(r.getAtmosphereResourceEvent());
                     }
                 }
-            } else {
-                logger.trace("AtmosphereResource out of scope {}", r.uuid());
+            } catch (IOException ex) {
+                try {
+                    r.onThrowable(ex);
+                } catch (Throwable t) {
+                    logger.warn("failed calling onThrowable()", ex);
+                }
             }
-        } finally {
-            Utils.destroyMeteor(req);
+        } else {
+            logger.trace("AtmosphereResource out of scope {}", r.uuid());
         }
     }
 

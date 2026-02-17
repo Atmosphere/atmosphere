@@ -18,7 +18,6 @@ package org.atmosphere.annotation.path;
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Singleton;
 import org.atmosphere.config.service.WebSocketHandlerService;
@@ -48,9 +47,6 @@ import org.testng.annotations.Test;
 import jakarta.inject.Inject;
 import jakarta.inject.Named;
 import jakarta.servlet.ServletException;
-import jakarta.servlet.http.HttpServlet;
-import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -153,41 +149,6 @@ public class PathTest {
         assertEquals(instanceCount, 1);
         assertNotNull(r.get());
         assertEquals(r.get(), "/ah/test2");
-
-    }
-
-    @MeteorService(path = "/a/b/{g}")
-    public final static class MeteorPath extends HttpServlet {
-
-        public MeteorPath() {
-            ++instanceCount;
-        }
-
-        @Override
-        public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-            r.set(req.getPathInfo());
-        }
-
-        @Override
-        public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        }
-
-        @Override
-        public void destroy() {
-
-        }
-
-    }
-
-    @Test
-    public void testMeteorPath() throws IOException, ServletException {
-        instanceCount = 0;
-
-        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a/b/test2").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(instanceCount, 1);
-        assertNotNull(r.get());
-        assertEquals(r.get(), "/a/b/test2");
 
     }
 
@@ -334,42 +295,6 @@ public class PathTest {
         assertEquals(instanceCount, 0);
         assertNotNull(r.get());
         assertEquals(r.get(), "/singleton/atmospherehandler/yes");
-
-    }
-
-    @Singleton
-    @MeteorService(path = "/singleton/meteor/{g}")
-    public final static class SingletonMeteorPath extends HttpServlet {
-
-        public SingletonMeteorPath() {
-            ++instanceCount;
-        }
-
-        @Override
-        public void doGet(HttpServletRequest req, HttpServletResponse res) throws IOException {
-            r.set(req.getPathInfo());
-        }
-
-        @Override
-        public void doPost(HttpServletRequest req, HttpServletResponse res) throws IOException {
-        }
-
-        @Override
-        public void destroy() {
-
-        }
-
-    }
-
-    @Test
-    public void testSingletonMeteorPath() throws IOException, ServletException {
-        instanceCount = 0;
-
-        AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/singleton/meteor/test2").method("GET").build();
-        framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(instanceCount, 0);
-        assertNotNull(r.get());
-        assertEquals(r.get(), "/singleton/meteor/test2");
 
     }
 

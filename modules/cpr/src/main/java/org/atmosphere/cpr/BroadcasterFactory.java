@@ -119,15 +119,6 @@ public interface BroadcasterFactory {
     <T extends Broadcaster> T lookup(Object id, boolean createIfNull);
 
     /**
-     * Remove all instances of {@link AtmosphereResource} from all registered {@link Broadcaster}s.
-     *
-     * @param r an void {@link AtmosphereResource}
-     *
-     */
-    @Deprecated
-    void removeAllAtmosphereResource(AtmosphereResource r);
-
-    /**
      * Remove the associated {@link Broadcaster}.
      */
     boolean remove(Object id);

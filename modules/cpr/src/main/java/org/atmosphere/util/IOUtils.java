@@ -25,7 +25,6 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.MeteorServlet;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,7 +60,6 @@ public class IOUtils {
     static {
         knownClasses = List.of(
                 AtmosphereServlet.class.getName(),
-                MeteorServlet.class.getName(),
                 "com.vaadin.server.VaadinServlet",
                 "org.primefaces.push.PushServlet"
         );

@@ -36,7 +36,8 @@ public class AtmosphereHealthTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
     }
 

@@ -1982,8 +1982,8 @@ public class AtmosphereFramework {
                         broadcasterCacheClassName = bc;
                     }
 
-                    if (atmoHandler.getCometSupport() != null) {
-                        asyncSupport = (AsyncSupport<?>) c.loadClass(atmoHandler.getCometSupport())
+                    if (atmoHandler.getAsyncSupport() != null) {
+                        asyncSupport = (AsyncSupport<?>) c.loadClass(atmoHandler.getAsyncSupport())
                                 .getDeclaredConstructor(new Class[]{AtmosphereConfig.class})
                                 .newInstance(new Object[]{config});
                     }
@@ -2030,31 +2030,11 @@ public class AtmosphereFramework {
     }
 
     /**
-     * @param asyncSupport
-     * @return
-     * @Deprecated - Use {@link #setAsyncSupport(AsyncSupport)}
-     */
-    public AtmosphereFramework setCometSupport(AsyncSupport<?> asyncSupport) {
-        return setAsyncSupport(asyncSupport);
-    }
-
-    /**
      * Return the current {@link AsyncSupport}.
      *
      * @return the current {@link AsyncSupport}
      */
     public AsyncSupport<?> getAsyncSupport() {
-        return asyncSupport;
-    }
-
-    /**
-     * Return the current {@link AsyncSupport}.
-     *
-     * @return the current {@link AsyncSupport}
-     * @deprecated Use getAsyncSupport
-     */
-    @Deprecated
-    public AsyncSupport<?> getCometSupport() {
         return asyncSupport;
     }
 

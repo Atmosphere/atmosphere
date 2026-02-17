@@ -47,7 +47,8 @@ public class AtmosphereTracingTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
 

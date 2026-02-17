@@ -42,7 +42,6 @@ import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.MeteorService;
 import org.atmosphere.config.service.UUIDProviderService;
 import org.atmosphere.config.service.WebSocketFactoryService;
 import org.atmosphere.config.service.WebSocketHandlerService;
@@ -81,7 +80,6 @@ public class AtmosphereAutoConfiguration {
             BroadcasterFilterService.class,
             BroadcasterFactoryService.class,
             BroadcasterService.class,
-            MeteorService.class,
             WebSocketFactoryService.class,
             WebSocketHandlerService.class,
             WebSocketProtocolService.class,

@@ -29,7 +29,7 @@ public class AtmosphereHandlerConfig {
     private String className;
     private String broadcaster;
     private String broadcasterCache;
-    private String cometSupport;
+    private String asyncSupport;
 
     private List<String> broadcastFilterClasses = new ArrayList<>();
     private List<String> interceptors = new ArrayList<>();
@@ -117,12 +117,12 @@ public class AtmosphereHandlerConfig {
         this.broadcastFilterClasses = broadcastFilterClasses;
     }
 
-    public String getCometSupport() {
-        return cometSupport;
+    public String getAsyncSupport() {
+        return asyncSupport;
     }
 
-    public void setCometSupport(String cometSupport) {
-        this.cometSupport = cometSupport;
+    public void setAsyncSupport(String asyncSupport) {
+        this.asyncSupport = asyncSupport;
     }
 
 }

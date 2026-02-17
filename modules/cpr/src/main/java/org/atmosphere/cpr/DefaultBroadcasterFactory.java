@@ -65,13 +65,6 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     public DefaultBroadcasterFactory() {
     }
 
-    @Deprecated
-    public DefaultBroadcasterFactory(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
-        this.clazz = clazz;
-        config = c;
-        configure(broadcasterLifeCyclePolicy);
-    }
-
     public void configure(Class<? extends Broadcaster> clazz, String broadcasterLifeCyclePolicy, AtmosphereConfig c) {
         this.clazz = clazz;
         config = c;
@@ -231,25 +224,6 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             throw new IllegalStateException(msg);
         }
         return b;
-    }
-
-    @Deprecated
-    @Override
-    public void removeAllAtmosphereResource(AtmosphereResource r) {
-        // Remove inside all Broadcaster as well.
-        try {
-            if (!store.isEmpty()) {
-                for (Broadcaster b : lookupAll()) {
-                    try {
-                        b.removeAtmosphereResource(r);
-                    } catch (IllegalStateException ex) {
-                        logger.trace(ex.getMessage(), ex);
-                    }
-                }
-            }
-        } catch (Exception ex) {
-            logger.warn(ex.getMessage(), ex);
-        }
     }
 
     @Override

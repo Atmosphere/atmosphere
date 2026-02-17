@@ -54,7 +54,8 @@ public class AtmosphereMetricsTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        var factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        var factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
 
         registry = new SimpleMeterRegistry();

@@ -53,7 +53,8 @@ public class BroadcasterTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
@@ -164,7 +165,8 @@ public class BroadcasterTest {
                 })
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
         atmosphereHandler = new AR();
         ar = new AtmosphereResourceImpl(config,
@@ -221,7 +223,8 @@ public class BroadcasterTest {
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
                 .getAtmosphereConfig();
 
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
         Broadcaster b = factory.get(DefaultBroadcaster.class, "concurrent-set");
 
@@ -328,7 +331,8 @@ public class BroadcasterTest {
     
     @Test
     public void shouldCleanUpBroadcasterUponDestory(){
-        DefaultBroadcasterFactory broadcasterFactory = new DefaultBroadcasterFactory(SimpleBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory broadcasterFactory = new DefaultBroadcasterFactory();
+        broadcasterFactory.configure(SimpleBroadcaster.class, "NEVER", config);
         Broadcaster b1 = broadcasterFactory.lookup("/LEAK/EXISTS", true);
 
         b1.destroy();

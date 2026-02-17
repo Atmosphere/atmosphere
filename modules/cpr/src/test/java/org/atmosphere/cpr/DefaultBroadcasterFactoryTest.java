@@ -45,7 +45,8 @@ public class DefaultBroadcasterFactoryTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        factory = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        factory = new DefaultBroadcasterFactory();
+        factory.configure(DefaultBroadcaster.class, "NEVER", config);
     }
 
     @AfterMethod
@@ -172,7 +173,8 @@ public class DefaultBroadcasterFactoryTest {
     @SuppressWarnings("deprecation")
     @Test
     public void concurrentLookupTest() throws InterruptedException {
-        final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory();
+        f.configure(DefaultBroadcaster.class, "NEVER", config);
         final CountDownLatch latch = new CountDownLatch(100);
         final AtomicInteger created = new AtomicInteger();
 
@@ -215,7 +217,8 @@ public class DefaultBroadcasterFactoryTest {
     @SuppressWarnings("deprecation")
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
-        final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory(DefaultBroadcaster.class, "NEVER", config);
+        final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory();
+        f.configure(DefaultBroadcaster.class, "NEVER", config);
         final CountDownLatch latch = new CountDownLatch(1000);
         final AtomicInteger created = new AtomicInteger();
         f.addBroadcasterListener(new BroadcasterListenerAdapter() {

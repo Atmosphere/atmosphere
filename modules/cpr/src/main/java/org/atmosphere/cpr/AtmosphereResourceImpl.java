@@ -52,7 +52,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
     public static final String PRE_SUSPEND = AtmosphereResourceImpl.class.getName() + ".preSuspend";
     public static final String SKIP_BROADCASTER_CREATION = AtmosphereResourceImpl.class.getName() + ".skipBroadcasterCreation";
-    public static final String METEOR = Meteor.class.getName();
 
     private AtmosphereRequest req;
     private AtmosphereResponse response;
@@ -310,7 +309,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             logger.trace("Wasn't able to resume a connection {}", this, t);
         } finally {
             unregister();
-            Utils.destroyMeteor(req);
         }
         listeners.clear();
         return this;
@@ -389,7 +387,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
 
             Broadcaster broadcaster = getBroadcaster();
 
-            // Null means SCOPE=REQUEST set by a Meteor
+            // Null means SCOPE=REQUEST
             if (!skipCreation && (broadcaster == null || broadcaster.getScope() == Broadcaster.SCOPE.REQUEST) && !isJersey) {
                 String id = broadcaster != null ? broadcaster.getID() : ROOT_MASTER;
                 Class<? extends Broadcaster> clazz = broadcaster != null ? broadcaster.getClass() : DefaultBroadcaster.class;
@@ -802,15 +800,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 }
 
                 asyncSupport.complete(this);
-
-                try {
-                    Object o = req.getAttribute(AtmosphereResourceImpl.METEOR);
-                    if (o instanceof Meteor m) {
-                        m.destroy();
-                    }
-                } catch (Exception ex) {
-                    logger.trace("Meteor exception", ex);
-                }
 
                 SessionTimeoutSupport.restoreTimeout(req);
                 action.type(Action.TYPE.CANCELLED);

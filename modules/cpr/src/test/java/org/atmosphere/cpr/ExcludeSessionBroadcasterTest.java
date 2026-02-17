@@ -42,7 +42,8 @@ public class ExcludeSessionBroadcasterTest {
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
-        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory(ExcludeSessionBroadcaster.class, "NEVER", config);
+        DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
+        factory.configure(ExcludeSessionBroadcaster.class, "NEVER", config);
         config.framework().setBroadcasterFactory(factory);
 
         broadcaster = factory.get(ExcludeSessionBroadcaster.class, "test");
