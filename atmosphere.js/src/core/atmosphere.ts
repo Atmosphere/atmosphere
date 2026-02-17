@@ -37,7 +37,7 @@ import { logger } from '../utils/logger';
  * Default fallback chain: WebSocket → SSE → Streaming → Long-Polling.
  */
 export class Atmosphere {
-  readonly version = '5.0.0-alpha.2';
+  readonly version = '5.0.0';
   private subscriptions = new Map<string, Subscription>();
   private subscriptionId = 0;
   private config: AtmosphereConfig;

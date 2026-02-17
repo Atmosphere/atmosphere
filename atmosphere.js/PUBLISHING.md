@@ -45,7 +45,7 @@ ls -lh dist/
 ```bash
 # For alpha/beta releases
 npm version prerelease --preid=alpha
-# Results in: 5.0.0-alpha.2
+# Results in: 5.0.0
 
 # For release candidates
 npm version prerelease --preid=rc
@@ -68,10 +68,10 @@ cd /tmp
 mkdir test-atmosphere
 cd test-atmosphere
 npm init -y
-npm install /path/to/atmosphere-client-5.0.0-alpha.1.tgz
+npm install /path/to/atmosphere-client-5.0.0.tgz
 
 # Test imports
-node -e "const atm = require('@atmosphere/client'); console.log(atm)"
+node -e "const atm = require('atmosphere.js'); console.log(atm)"
 ```
 
 ### 4. Publish to NPM
@@ -93,20 +93,20 @@ npm publish --access public
 
 ```bash
 # Check on npm
-open https://www.npmjs.com/package/@atmosphere/client
+open https://www.npmjs.com/package/atmosphere.js
 
 # Test installation
-npm view @atmosphere/client
-npm install @atmosphere/client@alpha
+npm view atmosphere.js
+npm install atmosphere.js@alpha
 ```
 
 ## Distribution Channels
 
 ### NPM Registry
-- Published at: https://www.npmjs.com/package/@atmosphere/client
-- Install: `npm install @atmosphere/client`
-- CDN (auto): https://unpkg.com/@atmosphere/client@5.0.0/dist/index.global.js
-- CDN (auto): https://cdn.jsdelivr.net/npm/@atmosphere/client@5.0.0/dist/index.global.js
+- Published at: https://www.npmjs.com/package/atmosphere.js
+- Install: `npm install atmosphere.js`
+- CDN (auto): https://unpkg.com/atmosphere.js@5.0.0/dist/index.global.js
+- CDN (auto): https://cdn.jsdelivr.net/npm/atmosphere.js@5.0.0/dist/index.global.js
 
 ### Maven Central (Optional)
 Package atmosphere.js in Maven artifact for Java developers:
@@ -123,7 +123,7 @@ Package atmosphere.js in Maven artifact for Java developers:
 
 ### Browser (CDN)
 ```html
-<script src="https://unpkg.com/@atmosphere/client@5/dist/index.global.js"></script>
+<script src="https://unpkg.com/atmosphere.js@5/dist/index.global.js"></script>
 <script>
   const client = await atmosphere.subscribe(config, handlers);
 </script>
@@ -131,21 +131,21 @@ Package atmosphere.js in Maven artifact for Java developers:
 
 ### ES Modules
 ```javascript
-import { subscribe } from '@atmosphere/client';
+import { subscribe } from 'atmosphere.js';
 
 const client = await subscribe(config, handlers);
 ```
 
 ### CommonJS
 ```javascript
-const { subscribe } = require('@atmosphere/client');
+const { subscribe } = require('atmosphere.js');
 
 const client = await subscribe(config, handlers);
 ```
 
 ### TypeScript
 ```typescript
-import { subscribe, AtmosphereConfig, AtmosphereHandlers } from '@atmosphere/client';
+import { subscribe, AtmosphereConfig, AtmosphereHandlers } from 'atmosphere.js';
 
 const config: AtmosphereConfig = {
   url: 'ws://localhost:8080/chat',
@@ -166,24 +166,24 @@ const client = await subscribe(config, handlers);
 - For early testing
 - Breaking changes allowed
 - Tag: `@alpha`
-- Install: `npm install @atmosphere/client@alpha`
+- Install: `npm install atmosphere.js@alpha`
 
 ### Beta Releases (5.0.0-beta.x)
 - Feature complete
 - API stabilizing
 - Tag: `@beta`
-- Install: `npm install @atmosphere/client@beta`
+- Install: `npm install atmosphere.js@beta`
 
 ### Release Candidates (5.0.0-rc.x)
 - Production-ready candidate
 - Bug fixes only
 - Tag: `@rc`
-- Install: `npm install @atmosphere/client@rc`
+- Install: `npm install atmosphere.js@rc`
 
 ### Stable Releases (5.0.0)
 - Production ready
 - Tag: `@latest` (default)
-- Install: `npm install @atmosphere/client`
+- Install: `npm install atmosphere.js`
 
 ## CI/CD Integration
 

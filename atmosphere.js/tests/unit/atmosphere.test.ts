@@ -9,7 +9,7 @@ describe('Atmosphere', () => {
   });
 
   it('should have correct version', () => {
-    expect(atmosphere.version).toBe('5.0.0-alpha.2');
+    expect(atmosphere.version).toBe('5.0.0');
   });
 
   it('should create subscription with generated ID', async () => {

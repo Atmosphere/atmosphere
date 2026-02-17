@@ -17,7 +17,7 @@
 /**
  * Transport types supported by Atmosphere
  */
-export type TransportType = 'websocket' | 'sse' | 'long-polling' | 'streaming' | 'polling' | 'jsonp';
+export type TransportType = 'websocket' | 'sse' | 'long-polling' | 'streaming' | 'polling';
 
 /**
  * Connection lifecycle states

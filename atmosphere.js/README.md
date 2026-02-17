@@ -1,8 +1,8 @@
-# @atmosphere/client
+# atmosphere.js
 
 Modern TypeScript client for the Atmosphere Framework - WebSocket, SSE, and Comet support for real-time web applications.
 
-[![npm version](https://img.shields.io/npm/v/@atmosphere/client)](https://www.npmjs.com/package/@atmosphere/client)
+[![npm version](https://img.shields.io/npm/v/atmosphere.js)](https://www.npmjs.com/package/atmosphere.js)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
 [![License](https://img.shields.io/badge/License-Apache%202.0-blue.svg)](https://opensource.org/licenses/Apache-2.0)
 
@@ -19,13 +19,13 @@ Modern TypeScript client for the Atmosphere Framework - WebSocket, SSE, and Come
 ## Installation
 
 ```bash
-npm install @atmosphere/client
+npm install atmosphere.js
 ```
 
 ## Quick Start
 
 ```typescript
-import { atmosphere } from '@atmosphere/client';
+import { atmosphere } from 'atmosphere.js';
 
 // Subscribe to an endpoint
 const subscription = await atmosphere.subscribe({
@@ -61,7 +61,7 @@ await subscription.close();
 ### Creating an Atmosphere Instance
 
 ```typescript
-import { Atmosphere } from '@atmosphere/client';
+import { Atmosphere } from 'atmosphere.js';
 
 const atmosphere = new Atmosphere({
   logLevel: 'info',
@@ -142,7 +142,7 @@ subscription.off('custom-event', handler);
 ### Basic WebSocket Connection
 
 ```typescript
-import { atmosphere } from '@atmosphere/client';
+import { atmosphere } from 'atmosphere.js';
 
 const subscription = await atmosphere.subscribe({
   url: 'ws://localhost:8080/chat',

@@ -1,6 +1,6 @@
 {
-  "name": "@atmosphere/client",
-  "version": "5.0.0-alpha.2",
+  "name": "atmosphere.js",
+  "version": "5.0.0",
   "description": "Modern TypeScript client for Atmosphere Framework - WebSocket/SSE/Comet support",
   "type": "module",
   "main": "./dist/index.cjs",
@@ -49,7 +49,7 @@
   "repository": {
     "type": "git",
     "url": "https://github.com/Atmosphere/atmosphere.git",
-    "directory": "frontend"
+    "directory": "atmosphere.js"
   },
   "bugs": {
     "url": "https://github.com/Atmosphere/atmosphere/issues"
