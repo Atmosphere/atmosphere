@@ -192,7 +192,7 @@
     <div class="container">
         <div id="header">
             <h1>🚀 Atmosphere 4.0 Chat</h1>
-            <p>Spring Boot • Micrometer Metrics • Rooms &amp; Presence • Health Check</p>
+            <p>Spring Boot • Room Protocol • Presence • Message History • Health Check</p>
         </div>
 
         <div class="tabs">
@@ -244,15 +244,25 @@
                 container.innerHTML = '<p style="text-align:center;color:#888;">No rooms yet.</p>';
                 return;
             }
-            container.innerHTML = rooms.map(r =>
-                `<div class="room-card">
-                    <div>
-                        <div class="room-name">🏠 ${r.name}</div>
-                        <div class="room-meta">${r.destroyed ? '🔴 Destroyed' : '🟢 Active'}</div>
-                    </div>
-                    <div class="room-meta">${r.members} member${r.members !== 1 ? 's' : ''}</div>
-                </div>`
-            ).join('');
+            container.innerHTML = rooms.map(r => {
+                let membersHtml = '';
+                if (r.memberDetails && r.memberDetails.length > 0) {
+                    membersHtml = '<div style="margin-top:8px;padding-top:8px;border-top:1px solid #eee;">' +
+                        r.memberDetails.map(m =>
+                            '<span style="display:inline-block;background:#e7f3ff;padding:3px 10px;border-radius:12px;font-size:12px;margin:2px 4px 2px 0;">' +
+                            m.id + '</span>'
+                        ).join('') + '</div>';
+                }
+                return `<div class="room-card" style="flex-direction:column;align-items:stretch;">
+                    <div style="display:flex;justify-content:space-between;align-items:center;">
+                        <div>
+                            <div class="room-name">🏠 ${r.name}</div>
+                            <div class="room-meta">${r.destroyed ? '🔴 Destroyed' : '🟢 Active'}</div>
+                        </div>
+                        <div class="room-meta">${r.members} member${r.members !== 1 ? 's' : ''}</div>
+                    </div>${membersHtml}
+                </div>`;
+            }).join('');
         } catch (e) {
             container.innerHTML = '<p style="color:#dc3545;text-align:center;">Failed to load rooms</p>';
         }

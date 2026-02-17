@@ -61,6 +61,9 @@ public class RoomManager {
         this.broadcasterFactory = broadcasterFactory;
     }
 
+    private static final String CONTEXT_ATTR = RoomManager.class.getName();
+    private static final ConcurrentMap<AtmosphereFramework, RoomManager> instances = new ConcurrentHashMap<>();
+
     /**
      * Create a RoomManager from an AtmosphereFramework.
      *
@@ -69,6 +72,31 @@ public class RoomManager {
      */
     public static RoomManager create(AtmosphereFramework framework) {
         return new RoomManager(framework.getBroadcasterFactory());
+    }
+
+    /**
+     * Get or create a singleton RoomManager for the given framework.
+     * When a servlet context is available, the instance is also stored
+     * there for lookup by other components.
+     *
+     * @param framework the Atmosphere framework instance
+     * @return the shared RoomManager
+     */
+    public static RoomManager getOrCreate(AtmosphereFramework framework) {
+        return instances.computeIfAbsent(framework, fw -> {
+            var rm = new RoomManager(fw.getBroadcasterFactory());
+            try {
+                var ctx = fw.getServletContext();
+                if (ctx != null) {
+                    ctx.setAttribute(CONTEXT_ATTR, rm);
+                }
+            } catch (Exception e) {
+                // Servlet context not available (e.g. in tests)
+                logger.debug("Servlet context not available, storing in-memory only");
+            }
+            logger.info("RoomManager created for framework");
+            return rm;
+        });
     }
 
     /**

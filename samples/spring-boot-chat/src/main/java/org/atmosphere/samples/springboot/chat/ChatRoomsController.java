@@ -15,20 +15,21 @@
  */
 package org.atmosphere.samples.springboot.chat;
 
-import org.atmosphere.room.Room;
 import org.atmosphere.room.RoomManager;
+import org.atmosphere.room.RoomMember;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
 /**
  * REST endpoint exposing Atmosphere rooms information.
  *
- * <p>GET {@code /api/rooms} returns the list of rooms with member counts,
- * useful for building room-selection UIs.</p>
+ * <p>GET {@code /api/rooms} returns rooms with member counts and
+ * member details, useful for building room-selection UIs.</p>
  */
 @RestController
 @RequestMapping("/api/rooms")
@@ -43,11 +44,25 @@ public class ChatRoomsController {
     @GetMapping
     public List<Map<String, Object>> listRooms() {
         return roomManager.all().stream()
-                .map(room -> Map.<String, Object>of(
-                        "name", room.name(),
-                        "members", room.size(),
-                        "destroyed", room.isDestroyed()
-                ))
+                .map(room -> {
+                    var map = new HashMap<String, Object>();
+                    map.put("name", room.name());
+                    map.put("members", room.size());
+                    map.put("destroyed", room.isDestroyed());
+
+                    // Include member details from the Room Protocol
+                    var memberList = room.memberInfo().values().stream()
+                            .map(m -> {
+                                var mMap = new HashMap<String, Object>();
+                                mMap.put("id", m.id());
+                                mMap.put("metadata", m.metadata());
+                                return (Map<String, Object>) mMap;
+                            })
+                            .toList();
+                    map.put("memberDetails", memberList);
+
+                    return (Map<String, Object>) map;
+                })
                 .toList();
     }
 }

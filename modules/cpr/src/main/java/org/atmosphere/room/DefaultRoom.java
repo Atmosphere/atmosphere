@@ -22,9 +22,14 @@ import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import org.atmosphere.cache.UUIDBroadcasterCache;
+
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -45,7 +50,9 @@ public class DefaultRoom implements Room {
     private final String name;
     private final Broadcaster broadcaster;
     private final List<Consumer<PresenceEvent>> presenceListeners = new CopyOnWriteArrayList<>();
+    private final ConcurrentHashMap<String, RoomMember> memberRegistry = new ConcurrentHashMap<>();
     private volatile boolean destroyed;
+    private volatile int historySize;
 
     /**
      * Create a room backed by the given broadcaster.
@@ -73,9 +80,18 @@ public class DefaultRoom implements Room {
 
     @Override
     public Room join(AtmosphereResource resource) {
+        return join(resource, (RoomMember) null);
+    }
+
+    @Override
+    public Room join(AtmosphereResource resource, RoomMember member) {
         if (destroyed) throw new IllegalStateException("Room '" + name + "' is destroyed");
 
         broadcaster.addAtmosphereResource(resource);
+
+        if (member != null) {
+            memberRegistry.put(resource.uuid(), member);
+        }
 
         // Auto-leave on disconnect
         resource.addEventListener(new AtmosphereResourceEventListenerAdapter() {
@@ -97,6 +113,7 @@ public class DefaultRoom implements Room {
 
     @Override
     public Room leave(AtmosphereResource resource) {
+        memberRegistry.remove(resource.uuid());
         broadcaster.removeAtmosphereResource(resource);
         logger.debug("Resource {} left room '{}'", resource.uuid(), name);
         return this;
@@ -155,8 +172,35 @@ public class DefaultRoom implements Room {
     }
 
     @Override
+    public Map<String, RoomMember> memberInfo() {
+        return Collections.unmodifiableMap(memberRegistry);
+    }
+
+    @Override
+    public Optional<RoomMember> memberOf(AtmosphereResource resource) {
+        return Optional.ofNullable(memberRegistry.get(resource.uuid()));
+    }
+
+    @Override
+    public Room enableHistory(int maxMessages) {
+        this.historySize = maxMessages;
+        var cache = new UUIDBroadcasterCache();
+        broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
+        logger.debug("Enabled history ({} max) for room '{}'", maxMessages, name);
+        return this;
+    }
+
+    /**
+     * @return the configured history size, or 0 if history is disabled
+     */
+    public int historySize() {
+        return historySize;
+    }
+
+    @Override
     public void destroy() {
         destroyed = true;
+        memberRegistry.clear();
         broadcaster.destroy();
         presenceListeners.clear();
         logger.info("Room '{}' destroyed", name);
@@ -175,7 +219,8 @@ public class DefaultRoom implements Room {
     }
 
     private void firePresence(PresenceEvent.Type type, AtmosphereResource resource) {
-        var event = new PresenceEvent(type, this, resource);
+        var member = memberRegistry.get(resource.uuid());
+        var event = new PresenceEvent(type, this, resource, member);
         for (var listener : presenceListeners) {
             try {
                 listener.accept(event);

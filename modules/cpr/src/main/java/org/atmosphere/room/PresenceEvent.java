@@ -20,12 +20,20 @@ import org.atmosphere.cpr.AtmosphereResource;
 /**
  * Event fired when a member joins or leaves a {@link Room}.
  *
- * @param type   the event type (JOIN or LEAVE)
- * @param room   the room where the event occurred
- * @param member the resource that joined or left
+ * @param type       the event type (JOIN or LEAVE)
+ * @param room       the room where the event occurred
+ * @param member     the resource that joined or left
+ * @param memberInfo the application-level member identity, or null if not provided
  * @since 4.0
  */
-public record PresenceEvent(Type type, Room room, AtmosphereResource member) {
+public record PresenceEvent(Type type, Room room, AtmosphereResource member, RoomMember memberInfo) {
+
+    /**
+     * Convenience constructor without member info.
+     */
+    public PresenceEvent(Type type, Room room, AtmosphereResource member) {
+        this(type, room, member, null);
+    }
 
     public enum Type {
         JOIN,

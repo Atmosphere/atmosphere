@@ -17,7 +17,8 @@ package org.atmosphere.room;
 
 import org.atmosphere.cpr.AtmosphereResource;
 
-import java.util.Collection;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.function.Consumer;
@@ -117,6 +118,46 @@ public interface Room {
      * @return this room for chaining
      */
     Room onPresence(Consumer<PresenceEvent> listener);
+
+    /**
+     * Add a resource to this room with application-level member info.
+     *
+     * @param resource the resource to add
+     * @param member   the member identity and metadata
+     * @return this room for chaining
+     */
+    default Room join(AtmosphereResource resource, RoomMember member) {
+        return join(resource);
+    }
+
+    /**
+     * @return a map of resource UUID to {@link RoomMember} for all members
+     *         that joined with member info
+     */
+    default Map<String, RoomMember> memberInfo() {
+        return Map.of();
+    }
+
+    /**
+     * Retrieve the {@link RoomMember} associated with a resource, if present.
+     *
+     * @param resource the resource to look up
+     * @return the member info, or empty if the resource has none
+     */
+    default Optional<RoomMember> memberOf(AtmosphereResource resource) {
+        return Optional.ofNullable(memberInfo().get(resource.uuid()));
+    }
+
+    /**
+     * Enable message history (replay) for this room. New joiners will
+     * receive up to {@code maxMessages} cached messages.
+     *
+     * @param maxMessages the maximum number of messages to cache
+     * @return this room for chaining
+     */
+    default Room enableHistory(int maxMessages) {
+        return this;
+    }
 
     /**
      * Destroy this room, removing all members and releasing resources.

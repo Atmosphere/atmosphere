@@ -18,6 +18,7 @@ package org.atmosphere.samples.springboot.chat;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.room.Room;
 import org.atmosphere.room.RoomManager;
+import org.atmosphere.room.RoomProtocolInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.boot.context.event.ApplicationReadyEvent;
@@ -26,11 +27,12 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.event.EventListener;
 
 /**
- * Demonstrates Atmosphere 4.0 Rooms &amp; Presence API.
+ * Demonstrates Atmosphere 4.0 Rooms, Presence &amp; Protocol API.
  *
- * <p>Creates a {@link RoomManager} and pre-provisions the default
- * {@code "lobby"} room. The {@link ChatRooms} handler listens for
- * presence events and logs join/leave activity.</p>
+ * <p>Creates a {@link RoomManager}, registers the
+ * {@link RoomProtocolInterceptor} that bridges the atmosphere.js room
+ * protocol to the server-side Room API, and pre-provisions a
+ * {@code "lobby"} room with message history.</p>
  */
 @Configuration
 public class RoomsConfig {
@@ -45,17 +47,35 @@ public class RoomsConfig {
 
     @Bean
     public RoomManager roomManager() {
-        return RoomManager.create(framework);
+        return RoomManager.getOrCreate(framework);
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void setupRooms() {
+        // Register the protocol interceptor so clients can send
+        // join/leave/broadcast/direct JSON messages
+        var interceptor = new RoomProtocolInterceptor();
+        interceptor.configure(framework.getAtmosphereConfig());
+        framework.interceptor(interceptor);
+
         RoomManager manager = roomManager();
         Room lobby = manager.room("lobby");
-        lobby.onPresence(event -> logger.info("Room '{}': {} {}",
-                event.room().name(),
-                event.member().uuid(),
-                event.type()));
-        logger.info("Atmosphere Rooms ready — lobby room created, {} total", manager.count());
+
+        // Enable message history — new joiners get the last 50 messages
+        lobby.enableHistory(50);
+
+        // Log presence events with member info
+        lobby.onPresence(event -> {
+            var memberInfo = event.memberInfo();
+            var memberId = memberInfo != null ? memberInfo.id() : event.member().uuid();
+            logger.info("Room '{}': {} {} (members: {})",
+                    event.room().name(),
+                    memberId,
+                    event.type(),
+                    event.room().size());
+        });
+
+        logger.info("Atmosphere Rooms ready — lobby room created with history, {} total",
+                manager.count());
     }
 }
