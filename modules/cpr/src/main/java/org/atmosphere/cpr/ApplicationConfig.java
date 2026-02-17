@@ -988,4 +988,45 @@ public interface ApplicationConfig {
      * Value: org.atmosphere.cpr.enableDnsLookups
      */
     String DISABLE_DNS_LOOKUPS = "org.atmosphere.cpr.disableDnsLookups";
+
+    // ---- Redis clustering ----
+
+    /**
+     * Redis URL for the {@code RedisBroadcaster} and {@code RedisClusterBroadcastFilter}.
+     * <p/>
+     * Default: redis://localhost:6379<br>
+     * Value: org.atmosphere.redis.url
+     */
+    String REDIS_URL = "org.atmosphere.redis.url";
+    /**
+     * Redis password for the {@code RedisBroadcaster} and {@code RedisClusterBroadcastFilter}.
+     * <p/>
+     * Default: none<br>
+     * Value: org.atmosphere.redis.password
+     */
+    String REDIS_PASSWORD = "org.atmosphere.redis.password";
+
+    // ---- Kafka clustering ----
+
+    /**
+     * Kafka bootstrap servers for the {@code KafkaBroadcaster}.
+     * <p/>
+     * Default: localhost:9092<br>
+     * Value: org.atmosphere.kafka.bootstrap.servers
+     */
+    String KAFKA_BOOTSTRAP_SERVERS = "org.atmosphere.kafka.bootstrap.servers";
+    /**
+     * Kafka topic name prefix for the {@code KafkaBroadcaster}.
+     * <p/>
+     * Default: atmosphere.<br>
+     * Value: org.atmosphere.kafka.topic.prefix
+     */
+    String KAFKA_TOPIC_PREFIX = "org.atmosphere.kafka.topic.prefix";
+    /**
+     * Kafka consumer group ID for the {@code KafkaBroadcaster}.
+     * <p/>
+     * Default: auto-generated UUID<br>
+     * Value: org.atmosphere.kafka.group.id
+     */
+    String KAFKA_GROUP_ID = "org.atmosphere.kafka.group.id";
 }

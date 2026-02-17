@@ -17,6 +17,8 @@
 
     <modules>
         <module>cpr</module>
+        <module>redis</module>
+        <module>kafka</module>
         <module>spring-boot-starter</module>
         <module>quarkus-extension</module>
     </modules>
