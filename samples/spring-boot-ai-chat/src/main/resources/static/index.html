@@ -295,7 +295,7 @@
 
         // Connect using atmosphere.js 5.0 API
         try {
-            subscription = await atmosphere.atmosphere.subscribe(
+            subscription = await atmosphere.subscribe(
                 {
                     url: window.location.protocol + '//' + window.location.host + '/atmosphere/ai-chat',
                     transport: 'websocket',

@@ -272,7 +272,7 @@
         sendBtn.addEventListener('click', sendMessage);
 
         try {
-            subscription = await atmosphere.atmosphere.subscribe(
+            subscription = await atmosphere.subscribe(
                 {
                     url: window.location.protocol + '//' + window.location.host + '/atmosphere/langchain4j-chat',
                     transport: 'websocket',

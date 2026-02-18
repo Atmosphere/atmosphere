@@ -40,7 +40,7 @@ document.addEventListener('DOMContentLoaded', async function() {
 
     // Connect to Atmosphere
     try {
-        subscription = await atmosphere.atmosphere.subscribe(
+        subscription = await atmosphere.subscribe(
             {
                 url: `${window.location.protocol}//${window.location.host}/chat`,
                 transport: 'websocket',

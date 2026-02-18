@@ -65,7 +65,7 @@
                         <goals><goal>run</goal></goals>
                         <configuration>
                             <target>
-                                <copy file="${project.basedir}/../../atmosphere.js/dist/index.js"
+                                <copy file="${project.basedir}/../../atmosphere.js/dist/atmosphere.global.js"
                                       tofile="${project.build.outputDirectory}/META-INF/resources/javascript/atmosphere.js"
                                       failonerror="false"
                                       quiet="true"/>

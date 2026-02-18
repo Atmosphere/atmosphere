@@ -28,3 +28,4 @@ samples/gwt-conn-share/src/main/webapp/WEB-INF/classes/
 atlassian-ide-plugin.xml
 copilot_plan/
 .vscode/
+node_modules/

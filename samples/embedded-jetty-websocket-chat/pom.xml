@@ -144,7 +144,7 @@
                         <goals><goal>run</goal></goals>
                         <configuration>
                             <target>
-                                <copy file="${project.basedir}/../../atmosphere.js/dist/index.js"
+                                <copy file="${project.basedir}/../../atmosphere.js/dist/atmosphere.global.js"
                                       tofile="${basedir}/target/webapp/javascript/atmosphere.js"
                                       overwrite="true"
                                       failonerror="false"
