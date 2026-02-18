@@ -16,6 +16,8 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 - **Monorepo** - Framework, samples, and TypeScript client in one place
 - **Jakarta EE 10+** - Servlet 6.0, WebSocket 2.1, CDI 4.0
 - **TypeScript Client** - Modern atmosphere.js 5.0 with type safety and React/Vue/Svelte hooks
+- **AI/LLM Streaming** - Built-in adapters for Spring AI, LangChain4j, and Embabel Agent Framework
+- **Kotlin DSL** - Idiomatic builder and coroutine extensions
 - **Native Image** - GraalVM native builds for Spring Boot and Quarkus
 
 ### Choose Your Stack
@@ -223,6 +225,210 @@ lobby.join(resource, new RoomMember("user-1", Map.of("name", "Alice")));
 lobby.broadcast("Hello everyone!");
 lobby.onPresence(event -> log.info("{} {} room '{}'",
     event.member().id(), event.type(), event.room().name()));
+```
+
+### AI/LLM Streaming
+
+Stream AI responses token-by-token to browsers with built-in adapters for **Spring AI**, **LangChain4j**, and **Embabel Agent Framework**. All adapters share the same wire protocol via the `atmosphere-ai` SPI — adding a new AI framework means implementing one interface.
+
+```xml
+<!-- Shared SPI (always required) -->
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-ai</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+</dependency>
+
+<!-- Pick your AI framework adapter -->
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-spring-ai</artifactId>     <!-- Spring AI -->
+    <version>4.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+<details>
+<summary>Spring AI — stream ChatClient responses</summary>
+
+```java
+@ManagedService(path = "/ai/chat")
+public class AiChat {
+
+    @Inject private AtmosphereResource resource;
+
+    @Message
+    public void onMessage(String prompt) {
+        StreamingSession session = StreamingSessions.start(resource);
+        springAiAdapter.stream(chatClient, prompt, session);
+        // Tokens flow to the browser automatically — no manual response handling
+    }
+}
+```
+
+The `SpringAiStreamingAdapter` subscribes to `ChatClient.prompt().stream().chatResponse()` and pushes each `ChatResponse` token through the `StreamingSession`.
+
+</details>
+
+<details>
+<summary>LangChain4j — callback-based streaming</summary>
+
+```java
+@ManagedService(path = "/ai/chat")
+public class AiChat {
+
+    @Inject private AtmosphereResource resource;
+
+    @Message
+    public void onMessage(String prompt) {
+        StreamingSession session = StreamingSessions.start(resource);
+        // AtmosphereStreamingResponseHandler bridges LangChain4j callbacks to StreamingSession
+        model.chat(ChatMessage.userMessage(prompt),
+            new AtmosphereStreamingResponseHandler(session));
+    }
+}
+```
+
+</details>
+
+<details>
+<summary>Embabel Agent Framework — agentic AI with progress</summary>
+
+```kotlin
+@ManagedService(path = "/ai/agent")
+class AgentChat {
+
+    @Inject lateinit var resource: AtmosphereResource
+
+    @Message
+    fun onMessage(prompt: String) {
+        val session = StreamingSessions.start(resource)
+        val channel = AtmosphereOutputChannel(session)
+        // Agent progress events (thinking, tool calls, results) stream to the browser
+        agentPlatform.runAgent(prompt, outputChannel = channel)
+    }
+}
+```
+
+</details>
+
+<details>
+<summary>Browser — atmosphere.js streaming hooks</summary>
+
+**Vanilla TypeScript:**
+
+```typescript
+import { atmosphere, subscribeStreaming } from 'atmosphere.js';
+
+const handle = await subscribeStreaming(atmosphere, {
+  url: '/ai/chat',
+  transport: 'websocket',
+}, {
+  onToken:    (token) => document.getElementById('output')!.textContent += token,
+  onProgress: (msg)   => console.log('Status:', msg),
+  onComplete: ()      => console.log('Done!'),
+  onError:    (err)   => console.error(err),
+});
+
+handle.send('Explain virtual threads in Java 21');
+```
+
+**React:**
+
+```tsx
+import { AtmosphereProvider, useStreaming } from 'atmosphere.js/react';
+
+function AiChat() {
+  const { fullText, isStreaming, progress, send } = useStreaming({
+    request: { url: '/ai/chat', transport: 'websocket' },
+  });
+
+  return (
+    <div>
+      <button onClick={() => send('What is Atmosphere?')} disabled={isStreaming}>
+        Ask
+      </button>
+      {isStreaming && <span>{progress ?? 'Generating…'}</span>}
+      <p>{fullText}</p>
+    </div>
+  );
+}
+```
+
+**Vue:**
+
+```vue
+<script setup>
+import { useStreaming } from 'atmosphere.js/vue';
+
+const { fullText, isStreaming, send } = useStreaming(
+  { url: '/ai/chat', transport: 'websocket' },
+);
+</script>
+
+<template>
+  <button @click="send('What is Atmosphere?')" :disabled="isStreaming">Ask</button>
+  <p>{{ fullText }}</p>
+</template>
+```
+
+**Svelte:**
+
+```svelte
+<script>
+  import { createStreamingStore } from 'atmosphere.js/svelte';
+
+  const { store: ai, send } = createStreamingStore(
+    { url: '/ai/chat', transport: 'websocket' },
+  );
+</script>
+
+<button on:click={() => send('What is Atmosphere?')} disabled={$ai.isStreaming}>Ask</button>
+<p>{$ai.fullText}</p>
+```
+
+</details>
+
+### Kotlin DSL
+
+Idiomatic Kotlin API with coroutine support:
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-kotlin</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+```kotlin
+import org.atmosphere.kotlin.atmosphere
+
+// Build an AtmosphereHandler with the DSL
+val handler = atmosphere {
+    onConnect { resource ->
+        println("${resource.uuid()} connected via ${resource.transport()}")
+    }
+    onMessage { resource, message ->
+        resource.broadcaster.broadcast(message)
+    }
+    onDisconnect { resource ->
+        println("${resource.uuid()} left")
+    }
+}
+
+// Register it
+framework.addAtmosphereHandler("/chat", handler)
+```
+
+Coroutine extensions for non-blocking broadcast and write:
+
+```kotlin
+import org.atmosphere.kotlin.broadcastSuspend
+import org.atmosphere.kotlin.writeSuspend
+
+// Inside a coroutine
+broadcaster.broadcastSuspend("Hello!")     // suspends instead of blocking
+resource.writeSuspend("Direct message")   // suspends instead of blocking
 ```
 
 ### Observability

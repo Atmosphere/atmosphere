@@ -17,3 +17,4 @@
 export { useAtmosphere } from './useAtmosphere';
 export { useRoom } from './useRoom';
 export { usePresence } from './usePresence';
+export { useStreaming } from './useStreaming';

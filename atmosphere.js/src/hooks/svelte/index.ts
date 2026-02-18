@@ -17,3 +17,4 @@
 export { createAtmosphereStore } from './atmosphere';
 export { createRoomStore } from './room';
 export { createPresenceStore } from './presence';
+export { createStreamingStore } from './streaming';
