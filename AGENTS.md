@@ -97,7 +97,7 @@ atmosphere/
 ## Writing Code
 
 - Java version: **21** (configured in root pom.xml `<release>21</release>`)
-- License: CDDL + Apache 2.0
+- License: Apache 2.0 (5 Jersey-derived files retain CDDL+GPL headers)
 - All Java files MUST have the copyright header (enforced by pre-commit hook)
 - Commit without AI assistant-related commit messages
 - Do not add AI-generated commit text in commit messages

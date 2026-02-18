@@ -52,10 +52,6 @@
     </mailingLists>
     <licenses>
         <license>
-            <name>CDDL</name>
-            <url>https://glassfish.dev.java.net/public/CDDLv1.0.html</url>
-        </license>
-        <license>
             <name>Apache License 2.0</name>
             <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
             <distribution>repo</distribution>
