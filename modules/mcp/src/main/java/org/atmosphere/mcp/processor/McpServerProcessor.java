@@ -22,7 +22,6 @@ import org.atmosphere.mcp.annotation.McpServer;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpHandler;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
-import org.atmosphere.mcp.runtime.McpWebSocketHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,7 +46,6 @@ public class McpServerProcessor implements Processor<Object> {
                 return;
             }
 
-            // Create instance and scan for MCP methods
             var instance = framework.newClassInstance(Object.class, annotatedClass);
             var registry = new McpRegistry();
             registry.scan(instance);
@@ -55,10 +53,7 @@ public class McpServerProcessor implements Processor<Object> {
             var protocolHandler = new McpProtocolHandler(
                     annotation.name(), annotation.version(), registry);
 
-            // Register both AtmosphereHandler (for SSE/long-polling) and WebSocketHandler
             var handler = new McpHandler(protocolHandler);
-            var wsHandler = new McpWebSocketHandler(protocolHandler);
-
             framework.addAtmosphereHandler(annotation.path(), handler, new ArrayList<>());
 
             logger.info("MCP server '{}' v{} registered at {} — {} tools, {} resources, {} prompts",

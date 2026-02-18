@@ -153,10 +153,47 @@ public class AtmosphereAutoConfiguration {
         scanPackage(scanner, "org.atmosphere.annotation", classes);
 
         // Scan user-configured packages
+        var userPackages = new java.util.ArrayList<String>();
         if (properties.getPackages() != null) {
             for (String pkg : properties.getPackages().split(",")) {
-                scanPackage(scanner, pkg.trim(), classes);
+                var trimmed = pkg.trim();
+                if (!trimmed.isEmpty()) {
+                    userPackages.add(trimmed);
+                    scanPackage(scanner, trimmed, classes);
+                }
             }
+        }
+
+        // Second pass: discover custom annotation types from @AtmosphereAnnotation processors
+        // and re-scan user packages for classes annotated with those custom annotations.
+        var customAnnotationTypes = new HashSet<Class<? extends Annotation>>();
+        for (Class<?> clazz : classes) {
+            var aa = clazz.getAnnotation(AtmosphereAnnotation.class);
+            if (aa != null) {
+                var target = aa.value();
+                boolean isCore = false;
+                for (var core : ATMOSPHERE_ANNOTATIONS) {
+                    if (core.equals(target)) {
+                        isCore = true;
+                        break;
+                    }
+                }
+                if (!isCore) {
+                    customAnnotationTypes.add(target);
+                }
+            }
+        }
+
+        if (!customAnnotationTypes.isEmpty()) {
+            var customScanner = new ClassPathScanningCandidateComponentProvider(false);
+            for (var customAnnotation : customAnnotationTypes) {
+                customScanner.addIncludeFilter(new AnnotationTypeFilter(customAnnotation));
+            }
+            for (String pkg : userPackages) {
+                scanPackage(customScanner, pkg, classes);
+            }
+            logger.debug("Discovered {} custom Atmosphere annotation types: {}",
+                    customAnnotationTypes.size(), customAnnotationTypes);
         }
 
         if (!classes.isEmpty()) {
