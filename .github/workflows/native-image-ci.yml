@@ -83,18 +83,18 @@ jobs:
     steps:
     - uses: actions/checkout@v4
 
-    - name: Set up GraalVM 21
+    - name: Set up GraalVM 21 (Mandrel)
       uses: graalvm/setup-graalvm@v1
       with:
         java-version: '21'
-        distribution: 'graalvm'
+        distribution: 'mandrel'
         cache: 'maven'
 
     - name: Install Atmosphere Modules
       run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment -am
 
     - name: Build Quarkus Native Image
-      run: ./mvnw -B -Pnative package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat
+      run: ./mvnw -B -Dnative package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat
       timeout-minutes: 20
 
     - name: Verify Native Binary Exists
