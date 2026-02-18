@@ -136,6 +136,24 @@ public class DemoMcpServer {
 }
 ```
 
+## React Frontend
+
+The sample includes a React frontend (`frontend/`) built with the `useAtmosphere` hook from `atmosphere.js/react`. It provides a live chat UI where human users interact in real-time — while AI agents simultaneously connect via MCP to invoke tools like `list_users`, `broadcast_message`, and `ban_user`.
+
+```tsx
+import { useAtmosphere } from 'atmosphere.js/react';
+
+const { data, state, push } = useAtmosphere<ChatMessage>({
+  request: {
+    url: '/atmosphere/chat',
+    transport: 'websocket',
+    contentType: 'application/json',
+  },
+});
+```
+
+See the [React, Vue, Svelte Hooks](https://github.com/Atmosphere/atmosphere/wiki/Framework-Hooks-React-Vue-Svelte) wiki page for the full hooks API.
+
 ## Key Concepts
 
 - **`@McpServer`** — marks the class and sets the endpoint path
