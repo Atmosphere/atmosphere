@@ -49,6 +49,31 @@ public class Chat {
 }
 ```
 
+Connect from the browser with [atmosphere.js](atmosphere.js/) 5.0:
+
+```typescript
+import { atmosphere } from 'atmosphere.js';
+
+const subscription = await atmosphere.subscribe({
+    url: '/chat',
+    transport: 'websocket',       // auto-falls back to SSE / long-polling
+    reconnect: true,
+}, {
+    open:    ()   => console.log('Connected!'),
+    message: (res) => console.log('Received:', res.responseBody),
+    close:   ()   => console.log('Disconnected'),
+});
+
+// Send a message — broadcast to every connected client
+subscription.push(JSON.stringify({ author: 'me', text: 'Hello!' }));
+```
+
+Install via npm:
+
+```bash
+npm install atmosphere.js
+```
+
 ---
 
 ### Spring Boot Applications
