@@ -541,6 +541,10 @@
                                 <exclude>**/UrlMappingTest.java</exclude>
                                 <exclude>**/TrackMessageSizeInterceptorTest.java</exclude>
                                 <exclude>**/AtmosphereInterceptorTest.java</exclude>
+                                <!-- Mockito cannot mock BlockingIOCometSupport on JDK 25+ -->
+                                <exclude>**/RoomTest.java</exclude>
+                                <exclude>**/AtmosphereMetricsTest.java</exclude>
+                                <exclude>**/AtmosphereTracingTest.java</exclude>
                                 <!-- Mockito cannot mock sealed interfaces on JDK 21+ -->
                                 <exclude>**/JSR356WebSocketTest.java</exclude>
                             </excludes>
