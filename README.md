@@ -95,7 +95,7 @@ The starter includes Spring AOT runtime hints (`AtmosphereRuntimeHints`) that re
 ./samples/spring-boot-chat/target/atmosphere-spring-boot-chat
 ```
 
-**Requirements:** GraalVM JDK 21+ (or Mandrel). The `native-maven-plugin` is inherited from `spring-boot-starter-parent`.
+**Requirements:** GraalVM JDK 25+ (Spring Boot 4.0 / Spring Framework 7 requires GraalVM 25 as the native image baseline). The `native-maven-plugin` is inherited from `spring-boot-starter-parent`.
 
 If your application uses custom `AtmosphereHandler`, `BroadcasterCache`, or encoder/decoder classes, add `@RegisterReflectionForBinding` or manual `RuntimeHintsRegistrar` entries for those classes.
 
