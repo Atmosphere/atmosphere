@@ -18,6 +18,7 @@
     <modules>
         <module>cpr</module>
         <module>ai</module>
+        <module>mcp</module>
         <module>kotlin</module>
         <module>spring-ai</module>
         <module>langchain4j</module>
