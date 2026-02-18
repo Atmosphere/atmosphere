@@ -24,8 +24,6 @@ jobs:
   spring-boot-native:
     name: Spring Boot Native Image
     runs-on: ubuntu-latest
-    # Spring Boot 4.0.2 native requires GraalVM 25+ (not yet GA) — allow failure until available
-    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
 
