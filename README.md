@@ -19,6 +19,7 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 - **AI/LLM Streaming** - Built-in adapters for Spring AI, LangChain4j, and Embabel Agent Framework
 - **Kotlin DSL** - Idiomatic builder and coroutine extensions
 - **Native Image** - GraalVM native builds for Spring Boot and Quarkus
+- **MCP Server** - Expose tools, resources, and prompts to AI agents (Claude, Copilot) over WebSocket
 
 ### Choose Your Stack
 
@@ -29,6 +30,7 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 | **Any Servlet container** | `atmosphere-runtime` | Servlet 6.0+ |
 | **Kotlin DSL** | `atmosphere-kotlin` | Kotlin 2.1+ |
 | **AI Streaming** | `atmosphere-ai` | JDK 21+ |
+| **MCP Server** | `atmosphere-mcp` | JDK 21+ |
 
 ### Quick start
 
@@ -433,6 +435,42 @@ broadcaster.broadcastSuspend("Hello!")     // suspends instead of blocking
 resource.writeSuspend("Direct message")   // suspends instead of blocking
 ```
 
+### MCP Server — AI Agent Integration
+
+Expose tools, resources, and prompt templates to AI agents like Claude Desktop or GitHub Copilot. Agents connect over WebSocket and invoke your methods via the standard [Model Context Protocol](https://modelcontextprotocol.io/).
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-mcp</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+```java
+@McpServer(name = "my-server", path = "/atmosphere/mcp")
+public class MyMcpServer {
+
+    @McpTool(name = "get_time", description = "Get the current server time")
+    public String getTime(@McpParam(name = "timezone", description = "IANA timezone") String tz) {
+        return Instant.now().atZone(ZoneId.of(tz)).format(DateTimeFormatter.RFC_1123_DATE_TIME);
+    }
+
+    @McpResource(uri = "atmosphere://server/status", name = "Status",
+                  description = "Server status", mimeType = "application/json")
+    public String status() {
+        return Map.of("status", "running", "framework", "Atmosphere 4.0").toString();
+    }
+
+    @McpPrompt(name = "summarize", description = "Summarize data")
+    public List<McpMessage> summarize() {
+        return List.of(McpMessage.system("Summarize concisely."), McpMessage.user("..."));
+    }
+}
+```
+
+Because MCP runs over Atmosphere's transport layer, agents get **automatic reconnection**, **heartbeats**, and **WebSocket → SSE fallback** — features raw MCP servers don't have. See the [MCP Server wiki guide](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server) and the [Spring Boot MCP sample](https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-mcp-server).
+
 ### Observability
 
 <details>
@@ -684,6 +722,7 @@ Uses the standard [Apache Kafka client](https://kafka.apache.org/) 3.x.
 - [Samples](https://github.com/Atmosphere/atmosphere/tree/main/samples) — Spring Boot chat, Quarkus chat, AI streaming samples
 - [Wiki & Tutorials](https://github.com/Atmosphere/atmosphere/wiki)
 - [AI / LLM Streaming](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming)
+- [MCP Server](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server)
 - [Kotlin DSL](https://github.com/Atmosphere/atmosphere/wiki/Kotlin-DSL)
 - [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions)
 - [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/)

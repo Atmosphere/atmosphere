@@ -11,6 +11,7 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | [spring-boot-ai-chat](spring-boot-ai-chat/) | Spring Boot 4.0 | JAR | — | — | — |
 | [spring-boot-langchain4j-chat](spring-boot-langchain4j-chat/) | Spring Boot 4.0 | JAR | — | — | — |
 | [spring-boot-embabel-chat](spring-boot-embabel-chat/) | Spring Boot 4.0 | JAR | — | — | — |
+| [spring-boot-mcp-server](spring-boot-mcp-server/) | Spring Boot 4.0 | JAR | — | — | — |
 | [shared-resources](shared-resources/) | — | — | — | — | — |
 
 ## Quick Start
