@@ -58,70 +58,9 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
     private static final Logger logger = LoggerFactory.getLogger(BlockingIOCometSupport.class);
 
     protected static final String LATCH = BlockingIOCometSupport.class.getName() + ".latch";
-    
-    /**
-     * Configuration parameter for default suspend timeout in milliseconds.
-     * Use 0 for infinite wait (not recommended on JDK 25+).
-     */
-    public static final String DEFAULT_SUSPEND_TIMEOUT_PARAM = 
-        "org.atmosphere.container.blockingIO.defaultTimeout";
-    
-    /**
-     * Configuration parameter to enable/disable JDK 25 safe mode.
-     * When enabled, uses timeout-based await instead of infinite wait.
-     */
-    public static final String JDK25_SAFE_MODE_PARAM = 
-        "org.atmosphere.container.blockingIO.jdk25SafeMode";
-    
-    /**
-     * Default timeout: 10 seconds (10,000 milliseconds)
-     * This is suitable for both production long-polling and test scenarios.
-     * Can be overridden via configuration parameter.
-     */
-    private static final long DEFAULT_TIMEOUT_MS = 10000;
-    
-    /**
-     * Detect if running on JDK 25 or later
-     */
-    private static final boolean IS_JDK25_OR_LATER;
-    
-    static {
-        int javaVersion = Runtime.version().feature();
-        IS_JDK25_OR_LATER = javaVersion >= 25;
-    }
-    
-    private final long defaultTimeout;
-    private final boolean jdk25SafeMode;
 
     public BlockingIOCometSupport(AtmosphereConfig config) {
         super(config);
-        
-        // Read default timeout configuration
-        long configuredTimeout = DEFAULT_TIMEOUT_MS;
-        String timeoutParam = config.getInitParameter(DEFAULT_SUSPEND_TIMEOUT_PARAM);
-        if (timeoutParam != null) {
-            try {
-                configuredTimeout = Long.parseLong(timeoutParam);
-            } catch (NumberFormatException e) {
-                logger.warn("Invalid {} value: '{}', using default {}ms", 
-                           DEFAULT_SUSPEND_TIMEOUT_PARAM, timeoutParam, DEFAULT_TIMEOUT_MS);
-                configuredTimeout = DEFAULT_TIMEOUT_MS;
-            }
-        }
-        this.defaultTimeout = configuredTimeout;
-        
-        // Check if JDK25 safe mode is explicitly configured
-        boolean safeModeEnabled = IS_JDK25_OR_LATER; // default
-        String safeModeParam = config.getInitParameter(JDK25_SAFE_MODE_PARAM);
-        if (safeModeParam != null) {
-            safeModeEnabled = Boolean.parseBoolean(safeModeParam);
-            logger.info("BlockingIOCometSupport JDK25 safe mode explicitly {} (timeout={}ms)", 
-                       safeModeEnabled ? "enabled" : "disabled", this.defaultTimeout);
-        } else if (IS_JDK25_OR_LATER) {
-            logger.info("BlockingIOCometSupport JDK25 safe mode auto-enabled (JDK {}, timeout={}ms)", 
-                       Runtime.version().feature(), this.defaultTimeout);
-        }
-        this.jdk25SafeMode = safeModeEnabled;
     }
 
     @Override
@@ -175,17 +114,8 @@ public class BlockingIOCometSupport extends AsynchronousProcessor {
                 });
                 
                 if (action.timeout() != -1) {
-                    // Explicit timeout specified in action
                     ok = latch.await(action.timeout(), TimeUnit.MILLISECONDS);
-                } else if (jdk25SafeMode && defaultTimeout > 0) {
-                    // JDK 25 safe mode: use configured timeout
-                    ok = latch.await(defaultTimeout, TimeUnit.MILLISECONDS);
-                    if (!ok) {
-                        logger.debug("BlockingIOCometSupport timed out after {}ms (JDK25 safe mode)", 
-                                   defaultTimeout);
-                    }
                 } else {
-                    // Legacy behavior: infinite wait (JDK < 25 or explicitly disabled)
                     latch.await();
                 }
             } catch (InterruptedException ex) {

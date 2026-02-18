@@ -458,7 +458,7 @@ public class IOUtils {
             if (u != null) {
                 realPath = u.getPath();
             } else {
-                return "";
+                return null;
             }
         }
         return realPath;

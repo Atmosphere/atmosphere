@@ -481,48 +481,6 @@
                 </plugins>
             </build>
         </profile>
-        <!--
-            JDK 25 Test Configuration Profile
-
-            Excludes tests with JDK 25 incompatibilities:
-            - BlockingIOCometSupport timing: request handlers don't complete before assertions
-            - WebSocket handler mapping: handler not found during processor.open()
-            - Broadcaster lifecycle: async destroy doesn't complete between test methods
-        -->
-        <profile>
-            <id>jdk25-test-config</id>
-            <activation>
-                <jdk>[25,)</jdk>
-            </activation>
-            <build>
-                <plugins>
-                    <plugin>
-                        <groupId>org.apache.maven.plugins</groupId>
-                        <artifactId>maven-surefire-plugin</artifactId>
-                        <version>3.5.4</version>
-                        <configuration>
-                            <excludes>
-                                <!-- BlockingIOCometSupport timing: handler not invoked before assertions -->
-                                <exclude>**/CookieTest.java</exclude>
-                                <exclude>**/QueryStringTest.java</exclude>
-                                <exclude>**/WebSocketHandlerTest.java</exclude>
-                                <exclude>**/WebSocketStreamingHandlerTest.java</exclude>
-                                <!-- Broadcaster/interceptor timing issues -->
-                                <exclude>**/BroadcasterLifecyclePolicyTest.java</exclude>
-                                <exclude>**/BroadcasterListenerTest.java</exclude>
-                                <exclude>**/AtmosphereInterceptorTest.java</exclude>
-                                <!-- Broadcaster cleanup between test methods incomplete -->
-                                <exclude>**/MetaBroadcasterTest.java</exclude>
-                                <!-- WebSocket handler mapping fails on JDK 25 -->
-                                <exclude>**/WebSocketProcessorTest.java</exclude>
-                                <exclude>**/TrackMessageSizeInterceptorTest.java</exclude>
-                                <exclude>**/UrlMappingTest.java</exclude>
-                            </excludes>
-                        </configuration>
-                    </plugin>
-                </plugins>
-            </build>
-        </profile>
     </profiles>
     <modules>
         <module>buildtools</module>

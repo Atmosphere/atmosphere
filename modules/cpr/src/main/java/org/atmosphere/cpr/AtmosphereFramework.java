@@ -2140,6 +2140,8 @@ public class AtmosphereFramework {
     }
 
     protected void loadWebSocketFromPath(ClassLoader classloader, String realPath) {
+        if (realPath == null || realPath.isEmpty()) return;
+
         File file = new File(realPath);
 
         if (file.exists() && file.isDirectory()) {
