@@ -478,6 +478,7 @@ Uses the standard [Apache Kafka client](https://kafka.apache.org/) 3.x.
 - [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions)
 - [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/)
 - [atmosphere.js API](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API)
+- [React / Vue / Svelte Hooks](https://github.com/Atmosphere/atmosphere/wiki/Framework-Hooks-React-Vue-Svelte)
 - [DeepWiki](https://deepwiki.com/Atmosphere/atmosphere) — AI-powered code exploration
 
 ### Client Libraries
