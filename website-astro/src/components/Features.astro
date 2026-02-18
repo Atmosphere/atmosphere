@@ -116,14 +116,13 @@ const features = [
       <circle cx="12" cy="15" r="2"/>
       <path d="M12 17v2"/>
     </svg>`,
-    title: 'AI / LLM Streaming',
-    description: 'Stream AI responses token-by-token over WebSocket. Built-in adapters for Spring AI, LangChain4j, and Embabel.',
-    detail: `<p>Stream LLM tokens over WebSocket — <strong>no separate endpoint</strong> needed.</p>
+    title: 'AI & MCP Integration',
+    description: 'Stream LLM tokens over WebSocket. MCP server for AI agents. Adapters for Spring AI, LangChain4j, and Embabel.',
+    detail: `<p>Two ways to integrate AI — <strong>streaming</strong> and <strong>MCP server</strong>.</p>
 <ul>
-<li><strong>Built-in client</strong> — works with OpenAI, Gemini, Ollama, Azure</li>
-<li><strong>Spring AI</strong> adapter — Flux streams</li>
-<li><strong>LangChain4j</strong> adapter — callback interface</li>
-<li><strong>Embabel</strong> adapter — Kotlin coroutines</li>
+<li><strong>LLM Streaming</strong> — token-by-token delivery over WebSocket</li>
+<li><strong>MCP Server</strong> — expose tools, resources, and prompts to AI agents</li>
+<li><strong>Adapters</strong> — Spring AI, LangChain4j, Embabel, OpenAI-compatible</li>
 <li><strong>Virtual members</strong> — add an LLM as a room participant</li>
 <li><strong>Client hooks</strong> — useStreaming() for React, Vue, Svelte</li>
 </ul>`,
