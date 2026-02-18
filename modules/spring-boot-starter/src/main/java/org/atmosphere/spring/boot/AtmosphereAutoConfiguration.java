@@ -42,6 +42,7 @@ import org.atmosphere.config.service.BroadcasterListenerService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.config.service.EndpointMapperService;
 import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.RoomService;
 import org.atmosphere.config.service.UUIDProviderService;
 import org.atmosphere.config.service.WebSocketFactoryService;
 import org.atmosphere.config.service.WebSocketHandlerService;
@@ -51,6 +52,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.DefaultAnnotationProcessor;
+import org.atmosphere.room.RoomManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.config.BeanDefinition;
@@ -99,7 +101,8 @@ public class AtmosphereAutoConfiguration {
             AtmosphereResourceFactoryService.class,
             AtmosphereFrameworkListenerService.class,
             AtmosphereResourceListenerService.class,
-            UUIDProviderService.class
+            UUIDProviderService.class,
+            RoomService.class
     };
 
     @Bean
@@ -128,6 +131,12 @@ public class AtmosphereAutoConfiguration {
     @ConditionalOnMissingBean
     public AtmosphereFramework atmosphereFramework(AtmosphereServlet servlet) {
         return servlet.framework();
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public RoomManager roomManager(AtmosphereFramework framework) {
+        return RoomManager.getOrCreate(framework);
     }
 
     private Map<Class<? extends Annotation>, Set<Class<?>>> scanAnnotations(

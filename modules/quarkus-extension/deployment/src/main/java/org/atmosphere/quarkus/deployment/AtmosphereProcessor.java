@@ -75,6 +75,7 @@ class AtmosphereProcessor {
             DotName.createSimple("org.atmosphere.config.service.AtmosphereFrameworkListenerService"),
             DotName.createSimple("org.atmosphere.config.service.AtmosphereResourceListenerService"),
             DotName.createSimple("org.atmosphere.config.service.UUIDProviderService"),
+            DotName.createSimple("org.atmosphere.config.service.RoomService"),
     };
 
     @BuildStep
