@@ -18,7 +18,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.Collection;
-import java.util.Set;
 import java.util.concurrent.ConcurrentMap;
 
 /**

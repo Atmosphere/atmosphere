@@ -32,7 +32,6 @@ public class UUIDBroadcasterCacheThreadingTest {
     private static final String CLIENT_ID = java.util.UUID.randomUUID().toString();
     private final ConcurrentLinkedQueue<Object> retreivedMessages = new ConcurrentLinkedQueue<>();
 
-    @SuppressWarnings("deprecation")
     @Test
     public void testUuidBroadcasterCacheThreading() {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();

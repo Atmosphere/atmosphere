@@ -31,7 +31,6 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Map;
 import java.util.Optional;
 
 /**
@@ -58,12 +57,10 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
     private static final Logger logger = LoggerFactory.getLogger(RoomProtocolInterceptor.class);
 
     private RoomManager roomManager;
-    private AtmosphereConfig config;
     private RoomAuthorizer authorizer;
 
     @Override
     public void configure(AtmosphereConfig config) {
-        this.config = config;
         this.roomManager = RoomManager.getOrCreate(config.framework());
 
         // Scan for @RoomAuth on registered AtmosphereHandler classes

@@ -23,13 +23,9 @@ import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.net.http.HttpClient;
-import java.net.http.HttpHeaders;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
-import java.util.List;
-import java.util.Map;
-import java.util.Optional;
 
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
@@ -85,7 +81,6 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testSSEParsing() throws Exception {
         // Simulate an SSE stream from an OpenAI-compatible API
         var sseResponse = """
@@ -128,7 +123,6 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testAPIErrorHandling() throws Exception {
         var errorBody = """
                 {"error":{"message":"Invalid API key","type":"invalid_request_error","code":"invalid_api_key"}}
@@ -154,7 +148,6 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testUsageMetadata() throws Exception {
         var sseResponse = """
                 data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"Hi"},"finish_reason":null}]}
@@ -182,7 +175,6 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
-    @SuppressWarnings("unchecked")
     public void testEmptyDeltaIgnored() throws Exception {
         var sseResponse = """
                 data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"role":"assistant"},"finish_reason":null}]}

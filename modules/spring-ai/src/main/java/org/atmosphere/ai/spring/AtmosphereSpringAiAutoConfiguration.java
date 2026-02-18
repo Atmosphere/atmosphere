@@ -15,7 +15,6 @@
  */
 package org.atmosphere.ai.spring;
 
-import org.atmosphere.ai.AiStreamingAdapter;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;

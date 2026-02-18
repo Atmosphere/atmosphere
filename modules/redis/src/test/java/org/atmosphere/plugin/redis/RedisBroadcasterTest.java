@@ -63,6 +63,7 @@ public class RedisBroadcasterTest {
     private Broadcaster broadcaster;
     private TestHandler handler;
 
+    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         IN_MEMORY_BUS.clear();
@@ -145,6 +146,7 @@ public class RedisBroadcasterTest {
         // No exception means success
     }
 
+    @SuppressWarnings("deprecation")
     @Test
     public void testCrossNodeViaBus() throws Exception {
         // Create a second broadcaster on a different "node"
@@ -160,7 +162,6 @@ public class RedisBroadcasterTest {
 
         // Both are subscribed to the same channel via IN_MEMORY_BUS
         // When broadcaster1 publishes, the bus delivers to all subscribers including broadcaster2's handler
-        var testable1 = (TestableRedisBroadcaster) broadcaster;
         var subscribers = IN_MEMORY_BUS.get("redis-test");
         assertNotNull(subscribers, "Should have subscribers for 'redis-test'");
         assertTrue(subscribers.size() >= 1);

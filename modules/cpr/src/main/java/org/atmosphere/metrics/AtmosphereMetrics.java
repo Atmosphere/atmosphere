@@ -30,7 +30,6 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.Deliver;
 import org.atmosphere.interceptor.BackpressureInterceptor;
-import org.atmosphere.room.PresenceEvent;
 import org.atmosphere.room.Room;
 import org.atmosphere.room.RoomManager;
 import org.slf4j.Logger;
@@ -148,7 +147,7 @@ public final class AtmosphereMetrics {
                 .description("Current members in room")
                 .register(registry);
 
-        Counter roomMessages = Counter.builder("atmosphere.rooms.messages")
+        Counter.builder("atmosphere.rooms.messages")
                 .tags(roomTags)
                 .description("Messages broadcast in room")
                 .register(registry);

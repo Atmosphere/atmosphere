@@ -326,6 +326,7 @@ public class RoomProtocolInterceptorTest {
 
     // --- Helpers ---
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     private AtmosphereResource createResource() throws IOException {
         Broadcaster b = factory.get(DefaultBroadcaster.class, "resource-" + System.nanoTime());
         return new AtmosphereResourceImpl(config, b,
@@ -339,6 +340,7 @@ public class RoomProtocolInterceptorTest {
                 });
     }
 
+    @SuppressWarnings({"deprecation", "unchecked"})
     private AtmosphereResource createResourceWithBody(String body) throws IOException {
         Broadcaster b = factory.get(DefaultBroadcaster.class, "resource-" + System.nanoTime());
 

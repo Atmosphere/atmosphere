@@ -66,7 +66,6 @@ public class DefaultBroadcasterTest {
         framework.addInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY, "beforeFilter");
         AtmosphereConfig config = framework.getAtmosphereConfig();
 
-        @SuppressWarnings("deprecation")
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
         factory.configure(B.class, "NEVER", config);
         broadcaster = factory.get("test");

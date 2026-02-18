@@ -22,7 +22,6 @@ import static org.testng.Assert.assertTrue;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
@@ -138,6 +137,7 @@ public class AtmosphereMetricsTest {
         assertEquals(activeGauge.value(), 0.0, "Should have 0 active connections after removal");
     }
 
+    @SuppressWarnings("deprecation")
     private AtmosphereResource createResource(CountDownLatch latch) throws IOException {
         return new AtmosphereResourceImpl(config,
                 broadcaster,

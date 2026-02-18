@@ -18,8 +18,6 @@ package org.atmosphere.interceptor;
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 /**
@@ -45,8 +43,6 @@ import org.slf4j.MDC;
  * @since 4.0
  */
 public class MDCInterceptor extends AtmosphereInterceptorAdapter {
-
-    private static final Logger logger = LoggerFactory.getLogger(MDCInterceptor.class);
 
     public static final String MDC_UUID = "atmosphere.uuid";
     public static final String MDC_TRANSPORT = "atmosphere.transport";

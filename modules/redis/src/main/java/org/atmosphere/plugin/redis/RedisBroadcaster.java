@@ -94,6 +94,7 @@ public class RedisBroadcaster extends DefaultBroadcaster {
     /**
      * Connect to Redis. Override in tests to inject mock connections.
      */
+    @SuppressWarnings("deprecation")
     protected void connectToRedis(String redisUrl, String password) {
         var redisUri = RedisURI.create(redisUrl);
         if (password != null && !password.isEmpty()) {

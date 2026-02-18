@@ -15,7 +15,6 @@
  */
 package org.atmosphere.ai;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.mockito.ArgumentCaptor;

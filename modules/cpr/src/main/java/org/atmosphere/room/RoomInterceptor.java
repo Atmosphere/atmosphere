@@ -16,7 +16,6 @@
 package org.atmosphere.room;
 
 import org.atmosphere.cpr.Action;
-import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;

@@ -16,7 +16,6 @@
 package org.atmosphere.samples.springboot.chat;
 
 import org.atmosphere.room.RoomManager;
-import org.atmosphere.room.RoomMember;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;

@@ -16,7 +16,6 @@
 package org.atmosphere.ai.llm;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.ai.StreamingSession;
 import org.slf4j.Logger;

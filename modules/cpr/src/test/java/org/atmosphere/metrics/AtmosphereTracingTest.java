@@ -44,6 +44,7 @@ public class AtmosphereTracingTest {
     private Span span;
     private Scope scope;
 
+    @SuppressWarnings("unchecked")
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
@@ -133,6 +134,7 @@ public class AtmosphereTracingTest {
         assertNotNull(tracing);
     }
 
+    @SuppressWarnings("deprecation")
     private AtmosphereResource createResource() throws IOException {
         return new AtmosphereResourceImpl(config,
                 broadcaster,

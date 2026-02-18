@@ -47,7 +47,6 @@ public class PoolableBroadcasterFactoryTest {
     private AtmosphereConfig config;
     private PoolableBroadcasterFactory factory;
 
-    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         AtmosphereFramework f = new AtmosphereFramework();

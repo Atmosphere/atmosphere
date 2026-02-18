@@ -57,7 +57,6 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
     private StatefulRedisPubSubConnection<String, String> pubConnection;
     private StatefulRedisPubSubConnection<String, String> subConnection;
     private Broadcaster broadcaster;
-    private String uri;
 
     @Override
     public void init(AtmosphereConfig config) {
@@ -79,6 +78,7 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
     /**
      * Connect to Redis. Override in tests to inject mock connections.
      */
+    @SuppressWarnings("deprecation")
     protected void connectToRedis(String redisUrl, String password) {
         var redisUri = RedisURI.create(redisUrl);
         if (password != null && !password.isEmpty()) {
@@ -126,7 +126,7 @@ public class RedisClusterBroadcastFilter implements ClusterBroadcastFilter {
 
     @Override
     public void setUri(String name) {
-        this.uri = name;
+        // URI not used — Redis URL is read from AtmosphereConfig at init()
     }
 
     @Override

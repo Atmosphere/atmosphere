@@ -37,6 +37,7 @@ public class SpringAiStreamingAdapter implements AiStreamingAdapter<SpringAiStre
     }
 
     @Override
+    @SuppressWarnings("null")
     public void stream(ChatRequest request, StreamingSession session) {
         session.progress("Connecting to AI model...");
         request.client().prompt(request.prompt())

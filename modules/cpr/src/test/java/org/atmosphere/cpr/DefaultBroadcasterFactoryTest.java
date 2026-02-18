@@ -41,7 +41,6 @@ public class DefaultBroadcasterFactoryTest {
     private AtmosphereConfig config;
     private DefaultBroadcasterFactory factory;
 
-    @SuppressWarnings("deprecation")
     @BeforeMethod
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
@@ -170,7 +169,6 @@ public class DefaultBroadcasterFactoryTest {
         assertEquals(factory.lookupAll().size(), 1);
     }
 
-    @SuppressWarnings("deprecation")
     @Test
     public void concurrentLookupTest() throws InterruptedException {
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory();
@@ -214,7 +212,6 @@ public class DefaultBroadcasterFactoryTest {
         }
     }
 
-    @SuppressWarnings("deprecation")
     @Test
     public void concurrentAccessLookupTest() throws InterruptedException {
         final DefaultBroadcasterFactory f = new DefaultBroadcasterFactory();
