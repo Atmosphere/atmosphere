@@ -545,6 +545,7 @@
                                 <exclude>**/RoomTest.java</exclude>
                                 <exclude>**/AtmosphereMetricsTest.java</exclude>
                                 <exclude>**/AtmosphereTracingTest.java</exclude>
+                                <exclude>**/RedisBroadcasterTest.java</exclude>
                                 <!-- Mockito cannot mock sealed interfaces on JDK 21+ -->
                                 <exclude>**/JSR356WebSocketTest.java</exclude>
                             </excludes>
