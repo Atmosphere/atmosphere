@@ -7,6 +7,7 @@ export default defineConfig([
       react: 'src/hooks/react/index.ts',
       vue: 'src/hooks/vue/index.ts',
       svelte: 'src/hooks/svelte/index.ts',
+      chat: 'src/chat/index.ts',
     },
     format: ['esm', 'cjs'],
     dts: true,

@@ -134,26 +134,6 @@
                     </execution>
                 </executions>
             </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-antrun-plugin</artifactId>
-                <executions>
-                    <execution>
-                        <id>copy-atmosphere-js</id>
-                        <phase>generate-resources</phase>
-                        <goals><goal>run</goal></goals>
-                        <configuration>
-                            <target>
-                                <copy file="${project.basedir}/../../atmosphere.js/dist/atmosphere.global.js"
-                                      tofile="${basedir}/target/webapp/javascript/atmosphere.js"
-                                      overwrite="true"
-                                      failonerror="false"
-                                      quiet="true"/>
-                            </target>
-                        </configuration>
-                    </execution>
-                </executions>
-            </plugin>
         </plugins>
     </build>
 </project>

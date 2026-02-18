@@ -26,6 +26,11 @@
       "types": "./dist/svelte.d.ts",
       "import": "./dist/svelte.js",
       "require": "./dist/svelte.cjs"
+    },
+    "./chat": {
+      "types": "./dist/chat.d.ts",
+      "import": "./dist/chat.js",
+      "require": "./dist/chat.cjs"
     }
   },
   "peerDependencies": {
