@@ -29,6 +29,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.Deliver;
+import org.atmosphere.interceptor.BackpressureInterceptor;
 import org.atmosphere.room.PresenceEvent;
 import org.atmosphere.room.Room;
 import org.atmosphere.room.RoomManager;
@@ -66,6 +67,8 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li>{@code atmosphere.cache.evictions} — counter of cache evictions</li>
  *   <li>{@code atmosphere.cache.hits} — counter of cache hits</li>
  *   <li>{@code atmosphere.cache.misses} — counter of cache misses</li>
+ *   <li>{@code atmosphere.backpressure.drops} — counter of backpressure drops</li>
+ *   <li>{@code atmosphere.backpressure.disconnects} — counter of backpressure disconnects</li>
  * </ul>
  */
 public final class AtmosphereMetrics {
@@ -203,6 +206,29 @@ public final class AtmosphereMetrics {
                 .register(registry);
 
         logger.info("Cache metrics installed for {}", cache);
+    }
+
+    /**
+     * Install backpressure metrics on a {@link BackpressureInterceptor} instance.
+     *
+     * <p>Registers:
+     * <ul>
+     *   <li>{@code atmosphere.backpressure.drops} — counter of dropped messages</li>
+     *   <li>{@code atmosphere.backpressure.disconnects} — counter of disconnected clients</li>
+     * </ul>
+     *
+     * @param interceptor the backpressure interceptor to instrument
+     */
+    public void instrumentBackpressure(BackpressureInterceptor interceptor) {
+        Gauge.builder("atmosphere.backpressure.drops", interceptor, i -> (double) i.totalDrops())
+                .description("Total messages dropped by backpressure")
+                .register(registry);
+
+        Gauge.builder("atmosphere.backpressure.disconnects", interceptor, i -> (double) i.totalDisconnects())
+                .description("Total clients disconnected by backpressure")
+                .register(registry);
+
+        logger.info("Backpressure metrics installed (policy={})", interceptor.policy());
     }
 
     /**
