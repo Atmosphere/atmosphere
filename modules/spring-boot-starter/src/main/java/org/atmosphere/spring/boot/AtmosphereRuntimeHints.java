@@ -44,6 +44,18 @@ import org.atmosphere.inject.WebSocketFactoryInjectable;
 import org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor;
 import org.atmosphere.pool.BoundedApachePoolableProvider;
 import org.atmosphere.pool.UnboundedApachePoolableProvider;
+import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
+import org.atmosphere.interceptor.CacheHeadersInterceptor;
+import org.atmosphere.interceptor.CorsInterceptor;
+import org.atmosphere.interceptor.HeartbeatInterceptor;
+import org.atmosphere.interceptor.IdleResourceInterceptor;
+import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
+import org.atmosphere.interceptor.JavaScriptProtocol;
+import org.atmosphere.interceptor.OnDisconnectInterceptor;
+import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
+import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
+import org.atmosphere.interceptor.SuspendTrackerInterceptor;
+import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
 import org.atmosphere.websocket.DefaultWebSocketFactory;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
@@ -151,6 +163,23 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
                 // commons-pool2 not available; skip pool class registration
             }
         }
+
+        // Default interceptors (loaded by name via IOUtils.loadClass)
+        registerType(reflection, CorsInterceptor.class);
+        registerType(reflection, CacheHeadersInterceptor.class);
+        registerType(reflection, PaddingAtmosphereInterceptor.class);
+        registerType(reflection, AndroidAtmosphereInterceptor.class);
+        registerType(reflection, HeartbeatInterceptor.class);
+        registerType(reflection, SSEAtmosphereInterceptor.class);
+        registerType(reflection, JSONPAtmosphereInterceptor.class);
+        registerType(reflection, JavaScriptProtocol.class);
+        registerType(reflection, WebSocketMessageSuspendInterceptor.class);
+        registerType(reflection, OnDisconnectInterceptor.class);
+        registerType(reflection, IdleResourceInterceptor.class);
+        registerType(reflection, SuspendTrackerInterceptor.class);
+
+        // Annotation processor
+        registerTypeByName(reflection, "org.atmosphere.cpr.DefaultAnnotationProcessor");
 
         // WebSocket
         registerType(reflection, DefaultWebSocketProcessor.class);

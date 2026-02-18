@@ -32,6 +32,7 @@ import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.IndexDependencyBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
+import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildItem;
 import io.quarkus.undertow.deployment.IgnoredServletContainerInitializerBuildItem;
 import io.quarkus.undertow.deployment.ServletBuildItem;
 import io.quarkus.websockets.client.deployment.ServerWebSocketContainerBuildItem;
@@ -128,6 +129,14 @@ class AtmosphereProcessor {
     }
 
     @BuildStep
+    void registerRuntimeInit(BuildProducer<RuntimeInitializedClassBuildItem> runtimeInit) {
+        // ExecutorsFactory creates ScheduledExecutorService with named threads.
+        // These threads must not start during native image build.
+        runtimeInit.produce(new RuntimeInitializedClassBuildItem(
+                "org.atmosphere.util.ExecutorsFactory"));
+    }
+
+    @BuildStep
     void registerReflection(AtmosphereAnnotationsBuildItem annotations,
                             BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
         List<String> allClassNames = new ArrayList<>();
@@ -192,7 +201,22 @@ class AtmosphereProcessor {
                                 "org.atmosphere.websocket.DefaultWebSocketProcessor",
                                 "org.atmosphere.websocket.DefaultWebSocketFactory",
                                 // Protocol
-                                "org.atmosphere.websocket.protocol.SimpleHttpProtocol")
+                                "org.atmosphere.websocket.protocol.SimpleHttpProtocol",
+                                // Default interceptors (loaded by name via IOUtils.loadClass)
+                                "org.atmosphere.interceptor.CorsInterceptor",
+                                "org.atmosphere.interceptor.CacheHeadersInterceptor",
+                                "org.atmosphere.interceptor.PaddingAtmosphereInterceptor",
+                                "org.atmosphere.interceptor.AndroidAtmosphereInterceptor",
+                                "org.atmosphere.interceptor.HeartbeatInterceptor",
+                                "org.atmosphere.interceptor.SSEAtmosphereInterceptor",
+                                "org.atmosphere.interceptor.JSONPAtmosphereInterceptor",
+                                "org.atmosphere.interceptor.JavaScriptProtocol",
+                                "org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor",
+                                "org.atmosphere.interceptor.OnDisconnectInterceptor",
+                                "org.atmosphere.interceptor.IdleResourceInterceptor",
+                                "org.atmosphere.interceptor.SuspendTrackerInterceptor",
+                                // Annotation processor
+                                "org.atmosphere.cpr.DefaultAnnotationProcessor")
                         .constructors()
                         .methods()
                         .fields()

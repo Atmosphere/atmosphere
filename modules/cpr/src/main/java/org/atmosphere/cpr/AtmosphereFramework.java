@@ -1211,7 +1211,10 @@ public class AtmosphereFramework {
 
             for (Class<? extends AtmosphereInterceptor> a : DEFAULT_ATMOSPHERE_INTERCEPTORS) {
                 if (!excludedInterceptors.contains(a.getName())) {
-                    interceptors.add(newAInterceptor(a));
+                    AtmosphereInterceptor ai = newAInterceptor(a);
+                    if (ai != null) {
+                        interceptors.add(ai);
+                    }
                 } else {
                     logger.info("Dropping Interceptor {}", a.getName());
                 }
