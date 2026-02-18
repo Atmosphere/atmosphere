@@ -2,6 +2,8 @@
  * Atmosphere 4.0 Chat — MCP Server Demo
  * Uses atmosphere.js 5.0 with simple broadcast pattern
  */
+import { atmosphere } from './atmosphere.js';
+
 document.addEventListener('DOMContentLoaded', async function() {
     'use strict';
 
@@ -35,7 +37,7 @@ document.addEventListener('DOMContentLoaded', async function() {
     }
 
     try {
-        subscription = await atmosphere.atmosphere.subscribe(
+        subscription = await atmosphere.subscribe(
             {
                 url: window.location.protocol + '//' + window.location.host + '/atmosphere/chat',
                 transport: 'websocket',
