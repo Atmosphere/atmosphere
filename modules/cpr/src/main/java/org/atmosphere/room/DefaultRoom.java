@@ -51,6 +51,7 @@ public class DefaultRoom implements Room {
     private final Broadcaster broadcaster;
     private final List<Consumer<PresenceEvent>> presenceListeners = new CopyOnWriteArrayList<>();
     private final ConcurrentHashMap<String, RoomMember> memberRegistry = new ConcurrentHashMap<>();
+    private final Set<VirtualRoomMember> virtualMembers = ConcurrentHashMap.newKeySet();
     private volatile boolean destroyed;
     private volatile int historySize;
 
@@ -121,12 +122,14 @@ public class DefaultRoom implements Room {
 
     @Override
     public Future<Object> broadcast(Object message) {
+        dispatchToVirtualMembers(message, null);
         return broadcaster.broadcast(message);
     }
 
     @Override
     public Future<Object> broadcast(Object message, AtmosphereResource sender) {
         // Broadcast to everyone except sender
+        dispatchToVirtualMembers(message, sender.uuid());
         Set<AtmosphereResource> targets = new java.util.HashSet<>(broadcaster.getAtmosphereResources());
         targets.remove(sender);
         if (targets.isEmpty()) {
@@ -199,8 +202,31 @@ public class DefaultRoom implements Room {
     }
 
     @Override
+    public Room joinVirtual(VirtualRoomMember member) {
+        if (destroyed) throw new IllegalStateException("Room '" + name + "' is destroyed");
+        virtualMembers.add(member);
+        fireVirtualPresence(PresenceEvent.Type.JOIN, member);
+        logger.debug("Virtual member '{}' joined room '{}'", member.id(), name);
+        return this;
+    }
+
+    @Override
+    public Room leaveVirtual(VirtualRoomMember member) {
+        virtualMembers.remove(member);
+        fireVirtualPresence(PresenceEvent.Type.LEAVE, member);
+        logger.debug("Virtual member '{}' left room '{}'", member.id(), name);
+        return this;
+    }
+
+    @Override
+    public Set<VirtualRoomMember> virtualMembers() {
+        return Collections.unmodifiableSet(virtualMembers);
+    }
+
+    @Override
     public void destroy() {
         destroyed = true;
+        virtualMembers.clear();
         memberRegistry.clear();
         broadcaster.destroy();
         presenceListeners.clear();
@@ -227,6 +253,29 @@ public class DefaultRoom implements Room {
                 listener.accept(event);
             } catch (Exception e) {
                 logger.warn("Presence listener error in room '{}'", name, e);
+            }
+        }
+    }
+
+    private void fireVirtualPresence(PresenceEvent.Type type, VirtualRoomMember member) {
+        var roomMember = new RoomMember(member.id(), member.metadata());
+        var event = new PresenceEvent(type, this, roomMember);
+        for (var listener : presenceListeners) {
+            try {
+                listener.accept(event);
+            } catch (Exception e) {
+                logger.warn("Presence listener error in room '{}'", name, e);
+            }
+        }
+    }
+
+    private void dispatchToVirtualMembers(Object message, String excludeId) {
+        for (var vm : virtualMembers) {
+            if (vm.id().equals(excludeId)) continue;
+            try {
+                vm.onMessage(this, excludeId != null ? excludeId : "room", message);
+            } catch (Exception e) {
+                logger.warn("Virtual member '{}' error in room '{}'", vm.id(), name, e);
             }
         }
     }

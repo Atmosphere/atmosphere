@@ -149,6 +149,38 @@ public interface Room {
     }
 
     /**
+     * Add a virtual (non-connection) member to this room. Virtual members
+     * receive broadcasts via {@link VirtualRoomMember#onMessage} and can
+     * respond by broadcasting back into the room.
+     *
+     * @param member the virtual member (e.g., an AI agent)
+     * @return this room for chaining
+     * @since 4.0
+     */
+    default Room joinVirtual(VirtualRoomMember member) {
+        return this;
+    }
+
+    /**
+     * Remove a virtual member from this room.
+     *
+     * @param member the virtual member to remove
+     * @return this room for chaining
+     * @since 4.0
+     */
+    default Room leaveVirtual(VirtualRoomMember member) {
+        return this;
+    }
+
+    /**
+     * @return an unmodifiable set of all virtual members in this room
+     * @since 4.0
+     */
+    default Set<VirtualRoomMember> virtualMembers() {
+        return Set.of();
+    }
+
+    /**
      * Enable message history (replay) for this room. New joiners will
      * receive up to {@code maxMessages} cached messages.
      *

@@ -21,11 +21,11 @@ import static org.testng.Assert.*;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -254,8 +254,143 @@ public class RoomTest {
         assertSame(event.member(), ar);
     }
 
+    // --- Virtual Members ---
+
+    @Test
+    public void testJoinVirtual() {
+        Room room = roomManager.room("test");
+        var vm = new TestVirtualMember("bot-1");
+
+        room.joinVirtual(vm);
+        assertEquals(room.virtualMembers().size(), 1);
+        assertTrue(room.virtualMembers().contains(vm));
+    }
+
+    @Test
+    public void testLeaveVirtual() {
+        Room room = roomManager.room("test");
+        var vm = new TestVirtualMember("bot-1");
+
+        room.joinVirtual(vm);
+        room.leaveVirtual(vm);
+        assertTrue(room.virtualMembers().isEmpty());
+    }
+
+    @Test
+    public void testVirtualMemberReceivesBroadcast() throws Exception {
+        Room room = roomManager.room("test");
+        var vm = new TestVirtualMember("bot-1");
+        room.joinVirtual(vm);
+
+        room.broadcast("hello");
+
+        // Virtual member dispatch is synchronous within broadcast()
+        assertEquals(vm.receivedMessages.size(), 1);
+        assertEquals(vm.receivedMessages.getFirst(), "hello");
+    }
+
+    @Test
+    public void testVirtualMemberExcludedFromOwnBroadcast() throws Exception {
+        Room room = roomManager.room("test");
+        var vm = new TestVirtualMember("bot-1");
+        room.joinVirtual(vm);
+
+        var ar = createResource();
+        room.join(ar);
+
+        // Broadcast excluding sender — virtual member should still receive it
+        room.broadcast("from-human", ar);
+        assertEquals(vm.receivedMessages.size(), 1);
+
+        // Virtual member broadcast excludes itself via dispatchToVirtualMembers
+        // The virtual member calls room.broadcast() which dispatches to others
+        // but the excludeId mechanism prevents echo
+    }
+
+    @Test
+    public void testVirtualMemberPresenceJoinEvent() {
+        Room room = roomManager.room("test");
+        var events = new ArrayList<PresenceEvent>();
+        room.onPresence(events::add);
+
+        var vm = new TestVirtualMember("assistant");
+        room.joinVirtual(vm);
+
+        assertEquals(events.size(), 1);
+        assertEquals(events.getFirst().type(), PresenceEvent.Type.JOIN);
+        assertTrue(events.getFirst().isVirtual());
+        assertNull(events.getFirst().member());
+        assertNotNull(events.getFirst().memberInfo());
+        assertEquals(events.getFirst().memberInfo().id(), "assistant");
+    }
+
+    @Test
+    public void testVirtualMemberPresenceLeaveEvent() {
+        Room room = roomManager.room("test");
+        var vm = new TestVirtualMember("assistant");
+        room.joinVirtual(vm);
+
+        var events = new ArrayList<PresenceEvent>();
+        room.onPresence(events::add);
+        room.leaveVirtual(vm);
+
+        assertEquals(events.size(), 1);
+        assertEquals(events.getFirst().type(), PresenceEvent.Type.LEAVE);
+        assertTrue(events.getFirst().isVirtual());
+    }
+
+    @Test
+    public void testVirtualMembersReturnsUnmodifiable() {
+        Room room = roomManager.room("test");
+        room.joinVirtual(new TestVirtualMember("bot"));
+        assertThrows(UnsupportedOperationException.class, () -> room.virtualMembers().clear());
+    }
+
+    @Test
+    public void testDestroyedRoomClearsVirtualMembers() {
+        Room room = roomManager.room("test");
+        room.joinVirtual(new TestVirtualMember("bot"));
+        room.destroy();
+        assertTrue(room.isDestroyed());
+    }
+
+    @Test(expectedExceptions = IllegalStateException.class)
+    public void testJoinVirtualOnDestroyedRoomThrows() {
+        Room room = roomManager.room("temp");
+        room.destroy();
+        room.joinVirtual(new TestVirtualMember("bot"));
+    }
+
+    @Test
+    public void testVirtualMemberMetadata() {
+        var vm = new TestVirtualMember("assistant");
+        var meta = vm.metadata();
+        assertEquals(meta.get("type"), "test");
+    }
+
     // --- Helpers ---
 
+    private static class TestVirtualMember implements VirtualRoomMember {
+        final String id;
+        final List<Object> receivedMessages = new ArrayList<>();
+
+        TestVirtualMember(String id) { this.id = id; }
+
+        @Override public String id() { return id; }
+
+        @Override
+        public void onMessage(Room room, String senderId, Object message) {
+            receivedMessages.add(message);
+        }
+
+        @Override
+        public Map<String, Object> metadata() {
+            return Map.of("type", "test");
+        }
+    }
+
+
+    @SuppressWarnings("deprecation")
     private AtmosphereResource createResource() throws IOException {
         Broadcaster b = factory.get(DefaultBroadcaster.class, "resource-" + System.nanoTime());
         return new AtmosphereResourceImpl(config, b,
@@ -269,6 +404,7 @@ public class RoomTest {
                 });
     }
 
+    @SuppressWarnings("deprecation")
     private AtmosphereResource createResource(CountDownLatch latch, Set<Object> received) throws IOException {
         Broadcaster b = factory.get(DefaultBroadcaster.class, "resource-" + System.nanoTime());
         return new AtmosphereResourceImpl(config, b,

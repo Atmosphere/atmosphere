@@ -22,7 +22,7 @@ import org.atmosphere.cpr.AtmosphereResource;
  *
  * @param type       the event type (JOIN or LEAVE)
  * @param room       the room where the event occurred
- * @param member     the resource that joined or left
+ * @param member     the resource that joined or left (null for virtual members)
  * @param memberInfo the application-level member identity, or null if not provided
  * @since 4.0
  */
@@ -33,6 +33,20 @@ public record PresenceEvent(Type type, Room room, AtmosphereResource member, Roo
      */
     public PresenceEvent(Type type, Room room, AtmosphereResource member) {
         this(type, room, member, null);
+    }
+
+    /**
+     * Constructor for virtual member events (no AtmosphereResource).
+     */
+    public PresenceEvent(Type type, Room room, RoomMember memberInfo) {
+        this(type, room, null, memberInfo);
+    }
+
+    /**
+     * @return true if this event is for a virtual (non-connection) member
+     */
+    public boolean isVirtual() {
+        return member == null && memberInfo != null;
     }
 
     public enum Type {
