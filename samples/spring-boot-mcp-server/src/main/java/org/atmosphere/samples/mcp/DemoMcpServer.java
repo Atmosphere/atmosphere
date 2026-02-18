@@ -29,13 +29,9 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Sample MCP server that exposes tools, resources, and prompts to AI agents.
@@ -51,46 +47,6 @@ public class DemoMcpServer {
     private AtmosphereConfig config;
 
     private final ObjectMapper mapper = new ObjectMapper();
-    private final Map<String, String> notes = new ConcurrentHashMap<>();
-    private final AtomicInteger noteCounter = new AtomicInteger();
-
-    // ── Tools ────────────────────────────────────────────────────────────
-
-    @McpTool(name = "get_time", description = "Get the current server time in a given timezone")
-    public String getTime(
-            @McpParam(name = "timezone", description = "IANA timezone (e.g., America/New_York)", required = false) String timezone
-    ) {
-        var zone = timezone != null ? ZoneId.of(timezone) : ZoneId.systemDefault();
-        return Instant.now().atZone(zone).format(DateTimeFormatter.RFC_1123_DATE_TIME);
-    }
-
-    @McpTool(name = "save_note", description = "Save a note with a title")
-    public Map<String, Object> saveNote(
-            @McpParam(name = "title", description = "Note title") String title,
-            @McpParam(name = "content", description = "Note content") String content
-    ) {
-        var id = "note-" + noteCounter.incrementAndGet();
-        notes.put(id, title + ": " + content);
-        return Map.of("id", id, "message", "Note saved successfully");
-    }
-
-    @McpTool(name = "list_notes", description = "List all saved notes")
-    public Map<String, String> listNotes() {
-        return Map.copyOf(notes);
-    }
-
-    @McpTool(name = "calculate", description = "Evaluate a simple arithmetic expression")
-    public Map<String, Object> calculate(
-            @McpParam(name = "expression", description = "Arithmetic expression (e.g., '2 + 3 * 4')") String expression
-    ) {
-        // Simple calculator for demo purposes
-        try {
-            var result = evalSimple(expression);
-            return Map.of("expression", expression, "result", result);
-        } catch (Exception e) {
-            return Map.of("expression", expression, "error", e.getMessage());
-        }
-    }
 
     // ── Chat Administration Tools ─────────────────────────────────────────
 
@@ -176,11 +132,11 @@ public class DemoMcpServer {
     public String serverStatus() {
         var status = new LinkedHashMap<String, Object>();
         status.put("status", "running");
-        status.put("framework", "Atmosphere 4.0");
+        status.put("framework", "Atmosphere " + Version.getRawVersion());
         status.put("transport", "WebSocket + SSE fallback");
         status.put("javaVersion", System.getProperty("java.version"));
         status.put("timestamp", Instant.now().toString());
-        status.put("notesCount", notes.size());
+        status.put("connectedUsers", config.resourcesFactory().findAll().size());
         return status.toString();
     }
 
@@ -190,24 +146,23 @@ public class DemoMcpServer {
     public String capabilities() {
         return """
                 This Atmosphere MCP server demonstrates:
-                - Real-time tool invocation over WebSocket with SSE fallback
+                - Real-time chat administration via MCP tools
+                - List connected users, broadcast messages, ban users
+                - WebSocket transport with SSE fallback
                 - Automatic reconnection and message replay
-                - Note-taking tools (save, list)
-                - Server time across timezones
-                - Simple arithmetic calculator
-                - Prompt templates for data analysis
                 """;
     }
 
     // ── Prompts ──────────────────────────────────────────────────────────
 
-    @McpPrompt(name = "summarize_notes", description = "Summarize all saved notes")
-    public List<McpMessage> summarizeNotes() {
-        var noteList = notes.isEmpty() ? "No notes saved yet."
-                : String.join("\n", notes.values());
+    @McpPrompt(name = "chat_summary", description = "Summarize current chat status")
+    public List<McpMessage> chatSummary() {
+        var broadcaster = chatBroadcaster();
+        var userCount = broadcaster != null ? broadcaster.getAtmosphereResources().size() : 0;
         return List.of(
-                McpMessage.system("You are a helpful assistant that summarizes notes concisely."),
-                McpMessage.user("Please summarize these notes:\n" + noteList)
+                McpMessage.system("You are a helpful chat moderator assistant."),
+                McpMessage.user("There are currently " + userCount + " users connected to the chat. "
+                        + "Summarize the chat status and suggest moderation actions if needed.")
         );
     }
 
@@ -231,25 +186,5 @@ public class DemoMcpServer {
         } catch (Exception e) {
             return null;
         }
-    }
-
-    private double evalSimple(String expr) {
-        // Very basic: supports + - * / on two numbers
-        expr = expr.trim();
-        for (char op : new char[]{'+', '-', '*', '/'}) {
-            var idx = expr.lastIndexOf(op);
-            if (idx > 0) {
-                var left = Double.parseDouble(expr.substring(0, idx).trim());
-                var right = Double.parseDouble(expr.substring(idx + 1).trim());
-                return switch (op) {
-                    case '+' -> left + right;
-                    case '-' -> left - right;
-                    case '*' -> left * right;
-                    case '/' -> left / right;
-                    default -> throw new IllegalArgumentException("Unknown operator: " + op);
-                };
-            }
-        }
-        return Double.parseDouble(expr);
     }
 }
