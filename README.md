@@ -15,7 +15,7 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 - **JDK 21-25 Ready** - Preview & incubator features enabled
 - **Monorepo** - Framework, samples, and TypeScript client in one place
 - **Jakarta EE 10+** - Servlet 6.0, WebSocket 2.1, CDI 4.0
-- **TypeScript Client** - Modern atmosphere.js 5.0 with type safety
+- **TypeScript Client** - Modern atmosphere.js 5.0 with type safety and React/Vue/Svelte hooks
 - **Native Image** - GraalVM native builds for Spring Boot and Quarkus
 
 ### Choose Your Stack
@@ -76,13 +76,13 @@ npm install atmosphere.js
 
 #### Framework Integration
 
-atmosphere.js ships with first-class hooks for React, Vue, and Svelte:
+atmosphere.js ships with first-class hooks for React, Vue, and Svelte — connection management, rooms, and presence tracking out of the box:
 
 <details>
 <summary>React</summary>
 
 ```tsx
-import { AtmosphereProvider, useAtmosphere, useRoom } from 'atmosphere.js/react';
+import { AtmosphereProvider, useAtmosphere, useRoom, usePresence } from 'atmosphere.js/react';
 
 function App() {
   return (
@@ -92,15 +92,43 @@ function App() {
   );
 }
 
+// Basic real-time subscription
 function Chat() {
   const { state, data, push } = useAtmosphere<Message>({
-    url: '/chat',
-    transport: 'websocket',
+    request: { url: '/chat', transport: 'websocket' },
   });
 
   return state === 'connected'
     ? <button onClick={() => push({ text: 'Hello!' })}>Send</button>
     : <p>Connecting…</p>;
+}
+
+// Room with members and message history
+function ChatRoom() {
+  const { joined, members, messages, broadcast } = useRoom<ChatMessage>({
+    request: { url: '/atmosphere/room', transport: 'websocket' },
+    room: 'lobby',
+    member: { id: 'user-1' },
+  });
+
+  return (
+    <div>
+      <p>{members.length} online</p>
+      {messages.map((m, i) => <div key={i}>{m.member.id}: {m.data.text}</div>)}
+      <button onClick={() => broadcast({ text: 'Hi!' })}>Send</button>
+    </div>
+  );
+}
+
+// Lightweight presence tracking
+function OnlineUsers() {
+  const { members, count, isOnline } = usePresence({
+    request: { url: '/atmosphere/room', transport: 'websocket' },
+    room: 'lobby',
+    member: { id: currentUser.id },
+  });
+
+  return <span>{count} online</span>;
 }
 ```
 
@@ -111,13 +139,32 @@ function Chat() {
 
 ```vue
 <script setup>
-import { useAtmosphere } from 'atmosphere.js/vue';
+import { useAtmosphere, useRoom, usePresence } from 'atmosphere.js/vue';
 
+// Basic subscription
 const { state, data, push } = useAtmosphere({ url: '/chat', transport: 'websocket' });
+
+// Room with members and messages
+const { joined, members, messages, broadcast } = useRoom(
+  { url: '/atmosphere/room', transport: 'websocket' },
+  'lobby',
+  { id: 'user-1' },
+);
+
+// Presence tracking
+const { count, isOnline } = usePresence(
+  { url: '/atmosphere/room', transport: 'websocket' },
+  'lobby',
+  { id: currentUser.id },
+);
 </script>
 
 <template>
-  <button @click="push({ text: 'Hello!' })" :disabled="state !== 'connected'">Send</button>
+  <div>
+    <p>{{ count }} online</p>
+    <div v-for="(m, i) in messages" :key="i">{{ m.member.id }}: {{ m.data.text }}</div>
+    <button @click="broadcast({ text: 'Hi!' })" :disabled="!joined">Send</button>
+  </div>
 </template>
 ```
 
@@ -128,13 +175,32 @@ const { state, data, push } = useAtmosphere({ url: '/chat', transport: 'websocke
 
 ```svelte
 <script>
-  import { createAtmosphereStore } from 'atmosphere.js/svelte';
+  import { createAtmosphereStore, createRoomStore, createPresenceStore } from 'atmosphere.js/svelte';
 
+  // Basic subscription
   const { store: chat, push } = createAtmosphereStore({ url: '/chat', transport: 'websocket' });
+
+  // Room with members and messages
+  const { store: lobby, broadcast } = createRoomStore(
+    { url: '/atmosphere/room', transport: 'websocket' },
+    'lobby',
+    { id: 'user-1' },
+  );
+
+  // Presence tracking
+  const presence = createPresenceStore(
+    { url: '/atmosphere/room', transport: 'websocket' },
+    'lobby',
+    { id: 'user-1' },
+  );
 </script>
 
-{#if $chat.state === 'connected'}
-  <button on:click={() => push({ text: 'Hello!' })}>Send</button>
+{#if $lobby.joined}
+  <p>{$presence.count} online</p>
+  {#each $lobby.messages as m}
+    <div>{m.member.id}: {m.data.text}</div>
+  {/each}
+  <button on:click={() => broadcast({ text: 'Hi!' })}>Send</button>
 {:else}
   <p>Connecting…</p>
 {/if}
