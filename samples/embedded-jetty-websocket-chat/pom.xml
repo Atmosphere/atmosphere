@@ -146,7 +146,9 @@
                             <target>
                                 <copy file="${project.basedir}/../../atmosphere.js/dist/index.js"
                                       tofile="${basedir}/target/webapp/javascript/atmosphere.js"
-                                      overwrite="true"/>
+                                      overwrite="true"
+                                      failonerror="false"
+                                      quiet="true"/>
                             </target>
                         </configuration>
                     </execution>

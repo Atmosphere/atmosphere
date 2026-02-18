@@ -64,7 +64,9 @@
                         <configuration>
                             <target>
                                 <copy file="${project.basedir}/../../atmosphere.js/dist/index.js"
-                                      tofile="${project.basedir}/src/main/webapp/javascript/atmosphere.js"/>
+                                      tofile="${project.basedir}/src/main/webapp/javascript/atmosphere.js"
+                                      failonerror="false"
+                                      quiet="true"/>
                             </target>
                         </configuration>
                     </execution>

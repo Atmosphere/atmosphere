@@ -85,7 +85,9 @@
                         <configuration>
                             <target>
                                 <copy file="${project.basedir}/../../atmosphere.js/dist/index.js"
-                                      tofile="${project.build.outputDirectory}/static/javascript/atmosphere.js"/>
+                                      tofile="${project.build.outputDirectory}/static/javascript/atmosphere.js"
+                                      failonerror="false"
+                                      quiet="true"/>
                             </target>
                         </configuration>
                     </execution>
