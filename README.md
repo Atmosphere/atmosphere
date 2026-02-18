@@ -469,7 +469,11 @@ public class MyMcpServer {
 }
 ```
 
-Because MCP runs over Atmosphere's transport layer, agents get **automatic reconnection**, **heartbeats**, and **WebSocket → SSE fallback** — features raw MCP servers don't have. See the [MCP Server wiki guide](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server) and the [Spring Boot MCP sample](https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-mcp-server).
+Because MCP runs over Atmosphere's transport layer, agents get **automatic reconnection**, **heartbeats**, and **WebSocket → SSE fallback** — features raw MCP servers don't have.
+
+**Transports:** WebSocket, Streamable HTTP (MCP 2025-03-26 spec), and stdio bridge for Claude Desktop. **Programmatic API** also available — register tools as lambdas with `McpRegistry.registerTool()`.
+
+See the [MCP Server wiki guide](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server) and the [Spring Boot MCP sample](https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-mcp-server).
 
 ### Observability
 
