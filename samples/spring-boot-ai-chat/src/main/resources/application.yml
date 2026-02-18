@@ -1,0 +1,36 @@
+# Atmosphere AI Chat - Configuration
+# Supports any OpenAI-compatible API: Gemini, Ollama, OpenAI, Azure, etc.
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.aichat
+
+# LLM Configuration
+# Set via .envrc, environment variables, or override here.
+#
+# LLM_MODE: "remote" (cloud API, default) or "local" (Ollama)
+# LLM_MODEL: model name (e.g. gemini-2.5-flash, gpt-4o, llama3.2)
+# LLM_API_KEY or GEMINI_API_KEY: API key for remote providers
+# LLM_BASE_URL: override the API endpoint (auto-detected from mode if omitted)
+#
+# Example .envrc for Gemini:
+#   export LLM_MODE=remote
+#   export LLM_MODEL=gemini-2.5-flash
+#   export LLM_API_KEY=AIza...
+#
+# Example .envrc for local Ollama:
+#   export LLM_MODE=local
+#   export LLM_MODEL=llama3.2
+#
+# Example .envrc for OpenAI:
+#   export LLM_MODE=remote
+#   export LLM_MODEL=gpt-4o-mini
+#   export LLM_BASE_URL=https://api.openai.com/v1
+#   export LLM_API_KEY=sk-...
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+server:
+  port: 8080

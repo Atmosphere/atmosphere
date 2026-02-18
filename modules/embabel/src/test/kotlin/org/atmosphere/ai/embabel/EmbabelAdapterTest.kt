@@ -19,7 +19,7 @@ import com.embabel.agent.api.channel.*
 import com.embabel.agent.domain.library.HasContent
 import com.embabel.chat.Message
 import org.atmosphere.ai.StreamingSessions
-import org.atmosphere.cpr.Broadcaster
+import org.atmosphere.cpr.AtmosphereResource
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.mockito.ArgumentCaptor
@@ -29,13 +29,15 @@ import kotlin.test.assertTrue
 
 class EmbabelAdapterTest {
 
-    private lateinit var broadcaster: Broadcaster
+    private lateinit var resource: AtmosphereResource
     private lateinit var channel: AtmosphereOutputChannel
 
     @BeforeEach
     fun setUp() {
-        broadcaster = mock(Broadcaster::class.java)
-        val session = StreamingSessions.start("test-session", broadcaster, "resource-1")
+        resource = mock(AtmosphereResource::class.java)
+        `when`(resource.uuid()).thenReturn("resource-1")
+        `when`(resource.write(anyString())).thenReturn(resource)
+        val session = StreamingSessions.start("test-session", resource)
         channel = AtmosphereOutputChannel(session)
     }
 
@@ -56,8 +58,8 @@ class EmbabelAdapterTest {
         val event = MessageOutputChannelEvent("proc-1", mockMessage("Hello from agent"))
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(resource).write(captor.capture())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"token\""))
@@ -69,8 +71,8 @@ class EmbabelAdapterTest {
         val event = ContentOutputChannelEvent("proc-1", mockHasContent("Structured content here"))
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(resource).write(captor.capture())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"token\""))
@@ -82,8 +84,8 @@ class EmbabelAdapterTest {
         val event = ProgressOutputChannelEvent("proc-1", "Thinking...")
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(resource).write(captor.capture())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"progress\""))
@@ -97,8 +99,8 @@ class EmbabelAdapterTest {
         )
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster).broadcast(captor.capture())
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(resource).write(captor.capture())
 
         val msg = captor.value.toString()
         assertTrue(msg.contains("\"type\":\"progress\""))
@@ -112,27 +114,27 @@ class EmbabelAdapterTest {
         )
         channel.send(event)
 
-        verifyNoInteractions(broadcaster)
+        verify(resource, never()).write(anyString())
     }
 
     @Test
     fun `events on closed session are ignored`() {
-        val session = StreamingSessions.start("closed-session", broadcaster, "resource-2")
+        val session = StreamingSessions.start("closed-session", resource)
         val closedChannel = AtmosphereOutputChannel(session)
 
         session.complete()
-        reset(broadcaster)
+        reset(resource)
 
         closedChannel.send(
             MessageOutputChannelEvent("proc-1", mockMessage("Should be ignored"))
         )
 
-        verifyNoInteractions(broadcaster)
+        verify(resource, never()).write(anyString())
     }
 
     @Test
     fun `full agent lifecycle`() {
-        val session = StreamingSessions.start("lifecycle-session", broadcaster, "resource-3")
+        val session = StreamingSessions.start("lifecycle-session", resource)
         val ch = AtmosphereOutputChannel(session)
 
         ch.send(ProgressOutputChannelEvent("proc-1", "Starting agent..."))
@@ -141,8 +143,8 @@ class EmbabelAdapterTest {
         ch.send(MessageOutputChannelEvent("proc-1", mockMessage("Final answer")))
         session.complete()
 
-        val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster, times(5)).broadcast(captor.capture())
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(resource, times(5)).write(captor.capture())
 
         val messages = captor.allValues.map { it.toString() }
         assertTrue(messages[0].contains("\"type\":\"progress\""))
@@ -157,7 +159,7 @@ class EmbabelAdapterTest {
         val adapter = EmbabelStreamingAdapter()
         assertEquals("embabel", adapter.name())
 
-        val session = StreamingSessions.start("adapter-session", broadcaster, "resource-4")
+        val session = StreamingSessions.start("adapter-session", resource)
         var channelReceived: AtmosphereOutputChannel? = null
 
         val request = EmbabelStreamingAdapter.AgentRequest("test-agent") { ch ->
@@ -169,9 +171,9 @@ class EmbabelAdapterTest {
 
         assertTrue(channelReceived != null, "Runner should receive a channel")
 
-        val captor = ArgumentCaptor.forClass(Any::class.java)
+        val captor = ArgumentCaptor.forClass(String::class.java)
         // progress ("Starting agent: test-agent...") + token
-        verify(broadcaster, times(2)).broadcast(captor.capture())
+        verify(resource, times(2)).write(captor.capture())
 
         val messages = captor.allValues.map { it.toString() }
         assertTrue(messages[0].contains("\"type\":\"progress\""))
@@ -182,7 +184,7 @@ class EmbabelAdapterTest {
     @Test
     fun `adapter via generic interface`() {
         val adapter = EmbabelStreamingAdapter()
-        val session = StreamingSessions.start("generic-session", broadcaster, "resource-5")
+        val session = StreamingSessions.start("generic-session", resource)
 
         val request = EmbabelStreamingAdapter.AgentRequest("my-agent") { ch ->
             ch.send(ProgressOutputChannelEvent("proc-1", "Working..."))
@@ -190,7 +192,7 @@ class EmbabelAdapterTest {
 
         adapter.stream(request, session)
 
-        val captor = ArgumentCaptor.forClass(Any::class.java)
-        verify(broadcaster, atLeast(2)).broadcast(captor.capture())
+        val captor = ArgumentCaptor.forClass(String::class.java)
+        verify(resource, atLeast(2)).write(captor.capture())
     }
 }

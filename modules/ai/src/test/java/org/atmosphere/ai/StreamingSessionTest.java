@@ -18,7 +18,6 @@ package org.atmosphere.ai;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.Broadcaster;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -32,23 +31,25 @@ public class StreamingSessionTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
-    private Broadcaster broadcaster;
+    private AtmosphereResource resource;
     private StreamingSession session;
 
     @BeforeMethod
     public void setUp() {
-        broadcaster = mock(Broadcaster.class);
-        session = StreamingSessions.start("test-session", broadcaster, "resource-uuid");
+        resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("resource-uuid");
+        when(resource.write(anyString())).thenReturn(resource);
+        session = StreamingSessions.start("test-session", resource);
     }
 
     @Test
     public void testSendToken() throws Exception {
         session.send("Hello");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        var json = MAPPER.readTree((String) captor.getValue());
+        var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "token");
         assertEquals(json.get("data").asText(), "Hello");
         assertEquals(json.get("sessionId").asText(), "test-session");
@@ -60,12 +61,12 @@ public class StreamingSessionTest {
         session.send("Hello");
         session.send(" world");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster, times(2)).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(2)).write(captor.capture());
 
-        List<Object> messages = captor.getAllValues();
-        var first = MAPPER.readTree((String) messages.get(0));
-        var second = MAPPER.readTree((String) messages.get(1));
+        List<String> messages = captor.getAllValues();
+        var first = MAPPER.readTree(messages.get(0));
+        var second = MAPPER.readTree(messages.get(1));
 
         assertEquals(first.get("seq").asLong(), 1L);
         assertEquals(second.get("seq").asLong(), 2L);
@@ -76,10 +77,10 @@ public class StreamingSessionTest {
     public void testProgress() throws Exception {
         session.progress("Thinking...");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        var json = MAPPER.readTree((String) captor.getValue());
+        var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "progress");
         assertEquals(json.get("data").asText(), "Thinking...");
     }
@@ -88,10 +89,10 @@ public class StreamingSessionTest {
     public void testComplete() throws Exception {
         session.complete();
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        var json = MAPPER.readTree((String) captor.getValue());
+        var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "complete");
         assertFalse(json.has("data"));
         assertTrue(session.isClosed());
@@ -101,10 +102,10 @@ public class StreamingSessionTest {
     public void testCompleteWithSummary() throws Exception {
         session.complete("Full response here");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        var json = MAPPER.readTree((String) captor.getValue());
+        var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "complete");
         assertEquals(json.get("data").asText(), "Full response here");
     }
@@ -113,10 +114,10 @@ public class StreamingSessionTest {
     public void testError() throws Exception {
         session.error(new RuntimeException("Connection lost"));
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        var json = MAPPER.readTree((String) captor.getValue());
+        var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "error");
         assertEquals(json.get("data").asText(), "Connection lost");
         assertTrue(session.isClosed());
@@ -125,31 +126,31 @@ public class StreamingSessionTest {
     @Test
     public void testSendAfterCloseIsIgnored() {
         session.complete();
-        reset(broadcaster);
+        reset(resource);
 
         session.send("should be ignored");
 
-        verifyNoInteractions(broadcaster);
+        verify(resource, never()).write(anyString());
     }
 
     @Test
     public void testDoubleCompleteIsIgnored() {
         session.complete();
-        reset(broadcaster);
+        reset(resource);
 
         session.complete();
 
-        verifyNoInteractions(broadcaster);
+        verify(resource, never()).write(anyString());
     }
 
     @Test
     public void testSendMetadata() throws Exception {
         session.sendMetadata("model", "gpt-4");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        var json = MAPPER.readTree((String) captor.getValue());
+        var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "metadata");
         assertEquals(json.get("key").asText(), "model");
         assertEquals(json.get("value").asText(), "gpt-4");
@@ -161,21 +162,20 @@ public class StreamingSessionTest {
             s.send("token");
         }
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster, times(2)).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(2)).write(captor.capture());
 
-        var last = MAPPER.readTree((String) captor.getAllValues().get(1));
+        var last = MAPPER.readTree(captor.getAllValues().get(1));
         assertEquals(last.get("type").asText(), "complete");
         assertTrue(session.isClosed());
     }
 
     @Test
     public void testStartFromResource() {
-        var resource = mock(AtmosphereResource.class);
-        when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(resource.uuid()).thenReturn("res-123");
+        var res = mock(AtmosphereResource.class);
+        when(res.uuid()).thenReturn("res-123");
 
-        var s = StreamingSessions.start(resource);
+        var s = StreamingSessions.start(res);
         assertNotNull(s);
         assertFalse(s.isClosed());
     }
@@ -194,14 +194,14 @@ public class StreamingSessionTest {
         session.send("!");
         session.complete("Hello world!");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster, times(6)).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(6)).write(captor.capture());
 
-        List<Object> messages = captor.getAllValues();
+        List<String> messages = captor.getAllValues();
         var types = messages.stream()
                 .map(m -> {
                     try {
-                        return MAPPER.readTree((String) m).get("type").asText();
+                        return MAPPER.readTree(m).get("type").asText();
                     } catch (Exception e) {
                         return "error";
                     }

@@ -17,7 +17,7 @@ package org.atmosphere.ai;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.Test;
 
@@ -44,8 +44,10 @@ public class StreamingIntegrationTest {
 
     @Test
     public void testConcurrentTokenSending() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("concurrent-session", broadcaster, "res-1");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("concurrent-session", resource);
 
         int threadCount = 10;
         int tokensPerThread = 100;
@@ -67,13 +69,13 @@ public class StreamingIntegrationTest {
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "All threads should complete");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster, times(threadCount * tokensPerThread)).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(threadCount * tokensPerThread)).write(captor.capture());
 
         // Verify all sequence numbers are unique
         Set<Long> seqs = ConcurrentHashMap.newKeySet();
         for (var msg : captor.getAllValues()) {
-            var json = MAPPER.readTree((String) msg);
+            var json = MAPPER.readTree(msg);
             assertTrue(seqs.add(json.get("seq").asLong()),
                     "Sequence number should be unique: " + json.get("seq"));
         }
@@ -83,10 +85,12 @@ public class StreamingIntegrationTest {
 
     @Test
     public void testMultipleSessionsSameBroadcaster() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
 
-        var session1 = StreamingSessions.start("session-1", broadcaster, "res-1");
-        var session2 = StreamingSessions.start("session-2", broadcaster, "res-2");
+        var session1 = StreamingSessions.start("session-1", resource);
+        var session2 = StreamingSessions.start("session-2", resource);
 
         session1.send("Hello from 1");
         session2.send("Hello from 2");
@@ -94,8 +98,8 @@ public class StreamingIntegrationTest {
         session2.send("Still going");
         session2.complete();
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster, times(5)).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(5)).write(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(m -> {
@@ -122,17 +126,21 @@ public class StreamingIntegrationTest {
 
     @Test
     public void testSessionIsolation() {
-        var broadcaster1 = mock(Broadcaster.class);
-        var broadcaster2 = mock(Broadcaster.class);
+        var resource1 = mock(AtmosphereResource.class);
+        when(resource1.uuid()).thenReturn("res-1");
+        when(resource1.write(anyString())).thenReturn(resource1);
+        var resource2 = mock(AtmosphereResource.class);
+        when(resource2.uuid()).thenReturn("res-2");
+        when(resource2.write(anyString())).thenReturn(resource2);
 
-        var session1 = StreamingSessions.start("iso-1", broadcaster1, "res-1");
-        var session2 = StreamingSessions.start("iso-2", broadcaster2, "res-2");
+        var session1 = StreamingSessions.start("iso-1", resource1);
+        var session2 = StreamingSessions.start("iso-2", resource2);
 
         session1.send("Only for broadcaster1");
         session2.send("Only for broadcaster2");
 
-        verify(broadcaster1, times(1)).broadcast(any());
-        verify(broadcaster2, times(1)).broadcast(any());
+        verify(resource1, times(1)).write(anyString());
+        verify(resource2, times(1)).write(anyString());
 
         // Closing one should not affect the other
         session1.complete();
@@ -140,13 +148,15 @@ public class StreamingIntegrationTest {
         assertFalse(session2.isClosed());
 
         session2.send("Still works");
-        verify(broadcaster2, times(2)).broadcast(any());
+        verify(resource2, times(2)).write(anyString());
     }
 
     @Test
     public void testConcurrentCloseAndSend() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("race-session", broadcaster, "res-1");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("race-session", resource);
 
         int threadCount = 50;
         var startLatch = new CountDownLatch(1);
@@ -182,7 +192,9 @@ public class StreamingIntegrationTest {
 
     @Test
     public void testAutoCloseInTryWithResources() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
         List<String> capturedTypes = new ArrayList<>();
 
         doAnswer(inv -> {
@@ -190,9 +202,9 @@ public class StreamingIntegrationTest {
             var node = MAPPER.readTree(json);
             capturedTypes.add(node.get("type").asText());
             return null;
-        }).when(broadcaster).broadcast(any());
+        }).when(resource).write(anyString());
 
-        try (var session = StreamingSessions.start("auto-close", broadcaster, "res-1")) {
+        try (var session = StreamingSessions.start("auto-close", resource)) {
             session.send("token1");
             session.send("token2");
             session.progress("Working...");
@@ -208,8 +220,10 @@ public class StreamingIntegrationTest {
 
     @Test
     public void testMetadataInterspersedWithTokens() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("meta-session", broadcaster, "res-1");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("meta-session", resource);
 
         session.sendMetadata("model", "gpt-4o");
         session.sendMetadata("temperature", 0.7);
@@ -218,8 +232,8 @@ public class StreamingIntegrationTest {
         session.send(" world");
         session.complete("Hello world");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster, times(6)).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(6)).write(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(m -> {
@@ -246,8 +260,10 @@ public class StreamingIntegrationTest {
 
     @Test
     public void testErrorClosesSession() {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("error-session", broadcaster, "res-1");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("error-session", resource);
 
         session.send("some data");
         session.error(new IllegalStateException("Something went wrong"));
@@ -257,31 +273,35 @@ public class StreamingIntegrationTest {
         // Subsequent sends should be ignored
         session.send("ignored");
 
-        verify(broadcaster, times(2)).broadcast(any()); // token + error only
+        verify(resource, times(2)).write(anyString()); // token + error only
     }
 
     @Test
     public void testErrorAfterCompleteIsIgnored() {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("double-close", broadcaster, "res-1");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("double-close", resource);
 
         session.complete();
         session.error(new RuntimeException("Should be ignored"));
 
-        verify(broadcaster, times(1)).broadcast(any()); // only complete
+        verify(resource, times(1)).write(anyString()); // only complete
     }
 
     @Test
     public void testWireProtocolFormat() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("wire-test", broadcaster, "res-42");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("wire-test", resource);
 
         session.send("Hello");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        String raw = (String) captor.getValue();
+        String raw = captor.getValue();
         JsonNode json = MAPPER.readTree(raw);
 
         // Verify all required wire protocol fields are present
@@ -301,35 +321,39 @@ public class StreamingIntegrationTest {
 
     @Test
     public void testLargeTokenPayload() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("large-session", broadcaster, "res-1");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("large-session", resource);
 
         // Simulate a large token (e.g. a code block)
         String largeToken = "x".repeat(10_000);
         session.send(largeToken);
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
 
-        var json = MAPPER.readTree((String) captor.getValue());
+        var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("data").asText().length(), 10_000);
     }
 
     @Test
     public void testSpecialCharactersInTokens() throws Exception {
-        var broadcaster = mock(Broadcaster.class);
-        var session = StreamingSessions.start("special-session", broadcaster, "res-1");
+        var resource = mock(AtmosphereResource.class);
+        when(resource.uuid()).thenReturn("res-1");
+        when(resource.write(anyString())).thenReturn(resource);
+        var session = StreamingSessions.start("special-session", resource);
 
         session.send("He said \"hello\" and\nnewline\ttab");
         session.send("Unicode: 你好世界 🌍");
         session.send("<script>alert('xss')</script>");
 
-        var captor = ArgumentCaptor.forClass(Object.class);
-        verify(broadcaster, times(3)).broadcast(captor.capture());
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(3)).write(captor.capture());
 
         // All should be valid JSON
         for (var msg : captor.getAllValues()) {
-            JsonNode json = MAPPER.readTree((String) msg);
+            JsonNode json = MAPPER.readTree(msg);
             assertNotNull(json.get("data").asText());
         }
     }

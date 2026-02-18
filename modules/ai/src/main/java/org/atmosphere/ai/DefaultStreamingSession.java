@@ -17,7 +17,7 @@ package org.atmosphere.ai;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -27,8 +27,11 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicLong;
 
 /**
- * Default implementation of {@link StreamingSession} that broadcasts
- * JSON-encoded streaming messages through an Atmosphere {@link Broadcaster}.
+ * Default implementation of {@link StreamingSession} that writes
+ * JSON-encoded streaming messages directly to an {@link AtmosphereResource}.
+ *
+ * <p>Uses {@code resource.write()} to bypass the broadcaster dispatch cycle
+ * and avoid re-triggering {@code @Message} handlers.</p>
  *
  * <p>Wire protocol:</p>
  * <pre>
@@ -46,15 +49,13 @@ final class DefaultStreamingSession implements StreamingSession {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private final String sessionId;
-    private final Broadcaster broadcaster;
-    private final String resourceUuid;
+    private final AtmosphereResource resource;
     private final AtomicBoolean closed = new AtomicBoolean(false);
     private final AtomicLong sequence = new AtomicLong(0);
 
-    DefaultStreamingSession(String sessionId, Broadcaster broadcaster, String resourceUuid) {
+    DefaultStreamingSession(String sessionId, AtmosphereResource resource) {
         this.sessionId = sessionId;
-        this.broadcaster = broadcaster;
-        this.resourceUuid = resourceUuid;
+        this.resource = resource;
     }
 
     @Override
@@ -121,7 +122,7 @@ final class DefaultStreamingSession implements StreamingSession {
     }
 
     String resourceUuid() {
-        return resourceUuid;
+        return resource.uuid();
     }
 
     private String buildMessage(String type, String data) {
@@ -136,7 +137,12 @@ final class DefaultStreamingSession implements StreamingSession {
     }
 
     private void broadcast(String json) {
-        broadcaster.broadcast(json);
+        // Write directly to the resource to avoid re-triggering @Message handlers
+        try {
+            resource.write(json);
+        } catch (Exception e) {
+            logger.warn("Failed to write to resource {}: {}", resource.uuid(), e.getMessage());
+        }
     }
 
     private static String toJson(Map<String, Object> map) {
