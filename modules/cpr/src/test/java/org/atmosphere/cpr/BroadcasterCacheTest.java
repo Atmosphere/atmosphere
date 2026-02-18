@@ -30,6 +30,7 @@ import org.testng.annotations.Test;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutionException;
@@ -160,7 +161,8 @@ public class BroadcasterCacheTest {
             @Override
             public CacheMessage addToCache(String id, String uuid, BroadcastMessage e) {
                 CacheMessage c = put(e, System.nanoTime(), uuid);
-                cachedMessage.set(messages);
+                // Snapshot the list to avoid race with clearCache after delivery
+                cachedMessage.set(new LinkedList<>(messages));
                 latch.countDown();
                 return c;
             }
