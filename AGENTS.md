@@ -59,6 +59,8 @@ Rules enforced by hooks:
 - Maximum 2 non-empty lines (summary + optional detail)
 - First line under 100 characters (50-72 recommended)
 - No AI-generated signatures (`Co-Authored-By: Claude`, `Generated with`, etc.)
+- **NEVER add `Co-authored-by: Copilot` or any AI co-author trailer** — the commit-msg hook will reject it
+- Do not add ANY trailer lines (Co-authored-by, Signed-off-by, etc.) to commit messages
 
 ### Branch Strategy
 - Main branch: `main` (development), `atmosphere-2.6.x` (legacy)
@@ -101,6 +103,7 @@ atmosphere/
 - All Java files MUST have the copyright header (enforced by pre-commit hook)
 - Commit without AI assistant-related commit messages
 - Do not add AI-generated commit text in commit messages
+- **NEVER add `Co-authored-by:` trailers to commits** — no Copilot, no Claude, no AI attribution of any kind
 - NEVER USE `--no-verify` WHEN COMMITTING CODE
 - Match the style and formatting of surrounding code
 - Make the smallest reasonable changes to get to the desired outcome
