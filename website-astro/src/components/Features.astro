@@ -9,21 +9,15 @@ const features = [
     </svg>`,
     title: 'Virtual Threads',
     description: 'Every connection runs on a JDK 21 virtual thread. Massive scalability with no thread-pool tuning.',
-    detail: `<p>Atmosphere 4.0 runs every connection on a <strong>JDK 21 virtual thread</strong>. No thread-pool sizing, no blocking worries — the JVM schedules millions of lightweight threads automatically.</p>
-<p>This means your <code>@Message</code> handlers can call databases, REST APIs, or AI models <strong>synchronously</strong> without starving other connections.</p>
-<pre><code>@ManagedService(path = "/chat")
-public class Chat &#123;
-
-    @Message
-    public String onMessage(String msg) &#123;
-        // This blocks — and that's fine.
-        // Each connection has its own virtual thread.
-        var result = slowDatabase.query(msg);
-        return result;
-    &#125;
-&#125;</code></pre>
-<p><strong>Before (2.x):</strong> Platform threads — 200 threads = 200 concurrent connections.<br/>
-<strong>Now (4.0):</strong> Virtual threads — millions of concurrent connections, zero tuning.</p>`,
+    detail: `<p>Atmosphere 4.0 assigns a <strong>JDK 21 virtual thread</strong> to every connection. Virtual threads are lightweight — the JVM can schedule millions of them without the memory overhead of platform threads.</p>
+<p>This fundamentally changes the programming model. Your message handlers can make <strong>blocking calls</strong> — database queries, REST APIs, LLM inference — and the JVM transparently parks the virtual thread until the I/O completes. No thread-pool tuning, no async callback chains, no reactive wrappers.</p>
+<div class="detail-stats">
+  <div class="detail-stat"><span class="detail-stat-value">~1 KB</span><span class="detail-stat-label">memory per virtual thread</span></div>
+  <div class="detail-stat"><span class="detail-stat-value">1M+</span><span class="detail-stat-label">concurrent connections</span></div>
+  <div class="detail-stat"><span class="detail-stat-value">0</span><span class="detail-stat-label">thread-pool config needed</span></div>
+</div>
+<p><strong>Before (2.x):</strong> Platform threads consumed ~1 MB each. A 200-thread pool capped you at 200 concurrent connections. Scaling required careful tuning, async handlers, and callback-driven I/O.</p>
+<p><strong>Now (4.0):</strong> Write simple, synchronous code. The JVM handles the concurrency. Every handler runs on its own virtual thread — blocking is free.</p>`,
     wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki',
   },
   {
@@ -33,25 +27,15 @@ public class Chat &#123;
     </svg>`,
     title: 'WebSocket + Fallbacks',
     description: 'First-class WebSocket with automatic degradation to SSE and long-polling. Heartbeats and reconnection built in.',
-    detail: `<p>Atmosphere negotiates the <strong>best available transport</strong> automatically. WebSocket first, then SSE, then long-polling — your code stays the same regardless.</p>
-<pre><code>// Client — atmosphere.js 5.0
-const &#123; subscribe &#125; = await import('atmosphere.js');
-
-await subscribe(
-  &#123; url: '/chat', transport: 'websocket',
-    fallbackTransport: 'sse' &#125;,
-  &#123;
-    onMessage: (msg) => console.log(msg),
-    onReconnect: () => console.log('reconnected'),
-  &#125;
-);</code></pre>
-<p><strong>Built-in resilience:</strong></p>
+    detail: `<p>Atmosphere automatically negotiates the <strong>best available transport</strong> between client and server. It starts with WebSocket, and seamlessly falls back to Server-Sent Events (SSE), then long-polling if needed. Your application code is completely transport-agnostic.</p>
+<p>The transport layer includes built-in resilience features that work transparently:</p>
 <ul>
-<li>Automatic heartbeats detect dead connections</li>
-<li>Transparent reconnection with configurable backoff</li>
-<li>Message cache ensures no data loss during reconnects</li>
-<li>Works behind proxies, load balancers, and CDNs</li>
-</ul>`,
+<li><strong>Heartbeat detection</strong> — configurable pings detect dead connections before TCP timeouts kick in, enabling fast cleanup and reconnection</li>
+<li><strong>Automatic reconnection</strong> — exponential backoff with jitter prevents thundering-herd reconnects after a server restart</li>
+<li><strong>Message cache</strong> — messages are cached server-side and replayed on reconnect, so clients never miss data during a brief disconnect</li>
+<li><strong>Proxy-safe</strong> — long-polling and SSE work behind corporate proxies, CDNs, and load balancers that may not support WebSocket</li>
+</ul>
+<p>The protocol negotiation happens via an initial handshake request. The client advertises supported transports, the server picks the best match, and the connection upgrades transparently. If the primary transport fails mid-session, the client reconnects on the fallback without application-level intervention.</p>`,
     wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-atmosphere.js',
   },
   {
@@ -63,30 +47,17 @@ await subscribe(
     </svg>`,
     title: 'Rooms & Presence',
     description: 'Built-in room management with presence tracking, message history, and authorization. No external dependencies.',
-    detail: `<p>Rooms are <strong>first-class citizens</strong> in Atmosphere 4.0. Create chat rooms, game lobbies, or collaboration spaces with one annotation:</p>
-<pre><code>@RoomService(path = "/rooms/&#123;room&#125;")
-public class ChatRoom &#123;
-
-    @Ready
-    public void onReady(Room room,
-                        @PathParam("room") String name) &#123;
-        // Room auto-created, member tracked
-    &#125;
-
-    @Message(encoders = &#123;JacksonEncoder.class&#125;,
-             decoders = &#123;JacksonDecoder.class&#125;)
-    public ChatMessage onMessage(ChatMessage msg) &#123;
-        return msg; // broadcast to all room members
-    &#125;
-&#125;</code></pre>
-<p><strong>Included out of the box:</strong></p>
+    detail: `<p>Rooms are a <strong>first-class abstraction</strong> in Atmosphere 4.0 — a higher-level layer above Broadcasters that handles the most common real-time patterns: group messaging, user presence, and message history.</p>
+<p>A Room is a named group of connections managed automatically by the framework. When a client connects, Atmosphere creates a <code>RoomMember</code> record (an immutable data object with an ID, metadata, and join timestamp) and fires a presence event to all existing members.</p>
+<p><strong>What the Room manages for you:</strong></p>
 <ul>
-<li><strong>Presence tracking</strong> — join/leave events with member lists</li>
-<li><strong>Message history</strong> — configurable cache, replayed on join</li>
-<li><strong>Direct messaging</strong> — send to a specific member by ID</li>
-<li><strong>Authorization</strong> — accept or reject join requests</li>
-<li><strong>Virtual members</strong> — add AI agents as room participants</li>
-</ul>`,
+<li><strong>Presence tracking</strong> — real-time join/leave events, queryable member list. Presence events include metadata so clients can display user profiles, avatars, or roles</li>
+<li><strong>Message history</strong> — a configurable in-memory cache (max items, TTL, per-client limits). New joiners automatically receive recent history on connect</li>
+<li><strong>Direct messaging</strong> — send a message to a specific member by ID without broadcasting to the entire room</li>
+<li><strong>Authorization</strong> — an optional callback lets you accept or reject join requests based on tokens, roles, or room capacity</li>
+<li><strong>Virtual members</strong> — non-connection participants like AI agents or bots can join a room, receive messages, and respond — with their own presence events</li>
+</ul>
+<p>Rooms are exposed via a REST-style protocol over the WebSocket connection, with JSON-framed commands for <code>join</code>, <code>leave</code>, <code>message</code>, and <code>direct</code>. The <code>RoomProtocolInterceptor</code> parses these automatically.</p>`,
     wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Understanding-Rooms',
   },
   {
@@ -96,48 +67,25 @@ public class ChatRoom &#123;
     </svg>`,
     title: 'Simple Annotations',
     description: 'Define endpoints with @ManagedService or @RoomService. Handle lifecycle with @Ready, @Message, @Disconnect. Kotlin DSL available.',
-    detail: `<p>Two annotations cover most use cases. Pick the one that fits:</p>
+    detail: `<p>Atmosphere 4.0 is annotation-driven. Two annotations cover the vast majority of real-time use cases, and lifecycle hooks handle the rest.</p>
 <div class="detail-columns">
 <div>
 <h4>@ManagedService</h4>
-<pre><code>@ManagedService(path = "/notifications")
-public class Notifications &#123;
-
-    @Ready
-    public void onReady(AtmosphereResource r) &#123;
-        // client connected
-    &#125;
-
-    @Message
-    public String onMessage(String msg) &#123;
-        return "Echo: " + msg;
-    &#125;
-&#125;</code></pre>
+<p>The general-purpose annotation. Maps a URL path to a class, auto-creates a Broadcaster, and dispatches lifecycle events. Best for pub/sub, notifications, dashboards, and any pattern where you control the broadcast logic directly.</p>
 </div>
 <div>
 <h4>@RoomService</h4>
-<pre><code>@RoomService(path = "/chat")
-public class Chat &#123;
-
-    @Ready
-    public void onReady(Room room) &#123;
-        // auto room management
-    &#125;
-
-    @Message
-    public ChatMsg onMessage(ChatMsg m) &#123;
-        return m; // broadcast to room
-    &#125;
-&#125;</code></pre>
+<p>A room-aware annotation that auto-creates Room instances with presence tracking, member management, and message history. Best for chat, collaboration, multiplayer, and any grouped communication pattern.</p>
 </div>
 </div>
-<p><strong>Kotlin DSL</strong> alternative for a functional style:</p>
-<pre><code>atmosphere &#123;
-    path("/chat")
-    onMessage &#123; resource, message ->
-        resource.broadcaster.broadcastSuspend(message)
-    &#125;
-&#125;</code></pre>`,
+<p><strong>Lifecycle hooks</strong> are shared across both annotations:</p>
+<ul>
+<li><strong>@Ready</strong> — client connection established (inject <code>AtmosphereResource</code> or <code>Room</code>)</li>
+<li><strong>@Message</strong> — message received, with optional JSON encoding/decoding via <code>encoders</code> and <code>decoders</code> attributes</li>
+<li><strong>@Disconnect</strong> — client disconnected or timed out</li>
+<li><strong>@Heartbeat</strong> — heartbeat received from the client</li>
+</ul>
+<p>For Kotlin projects, a <strong>type-safe DSL</strong> provides the same capabilities in a functional style, with coroutine-aware suspend extensions for non-blocking broadcast and write operations. Both approaches are fully supported under Spring Boot and Quarkus.</p>`,
     wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Understanding-ManagedService',
   },
   {
@@ -148,36 +96,21 @@ public class Chat &#123;
     </svg>`,
     title: 'Kafka & Redis Clustering',
     description: 'Scale across nodes with built-in Kafka and Redis broadcasters. Open source, no commercial add-ons required.',
-    detail: `<p>Scale horizontally by swapping a single Maven dependency. Messages are automatically relayed across all nodes.</p>
+    detail: `<p>Atmosphere scales horizontally by <strong>replacing the broadcaster implementation</strong> — a single configuration change, zero code modifications. All <code>@ManagedService</code> and <code>@RoomService</code> endpoints continue working unmodified across a cluster.</p>
 <div class="detail-columns">
 <div>
-<h4>Kafka</h4>
-<pre><code>&lt;dependency&gt;
-  &lt;groupId&gt;org.atmosphere&lt;/groupId&gt;
-  &lt;artifactId&gt;atmosphere-kafka&lt;/artifactId&gt;
-&lt;/dependency&gt;</code></pre>
-<pre><code># application.properties
-atmosphere.broadcaster-class=\\
-  org.atmosphere.kafka.\\
-  KafkaBroadcaster
-atmosphere.kafka.bootstrap-servers=\\
-  kafka:9092</code></pre>
+<h4>Apache Kafka</h4>
+<p>Built on <strong>Kafka 3.9</strong>. Each Broadcaster maps to a Kafka topic. Messages published on one node are consumed by all nodes and delivered to their local subscribers. Kafka's durability guarantees mean messages survive broker restarts.</p>
+<p>Best for: high-throughput, ordered delivery, environments that already run Kafka.</p>
 </div>
 <div>
-<h4>Redis</h4>
-<pre><code>&lt;dependency&gt;
-  &lt;groupId&gt;org.atmosphere&lt;/groupId&gt;
-  &lt;artifactId&gt;atmosphere-redis&lt;/artifactId&gt;
-&lt;/dependency&gt;</code></pre>
-<pre><code># application.properties
-atmosphere.broadcaster-class=\\
-  org.atmosphere.redis.\\
-  RedisBroadcaster
-atmosphere.redis.url=\\
-  redis://localhost:6379</code></pre>
+<h4>Redis Pub/Sub</h4>
+<p>Built on <strong>Lettuce 6.5</strong> (non-blocking Redis client). Uses Redis Pub/Sub channels — each Broadcaster maps to a channel. Ultra-low latency fan-out across nodes with minimal infrastructure.</p>
+<p>Best for: low-latency, simple deployments, ephemeral messaging where Kafka's durability isn't needed.</p>
 </div>
 </div>
-<p><strong>Zero code changes.</strong> Your <code>@ManagedService</code> and <code>@RoomService</code> endpoints work across a cluster with no modifications.</p>`,
+<p><strong>Architecture:</strong> The clustering layer sits below the Broadcaster interface. When a message is broadcast, it is published to Kafka/Redis and simultaneously delivered to local subscribers. Remote nodes receive the message and deliver it to their local subscribers. The deduplication logic ensures each client receives the message exactly once.</p>
+<p>Both modules are <strong>fully open source</strong> — no commercial add-ons or paid tiers.</p>`,
     wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Clustering-Kafka-and-Redis',
   },
   {
@@ -188,30 +121,17 @@ atmosphere.redis.url=\\
     </svg>`,
     title: 'AI / LLM Streaming',
     description: 'Stream AI responses token-by-token over WebSocket. Built-in adapters for Spring AI, LangChain4j, and Embabel.',
-    detail: `<p>Stream LLM responses <strong>token-by-token</strong> to connected clients. Works with any OpenAI-compatible endpoint — OpenAI, Gemini, Ollama, Azure.</p>
-<pre><code>@ManagedService(path = "/ai")
-public class AiChat &#123;
-
-    @Message
-    public void onMessage(AtmosphereResource r,
-                          String prompt) &#123;
-        var session = StreamingSessions.create(r);
-        var settings = AiConfig.get();
-        settings.client().stream(settings.model(),
-            prompt, session);
-    &#125;
-&#125;</code></pre>
-<p><strong>Or add AI as a room member</strong> — no streaming endpoint needed:</p>
-<pre><code>@Ready
-public void onReady(Room room) &#123;
-    var settings = AiConfig.get();
-    room.joinVirtual(new LlmRoomMember(
-        "assistant", settings.client(),
-        settings.model()));
-    // AI now participates in the conversation
-&#125;</code></pre>
-<p><strong>Framework adapters:</strong> Spring AI (Flux), LangChain4j (callbacks), Embabel (Kotlin coroutines).</p>
-<p><strong>Client hooks:</strong> <code>useStreaming()</code> for React, Vue, and Svelte.</p>`,
+    detail: `<p>Atmosphere provides a <strong>streaming SPI</strong> that delivers LLM responses token-by-token over the existing WebSocket connection. No separate HTTP streaming endpoint, no SSE workaround — tokens flow through the same real-time channel as your other messages.</p>
+<p><strong>How it works:</strong> The <code>StreamingSession</code> abstraction writes JSON frames directly to the <code>AtmosphereResource</code>, bypassing the Broadcaster for minimal latency. Each frame carries a type (<code>token</code>, <code>progress</code>, <code>metadata</code>, <code>complete</code>, <code>error</code>), a sequence number, and a session ID — enabling the client to reconstruct the stream and handle multiplexed sessions.</p>
+<p><strong>Built-in adapters</strong> bridge Atmosphere's streaming to popular AI frameworks:</p>
+<ul>
+<li><strong>Spring AI</strong> — wraps <code>Flux&lt;String&gt;</code> streams, subscribing to tokens and writing each to the session</li>
+<li><strong>LangChain4j</strong> — implements the callback interface, forwarding each token event to the session</li>
+<li><strong>Embabel</strong> — connects Kotlin coroutine <code>OutputChannel</code> to the session for agent-based workflows</li>
+</ul>
+<p>A built-in <strong>OpenAI-compatible HTTP client</strong> (JDK 21 <code>HttpClient</code>) works directly with OpenAI, Google Gemini, Azure OpenAI, and Ollama — no framework dependency required. It auto-detects the API endpoint from the model name.</p>
+<p><strong>Virtual Room Members:</strong> Beyond streaming endpoints, you can add an LLM as a room participant. The <code>LlmRoomMember</code> joins a Room, receives every broadcasted message, and responds — making AI assistants that participate naturally in group conversations.</p>
+<p>Client-side, <code>atmosphere.js</code> provides <code>useStreaming()</code> hooks for React, Vue, and Svelte that handle token accumulation, loading states, and error recovery.</p>`,
     wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming',
   },
 ];
@@ -584,6 +504,38 @@ public void onReady(Room room) &#123;
     margin-bottom: var(--space-md);
   }
 
+  .feature-modal-body .detail-stats {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: var(--space-md);
+    margin: var(--space-lg) 0;
+  }
+
+  .detail-stat {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-md);
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    text-align: center;
+  }
+
+  .detail-stat-value {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    color: var(--color-accent);
+    letter-spacing: -0.02em;
+  }
+
+  .detail-stat-label {
+    font-size: 0.75rem;
+    color: var(--color-text-secondary);
+    margin-top: 0.25em;
+  }
+
   .feature-modal-footer {
     margin-top: var(--space-xl);
     padding-top: var(--space-md);
@@ -621,6 +573,10 @@ public void onReady(Room room) &#123;
 
     .feature-modal-body .detail-columns {
       grid-template-columns: 1fr;
+    }
+
+    .feature-modal-body .detail-stats {
+      grid-template-columns: repeat(3, 1fr);
     }
   }
 
