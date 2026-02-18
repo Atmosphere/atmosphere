@@ -17,6 +17,11 @@
 
     <modules>
         <module>cpr</module>
+        <module>ai</module>
+        <module>kotlin</module>
+        <module>spring-ai</module>
+        <module>langchain4j</module>
+        <module>embabel</module>
         <module>redis</module>
         <module>kafka</module>
         <module>spring-boot-starter</module>
