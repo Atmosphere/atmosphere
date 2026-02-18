@@ -74,7 +74,155 @@ Install via npm:
 npm install atmosphere.js
 ```
 
+#### Framework Integration
+
+atmosphere.js ships with first-class hooks for React, Vue, and Svelte:
+
+<details>
+<summary>React</summary>
+
+```tsx
+import { AtmosphereProvider, useAtmosphere, useRoom } from 'atmosphere.js/react';
+
+function App() {
+  return (
+    <AtmosphereProvider>
+      <Chat />
+    </AtmosphereProvider>
+  );
+}
+
+function Chat() {
+  const { state, data, push } = useAtmosphere<Message>({
+    url: '/chat',
+    transport: 'websocket',
+  });
+
+  return state === 'connected'
+    ? <button onClick={() => push({ text: 'Hello!' })}>Send</button>
+    : <p>Connecting…</p>;
+}
+```
+
+</details>
+
+<details>
+<summary>Vue</summary>
+
+```vue
+<script setup>
+import { useAtmosphere } from 'atmosphere.js/vue';
+
+const { state, data, push } = useAtmosphere({ url: '/chat', transport: 'websocket' });
+</script>
+
+<template>
+  <button @click="push({ text: 'Hello!' })" :disabled="state !== 'connected'">Send</button>
+</template>
+```
+
+</details>
+
+<details>
+<summary>Svelte</summary>
+
+```svelte
+<script>
+  import { createAtmosphereStore } from 'atmosphere.js/svelte';
+
+  const { store: chat, push } = createAtmosphereStore({ url: '/chat', transport: 'websocket' });
+</script>
+
+{#if $chat.state === 'connected'}
+  <button on:click={() => push({ text: 'Hello!' })}>Send</button>
+{:else}
+  <p>Connecting…</p>
+{/if}
+```
+
+</details>
+
 ---
+
+### Rooms & Presence
+
+Built-in room management with presence tracking — no external dependencies:
+
+```java
+RoomManager rooms = RoomManager.getOrCreate(framework);
+Room lobby = rooms.room("lobby");
+lobby.enableHistory(100); // replay last 100 messages to new joiners
+
+lobby.join(resource, new RoomMember("user-1", Map.of("name", "Alice")));
+lobby.broadcast("Hello everyone!");
+lobby.onPresence(event -> log.info("{} {} room '{}'",
+    event.member().id(), event.type(), event.room().name()));
+```
+
+### Observability
+
+<details>
+<summary>Micrometer Metrics</summary>
+
+```java
+MeterRegistry registry = new PrometheusMeterRegistry(PrometheusConfig.DEFAULT);
+AtmosphereMetrics metrics = AtmosphereMetrics.install(framework, registry);
+metrics.instrumentRoomManager(roomManager); // room-level gauges
+```
+
+**Metrics published:**
+| Metric | Type | Description |
+|--------|------|-------------|
+| `atmosphere.connections.active` | Gauge | Active connections |
+| `atmosphere.broadcasters.active` | Gauge | Active broadcasters |
+| `atmosphere.connections.total` | Counter | Total connections opened |
+| `atmosphere.messages.broadcast` | Counter | Messages broadcast |
+| `atmosphere.broadcast.timer` | Timer | Broadcast latency |
+| `atmosphere.rooms.active` | Gauge | Active rooms |
+| `atmosphere.rooms.members` | Gauge | Members per room (tagged) |
+
+</details>
+
+<details>
+<summary>OpenTelemetry Tracing</summary>
+
+```java
+framework.interceptor(new AtmosphereTracing(GlobalOpenTelemetry.get()));
+```
+
+Creates spans for every request with attributes: `atmosphere.resource.uuid`, `atmosphere.transport`, `atmosphere.action`, `atmosphere.broadcaster`, `atmosphere.room`.
+
+</details>
+
+<details>
+<summary>Backpressure</summary>
+
+Protect against slow clients overwhelming the server:
+
+```java
+framework.interceptor(new BackpressureInterceptor());
+```
+
+Configure via init-params:
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `org.atmosphere.backpressure.highWaterMark` | `1000` | Max pending messages per client |
+| `org.atmosphere.backpressure.policy` | `drop-oldest` | `drop-oldest`, `drop-newest`, or `disconnect` |
+
+</details>
+
+<details>
+<summary>Cache Configuration</summary>
+
+Production-safe message caching with size limits and TTL:
+
+| Parameter | Default | Description |
+|-----------|---------|-------------|
+| `org.atmosphere.cache.UUIDBroadcasterCache.maxPerClient` | `1000` | Max cached messages per client |
+| `org.atmosphere.cache.UUIDBroadcasterCache.messageTTL` | `300` | Per-message TTL in seconds |
+| `org.atmosphere.cache.UUIDBroadcasterCache.maxTotal` | `100000` | Global cache size limit |
+
+</details>
 
 ### Spring Boot Applications
 
