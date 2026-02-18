@@ -29,6 +29,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Named;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Handle {@link Singleton} for {@link ManagedService} processing.
@@ -38,9 +39,11 @@ import jakarta.inject.Named;
 public class ManagedServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
+    private final ReentrantLock handlersLock = new ReentrantLock();
 
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
-        synchronized (config.handlers()) {
+        handlersLock.lock();
+        try {
             if (config.handlers().get(path) == null) {
                 // ManagedService
                 if (w.atmosphereHandler instanceof AnnotatedProxy ap) {
@@ -76,6 +79,8 @@ public class ManagedServiceInterceptor extends ServiceInterceptor {
             } else if (reMap) {
                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
             }
+        } finally {
+            handlersLock.unlock();
         }
     }
 

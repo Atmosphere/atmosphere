@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.Enumeration;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Function;
 
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_POLICY;
@@ -57,6 +58,8 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
             new BroadcasterLifeCyclePolicy.Builder().policy(NEVER).build();
     protected Broadcaster.POLICY defaultPolicy = Broadcaster.POLICY.FIFO;
     protected int defaultPolicyInteger = -1;
+
+    private final ReentrantLock lock = new ReentrantLock();
 
     protected AtmosphereConfig config;
     protected final BroadcasterListener lifeCycleListener = new BroadcasterLifecyclePolicyHandler();
@@ -111,8 +114,13 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     }
 
     @Override
-    public synchronized Broadcaster get() {
-        return get(clazz.getSimpleName() + "-" + config.uuidProvider().generateUuid());
+    public Broadcaster get() {
+        lock.lock();
+        try {
+            return get(clazz.getSimpleName() + "-" + config.uuidProvider().generateUuid());
+        } finally {
+            lock.unlock();
+        }
     }
 
     @Override
@@ -237,34 +245,39 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
     }
 
     @Override
-    public synchronized void destroy() {
-        // Invalid state
-        if (config == null) return;
+    public void destroy() {
+        lock.lock();
+        try {
+            // Invalid state
+            if (config == null) return;
 
-        String s = config.getInitParameter(ApplicationConfig.SHARED);
-        if (s != null && s.equalsIgnoreCase("true")) {
-            logger.warn("Factory shared, will not be destroyed. This can possibly cause memory leaks if" +
-                    "Broadcasters were created. Make sure you destroy them manually.");
-            return;
-        }
-
-        Enumeration<Broadcaster> e = store.elements();
-        Broadcaster b;
-        // We just need one when shared.
-        BroadcasterConfig bc;
-        while (e.hasMoreElements()) {
-            try {
-                b = e.nextElement();
-                bc = b.getBroadcasterConfig();
-                bc.forceDestroy();
-                b.destroy();
-            } catch (Throwable t) {
-                // Shield us from any bad behaviour
-                logger.debug("Destroy", t);
+            String s = config.getInitParameter(ApplicationConfig.SHARED);
+            if (s != null && s.equalsIgnoreCase("true")) {
+                logger.warn("Factory shared, will not be destroyed. This can possibly cause memory leaks if" +
+                        "Broadcasters were created. Make sure you destroy them manually.");
+                return;
             }
+
+            Enumeration<Broadcaster> e = store.elements();
+            Broadcaster b;
+            // We just need one when shared.
+            BroadcasterConfig bc;
+            while (e.hasMoreElements()) {
+                try {
+                    b = e.nextElement();
+                    bc = b.getBroadcasterConfig();
+                    bc.forceDestroy();
+                    b.destroy();
+                } catch (Throwable t) {
+                    // Shield us from any bad behaviour
+                    logger.debug("Destroy", t);
+                }
+            }
+            broadcasterListeners.clear();
+            store.clear();
+        } finally {
+            lock.unlock();
         }
-        broadcasterListeners.clear();
-        store.clear();
     }
 
     public void notifyOnPostCreate(Broadcaster b) {

@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Named;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Handle {@link org.atmosphere.config.service.Singleton} and
@@ -36,9 +37,11 @@ import jakarta.inject.Named;
 public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceInterceptor.class);
+    private final ReentrantLock handlersLock = new ReentrantLock();
 
     protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereHandlerWrapper w) {
-        synchronized (config.handlers()) {
+        handlersLock.lock();
+        try {
             if (config.handlers().get(path) == null) {
                 // AtmosphereHandlerService
                 AtmosphereHandlerService m = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class);
@@ -67,6 +70,8 @@ public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
                 }
 
             }
+        } finally {
+            handlersLock.unlock();
         }
     }
 

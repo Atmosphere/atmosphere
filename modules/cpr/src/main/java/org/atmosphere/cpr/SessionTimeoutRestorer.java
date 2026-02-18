@@ -23,6 +23,7 @@ import jakarta.servlet.http.HttpSessionActivationListener;
 import jakarta.servlet.http.HttpSessionEvent;
 import java.io.Serializable;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Capable of restoring HTTP session timeout to given value.
@@ -37,6 +38,7 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
 
     private final int timeout;
 
+    private final ReentrantLock refreshTimeoutLock = new ReentrantLock();
     private final AtomicInteger requestCount = new AtomicInteger(0);
     private final int internalSessionTimeout;
 
@@ -66,13 +68,16 @@ public final class SessionTimeoutRestorer implements Serializable, HttpSessionAc
             refreshTimeout(session);
     }
 
-    // Synchronization ensures timeout updates are thread-safe, and the additional check makes sure we know
-    // precisely what the timeout should be.
-    private synchronized void refreshTimeout(HttpSession session) {
-        if (requestCount.get() > 0)
-            session.setMaxInactiveInterval(internalSessionTimeout);
-        else
-            session.setMaxInactiveInterval(timeout);
+    private void refreshTimeout(HttpSession session) {
+        refreshTimeoutLock.lock();
+        try {
+            if (requestCount.get() > 0)
+                session.setMaxInactiveInterval(internalSessionTimeout);
+            else
+                session.setMaxInactiveInterval(timeout);
+        } finally {
+            refreshTimeoutLock.unlock();
+        }
     }
 
     @Override

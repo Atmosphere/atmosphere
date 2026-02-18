@@ -66,6 +66,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_WEBSOCKET_STATUS_CODE_1005_AS_DISCONNECT;
@@ -100,6 +101,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     private ExecutorService asyncExecutor;
     private ScheduledExecutorService scheduler;
     private final Map<String, WebSocketHandlerProxy> handlers = new ConcurrentHashMap<>();
+    private final ReentrantLock frameworkLock = new ReentrantLock();
+    private final ReentrantLock handlersLock = new ReentrantLock();
     private final EndpointMapper<WebSocketHandlerProxy> mapper = new DefaultEndpointMapper<>();
     private boolean allow1005StatusCode;
     private boolean wildcardMapping;
@@ -174,11 +177,14 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
 
         // Auto-register a default handler when none is configured
         if (framework.getAtmosphereConfig().handlers().isEmpty()) {
-            synchronized (framework) {
+            frameworkLock.lock();
+            try {
                 if (handlers.isEmpty()) {
                     logger.warn("No AtmosphereHandler or WebSocketHandler installed. Adding a default one.");
                 }
                 framework.addAtmosphereHandler(ROOT_MASTER, REFLECTOR_ATMOSPHEREHANDLER);
+            } finally {
+                frameworkLock.unlock();
             }
         }
 
@@ -275,7 +281,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                 path = "/";
             }
 
-            synchronized (handlers) {
+            handlersLock.lock();
+            try {
                 p = handlers.get(path);
                 if (p == null) {
                     // AtmosphereHandlerService
@@ -301,6 +308,8 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                         }
                     }
                 }
+            } finally {
+                handlersLock.unlock();
             }
         }
 

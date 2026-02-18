@@ -101,9 +101,11 @@ public class DefaultBroadcaster implements Broadcaster {
     protected final WriteQueue uniqueWriteQueue = new WriteQueue("-1");
     protected final AtomicInteger dispatchThread = new AtomicInteger();
     
-    // ReentrantLock to avoid virtual thread pinning with synchronized blocks
     private final ReentrantLock awaitLock = new ReentrantLock();
     private final Condition awaitCondition = awaitLock.newCondition();
+    private final ReentrantLock lock = new ReentrantLock();
+    private final ReentrantLock resourcesLock = new ReentrantLock();
+    private final ConcurrentHashMap<AtmosphereResource, ReentrantLock> resourceLocks = new ConcurrentHashMap<>();
 
     protected Future<?>[] notifierFuture;
     protected Future<?>[] asyncWriteFuture;
@@ -188,7 +190,8 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     @Override
-    public synchronized void destroy() {
+    public void destroy() {
+        lock.lock();
         try {
             logger.trace("Broadcaster {} will be pooled: {}", getID(), candidateForPoolable);
             if (!candidateForPoolable) {
@@ -196,7 +199,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Policy was {}", getID(), policy);
                 logger.trace("Broadcaster {} is being destroyed and cannot be re-used. Resources are {}", getID(), resources);
-                
+
                 if (destroyed.getAndSet(true)) return;
 
                 started.set(false);
@@ -218,12 +221,15 @@ public class DefaultBroadcaster implements Broadcaster {
             broadcastOnResume.clear();
             messages.clear();
             writeQueues.clear();
+            resourceLocks.clear();
 
             if (config.getBroadcasterFactory() != null) {
                 config.getBroadcasterFactory().remove(this, this.getID());
             }
         } catch (Throwable t) {
             logger.error("Unexpected exception during Broadcaster destroy {}", getID(), t);
+        } finally {
+            lock.unlock();
         }
     }
 
@@ -245,7 +251,8 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         logger.debug("Changing broadcaster scope for {}. This broadcaster will be destroyed.", getID());
-        synchronized (resources) {
+        resourcesLock.lock();
+        try {
             try {
                 // Next, we need to create a new broadcaster per resource.
                 for (AtmosphereResource resource : resources) {
@@ -278,6 +285,8 @@ public class DefaultBroadcaster implements Broadcaster {
             } catch (Exception e) {
                 logger.error("Failed to set request scope for current resources", e);
             }
+        } finally {
+            resourcesLock.unlock();
         }
     }
 
@@ -287,26 +296,31 @@ public class DefaultBroadcaster implements Broadcaster {
     }
 
     @Override
-    public synchronized void setID(String id) {
-        if (id == null) {
-            id = getClass().getSimpleName() + "/" + config.uuidProvider().generateUuid();
+    public void setID(String id) {
+        lock.lock();
+        try {
+            if (id == null) {
+                id = getClass().getSimpleName() + "/" + config.uuidProvider().generateUuid();
+            }
+
+            if (config.getBroadcasterFactory() == null)
+                return; // we are shutdown or destroyed, but someone still reference
+
+            Broadcaster b = config.getBroadcasterFactory().lookup(this.getClass(), id);
+            if (b != null && b.getScope() == SCOPE.REQUEST) {
+                throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
+            } else if (b != null) {
+                return;
+            }
+
+            config.getBroadcasterFactory().remove(this, name);
+            this.name = id;
+            config.getBroadcasterFactory().add(this, name);
+
+            bc.broadcasterID(name);
+        } finally {
+            lock.unlock();
         }
-
-        if (config.getBroadcasterFactory() == null)
-            return; // we are shutdown or destroyed, but someone still reference
-
-        Broadcaster b = config.getBroadcasterFactory().lookup(this.getClass(), id);
-        if (b != null && b.getScope() == SCOPE.REQUEST) {
-            throw new IllegalStateException("Broadcaster ID already assigned to SCOPE.REQUEST. Cannot change the id");
-        } else if (b != null) {
-            return;
-        }
-
-        config.getBroadcasterFactory().remove(this, name);
-        this.name = id;
-        config.getBroadcasterFactory().add(this, name);
-
-        bc.broadcasterID(name);
     }
 
     /**
@@ -329,7 +343,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
     @Override
     public void resumeAll() {
-        synchronized (resources) {
+        resourcesLock.lock();
+        try {
             for (AtmosphereResource r : resources) {
                 try {
                     r.resume();
@@ -339,6 +354,8 @@ public class DefaultBroadcaster implements Broadcaster {
                     removeAtmosphereResource(r);
                 }
             }
+        } finally {
+            resourcesLock.unlock();
         }
     }
 
@@ -453,12 +470,15 @@ public class DefaultBroadcaster implements Broadcaster {
                 try {
                     token = writeQueue.queue.poll(waitTime, TimeUnit.MILLISECONDS);
                     if (token == null && !outOfOrderBroadcastSupported.get()) {
-                        synchronized (writeQueue) {
+                        writeQueue.lock.lock();
+                        try {
                             if (writeQueue.queue.isEmpty()) {
                                 writeQueue.monitored.set(false);
                                 writeQueues.remove(writeQueue.uuid);
                                 return;
                             }
+                        } finally {
+                            writeQueue.lock.unlock();
                         }
                     } else if (token == null) {
                         return;
@@ -475,7 +495,9 @@ public class DefaultBroadcaster implements Broadcaster {
 
                 // Shield us from https://github.com/Atmosphere/atmosphere/issues/1187
                 if (token != null) {
-                    synchronized (token.resource) {
+                    ReentrantLock rLock = resourceLocks.computeIfAbsent(token.resource, k -> new ReentrantLock());
+                    rLock.lock();
+                    try {
                         try {
                             logger.trace("About to write to {}", token.resource);
                             executeAsyncWrite(token);
@@ -498,6 +520,8 @@ public class DefaultBroadcaster implements Broadcaster {
                                 return;
                             }
                         }
+                    } finally {
+                        rLock.unlock();
                     }
                 }
             }
@@ -606,7 +630,8 @@ public class DefaultBroadcaster implements Broadcaster {
             entryDone(deliver.future);
             switch (deliver.type) {
                 case ALL -> {
-                    synchronized (resources) {
+                    resourcesLock.lock();
+                    try {
                         for (AtmosphereResource r : resources) {
                             if (Utils.resumableTransport(r.transport()))
                                 try {
@@ -615,6 +640,8 @@ public class DefaultBroadcaster implements Broadcaster {
                                     logger.trace("resumeAll", t);
                                 }
                         }
+                    } finally {
+                        resourcesLock.unlock();
                     }
                 }
                 case RESOURCE -> deliver.resource.resume();
@@ -767,11 +794,14 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 writeQueue.queue.put(w);
-                synchronized (writeQueue) {
+                writeQueue.lock.lock();
+                try {
                     if (!writeQueue.monitored.getAndSet(true)) {
                         logger.trace("Broadcaster {} is about to queueWriteIO for AtmosphereResource {}", name, r.uuid());
                         bc.getAsyncWriteService().submit(getAsyncWriteHandler(writeQueue));
                     }
+                } finally {
+                    writeQueue.lock.unlock();
                 }
             } else {
                 uniqueWriteQueue.queue.offer(w);
@@ -783,14 +813,19 @@ public class DefaultBroadcaster implements Broadcaster {
 
     protected void executeBlockingWrite(AtmosphereResource r, Deliver deliver, AtomicInteger count) throws InterruptedException {
         // We deliver using the calling thread.
-        synchronized (r) {
+        ReentrantLock rLock = resourceLocks.computeIfAbsent(r, k -> new ReentrantLock());
+        rLock.lock();
+        try {
             executeAsyncWrite(new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache, count));
+        } finally {
+            rLock.unlock();
         }
     }
 
     public final static class WriteQueue {
         final BlockingQueue<AsyncWriteToken> queue = new LinkedBlockingQueue<>();
         final AtomicBoolean monitored = new AtomicBoolean();
+        final ReentrantLock lock = new ReentrantLock();
         final String uuid;
 
         private WriteQueue(String uuid) {
@@ -975,7 +1010,9 @@ public class DefaultBroadcaster implements Broadcaster {
             }
 
             // Must make sure execute only one thread
-            synchronized (rImpl) {
+            ReentrantLock rLock = resourceLocks.computeIfAbsent(rImpl, k -> new ReentrantLock());
+            rLock.lock();
+            try {
                 try {
                     rImpl.getRequest().setAttribute(CACHED, "true");
                     prepareInvokeOnStateChange(r, e);
@@ -1012,6 +1049,8 @@ public class DefaultBroadcaster implements Broadcaster {
                         }
                     }
                 }
+            } finally {
+                rLock.unlock();
             }
         }
         return false;
@@ -1365,8 +1404,11 @@ public class DefaultBroadcaster implements Broadcaster {
             // Only synchronize if we have a valid BroadcasterCache
             if (!bc.getBroadcasterCache().getClass().equals(BroadcasterCache.DEFAULT.getClass())) {
                 // In case we are adding messages to the cache, we need to make sure the operation is done before.
-                synchronized (resources) {
+                resourcesLock.lock();
+                try {
                     cacheAndSuspend(r);
+                } finally {
+                    resourcesLock.unlock();
                 }
             } else {
                 cacheAndSuspend(r);
@@ -1491,6 +1533,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         logger.trace("Removing AtmosphereResource {} for Broadcaster {}", r.uuid(), name);
         writeQueues.remove(r.uuid());
+        resourceLocks.remove(r);
 
         // Here we need to make sure we aren't in the process of broadcasting and unlock the Future.
         if (executeDone) {

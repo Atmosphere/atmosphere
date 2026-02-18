@@ -30,6 +30,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
@@ -51,6 +52,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
     protected static final Action cancelledAction = new Action(Action.TYPE.CANCELLED);
     protected final AtmosphereConfig config;
     private EndpointMapper<AtmosphereHandlerWrapper> mapper;
+    private final ReentrantLock broadcasterFactoryLock = new ReentrantLock();
+    private final ReentrantLock resourceLock = new ReentrantLock();
     private final long closingTime;
     private final boolean closeOnCancel;
 
@@ -241,7 +244,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         Broadcaster b = handlerWrapper.broadcaster;
         if (b.isDestroyed()) {
             BroadcasterFactory f = config.getBroadcasterFactory();
-            synchronized (f) {
+            broadcasterFactoryLock.lock();
+            try {
                 f.remove(b, b.getID());
                 try {
                     handlerWrapper.broadcaster = f.get(b.getID());
@@ -251,6 +255,8 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     // fallback to lookup
                     handlerWrapper.broadcaster = f.lookup(b.getID(), true);
                 }
+            } finally {
+                broadcasterFactoryLock.unlock();
             }
         }
 
@@ -414,8 +420,11 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         AtmosphereResourceEvent event = r.getAtmosphereResourceEvent();
         if (event != null && event.isResuming() && !event.isCancelled()) {
-            synchronized (r) {
+            resourceLock.lock();
+            try {
                 atmosphereHandler.onStateChange(event);
+            } finally {
+                resourceLock.unlock();
             }
         }
         return Action.RESUME;

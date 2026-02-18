@@ -29,6 +29,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
@@ -85,6 +86,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
     private final AtomicBoolean inClosingPhase = new AtomicBoolean();
     private boolean closeOnCancel;
     private final AtomicBoolean isPendingClose = new AtomicBoolean();
+    private final ReentrantLock broadcasterRecoveryLock = new ReentrantLock();
 
     public AtmosphereResourceImpl() {
     }
@@ -461,7 +463,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     " mechanism by adding, in web.xml, {} set to false", broadcaster.getID(), ApplicationConfig.RECOVER_DEAD_BROADCASTER);
 
             Broadcaster.SCOPE scope = broadcaster.getScope();
-            synchronized (this) {
+            broadcasterRecoveryLock.lock();
+            try {
                 String id = scope != Broadcaster.SCOPE.REQUEST ? broadcaster.getID() : broadcaster.getID() + ".recovered"
                         + config.uuidProvider().generateUuid();
 
@@ -469,6 +472,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 broadcaster = config.getBroadcasterFactory().lookup(id, true);
                 broadcaster.setScope(scope);
                 broadcaster.addAtmosphereResource(this);
+            } finally {
+                broadcasterRecoveryLock.unlock();
             }
         }
         return broadcaster;

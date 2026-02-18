@@ -21,6 +21,9 @@ import java.util.Deque;
 import java.util.LinkedList;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.Condition;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Creates a signle reader instance from a sequence of readers.
@@ -86,6 +89,8 @@ public class ChunkConcatReaderPool {
     class ChunkConcatReader extends Reader {
         private final String key;
         private final Deque<Reader> readers = new LinkedList<>();
+        private final ReentrantLock readersLock = new ReentrantLock();
+        private final Condition readersAvailable = readersLock.newCondition();
         private boolean continued;
         private boolean closed;
 
@@ -104,13 +109,14 @@ public class ChunkConcatReaderPool {
                         if (count > 0) {
                             break;
                         }
-                        synchronized (readers) {
+                        readersLock.lock();
+                        try {
                             if (!readers.isEmpty()) {
                                 continue;
                             }
                             // if no data has been read and no data is available, wait for new data
                             try {
-                                readers.wait(timeout);
+                                readersAvailable.await(timeout, TimeUnit.MILLISECONDS);
                             } catch (InterruptedException e) {
                                 //ignore
                             }
@@ -118,6 +124,8 @@ public class ChunkConcatReaderPool {
                                 throw new IOException("Read timeout");
                             }
                             continue;
+                        } finally {
+                            readersLock.unlock();
                         }
                     }
                     break;
@@ -125,8 +133,11 @@ public class ChunkConcatReaderPool {
                     Reader reader = readers.getFirst();
                     int c = reader.read(cbuf, off + count, len - count);
                     if (c == -1) {
-                        synchronized (readers) {
+                        readersLock.lock();
+                        try {
                             readers.removeFirst();
+                        } finally {
+                            readersLock.unlock();
                         }
                         try {
                             reader.close();
@@ -158,8 +169,11 @@ public class ChunkConcatReaderPool {
             releaseReader(key);
             closed = true;
             // release any blocked waiting threads
-            synchronized (readers) {
-                readers.notifyAll();
+            readersLock.lock();
+            try {
+                readersAvailable.signalAll();
+            } finally {
+                readersLock.unlock();
             }
         }
 
@@ -173,10 +187,13 @@ public class ChunkConcatReaderPool {
         }
 
         void addChunk(Reader chunk, boolean continued) {
-            synchronized (readers) {
+            readersLock.lock();
+            try {
                 readers.addLast(chunk);
-                readers.notifyAll();
+                readersAvailable.signalAll();
                 this.continued = continued;
+            } finally {
+                readersLock.unlock();
             }
         }
     }

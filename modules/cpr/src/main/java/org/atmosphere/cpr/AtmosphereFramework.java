@@ -96,9 +96,11 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 import java.util.function.Consumer;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
@@ -215,7 +217,7 @@ public class AtmosphereFramework {
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<>();
     protected boolean scanDone;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
-    protected final List<BroadcasterListener> broadcasterListeners = Collections.synchronizedList(new ArrayList<>());
+    protected final List<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<>();
     protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
     protected boolean webSocketProtocolInitialized;
     protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<>();
@@ -256,6 +258,9 @@ public class AtmosphereFramework {
             IdleResourceInterceptor.class
     );
     private WebSocketFactory webSocketFactory;
+    private final ReentrantLock resourceFactoryLock = new ReentrantLock();
+    private final ReentrantLock webSocketFactoryLock = new ReentrantLock();
+    private final ReentrantLock sessionFactoryLock = new ReentrantLock();
     private IllegalStateException initializationError;
 
     /**
@@ -3165,13 +3170,17 @@ public class AtmosphereFramework {
     private AtmosphereFramework configureAtmosphereResourceFactory() {
         if (arFactory != null) return this;
 
-        synchronized (this) {
+        resourceFactoryLock.lock();
+        try {
+            if (arFactory != null) return this;
             try {
                 arFactory = newClassInstance(AtmosphereResourceFactory.class, DefaultAtmosphereResourceFactory.class);
             } catch (InstantiationException | IllegalAccessException e) {
                 logger.error("", e);
             }
             arFactory.configure(config);
+        } finally {
+            resourceFactoryLock.unlock();
         }
         return this;
     }
@@ -3179,12 +3188,16 @@ public class AtmosphereFramework {
     private AtmosphereFramework configureWebSocketFactory() {
         if (webSocketFactory != null) return this;
 
-        synchronized (this) {
+        webSocketFactoryLock.lock();
+        try {
+            if (webSocketFactory != null) return this;
             try {
                 webSocketFactory = newClassInstance(WebSocketFactory.class, DefaultWebSocketFactory.class);
             } catch (InstantiationException | IllegalAccessException e) {
                 logger.error("", e);
             }
+        } finally {
+            webSocketFactoryLock.unlock();
         }
         return this;
     }
@@ -3261,13 +3274,20 @@ public class AtmosphereFramework {
      *
      * @return the AtmosphereResourceSessionFactory
      */
-    public synchronized AtmosphereResourceSessionFactory sessionFactory() {
-        if (sessionFactory == null) {
-            try {
-                sessionFactory = newClassInstance(AtmosphereResourceSessionFactory.class, DefaultAtmosphereResourceSessionFactory.class);
-            } catch (InstantiationException | IllegalAccessException e) {
-                logger.error("", e);
+    public AtmosphereResourceSessionFactory sessionFactory() {
+        if (sessionFactory != null) return sessionFactory;
+
+        sessionFactoryLock.lock();
+        try {
+            if (sessionFactory == null) {
+                try {
+                    sessionFactory = newClassInstance(AtmosphereResourceSessionFactory.class, DefaultAtmosphereResourceSessionFactory.class);
+                } catch (InstantiationException | IllegalAccessException e) {
+                    logger.error("", e);
+                }
             }
+        } finally {
+            sessionFactoryLock.unlock();
         }
         return sessionFactory;
     }

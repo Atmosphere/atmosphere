@@ -596,9 +596,7 @@ public interface AtmosphereRequest extends HttpServletRequest {
         }
 
         public void clear() {
-            synchronized (localAttributes) {
-                localAttributes.clear();
-            }
+            localAttributes.clear();
         }
 
         public boolean containsKey(String key) {

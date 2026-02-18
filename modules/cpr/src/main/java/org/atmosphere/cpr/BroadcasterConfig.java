@@ -31,6 +31,7 @@ import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Handle {@link Broadcaster} configuration like {@link ExecutorService} and {@link BroadcastFilter}.
@@ -43,6 +44,9 @@ public class BroadcasterConfig {
 
     protected final ConcurrentLinkedQueue<BroadcastFilter> filters = new ConcurrentLinkedQueue<>();
     protected final ConcurrentLinkedQueue<PerRequestBroadcastFilter> perRequestFilters = new ConcurrentLinkedQueue<>();
+
+    private final ReentrantLock executorLock = new ReentrantLock();
+    private final ReentrantLock filterLock = new ReentrantLock();
 
     private ExecutorService executorService;
     private ExecutorService asyncWriteService;
@@ -148,8 +152,11 @@ public class BroadcasterConfig {
                 try {
                     Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
                     if (b != null) {
-                        synchronized (mf) {
+                        filterLock.lock();
+                        try {
                             cbf.setBroadcaster(b);
+                        } finally {
+                            filterLock.unlock();
                         }
                     }
                 } catch (Throwable t) {
@@ -163,16 +170,21 @@ public class BroadcasterConfig {
         return handleExecutors;
     }
 
-    protected synchronized void configExecutors() {
-        if (shared) {
-            handleExecutors = false;
-            isExecutorShared = true;
-            isAsyncExecutorShared = true;
-        }
+    protected void configExecutors() {
+        executorLock.lock();
+        try {
+            if (shared) {
+                handleExecutors = false;
+                isExecutorShared = true;
+                isAsyncExecutorShared = true;
+            }
 
-        executorService = ExecutorsFactory.getMessageDispatcher(config, broadcasterId);
-        asyncWriteService = ExecutorsFactory.getAsyncOperationExecutor(config, broadcasterId);
-        scheduler = ExecutorsFactory.getScheduler(config);
+            executorService = ExecutorsFactory.getMessageDispatcher(config, broadcasterId);
+            asyncWriteService = ExecutorsFactory.getAsyncOperationExecutor(config, broadcasterId);
+            scheduler = ExecutorsFactory.getScheduler(config);
+        } finally {
+            executorLock.unlock();
+        }
     }
 
     /**
@@ -282,8 +294,11 @@ public class BroadcasterConfig {
         if (init && e instanceof ClusterBroadcastFilter cbf) {
             Broadcaster b = config.getBroadcasterFactory().lookup(broadcasterId, false);
             if (b != null) {
-                synchronized (e) {
+                filterLock.lock();
+                try {
                     cbf.setBroadcaster(b);
+                } finally {
+                    filterLock.unlock();
                 }
             }
         }
@@ -417,13 +432,16 @@ public class BroadcasterConfig {
 
         BroadcastAction transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
-            synchronized (mf) {
+            filterLock.lock();
+            try {
                 transformed = mf.filter(broadcasterId, object, transformed.message());
                 if (transformed == null
                         || transformed.action() == BroadcastAction.ACTION.ABORT
                         || transformed.action() == BroadcastAction.ACTION.SKIP) {
                     return transformed;
                 }
+            } finally {
+                filterLock.unlock();
             }
         }
         return wrap(transformed, isManipulated);
@@ -448,13 +466,16 @@ public class BroadcasterConfig {
 
         BroadcastAction transformed = new BroadcastAction(message);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
-            synchronized (mf) {
+            filterLock.lock();
+            try {
                 transformed = mf.filter(broadcasterId, r, originalMessage, transformed.message());
                 if (transformed == null
                         || transformed.action() == BroadcastAction.ACTION.ABORT
                         || transformed.action() == BroadcastAction.ACTION.SKIP) {
                     return transformed;
                 }
+            } finally {
+                filterLock.unlock();
             }
         }
         return wrap(transformed, isManipulated);

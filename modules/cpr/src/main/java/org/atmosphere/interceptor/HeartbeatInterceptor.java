@@ -44,6 +44,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.ApplicationConfig.CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS;
 import static org.atmosphere.cpr.ApplicationConfig.FLUSH_BUFFER_HEARTBEAT;
@@ -82,6 +83,7 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
     private boolean resumeOnHeartbeat;
     private int heartbeatFrequencyInSeconds = 60;
     private AtmosphereConfig config;
+    private final ReentrantLock heartbeatLock = new ReentrantLock();
     private final AtomicBoolean destroyed = new AtomicBoolean(false);
     private boolean flushBuffer = true;
 
@@ -360,7 +362,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
 
         try {
             request.setAttribute(HEARTBEAT_FUTURE, heartBeat.schedule(() -> {
-                synchronized (r) {
+                heartbeatLock.lock();
+                try {
                     if (((AtmosphereResourceImpl) r).isInScope() && r.isSuspended()) {
                         try {
                             logger.trace("Heartbeat for Resource {}", r);
@@ -377,6 +380,8 @@ public class HeartbeatInterceptor extends AtmosphereInterceptorAdapter {
                     } else {
                         cancelF(request);
                     }
+                } finally {
+                    heartbeatLock.unlock();
                 }
                 return null;
             }, interval, TimeUnit.SECONDS));

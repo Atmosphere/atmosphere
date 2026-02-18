@@ -23,6 +23,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.Map;
 import java.util.WeakHashMap;
+import java.util.concurrent.locks.ReentrantLock;
 
 /**
  * Factory for {@link WebSocketProcessor}.
@@ -32,15 +33,22 @@ import java.util.WeakHashMap;
 public class WebSocketProcessorFactory {
     private static final Logger logger = LoggerFactory.getLogger(WebSocketProcessorFactory.class);
 
+    private static final ReentrantLock factoryLock = new ReentrantLock();
     private static WebSocketProcessorFactory factory;
 
+    private final ReentrantLock processorsLock = new ReentrantLock();
     private final Map<AtmosphereFramework, WebSocketProcessor> processors = new WeakHashMap<>();
 
-    public static synchronized WebSocketProcessorFactory getDefault() {
-        if (factory == null) {
-            factory = new WebSocketProcessorFactory();
+    public static WebSocketProcessorFactory getDefault() {
+        factoryLock.lock();
+        try {
+            if (factory == null) {
+                factory = new WebSocketProcessorFactory();
+            }
+            return factory;
+        } finally {
+            factoryLock.unlock();
         }
-        return factory;
     }
 
     public Map<AtmosphereFramework, WebSocketProcessor> processors(){
@@ -56,19 +64,27 @@ public class WebSocketProcessorFactory {
     public WebSocketProcessor getWebSocketProcessor(AtmosphereFramework framework) {
         WebSocketProcessor processor = processors.get(framework);
         if (processor == null) {
-            synchronized (framework) {
+            processorsLock.lock();
+            try {
                 processor = createProcessor(framework);
                 processors.put(framework, processor);
+            } finally {
+                processorsLock.unlock();
             }
         }
         return processor;
     }
 
-    public synchronized void destroy() {
-        for (WebSocketProcessor processor : processors.values()) {
-            processor.destroy();
+    public void destroy() {
+        processorsLock.lock();
+        try {
+            for (WebSocketProcessor processor : processors.values()) {
+                processor.destroy();
+            }
+            processors.clear();
+        } finally {
+            processorsLock.unlock();
         }
-        processors.clear();
     }
 
     @SuppressWarnings("unchecked")

@@ -37,6 +37,7 @@ import java.nio.charset.StandardCharsets;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;
 
@@ -64,6 +65,7 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
     protected ByteBuffer bb;
     protected CharBuffer cb;
     protected String uuid = "NUll";
+    private final ReentrantLock shiftAttributesLock = new ReentrantLock();
     private Map<String, Object> attributesAtWebSocketOpen;
     private Object attachment;
 
@@ -131,9 +133,14 @@ public abstract class WebSocket extends AtmosphereInterceptorWriter implements K
      * Copy {@link AtmosphereRequestImpl#localAttributes()} that where set when the websocket was opened.
      *
      */
-    public synchronized void shiftAttributes() {
-        attributesAtWebSocketOpen = new ConcurrentHashMap<>();
-        attributesAtWebSocketOpen.putAll(((AtmosphereResourceImpl) r).getRequest(false).localAttributes().unmodifiableMap());
+    public void shiftAttributes() {
+        shiftAttributesLock.lock();
+        try {
+            attributesAtWebSocketOpen = new ConcurrentHashMap<>();
+            attributesAtWebSocketOpen.putAll(((AtmosphereResourceImpl) r).getRequest(false).localAttributes().unmodifiableMap());
+        } finally {
+            shiftAttributesLock.unlock();
+        }
     }
 
     /**
