@@ -27,6 +27,8 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 | **Spring Boot** | `atmosphere-spring-boot-starter` | Spring Boot 3.4+ |
 | **Quarkus** | `atmosphere-quarkus-extension` | Quarkus 3.21+ |
 | **Any Servlet container** | `atmosphere-runtime` | Servlet 6.0+ |
+| **Kotlin DSL** | `atmosphere-kotlin` | Kotlin 2.1+ |
+| **AI Streaming** | `atmosphere-ai` | JDK 21+ |
 
 ### Quick start
 
@@ -679,8 +681,10 @@ Uses the standard [Apache Kafka client](https://kafka.apache.org/) 3.x.
 
 ### Documentation
 
-- [Samples](https://github.com/Atmosphere/atmosphere/tree/main/samples) — Spring Boot chat, Quarkus chat, embedded Jetty
+- [Samples](https://github.com/Atmosphere/atmosphere/tree/main/samples) — Spring Boot chat, Quarkus chat, AI streaming samples
 - [Wiki & Tutorials](https://github.com/Atmosphere/atmosphere/wiki)
+- [AI / LLM Streaming](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming)
+- [Kotlin DSL](https://github.com/Atmosphere/atmosphere/wiki/Kotlin-DSL)
 - [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions)
 - [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/)
 - [atmosphere.js API](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API)

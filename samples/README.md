@@ -8,6 +8,9 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | [spring-boot-chat](spring-boot-chat/) | Spring Boot 4.0 | JAR | ✅ | ✅ | ✅ |
 | [quarkus-chat](quarkus-chat/) | Quarkus 3.21+ | JAR | — | — | ✅ |
 | [embedded-jetty-websocket-chat](embedded-jetty-websocket-chat/) | Embedded Jetty | JAR | — | — | — |
+| [spring-boot-ai-chat](spring-boot-ai-chat/) | Spring Boot 4.0 | JAR | — | — | — |
+| [spring-boot-langchain4j-chat](spring-boot-langchain4j-chat/) | Spring Boot 4.0 | JAR | — | — | — |
+| [spring-boot-embabel-chat](spring-boot-embabel-chat/) | Spring Boot 4.0 | JAR | — | — | — |
 | [shared-resources](shared-resources/) | — | — | — | — | — |
 
 ## Quick Start
