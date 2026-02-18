@@ -8,6 +8,10 @@
     <description>Build tools for Atmosphere Framework</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
+    <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+    </properties>
+
     <licenses>
         <license>
             <name>Apache License 2.0</name>

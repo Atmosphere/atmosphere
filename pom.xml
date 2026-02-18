@@ -14,9 +14,6 @@
         <url>http://github.com/Atmosphere/atmosphere</url>
      <tag>HEAD</tag>
   </scm>
-    <prerequisites>
-        <maven>3.0</maven>
-    </prerequisites>
     <developers>
         <developer>
             <id>jfarcand</id>
@@ -83,6 +80,24 @@
                 <configuration>
                     <release>21</release>
                 </configuration>
+            </plugin>
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-enforcer-plugin</artifactId>
+                <version>3.5.0</version>
+                <executions>
+                    <execution>
+                        <id>enforce-maven</id>
+                        <goals><goal>enforce</goal></goals>
+                        <configuration>
+                            <rules>
+                                <requireMavenVersion>
+                                    <version>3.6.3</version>
+                                </requireMavenVersion>
+                            </rules>
+                        </configuration>
+                    </execution>
+                </executions>
             </plugin>
             <plugin>
                 <groupId>org.apache.maven.plugins</groupId>
@@ -222,7 +237,6 @@
                     <rulesets>
                         <ruleset>atmosphere-pmd-ruleset.xml</ruleset>
                     </rulesets>
-                    <sourceEncoding>UTF-8</sourceEncoding>
                     <targetJdk>21</targetJdk>
                     <linkXRef>false</linkXRef>
                     <includeTests>true</includeTests>
@@ -605,6 +619,8 @@
     </dependencies>
 
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+        <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>6.0.0</servlet-version-range>
         <jetty-version>12.0.16</jetty-version>
