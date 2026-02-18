@@ -220,6 +220,24 @@ All Java source files must start with:
 - Test: `npm test`
 - Version: 5.0.0
 
+## Sample Applications
+
+Samples in `samples/` are **the first thing users see** — they must be production-quality, not stubs.
+
+### Rules for Samples
+- **Actually use the integration you claim to demonstrate.** If a sample is called `spring-boot-embabel-chat`, it MUST use the real Embabel `AgentPlatform` API — not fake it with a wrapper around a raw LLM client. If you can't make the real integration work, say so and ask for help.
+- **No mock/stub implementations disguised as real code.** Comments like "in a real app, you would call X" are a red flag — the sample should BE the real app.
+- **Read the third-party library's actual API** (use `javap`, inspect JARs, read source) before writing integration code. Do not guess at APIs.
+- **Each sample must compile.** Run `./mvnw compile -pl samples/<name>` before committing.
+- **Each sample must have a README.md** explaining what it does, how to run it, and what the key code does.
+
+### Third-Party Integrations
+When writing code that integrates with an external library (Embabel, LangChain4j, Spring AI, etc.):
+1. **Inspect the actual dependency JARs** in `~/.m2/repository/` to find real class names and method signatures
+2. **Use `javap -public`** to read the public API of key classes
+3. **Never invent API calls** — if `agentPlatform.runAgent(prompt)` doesn't exist, don't write it
+4. **Check for auto-configuration** — most Spring ecosystem libraries provide starter/autoconfigure modules; use them instead of manual wiring
+
 ## Getting Help
 - Always ask for clarification rather than making assumptions
 - If you're having trouble with something, stop and ask for help
