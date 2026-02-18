@@ -166,10 +166,6 @@
                     <forkedProcessTimeoutInSeconds>300</forkedProcessTimeoutInSeconds>
                     <argLine>--add-opens java.base/java.util.concurrent.locks=ALL-UNNAMED --add-opens java.base/java.util.concurrent=ALL-UNNAMED</argLine>
                     <excludes>
-                        <!-- Mockito cannot mock sealed interfaces on JDK 21+ -->
-                        <exclude>**/JSR356WebSocketTest.java</exclude>
-                        <!-- Tests using BlockingIOCometSupport - incompatible with JDK 21+ test execution -->
-                        <exclude>**/BroadcasterCacheTest.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>
@@ -485,15 +481,13 @@
                 </plugins>
             </build>
         </profile>
-        <!-- 
+        <!--
             JDK 25 Test Configuration Profile
-            
-            Excludes only tests that use BlockingIOCometSupport, which has architectural
-            incompatibility with JDK 25's stricter thread scheduling in test scenarios.
-            
-            Tests that don't use BlockingIOCometSupport will still run on JDK 25, providing
-            partial test coverage. Production code works fine on JDK 25 - only certain
-            test execution patterns are affected.
+
+            Excludes tests with JDK 25 incompatibilities:
+            - BlockingIOCometSupport timing: request handlers don't complete before assertions
+            - WebSocket handler mapping: handler not found during processor.open()
+            - Broadcaster lifecycle: async destroy doesn't complete between test methods
         -->
         <profile>
             <id>jdk25-test-config</id>
@@ -508,47 +502,21 @@
                         <version>3.5.4</version>
                         <configuration>
                             <excludes>
-                                <!-- Tests using BlockingIOCometSupport - incompatible with JDK 25 test execution -->
-                                <exclude>**/AnnotationScanningTest.java</exclude>
-                                <exclude>**/AtmosphereHandlerTest.java</exclude>
-                                <exclude>**/AtmosphereRequestTest.java</exclude>
-                                <exclude>**/AtmosphereResourceListenerTest.java</exclude>
-                                <exclude>**/AtmosphereResourceTest.java</exclude>
-                                <exclude>**/AtmosphereSessionTest.java</exclude>
-                                <exclude>**/BroadcasterCacheTest.java</exclude>
-                                <exclude>**/BroadcasterLifecyclePolicyTest.java</exclude>
-                                <exclude>**/BroadcasterListenerTest.java</exclude>
-                                <exclude>**/BroadcasterTest.java</exclude>
-                                <exclude>**/BroadcastFilterTest.java</exclude>
-                                <exclude>**/ConcurrentBroadcasterTest.java</exclude>
+                                <!-- BlockingIOCometSupport timing: handler not invoked before assertions -->
                                 <exclude>**/CookieTest.java</exclude>
-                                <exclude>**/CustomAnnotationTest.java</exclude>
-                                <exclude>**/DefaultAsyncSupportResolverTest.java</exclude>
-                                <exclude>**/DefaultBroadcasterTest.java</exclude>
-                                <exclude>**/EncoderDecoderTest.java</exclude>
-                                <exclude>**/ExcludeSessionBroadcasterTest.java</exclude>
-                                <exclude>**/MeteorTest.java</exclude>
-                                <exclude>**/PathTest.java</exclude>
                                 <exclude>**/QueryStringTest.java</exclude>
-                                <exclude>**/UUIDBroadcasterCacheTest.java</exclude>
                                 <exclude>**/WebSocketHandlerTest.java</exclude>
                                 <exclude>**/WebSocketStreamingHandlerTest.java</exclude>
-                                <exclude>**/WebSocketTest.java</exclude>
-                                <exclude>**/WriteTimeoutTest.java</exclude>
-                                <!-- Additional tests with JDK 25 incompatibilities (unrelated to BlockingIO) -->
-                                <exclude>**/WebSocketProcessorTest.java</exclude>
-                                <exclude>**/MetaBroadcasterTest.java</exclude>
-                                <exclude>**/UrlMappingTest.java</exclude>
-                                <exclude>**/TrackMessageSizeInterceptorTest.java</exclude>
+                                <!-- Broadcaster/interceptor timing issues -->
+                                <exclude>**/BroadcasterLifecyclePolicyTest.java</exclude>
+                                <exclude>**/BroadcasterListenerTest.java</exclude>
                                 <exclude>**/AtmosphereInterceptorTest.java</exclude>
-                                <!-- Mockito cannot mock BlockingIOCometSupport on JDK 25+ -->
-                                <exclude>**/RoomTest.java</exclude>
-                                <exclude>**/AtmosphereMetricsTest.java</exclude>
-                                <exclude>**/AtmosphereTracingTest.java</exclude>
-                                <exclude>**/RedisBroadcasterTest.java</exclude>
-                                <exclude>**/KafkaBroadcasterTest.java</exclude>
-                                <!-- Mockito cannot mock sealed interfaces on JDK 21+ -->
-                                <exclude>**/JSR356WebSocketTest.java</exclude>
+                                <!-- Broadcaster cleanup between test methods incomplete -->
+                                <exclude>**/MetaBroadcasterTest.java</exclude>
+                                <!-- WebSocket handler mapping fails on JDK 25 -->
+                                <exclude>**/WebSocketProcessorTest.java</exclude>
+                                <exclude>**/TrackMessageSizeInterceptorTest.java</exclude>
+                                <exclude>**/UrlMappingTest.java</exclude>
                             </excludes>
                         </configuration>
                     </plugin>
