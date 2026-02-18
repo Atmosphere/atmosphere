@@ -15,7 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.util.uri.UriTemplate;
+import org.atmosphere.util.PathTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -82,9 +82,8 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
             final Map<String, String> m = new HashMap<>();
             List<Broadcaster> l = new ArrayList<>();
             logger.trace("Map {}", path);
-            UriTemplate t = null;
             try {
-                t = new UriTemplate(path);
+                var t = new PathTemplate(path);
                 for (Broadcaster b : c) {
                     logger.trace("Trying to map {} to {}", t, b.getID());
                     if (t.match(b.getID(), m)) {
@@ -92,8 +91,7 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
                     }
                     m.clear();
                 }
-            } finally {
-                if (t != null) t.destroy();
+            } catch (IllegalArgumentException ignored) {
             }
 
             if (l.isEmpty() && cacheMessage) {

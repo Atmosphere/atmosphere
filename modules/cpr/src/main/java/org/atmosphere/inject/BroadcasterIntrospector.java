@@ -18,7 +18,7 @@ package org.atmosphere.inject;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.inject.annotation.RequestScoped;
-import org.atmosphere.util.ThreadLocalInvoker;
+import org.atmosphere.util.ThreadLocalProxy;
 
 import jakarta.inject.Named;
 import java.lang.reflect.Field;
@@ -57,7 +57,7 @@ public class BroadcasterIntrospector extends InjectIntrospectorAdapter<Broadcast
         final Broadcaster broadcaster = r.getAtmosphereConfig().getBroadcasterFactory().lookup(named, true);
 
         return (Broadcaster) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{Broadcaster.class}, new ThreadLocalInvoker<Broadcaster>() {
+                new Class[]{Broadcaster.class}, new ThreadLocalProxy<Broadcaster>() {
                     {
                         set(broadcaster);
                     }

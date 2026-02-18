@@ -1,4 +1,1 @@
-org.atmosphere.util.uri.* and org.atmosphere.util.ThreadLocalInvoker are derived from the
-Jersey Project and retain their original CDDL+GPL headers.
-
-All other classes are released under the Apache License 2.0.
+All classes are released under the Apache License 2.0.

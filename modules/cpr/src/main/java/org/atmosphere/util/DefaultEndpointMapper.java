@@ -18,7 +18,7 @@ package org.atmosphere.util;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.FrameworkConfig;
-import org.atmosphere.util.uri.UriTemplate;
+import org.atmosphere.util.PathTemplate;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,17 +44,15 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         if (handler == null) {
             final Map<String, String> m = new HashMap<>();
             for (Map.Entry<String, U> e : handlers.entrySet()) {
-                UriTemplate t = null;
                 try {
-                    t = new UriTemplate(e.getKey());
+                    var t = new PathTemplate(e.getKey());
                     logger.trace("Trying to map {} to {}", t, path);
                     if (t.match(path, m)) {
                         handler = e.getValue();
                         logger.trace("Mapped {} to {}", t, e.getValue());
                         break;
                     }
-                } finally {
-                    if (t != null) t.destroy();
+                } catch (IllegalArgumentException ignored) {
                 }
             }
         }

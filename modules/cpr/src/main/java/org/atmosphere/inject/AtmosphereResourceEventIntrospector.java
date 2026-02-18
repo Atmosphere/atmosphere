@@ -18,7 +18,7 @@ package org.atmosphere.inject;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.inject.annotation.RequestScoped;
-import org.atmosphere.util.ThreadLocalInvoker;
+import org.atmosphere.util.ThreadLocalProxy;
 
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
@@ -42,7 +42,7 @@ public class AtmosphereResourceEventIntrospector extends InjectIntrospectorAdapt
         final AtmosphereResourceEvent e = r.getAtmosphereResourceEvent();
 
         return (AtmosphereResourceEvent) Proxy.newProxyInstance(this.getClass().getClassLoader(),
-                new Class[]{AtmosphereResourceEvent.class}, new ThreadLocalInvoker<AtmosphereResourceEvent>() {
+                new Class[]{AtmosphereResourceEvent.class}, new ThreadLocalProxy<AtmosphereResourceEvent>() {
                     {
                         set(e);
                     }
