@@ -16,21 +16,31 @@
 package org.atmosphere.mcp.runtime;
 
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Tracks per-connection MCP session state (initialization, client capabilities).
+ * Each session has a unique ID returned to clients via the {@code Mcp-Session-Id} header.
  */
 public final class McpSession {
 
     /** Attribute key used to store the session on AtmosphereResource. */
     public static final String ATTRIBUTE_KEY = "org.atmosphere.mcp.session";
 
+    /** HTTP header used for session tracking (Streamable HTTP transport). */
+    public static final String SESSION_ID_HEADER = "Mcp-Session-Id";
+
+    private final String sessionId = UUID.randomUUID().toString();
     private volatile boolean initialized;
     private volatile Map<String, Object> clientCapabilities = Map.of();
     private volatile String clientName;
     private volatile String clientVersion;
     private final Map<String, Object> attributes = new ConcurrentHashMap<>();
+
+    public String sessionId() {
+        return sessionId;
+    }
 
     public boolean isInitialized() {
         return initialized;

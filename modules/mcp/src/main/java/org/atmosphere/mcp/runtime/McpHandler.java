@@ -24,16 +24,27 @@ import org.slf4j.LoggerFactory;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * {@link AtmosphereHandler} that bridges Atmosphere's transport layer with the
- * MCP JSON-RPC protocol. Registered at the path specified by {@code @McpServer}.
+ * MCP JSON-RPC protocol. Supports three transports:
+ * <ul>
+ *   <li><b>Streamable HTTP</b> (MCP spec 2025-03-26) — POST for requests, GET for SSE notifications, DELETE to end session</li>
+ *   <li><b>WebSocket</b> — full-duplex JSON-RPC via WebSocket frames</li>
+ *   <li><b>SSE fallback</b> — Atmosphere's automatic WebSocket→SSE downgrade</li>
+ * </ul>
+ * Registered at the path specified by {@code @McpServer}.
  */
 public final class McpHandler implements AtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(McpHandler.class);
+    private static final String APPLICATION_JSON = "application/json";
+    private static final String TEXT_EVENT_STREAM = "text/event-stream";
 
     private final McpProtocolHandler protocolHandler;
+    private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
 
     public McpHandler(McpProtocolHandler protocolHandler) {
         this.protocolHandler = protocolHandler;
@@ -41,22 +52,121 @@ public final class McpHandler implements AtmosphereHandler {
 
     @Override
     public void onRequest(AtmosphereResource resource) throws IOException {
-        // Suspend on GET (WebSocket upgrade or SSE)
-        if ("GET".equalsIgnoreCase(resource.getRequest().getMethod())) {
-            resource.suspend();
-            return;
-        }
+        var method = resource.getRequest().getMethod();
 
-        // POST — SSE transport sends requests via HTTP POST
-        var reader = resource.getRequest().getReader();
+        switch (method.toUpperCase()) {
+            case "POST" -> handlePost(resource);
+            case "GET" -> handleGet(resource);
+            case "DELETE" -> handleDelete(resource);
+            default -> {
+                resource.getResponse().setStatus(405);
+                resource.getResponse().getWriter().write("{\"error\":\"Method not allowed\"}");
+            }
+        }
+    }
+
+    /**
+     * POST — Streamable HTTP: client sends JSON-RPC request, server responds with JSON or SSE.
+     */
+    private void handlePost(AtmosphereResource resource) throws IOException {
+        var request = resource.getRequest();
+        var response = resource.getResponse();
+
+        // Read request body
+        var reader = request.getReader();
         var sb = new StringBuilder();
         String line;
         while ((line = reader.readLine()) != null) {
             sb.append(line);
         }
-        if (!sb.isEmpty()) {
-            processMessage(resource, sb.toString());
+
+        if (sb.isEmpty()) {
+            response.setStatus(400);
+            response.setContentType(APPLICATION_JSON);
+            response.getWriter().write("{\"jsonrpc\":\"2.0\",\"error\":{\"code\":-32700,\"message\":\"Empty body\"}}");
+            return;
         }
+
+        // Restore session from Mcp-Session-Id header if present
+        var sessionId = request.getHeader(McpSession.SESSION_ID_HEADER);
+        if (sessionId != null) {
+            var session = sessions.get(sessionId);
+            if (session != null) {
+                request.setAttribute(McpSession.ATTRIBUTE_KEY, session);
+            }
+        }
+
+        var jsonResponse = protocolHandler.handleMessage(resource, sb.toString());
+
+        // After handleMessage, check if a new session was created (initialize)
+        var session = (McpSession) request.getAttribute(McpSession.ATTRIBUTE_KEY);
+        if (session != null) {
+            sessions.putIfAbsent(session.sessionId(), session);
+            response.setHeader(McpSession.SESSION_ID_HEADER, session.sessionId());
+        }
+
+        if (jsonResponse == null) {
+            // Notification (no id) — respond with 202 Accepted
+            response.setStatus(202);
+            return;
+        }
+
+        var accept = request.getHeader("Accept");
+        if (accept != null && accept.contains(TEXT_EVENT_STREAM)) {
+            // SSE format
+            response.setStatus(200);
+            response.setContentType(TEXT_EVENT_STREAM);
+            response.setCharacterEncoding("UTF-8");
+            response.getWriter().write("event: message\ndata: " + jsonResponse + "\n\n");
+            response.getWriter().flush();
+        } else {
+            // Plain JSON
+            response.setStatus(200);
+            response.setContentType(APPLICATION_JSON);
+            response.getWriter().write(jsonResponse);
+            response.getWriter().flush();
+        }
+    }
+
+    /**
+     * GET — Opens SSE stream for server-initiated notifications.
+     */
+    private void handleGet(AtmosphereResource resource) throws IOException {
+        var request = resource.getRequest();
+        var response = resource.getResponse();
+
+        // Restore session from header
+        var sessionId = request.getHeader(McpSession.SESSION_ID_HEADER);
+        if (sessionId != null) {
+            var session = sessions.get(sessionId);
+            if (session != null) {
+                request.setAttribute(McpSession.ATTRIBUTE_KEY, session);
+                response.setHeader(McpSession.SESSION_ID_HEADER, session.sessionId());
+            }
+        }
+
+        // SSE notification stream or WebSocket upgrade
+        response.setContentType(TEXT_EVENT_STREAM);
+        response.setCharacterEncoding("UTF-8");
+        resource.suspend();
+    }
+
+    /**
+     * DELETE — Terminates MCP session.
+     */
+    private void handleDelete(AtmosphereResource resource) throws IOException {
+        var request = resource.getRequest();
+        var response = resource.getResponse();
+        var sessionId = request.getHeader(McpSession.SESSION_ID_HEADER);
+
+        if (sessionId != null) {
+            var removed = sessions.remove(sessionId);
+            if (removed != null) {
+                logger.info("MCP session terminated: {}", sessionId);
+            }
+        }
+
+        response.setStatus(204);
     }
 
     @Override
@@ -94,8 +204,16 @@ public final class McpHandler implements AtmosphereHandler {
         }
     }
 
+    /**
+     * Returns the session store (visible for testing).
+     */
+    public Map<String, McpSession> sessions() {
+        return sessions;
+    }
+
     @Override
     public void destroy() {
+        sessions.clear();
         logger.debug("McpHandler destroyed");
     }
 
