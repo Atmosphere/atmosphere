@@ -94,7 +94,7 @@ jobs:
     - name: Check Bundle Size
       run: |
         ls -lh dist/
-        SIZE=$(stat -f%z dist/index.global.js 2>/dev/null || stat -c%s dist/index.global.js)
+        SIZE=$(stat -f%z dist/index.js 2>/dev/null || stat -c%s dist/index.js)
         echo "Bundle size: $SIZE bytes"
         if [ $SIZE -gt 30720 ]; then
           echo "❌ Bundle size ($SIZE bytes) exceeds 30KB limit!"
