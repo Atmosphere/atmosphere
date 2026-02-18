@@ -490,6 +490,8 @@
         <module>samples/embedded-jetty-websocket-chat</module>
         <module>samples/spring-boot-chat</module>
         <module>samples/quarkus-chat</module>
+        <module>samples/spring-boot-langchain4j-chat</module>
+        <module>samples/spring-boot-embabel-chat</module>
         <module>modules/integration-tests</module>
     </modules>
     <reporting>

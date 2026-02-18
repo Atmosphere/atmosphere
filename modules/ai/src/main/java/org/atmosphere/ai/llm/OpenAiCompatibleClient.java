@@ -67,6 +67,13 @@ public class OpenAiCompatibleClient implements LlmClient {
     }
 
     /**
+     * Returns the API key configured for this client (may be null).
+     */
+    public String apiKey() {
+        return apiKey;
+    }
+
+    /**
      * Create a new builder.
      */
     public static Builder builder() {

@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+    <modelVersion>4.0.0</modelVersion>
+
+    <parent>
+        <groupId>org.springframework.boot</groupId>
+        <artifactId>spring-boot-starter-parent</artifactId>
+        <version>4.0.2</version>
+        <relativePath/>
+    </parent>
+
+    <groupId>org.atmosphere.samples</groupId>
+    <artifactId>spring-boot-langchain4j-chat</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+    <name>Atmosphere LangChain4j Chat Sample</name>
+    <description>Real-time AI chat using Atmosphere + LangChain4j streaming</description>
+
+    <properties>
+        <java.version>21</java.version>
+        <atmosphere.version>4.0.0-SNAPSHOT</atmosphere.version>
+        <langchain4j.version>1.0.0-beta3</langchain4j.version>
+    </properties>
+
+    <dependencies>
+        <!-- Atmosphere Spring Boot Starter -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-spring-boot-starter</artifactId>
+            <version>${atmosphere.version}</version>
+        </dependency>
+
+        <!-- Atmosphere LangChain4j adapter -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-langchain4j</artifactId>
+            <version>${atmosphere.version}</version>
+        </dependency>
+
+        <!-- LangChain4j OpenAI-compatible model (works with Gemini, OpenAI, Ollama) -->
+        <dependency>
+            <groupId>dev.langchain4j</groupId>
+            <artifactId>langchain4j-open-ai</artifactId>
+            <version>${langchain4j.version}</version>
+        </dependency>
+
+        <!-- Spring Boot Web -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-web</artifactId>
+        </dependency>
+
+        <!-- Jakarta Inject for @Inject -->
+        <dependency>
+            <groupId>jakarta.inject</groupId>
+            <artifactId>jakarta.inject-api</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+    </dependencies>
+
+    <build>
+        <plugins>
+            <plugin>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-maven-plugin</artifactId>
+            </plugin>
+        </plugins>
+    </build>
+</project>

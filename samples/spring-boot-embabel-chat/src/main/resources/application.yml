@@ -1,0 +1,15 @@
+# Atmosphere Embabel Agent Chat - Configuration
+# Streams Embabel agent events to the browser in real-time
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.embabelchat
+
+# LLM Configuration — same env vars as other AI samples
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+server:
+  port: 8082

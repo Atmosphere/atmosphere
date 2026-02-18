@@ -1,0 +1,15 @@
+# Atmosphere LangChain4j Chat - Configuration
+# Uses LangChain4j's OpenAI-compatible streaming model (works with Gemini, OpenAI, Ollama)
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.langchain4jchat
+
+# LLM Configuration — same env vars as the AI chat sample
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+server:
+  port: 8081
