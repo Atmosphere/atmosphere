@@ -6,6 +6,7 @@ on:
     paths:
       - 'samples/**'
       - 'modules/**'
+      - 'atmosphere.js/src/chat/**'
       - 'pom.xml'
       - '.github/workflows/samples-ci.yml'
   pull_request:
@@ -13,6 +14,7 @@ on:
     paths:
       - 'samples/**'
       - 'modules/**'
+      - 'atmosphere.js/src/chat/**'
       - 'pom.xml'
       - '.github/workflows/samples-ci.yml'
 
@@ -56,3 +58,44 @@ jobs:
       with:
         name: sample-${{ matrix.sample }}-artifacts
         path: samples/${{ matrix.sample }}/target/
+
+  build-frontends:
+    name: Build Frontend - ${{ matrix.sample }}
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        sample:
+          - chat
+          - embedded-jetty-websocket-chat
+          - quarkus-chat
+          - spring-boot-chat
+          - spring-boot-ai-chat
+          - spring-boot-langchain4j-chat
+          - spring-boot-embabel-chat
+          - spring-boot-mcp-server
+      fail-fast: false
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js 22
+      uses: actions/setup-node@v4
+      with:
+        node-version: 22
+    
+    - name: Install atmosphere.js dependencies
+      working-directory: atmosphere.js
+      run: npm ci
+    
+    - name: Build atmosphere.js
+      working-directory: atmosphere.js
+      run: npm run build
+    
+    - name: Install frontend dependencies
+      working-directory: samples/${{ matrix.sample }}/frontend
+      run: npm ci
+    
+    - name: Build frontend
+      working-directory: samples/${{ matrix.sample }}/frontend
+      run: npm run build

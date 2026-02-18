@@ -26,6 +26,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * {@link AtmosphereHandler} that bridges Atmosphere's transport layer with the
@@ -35,6 +38,10 @@ import java.util.concurrent.ConcurrentHashMap;
  *   <li><b>WebSocket</b> — full-duplex JSON-RPC via WebSocket frames</li>
  *   <li><b>SSE fallback</b> — Atmosphere's automatic WebSocket→SSE downgrade</li>
  * </ul>
+ * Sessions survive transient disconnections: pending notifications are buffered
+ * and replayed when a client reconnects with the same {@code Mcp-Session-Id}.
+ * Idle sessions are evicted after a configurable TTL (default 30 min).
+ * <p>
  * Registered at the path specified by {@code @McpServer}.
  */
 public final class McpHandler implements AtmosphereHandler {
@@ -45,9 +52,22 @@ public final class McpHandler implements AtmosphereHandler {
 
     private final McpProtocolHandler protocolHandler;
     private final Map<String, McpSession> sessions = new ConcurrentHashMap<>();
+    private final long sessionTtlMs;
+    private final ScheduledExecutorService cleaner;
 
     public McpHandler(McpProtocolHandler protocolHandler) {
+        this(protocolHandler, McpSession.DEFAULT_TTL_MS);
+    }
+
+    public McpHandler(McpProtocolHandler protocolHandler, long sessionTtlMs) {
         this.protocolHandler = protocolHandler;
+        this.sessionTtlMs = sessionTtlMs;
+        this.cleaner = Executors.newSingleThreadScheduledExecutor(r -> {
+            var t = Thread.ofVirtual().name("mcp-session-cleaner").unstarted(r);
+            return t;
+        });
+        this.cleaner.scheduleAtFixedRate(this::evictExpiredSessions,
+                sessionTtlMs, Math.max(sessionTtlMs / 2, 60_000L), TimeUnit.MILLISECONDS);
     }
 
     @Override
@@ -102,6 +122,7 @@ public final class McpHandler implements AtmosphereHandler {
         var session = (McpSession) request.getAttribute(McpSession.ATTRIBUTE_KEY);
         if (session != null) {
             sessions.putIfAbsent(session.sessionId(), session);
+            session.touch();
             response.setHeader(McpSession.SESSION_ID_HEADER, session.sessionId());
         }
 
@@ -141,6 +162,7 @@ public final class McpHandler implements AtmosphereHandler {
             var session = sessions.get(sessionId);
             if (session != null) {
                 request.setAttribute(McpSession.ATTRIBUTE_KEY, session);
+                session.touch();
                 response.setHeader(McpSession.SESSION_ID_HEADER, session.sessionId());
             }
         }
@@ -149,6 +171,21 @@ public final class McpHandler implements AtmosphereHandler {
         response.setContentType(TEXT_EVENT_STREAM);
         response.setCharacterEncoding("UTF-8");
         resource.suspend();
+
+        // Replay any notifications buffered while the client was disconnected
+        if (sessionId != null) {
+            var session = sessions.get(sessionId);
+            if (session != null) {
+                var pending = session.drainPendingNotifications();
+                for (var notification : pending) {
+                    response.getWriter().write("event: message\ndata: " + notification + "\n\n");
+                }
+                if (!pending.isEmpty()) {
+                    response.getWriter().flush();
+                    logger.debug("Replayed {} pending notifications for session {}", pending.size(), sessionId);
+                }
+            }
+        }
     }
 
     /**
@@ -213,8 +250,20 @@ public final class McpHandler implements AtmosphereHandler {
 
     @Override
     public void destroy() {
+        cleaner.shutdownNow();
         sessions.clear();
         logger.debug("McpHandler destroyed");
+    }
+
+    private void evictExpiredSessions() {
+        var it = sessions.entrySet().iterator();
+        while (it.hasNext()) {
+            var entry = it.next();
+            if (entry.getValue().isExpired(sessionTtlMs)) {
+                it.remove();
+                logger.info("Evicted expired MCP session: {}", entry.getKey());
+            }
+        }
     }
 
     private void write(AtmosphereResponse response, String data) throws IOException {

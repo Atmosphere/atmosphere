@@ -34,9 +34,15 @@ public final class McpWebSocketHandler implements WebSocketHandler {
     private static final Logger logger = LoggerFactory.getLogger(McpWebSocketHandler.class);
 
     private final McpProtocolHandler protocolHandler;
+    private final McpHandler mcpHandler;
 
     public McpWebSocketHandler(McpProtocolHandler protocolHandler) {
+        this(protocolHandler, null);
+    }
+
+    public McpWebSocketHandler(McpProtocolHandler protocolHandler, McpHandler mcpHandler) {
         this.protocolHandler = protocolHandler;
+        this.mcpHandler = mcpHandler;
     }
 
     @Override
@@ -60,7 +66,29 @@ public final class McpWebSocketHandler implements WebSocketHandler {
 
     @Override
     public void onOpen(WebSocket webSocket) throws IOException {
-        logger.debug("MCP WebSocket opened: {}", webSocket.resource().uuid());
+        var resource = webSocket.resource();
+        logger.debug("MCP WebSocket opened: {}", resource.uuid());
+
+        // Restore session from Mcp-Session-Id header if present
+        if (mcpHandler != null) {
+            var sessionId = resource.getRequest().getHeader(McpSession.SESSION_ID_HEADER);
+            if (sessionId != null) {
+                var session = mcpHandler.sessions().get(sessionId);
+                if (session != null) {
+                    resource.getRequest().setAttribute(McpSession.ATTRIBUTE_KEY, session);
+                    session.touch();
+                    // Replay any pending notifications
+                    var pending = session.drainPendingNotifications();
+                    for (var notification : pending) {
+                        webSocket.write(notification);
+                    }
+                    if (!pending.isEmpty()) {
+                        logger.debug("Replayed {} pending notifications on WebSocket reconnect for session {}",
+                                pending.size(), sessionId);
+                    }
+                }
+            }
+        }
     }
 
     @Override
