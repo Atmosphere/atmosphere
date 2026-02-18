@@ -184,23 +184,40 @@ class AtmosphereProcessor {
                                 "org.atmosphere.cpr.AtmosphereResponseImpl",
                                 "org.atmosphere.config.managed.ManagedAtmosphereHandler",
                                 "org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor",
-                                "org.atmosphere.inject.DefaultAtmosphereObjectFactory",
+                                "org.atmosphere.cpr.AtmosphereFramework$DefaultAtmosphereObjectFactory",
                                 // AsyncSupport implementations (resolved by DefaultAsyncSupportResolver)
                                 "org.atmosphere.container.JSR356AsyncSupport",
                                 "org.atmosphere.container.Servlet30CometSupport",
-                                // Pool implementations (configurable via ApplicationConfig.POOLEABLE_PROVIDER)
-                                "org.atmosphere.pool.UnboundedApachePoolableProvider",
-                                "org.atmosphere.pool.BoundedApachePoolableProvider",
                                 // WebSocket internals
                                 "org.atmosphere.websocket.DefaultWebSocketProcessor",
                                 "org.atmosphere.websocket.DefaultWebSocketFactory",
                                 // Protocol
-                                "org.atmosphere.cpr.SimpleHttpProtocol")
+                                "org.atmosphere.websocket.protocol.SimpleHttpProtocol")
                         .constructors()
                         .methods()
                         .fields()
                         .reason("Atmosphere core classes require reflection")
                         .build());
+    }
+
+    @BuildStep
+    void registerPoolReflection(BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
+        // Pool implementations depend on optional commons-pool2; only register if available
+        try {
+            Class.forName("org.apache.commons.pool2.PooledObjectFactory", false,
+                    Thread.currentThread().getContextClassLoader());
+            reflectiveClasses.produce(
+                    ReflectiveClassBuildItem.builder(
+                                    "org.atmosphere.pool.UnboundedApachePoolableProvider",
+                                    "org.atmosphere.pool.BoundedApachePoolableProvider")
+                            .constructors()
+                            .methods()
+                            .fields()
+                            .reason("Atmosphere pool implementations (commons-pool2 present)")
+                            .build());
+        } catch (ClassNotFoundException ignored) {
+            // commons-pool2 not on classpath; skip pool class registration
+        }
     }
 
     @BuildStep

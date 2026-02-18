@@ -43,12 +43,19 @@ jobs:
 
     - name: Verify Native Binary Exists
       run: |
-        ls -lh samples/spring-boot-chat/target/atmosphere-spring-boot-chat
-        file samples/spring-boot-chat/target/atmosphere-spring-boot-chat
+        BINARY=$(find samples/spring-boot-chat/target -maxdepth 1 -name 'atmosphere-spring-boot-chat*' -not -name '*.jar' -not -name '*.jar.original' -not -name '*.txt' -type f -executable | head -1)
+        if [ -z "$BINARY" ]; then
+          echo "Native binary not found. Contents of target/:"
+          ls -lh samples/spring-boot-chat/target/
+          exit 1
+        fi
+        echo "NATIVE_BINARY=$BINARY" >> "$GITHUB_ENV"
+        ls -lh "$BINARY"
+        file "$BINARY"
 
     - name: Smoke Test Native Binary
       run: |
-        samples/spring-boot-chat/target/atmosphere-spring-boot-chat &
+        "$NATIVE_BINARY" &
         PID=$!
         # Wait for startup (native images start fast)
         for i in $(seq 1 30); do

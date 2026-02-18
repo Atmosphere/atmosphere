@@ -141,9 +141,16 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
         registerTypeByName(reflection, "org.atmosphere.container.JSR356AsyncSupport");
         registerTypeByName(reflection, "org.atmosphere.container.Servlet30CometSupport");
 
-        // Pools
-        registerType(reflection, UnboundedApachePoolableProvider.class);
-        registerType(reflection, BoundedApachePoolableProvider.class);
+        // Pool implementations (only if commons-pool2 is on the classpath)
+        if (classLoader != null) {
+            try {
+                classLoader.loadClass("org.apache.commons.pool2.PooledObjectFactory");
+                registerType(reflection, UnboundedApachePoolableProvider.class);
+                registerType(reflection, BoundedApachePoolableProvider.class);
+            } catch (ClassNotFoundException ignored) {
+                // commons-pool2 not available; skip pool class registration
+            }
+        }
 
         // WebSocket
         registerType(reflection, DefaultWebSocketProcessor.class);
