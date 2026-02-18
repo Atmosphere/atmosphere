@@ -15,13 +15,19 @@
  */
 package org.atmosphere.samples.mcp;
 
+import jakarta.inject.Inject;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.mcp.annotation.McpParam;
 import org.atmosphere.mcp.annotation.McpPrompt;
 import org.atmosphere.mcp.annotation.McpResource;
 import org.atmosphere.mcp.annotation.McpServer;
 import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.protocol.McpMessage;
+import org.atmosphere.util.Version;
+import tools.jackson.databind.ObjectMapper;
 
+import java.io.IOException;
 import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -33,11 +39,18 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Sample MCP server that exposes tools, resources, and prompts to AI agents.
+ * Includes chat administration tools that interact with the live {@code /atmosphere/chat} broadcaster.
  * Connect an MCP client (e.g., Claude Desktop) to {@code ws://localhost:8083/mcp}.
  */
 @McpServer(name = "atmosphere-demo", version = "1.0.0", path = "/atmosphere/mcp")
 public class DemoMcpServer {
 
+    private static final String CHAT_PATH = "/atmosphere/chat";
+
+    @Inject
+    private AtmosphereConfig config;
+
+    private final ObjectMapper mapper = new ObjectMapper();
     private final Map<String, String> notes = new ConcurrentHashMap<>();
     private final AtomicInteger noteCounter = new AtomicInteger();
 
@@ -77,6 +90,81 @@ public class DemoMcpServer {
         } catch (Exception e) {
             return Map.of("expression", expression, "error", e.getMessage());
         }
+    }
+
+    // ── Chat Administration Tools ─────────────────────────────────────────
+
+    @McpTool(name = "list_users", description = "List all users currently connected to the chat")
+    public List<Map<String, String>> listUsers() {
+        var broadcaster = chatBroadcaster();
+        if (broadcaster == null) {
+            return List.of(Map.of("error", "No chat broadcaster active"));
+        }
+        return broadcaster.getAtmosphereResources().stream()
+                .map(r -> Map.of(
+                        "uuid", r.uuid(),
+                        "transport", r.transport().name()))
+                .toList();
+    }
+
+    @McpTool(name = "ban_user", description = "Disconnect and ban a user from the chat by UUID")
+    public Map<String, Object> banUser(
+            @McpParam(name = "uuid", description = "UUID of the user to ban") String uuid
+    ) {
+        var resource = config.resourcesFactory().find(uuid);
+        if (resource == null) {
+            return Map.of("error", "User not found: " + uuid);
+        }
+        try {
+            resource.close();
+            return Map.of("status", "banned", "uuid", uuid);
+        } catch (IOException e) {
+            return Map.of("error", "Failed to ban user: " + e.getMessage());
+        }
+    }
+
+    @McpTool(name = "broadcast_message", description = "Send a message to all connected chat users")
+    public Map<String, Object> broadcastMessage(
+            @McpParam(name = "message", description = "The message text to broadcast") String message,
+            @McpParam(name = "author", description = "Author name for the message", required = false) String author
+    ) {
+        var broadcaster = chatBroadcaster();
+        if (broadcaster == null) {
+            return Map.of("error", "No chat broadcaster active");
+        }
+        var msg = new Message(author != null ? author : "MCP Admin", message);
+        broadcaster.broadcast(mapper.writeValueAsString(msg));
+        return Map.of("status", "sent", "recipients", broadcaster.getAtmosphereResources().size());
+    }
+
+    @McpTool(name = "send_message", description = "Send a private message to a specific chat user by UUID")
+    public Map<String, Object> sendMessage(
+            @McpParam(name = "uuid", description = "UUID of the target user") String uuid,
+            @McpParam(name = "message", description = "The message text to send") String message,
+            @McpParam(name = "author", description = "Author name for the message", required = false) String author
+    ) {
+        var resource = config.resourcesFactory().find(uuid);
+        if (resource == null) {
+            return Map.of("error", "User not found: " + uuid);
+        }
+        var broadcaster = chatBroadcaster();
+        if (broadcaster == null) {
+            return Map.of("error", "No chat broadcaster active");
+        }
+        var msg = new Message(author != null ? author : "MCP Admin", message);
+        broadcaster.broadcast(mapper.writeValueAsString(msg), resource);
+        return Map.of("status", "sent", "uuid", uuid);
+    }
+
+    @McpTool(name = "atmosphere_version", description = "Return the Atmosphere framework version and runtime info")
+    public Map<String, Object> atmosphereVersion() {
+        var info = new LinkedHashMap<String, Object>();
+        info.put("version", Version.getRawVersion());
+        info.put("asyncSupport", config.framework().getAsyncSupport().getClass().getSimpleName());
+        info.put("broadcasters", config.getBroadcasterFactory().lookupAll().size());
+        info.put("connectedResources", config.resourcesFactory().findAll().size());
+        info.put("javaVersion", System.getProperty("java.version"));
+        return info;
     }
 
     // ── Resources ────────────────────────────────────────────────────────
@@ -136,6 +224,14 @@ public class DemoMcpServer {
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
+
+    private Broadcaster chatBroadcaster() {
+        try {
+            return config.getBroadcasterFactory().lookup(CHAT_PATH, false);
+        } catch (Exception e) {
+            return null;
+        }
+    }
 
     private double evalSimple(String expr) {
         // Very basic: supports + - * / on two numbers
