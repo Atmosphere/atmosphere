@@ -9,6 +9,22 @@ const features = [
     </svg>`,
     title: 'Virtual Threads',
     description: 'Every connection runs on a JDK 21 virtual thread. Massive scalability with no thread-pool tuning.',
+    detail: `<p>Atmosphere 4.0 runs every connection on a <strong>JDK 21 virtual thread</strong>. No thread-pool sizing, no blocking worries — the JVM schedules millions of lightweight threads automatically.</p>
+<p>This means your <code>@Message</code> handlers can call databases, REST APIs, or AI models <strong>synchronously</strong> without starving other connections.</p>
+<pre><code>@ManagedService(path = "/chat")
+public class Chat &#123;
+
+    @Message
+    public String onMessage(String msg) &#123;
+        // This blocks — and that's fine.
+        // Each connection has its own virtual thread.
+        var result = slowDatabase.query(msg);
+        return result;
+    &#125;
+&#125;</code></pre>
+<p><strong>Before (2.x):</strong> Platform threads — 200 threads = 200 concurrent connections.<br/>
+<strong>Now (4.0):</strong> Virtual threads — millions of concurrent connections, zero tuning.</p>`,
+    wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -17,6 +33,26 @@ const features = [
     </svg>`,
     title: 'WebSocket + Fallbacks',
     description: 'First-class WebSocket with automatic degradation to SSE and long-polling. Heartbeats and reconnection built in.',
+    detail: `<p>Atmosphere negotiates the <strong>best available transport</strong> automatically. WebSocket first, then SSE, then long-polling — your code stays the same regardless.</p>
+<pre><code>// Client — atmosphere.js 5.0
+const &#123; subscribe &#125; = await import('atmosphere.js');
+
+await subscribe(
+  &#123; url: '/chat', transport: 'websocket',
+    fallbackTransport: 'sse' &#125;,
+  &#123;
+    onMessage: (msg) => console.log(msg),
+    onReconnect: () => console.log('reconnected'),
+  &#125;
+);</code></pre>
+<p><strong>Built-in resilience:</strong></p>
+<ul>
+<li>Automatic heartbeats detect dead connections</li>
+<li>Transparent reconnection with configurable backoff</li>
+<li>Message cache ensures no data loss during reconnects</li>
+<li>Works behind proxies, load balancers, and CDNs</li>
+</ul>`,
+    wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Getting-Started-with-atmosphere.js',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -27,6 +63,31 @@ const features = [
     </svg>`,
     title: 'Rooms & Presence',
     description: 'Built-in room management with presence tracking, message history, and authorization. No external dependencies.',
+    detail: `<p>Rooms are <strong>first-class citizens</strong> in Atmosphere 4.0. Create chat rooms, game lobbies, or collaboration spaces with one annotation:</p>
+<pre><code>@RoomService(path = "/rooms/&#123;room&#125;")
+public class ChatRoom &#123;
+
+    @Ready
+    public void onReady(Room room,
+                        @PathParam("room") String name) &#123;
+        // Room auto-created, member tracked
+    &#125;
+
+    @Message(encoders = &#123;JacksonEncoder.class&#125;,
+             decoders = &#123;JacksonDecoder.class&#125;)
+    public ChatMessage onMessage(ChatMessage msg) &#123;
+        return msg; // broadcast to all room members
+    &#125;
+&#125;</code></pre>
+<p><strong>Included out of the box:</strong></p>
+<ul>
+<li><strong>Presence tracking</strong> — join/leave events with member lists</li>
+<li><strong>Message history</strong> — configurable cache, replayed on join</li>
+<li><strong>Direct messaging</strong> — send to a specific member by ID</li>
+<li><strong>Authorization</strong> — accept or reject join requests</li>
+<li><strong>Virtual members</strong> — add AI agents as room participants</li>
+</ul>`,
+    wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Understanding-Rooms',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -35,6 +96,49 @@ const features = [
     </svg>`,
     title: 'Simple Annotations',
     description: 'Define endpoints with @ManagedService or @RoomService. Handle lifecycle with @Ready, @Message, @Disconnect. Kotlin DSL available.',
+    detail: `<p>Two annotations cover most use cases. Pick the one that fits:</p>
+<div class="detail-columns">
+<div>
+<h4>@ManagedService</h4>
+<pre><code>@ManagedService(path = "/notifications")
+public class Notifications &#123;
+
+    @Ready
+    public void onReady(AtmosphereResource r) &#123;
+        // client connected
+    &#125;
+
+    @Message
+    public String onMessage(String msg) &#123;
+        return "Echo: " + msg;
+    &#125;
+&#125;</code></pre>
+</div>
+<div>
+<h4>@RoomService</h4>
+<pre><code>@RoomService(path = "/chat")
+public class Chat &#123;
+
+    @Ready
+    public void onReady(Room room) &#123;
+        // auto room management
+    &#125;
+
+    @Message
+    public ChatMsg onMessage(ChatMsg m) &#123;
+        return m; // broadcast to room
+    &#125;
+&#125;</code></pre>
+</div>
+</div>
+<p><strong>Kotlin DSL</strong> alternative for a functional style:</p>
+<pre><code>atmosphere &#123;
+    path("/chat")
+    onMessage &#123; resource, message ->
+        resource.broadcaster.broadcastSuspend(message)
+    &#125;
+&#125;</code></pre>`,
+    wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Understanding-ManagedService',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -44,6 +148,37 @@ const features = [
     </svg>`,
     title: 'Kafka & Redis Clustering',
     description: 'Scale across nodes with built-in Kafka and Redis broadcasters. Open source, no commercial add-ons required.',
+    detail: `<p>Scale horizontally by swapping a single Maven dependency. Messages are automatically relayed across all nodes.</p>
+<div class="detail-columns">
+<div>
+<h4>Kafka</h4>
+<pre><code>&lt;dependency&gt;
+  &lt;groupId&gt;org.atmosphere&lt;/groupId&gt;
+  &lt;artifactId&gt;atmosphere-kafka&lt;/artifactId&gt;
+&lt;/dependency&gt;</code></pre>
+<pre><code># application.properties
+atmosphere.broadcaster-class=\\
+  org.atmosphere.kafka.\\
+  KafkaBroadcaster
+atmosphere.kafka.bootstrap-servers=\\
+  kafka:9092</code></pre>
+</div>
+<div>
+<h4>Redis</h4>
+<pre><code>&lt;dependency&gt;
+  &lt;groupId&gt;org.atmosphere&lt;/groupId&gt;
+  &lt;artifactId&gt;atmosphere-redis&lt;/artifactId&gt;
+&lt;/dependency&gt;</code></pre>
+<pre><code># application.properties
+atmosphere.broadcaster-class=\\
+  org.atmosphere.redis.\\
+  RedisBroadcaster
+atmosphere.redis.url=\\
+  redis://localhost:6379</code></pre>
+</div>
+</div>
+<p><strong>Zero code changes.</strong> Your <code>@ManagedService</code> and <code>@RoomService</code> endpoints work across a cluster with no modifications.</p>`,
+    wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/Clustering-Kafka-and-Redis',
   },
   {
     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -53,6 +188,31 @@ const features = [
     </svg>`,
     title: 'AI / LLM Streaming',
     description: 'Stream AI responses token-by-token over WebSocket. Built-in adapters for Spring AI, LangChain4j, and Embabel.',
+    detail: `<p>Stream LLM responses <strong>token-by-token</strong> to connected clients. Works with any OpenAI-compatible endpoint — OpenAI, Gemini, Ollama, Azure.</p>
+<pre><code>@ManagedService(path = "/ai")
+public class AiChat &#123;
+
+    @Message
+    public void onMessage(AtmosphereResource r,
+                          String prompt) &#123;
+        var session = StreamingSessions.create(r);
+        var settings = AiConfig.get();
+        settings.client().stream(settings.model(),
+            prompt, session);
+    &#125;
+&#125;</code></pre>
+<p><strong>Or add AI as a room member</strong> — no streaming endpoint needed:</p>
+<pre><code>@Ready
+public void onReady(Room room) &#123;
+    var settings = AiConfig.get();
+    room.joinVirtual(new LlmRoomMember(
+        "assistant", settings.client(),
+        settings.model()));
+    // AI now participates in the conversation
+&#125;</code></pre>
+<p><strong>Framework adapters:</strong> Spring AI (Flux), LangChain4j (callbacks), Embabel (Kotlin coroutines).</p>
+<p><strong>Client hooks:</strong> <code>useStreaming()</code> for React, Vue, and Svelte.</p>`,
+    wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming',
   },
 ];
 ---
@@ -69,15 +229,73 @@ const features = [
 
     <div class="features-grid">
       {features.map((feature, index) => (
-        <article class="feature-card" style={`--delay: ${index * 0.1}s`}>
+        <article class="feature-card" data-feature={index} style={`--delay: ${index * 0.1}s`} role="button" tabindex="0" aria-haspopup="dialog">
           <div class="feature-icon" set:html={feature.icon} />
           <h3 class="feature-title">{feature.title}</h3>
           <p class="feature-description">{feature.description}</p>
+          <span class="feature-expand-hint">Click to explore →</span>
         </article>
       ))}
     </div>
   </div>
+
+  <!-- Modal overlay -->
+  <div class="feature-modal-overlay" id="featureModal" aria-hidden="true">
+    <div class="feature-modal" role="dialog" aria-modal="true">
+      <button class="feature-modal-close" aria-label="Close">&times;</button>
+      <div class="feature-modal-header">
+        <div class="feature-modal-icon" id="modalIcon"></div>
+        <h3 class="feature-modal-title" id="modalTitle"></h3>
+      </div>
+      <div class="feature-modal-body" id="modalBody"></div>
+      <div class="feature-modal-footer">
+        <a class="feature-modal-link" id="modalLink" href="#" target="_blank" rel="noopener">
+          Read the full guide →
+        </a>
+      </div>
+    </div>
+  </div>
 </section>
+
+<script define:vars={{ features }}>
+  document.addEventListener('DOMContentLoaded', () => {
+    const overlay = document.getElementById('featureModal');
+    const modalIcon = document.getElementById('modalIcon');
+    const modalTitle = document.getElementById('modalTitle');
+    const modalBody = document.getElementById('modalBody');
+    const modalLink = document.getElementById('modalLink');
+    const closeBtn = overlay.querySelector('.feature-modal-close');
+
+    function openModal(index) {
+      const f = features[index];
+      modalIcon.innerHTML = f.icon;
+      modalTitle.textContent = f.title;
+      modalBody.innerHTML = f.detail;
+      modalLink.href = f.wikiLink;
+      overlay.setAttribute('aria-hidden', 'false');
+      overlay.classList.add('active');
+      document.body.style.overflow = 'hidden';
+      closeBtn.focus();
+    }
+
+    function closeModal() {
+      overlay.classList.remove('active');
+      overlay.setAttribute('aria-hidden', 'true');
+      document.body.style.overflow = '';
+    }
+
+    document.querySelectorAll('.feature-card[data-feature]').forEach(card => {
+      card.addEventListener('click', () => openModal(Number(card.dataset.feature)));
+      card.addEventListener('keydown', (e) => {
+        if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openModal(Number(card.dataset.feature)); }
+      });
+    });
+
+    closeBtn.addEventListener('click', closeModal);
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) closeModal(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModal(); });
+  });
+</script>
 
 <style>
   .features {
@@ -146,12 +364,35 @@ const features = [
     border-radius: 12px;
     transition: all 0.3s var(--ease-out-quad);
     animation: fadeInUp 0.6s var(--ease-out-expo) var(--delay) both;
+    cursor: pointer;
+    position: relative;
   }
 
   .feature-card:hover {
     border-color: var(--color-border-accent);
     transform: translateY(-4px);
     box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+  }
+
+  .feature-card:focus-visible {
+    outline: 2px solid var(--color-accent);
+    outline-offset: 2px;
+  }
+
+  .feature-expand-hint {
+    display: block;
+    margin-top: var(--space-md);
+    font-family: var(--font-mono);
+    font-size: 0.75rem;
+    color: var(--color-accent);
+    opacity: 0;
+    transform: translateX(-4px);
+    transition: all 0.3s var(--ease-out-quad);
+  }
+
+  .feature-card:hover .feature-expand-hint {
+    opacity: 1;
+    transform: translateX(0);
   }
 
   .feature-icon {
@@ -185,6 +426,183 @@ const features = [
     line-height: 1.6;
   }
 
+  /* ── Modal ── */
+  .feature-modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0);
+    backdrop-filter: blur(0);
+    pointer-events: none;
+    transition: background 0.35s ease, backdrop-filter 0.35s ease;
+  }
+
+  .feature-modal-overlay.active {
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(8px);
+    pointer-events: auto;
+  }
+
+  .feature-modal {
+    position: relative;
+    width: min(720px, 92vw);
+    max-height: 85vh;
+    overflow-y: auto;
+    background: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border-accent);
+    border-radius: 16px;
+    padding: var(--space-2xl);
+    box-shadow: 0 40px 80px -20px rgba(0, 0, 0, 0.6);
+    transform: translateY(24px) scale(0.96);
+    opacity: 0;
+    transition: transform 0.35s var(--ease-out-expo), opacity 0.3s ease;
+  }
+
+  .feature-modal-overlay.active .feature-modal {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+
+  .feature-modal-close {
+    position: absolute;
+    top: var(--space-md);
+    right: var(--space-md);
+    width: 36px;
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 1.5rem;
+    line-height: 1;
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+
+  .feature-modal-close:hover {
+    color: var(--color-text-primary);
+    border-color: var(--color-border-accent);
+    background: var(--color-bg-primary);
+  }
+
+  .feature-modal-header {
+    display: flex;
+    align-items: center;
+    gap: var(--space-md);
+    margin-bottom: var(--space-xl);
+    padding-right: var(--space-2xl);
+  }
+
+  .feature-modal-icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    width: 48px;
+    height: 48px;
+    background: var(--color-accent);
+    border-radius: 10px;
+    color: var(--color-bg-primary);
+  }
+
+  .feature-modal-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+  }
+
+  .feature-modal-body {
+    font-size: 0.9375rem;
+    line-height: 1.7;
+    color: var(--color-text-secondary);
+  }
+
+  .feature-modal-body p {
+    margin-bottom: var(--space-md);
+  }
+
+  .feature-modal-body strong {
+    color: var(--color-text-primary);
+  }
+
+  .feature-modal-body code {
+    font-family: var(--font-mono);
+    font-size: 0.85em;
+    background: var(--color-bg-primary);
+    padding: 0.15em 0.4em;
+    border-radius: 4px;
+    color: var(--color-accent);
+  }
+
+  .feature-modal-body pre {
+    background: var(--color-bg-primary);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    padding: var(--space-md);
+    margin-bottom: var(--space-md);
+    overflow-x: auto;
+  }
+
+  .feature-modal-body pre code {
+    background: none;
+    padding: 0;
+    font-size: 0.8125rem;
+    line-height: 1.6;
+    color: var(--color-text-primary);
+  }
+
+  .feature-modal-body ul {
+    padding-left: 1.25em;
+    margin-bottom: var(--space-md);
+  }
+
+  .feature-modal-body li {
+    margin-bottom: 0.35em;
+  }
+
+  .feature-modal-body h4 {
+    font-family: var(--font-body);
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: var(--color-accent);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    margin-bottom: var(--space-sm);
+  }
+
+  .feature-modal-body .detail-columns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: var(--space-md);
+    margin-bottom: var(--space-md);
+  }
+
+  .feature-modal-footer {
+    margin-top: var(--space-xl);
+    padding-top: var(--space-md);
+    border-top: 1px solid var(--color-border);
+  }
+
+  .feature-modal-link {
+    font-family: var(--font-mono);
+    font-size: 0.8125rem;
+    font-weight: 500;
+    color: var(--color-accent);
+    text-decoration: none;
+    transition: opacity 0.2s ease;
+  }
+
+  .feature-modal-link:hover {
+    opacity: 0.8;
+  }
+
   @keyframes fadeInUp {
     from {
       opacity: 0;
@@ -200,6 +618,10 @@ const features = [
     .features-grid {
       grid-template-columns: repeat(2, 1fr);
     }
+
+    .feature-modal-body .detail-columns {
+      grid-template-columns: 1fr;
+    }
   }
 
   @media (max-width: 640px) {
@@ -209,6 +631,16 @@ const features = [
 
     .features-grid {
       grid-template-columns: 1fr;
+    }
+
+    .feature-modal {
+      padding: var(--space-lg);
+      max-height: 90vh;
+    }
+
+    .feature-expand-hint {
+      opacity: 1;
+      transform: translateX(0);
     }
   }
 </style>
