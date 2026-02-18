@@ -185,6 +185,7 @@ public class DefaultRoom implements Room {
     public Room enableHistory(int maxMessages) {
         this.historySize = maxMessages;
         var cache = new UUIDBroadcasterCache();
+        cache.setMaxPerClient(maxMessages);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
         logger.debug("Enabled history ({} max) for room '{}'", maxMessages, name);
         return this;

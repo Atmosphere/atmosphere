@@ -36,6 +36,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
@@ -72,6 +73,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected final List<Object> emptyList = List.of();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
     private UUIDProvider uuidProvider;
+    private final AtomicLong evictions = new AtomicLong();
+    private final AtomicLong cacheHits = new AtomicLong();
+    private final AtomicLong cacheMisses = new AtomicLong();
 
     public UUIDBroadcasterCache() {
     }
@@ -164,12 +168,14 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
             ConcurrentLinkedQueue<CacheMessage> clientQueue = messages.remove(uuid);
             if (clientQueue != null) {
+                cacheHits.incrementAndGet();
                 if (logger.isTraceEnabled()) {
                     logger.trace("Retrieved for AtmosphereResource {} cached messages {}", uuid, (long) clientQueue.size());
                     logger.trace("Available cached message {}", messages);
                 }
                 return clientQueue.parallelStream().map(CacheMessage::getMessage).toList();
             } else {
+                cacheMisses.incrementAndGet();
                 return List.of();
             }
         } finally {
@@ -241,6 +247,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             while (clientQueue.size() > maxPerClient) {
                 CacheMessage evicted = clientQueue.poll();
                 if (evicted != null) {
+                    evictions.incrementAndGet();
                     logger.trace("Evicted oldest message for client {} (max-per-client={})", clientId, maxPerClient);
                 }
             }
@@ -338,7 +345,13 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         long nowNanos = System.nanoTime();
         long ttlNanos = TimeUnit.MILLISECONDS.toNanos(messageTTL);
         for (ConcurrentLinkedQueue<CacheMessage> queue : messages.values()) {
-            queue.removeIf(m -> (nowNanos - m.getCreateTime()) > ttlNanos);
+            queue.removeIf(m -> {
+                if ((nowNanos - m.getCreateTime()) > ttlNanos) {
+                    evictions.incrementAndGet();
+                    return true;
+                }
+                return false;
+            });
         }
 
         // Global total cap eviction — evict oldest messages across all clients
@@ -358,6 +371,7 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
                 ConcurrentLinkedQueue<CacheMessage> queue = messages.get(oldestClient);
                 if (queue != null) {
                     queue.poll();
+                    evictions.incrementAndGet();
                     total--;
                     if (queue.isEmpty()) {
                         messages.remove(oldestClient);
@@ -392,5 +406,33 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
     public List<BroadcasterCacheInspector> inspectors() {
         return inspectors;
+    }
+
+    /**
+     * @return the total number of cached messages across all clients
+     */
+    public int totalSize() {
+        return messages.values().stream().mapToInt(ConcurrentLinkedQueue::size).sum();
+    }
+
+    /**
+     * @return the total number of evictions (max-per-client, TTL, global cap)
+     */
+    public long evictionCount() {
+        return evictions.get();
+    }
+
+    /**
+     * @return the total number of cache hits (retrieveFromCache found messages)
+     */
+    public long hitCount() {
+        return cacheHits.get();
+    }
+
+    /**
+     * @return the total number of cache misses (retrieveFromCache found no messages)
+     */
+    public long missCount() {
+        return cacheMisses.get();
     }
 }

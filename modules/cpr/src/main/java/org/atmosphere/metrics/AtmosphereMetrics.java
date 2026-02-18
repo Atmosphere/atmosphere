@@ -20,6 +20,7 @@ import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
+import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereFrameworkListener;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -61,6 +62,10 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li>{@code atmosphere.rooms.active} — gauge of active rooms</li>
  *   <li>{@code atmosphere.rooms.members} — gauge of room members (tagged by room)</li>
  *   <li>{@code atmosphere.rooms.messages} — counter of room messages (tagged by room)</li>
+ *   <li>{@code atmosphere.cache.size} — gauge of total cached messages</li>
+ *   <li>{@code atmosphere.cache.evictions} — counter of cache evictions</li>
+ *   <li>{@code atmosphere.cache.hits} — counter of cache hits</li>
+ *   <li>{@code atmosphere.cache.misses} — counter of cache misses</li>
  * </ul>
  */
 public final class AtmosphereMetrics {
@@ -165,6 +170,39 @@ public final class AtmosphereMetrics {
                 .register(registry);
 
         logger.info("Room manager metrics installed");
+    }
+
+    /**
+     * Install cache metrics on a {@link UUIDBroadcasterCache} instance.
+     *
+     * <p>Registers:
+     * <ul>
+     *   <li>{@code atmosphere.cache.size} — gauge of total cached messages</li>
+     *   <li>{@code atmosphere.cache.evictions} — counter of cache evictions</li>
+     *   <li>{@code atmosphere.cache.hits} — counter of cache hits</li>
+     *   <li>{@code atmosphere.cache.misses} — counter of cache misses</li>
+     * </ul>
+     *
+     * @param cache the cache to instrument
+     */
+    public void instrumentCache(UUIDBroadcasterCache cache) {
+        Gauge.builder("atmosphere.cache.size", cache, UUIDBroadcasterCache::totalSize)
+                .description("Total cached messages")
+                .register(registry);
+
+        Gauge.builder("atmosphere.cache.evictions", cache, c -> (double) c.evictionCount())
+                .description("Total cache evictions")
+                .register(registry);
+
+        Gauge.builder("atmosphere.cache.hits", cache, c -> (double) c.hitCount())
+                .description("Cache retrieval hits")
+                .register(registry);
+
+        Gauge.builder("atmosphere.cache.misses", cache, c -> (double) c.missCount())
+                .description("Cache retrieval misses")
+                .register(registry);
+
+        logger.info("Cache metrics installed for {}", cache);
     }
 
     /**
