@@ -24,25 +24,28 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
             </svg>
-            ChatService.java
+            Chat.java
           </span>
           <span class="code-lang">Server</span>
         </div>
-        <pre class="code-block"><code class="language-java"><span class="hl-import">import org.atmosphere.config.service.ManagedService;</span>
-<span class="hl-import">import org.atmosphere.cpr.AtmosphereResponse;</span>
-<span class="hl-import">import org.atmosphere.handler.OnMessage;</span>
+        <pre class="code-block"><code class="language-java"><span class="hl-import">import org.atmosphere.config.service.*;</span>
+<span class="hl-import">import jakarta.inject.Inject;</span>
 
 <span class="hl-annotation">@ManagedService</span>(path = <span class="hl-string">"/chat"</span>)
-<span class="hl-keyword">public class</span> ChatService &#123;
+<span class="hl-keyword">public class</span> Chat &#123;
+
+    <span class="hl-annotation">@Inject</span>
+    <span class="hl-keyword">private</span> <span class="hl-type">AtmosphereResource</span> r;
 
     <span class="hl-annotation">@Ready</span>
-    <span class="hl-keyword">public void</span> onReady(<span class="hl-type">AtmosphereResource</span> r) &#123;
-        r.getBroadcaster().broadcast(<span class="hl-string">"Welcome!"</span>);
+    <span class="hl-keyword">public void</span> onReady() &#123;
+        log.info(<span class="hl-string">"Connected: &#123;&#125;"</span>, r.uuid());
     &#125;
 
-    <span class="hl-annotation">@Message</span>
-    <span class="hl-keyword">public void</span> onMessage(<span class="hl-type">AtmosphereResponse</span> res, <span class="hl-type">String</span> message) &#123;
-        res.write(<span class="hl-string">"Echo: "</span> + message);
+    <span class="hl-annotation">@Message</span>(encoders = &#123;<span class="hl-type">JacksonEncoder</span>.class&#125;,
+            decoders = &#123;<span class="hl-type">JacksonDecoder</span>.class&#125;)
+    <span class="hl-keyword">public</span> <span class="hl-type">Message</span> onMessage(<span class="hl-type">Message</span> message) &#123;
+        <span class="hl-keyword">return</span> message; <span class="hl-comment">// broadcast to all</span>
     &#125;
 &#125;</code></pre>
       </div>
@@ -64,22 +67,19 @@
         </div>
         <pre class="code-block"><code class="language-javascript"><span class="hl-keyword">import</span> &#123; atmosphere &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js'</span>;
 
-<span class="hl-keyword">const</span> request = &#123;
-  <span class="hl-property">url</span>: <span class="hl-string">'/chat'</span>,
-  <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
-  <span class="hl-property">fallbackTransport</span>: <span class="hl-string">'long-polling'</span>,
-
-  <span class="hl-property">onOpen</span>: (response) =&gt; &#123;
-    <span class="hl-type">console</span>.log(<span class="hl-string">'Connected via'</span>, response.transport);
+<span class="hl-keyword">const</span> sub = <span class="hl-keyword">await</span> atmosphere.subscribe(
+  &#123;
+    <span class="hl-property">url</span>: <span class="hl-string">'/chat'</span>,
+    <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
+    <span class="hl-property">fallbackTransport</span>: <span class="hl-string">'long-polling'</span>,
   &#125;,
-
-  <span class="hl-property">onMessage</span>: (response) =&gt; &#123;
-    <span class="hl-type">console</span>.log(<span class="hl-string">'Received:'</span>, response.responseBody);
+  &#123;
+    <span class="hl-property">open</span>: (res) =&gt; <span class="hl-type">console</span>.log(<span class="hl-string">'Connected via'</span>, res.transport),
+    <span class="hl-property">message</span>: (res) =&gt; <span class="hl-type">console</span>.log(<span class="hl-string">'Received:'</span>, res.responseBody),
   &#125;
-&#125;;
+);
 
-<span class="hl-keyword">const</span> socket = atmosphere.subscribe(request);
-socket.push(<span class="hl-string">'Hello, Atmosphere!'</span>);</code></pre>
+sub.push(JSON.stringify(&#123; <span class="hl-property">text</span>: <span class="hl-string">'Hello!'</span> &#125;));</code></pre>
       </div>
     </div>
 

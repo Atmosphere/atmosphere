@@ -4,12 +4,12 @@
 <section class="satellite" id="satellite">
   <div class="satellite-container">
     <div class="satellite-content">
-      <span class="section-label">Enterprise Scaling</span>
-      <h2 class="section-title">Atmosphere Satellite</h2>
+      <span class="section-label">Multi-Node Scaling</span>
+      <h2 class="section-title">Built-in Clustering</h2>
       <p class="section-description">
-        Scale your real-time applications with automatic clustering powered by Redis.
-        Satellite provides elastic scalability, high availability, and fault tolerance
-        for mission-critical deployments.
+        Scale your real-time applications across multiple nodes with open-source
+        Kafka and Redis broadcasters. Messages sent on any node are automatically
+        delivered to clients connected to all other nodes.
       </p>
 
       <ul class="satellite-features">
@@ -17,36 +17,36 @@
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
-          <span>Elastic Scalability — add servers and they cluster automatically</span>
+          <span><strong>Kafka</strong> — topic-per-broadcaster, virtual thread consumer, Apache Kafka 3.x</span>
         </li>
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
-          <span>In-memory performance with Redis backend</span>
+          <span><strong>Redis</strong> — pub/sub channel-per-broadcaster, Lettuce 6.x, non-blocking</span>
         </li>
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
-          <span>High Availability & Fault Tolerance</span>
+          <span>Automatic echo prevention — nodes never re-deliver their own messages</span>
         </li>
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
-          <span>100% State Replication across nodes</span>
+          <span>Compatible with Rooms, @ManagedService, and @RoomService</span>
         </li>
         <li>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <polyline points="20 6 9 17 4 12"></polyline>
           </svg>
-          <span>Drop-in session clustering for any Atmosphere server</span>
+          <span>100% open source — Apache 2.0 licensed, no commercial add-ons required</span>
         </li>
       </ul>
 
-      <a href="mailto:satellite@async-io.org?subject=Atmosphere%20Satellite%20Inquiry" class="btn btn-accent">
-        Contact Sales
+      <a href="https://github.com/Atmosphere/atmosphere/wiki/Clustering-Kafka-and-Redis" class="btn btn-accent" target="_blank" rel="noopener noreferrer">
+        Clustering Docs
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -56,12 +56,12 @@
     <div class="satellite-visual">
       <div class="cluster-diagram">
         <div class="node node-center">
-          <span>Redis</span>
+          <span>Kafka / Redis</span>
         </div>
-        <div class="node node-1">App 1</div>
-        <div class="node node-2">App 2</div>
-        <div class="node node-3">App 3</div>
-        <div class="node node-4">App N</div>
+        <div class="node node-1">Node 1</div>
+        <div class="node node-2">Node 2</div>
+        <div class="node node-3">Node 3</div>
+        <div class="node node-4">Node N</div>
         <div class="connection connection-1"></div>
         <div class="connection connection-2"></div>
         <div class="connection connection-3"></div>
