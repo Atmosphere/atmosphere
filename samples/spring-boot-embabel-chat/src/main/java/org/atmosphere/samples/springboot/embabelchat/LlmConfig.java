@@ -15,24 +15,15 @@
  */
 package org.atmosphere.samples.springboot.embabelchat;
 
-import org.atmosphere.ai.AiConfig;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 /**
- * Spring Boot configuration that bridges settings into {@link AiConfig}.
+ * Configuration for Embabel agent chat.
+ *
+ * <p>The Embabel platform auto-configures via {@code embabel-agent-platform-autoconfigure}.
+ * LLM settings are configured through Spring AI properties in {@code application.properties}
+ * (e.g. {@code spring.ai.openai.api-key}, {@code spring.ai.openai.chat.options.model}).</p>
  */
 @Configuration
 public class LlmConfig {
-
-    @Bean
-    public AiConfig.LlmSettings llmSettings(
-            @Value("${llm.mode:remote}") String mode,
-            @Value("${llm.base-url:}") String baseUrl,
-            @Value("${llm.api-key:}") String apiKey,
-            @Value("${llm.model:gemini-2.5-flash}") String model) {
-
-        return AiConfig.configure(mode, model, apiKey, baseUrl.isBlank() ? null : baseUrl);
-    }
 }

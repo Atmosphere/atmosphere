@@ -29,8 +29,8 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
  * Atmosphere managed service for Embabel agent chat.
- * Delegates to {@link AgentRunner} which uses Embabel's OutputChannel
- * pattern to stream agent events to the browser.
+ * Delegates to {@link AgentRunner} which uses the Embabel {@code AgentPlatform}
+ * to run agents and stream events to the browser.
  */
 @ManagedService(path = "/atmosphere/embabel-chat", atmosphereConfig = {
         MAX_INACTIVE + "=120000",
@@ -45,6 +45,9 @@ public class EmbabelChat {
 
     @Inject
     private AtmosphereResourceEvent event;
+
+    @Inject
+    private AgentRunner agentRunner;
 
     @Ready
     public void onReady() {
@@ -63,6 +66,6 @@ public class EmbabelChat {
     @org.atmosphere.config.service.Message
     public void onMessage(String userMessage) {
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
-        AgentRunner.run(userMessage, resource);
+        agentRunner.run(userMessage, resource);
     }
 }

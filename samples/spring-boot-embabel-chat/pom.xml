@@ -44,18 +44,21 @@
             <version>${atmosphere.version}</version>
         </dependency>
 
-        <!-- Embabel Agent API (provided in adapter, needed at runtime) -->
+        <!-- Embabel Agent Platform (auto-configures AgentPlatform bean) -->
         <dependency>
             <groupId>com.embabel.agent</groupId>
             <artifactId>embabel-agent-api</artifactId>
             <version>${embabel.version}</version>
         </dependency>
-
-        <!-- Atmosphere AI (for AiConfig + LLM client) -->
         <dependency>
-            <groupId>org.atmosphere</groupId>
-            <artifactId>atmosphere-ai</artifactId>
-            <version>${atmosphere.version}</version>
+            <groupId>com.embabel.agent</groupId>
+            <artifactId>embabel-agent-platform-autoconfigure</artifactId>
+            <version>${embabel.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>com.embabel.agent</groupId>
+            <artifactId>embabel-agent-ai</artifactId>
+            <version>${embabel.version}</version>
         </dependency>
 
         <!-- Spring Boot Web -->

@@ -1,8 +1,24 @@
 # Spring Boot Embabel Agent Chat Sample
 
-A real-time AI chat application using the **Embabel Agent Framework**, streaming agent events (thinking, tool calls, results) to the browser via Atmosphere WebSocket.
+A real-time AI agent chat using the **Embabel Agent Framework** and Atmosphere. Embabel agents handle planning, tool calling, and orchestration — Atmosphere streams the agent events (progress, tool calls, tokens) to the browser over WebSocket in real time.
 
 ## How It Works
+
+### Agent — `ChatAssistantAgent.java`
+
+An Embabel `@Agent` class defines the agent's behavior:
+
+```java
+@Agent(name = "chat-assistant",
+       description = "A helpful chat assistant that answers user questions")
+public class ChatAssistantAgent {
+
+    @Action(description = "Answer the user's question")
+    public String answer(String userMessage) {
+        return "Answer the following question clearly and concisely: " + userMessage;
+    }
+}
+```
 
 ### Server — `EmbabelChat.java` + `AgentRunner.java`
 
@@ -10,22 +26,21 @@ A `@ManagedService` endpoint at `/atmosphere/embabel-chat`:
 
 1. Client sends a prompt via WebSocket
 2. `@Message` handler delegates to `AgentRunner` which creates a `StreamingSession`
-3. `AtmosphereOutputChannel` bridges Embabel's `OutputChannel` to the session
-4. Agent progress events stream as `progress` messages; final output as `token` messages
-
-```java
-@Message
-public void onMessage(String prompt) {
-    AgentRunner.run(prompt, resource);
-}
-```
-
-The `AgentRunner` creates the Embabel platform and runs the agent:
+3. `AgentRunner` looks up the `chat-assistant` agent on the Embabel `AgentPlatform`
+4. Calls `agentPlatform.runAgentFrom()` with an `AtmosphereOutputChannel` — agent events stream to the browser
 
 ```java
 var session = StreamingSessions.start(resource);
-var channel = AtmosphereOutputChannel(session);
-Thread.startVirtualThread(() -> agentPlatform.runAgent(prompt, outputChannel = channel));
+var agent = agentPlatform.agents().stream()
+        .filter(a -> "chat-assistant".equals(a.getName()))
+        .findFirst().orElseThrow();
+
+var agentRequest = new AgentRequest("chat-assistant", channel -> {
+    var options = ProcessOptions.DEFAULT.withOutputChannel(channel);
+    agentPlatform.runAgentFrom(agent, options, Map.of("userMessage", userMessage));
+    return Unit.INSTANCE;
+});
+Thread.startVirtualThread(() -> ADAPTER.stream(agentRequest, session));
 ```
 
 ### Client — `index.html`
@@ -34,12 +49,14 @@ Same streaming UI as the other AI samples — connects over WebSocket, renders t
 
 ## Configuration
 
-Same environment variables as the [AI chat sample](../spring-boot-ai-chat/):
+The Embabel platform auto-configures via Spring AI. Set your LLM API key:
 
 ```bash
-export LLM_MODE=remote
-export LLM_MODEL=gemini-2.5-flash
+export OPENAI_API_KEY=sk-...
+# Or use any OpenAI-compatible provider:
+export LLM_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
 export LLM_API_KEY=AIza...
+export LLM_MODEL=gemini-2.5-flash
 ```
 
 ## Build & Run
@@ -59,8 +76,9 @@ spring-boot-embabel-chat/
     ├── java/.../embabelchat/
     │   ├── EmbabelChatApplication.java   # Spring Boot entry point
     │   ├── EmbabelChat.java              # @ManagedService endpoint
-    │   ├── AgentRunner.java              # Embabel agent runner
-    │   └── LlmConfig.java               # AiConfig setup
+    │   ├── ChatAssistantAgent.java       # @Agent definition
+    │   ├── AgentRunner.java              # AgentPlatform bridge
+    │   └── LlmConfig.java               # Configuration
     └── resources/
         ├── application.yml
         └── static/

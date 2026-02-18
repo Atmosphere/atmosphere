@@ -15,55 +15,59 @@
  */
 package org.atmosphere.samples.springboot.embabelchat;
 
-import org.atmosphere.ai.AiConfig;
+import com.embabel.agent.core.AgentPlatform;
+import com.embabel.agent.core.ProcessOptions;
 import org.atmosphere.ai.StreamingSessions;
+import org.atmosphere.ai.embabel.AtmosphereOutputChannel;
 import org.atmosphere.ai.embabel.EmbabelStreamingAdapter;
-import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+import java.util.Map;
 
 /**
- * Agent runner that bridges LLM responses through Embabel's
- * {@link org.atmosphere.ai.embabel.AtmosphereOutputChannel}.
+ * Runs Embabel agents and streams their output to browsers via Atmosphere.
  *
- * <p>In a production application, the runner lambda would invoke the
- * Embabel agent platform:</p>
- * <pre>{@code
- * new AgentRequest("my-agent", channel ->
- *     agentPlatform.runProcess(agent, input, channel)
- * )
- * }</pre>
- *
- * <p>This sample demonstrates the OutputChannel streaming pattern using
- * the built-in OpenAI-compatible LLM client for simplicity.</p>
+ * <p>Receives user prompts from the {@link EmbabelChat} endpoint, looks up
+ * the deployed {@code chat-assistant} agent, and executes it through the
+ * Embabel {@link AgentPlatform}. Agent events (tokens, progress, logs) flow
+ * through the {@link AtmosphereOutputChannel} to the connected browser in
+ * real time.</p>
  */
-public final class AgentRunner {
+@Component
+public class AgentRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentRunner.class);
     private static final EmbabelStreamingAdapter ADAPTER = new EmbabelStreamingAdapter();
 
-    private AgentRunner() {
+    private final AgentPlatform agentPlatform;
+
+    public AgentRunner(AgentPlatform agentPlatform) {
+        this.agentPlatform = agentPlatform;
     }
 
     /**
-     * Run an AI agent for the given user prompt, streaming results
-     * through the Atmosphere resource via Embabel's OutputChannel.
+     * Run the {@code chat-assistant} agent for the given prompt, streaming
+     * results to the browser via Atmosphere's WebSocket transport.
      */
-    public static void run(String userMessage, AtmosphereResource resource) {
-        var settings = AiConfig.get();
+    public void run(String userMessage, AtmosphereResource resource) {
         var session = StreamingSessions.start(resource);
 
-        var agentRequest = new EmbabelStreamingAdapter.AgentRequest("chat-agent", channel -> {
-            try {
-                var request = ChatCompletionRequest.builder(settings.model())
-                        .system("You are a helpful AI agent. Think step by step and provide clear, concise answers.")
-                        .user(userMessage)
-                        .build();
+        var agent = agentPlatform.agents().stream()
+                .filter(a -> "chat-assistant".equals(a.getName()))
+                .findFirst()
+                .orElseThrow(() -> new IllegalStateException(
+                        "Agent 'chat-assistant' not deployed on the platform"));
 
-                // Stream tokens via the session (in a real Embabel app, the agent
-                // platform would send events through the OutputChannel)
-                settings.client().streamChatCompletion(request, session);
+        var agentRequest = new EmbabelStreamingAdapter.AgentRequest("chat-assistant", channel -> {
+            try {
+                var options = ProcessOptions.DEFAULT
+                        .withOutputChannel(channel);
+
+                agentPlatform.runAgentFrom(agent, options,
+                        Map.of("userMessage", userMessage));
             } catch (Exception e) {
                 logger.error("Agent execution failed", e);
                 session.error(e);
