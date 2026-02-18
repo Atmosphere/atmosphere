@@ -730,6 +730,30 @@ public interface ApplicationConfig {
      */
     String UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL = "org.atmosphere.cache.UUIDBroadcasterCache.invalidateCacheInterval";
     /**
+     * Maximum number of cached messages per client in {@link org.atmosphere.cache.UUIDBroadcasterCache}.
+     * Oldest messages are evicted when the limit is exceeded.
+     * <p/>
+     * Default: 1000<br>
+     * Value: org.atmosphere.cache.UUIDBroadcasterCache.maxPerClient
+     */
+    String UUIDBROADCASTERCACHE_MAX_PER_CLIENT = "org.atmosphere.cache.UUIDBroadcasterCache.maxPerClient";
+    /**
+     * Per-message time-to-live in seconds for {@link org.atmosphere.cache.UUIDBroadcasterCache}.
+     * Messages older than this are evicted during cleanup.
+     * <p/>
+     * Default: 300 (5 minutes)<br>
+     * Value: org.atmosphere.cache.UUIDBroadcasterCache.messageTTL
+     */
+    String UUIDBROADCASTERCACHE_MESSAGE_TTL = "org.atmosphere.cache.UUIDBroadcasterCache.messageTTL";
+    /**
+     * Global maximum total cached messages across all clients in {@link org.atmosphere.cache.UUIDBroadcasterCache}.
+     * Oldest messages across all clients are evicted when the limit is exceeded.
+     * <p/>
+     * Default: 100000<br>
+     * Value: org.atmosphere.cache.UUIDBroadcasterCache.maxTotal
+     */
+    String UUIDBROADCASTERCACHE_MAX_TOTAL = "org.atmosphere.cache.UUIDBroadcasterCache.maxTotal";
+    /**
      * Invoke Atmosphere interceptor for on every websocket message.
      * <p/>
      * Default: true<br>

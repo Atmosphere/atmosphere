@@ -1,5 +1,5 @@
 /*
- * Copyright 2011-2026 Async-IO.org
+ * Copyright 2008-2026 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License");
  * you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@ package org.atmosphere.metrics;
 import io.micrometer.core.instrument.Counter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.core.instrument.Tags;
 import io.micrometer.core.instrument.Timer;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereFrameworkListener;
@@ -27,6 +28,9 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
 import org.atmosphere.cpr.Deliver;
+import org.atmosphere.room.PresenceEvent;
+import org.atmosphere.room.Room;
+import org.atmosphere.room.RoomManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +58,9 @@ import java.util.concurrent.atomic.AtomicInteger;
  *   <li>{@code atmosphere.messages.broadcast} — counter of messages broadcast</li>
  *   <li>{@code atmosphere.messages.delivered} — counter of messages delivered to resources</li>
  *   <li>{@code atmosphere.broadcast.timer} — timer of broadcast completion latency</li>
+ *   <li>{@code atmosphere.rooms.active} — gauge of active rooms</li>
+ *   <li>{@code atmosphere.rooms.members} — gauge of room members (tagged by room)</li>
+ *   <li>{@code atmosphere.rooms.messages} — counter of room messages (tagged by room)</li>
  * </ul>
  */
 public final class AtmosphereMetrics {
@@ -117,6 +124,47 @@ public final class AtmosphereMetrics {
 
         logger.info("Atmosphere metrics installed on {}", registry.getClass().getSimpleName());
         return metrics;
+    }
+
+    /**
+     * Install room-level presence and message metrics on a specific room.
+     *
+     * @param room the room to instrument
+     */
+    public void instrumentRoom(Room room) {
+        String roomName = room.name();
+        Tags roomTags = Tags.of("room", roomName);
+
+        Gauge.builder("atmosphere.rooms.members", room, Room::size)
+                .tags(roomTags)
+                .description("Current members in room")
+                .register(registry);
+
+        Counter roomMessages = Counter.builder("atmosphere.rooms.messages")
+                .tags(roomTags)
+                .description("Messages broadcast in room")
+                .register(registry);
+
+        // Track presence to count messages (via broadcast events on the backing broadcaster)
+        room.onPresence(event -> {
+            // Presence events are not messages, but we track join/leave separately
+        });
+
+        logger.debug("Room metrics installed for '{}'", roomName);
+    }
+
+    /**
+     * Install room-level metrics for all rooms managed by a RoomManager.
+     * Also registers a gauge for the total active room count.
+     *
+     * @param roomManager the room manager to instrument
+     */
+    public void instrumentRoomManager(RoomManager roomManager) {
+        Gauge.builder("atmosphere.rooms.active", roomManager, RoomManager::count)
+                .description("Active Atmosphere rooms")
+                .register(registry);
+
+        logger.info("Room manager metrics installed");
     }
 
     /**

@@ -66,6 +66,7 @@ public class AtmosphereTracing extends AtmosphereInterceptorAdapter {
     private static final AttributeKey<String> ATTR_ACTION = AttributeKey.stringKey("atmosphere.action");
     private static final AttributeKey<String> ATTR_BROADCASTER = AttributeKey.stringKey("atmosphere.broadcaster");
     private static final AttributeKey<String> ATTR_DISCONNECT_REASON = AttributeKey.stringKey("atmosphere.disconnect.reason");
+    private static final AttributeKey<String> ATTR_ROOM = AttributeKey.stringKey("atmosphere.room");
 
     private static final String SPAN_KEY = AtmosphereTracing.class.getName() + ".span";
     private static final String SCOPE_KEY = AtmosphereTracing.class.getName() + ".scope";
@@ -155,6 +156,22 @@ public class AtmosphereTracing extends AtmosphereInterceptorAdapter {
             span.end();
             r.getRequest().removeAttribute(SPAN_KEY);
         }
+    }
+
+    /**
+     * Create a span for a room operation (join, leave, broadcast).
+     *
+     * @param operation the operation name (e.g., "join", "leave", "broadcast")
+     * @param roomName  the room name
+     * @param uuid      the resource UUID
+     * @return the span (caller must call {@code span.end()})
+     */
+    public Span startRoomSpan(String operation, String roomName, String uuid) {
+        return tracer.spanBuilder("atmosphere.room." + operation)
+                .setSpanKind(SpanKind.INTERNAL)
+                .setAttribute(ATTR_ROOM, roomName)
+                .setAttribute(ATTR_UUID, uuid)
+                .startSpan();
     }
 
     /**

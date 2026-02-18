@@ -41,6 +41,9 @@ import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_CLIENT_IDLETIME;
 import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL;
+import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_MAX_PER_CLIENT;
+import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_MAX_TOTAL;
+import static org.atmosphere.cpr.ApplicationConfig.UUIDBROADCASTERCACHE_MESSAGE_TTL;
 
 /**
  * An improved {@link BroadcasterCache} implementation that is based on the unique identifier (UUID) that all
@@ -62,6 +65,9 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
     protected ScheduledExecutorService taskScheduler;
     private long clientIdleTime = TimeUnit.SECONDS.toMillis(60); // 1 minutes
     private long invalidateCacheInterval = TimeUnit.SECONDS.toMillis(30); // 30 seconds
+    private int maxPerClient = 1000;
+    private long messageTTL = TimeUnit.SECONDS.toMillis(300); // 5 minutes
+    private int maxTotal = 100_000;
     private boolean shared = true;
     protected final List<Object> emptyList = List.of();
     protected final List<BroadcasterCacheListener> listeners = new LinkedList<>();
@@ -88,6 +94,13 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
 
         invalidateCacheInterval = TimeUnit.SECONDS.toMillis(
                 Long.parseLong(config.getInitParameter(UUIDBROADCASTERCACHE_IDLE_CACHE_INTERVAL, "30")));
+
+        maxPerClient = Integer.parseInt(config.getInitParameter(UUIDBROADCASTERCACHE_MAX_PER_CLIENT, "1000"));
+
+        messageTTL = TimeUnit.SECONDS.toMillis(
+                Long.parseLong(config.getInitParameter(UUIDBROADCASTERCACHE_MESSAGE_TTL, "300")));
+
+        maxTotal = Integer.parseInt(config.getInitParameter(UUIDBROADCASTERCACHE_MAX_TOTAL, "100000"));
 
         uuidProvider = config.uuidProvider();
     }
@@ -223,6 +236,14 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
             }
             notifyAddCache(broadcasterId, message);
             clientQueue.offer(message);
+
+            // Enforce max-per-client by evicting oldest messages
+            while (clientQueue.size() > maxPerClient) {
+                CacheMessage evicted = clientQueue.poll();
+                if (evicted != null) {
+                    logger.trace("Evicted oldest message for client {} (max-per-client={})", clientId, maxPerClient);
+                }
+            }
         } finally {
             readWriteLock.readLock().unlock();
         }
@@ -278,9 +299,22 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         this.clientIdleTime = clientIdleTime;
     }
 
+    public void setMaxPerClient(int maxPerClient) {
+        this.maxPerClient = maxPerClient;
+    }
+
+    public void setMessageTTL(long messageTTLMillis) {
+        this.messageTTL = messageTTLMillis;
+    }
+
+    public void setMaxTotal(int maxTotal) {
+        this.maxTotal = maxTotal;
+    }
+
     protected void invalidateExpiredEntries() {
         long now = System.currentTimeMillis();
 
+        // Remove inactive clients
         Set<String> inactiveClients = new HashSet<>();
         for (Map.Entry<String, Long> entry : activeClients.entrySet()) {
             if (now - entry.getValue() > clientIdleTime) {
@@ -297,6 +331,40 @@ public class UUIDBroadcasterCache implements BroadcasterCache {
         for (String msg : messages().keySet()) {
             if (!activeClients().containsKey(msg)) {
                 messages().remove(msg);
+            }
+        }
+
+        // Per-message TTL eviction (CacheMessage uses System.nanoTime())
+        long nowNanos = System.nanoTime();
+        long ttlNanos = TimeUnit.MILLISECONDS.toNanos(messageTTL);
+        for (ConcurrentLinkedQueue<CacheMessage> queue : messages.values()) {
+            queue.removeIf(m -> (nowNanos - m.getCreateTime()) > ttlNanos);
+        }
+
+        // Global total cap eviction — evict oldest messages across all clients
+        int total = messages.values().stream().mapToInt(ConcurrentLinkedQueue::size).sum();
+        while (total > maxTotal) {
+            // Find the client with the oldest head message
+            String oldestClient = null;
+            long oldestTime = Long.MAX_VALUE;
+            for (Map.Entry<String, ConcurrentLinkedQueue<CacheMessage>> entry : messages.entrySet()) {
+                CacheMessage head = entry.getValue().peek();
+                if (head != null && head.getCreateTime() < oldestTime) {
+                    oldestTime = head.getCreateTime();
+                    oldestClient = entry.getKey();
+                }
+            }
+            if (oldestClient != null) {
+                ConcurrentLinkedQueue<CacheMessage> queue = messages.get(oldestClient);
+                if (queue != null) {
+                    queue.poll();
+                    total--;
+                    if (queue.isEmpty()) {
+                        messages.remove(oldestClient);
+                    }
+                }
+            } else {
+                break;
             }
         }
     }
