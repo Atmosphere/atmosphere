@@ -1,0 +1,260 @@
+name: Release Atmosphere 4.x
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Release version (e.g., 4.0.0, 4.0.0-RC1)'
+        required: true
+        type: string
+      next_dev_version:
+        description: 'Next development version (e.g., 4.0.1-SNAPSHOT)'
+        required: true
+        type: string
+      publish_js:
+        description: 'Also publish atmosphere.js to NPM?'
+        required: true
+        type: boolean
+        default: true
+      js_version:
+        description: 'atmosphere.js version (e.g., 5.0.0) — only if publishing JS'
+        required: false
+        type: string
+        default: '5.0.0'
+      dry_run:
+        description: 'Dry run — build and verify without publishing'
+        required: true
+        type: boolean
+        default: false
+
+env:
+  MAVEN_OPTS: '-Xmx2g'
+
+jobs:
+  # ─────────────────────────────────────────────
+  # Phase 1: Validate inputs and run full test suite
+  # ─────────────────────────────────────────────
+  validate:
+    name: Validate & Test
+    runs-on: ubuntu-latest
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Validate version format
+      run: |
+        if ! echo "${{ inputs.release_version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+(-[A-Za-z0-9.]+)?$'; then
+          echo "::error::Invalid release version format: ${{ inputs.release_version }}"
+          exit 1
+        fi
+        if ! echo "${{ inputs.next_dev_version }}" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+-SNAPSHOT$'; then
+          echo "::error::Next dev version must end with -SNAPSHOT: ${{ inputs.next_dev_version }}"
+          exit 1
+        fi
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Full build with tests
+      run: ./mvnw -B clean install -Dgpg.skip=true
+
+  # ─────────────────────────────────────────────
+  # Phase 2: Build atmosphere.js
+  # ─────────────────────────────────────────────
+  build-js:
+    name: Build atmosphere.js
+    runs-on: ubuntu-latest
+    if: inputs.publish_js
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
+        cache-dependency-path: atmosphere.js/package-lock.json
+
+    - name: Install, test, and build
+      working-directory: atmosphere.js
+      run: |
+        npm ci
+        npm run test:ci
+        npm run build
+
+    - name: Upload JS dist
+      uses: actions/upload-artifact@v4
+      with:
+        name: atmosphere-js-dist
+        path: atmosphere.js/dist/
+        retention-days: 1
+
+  # ─────────────────────────────────────────────
+  # Phase 3: Release Maven artifacts to Central
+  # ─────────────────────────────────────────────
+  release-maven:
+    name: Release to Maven Central
+    needs: [validate]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+        token: ${{ secrets.RELEASE_TOKEN || github.token }}
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+        server-id: central
+        server-username: CENTRAL_USERNAME
+        server-password: CENTRAL_PASSWORD
+        gpg-private-key: ${{ secrets.GPG_PRIVATE_KEY }}
+        gpg-passphrase: GPG_PASSPHRASE
+
+    - name: Configure Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Set release version
+      run: ./mvnw -B versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
+
+    - name: Build release artifacts
+      run: ./mvnw -B clean install -DskipTests -Prelease-profile
+
+    - name: Publish to Maven Central
+      if: inputs.dry_run == false
+      run: ./mvnw -B deploy -DskipTests -Prelease-profile
+      env:
+        CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
+        CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
+
+    - name: Dry run — skip publish
+      if: inputs.dry_run
+      run: echo "::notice::Dry run — skipping Maven Central publish. Artifacts built successfully."
+
+    - name: Commit release version
+      if: inputs.dry_run == false
+      run: |
+        git add -A
+        git commit -m "release: Atmosphere ${{ inputs.release_version }}"
+        git tag "atmosphere-${{ inputs.release_version }}"
+
+    - name: Set next development version
+      if: inputs.dry_run == false
+      run: |
+        ./mvnw -B versions:set -DnewVersion=${{ inputs.next_dev_version }} -DgenerateBackupPoms=false
+        git add -A
+        git commit -m "chore: prepare for next development iteration ${{ inputs.next_dev_version }}"
+
+    - name: Push commits and tag
+      if: inputs.dry_run == false
+      run: |
+        git push origin main
+        git push origin "atmosphere-${{ inputs.release_version }}"
+
+    outputs:
+      tag: atmosphere-${{ inputs.release_version }}
+
+  # ─────────────────────────────────────────────
+  # Phase 4: Publish atmosphere.js to NPM
+  # ─────────────────────────────────────────────
+  release-js:
+    name: Publish atmosphere.js to NPM
+    needs: [build-js, release-maven]
+    if: inputs.publish_js && inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      id-token: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+
+    - name: Pull latest (after Maven release commit)
+      run: git pull origin main
+
+    - name: Setup Node.js 20
+      uses: actions/setup-node@v4
+      with:
+        node-version: 20
+        registry-url: 'https://registry.npmjs.org'
+        cache: 'npm'
+        cache-dependency-path: atmosphere.js/package-lock.json
+
+    - name: Configure Git
+      run: |
+        git config user.name "GitHub Actions"
+        git config user.email "actions@github.com"
+
+    - name: Download JS dist
+      uses: actions/download-artifact@v4
+      with:
+        name: atmosphere-js-dist
+        path: atmosphere.js/dist/
+
+    - name: Set version and publish
+      working-directory: atmosphere.js
+      run: |
+        npm ci
+        npm version ${{ inputs.js_version }} --no-git-tag-version
+        npm publish --provenance --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Commit and tag JS release
+      run: |
+        cd atmosphere.js
+        git add package.json package-lock.json
+        cd ..
+        git commit -m "chore: release atmosphere.js v${{ inputs.js_version }}"
+        git tag "atmosphere.js-v${{ inputs.js_version }}"
+        git push origin main
+        git push origin "atmosphere.js-v${{ inputs.js_version }}"
+
+  # ─────────────────────────────────────────────
+  # Phase 5: Create GitHub Release with notes
+  # ─────────────────────────────────────────────
+  github-release:
+    name: Create GitHub Release
+    needs: [release-maven]
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: main
+        fetch-depth: 0
+
+    - name: Pull latest
+      run: git pull origin main
+
+    - name: Create GitHub Release
+      uses: softprops/action-gh-release@v2
+      with:
+        tag_name: atmosphere-${{ inputs.release_version }}
+        name: Atmosphere ${{ inputs.release_version }}
+        generate_release_notes: true
+        draft: false
+        prerelease: ${{ contains(inputs.release_version, '-') }}
+      env:
+        GITHUB_TOKEN: ${{ github.token }}
