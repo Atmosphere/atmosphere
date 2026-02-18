@@ -3,15 +3,20 @@
 Atmosphere 4.0 brings cutting-edge Java platform features to real-time web applications. Built on JDK 21-25 with Virtual Threads at its core, offering WebSocket with intelligent fallback to SSE and Long-Polling.
 
 [![Atmosphere CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
+[![Atmosphere.js CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml)
+[![Samples CI](https://github.com/Atmosphere/atmosphere/actions/workflows/samples-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/samples-ci.yml)
+[![Native Image CI](https://github.com/Atmosphere/atmosphere/actions/workflows/native-image-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/native-image-ci.yml)
 
 ### What's New in 4.0
 
 - **Virtual Threads** - Every connection runs on a virtual thread, enabling massive scalability
 - **Structured Concurrency** - Reliable broadcast operations with automatic cancellation
+- **Built-in Clustering** - Redis and Kafka broadcasters for multi-node deployments
 - **JDK 21-25 Ready** - Preview & incubator features enabled
 - **Monorepo** - Framework, samples, and TypeScript client in one place
 - **Jakarta EE 10+** - Servlet 6.0, WebSocket 2.1, CDI 4.0
 - **TypeScript Client** - Modern atmosphere.js 5.0 with type safety
+- **Native Image** - GraalVM native builds for Spring Boot and Quarkus
 
 ### Choose Your Stack
 
@@ -166,58 +171,84 @@ For Tomcat, Jetty, Undertow, or any Servlet 3.0+ container:
 </dependency>
 ```
 
-### Atmosphere 2.7.x (Java 8+)
+### Clustering (Multi-Node)
 
-[![Atmosphere 2.7.x](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml/badge.svg?branch=atmosphere-2.7.x)](https://github.com/Atmosphere/atmosphere/actions/workflows/maven.yml)
+Scale across multiple server instances with built-in Redis or Kafka broadcasters. Messages broadcast on any node are automatically delivered to clients connected to all other nodes.
+
+<details>
+<summary>Redis clustering</summary>
+
+Add the Redis module — auto-detected on the classpath:
 
 ```xml
 <dependency>
     <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-runtime</artifactId>
-    <version>2.7.15</version>
+    <artifactId>atmosphere-redis</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
 </dependency>
 ```
 
-Modules: runtime, jersey, spring, kafka, guice, redis, hazelcast, jms, rabbitmq, jgroups, and more on [Maven Central](http://search.maven.org/#search|ga|1|atmosphere).
+Configure via init-param or `application.properties`:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `org.atmosphere.redis.url` | `redis://localhost:6379` | Redis connection URL |
+| `org.atmosphere.redis.password` | | Optional password |
+
+Uses [Lettuce](https://lettuce.io/) 6.x for non-blocking Redis pub/sub.
+
+</details>
+
+<details>
+<summary>Kafka clustering</summary>
+
+Add the Kafka module — auto-detected on the classpath:
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-kafka</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+Configure via init-param or `application.properties`:
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `org.atmosphere.kafka.bootstrap.servers` | `localhost:9092` | Kafka broker(s) |
+| `org.atmosphere.kafka.topic.prefix` | `atmosphere.` | Topic name prefix |
+| `org.atmosphere.kafka.group.id` | auto-generated | Consumer group ID |
+
+Uses the standard [Apache Kafka client](https://kafka.apache.org/) 3.x.
+
+</details>
 
 ---
 
 ### Requirements
 
-| Branch | Java | Spring Boot | Quarkus |
-|--------|------|-------------|---------|
-| 4.0.x (main) | 21+ | 4.0.2+ | 3.21+ |
-| 2.7.x | 8 -- 25 | -- | -- |
+| Java | Spring Boot | Quarkus |
+|------|-------------|---------|
+| 21+  | 4.0.2+      | 3.21+   |
 
 ### Documentation
 
-- [Samples](https://github.com/Atmosphere/atmosphere-samples/) -- Spring Boot chat, Quarkus chat, and many more
+- [Samples](https://github.com/Atmosphere/atmosphere/tree/main/samples) — Spring Boot chat, Quarkus chat, embedded Jetty
 - [Wiki & Tutorials](https://github.com/Atmosphere/atmosphere/wiki)
 - [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions)
 - [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/)
 - [atmosphere.js API](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API)
-- [DeepWiki](https://deepwiki.com/Atmosphere/atmosphere) -- AI-powered code exploration
+- [DeepWiki](https://deepwiki.com/Atmosphere/atmosphere) — AI-powered code exploration
 
 ### Client Libraries
 
-- **JavaScript**: [atmosphere.js](https://github.com/Atmosphere/atmosphere-javascript) (included in samples)
+- **TypeScript/JavaScript**: [atmosphere.js](https://github.com/Atmosphere/atmosphere/tree/main/atmosphere.js) 5.0 (included in monorepo)
 - **Java/Scala/Android**: [wAsync](https://github.com/Atmosphere/wasync)
 
 ### Commercial Support
 
 Available via [Async-IO.org](http://async-io.org)
-
----
-
-### Legacy Integrations
-
-| Stack | Project |
-|-------|---------|
-| **Netty** | [Nettosphere](http://atmosphere.github.io/nettosphere/) |
-| **Play** | [atmosphere-play](http://atmosphere.github.io/atmosphere-play/) |
-| **Vert.x** | [atmosphere-vertx](https://github.com/Atmosphere/atmosphere-vertx) |
-
-Extensions: [Apache Kafka](https://github.com/Atmosphere/atmosphere-extensions/tree/master/kafka/modules), [Hazelcast](https://github.com/Atmosphere/atmosphere-extensions/tree/master/hazelcast/modules), [RabbitMQ](https://github.com/Atmosphere/atmosphere-extensions/tree/master/rabbitmq/modules), [Redis](https://github.com/Atmosphere/atmosphere-extensions/tree/master/redis/modules) and [more](https://github.com/Atmosphere/atmosphere-extensions/tree/extensions-2.4.x).
 
 ---
 
