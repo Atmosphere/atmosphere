@@ -22,7 +22,7 @@ import java.text.DateFormat;
 import java.text.FieldPosition;
 import java.text.SimpleDateFormat;
 import java.util.BitSet;
-import java.util.Date;
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.Locale;
 import java.util.Set;
@@ -49,7 +49,7 @@ public class CookieUtil {
     private static final BitSet VALID_COOKIE_ATTRIBUTE_VALUE_OCTETS = validCookieAttributeValueOctets();
 
     static {
-        ancientDate = OLD_COOKIE_FORMAT.get().format(new Date(10000));
+        ancientDate = OLD_COOKIE_FORMAT.get().format(java.util.Date.from(Instant.ofEpochMilli(10000)));
     }
 
     public static boolean isToken(String value) {
@@ -120,8 +120,8 @@ public class CookieUtil {
                     buf.append(ancientDate);
                 } else {
                     OLD_COOKIE_FORMAT.get().format(
-                            new Date(System.currentTimeMillis() +
-                                    c.getMaxAge() * 1000L),
+                            java.util.Date.from(Instant.ofEpochMilli(
+                                    System.currentTimeMillis() + c.getMaxAge() * 1000L)),
                             buf, new FieldPosition(0));
                 }
             }

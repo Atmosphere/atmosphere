@@ -131,11 +131,11 @@ public class UriTemplateParser {
 
     private final String template;
     
-    private final StringBuffer regex = new StringBuffer();
+    private final StringBuilder regex = new StringBuilder();
 
-    private final StringBuffer normalizedTemplate = new StringBuffer();
+    private final StringBuilder normalizedTemplate = new StringBuilder();
 
-    private final StringBuffer literalCharactersBuffer = new StringBuffer();
+    private final StringBuilder literalCharactersBuffer = new StringBuilder();
 
     private int numOfExplicitRegexes;
 

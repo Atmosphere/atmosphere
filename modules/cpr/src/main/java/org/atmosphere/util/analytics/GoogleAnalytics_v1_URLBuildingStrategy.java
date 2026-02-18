@@ -17,7 +17,7 @@ package org.atmosphere.util.analytics;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
-import java.util.Date;
+import java.time.Instant;
 import java.util.Random;
 
 /**
@@ -63,7 +63,7 @@ public class GoogleAnalytics_v1_URLBuildingStrategy implements URLBuildingStrate
 
         int cookie = random.nextInt();
         int randomValue = random.nextInt(2147483647) - 1;
-        long now = new Date().getTime();
+        long now = Instant.now().toEpochMilli();
 
         focusPoint.setParentTrackPoint(appFocusPoint);
         return TRACKING_URL_Prefix + "?utmwv=1" + //Urchin/Analytics version

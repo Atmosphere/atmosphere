@@ -45,9 +45,11 @@ import java.net.InetAddress;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.util.Hashtable;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 import java.util.StringTokenizer;
-import java.util.Vector;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Utils for introspection and reflection
@@ -304,7 +306,7 @@ public final class IntrospectionUtils {
      * Replace ${NAME} with the property value
      */
     public static String replaceProperties(String value,
-                                           Hashtable<String, String> staticProp, PropertySource dynamicProp[]) {
+                                           Map<String, String> staticProp, PropertySource dynamicProp[]) {
         if (value.indexOf("$") < 0) {
             return value;
         }
@@ -378,10 +380,10 @@ public final class IntrospectionUtils {
     // -------------------- Class path tools --------------------
 
     /**
-     * Add all the jar files in a dir to the classpath, represented as a Vector
+     * Add all the jar files in a dir to the classpath, represented as a List
      * of URLs.
      */
-    public static void addToClassPath(Vector<URL> cpV, String dir) {
+    public static void addToClassPath(List<URL> cpV, String dir) {
         try {
             String cpComp[] = getFilesByExt(dir, ".jar");
             if (cpComp != null) {
@@ -389,7 +391,7 @@ public final class IntrospectionUtils {
                 for (int i = 0; i < jarCount; i++) {
                     URL url = getURL(dir, cpComp[i]);
                     if (url != null)
-                        cpV.addElement(url);
+                        cpV.add(url);
                 }
             }
         } catch (Exception ex) {
@@ -397,7 +399,7 @@ public final class IntrospectionUtils {
         }
     }
 
-    public static void addToolsJar(Vector<URL> v) {
+    public static void addToolsJar(List<URL> v) {
         try {
             // Add tools.jar in any case
             File f = new File(System.getProperty("java.home")
@@ -414,9 +416,9 @@ public final class IntrospectionUtils {
             }
             URL url = f.toURI().toURL();
 
-            v.addElement(url);
+            v.add(url);
         } catch (MalformedURLException ex) {
-            logger.debug("failed to add tools jar url to vector", ex);
+            logger.debug("failed to add tools jar url to list", ex);
         }
     }
 
@@ -455,8 +457,8 @@ public final class IntrospectionUtils {
     }
 
     /**
-     * Add elements from the classpath <i>cp </i> to a Vector <i>jars </i> as
-     * file URLs (We use Vector for JDK 1.1 compat).
+     * Add elements from the classpath <i>cp </i> to a List <i>jars </i> as
+     * file URLs 
      * <p/>
      *
      * @param jars The jar list
@@ -465,7 +467,7 @@ public final class IntrospectionUtils {
      * @throws IOException           If an I/O error occurs
      * @throws MalformedURLException Doh ;)
      */
-    public static void addJarsFromClassPath(Vector<URL> jars, String cp)
+    public static void addJarsFromClassPath(List<URL> jars, String cp)
             throws IOException, MalformedURLException {
         String sep = System.getProperty("path.separator");
         StringTokenizer st;
@@ -479,7 +481,7 @@ public final class IntrospectionUtils {
                 }
                 URL url = new File(path).toURI().toURL();
                 if (!jars.contains(url)) {
-                    jars.addElement(url);
+                    jars.add(url);
                 }
             }
         }
@@ -488,10 +490,10 @@ public final class IntrospectionUtils {
     /**
      * Return a URL[] that can be used to construct a class loader
      */
-    public static URL[] getClassPath(Vector<URL> v) {
+    public static URL[] getClassPath(List<URL> v) {
         URL[] urls = new URL[v.size()];
         for (int i = 0; i < v.size(); i++) {
-            urls[i] = v.elementAt(i);
+            urls[i] = v.get(i);
         }
         return urls;
     }
@@ -503,12 +505,12 @@ public final class IntrospectionUtils {
     public static URL[] getClassPath(String dir, String cpath,
                                      String cpathProp, boolean addTools) throws IOException,
             MalformedURLException {
-        Vector<URL> jarsV = new Vector<URL>();
+        List<URL> jarsV = new ArrayList<>();
         if (dir != null) {
             // Add dir/classes first, if it exists
             URL url = getURL(dir, "classes");
             if (url != null)
-                jarsV.addElement(url);
+                jarsV.add(url);
             addToClassPath(jarsV, dir);
         }
 
@@ -540,17 +542,17 @@ public final class IntrospectionUtils {
             //args0=findVoidSetters(proxy.getClass());
             args0 = findBooleanSetters(proxy.getClass());
         }
-        Hashtable<String, String> h = null;
+        Map<String, String> h = null;
         if (null != findMethod(proxy.getClass(), "getOptionAliases",
                 new Class<?>[]{})) {
-            h = (Hashtable<String, String>) callMethod0(proxy, "getOptionAliases");
+            h = (Map<String, String>) callMethod0(proxy, "getOptionAliases");
         }
         return processArgs(proxy, args, args0, null, h);
     }
 
     public static boolean processArgs(Object proxy, String args[],
                                       String args0[], String args1[],
-                                      Hashtable<String, String> aliases) throws Exception {
+                                      Map<String, String> aliases) throws Exception {
         for (int i = 0; i < args.length; i++) {
             String arg = args[i];
             if (arg.startsWith("-"))
@@ -602,17 +604,17 @@ public final class IntrospectionUtils {
         Method m[] = findMethods(c);
         if (m == null)
             return null;
-        Vector<String> v = new Vector<String>();
+        List<String> v = new ArrayList<>();
         for (int i = 0; i < m.length; i++) {
             if (m[i].getName().startsWith("set")
                     && m[i].getParameterTypes().length == 0) {
                 String arg = m[i].getName().substring(3);
-                v.addElement(unCapitalize(arg));
+                v.add(unCapitalize(arg));
             }
         }
         String s[] = new String[v.size()];
         for (int i = 0; i < s.length; i++) {
-            s[i] = (String) v.elementAt(i);
+            s[i] = (String) v.get(i);
         }
         return s;
     }
@@ -621,25 +623,25 @@ public final class IntrospectionUtils {
         Method m[] = findMethods(c);
         if (m == null)
             return null;
-        Vector<String> v = new Vector<String>();
+        List<String> v = new ArrayList<>();
         for (int i = 0; i < m.length; i++) {
             if (m[i].getName().startsWith("set")
                     && m[i].getParameterTypes().length == 1
                     && "boolean".equalsIgnoreCase(m[i].getParameterTypes()[0]
                     .getName())) {
                 String arg = m[i].getName().substring(3);
-                v.addElement(unCapitalize(arg));
+                v.add(unCapitalize(arg));
             }
         }
         String s[] = new String[v.size()];
         for (int i = 0; i < s.length; i++) {
-            s[i] = v.elementAt(i);
+            s[i] = v.get(i);
         }
         return s;
     }
 
-    static Hashtable<Class<?>, Method[]> objectMethods =
-            new Hashtable<Class<?>, Method[]>();
+    static Map<Class<?>, Method[]> objectMethods =
+            new ConcurrentHashMap<>();
 
     public static Method[] findMethods(Class<?> c) {
         Method methods[] = (Method[]) objectMethods.get(c);

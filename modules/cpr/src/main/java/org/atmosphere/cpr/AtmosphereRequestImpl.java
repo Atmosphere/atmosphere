@@ -62,7 +62,9 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE;
 
@@ -362,10 +364,10 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
                     name = (String) o;
                 } else {
                     try {
-                        if (b.request instanceof HttpServletRequestWrapper) {
-                            HttpServletRequest hsr = b.request;
-                            while (hsr instanceof HttpServletRequestWrapper) {
-                                hsr = (HttpServletRequest) ((HttpServletRequestWrapper) hsr).getRequest();
+                        if (b.request instanceof HttpServletRequestWrapper wrapper) {
+                            HttpServletRequest hsr = wrapper;
+                            while (hsr instanceof HttpServletRequestWrapper w) {
+                                hsr = (HttpServletRequest) w.getRequest();
                                 o = attributeWithoutException(hsr, s);
                                 if (o == null || o instanceof String) {
                                     name = (String) o;
@@ -614,8 +616,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         b.localAttributes.put(s, o);
         if (isNotNoOps() && !destroyed.get()) {
             try {
-                synchronized (b.request) {
+                b.requestLock.lock();
+                try {
                     b.request.setAttribute(s, o);
+                } finally {
+                    b.requestLock.unlock();
                 }
             } catch (NullPointerException ex) {
                 // https://github.com/Atmosphere/atmosphere/issues/1806
@@ -678,8 +683,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         b.localAttributes.remove(name);
         if (isNotNoOps() && !destroyed.get()) {
-            synchronized (b.request) {
+            b.requestLock.lock();
+            try {
                 b.request.removeAttribute(name);
+            } finally {
+                b.requestLock.unlock();
             }
         }
     }
@@ -873,11 +881,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     public AtmosphereResource resource() {
         try {
             Object o = getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
-            if (!(o instanceof AtmosphereResource)) {
+            if (!(o instanceof AtmosphereResource r)) {
                 // WebSphere is in trouble.
                 return null;
             }
-            return (AtmosphereResource) getAttribute(FrameworkConfig.ATMOSPHERE_RESOURCE);
+            return r;
         } catch (Exception ex) {
             logger.warn("", ex);
             return null;
@@ -910,8 +918,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         Set<String> l = new HashSet<>(b.localAttributes.unmodifiableMap().keySet());
 
         if (isNotNoOps()) {
-            synchronized (b.request) {
+            b.requestLock.lock();
+            try {
                 l.addAll(Collections.list(b.request.getAttributeNames()));
+            } finally {
+                b.requestLock.unlock();
             }
         }
         return Collections.enumeration(l);
@@ -992,6 +1003,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     public final static class Builder implements AtmosphereRequest.Builder {
         private final static Body NULL_BODY = new Body(null, null, 0, 0);
+        private final ReentrantLock requestLock = new ReentrantLock();
         private HttpServletRequest request;
         private String pathInfo = "";
         private String encoding = "UTF-8";
@@ -999,8 +1011,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private String contentType;
         private boolean noContentType;
         private Long contentLength;
-        private Map<String, String> headers = Collections.synchronizedMap(new HashMap<>());
-        private Map<String, String[]> queryStrings = Collections.synchronizedMap(new HashMap<>());
+        private Map<String, String> headers = new ConcurrentHashMap<>();
+        private Map<String, String[]> queryStrings = new ConcurrentHashMap<>();
         private String servletPath = "";
         private String requestURI;
         private String requestURL;
@@ -1014,8 +1026,8 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         private int localPort;
         private boolean dispatchRequestAsynchronously;
         private boolean destroyable = true;
-        private Set<Cookie> cookies = Collections.synchronizedSet(new HashSet<>());
-        private final Set<Locale> locales = Collections.synchronizedSet(new HashSet<>());
+        private Set<Cookie> cookies = ConcurrentHashMap.newKeySet();
+        private final Set<Locale> locales = ConcurrentHashMap.newKeySet();
         private Principal principal;
         private String authType;
         private String contextPath = "";
@@ -1041,7 +1053,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public Builder headers(Map<String, String> headers) {
-            this.headers = Collections.synchronizedMap(headers);
+            this.headers = new ConcurrentHashMap<>(headers);
             return this;
         }
 
@@ -1213,7 +1225,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
         @Override
         public Builder queryStrings(Map<String, String[]> queryStrings) {
-            this.queryStrings = Collections.synchronizedMap(queryStrings);
+            this.queryStrings = new ConcurrentHashMap<>(queryStrings);
             return this;
         }
 
@@ -1362,6 +1374,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     private final static class IS extends ServletInputStream {
 
         private final InputStream innerStream;
+        private final ReentrantLock markLock = new ReentrantLock();
 
         public IS(InputStream innerStream) {
             super();
@@ -1393,12 +1406,22 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             innerStream.close();
         }
 
-        public synchronized void mark(int i) {
-            innerStream.mark(i);
+        public void mark(int i) {
+            markLock.lock();
+            try {
+                innerStream.mark(i);
+            } finally {
+                markLock.unlock();
+            }
         }
 
-        public synchronized void reset() throws java.io.IOException {
-            innerStream.reset();
+        public void reset() throws java.io.IOException {
+            markLock.lock();
+            try {
+                innerStream.reset();
+            } finally {
+                markLock.unlock();
+            }
         }
 
         public boolean markSupported() {
@@ -1469,7 +1492,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         HttpServletRequest r;
 
         Cookie[] cs = request.getCookies();
-        Set<Cookie> hs = Collections.synchronizedSet(new HashSet<>());
+        Set<Cookie> hs = ConcurrentHashMap.newKeySet();
         if (cs != null) {
             Collections.addAll(hs, cs);
         }
@@ -2108,8 +2131,11 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             s = e.nextElement();
             b.headers.put(s, request.getHeader(s));
         }
-        synchronized (b.request) {
+        b.requestLock.lock();
+        try {
             e = request.getAttributeNames();
+        } finally {
+            b.requestLock.unlock();
         }
         while (e.hasMoreElements()) {
             s = e.nextElement();
