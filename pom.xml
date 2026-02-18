@@ -562,6 +562,7 @@
         <module>samples/embedded-jetty-websocket-chat</module>
         <module>samples/spring-boot-chat</module>
         <module>samples/quarkus-chat</module>
+        <module>modules/integration-tests</module>
     </modules>
     <reporting>
         <outputDirectory>target/site</outputDirectory>
