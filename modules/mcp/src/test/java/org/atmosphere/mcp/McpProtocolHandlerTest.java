@@ -344,4 +344,92 @@ public class McpProtocolHandlerTest {
         assertEquals(((Map<?, ?>) props.get("a")).get("type"), "integer");
         assertEquals(((Map<?, ?>) props.get("b")).get("type"), "integer");
     }
+
+    // ── Dynamic Tool Registration ────────────────────────────────────────
+
+    @Test
+    public void testDynamicToolRegistration() {
+        var registry = new McpRegistry();
+        registry.registerTool("dynamic_hello", "Say hello dynamically",
+                List.of(new McpRegistry.ParamEntry("name", "Person's name", true, String.class)),
+                args -> "Hello, " + args.get("name") + "!");
+
+        assertTrue(registry.tool("dynamic_hello").isPresent());
+        assertTrue(registry.tool("dynamic_hello").get().isDynamic());
+        assertEquals(registry.tools().size(), 1);
+    }
+
+    @Test
+    public void testDynamicToolCall() throws Exception {
+        var registry = new McpRegistry();
+        registry.registerTool("upper", "Convert to uppercase",
+                List.of(new McpRegistry.ParamEntry("text", "Input text", true, String.class)),
+                args -> ((String) args.get("text")).toUpperCase());
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+
+        var request = """
+                {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
+                    "name":"upper",
+                    "arguments":{"text":"hello world"}
+                }}""";
+
+        var node = mapper.readTree(testHandler.handleMessage(resource, request));
+        var result = node.get("result");
+        assertFalse(result.get("isError").asBoolean());
+        assertEquals(result.get("content").get(0).get("text").asText(), "HELLO WORLD");
+    }
+
+    @Test
+    public void testDynamicToolNoParams() throws Exception {
+        var registry = new McpRegistry();
+        registry.registerTool("version", "Get version", args -> "4.0.0");
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+
+        var request = """
+                {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"version"}}""";
+
+        var node = mapper.readTree(testHandler.handleMessage(resource, request));
+        assertEquals(node.get("result").get("content").get(0).get("text").asText(), "4.0.0");
+    }
+
+    @Test
+    public void testRemoveTool() {
+        var registry = new McpRegistry();
+        registry.registerTool("temp", "Temporary tool", args -> "temp");
+        assertTrue(registry.tool("temp").isPresent());
+
+        assertTrue(registry.removeTool("temp"));
+        assertTrue(registry.tool("temp").isEmpty());
+        assertFalse(registry.removeTool("nonexistent"));
+    }
+
+    @Test
+    public void testDynamicResourceRegistration() throws Exception {
+        var registry = new McpRegistry();
+        registry.registerResource("app://status", "Status", "App status",
+                "application/json", args -> "{\"up\":true}");
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+
+        var request = """
+                {"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"app://status"}}""";
+
+        var node = mapper.readTree(testHandler.handleMessage(resource, request));
+        var contents = node.get("result").get("contents");
+        assertEquals(contents.get(0).get("text").asText(), "{\"up\":true}");
+    }
+
+    @Test
+    public void testMixedAnnotationAndDynamic() throws Exception {
+        var registry = new McpRegistry();
+        registry.scan(new TestMcpServer());
+        registry.registerTool("dynamic_tool", "A dynamic tool", args -> "dynamic result");
+
+        assertEquals(registry.tools().size(), 4); // 3 annotation + 1 dynamic
+
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+        var request = """
+                {"jsonrpc":"2.0","id":1,"method":"tools/list"}""";
+        var node = mapper.readTree(testHandler.handleMessage(resource, request));
+        assertEquals(node.get("result").get("tools").size(), 4);
+    }
 }

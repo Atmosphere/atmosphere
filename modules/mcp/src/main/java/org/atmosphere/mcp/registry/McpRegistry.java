@@ -28,29 +28,109 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 
 /**
- * Scans an {@code @McpServer} class and builds registries for tools, resources, and prompts.
+ * Registry for MCP tools, resources, and prompts. Supports both annotation-based
+ * discovery (via {@link #scan(Object)}) and programmatic registration
+ * (via {@link #registerTool(String, String, List, ToolHandler)}).
  */
 public final class McpRegistry {
+
+    /**
+     * Functional interface for dynamically registered tools.
+     * Receives a map of argument name → value, returns the tool result.
+     */
+    @FunctionalInterface
+    public interface ToolHandler {
+        Object execute(Map<String, Object> arguments) throws Exception;
+    }
+
+    /**
+     * Functional interface for dynamically registered resources.
+     * Receives a map of argument name → value, returns the resource content.
+     */
+    @FunctionalInterface
+    public interface ResourceHandler {
+        Object read(Map<String, Object> arguments) throws Exception;
+    }
+
+    /**
+     * Functional interface for dynamically registered prompts.
+     * Receives a map of argument name → value, returns prompt messages.
+     */
+    @FunctionalInterface
+    public interface PromptHandler {
+        Object get(Map<String, Object> arguments) throws Exception;
+    }
 
     /**
      * Metadata for a registered MCP tool.
      */
     public record ToolEntry(String name, String description, Method method, Object instance,
-                            List<ParamEntry> params) {}
+                            List<ParamEntry> params, ToolHandler handler) {
+        /** Annotation-based constructor (method + instance). */
+        public ToolEntry(String name, String description, Method method, Object instance,
+                         List<ParamEntry> params) {
+            this(name, description, method, instance, params, null);
+        }
+
+        /** Programmatic constructor (handler lambda). */
+        public ToolEntry(String name, String description, List<ParamEntry> params,
+                         ToolHandler handler) {
+            this(name, description, null, null, params, handler);
+        }
+
+        /** Returns true if this tool uses a programmatic handler. */
+        public boolean isDynamic() {
+            return handler != null;
+        }
+    }
 
     /**
      * Metadata for a registered MCP resource.
      */
     public record ResourceEntry(String uri, String name, String description, String mimeType,
-                                Method method, Object instance, List<ParamEntry> params) {}
+                                Method method, Object instance, List<ParamEntry> params,
+                                ResourceHandler handler) {
+        /** Annotation-based constructor. */
+        public ResourceEntry(String uri, String name, String description, String mimeType,
+                             Method method, Object instance, List<ParamEntry> params) {
+            this(uri, name, description, mimeType, method, instance, params, null);
+        }
+
+        /** Programmatic constructor. */
+        public ResourceEntry(String uri, String name, String description, String mimeType,
+                             List<ParamEntry> params, ResourceHandler handler) {
+            this(uri, name, description, mimeType, null, null, params, handler);
+        }
+
+        public boolean isDynamic() {
+            return handler != null;
+        }
+    }
 
     /**
      * Metadata for a registered MCP prompt.
      */
     public record PromptEntry(String name, String description, Method method, Object instance,
-                              List<ParamEntry> params) {}
+                              List<ParamEntry> params, PromptHandler handler) {
+        /** Annotation-based constructor. */
+        public PromptEntry(String name, String description, Method method, Object instance,
+                           List<ParamEntry> params) {
+            this(name, description, method, instance, params, null);
+        }
+
+        /** Programmatic constructor. */
+        public PromptEntry(String name, String description, List<ParamEntry> params,
+                           PromptHandler handler) {
+            this(name, description, null, null, params, handler);
+        }
+
+        public boolean isDynamic() {
+            return handler != null;
+        }
+    }
 
     /**
      * Metadata for a method parameter.
@@ -84,6 +164,89 @@ public final class McpRegistry {
             }
         }
     }
+
+    // ── Programmatic Tool Registration ───────────────────────────────────
+
+    /**
+     * Register a tool with a lambda handler.
+     *
+     * @param name        tool name (unique identifier)
+     * @param description human-readable description for AI agents
+     * @param params      parameter metadata (name, description, required, type)
+     * @param handler     function that receives arguments and returns the result
+     */
+    public void registerTool(String name, String description, List<ParamEntry> params,
+                             ToolHandler handler) {
+        tools.put(name, new ToolEntry(name, description, params, handler));
+    }
+
+    /**
+     * Register a tool with no parameters.
+     */
+    public void registerTool(String name, String description, ToolHandler handler) {
+        registerTool(name, description, List.of(), handler);
+    }
+
+    /**
+     * Remove a previously registered tool.
+     *
+     * @return true if the tool was found and removed
+     */
+    public boolean removeTool(String name) {
+        return tools.remove(name) != null;
+    }
+
+    // ── Programmatic Resource Registration ───────────────────────────────
+
+    /**
+     * Register a resource with a lambda handler.
+     */
+    public void registerResource(String uri, String name, String description,
+                                 String mimeType, List<ParamEntry> params,
+                                 ResourceHandler handler) {
+        resources.put(uri, new ResourceEntry(uri, name, description, mimeType, params, handler));
+    }
+
+    /**
+     * Register a resource with no parameters.
+     */
+    public void registerResource(String uri, String name, String description,
+                                 String mimeType, ResourceHandler handler) {
+        registerResource(uri, name, description, mimeType, List.of(), handler);
+    }
+
+    /**
+     * Remove a previously registered resource.
+     */
+    public boolean removeResource(String uri) {
+        return resources.remove(uri) != null;
+    }
+
+    // ── Programmatic Prompt Registration ─────────────────────────────────
+
+    /**
+     * Register a prompt with a lambda handler.
+     */
+    public void registerPrompt(String name, String description, List<ParamEntry> params,
+                               PromptHandler handler) {
+        prompts.put(name, new PromptEntry(name, description, params, handler));
+    }
+
+    /**
+     * Register a prompt with no parameters.
+     */
+    public void registerPrompt(String name, String description, PromptHandler handler) {
+        registerPrompt(name, description, List.of(), handler);
+    }
+
+    /**
+     * Remove a previously registered prompt.
+     */
+    public boolean removePrompt(String name) {
+        return prompts.remove(name) != null;
+    }
+
+    // ── Queries ──────────────────────────────────────────────────────────
 
     public Map<String, ToolEntry> tools() {
         return Collections.unmodifiableMap(tools);

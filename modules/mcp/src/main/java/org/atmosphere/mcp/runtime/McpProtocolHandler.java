@@ -173,8 +173,16 @@ public final class McpProtocolHandler {
         var arguments = params.has("arguments") ? params.get("arguments") : null;
 
         try {
-            var args = bindArguments(tool.method(), tool.params(), arguments);
-            var result = tool.method().invoke(tool.instance(), args);
+            Object result;
+            if (tool.isDynamic()) {
+                // Lambda-based tool — pass arguments as Map<String, Object>
+                var argMap = bindArgumentsAsMap(tool.params(), arguments);
+                result = tool.handler().execute(argMap);
+            } else {
+                // Annotation-based tool — invoke via reflection
+                var args = bindArguments(tool.method(), tool.params(), arguments);
+                result = tool.method().invoke(tool.instance(), args);
+            }
             var text = result instanceof String s ? s : mapper.writeValueAsString(result);
 
             return JsonRpc.Response.success(id, Map.of(
@@ -227,9 +235,16 @@ public final class McpProtocolHandler {
 
         var res = resOpt.get();
         try {
-            var args = bindArguments(res.method(), res.params(),
-                    params.has("arguments") ? params.get("arguments") : null);
-            var result = res.method().invoke(res.instance(), args);
+            Object result;
+            if (res.isDynamic()) {
+                var argMap = bindArgumentsAsMap(res.params(),
+                        params.has("arguments") ? params.get("arguments") : null);
+                result = res.handler().read(argMap);
+            } else {
+                var args = bindArguments(res.method(), res.params(),
+                        params.has("arguments") ? params.get("arguments") : null);
+                result = res.method().invoke(res.instance(), args);
+            }
             var text = result instanceof String s ? s : mapper.writeValueAsString(result);
 
             return JsonRpc.Response.success(id, Map.of(
@@ -289,8 +304,14 @@ public final class McpProtocolHandler {
         var prompt = promptOpt.get();
         try {
             var arguments = params.has("arguments") ? params.get("arguments") : null;
-            var args = bindArguments(prompt.method(), prompt.params(), arguments);
-            var result = prompt.method().invoke(prompt.instance(), args);
+            Object result;
+            if (prompt.isDynamic()) {
+                var argMap = bindArgumentsAsMap(prompt.params(), arguments);
+                result = prompt.handler().get(argMap);
+            } else {
+                var args = bindArguments(prompt.method(), prompt.params(), arguments);
+                result = prompt.method().invoke(prompt.instance(), args);
+            }
 
             // Result should be a List of maps with "role" and "content"
             Object messages;
@@ -330,6 +351,30 @@ public final class McpProtocolHandler {
             }
         }
         return args;
+    }
+
+    /**
+     * Bind JSON arguments to a Map for dynamic (lambda-based) handlers.
+     */
+    private Map<String, Object> bindArgumentsAsMap(List<McpRegistry.ParamEntry> paramEntries,
+                                                   JsonNode arguments) {
+        var map = new LinkedHashMap<String, Object>();
+        for (var param : paramEntries) {
+            if (arguments != null && arguments.has(param.name())) {
+                map.put(param.name(), convertParam(arguments.get(param.name()), param.type()));
+            } else {
+                map.put(param.name(), defaultValue(param.type()));
+            }
+        }
+        // Also include any extra arguments not declared in params
+        if (arguments != null) {
+            var it = arguments.fields();
+            while (it.hasNext()) {
+                var field = it.next();
+                map.putIfAbsent(field.getKey(), field.getValue().asText());
+            }
+        }
+        return map;
     }
 
     private Object convertParam(JsonNode node, Class<?> type) {
