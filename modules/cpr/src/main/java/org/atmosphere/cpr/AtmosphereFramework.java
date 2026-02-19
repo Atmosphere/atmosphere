@@ -325,7 +325,7 @@ public class AtmosphereFramework {
         @Override
         public String toString() {
 
-            StringBuilder b = new StringBuilder();
+            var b = new StringBuilder();
             for (int i = 0; i < interceptors.size(); i++) {
                 b.append("\n\t").append(i).append(": ").append(interceptors.get(i).getClass().getName());
             }
@@ -665,7 +665,7 @@ public class AtmosphereFramework {
     }
 
     protected AtmosphereHandlerWrapper createWrapperAndConfigureHandler(AtmosphereHandler h, String mapping, List<AtmosphereInterceptor> l) {
-        AtmosphereHandlerWrapper w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping, config);
+        var w = new AtmosphereHandlerWrapper(broadcasterFactory, h, mapping, config);
         addMapping(mapping, w);
         addInterceptorToWrapper(w, l);
         initServletProcessor(h);
@@ -1113,7 +1113,7 @@ public class AtmosphereFramework {
         if (!config.getInitParameter(ApplicationConfig.ANALYTICS, true)) return;
 
         final String container = getServletContext().getServerInfo();
-        Thread t = new Thread(() -> {
+        var t = new Thread(() -> {
             try {
                 logger.debug("Retrieving Atmosphere's latest version from http://async-io.org/version.html");
                 HttpURLConnection urlConnection = (HttpURLConnection)
@@ -1127,7 +1127,7 @@ public class AtmosphereFramework {
                 urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
                 urlConnection.setInstanceFollowRedirects(true);
 
-                BufferedReader in = new BufferedReader(new InputStreamReader(
+                var in = new BufferedReader(new InputStreamReader(
                         urlConnection.getInputStream()));
 
                 String inputLine;
@@ -1174,7 +1174,7 @@ public class AtmosphereFramework {
                     }
                 }
 
-                JGoogleAnalyticsTracker tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
+                var tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
                 tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
 
             } catch (Throwable e) {
@@ -1350,7 +1350,7 @@ public class AtmosphereFramework {
     protected void configureBroadcaster() {
 
         try {
-            Iterator<Entry<String, AtmosphereHandlerWrapper>> i = atmosphereHandlers.entrySet().iterator();
+            var i = atmosphereHandlers.entrySet().iterator();
             AtmosphereHandlerWrapper w;
             Entry<String, AtmosphereHandlerWrapper> e;
             while (i.hasNext()) {
@@ -1572,7 +1572,7 @@ public class AtmosphereFramework {
             }
             useStreamForFlushingComments = true;
 
-            StringBuilder packagesInit = new StringBuilder();
+            var packagesInit = new StringBuilder();
             for (String s : packages) {
                 packagesInit.append(s).append(",");
             }
@@ -1663,7 +1663,7 @@ public class AtmosphereFramework {
 
         for (String b : objectFactoryType) {
             try {
-                Class<?> c = Class.forName(b);
+                var c = Class.forName(b);
                 objectFactory = (AtmosphereObjectFactory<?>) c.getDeclaredConstructor().newInstance();
                 break;
             } catch (ClassNotFoundException e) {
@@ -1982,7 +1982,7 @@ public class AtmosphereFramework {
 
                     b = broadcasterFactory.lookup(atmoHandler.getContextRoot(), true);
 
-                    AtmosphereHandlerWrapper wrapper = new AtmosphereHandlerWrapper(handler, b, config);
+                    var wrapper = new AtmosphereHandlerWrapper(handler, b, config);
                     addMapping(atmoHandler.getContextRoot(), wrapper);
 
                     String bc = atmoHandler.getBroadcasterCache();
@@ -2000,7 +2000,7 @@ public class AtmosphereFramework {
                         broadcasterFilters.addAll(atmoHandler.getBroadcastFilterClasses());
                     }
 
-                    LinkedList<AtmosphereInterceptor> l = new LinkedList<>();
+                    var l = new LinkedList<AtmosphereInterceptor>();
                     if (atmoHandler.getAtmosphereInterceptorClasses() != null) {
                         for (String a : atmoHandler.getAtmosphereInterceptorClasses()) {
                             try {
@@ -2097,7 +2097,7 @@ public class AtmosphereFramework {
 
     @SuppressWarnings("unchecked")
     public void loadAtmosphereHandlersFromPath(ClassLoader classloader, String realPath) {
-        File file = new File(realPath);
+        var file = new File(realPath);
 
         if (file.exists() && file.isDirectory()) {
             getFiles(file);
@@ -2142,7 +2142,7 @@ public class AtmosphereFramework {
     protected void loadWebSocketFromPath(ClassLoader classloader, String realPath) {
         if (realPath == null || realPath.isEmpty()) return;
 
-        File file = new File(realPath);
+        var file = new File(realPath);
 
         if (file.exists() && file.isDirectory()) {
             getFiles(file);
@@ -2428,9 +2428,9 @@ public class AtmosphereFramework {
     }
 
     protected Map<String, String> configureQueryStringAsRequest(AtmosphereRequest request) {
-        Map<String, String> headers = new HashMap<>();
+        var headers = new HashMap<String, String>();
 
-        StringBuilder q = new StringBuilder();
+        var q = new StringBuilder();
         try {
             String qs = request.getQueryString();
             if (qs != null && !qs.isEmpty()) {
@@ -2814,7 +2814,7 @@ public class AtmosphereFramework {
                 // Always scan library
                 String pathLibs = !libPath.equals(DEFAULT_LIB_PATH) ? libPath : realPath(sc, DEFAULT_LIB_PATH);
                 if (pathLibs != null) {
-                    File libFolder = new File(pathLibs);
+                    var libFolder = new File(pathLibs);
                     File[] jars = libFolder.listFiles((arg0, arg1) -> arg1.endsWith(".jar"));
 
                     if (jars != null) {
