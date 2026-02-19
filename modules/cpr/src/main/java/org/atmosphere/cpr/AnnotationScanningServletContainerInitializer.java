@@ -45,7 +45,6 @@ import org.atmosphere.config.service.WebSocketProtocolService;
 import java.lang.annotation.Annotation;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Map;
 import java.util.Set;
 
 /**

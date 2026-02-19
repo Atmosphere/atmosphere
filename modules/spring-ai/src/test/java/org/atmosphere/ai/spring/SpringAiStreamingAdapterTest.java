@@ -34,6 +34,7 @@ import java.util.concurrent.TimeUnit;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
 
+@SuppressWarnings("null")
 public class SpringAiStreamingAdapterTest {
 
     private AtmosphereResource resource;

@@ -15,8 +15,6 @@
  */
 package org.atmosphere.mcp.runtime;
 
-import org.atmosphere.config.service.WebSocketHandlerService;
-import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;

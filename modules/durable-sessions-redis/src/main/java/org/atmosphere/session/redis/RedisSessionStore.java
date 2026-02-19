@@ -191,7 +191,6 @@ public class RedisSessionStore implements SessionStore {
 
     // --- JSON serialization ---
 
-    @SuppressWarnings("unchecked")
     private String toJson(DurableSession session) throws JsonProcessingException {
         var map = Map.of(
                 "token", session.token(),

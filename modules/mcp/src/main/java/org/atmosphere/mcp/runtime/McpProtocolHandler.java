@@ -19,14 +19,12 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.mcp.protocol.JsonRpc;
 import org.atmosphere.mcp.protocol.McpMethod;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
@@ -99,6 +97,7 @@ public final class McpProtocolHandler {
 
     // ── Lifecycle ────────────────────────────────────────────────────────
 
+    @SuppressWarnings("unchecked")
     private JsonRpc.Response handleInitialize(AtmosphereResource resource, Object id, JsonNode params) {
         var session = getOrCreateSession(resource);
 
@@ -142,7 +141,6 @@ public final class McpProtocolHandler {
 
     // ── Tools ────────────────────────────────────────────────────────────
 
-    @SuppressWarnings("unchecked")
     private JsonRpc.Response handleToolsList(Object id) {
         var toolList = new ArrayList<Map<String, Object>>();
         for (var entry : registry.tools().values()) {
@@ -157,7 +155,6 @@ public final class McpProtocolHandler {
         return JsonRpc.Response.success(id, Map.of("tools", toolList));
     }
 
-    @SuppressWarnings("unchecked")
     private JsonRpc.Response handleToolsCall(Object id, JsonNode params) {
         if (params == null || !params.has("name")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing tool name");
@@ -289,7 +286,6 @@ public final class McpProtocolHandler {
         return JsonRpc.Response.success(id, Map.of("prompts", promptList));
     }
 
-    @SuppressWarnings("unchecked")
     private JsonRpc.Response handlePromptsGet(Object id, JsonNode params) {
         if (params == null || !params.has("name")) {
             return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing prompt name");

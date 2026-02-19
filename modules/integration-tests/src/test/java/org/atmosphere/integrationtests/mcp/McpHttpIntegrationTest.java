@@ -15,7 +15,6 @@
  */
 package org.atmosphere.integrationtests.mcp;
 
-import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
 import org.testng.annotations.AfterClass;
@@ -42,6 +41,7 @@ public class McpHttpIntegrationTest {
     private EmbeddedAtmosphereServer server;
     private HttpClient httpClient;
 
+    @SuppressWarnings("resource") // closed in tearDown()
     @BeforeClass
     public void setUp() throws Exception {
         server = new EmbeddedAtmosphereServer()

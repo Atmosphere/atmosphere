@@ -27,7 +27,6 @@ import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.protocol.McpMessage;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
-import org.atmosphere.mcp.runtime.McpSession;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 

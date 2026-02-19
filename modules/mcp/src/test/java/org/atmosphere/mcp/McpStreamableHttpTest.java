@@ -35,7 +35,6 @@ import java.io.StringReader;
 import java.io.StringWriter;
 
 import static org.mockito.Mockito.*;
-import static org.mockito.ArgumentMatchers.*;
 import static org.testng.Assert.*;
 
 /**

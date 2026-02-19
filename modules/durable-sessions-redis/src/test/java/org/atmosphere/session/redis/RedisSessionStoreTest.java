@@ -47,6 +47,7 @@ public class RedisSessionStoreTest {
     /** Default store with a long TTL for most tests. */
     private RedisSessionStore store;
 
+    @SuppressWarnings("resource") // closed in tearDown()
     @BeforeClass
     public void setUp() {
         if (!DOCKER_AVAILABLE) {

@@ -73,7 +73,6 @@ public class WebSocketFactoryTest {
     @WebSocketFactoryService
     public final static class CustomFactory implements WebSocketFactory {
 
-        @SuppressWarnings("deprecation")
         @Override
         public WebSocket find(String uuid) {
             return null;
