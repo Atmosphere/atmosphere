@@ -1,0 +1,76 @@
+{
+  "properties": [
+    {
+      "name": "atmosphere.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable Atmosphere auto-configuration.",
+      "defaultValue": true
+    },
+    {
+      "name": "atmosphere.servlet-path",
+      "type": "java.lang.String",
+      "description": "URL mapping for the Atmosphere servlet.",
+      "defaultValue": "/atmosphere/*"
+    },
+    {
+      "name": "atmosphere.packages",
+      "type": "java.lang.String",
+      "description": "Comma-separated list of packages to scan for Atmosphere annotations (@ManagedService, @AtmosphereHandlerService, etc.)."
+    },
+    {
+      "name": "atmosphere.order",
+      "type": "java.lang.Integer",
+      "description": "Servlet load-on-startup order.",
+      "defaultValue": 0
+    },
+    {
+      "name": "atmosphere.session-support",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable HTTP session support for Atmosphere resources.",
+      "defaultValue": false
+    },
+    {
+      "name": "atmosphere.broadcaster-class",
+      "type": "java.lang.String",
+      "description": "Fully qualified class name of the Broadcaster implementation to use."
+    },
+    {
+      "name": "atmosphere.broadcaster-cache-class",
+      "type": "java.lang.String",
+      "description": "Fully qualified class name of the BroadcasterCache implementation to use."
+    },
+    {
+      "name": "atmosphere.websocket-support",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable WebSocket transport support."
+    },
+    {
+      "name": "atmosphere.heartbeat-interval-in-seconds",
+      "type": "java.lang.Integer",
+      "description": "Heartbeat interval in seconds for keeping connections alive."
+    },
+    {
+      "name": "atmosphere.init-params",
+      "type": "java.util.Map<java.lang.String,java.lang.String>",
+      "description": "Additional Atmosphere servlet init parameters (escape hatch for any ApplicationConfig property)."
+    },
+    {
+      "name": "atmosphere.durable-sessions.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable durable session support (survive server restarts).",
+      "defaultValue": false
+    },
+    {
+      "name": "atmosphere.durable-sessions.session-ttl-minutes",
+      "type": "java.lang.Long",
+      "description": "Time-to-live for durable sessions in minutes.",
+      "defaultValue": 1440
+    },
+    {
+      "name": "atmosphere.durable-sessions.cleanup-interval-seconds",
+      "type": "java.lang.Long",
+      "description": "Interval in seconds between expired session cleanup runs.",
+      "defaultValue": 60
+    }
+  ]
+}

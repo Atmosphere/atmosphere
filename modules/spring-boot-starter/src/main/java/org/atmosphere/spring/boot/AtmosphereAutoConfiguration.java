@@ -59,6 +59,7 @@ import org.springframework.beans.factory.config.BeanDefinition;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnWebApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.boot.web.servlet.ServletRegistrationBean;
@@ -71,6 +72,7 @@ import org.springframework.core.type.filter.AnnotationTypeFilter;
 @AutoConfiguration
 @ConditionalOnWebApplication(type = ConditionalOnWebApplication.Type.SERVLET)
 @ConditionalOnClass(AtmosphereServlet.class)
+@ConditionalOnProperty(name = "atmosphere.enabled", matchIfMissing = true)
 @EnableConfigurationProperties(AtmosphereProperties.class)
 @ImportRuntimeHints(AtmosphereRuntimeHints.class)
 public class AtmosphereAutoConfiguration {
@@ -137,6 +139,12 @@ public class AtmosphereAutoConfiguration {
     @ConditionalOnMissingBean
     public RoomManager roomManager(AtmosphereFramework framework) {
         return RoomManager.getOrCreate(framework);
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    public AtmosphereLifecycle atmosphereLifecycle(AtmosphereFramework framework) {
+        return new AtmosphereLifecycle(framework);
     }
 
     private Map<Class<? extends Annotation>, Set<Class<?>>> scanAnnotations(
