@@ -71,12 +71,12 @@ public class DemoMcpServer {
     public Map<String, Object> banUser(
             @McpParam(name = "uuid", description = "UUID of the user to ban") String uuid
     ) {
-        var resource = config.resourcesFactory().find(uuid);
-        if (resource == null) {
+        var resource = config.resourcesFactory().findResource(uuid);
+        if (resource.isEmpty()) {
             return Map.of("error", "User not found: " + uuid);
         }
         try {
-            resource.close();
+            resource.get().close();
             return Map.of("status", "banned", "uuid", uuid);
         } catch (IOException e) {
             return Map.of("error", "Failed to ban user: " + e.getMessage());
@@ -103,8 +103,8 @@ public class DemoMcpServer {
             @McpParam(name = "message", description = "The message text to send") String message,
             @McpParam(name = "author", description = "Author name for the message", required = false) String author
     ) {
-        var resource = config.resourcesFactory().find(uuid);
-        if (resource == null) {
+        var resource = config.resourcesFactory().findResource(uuid);
+        if (resource.isEmpty()) {
             return Map.of("error", "User not found: " + uuid);
         }
         var broadcaster = chatBroadcaster();
@@ -112,7 +112,7 @@ public class DemoMcpServer {
             return Map.of("error", "No chat broadcaster active");
         }
         var msg = new Message(author != null ? author : "MCP Admin", message);
-        broadcaster.broadcast(mapper.writeValueAsString(msg), resource);
+        broadcaster.broadcast(mapper.writeValueAsString(msg), resource.get());
         return Map.of("status", "sent", "uuid", uuid);
     }
 
