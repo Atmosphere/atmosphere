@@ -28,6 +28,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Registry for MCP tools, resources, and prompts. Supports both annotation-based
@@ -136,9 +137,9 @@ public final class McpRegistry {
      */
     public record ParamEntry(String name, String description, boolean required, Class<?> type) {}
 
-    private final Map<String, ToolEntry> tools = new LinkedHashMap<>();
-    private final Map<String, ResourceEntry> resources = new LinkedHashMap<>();
-    private final Map<String, PromptEntry> prompts = new LinkedHashMap<>();
+    private final Map<String, ToolEntry> tools = new ConcurrentHashMap<>();
+    private final Map<String, ResourceEntry> resources = new ConcurrentHashMap<>();
+    private final Map<String, PromptEntry> prompts = new ConcurrentHashMap<>();
 
     /**
      * Scan the given instance for @McpTool, @McpResource, @McpPrompt methods.

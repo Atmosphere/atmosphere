@@ -23,7 +23,7 @@ import java.util.Map;
 public record McpMessage(String role, Map<String, String> content) {
 
     public static McpMessage system(String text) {
-        return new McpMessage("assistant", Map.of("type", "text", "text", text));
+        return new McpMessage("system", Map.of("type", "text", "text", text));
     }
 
     public static McpMessage user(String text) {

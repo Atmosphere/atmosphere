@@ -143,7 +143,7 @@ export class AtmosphereProtocol {
       // Reconstruct trailing messages after the handshake data
       const trailingStart = request.trackMessageLength ? 4 : 3;
       let trailing = '';
-      if (parts.length > trailingStart + 1) {
+      if (parts.length > trailingStart) {
         trailing = parts.slice(trailingStart).join(delimiter);
       }
 

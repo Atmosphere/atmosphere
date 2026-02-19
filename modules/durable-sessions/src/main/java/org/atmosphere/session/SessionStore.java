@@ -26,10 +26,11 @@ import java.util.Optional;
  * so that clients can reconnect after a server restart and resume where
  * they left off.</p>
  *
- * <p>Two built-in implementations are provided:</p>
+ * <p>Implementations:</p>
  * <ul>
- *   <li>{@code SqliteSessionStore} — embedded, zero-config, single-node</li>
- *   <li>{@code RedisSessionStore} — clustered, shared across nodes</li>
+ *   <li>{@link InMemorySessionStore} — testing and development (this module)</li>
+ *   <li>{@code SqliteSessionStore} — embedded, zero-config, single-node ({@code durable-sessions-sqlite})</li>
+ *   <li>{@code RedisSessionStore} — clustered, shared across nodes ({@code durable-sessions-redis})</li>
  * </ul>
  */
 public interface SessionStore {

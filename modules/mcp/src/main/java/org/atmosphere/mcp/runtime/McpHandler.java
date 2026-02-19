@@ -63,7 +63,7 @@ public final class McpHandler implements AtmosphereHandler {
         this.protocolHandler = protocolHandler;
         this.sessionTtlMs = sessionTtlMs;
         this.cleaner = Executors.newSingleThreadScheduledExecutor(r -> {
-            var t = Thread.ofVirtual().name("mcp-session-cleaner").unstarted(r);
+            var t = Thread.ofPlatform().daemon().name("mcp-session-cleaner").unstarted(r);
             return t;
         });
         this.cleaner.scheduleAtFixedRate(this::evictExpiredSessions,

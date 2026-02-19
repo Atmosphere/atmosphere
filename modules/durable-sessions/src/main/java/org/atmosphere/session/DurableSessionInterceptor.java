@@ -29,6 +29,7 @@ import java.time.Duration;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -67,6 +68,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     private final SessionStore store;
     private final Duration sessionTtl;
     private final Duration saveInterval;
+    private final Set<String> savedOnDisconnect = ConcurrentHashMap.newKeySet();
     private ScheduledExecutorService scheduler;
     private AtmosphereConfig config;
 
@@ -84,7 +86,7 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     public void configure(AtmosphereConfig config) {
         this.config = config;
         this.scheduler = Executors.newSingleThreadScheduledExecutor(r -> {
-            var t = Thread.ofVirtual().unstarted(r);
+            var t = Thread.ofPlatform().daemon().unstarted(r);
             t.setName("atmosphere-durable-session-cleanup");
             return t;
         });
@@ -204,6 +206,10 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
      * Capture current rooms and broadcasters into the session store.
      */
     void saveCurrentState(AtmosphereResource r, String token) {
+        // Guard against double-save when both onDisconnect and onClose fire
+        if (!savedOnDisconnect.add(r.uuid())) {
+            return;
+        }
         try {
             var session = store.restore(token);
             if (session.isEmpty()) {
