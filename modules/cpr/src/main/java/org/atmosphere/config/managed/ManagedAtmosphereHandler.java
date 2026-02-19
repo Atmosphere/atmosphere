@@ -171,7 +171,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
             if (e != null && e.encodedObject != null) {
                 AtmosphereResource r = resource;
                 if ( e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE && !resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
-                    r = resourcesFactory.find(resource.uuid());
+                    r = resourcesFactory.findResource(resource.uuid()).orElse(resource);
                 }
                 IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, r);
             }

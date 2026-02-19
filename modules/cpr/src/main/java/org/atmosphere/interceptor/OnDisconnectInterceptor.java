@@ -59,12 +59,10 @@ public class OnDisconnectInterceptor extends AtmosphereInterceptorAdapter {
                 return Action.CANCELLED;
             }
 
-            AtmosphereResource ss = config.resourcesFactory().find(uuid);
-
-            if (ss == null) {
+            AtmosphereResource ss = config.resourcesFactory().findResource(uuid).orElseGet(() -> {
                 logger.debug("No Suspended Connection found for {}. Using the AtmosphereResource associated with the close message", uuid);
-                ss = r;
-            }
+                return r;
+            });
 
             logger.debug("AtmosphereResource {} disconnected", uuid);
 

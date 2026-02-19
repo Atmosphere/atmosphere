@@ -18,6 +18,7 @@ package org.atmosphere.cpr;
 import org.atmosphere.inject.AtmosphereConfigAware;
 
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentMap;
 
 /**
@@ -145,8 +146,23 @@ public interface AtmosphereResourceFactory extends AtmosphereConfigAware {
      *
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.
+     * @deprecated Use {@link #findResource(String)} which returns {@link Optional} instead of null.
      */
+    @Deprecated(since = "4.0.0", forRemoval = false)
     AtmosphereResource find(String uuid);
+
+    /**
+     * Find an {@link AtmosphereResource} based on its {@link org.atmosphere.cpr.AtmosphereResource#uuid()}.
+     * <p>
+     * This is the preferred alternative to {@link #find(String)} as it returns an {@link Optional}
+     * instead of null, making the absent-resource case explicit at the call site.
+     *
+     * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
+     * @return an {@link Optional} containing the {@link AtmosphereResource}, or empty if not found.
+     */
+    default Optional<AtmosphereResource> findResource(String uuid) {
+        return Optional.ofNullable(find(uuid));
+    }
 
     /**
      * Locate an {@link AtmosphereResource}, based on its {@link org.atmosphere.cpr.AtmosphereResource#uuid()}, in a

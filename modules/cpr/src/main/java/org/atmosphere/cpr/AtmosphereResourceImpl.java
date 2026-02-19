@@ -797,10 +797,8 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                     removeFromAllBroadcasters();
                     if (transport.equals(TRANSPORT.WEBSOCKET)) {
                         String parentUUID = (String) req.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
-                        AtmosphereResource p = config.resourcesFactory().find(parentUUID);
-                        if (p != null) {
-                            p.removeFromAllBroadcasters();
-                        }
+                        config.resourcesFactory().findResource(parentUUID)
+                                .ifPresent(AtmosphereResource::removeFromAllBroadcasters);
                     }
                 }
 

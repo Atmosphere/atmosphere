@@ -172,10 +172,7 @@ public final class Utils {
     public static AtmosphereResource websocketResource(AtmosphereResource r) {
         String parentUUID = (String) ((AtmosphereResourceImpl) r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID);
         if (parentUUID != null) {
-            AtmosphereResource resource = r.getAtmosphereConfig().resourcesFactory().find(parentUUID);
-            if (resource != null) {
-                r = resource;
-            }
+            return r.getAtmosphereConfig().resourcesFactory().findResource(parentUUID).orElse(r);
         }
         return r;
     }

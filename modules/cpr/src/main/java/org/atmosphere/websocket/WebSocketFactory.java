@@ -17,6 +17,8 @@ package org.atmosphere.websocket;
 
 import org.atmosphere.cpr.AtmosphereResource;
 
+import java.util.Optional;
+
 /**
  * A factory for retrieving {@link WebSocket}
  *
@@ -29,8 +31,24 @@ public interface WebSocketFactory {
      * the {@link AtmosphereResource#uuid()} or an application generated one.
      *
      * @param uuid a UUID associated
-     * @return WebSocket
+     * @return WebSocket, or null if not found.
+     * @deprecated Use {@link #findWebSocket(String)} which returns {@link Optional} instead of null.
      */
+    @Deprecated(since = "4.0.0", forRemoval = false)
     WebSocket find(String uuid);
+
+    /**
+     * Retrieve the {@link WebSocket} associated with a uuid. The uuid could be the one returned by
+     * the {@link AtmosphereResource#uuid()} or an application generated one.
+     * <p>
+     * This is the preferred alternative to {@link #find(String)} as it returns an {@link Optional}
+     * instead of null, making the absent-websocket case explicit at the call site.
+     *
+     * @param uuid a UUID associated
+     * @return an {@link Optional} containing the {@link WebSocket}, or empty if not found.
+     */
+    default Optional<WebSocket> findWebSocket(String uuid) {
+        return Optional.ofNullable(find(uuid));
+    }
 
 }

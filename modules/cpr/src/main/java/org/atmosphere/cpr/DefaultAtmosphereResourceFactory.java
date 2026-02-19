@@ -22,6 +22,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.Proxy;
 import java.util.Collection;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -253,19 +254,27 @@ public class DefaultAtmosphereResourceFactory implements AtmosphereResourceFacto
      *
      * @param uuid the {@link org.atmosphere.cpr.AtmosphereResource#uuid()}
      * @return the {@link AtmosphereResource}, or null if not found.
+     * @deprecated Use {@link #findResource(String)} which returns {@link Optional} instead of null.
      */
+    @Deprecated(since = "4.0.0", forRemoval = false)
     @Override
     public AtmosphereResource find(String uuid) {
         if (uuid == null) return null;
         return resources.get(uuid);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public Optional<AtmosphereResource> findResource(String uuid) {
+        if (uuid == null) return Optional.empty();
+        return Optional.ofNullable(resources.get(uuid));
+    }
+
     @Override
     public void locate(String uuid, Async async) {
-        AtmosphereResource r = find(uuid);
-        if (r != null) {
-            async.available(r);
-        }
+        findResource(uuid).ifPresent(async::available);
     }
 
     /**

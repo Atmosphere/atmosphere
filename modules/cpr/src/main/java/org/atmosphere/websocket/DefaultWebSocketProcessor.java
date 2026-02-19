@@ -630,12 +630,13 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
                             completeLifecycle = false;
                             logger.debug("Delaying closing operation for firefox and resource {}", resource.uuid());
                             ExecutorsFactory.getScheduler(framework.getAtmosphereConfig()).schedule(() -> {
-                                AtmosphereResource currentResource = framework.atmosphereFactory().find(resource.uuid());
-                                if (currentResource != null && currentResource.isSuspended()) {
-                                    // Do not close if the resource has reconnected already
-                                    executeClose(webSocket, 1005);
-                                    finish(webSocket, currentResource, r, s, false);
-                                }
+                                // Do not close if the resource has reconnected already
+                                framework.atmosphereFactory().findResource(resource.uuid())
+                                        .filter(AtmosphereResource::isSuspended)
+                                        .ifPresent(currentResource -> {
+                                            executeClose(webSocket, 1005);
+                                            finish(webSocket, currentResource, r, s, false);
+                                        });
                                 return null;
                             }, ff ? (closingTime == 0 ? 1000 : closingTime) : closingTime, TimeUnit.MILLISECONDS);
                             resource.getAndSetPendingClose();

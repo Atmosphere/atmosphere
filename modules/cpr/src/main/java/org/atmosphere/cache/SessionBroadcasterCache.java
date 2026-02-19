@@ -47,7 +47,13 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
         if (uuid.equals(NULL)) return cacheMessage;
 
         try {
-            HttpSession session = config.resourcesFactory().find(uuid).session();
+            AtmosphereResource r = config.resourcesFactory().findResource(uuid).orElse(null);
+            if (r == null) {
+                logger.trace("Invalid UUID {}", uuid);
+                return cacheMessage;
+            }
+
+            HttpSession session = r.session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return cacheMessage;
@@ -69,14 +75,14 @@ public class SessionBroadcasterCache extends AbstractBroadcasterCache {
 
         List<Object> result = new ArrayList<>();
         try {
-            AtmosphereResource r = config.resourcesFactory().find(uuid);
+            var optResource = config.resourcesFactory().findResource(uuid);
 
-            if (r == null) {
+            if (optResource.isEmpty()) {
                 logger.trace("Invalid UUID {}", uuid);
                 return result;
             }
 
-            HttpSession session = r.session();
+            HttpSession session = optResource.get().session();
             if (session == null) {
                 logger.error(ERROR_MESSAGE);
                 return result;

@@ -20,12 +20,14 @@ import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 
 import jakarta.inject.Inject;
+import java.util.Optional;
 
 public class DefaultWebSocketFactory implements WebSocketFactory {
 
     @Inject
     private AtmosphereResourceFactory factory;
 
+    @Deprecated
     @Override
     public WebSocket find(String uuid) {
         AtmosphereResource r = factory.find(uuid);
@@ -33,5 +35,11 @@ public class DefaultWebSocketFactory implements WebSocketFactory {
             return ((AtmosphereResourceImpl) r).webSocket();
         }
         return null;
+    }
+
+    @Override
+    public Optional<WebSocket> findWebSocket(String uuid) {
+        return factory.findResource(uuid)
+                .map(r -> ((AtmosphereResourceImpl) r).webSocket());
     }
 }
