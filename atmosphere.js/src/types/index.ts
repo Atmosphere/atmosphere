@@ -64,6 +64,13 @@ export interface AtmosphereRequest {
   messageDelimiter?: string;
   enableProtocol?: boolean;
   headers?: Record<string, string>;
+  /**
+   * Durable session token for reconnection across server restarts.
+   * When set, the token is sent as {@code X-Atmosphere-Session-Token}
+   * on every request. The client stores the server-assigned token
+   * automatically after the first handshake.
+   */
+  sessionToken?: string;
   withCredentials?: boolean;
   maxWebsocketErrorRetries?: number;
   pollingInterval?: number;

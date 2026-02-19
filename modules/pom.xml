@@ -25,6 +25,9 @@
         <module>embabel</module>
         <module>redis</module>
         <module>kafka</module>
+        <module>durable-sessions</module>
+        <module>durable-sessions-sqlite</module>
+        <module>durable-sessions-redis</module>
         <module>spring-boot-starter</module>
         <module>quarkus-extension</module>
     </modules>

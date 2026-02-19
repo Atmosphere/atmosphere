@@ -39,6 +39,9 @@ export class AtmosphereProtocol {
   /** Server-assigned UUID for this connection. */
   uuid = '0';
 
+  /** Durable session token for reconnection across server restarts. */
+  sessionToken: string | null = null;
+
   /** Whether we have received the first (handshake) message. */
   private firstMessage = true;
 
@@ -93,6 +96,12 @@ export class AtmosphereProtocol {
 
     if (request.enableProtocol) {
       params.push('X-atmo-protocol=true');
+    }
+
+    // Send durable session token if available
+    const token = request.sessionToken ?? this.sessionToken;
+    if (token) {
+      params.push(`X-Atmosphere-Session-Token=${encodeURIComponent(token)}`);
     }
 
     if (request.headers) {

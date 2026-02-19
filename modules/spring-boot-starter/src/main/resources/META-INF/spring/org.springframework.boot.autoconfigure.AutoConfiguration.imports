@@ -1,2 +1,3 @@
 org.atmosphere.spring.boot.AtmosphereAutoConfiguration
 org.atmosphere.spring.boot.AtmosphereActuatorAutoConfiguration
+org.atmosphere.spring.boot.DurableSessionAutoConfiguration

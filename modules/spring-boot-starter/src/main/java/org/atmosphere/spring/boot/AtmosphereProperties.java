@@ -39,6 +39,8 @@ public class AtmosphereProperties {
 
     private Integer heartbeatIntervalInSeconds;
 
+    private DurableSessionsProperties durableSessions = new DurableSessionsProperties();
+
     private Map<String, String> initParams = new HashMap<>();
 
     public String getServletPath() {
@@ -111,5 +113,46 @@ public class AtmosphereProperties {
 
     public void setInitParams(Map<String, String> initParams) {
         this.initParams = initParams;
+    }
+
+    public DurableSessionsProperties getDurableSessions() {
+        return durableSessions;
+    }
+
+    public void setDurableSessions(DurableSessionsProperties durableSessions) {
+        this.durableSessions = durableSessions;
+    }
+
+    public static class DurableSessionsProperties {
+
+        private boolean enabled = false;
+
+        private long sessionTtlMinutes = 1440;
+
+        private long cleanupIntervalSeconds = 60;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public long getSessionTtlMinutes() {
+            return sessionTtlMinutes;
+        }
+
+        public void setSessionTtlMinutes(long sessionTtlMinutes) {
+            this.sessionTtlMinutes = sessionTtlMinutes;
+        }
+
+        public long getCleanupIntervalSeconds() {
+            return cleanupIntervalSeconds;
+        }
+
+        public void setCleanupIntervalSeconds(long cleanupIntervalSeconds) {
+            this.cleanupIntervalSeconds = cleanupIntervalSeconds;
+        }
     }
 }

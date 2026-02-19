@@ -75,6 +75,13 @@
             <version>2.0.1</version>
         </dependency>
 
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-durable-sessions</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
         <!-- Override parent's SLF4J 1.x / Logback 1.2.x with Spring Boot 4 compatible versions -->
         <dependency>
             <groupId>org.slf4j</groupId>

@@ -31,6 +31,7 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 | **Kotlin DSL** | `atmosphere-kotlin` | Kotlin 2.1+ |
 | **AI Streaming** | `atmosphere-ai` | JDK 21+ |
 | **MCP Server** | `atmosphere-mcp` | JDK 21+ |
+| **Durable Sessions** | `atmosphere-durable-sessions` | JDK 21+ |
 
 ### Quick start
 
@@ -713,6 +714,26 @@ Uses the standard [Apache Kafka client](https://kafka.apache.org/) 3.x.
 
 </details>
 
+### Durable Sessions
+
+Sessions survive server restarts. On reconnection the client sends its session token and the server
+restores room memberships, broadcaster subscriptions, and metadata automatically.
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-durable-sessions-sqlite</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+```properties
+atmosphere.durable-sessions.enabled=true
+```
+
+Three `SessionStore` implementations: **InMemory** (dev), **SQLite** (single-node), **Redis** (clustered).
+See the [Durable Sessions wiki](https://github.com/Atmosphere/atmosphere/wiki/Durable-Sessions) for details.
+
 ---
 
 ### Requirements
@@ -727,6 +748,7 @@ Uses the standard [Apache Kafka client](https://kafka.apache.org/) 3.x.
 - [Wiki & Tutorials](https://github.com/Atmosphere/atmosphere/wiki)
 - [AI / LLM Streaming](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming)
 - [MCP Server](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server)
+- [Durable Sessions](https://github.com/Atmosphere/atmosphere/wiki/Durable-Sessions)
 - [Kotlin DSL](https://github.com/Atmosphere/atmosphere/wiki/Kotlin-DSL)
 - [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions)
 - [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/)
