@@ -135,11 +135,11 @@ jobs:
       run: ./mvnw -B versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
 
     - name: Build release artifacts
-      run: ./mvnw -B clean install -DskipTests -Prelease-profile ${{ inputs.dry_run && '-Dgpg.skip=true' || '' }}
+      run: ./mvnw -B clean install -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/integration-tests' ${{ inputs.dry_run && '-Dgpg.skip=true' || '' }}
 
     - name: Publish to Maven Central
       if: inputs.dry_run == false
-      run: ./mvnw -B deploy -DskipTests -Prelease-profile
+      run: ./mvnw -B deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/integration-tests'
       env:
         CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
         CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
