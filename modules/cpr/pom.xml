@@ -14,6 +14,11 @@
     <name>atmosphere-runtime</name>
     <description>Atmosphere runtime for asynchronous web applications</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
+
+    <properties>
+        <atmosphere.module.name>org.atmosphere.runtime</atmosphere.module.name>
+    </properties>
+
     <build>
         <defaultGoal>install</defaultGoal>
         <resources>
@@ -74,6 +79,7 @@
                             osgi.serviceloader;osgi.serviceloader=org.atmosphere.inject.Injectable
                         </Provide-Capability>
 						<Eclipse-BuddyPolicy>registered</Eclipse-BuddyPolicy>
+                        <Automatic-Module-Name>org.atmosphere.runtime</Automatic-Module-Name>
                     </instructions>
                 </configuration>
             </plugin>

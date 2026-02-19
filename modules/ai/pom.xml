@@ -15,6 +15,10 @@
     <description>AI/LLM streaming SPI for Atmosphere Framework — shared interfaces for Spring AI, LangChain4j, Embabel, and custom adapters</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
+    <properties>
+        <atmosphere.module.name>org.atmosphere.ai</atmosphere.module.name>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>

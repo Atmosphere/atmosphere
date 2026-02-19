@@ -16,6 +16,7 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
+        <atmosphere.module.name>org.atmosphere.embabel</atmosphere.module.name>
         <kotlin.version>2.1.10</kotlin.version>
         <embabel.version>0.3.5-SNAPSHOT</embabel.version>
     </properties>

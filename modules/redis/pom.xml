@@ -15,6 +15,10 @@
     <description>Redis clustering support for Atmosphere Framework using Lettuce</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
+    <properties>
+        <atmosphere.module.name>org.atmosphere.redis</atmosphere.module.name>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>

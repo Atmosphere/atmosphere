@@ -16,6 +16,7 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
+        <atmosphere.module.name>org.atmosphere.spring.ai</atmosphere.module.name>
         <spring-ai.version>1.0.0</spring-ai.version>
     </properties>
 

@@ -13,6 +13,10 @@
     <description>Quarkus extension for Atmosphere Framework - Runtime</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
+    <properties>
+        <atmosphere.module.name>org.atmosphere.quarkus</atmosphere.module.name>
+    </properties>
+
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>

@@ -16,6 +16,7 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
+        <atmosphere.module.name>org.atmosphere.session.sqlite</atmosphere.module.name>
         <sqlite.version>3.49.1.0</sqlite.version>
     </properties>
 

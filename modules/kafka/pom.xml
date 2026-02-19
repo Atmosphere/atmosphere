@@ -16,6 +16,7 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
+        <atmosphere.module.name>org.atmosphere.kafka</atmosphere.module.name>
         <kafka.version>3.9.1</kafka.version>
     </properties>
 

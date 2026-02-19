@@ -110,6 +110,7 @@
                             <url>${project.url}</url>
                             <implementation-version>${project.version}</implementation-version>
                             <package>org.atmosphere</package>
+                            <Automatic-Module-Name>${atmosphere.module.name}</Automatic-Module-Name>
                         </manifestEntries>
                     </archive>
                 </configuration>
@@ -636,5 +637,6 @@
         <jackson.version>2.18.3</jackson.version>
         <mockito.version>5.21.0</mockito.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
+        <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
     </properties>
 </project>
