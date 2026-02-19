@@ -172,13 +172,14 @@ class EmbabelAdapterTest {
         assertTrue(channelReceived != null, "Runner should receive a channel")
 
         val captor = ArgumentCaptor.forClass(String::class.java)
-        // progress ("Starting agent: test-agent...") + token
-        verify(resource, times(2)).write(captor.capture())
+        // progress ("Starting agent: test-agent...") + token + complete
+        verify(resource, times(3)).write(captor.capture())
 
         val messages = captor.allValues.map { it.toString() }
         assertTrue(messages[0].contains("\"type\":\"progress\""))
         assertTrue(messages[0].contains("Starting agent: test-agent"))
         assertTrue(messages[1].contains("\"data\":\"Agent output\""))
+        assertTrue(messages[2].contains("\"type\":\"complete\""))
     }
 
     @Test
