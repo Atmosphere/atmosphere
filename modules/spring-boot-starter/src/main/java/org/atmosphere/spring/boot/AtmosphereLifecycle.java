@@ -18,6 +18,9 @@ package org.atmosphere.spring.boot;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.boot.availability.AvailabilityChangeEvent;
+import org.springframework.boot.availability.ReadinessState;
+import org.springframework.context.ApplicationContext;
 import org.springframework.context.SmartLifecycle;
 
 /**
@@ -25,8 +28,9 @@ import org.springframework.context.SmartLifecycle;
  * {@link AtmosphereFramework} is properly destroyed before the servlet
  * container shuts down.
  *
- * <p>This runs in the {@link SmartLifecycle#DEFAULT_PHASE} so it stops
- * before the web server. During stop, it calls {@link AtmosphereFramework#destroy()}
+ * <p>This runs at {@code DEFAULT_PHASE - 1} so it stops before the web server.
+ * During stop, it publishes {@link ReadinessState#REFUSING_TRAFFIC} to signal
+ * Kubernetes readiness probes, then calls {@link AtmosphereFramework#destroy()}
  * which disconnects all resources and cleans up thread pools.</p>
  */
 public class AtmosphereLifecycle implements SmartLifecycle {
@@ -34,10 +38,13 @@ public class AtmosphereLifecycle implements SmartLifecycle {
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereLifecycle.class);
 
     private final AtmosphereFramework framework;
+    private final ApplicationContext applicationContext;
     private volatile boolean running = true;
 
-    public AtmosphereLifecycle(AtmosphereFramework framework) {
+    public AtmosphereLifecycle(AtmosphereFramework framework,
+                               ApplicationContext applicationContext) {
         this.framework = framework;
+        this.applicationContext = applicationContext;
     }
 
     @Override
@@ -48,7 +55,8 @@ public class AtmosphereLifecycle implements SmartLifecycle {
     @Override
     public void stop() {
         if (running && !framework.isDestroyed()) {
-            logger.info("Graceful shutdown: destroying Atmosphere framework");
+            logger.info("Graceful shutdown: signaling readiness probe and destroying Atmosphere framework");
+            AvailabilityChangeEvent.publish(applicationContext, ReadinessState.REFUSING_TRAFFIC);
             framework.destroy();
             running = false;
         }

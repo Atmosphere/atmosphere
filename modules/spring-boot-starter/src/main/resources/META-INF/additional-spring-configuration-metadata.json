@@ -72,5 +72,24 @@
       "description": "Interval in seconds between expired session cleanup runs.",
       "defaultValue": 60
     }
+  ],
+  "hints": [
+    {
+      "name": "atmosphere.init-params",
+      "values": [
+        {
+          "value": "org.atmosphere.rateLimit.maxMessages",
+          "description": "Max inbound messages per client per rate-limit window (default: 100). Requires RateLimitingInterceptor."
+        },
+        {
+          "value": "org.atmosphere.rateLimit.windowSeconds",
+          "description": "Rate-limit window duration in seconds (default: 60). Requires RateLimitingInterceptor."
+        },
+        {
+          "value": "org.atmosphere.rateLimit.policy",
+          "description": "Rate-limit exceeded policy: 'drop' (silent) or 'disconnect' (close connection). Default: drop."
+        }
+      ]
+    }
   ]
 }

@@ -143,8 +143,9 @@ public class AtmosphereAutoConfiguration {
 
     @Bean
     @ConditionalOnMissingBean
-    public AtmosphereLifecycle atmosphereLifecycle(AtmosphereFramework framework) {
-        return new AtmosphereLifecycle(framework);
+    public AtmosphereLifecycle atmosphereLifecycle(AtmosphereFramework framework,
+                                                   ApplicationContext applicationContext) {
+        return new AtmosphereLifecycle(framework, applicationContext);
     }
 
     private Map<Class<? extends Annotation>, Set<Class<?>>> scanAnnotations(
