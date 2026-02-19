@@ -252,6 +252,26 @@ Stream AI responses token-by-token to browsers with built-in adapters for **Spri
 </dependency>
 ```
 
+#### `@AiEndpoint` — zero-boilerplate AI handler
+
+The `@AiEndpoint` annotation eliminates the `@ManagedService` ceremony for AI use cases. Just annotate a class and a `@Prompt` method — the framework handles suspend, session creation, and virtual thread dispatch:
+
+```java
+@AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
+public class MyChatBot {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        // Call your AI framework here — tokens stream back via session.send()
+        myLlmClient.stream(message)
+            .forEach(token -> session.send(token));
+        session.complete();
+    }
+}
+```
+
+The `@Prompt` method runs on a virtual thread automatically. Use `StreamingSession` to stream tokens, signal errors, or complete. Works with any AI framework (Spring AI, LangChain4j, raw HTTP clients).
+
 <details>
 <summary>Spring AI — stream ChatClient responses</summary>
 

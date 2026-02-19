@@ -30,7 +30,7 @@ jobs:
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
     
     - name: Run Core Tests
-      run: ./mvnw -B test -Dgpg.skip=true -pl modules/cpr,modules/redis,modules/kafka,modules/integration-tests,modules/quarkus-extension,modules/spring-boot-starter
+      run: ./mvnw -B test -Dgpg.skip=true -pl modules/cpr,modules/ai,modules/mcp,modules/redis,modules/kafka,modules/durable-sessions,modules/durable-sessions-sqlite,modules/integration-tests,modules/quarkus-extension,modules/spring-boot-starter
     
     - name: Upload Test Results
       if: failure()

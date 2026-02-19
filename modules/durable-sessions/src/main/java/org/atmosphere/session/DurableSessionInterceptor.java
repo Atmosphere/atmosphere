@@ -118,19 +118,23 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
 
         if (token != null) {
             // Attempt to restore a previous session
-            var restored = store.restore(token);
-            if (restored.isPresent()) {
-                var session = restored.get();
-                logger.info("Restoring durable session {} for resource {} (was {})",
-                        token, r.uuid(), session.resourceId());
+            try {
+                var restored = store.restore(token);
+                if (restored.isPresent()) {
+                    var session = restored.get();
+                    logger.info("Restoring durable session {} for resource {} (was {})",
+                            token, r.uuid(), session.resourceId());
 
-                restoreSession(r, session);
+                    restoreSession(r, session);
 
-                // Update the session with the new resource ID
-                store.save(session.withResourceId(r.uuid()));
-                response.setHeader(SESSION_TOKEN_RESPONSE_HEADER, token);
-                registerSaveOnDisconnect(r, token);
-                return Action.CONTINUE;
+                    // Update the session with the new resource ID
+                    store.save(session.withResourceId(r.uuid()));
+                    response.setHeader(SESSION_TOKEN_RESPONSE_HEADER, token);
+                    registerSaveOnDisconnect(r, token);
+                    return Action.CONTINUE;
+                }
+            } catch (Exception e) {
+                logger.warn("Failed to restore durable session {}, creating new session", token, e);
             }
             logger.debug("Session token {} not found or expired, creating new session", token);
         }
@@ -138,7 +142,11 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
         // Create a new durable session
         var newToken = UUID.randomUUID().toString();
         var session = DurableSession.create(newToken, r.uuid());
-        store.save(session);
+        try {
+            store.save(session);
+        } catch (Exception e) {
+            logger.warn("Failed to save new durable session {}", newToken, e);
+        }
         response.setHeader(SESSION_TOKEN_RESPONSE_HEADER, newToken);
 
         logger.debug("Created new durable session {} for resource {}", newToken, r.uuid());
@@ -166,8 +174,12 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                 .getServletContext().getAttribute(RoomManager.class.getName());
         if (roomManager instanceof RoomManager rm) {
             for (var roomName : session.rooms()) {
-                rm.room(roomName).join(r);
-                logger.debug("Restored resource {} to room {}", r.uuid(), roomName);
+                try {
+                    rm.room(roomName).join(r);
+                    logger.debug("Restored resource {} to room {}", r.uuid(), roomName);
+                } catch (Exception e) {
+                    logger.warn("Failed to restore resource {} to room {}", r.uuid(), roomName, e);
+                }
             }
         }
     }
