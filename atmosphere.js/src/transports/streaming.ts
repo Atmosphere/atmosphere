@@ -68,6 +68,14 @@ export class StreamingTransport<T = unknown> extends BaseTransport<T> {
             this.opened = true;
             this.reconnectAttempts = 0;
 
+            // Extract session token from response headers (for durable sessions)
+            if (typeof xhr.getResponseHeader === 'function') {
+              const sessionToken = xhr.getResponseHeader('X-Atmosphere-Session-Token');
+              if (sessionToken) {
+                this.protocol.sessionToken = sessionToken;
+              }
+            }
+
             const openResponse: AtmosphereResponse<T> = {
               status: 200,
               reasonPhrase: 'OK',

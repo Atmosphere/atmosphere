@@ -237,10 +237,12 @@ export class AtmosphereProtocol {
 
   /**
    * Reset protocol state for a new connection.
+   * Preserves the session token across reconnects.
    */
   reset(): void {
     this.firstMessage = true;
     this.partialMessage = '';
     this.stopHeartbeat();
+    // sessionToken is intentionally preserved across reconnects
   }
 }

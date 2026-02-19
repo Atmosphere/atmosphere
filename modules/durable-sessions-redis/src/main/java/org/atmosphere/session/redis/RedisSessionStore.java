@@ -72,7 +72,12 @@ public class RedisSessionStore implements SessionStore {
      */
     public RedisSessionStore(String redisUri, Duration defaultTtl) {
         this.client = RedisClient.create(redisUri);
-        this.connection = client.connect();
+        try {
+            this.connection = client.connect();
+        } catch (Exception e) {
+            client.shutdown();
+            throw e;
+        }
         this.commands = connection.sync();
         this.mapper = new ObjectMapper();
         this.defaultTtl = defaultTtl;

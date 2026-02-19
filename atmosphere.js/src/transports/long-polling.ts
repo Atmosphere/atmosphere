@@ -129,6 +129,14 @@ export class LongPollingTransport<T = unknown> extends BaseTransport<T> {
               this.handleResponse(responseText);
             }
 
+            // Extract session token from response headers (for durable sessions)
+            if (typeof xhr.getResponseHeader === 'function') {
+              const sessionToken = xhr.getResponseHeader('X-Atmosphere-Session-Token');
+              if (sessionToken) {
+                this.protocol.sessionToken = sessionToken;
+              }
+            }
+
             resolve();
 
             // Immediately re-poll

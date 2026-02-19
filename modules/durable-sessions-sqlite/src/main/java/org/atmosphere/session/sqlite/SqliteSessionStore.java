@@ -27,14 +27,14 @@ import java.sql.SQLException;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.stream.Collectors;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 /**
  * {@link SessionStore} backed by an embedded SQLite database.
@@ -54,9 +54,10 @@ public class SqliteSessionStore implements SessionStore {
 
     private static final Logger logger = LoggerFactory.getLogger(SqliteSessionStore.class);
 
-    private static final String SEPARATOR = ",";
-
     private final Connection connection;
+    private final ObjectMapper mapper = new ObjectMapper();
+    private static final TypeReference<Set<String>> SET_TYPE = new TypeReference<>() { };
+    private static final TypeReference<Map<String, String>> MAP_TYPE = new TypeReference<>() { };
 
     /**
      * Create a store with the default database file ({@code atmosphere-sessions.db}
@@ -83,6 +84,9 @@ public class SqliteSessionStore implements SessionStore {
     private SqliteSessionStore(String jdbcUrl) {
         try {
             this.connection = DriverManager.getConnection(jdbcUrl);
+            try (var stmt = connection.createStatement()) {
+                stmt.execute("PRAGMA journal_mode=WAL");
+            }
             createTable();
             logger.info("SQLite session store initialized: {}", jdbcUrl);
         } catch (SQLException e) {
@@ -111,7 +115,7 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     @Override
-    public void save(DurableSession session) {
+    public synchronized void save(DurableSession session) {
         var sql = """
                 INSERT OR REPLACE INTO durable_sessions
                 (token, resource_id, rooms, broadcasters, metadata, created_at, last_seen)
@@ -120,9 +124,9 @@ public class SqliteSessionStore implements SessionStore {
         try (var stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, session.token());
             stmt.setString(2, session.resourceId());
-            stmt.setString(3, joinSet(session.rooms()));
-            stmt.setString(4, joinSet(session.broadcasters()));
-            stmt.setString(5, joinMap(session.metadata()));
+            stmt.setString(3, toJson(session.rooms()));
+            stmt.setString(4, toJson(session.broadcasters()));
+            stmt.setString(5, toJson(session.metadata()));
             stmt.setLong(6, session.createdAt().toEpochMilli());
             stmt.setLong(7, session.lastSeen().toEpochMilli());
             stmt.executeUpdate();
@@ -132,7 +136,7 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     @Override
-    public Optional<DurableSession> restore(String token) {
+    public synchronized Optional<DurableSession> restore(String token) {
         var sql = "SELECT * FROM durable_sessions WHERE token = ?";
         try (var stmt = connection.prepareStatement(sql)) {
             stmt.setString(1, token);
@@ -141,9 +145,9 @@ public class SqliteSessionStore implements SessionStore {
                     return Optional.of(new DurableSession(
                             rs.getString("token"),
                             rs.getString("resource_id"),
-                            splitSet(rs.getString("rooms")),
-                            splitSet(rs.getString("broadcasters")),
-                            splitMap(rs.getString("metadata")),
+                            fromJsonSet(rs.getString("rooms")),
+                            fromJsonSet(rs.getString("broadcasters")),
+                            fromJsonMap(rs.getString("metadata")),
                             Instant.ofEpochMilli(rs.getLong("created_at")),
                             Instant.ofEpochMilli(rs.getLong("last_seen"))
                     ));
@@ -156,7 +160,7 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     @Override
-    public void remove(String token) {
+    public synchronized void remove(String token) {
         try (var stmt = connection.prepareStatement(
                 "DELETE FROM durable_sessions WHERE token = ?")) {
             stmt.setString(1, token);
@@ -167,7 +171,7 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     @Override
-    public void touch(String token) {
+    public synchronized void touch(String token) {
         try (var stmt = connection.prepareStatement(
                 "UPDATE durable_sessions SET last_seen = ? WHERE token = ?")) {
             stmt.setLong(1, Instant.now().toEpochMilli());
@@ -179,7 +183,7 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     @Override
-    public List<DurableSession> removeExpired(Duration ttl) {
+    public synchronized List<DurableSession> removeExpired(Duration ttl) {
         var cutoff = Instant.now().minus(ttl).toEpochMilli();
         var expired = new ArrayList<DurableSession>();
 
@@ -191,9 +195,9 @@ public class SqliteSessionStore implements SessionStore {
                     expired.add(new DurableSession(
                             rs.getString("token"),
                             rs.getString("resource_id"),
-                            splitSet(rs.getString("rooms")),
-                            splitSet(rs.getString("broadcasters")),
-                            splitMap(rs.getString("metadata")),
+                            fromJsonSet(rs.getString("rooms")),
+                            fromJsonSet(rs.getString("broadcasters")),
+                            fromJsonMap(rs.getString("metadata")),
                             Instant.ofEpochMilli(rs.getLong("created_at")),
                             Instant.ofEpochMilli(rs.getLong("last_seen"))
                     ));
@@ -217,7 +221,7 @@ public class SqliteSessionStore implements SessionStore {
     }
 
     @Override
-    public void close() {
+    public synchronized void close() {
         try {
             if (connection != null && !connection.isClosed()) {
                 connection.close();
@@ -228,39 +232,38 @@ public class SqliteSessionStore implements SessionStore {
         }
     }
 
-    // --- Serialization helpers ---
+    // --- JSON serialization ---
 
-    private static String joinSet(Set<String> set) {
-        return set.isEmpty() ? "" : String.join(SEPARATOR, set);
+    private String toJson(Object value) {
+        try {
+            return mapper.writeValueAsString(value);
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to serialize value", e);
+            return "[]";
+        }
     }
 
-    private static Set<String> splitSet(String value) {
-        if (value == null || value.isEmpty()) {
+    private Set<String> fromJsonSet(String json) {
+        if (json == null || json.isEmpty()) {
             return Set.of();
         }
-        return new LinkedHashSet<>(Arrays.asList(value.split(SEPARATOR)));
-    }
-
-    private static String joinMap(Map<String, String> map) {
-        if (map.isEmpty()) {
-            return "";
+        try {
+            return mapper.readValue(json, SET_TYPE);
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to deserialize set", e);
+            return Set.of();
         }
-        return map.entrySet().stream()
-                .map(e -> e.getKey() + "=" + e.getValue())
-                .collect(Collectors.joining(SEPARATOR));
     }
 
-    private static Map<String, String> splitMap(String value) {
-        if (value == null || value.isEmpty()) {
+    private Map<String, String> fromJsonMap(String json) {
+        if (json == null || json.isEmpty()) {
             return Map.of();
         }
-        var map = new LinkedHashMap<String, String>();
-        for (var entry : value.split(SEPARATOR)) {
-            var parts = entry.split("=", 2);
-            if (parts.length == 2) {
-                map.put(parts[0], parts[1]);
-            }
+        try {
+            return mapper.readValue(json, MAP_TYPE);
+        } catch (JsonProcessingException e) {
+            logger.error("Failed to deserialize map", e);
+            return Map.of();
         }
-        return map;
     }
 }

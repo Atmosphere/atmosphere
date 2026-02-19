@@ -241,6 +241,14 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
     public void destroy() {
         if (scheduler != null) {
             scheduler.shutdown();
+            try {
+                if (!scheduler.awaitTermination(5, TimeUnit.SECONDS)) {
+                    scheduler.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                scheduler.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
         }
         store.close();
     }
