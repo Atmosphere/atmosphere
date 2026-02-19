@@ -57,7 +57,8 @@ public class KafkaClusteringTest {
         }
 
         kafka = new org.testcontainers.kafka.KafkaContainer(
-                org.testcontainers.utility.DockerImageName.parse("confluentinc/cp-kafka:7.7.1"));
+                org.testcontainers.utility.DockerImageName.parse("confluentinc/cp-kafka:7.7.1")
+                        .asCompatibleSubstituteFor("apache/kafka"));
         kafka.start();
 
         var bootstrapServers = kafka.getBootstrapServers();
