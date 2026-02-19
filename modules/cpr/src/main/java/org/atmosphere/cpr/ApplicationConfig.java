@@ -1013,6 +1013,34 @@ public interface ApplicationConfig {
      */
     String DISABLE_DNS_LOOKUPS = "org.atmosphere.cpr.disableDnsLookups";
 
+    // ---- Rate limiting ----
+
+    /**
+     * Maximum number of inbound messages per client within the rate limit window.
+     * Used by {@link org.atmosphere.interceptor.RateLimitingInterceptor}.
+     * <p/>
+     * Default: 100<br>
+     * Value: org.atmosphere.rateLimit.maxMessages
+     */
+    String RATE_LIMIT_MAX_MESSAGES = "org.atmosphere.rateLimit.maxMessages";
+    /**
+     * Rate limit window duration in seconds.
+     * Used by {@link org.atmosphere.interceptor.RateLimitingInterceptor}.
+     * <p/>
+     * Default: 60<br>
+     * Value: org.atmosphere.rateLimit.windowSeconds
+     */
+    String RATE_LIMIT_WINDOW_SECONDS = "org.atmosphere.rateLimit.windowSeconds";
+    /**
+     * Policy when rate limit is exceeded: {@code drop} (silently drop the message)
+     * or {@code disconnect} (close the client connection).
+     * Used by {@link org.atmosphere.interceptor.RateLimitingInterceptor}.
+     * <p/>
+     * Default: drop<br>
+     * Value: org.atmosphere.rateLimit.policy
+     */
+    String RATE_LIMIT_POLICY = "org.atmosphere.rateLimit.policy";
+
     // ---- Redis clustering ----
 
     /**
