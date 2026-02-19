@@ -89,8 +89,10 @@ public final class PathTemplate {
                 variableNames.add(name);
                 regex.append('(').append(varRegex).append(')');
 
-                // Count groups in this variable's regex to handle nested groups
-                int gc = Pattern.compile(varRegex).matcher("").groupCount() + 1;
+                // Count groups in this variable's regex to handle nested groups.
+                // We parse the string directly instead of Pattern.compile() to avoid
+                // compiling an unvalidated regex fragment before the full pattern is built.
+                int gc = countGroups(varRegex) + 1;
                 groupCounts.add(gc);
 
                 i = close + 1;
@@ -164,6 +166,23 @@ public final class PathTemplate {
         }
         throw new IllegalArgumentException(
                 "Unclosed '{' at position " + openPos + " in template: " + s);
+    }
+
+    /**
+     * Count the number of capturing groups in a regex string by scanning for
+     * unescaped '(' that are NOT followed by '?' (which would be non-capturing).
+     */
+    private static int countGroups(String regex) {
+        int count = 0;
+        for (int i = 0; i < regex.length(); i++) {
+            char c = regex.charAt(i);
+            if (c == '\\') {
+                i++; // skip escaped character
+            } else if (c == '(' && (i + 1 >= regex.length() || regex.charAt(i + 1) != '?')) {
+                count++;
+            }
+        }
+        return count;
     }
 
     private static int[] buildGroupIndexes(List<Integer> groupCounts) {

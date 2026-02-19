@@ -38,16 +38,7 @@
                 <configuration>
                     <instructions>
                         <Import-Package>
-                            org.apache.catalina*;resolution:=optional,
-                            org.apache.tomcat*;resolution:=optional,
-                            org.apache.coyote*;resolution:=optional,
-                            org.eclipse.jetty.websocket*;resolution:=optional,
-                            org.eclipse.jetty*;resolution:=optional,
-                            org.jboss.servlet*;resolution:=optional,
                             org.atmosphere.inject*;resolution:=optional,
-                            org.atmosphere.jboss*;resolution:=optional,
-                            org.apache.shiro*;resolution:=optional,
-                            org.jboss.vfs*;resolution:=optional,
                             jakarta.servlet*;version="${servlet-version-range}",
                             jakarta.websocket*;resolution:=optional,
                             jakarta.enterprise*;resolution:=optional,
@@ -58,22 +49,19 @@
                             *,
                         </Import-Package>
                         <Export-Package>
+                            org.atmosphere.annotation*,
                             org.atmosphere.cache*,
                             org.atmosphere.client*,
                             org.atmosphere.config*,
-                            org.atmosphere.config.managed*,
-                            org.atmosphere.config.service*,
                             org.atmosphere.container*,
                             org.atmosphere.cpr*,
                             org.atmosphere.inject*,
-                            org.atmosphere.inject.annotation*,
                             org.atmosphere.handler*,
                             org.atmosphere.interceptor*,
+                            org.atmosphere.lifecycle*,
                             org.atmosphere.pool*,
                             org.atmosphere.util*,
                             org.atmosphere.websocket*,
-                            org.atmosphere.lifecycle*,
-                            org.atmosphere.websocket.protocol*,
                         </Export-Package>
                         <Require-Capability>
                             osgi.extender;filter:="(osgi.extender=osgi.serviceloader.processor)",
