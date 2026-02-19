@@ -431,7 +431,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
 
     @Override
     public Collection<String> getHeaders(String name) {
-        ArrayList<String> s = new ArrayList<>();
+        var s = new ArrayList<String>();
         String h;
         if (name.equalsIgnoreCase("content-type")) {
             h = headers.get("Content-Type");
@@ -566,7 +566,7 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
     }
 
     private String constructStatusAndHeaders() {
-        StringBuilder b = new StringBuilder("HTTP/1.1")
+        var b = new StringBuilder("HTTP/1.1")
                 .append(" ")
                 .append(status)
                 .append(" ")

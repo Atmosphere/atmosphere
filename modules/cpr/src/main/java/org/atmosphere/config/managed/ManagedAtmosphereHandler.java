@@ -273,7 +273,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected List<MethodInfo> populateMessage(Object c) {
-        ArrayList<MethodInfo> methods = new ArrayList<>();
+        var methods = new ArrayList<MethodInfo>();
         for (Method m : c.getClass().getMethods()) {
             if (m.isAnnotationPresent(Message.class)) {
                 methods.add(new MethodInfo(m));
@@ -297,7 +297,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private void populateEncoders() {
         for (MethodInfo m : onRuntimeMethod) {
-            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<>();
+            var l = new CopyOnWriteArrayList<Encoder<?, ?>>();
             for (Class<? extends Encoder<?, ?>> s : m.method.getAnnotation(Message.class).encoders()) {
                 try {
                     l.add(config.framework().newClassInstance(Encoder.class, s));
@@ -309,7 +309,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
 
         if (onReadyMethod != null) {
-            List<Encoder<?, ?>> l = new CopyOnWriteArrayList<>();
+            var l = new CopyOnWriteArrayList<Encoder<?, ?>>();
             for (Class<? extends Encoder<?, ?>> s : onReadyMethod.getAnnotation(Ready.class).encoders()) {
                 try {
                     l.add(config.framework().newClassInstance(Encoder.class, s));
@@ -323,7 +323,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
 
     private void populateDecoders() {
         for (MethodInfo m : onRuntimeMethod) {
-            List<Decoder<?, ?>> l = new CopyOnWriteArrayList<>();
+            var l = new CopyOnWriteArrayList<Decoder<?, ?>>();
             for (Class<? extends Decoder<?, ?>> s : m.method.getAnnotation(Message.class).decoders()) {
                 try {
                     l.add(config.framework().newClassInstance(Decoder.class, s));

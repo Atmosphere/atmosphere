@@ -172,7 +172,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     }
 
     private String toQs() {
-        StringBuilder q = new StringBuilder();
+        var q = new StringBuilder();
         for (Map.Entry<String, String[]> e : b.queryStrings.entrySet()) {
             for (String k : e.getValue()) {
                 q.append(e.getKey()).append("=").append(k).append("&");
@@ -235,7 +235,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
     @Override
     public Enumeration<String> getHeaders(String name) {
 
-        ArrayList<String> list = new ArrayList<>();
+        var list = new ArrayList<String>();
         // Never override the parent Request
         if (!name.equalsIgnoreCase("content-type")) {
             Enumeration<String> e = b.request.getHeaders(name);
@@ -272,7 +272,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public Enumeration<String> getHeaderNames() {
-        Set<String> list = new HashSet<>();
+        var list = new HashSet<String>();
         list.addAll(b.headers.keySet());
 
         list.addAll(Collections.list(b.request.getHeaderNames()));
@@ -496,9 +496,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         if (qs == null) return this;
 
         if (!qs.isEmpty()) {
-            QueryStringDecoder decoder = new QueryStringDecoder(getRequestURI() + "?" + qs);
+            var decoder = new QueryStringDecoder(getRequestURI() + "?" + qs);
             Map<String, List<String>> m = decoder.getParameters();
-            Map<String, String[]> newM = new HashMap<>();
+            var newM = new HashMap<String, String[]>();
             for (Map.Entry<String, List<String>> q : m.entrySet()) {
                 newM.put(q.getKey(), q.getValue().toArray(new String[0]));
             }
@@ -915,7 +915,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
 
     @Override
     public Enumeration<String> getAttributeNames() {
-        Set<String> l = new HashSet<>(b.localAttributes.unmodifiableMap().keySet());
+        var l = new HashSet<String>(b.localAttributes.unmodifiableMap().keySet());
 
         if (isNotNoOps()) {
             b.requestLock.lock();
@@ -1464,7 +1464,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             return atmosphereRequestImpl;
         }
 
-        Builder b = new Builder();
+        var b = new Builder();
         Enumeration<String> e = request.getAttributeNames();
         String s;
         while (e.hasMoreElements()) {

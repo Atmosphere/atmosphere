@@ -229,7 +229,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
             if (webSocket.resource() != null) {
                 final Action action = ((AtmosphereResourceImpl) webSocket.resource()).action();
                 if (action.timeout() != -1 && !framework.getAsyncSupport().getContainerName().contains("Netty")) {
-                    final AtomicReference<Future<?>> f = new AtomicReference<>();
+                    final var f = new AtomicReference<Future<?>>();
                     f.set(scheduler.scheduleAtFixedRate(() -> {
                         if (System.currentTimeMillis() - webSocket.lastWriteTimeStampInMilliseconds() > action.timeout()) {
                             asynchronousProcessor.endRequest(((AtmosphereResourceImpl) webSocket.resource()), false);
@@ -766,7 +766,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
     }
 
     public static Map<String, String> configureHeader(AtmosphereRequest request) {
-        Map<String, String> headers = new HashMap<>();
+        var headers = new HashMap<String, String>();
 
         Enumeration<String> e = request.getParameterNames();
         String s;

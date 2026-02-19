@@ -430,7 +430,7 @@ public class BroadcasterConfig {
             object = newO;
         }
 
-        BroadcastAction transformed = new BroadcastAction(object);
+        var transformed = new BroadcastAction(object);
         for (BroadcastFilter mf : filters) {
             filterLock.lock();
             try {
@@ -464,7 +464,7 @@ public class BroadcasterConfig {
             message = newO;
         }
 
-        BroadcastAction transformed = new BroadcastAction(message);
+        var transformed = new BroadcastAction(message);
         for (PerRequestBroadcastFilter mf : perRequestFilters) {
             filterLock.lock();
             try {
@@ -489,7 +489,7 @@ public class BroadcasterConfig {
      * @return the new list of objects.
      */
     public List<Object> applyFilters(AtmosphereResource r, List<Object> cacheMessages) {
-        LinkedList<Object> filteredMessage = new LinkedList<>();
+        var filteredMessage = new LinkedList<Object>();
         BroadcastFilter.BroadcastAction a;
         for (Object o : cacheMessages) {
             a = filter(o);

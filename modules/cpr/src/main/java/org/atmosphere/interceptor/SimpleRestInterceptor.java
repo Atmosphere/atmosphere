@@ -260,7 +260,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
 
             AtmosphereRequest.Builder b = new AtmosphereRequestImpl.Builder();
             b.method(method != null ? method : "GET").pathInfo(path != null ? path: "/");
-            Map<String, String> headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+            var headers = new TreeMap<String, String>(String.CASE_INSENSITIVE_ORDER);
             // put the 'tracking-id#request-id' into the request's headers
             headers.put(X_REQUEST_KEY, String.format("%s#%s", uuid, id));
             if (accept != null) {
@@ -300,10 +300,10 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
             // control response such as heartbeat or plain responses
             return payload;
         }
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        var baos = new ByteArrayOutputStream();
         try {
             // {"id":"<id>", "code": code, ...}<payload>
-            JSONObject jsonpart = new JSONObject();
+            var jsonpart = new JSONObject();
             jsonpart.put("id", id);
             jsonpart.put("code", response.getStatus());
             String ct = response.getContentType();
@@ -355,7 +355,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         return b.length > 0 && (b[0] == (byte)'[' || b[0] == (byte)'{');
     }
     protected static byte[] quote(byte[] b) {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        var baos = new ByteArrayOutputStream();
         baos.write('"');
         for (byte c : b) {
             if (c == '"') {

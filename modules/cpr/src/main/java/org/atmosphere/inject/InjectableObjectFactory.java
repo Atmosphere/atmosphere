@@ -134,9 +134,9 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
         // Give another chance to injection in case we failed at first place. We may still fail if there is a strong
         // dependency between Injectable, e.g one depend on other, or if the Injectable is not defined at the right place
         // in META-INF/services/org/atmosphere/inject.Injectable
-        Set<Field> fields = new HashSet<>();
+        var fields = new HashSet<Field>();
         Object instance = null;
-        final LinkedHashSet<Object> postponedMethodExecution = new LinkedHashSet<>(pushBackInjection);
+        final var postponedMethodExecution = new LinkedHashSet<Object>(pushBackInjection);
         while (!pushBackInjection.isEmpty() & maxTryPerCycle-- > 0) {
             Iterator<Object> t = new LinkedList<>(pushBackInjection).iterator();
             pushBackInjection.clear();
@@ -337,7 +337,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void requestScoped(Object instance, Class<?> defaultType, AtmosphereResource r) throws IllegalAccessException {
-        Set<Field> fields = new HashSet<>();
+        var fields = new HashSet<Field>();
         fields.addAll(getInheritedPrivateFields(defaultType));
 
         for (Field field : fields) {
@@ -365,7 +365,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
 
     @SuppressWarnings({"unchecked", "rawtypes"})
     public void requestScoped(Object instance, Class<?> defaultType) throws IllegalAccessException {
-        Set<Field> fields = new HashSet<>();
+        var fields = new HashSet<Field>();
         fields.addAll(getInheritedPrivateFields(defaultType));
 
         for (Field field : fields) {
@@ -392,7 +392,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
     }
 
     public boolean needRequestScoped(Class<?> defaultType) throws IllegalAccessException {
-        Set<Field> fields = new HashSet<>();
+        var fields = new HashSet<Field>();
         fields.addAll(getInheritedPrivateFields(defaultType));
 
         for (Field field : fields) {
