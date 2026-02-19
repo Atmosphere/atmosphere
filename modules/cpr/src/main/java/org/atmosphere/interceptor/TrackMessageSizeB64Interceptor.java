@@ -55,7 +55,7 @@ public class TrackMessageSizeB64Interceptor extends AtmosphereInterceptorAdapter
         if (s != null) {
             excludedContentTypes.addAll(Arrays.asList(s.split(",")));
         }
-        heartbeatInterceptor = config.framework().interceptor(HeartbeatInterceptor.class);
+        heartbeatInterceptor = config.framework().findInterceptor(HeartbeatInterceptor.class).orElse(null);
     }
 
     /**

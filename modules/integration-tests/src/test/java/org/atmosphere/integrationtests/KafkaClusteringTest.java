@@ -44,7 +44,7 @@ public class KafkaClusteringTest {
 
     private static final boolean DOCKER_AVAILABLE = isDockerAvailable();
 
-    private org.testcontainers.containers.KafkaContainer kafka;
+    private org.testcontainers.kafka.KafkaContainer kafka;
     private EmbeddedAtmosphereServer nodeA;
     private EmbeddedAtmosphereServer nodeB;
     private HttpClient httpClient;
@@ -55,7 +55,7 @@ public class KafkaClusteringTest {
             return;
         }
 
-        kafka = new org.testcontainers.containers.KafkaContainer(
+        kafka = new org.testcontainers.kafka.KafkaContainer(
                 org.testcontainers.utility.DockerImageName.parse("confluentinc/cp-kafka:7.7.1"));
         kafka.start();
 

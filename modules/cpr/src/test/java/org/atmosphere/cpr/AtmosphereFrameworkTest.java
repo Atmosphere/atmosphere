@@ -285,6 +285,7 @@ public class AtmosphereFrameworkTest {
             return null;
         }
 
+        @SuppressWarnings("deprecation")
         @Override
         public <T extends Broadcaster> T lookup(Object id) {
             return null;

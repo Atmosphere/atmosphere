@@ -119,7 +119,7 @@ public class WebSocketProcessorTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        framework.getBroadcasterFactory().lookup("/*").broadcast("yoBroadcast").get();
+        framework.getBroadcasterFactory().findBroadcaster("/*").orElseThrow().broadcast("yoBroadcast").get();
 
         assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
 
@@ -188,7 +188,7 @@ public class WebSocketProcessorTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        framework.getBroadcasterFactory().lookup("/*").broadcast("yoBroadcast").get();
+        framework.getBroadcasterFactory().findBroadcaster("/*").orElseThrow().broadcast("yoBroadcast").get();
 
         assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcastyoBroadcast");
 
@@ -404,7 +404,7 @@ public class WebSocketProcessorTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().destroyable(false).body("yoComet").pathInfo("/a").build();
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
-        framework.getBroadcasterFactory().lookup("/*").broadcast("yoBroadcast").get();
+        framework.getBroadcasterFactory().findBroadcaster("/*").orElseThrow().broadcast("yoBroadcast").get();
 
         assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
 
