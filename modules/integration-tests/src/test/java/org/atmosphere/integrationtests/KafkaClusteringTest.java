@@ -49,6 +49,7 @@ public class KafkaClusteringTest {
     private EmbeddedAtmosphereServer nodeB;
     private HttpClient httpClient;
 
+    @SuppressWarnings("resource") // closed in tearDown()
     @BeforeClass
     public void setUp() throws Exception {
         if (!DOCKER_AVAILABLE) {

@@ -49,6 +49,7 @@ public class RedisClusteringTest {
     private EmbeddedAtmosphereServer nodeB;
     private HttpClient httpClient;
 
+    @SuppressWarnings("resource") // closed in tearDown()
     @BeforeClass
     public void setUp() throws Exception {
         if (!DOCKER_AVAILABLE) {
