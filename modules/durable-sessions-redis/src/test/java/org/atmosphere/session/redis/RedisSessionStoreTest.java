@@ -26,7 +26,9 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 
+import static org.awaitility.Awaitility.await;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
@@ -146,7 +148,7 @@ public class RedisSessionStoreTest {
     // --- touch (Lua script) ---
 
     @Test
-    public void testTouch() throws Exception {
+    public void testTouch() {
         skipIfNoDocker();
 
         var session = DurableSession.create("tok-1", "res-1");
@@ -154,14 +156,15 @@ public class RedisSessionStoreTest {
 
         var originalLastSeen = store.restore("tok-1").get().lastSeen();
 
-        // Small sleep to ensure Instant.now() in touch() produces a later timestamp
-        Thread.sleep(50);
+        // Await until touch() produces a strictly later timestamp
         store.touch("tok-1");
-
-        var updatedLastSeen = store.restore("tok-1").get().lastSeen();
-        assertFalse(updatedLastSeen.isBefore(originalLastSeen),
-                "lastSeen should be updated after touch; original=" + originalLastSeen
-                        + ", updated=" + updatedLastSeen);
+        await().atMost(2, TimeUnit.SECONDS).untilAsserted(() -> {
+            store.touch("tok-1");
+            var updatedLastSeen = store.restore("tok-1").get().lastSeen();
+            assertFalse(updatedLastSeen.isBefore(originalLastSeen),
+                    "lastSeen should be updated after touch; original=" + originalLastSeen
+                            + ", updated=" + updatedLastSeen);
+        });
     }
 
     @Test
@@ -195,7 +198,7 @@ public class RedisSessionStoreTest {
     // --- expiry / removeExpired ---
 
     @Test(timeOut = 15_000)
-    public void testRemoveExpiredCleansUpIndex() throws Exception {
+    public void testRemoveExpiredCleansUpIndex() {
         skipIfNoDocker();
 
         // Use a separate store with a very short TTL so Redis auto-expires the key
@@ -206,10 +209,9 @@ public class RedisSessionStoreTest {
             // Verify it exists
             assertTrue(shortTtlStore.restore("tok-expiry").isPresent());
 
-            // Poll until Redis TTL expires the key (avoids flaky fixed sleep in CI)
-            while (shortTtlStore.restore("tok-expiry").isPresent()) {
-                Thread.sleep(500);
-            }
+            // Wait for Redis TTL to expire the key
+            await().atMost(10, TimeUnit.SECONDS)
+                    .until(() -> shortTtlStore.restore("tok-expiry").isEmpty());
 
             // removeExpired should clean up the index and return stub sessions
             var expired = shortTtlStore.removeExpired(Duration.ofSeconds(1));
