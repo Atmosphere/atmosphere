@@ -36,7 +36,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author Jeanfrancois Arcand
  */
-public class ManagedServiceInterceptor extends ServiceInterceptor {
+public final class ManagedServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
     private final ReentrantLock handlersLock = new ReentrantLock();

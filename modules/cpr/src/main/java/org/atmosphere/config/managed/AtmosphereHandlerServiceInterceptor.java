@@ -34,7 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
  *
  * @author Jeanfrancois Arcand
  */
-public class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
+public final class AtmosphereHandlerServiceInterceptor extends ServiceInterceptor {
 
     private final static Logger logger = LoggerFactory.getLogger(AtmosphereHandlerServiceInterceptor.class);
     private final ReentrantLock handlersLock = new ReentrantLock();

@@ -30,7 +30,8 @@ import org.slf4j.LoggerFactory;
 
 import jakarta.inject.Named;
 
-public abstract class ServiceInterceptor extends AtmosphereInterceptorAdapter {
+public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAdapter
+        permits AtmosphereHandlerServiceInterceptor, ManagedServiceInterceptor {
     private final Logger logger = LoggerFactory.getLogger(ServiceInterceptor.class);
 
     protected AtmosphereConfig config;
