@@ -78,7 +78,7 @@ public class AtmosphereResourceFactoryTest {
 
         b2.addAtmosphereResource(r.suspend());
 
-        assertNotNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
+        assertTrue(framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid()).isPresent());
 
     }
 
@@ -90,7 +90,7 @@ public class AtmosphereResourceFactoryTest {
         AtmosphereResource r = framework.getAtmosphereConfig().resourcesFactory().create(framework.getAtmosphereConfig(), framework.getBroadcasterFactory().lookup("1"), AtmosphereResponseImpl.newInstance().request(AtmosphereRequestImpl.newInstance()),
                 mock(AsyncSupport.class), mock(AtmosphereHandler.class));
         assertNotNull(r);
-        assertNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
+        assertFalse(framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid()).isPresent());
     }
 
     @Test
@@ -104,9 +104,9 @@ public class AtmosphereResourceFactoryTest {
         assertNotNull(r);
         b2.addAtmosphereResource(r.suspend());
 
-        assertNotNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
+        assertTrue(framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid()).isPresent());
         assertEquals(framework.getAtmosphereConfig().resourcesFactory().remove(r.uuid()), r);
-        assertNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
+        assertFalse(framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid()).isPresent());
     }
 
     @Test
@@ -120,9 +120,9 @@ public class AtmosphereResourceFactoryTest {
 
         b2.addAtmosphereResource(r);
 
-        assertNotNull(framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()));
-        int size = framework.getAtmosphereConfig().resourcesFactory().find(r.uuid()).broadcasters().size();
-        assertEquals(2, size);
+        var found = framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid());
+        assertTrue(found.isPresent());
+        assertEquals(2, found.get().broadcasters().size());
 
     }
 
