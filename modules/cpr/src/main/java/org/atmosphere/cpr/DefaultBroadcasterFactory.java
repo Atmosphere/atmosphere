@@ -188,14 +188,14 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
 
     @SuppressWarnings("unchecked")
     @Override
-    public Broadcaster lookup(Object id) {
-        return lookup(clazz, id, false);
+    public <T extends Broadcaster> T lookup(Object id) {
+        return (T) lookup(clazz, id, false);
     }
 
     @SuppressWarnings("unchecked")
     @Override
-    public Broadcaster lookup(Object id, boolean createIfNull) {
-        return lookup(clazz, id, createIfNull);
+    public <T extends Broadcaster> T lookup(Object id, boolean createIfNull) {
+        return (T) lookup(clazz, id, createIfNull);
     }
 
     @Override
