@@ -12,8 +12,8 @@ Modern TypeScript client for the Atmosphere Framework - WebSocket, SSE, and Come
 🚀 **Multiple Transports** - WebSocket, SSE, Long-polling, Streaming  
 🔄 **Auto-reconnection** - Intelligent reconnection with exponential backoff  
 📦 **Tree-shakeable** - Import only what you need  
-🎯 **Zero Dependencies** - Lightweight and fast  
-🔌 **Promise-based API** - Modern async/await support  
+🎯 **Zero Runtime Dependencies** - React, Vue, and Svelte are optional peer dependencies
+🔌 **Promise-based API** - Modern async/await support
 🧪 **Well Tested** - Comprehensive test coverage
 
 ## Installation
@@ -257,6 +257,412 @@ try {
   console.error('Failed to connect:', error);
 }
 ```
+
+## Framework Hooks
+
+atmosphere.js ships with first-class integrations for React, Vue, and Svelte. Each framework
+integration is a separate entry point that can be imported independently and is fully
+tree-shakeable.
+
+### React
+
+Import from `atmosphere.js/react`. All hooks require an `<AtmosphereProvider>` ancestor.
+
+#### Setup
+
+```tsx
+import { AtmosphereProvider } from 'atmosphere.js/react';
+
+function App() {
+  return (
+    <AtmosphereProvider config={{ logLevel: 'info' }}>
+      <Chat />
+    </AtmosphereProvider>
+  );
+}
+```
+
+#### `useAtmosphere<T>` -- subscribe to an endpoint
+
+```tsx
+import { useAtmosphere } from 'atmosphere.js/react';
+
+function Chat() {
+  const { data, state, push } = useAtmosphere<ChatMessage>({
+    request: { url: '/chat', transport: 'websocket' },
+  });
+
+  return (
+    <div>
+      <p>Status: {state}</p>
+      <p>Last message: {JSON.stringify(data)}</p>
+      <button onClick={() => push({ text: 'Hello!' })}>Send</button>
+    </div>
+  );
+}
+```
+
+Returns `{ subscription, state, data, error, push }`.
+
+#### `useRoom<T>` -- join a room with presence
+
+```tsx
+import { useRoom } from 'atmosphere.js/react';
+
+function Lobby() {
+  const { joined, members, messages, broadcast, sendTo } = useRoom<ChatMessage>({
+    request: { url: '/atmosphere/room', transport: 'websocket' },
+    room: 'lobby',
+    member: { id: 'user-1' },
+  });
+
+  return (
+    <div>
+      <p>Members: {members.map(m => m.id).join(', ')}</p>
+      <button onClick={() => broadcast({ text: 'Hello room!' })}>Broadcast</button>
+      <button onClick={() => sendTo('user-2', { text: 'Hey' })}>DM user-2</button>
+    </div>
+  );
+}
+```
+
+Returns `{ joined, members, messages, broadcast, sendTo, error }`.
+
+#### `usePresence` -- lightweight presence tracking
+
+```tsx
+import { usePresence } from 'atmosphere.js/react';
+
+function OnlineUsers() {
+  const { members, count, isOnline } = usePresence({
+    request: { url: '/atmosphere/room', transport: 'websocket' },
+    room: 'lobby',
+    member: { id: currentUser.id },
+  });
+
+  return <p>{count} users online. Alice is {isOnline('alice') ? 'here' : 'away'}.</p>;
+}
+```
+
+Returns `{ joined, members, count, isOnline }`.
+
+#### `useStreaming` -- AI/LLM token streaming
+
+```tsx
+import { useStreaming } from 'atmosphere.js/react';
+
+function AiChat() {
+  const { fullText, isStreaming, send, reset, progress, metadata, error } = useStreaming({
+    request: { url: '/ai/chat', transport: 'websocket' },
+  });
+
+  return (
+    <div>
+      <button onClick={() => send('What is Atmosphere?')}>Ask</button>
+      <button onClick={reset}>Clear</button>
+      <p>{fullText}</p>
+      {isStreaming && <span>{progress ?? 'Generating...'}</span>}
+    </div>
+  );
+}
+```
+
+Returns `{ fullText, tokens, isStreaming, progress, metadata, error, send, reset, close }`.
+
+### Vue
+
+Import from `atmosphere.js/vue`. Vue composables do not require a provider -- they create
+or accept an Atmosphere instance directly.
+
+#### `useAtmosphere<T>`
+
+```vue
+<script setup lang="ts">
+import { useAtmosphere } from 'atmosphere.js/vue';
+
+const { data, state, push } = useAtmosphere<ChatMessage>({
+  url: '/chat',
+  transport: 'websocket',
+});
+</script>
+
+<template>
+  <p>Status: {{ state }}</p>
+  <p>{{ data }}</p>
+  <button @click="push({ text: 'Hello!' })">Send</button>
+</template>
+```
+
+#### `useRoom<T>`
+
+```vue
+<script setup lang="ts">
+import { useRoom } from 'atmosphere.js/vue';
+
+const { members, messages, broadcast, sendTo } = useRoom<ChatMessage>(
+  { url: '/atmosphere/room', transport: 'websocket' },
+  'lobby',
+  { id: 'user-1' },
+);
+</script>
+```
+
+#### `usePresence`
+
+```vue
+<script setup lang="ts">
+import { usePresence } from 'atmosphere.js/vue';
+
+const { members, count, isOnline } = usePresence(
+  { url: '/atmosphere/room', transport: 'websocket' },
+  'lobby',
+  { id: currentUser.id },
+);
+</script>
+```
+
+#### `useStreaming`
+
+```vue
+<script setup lang="ts">
+import { useStreaming } from 'atmosphere.js/vue';
+
+const { fullText, isStreaming, send, reset } = useStreaming({
+  url: '/ai/chat',
+  transport: 'websocket',
+});
+</script>
+
+<template>
+  <button @click="send('What is Atmosphere?')">Ask</button>
+  <p>{{ fullText }}</p>
+  <span v-if="isStreaming">Generating...</span>
+</template>
+```
+
+### Svelte
+
+Import from `atmosphere.js/svelte`. Svelte integrations use the store pattern -- each
+factory returns a Svelte-compatible readable store plus action functions.
+
+#### `createAtmosphereStore<T>`
+
+```svelte
+<script>
+  import { createAtmosphereStore } from 'atmosphere.js/svelte';
+
+  const { store: chat, push } = createAtmosphereStore({ url: '/chat', transport: 'websocket' });
+  // $chat.state, $chat.data, $chat.error
+</script>
+
+<p>Status: {$chat.state}</p>
+<p>{JSON.stringify($chat.data)}</p>
+<button on:click={() => push({ text: 'Hello!' })}>Send</button>
+```
+
+#### `createRoomStore<T>`
+
+```svelte
+<script>
+  import { createRoomStore } from 'atmosphere.js/svelte';
+
+  const { store: lobby, broadcast, sendTo } = createRoomStore(
+    { url: '/atmosphere/room', transport: 'websocket' },
+    'lobby',
+    { id: 'user-1' },
+  );
+  // $lobby.joined, $lobby.members, $lobby.messages
+</script>
+
+<p>Members: {$lobby.members.map(m => m.id).join(', ')}</p>
+<button on:click={() => broadcast({ text: 'Hello!' })}>Broadcast</button>
+```
+
+#### `createPresenceStore`
+
+```svelte
+<script>
+  import { createPresenceStore } from 'atmosphere.js/svelte';
+
+  const presence = createPresenceStore(
+    { url: '/atmosphere/room', transport: 'websocket' },
+    'lobby',
+    { id: 'user-1' },
+  );
+  // $presence.joined, $presence.members, $presence.count
+</script>
+
+<p>{$presence.count} users online</p>
+```
+
+#### `createStreamingStore`
+
+```svelte
+<script>
+  import { createStreamingStore } from 'atmosphere.js/svelte';
+
+  const { store, send, reset } = createStreamingStore({
+    url: '/ai/chat',
+    transport: 'websocket',
+  });
+  // $store.fullText, $store.isStreaming, $store.tokens, $store.progress
+</script>
+
+<button on:click={() => send('What is Atmosphere?')}>Ask</button>
+<p>{$store.fullText}</p>
+{#if $store.isStreaming}<span>Generating...</span>{/if}
+```
+
+---
+
+## Rooms and Presence
+
+The room system provides a high-level API for joining named rooms, broadcasting messages,
+sending direct messages, and tracking who is online. It works with the server-side
+`RoomManager` and `RoomInterceptor`.
+
+### Framework-agnostic usage
+
+```typescript
+import { Atmosphere } from 'atmosphere.js';
+import { AtmosphereRooms } from 'atmosphere.js'; // or from the internal module
+
+const atmosphere = new Atmosphere();
+const rooms = new AtmosphereRooms(atmosphere, {
+  url: 'ws://localhost:8080/atmosphere/room',
+  transport: 'websocket',
+});
+
+// Join a room
+const lobby = await rooms.join('lobby', { id: 'user-1' }, {
+  joined: (roomName, memberList) => {
+    console.log(`Joined ${roomName}, members:`, memberList);
+  },
+  message: (data, sender) => {
+    console.log(`${sender.id}: ${data}`);
+  },
+  join: (event) => {
+    console.log(`${event.member.id} joined at ${event.timestamp}`);
+  },
+  leave: (event) => {
+    console.log(`${event.member.id} left`);
+  },
+  error: (err) => {
+    console.error('Room error:', err);
+  },
+});
+
+// Broadcast to all members
+lobby.broadcast({ text: 'Hello everyone!' });
+
+// Direct message to a specific member
+lobby.sendTo('user-2', { text: 'Private message' });
+
+// Check current members
+console.log('Members:', [...lobby.members.values()]);
+
+// Leave the room
+lobby.leave();
+
+// Or leave all rooms and close the connection
+await rooms.leaveAll();
+```
+
+### RoomMember
+
+Each member has a required `id` field and an optional `info` record for metadata:
+
+```typescript
+interface RoomMember {
+  readonly id: string;
+  readonly info?: Record<string, unknown>;
+}
+```
+
+### Presence events
+
+Presence events are delivered as `PresenceEvent` objects:
+
+```typescript
+interface PresenceEvent {
+  readonly type: 'join' | 'leave';
+  readonly room: string;
+  readonly member: RoomMember;
+  readonly timestamp: number;
+}
+```
+
+For framework-specific usage, see `useRoom` / `usePresence` (React), `useRoom` / `usePresence` (Vue), and `createRoomStore` / `createPresenceStore` (Svelte) in the [Framework Hooks](#framework-hooks) section above.
+
+---
+
+## AI Streaming
+
+atmosphere.js includes a streaming decoder and subscription helper for AI/LLM endpoints
+that use the Atmosphere AI streaming wire protocol (server-side `@AiEndpoint` and
+`DefaultStreamingSession`).
+
+### Wire protocol
+
+Each message from the server is a JSON object with `type`, `sessionId`, and `seq` fields:
+
+```json
+{"type": "token",    "data": "Hello",        "sessionId": "abc-123", "seq": 1}
+{"type": "progress", "data": "Thinking...",   "sessionId": "abc-123", "seq": 2}
+{"type": "metadata", "key": "model",  "value": "gpt-4", "sessionId": "abc-123", "seq": 3}
+{"type": "complete", "data": "Done",          "sessionId": "abc-123", "seq": 10}
+{"type": "error",    "data": "Rate limited",  "sessionId": "abc-123", "seq": 11}
+```
+
+Message types: `token`, `progress`, `complete`, `error`, `metadata`.
+
+### `parseStreamingMessage(raw)`
+
+Low-level decoder that parses a raw string into a `StreamingMessage`, or returns `null` if it is not a valid streaming protocol message:
+
+```typescript
+import { parseStreamingMessage } from 'atmosphere.js';
+
+const msg = parseStreamingMessage('{"type":"token","data":"Hi","sessionId":"s1","seq":1}');
+if (msg) {
+  console.log(msg.type, msg.data); // "token" "Hi"
+}
+```
+
+### `subscribeStreaming(atmosphere, request, handlers)`
+
+Framework-agnostic helper that creates a subscription, parses streaming messages
+automatically (with dedup via sequence numbers), and dispatches to handler callbacks:
+
+```typescript
+import { Atmosphere } from 'atmosphere.js';
+import { subscribeStreaming } from 'atmosphere.js';
+
+const atmosphere = new Atmosphere();
+const handle = await subscribeStreaming(atmosphere, {
+  url: '/ai/chat',
+  transport: 'websocket',
+}, {
+  onToken: (token, seq) => process.stdout.write(token),
+  onProgress: (message) => console.log('Progress:', message),
+  onComplete: (summary) => console.log('\nDone!', summary),
+  onError: (error) => console.error('Error:', error),
+  onMetadata: (key, value) => console.log(`${key}: ${value}`),
+});
+
+// Send a prompt to start streaming
+handle.send('Explain virtual threads in Java 21');
+
+// Session ID assigned by the server
+console.log('Session:', handle.sessionId);
+
+// Close when done
+await handle.close();
+```
+
+For framework-specific wrappers, see `useStreaming` (React/Vue) and `createStreamingStore` (Svelte) in the [Framework Hooks](#framework-hooks) section above.
+
+---
 
 ## Browser Compatibility
 

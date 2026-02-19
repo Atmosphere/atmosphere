@@ -1,0 +1,84 @@
+# Atmosphere MCP
+
+MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-driven tools, resources, and prompt templates to AI agents over Streamable HTTP, WebSocket, or SSE transport.
+
+## Maven Coordinates
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-mcp</artifactId>
+    <version>4.0.0-SNAPSHOT</version>
+</dependency>
+```
+
+## Minimal Example
+
+```java
+@McpServer(name = "my-server", path = "/atmosphere/mcp")
+public class MyMcpServer {
+
+    @McpTool(name = "greet", description = "Say hello")
+    public String greet(@McpParam(name = "name", required = true) String name) {
+        return "Hello, " + name + "!";
+    }
+
+    @McpResource(uri = "atmosphere://server/status",
+                 name = "Server Status",
+                 description = "Current server status")
+    public String serverStatus() {
+        return "OK";
+    }
+
+    @McpPrompt(name = "summarize", description = "Summarize a topic")
+    public List<McpMessage> summarize(@McpParam(name = "topic") String topic) {
+        return List.of(
+            McpMessage.system("You are a summarization expert."),
+            McpMessage.user("Summarize: " + topic)
+        );
+    }
+}
+```
+
+## Annotations
+
+| Annotation | Target | Description |
+|-----------|--------|-------------|
+| `@McpServer` | Class | Marks the class as an MCP server and sets the endpoint path |
+| `@McpTool` | Method | Exposes a method as a callable tool (`tools/call`) |
+| `@McpResource` | Method | Exposes a method as a read-only resource (`resources/read`) |
+| `@McpPrompt` | Method | Exposes a method as a prompt template (`prompts/get`) |
+| `@McpParam` | Parameter | Annotates method parameters with name, description, and required flag |
+
+## Supported Transports
+
+| Transport | How to connect |
+|-----------|---------------|
+| Streamable HTTP (recommended) | `POST http://host:port/atmosphere/mcp` |
+| WebSocket | `ws://host:port/atmosphere/mcp` |
+| SSE | `GET http://host:port/atmosphere/mcp` |
+
+Agents get automatic reconnection, heartbeats, and transport fallback from Atmosphere's transport layer.
+
+## Connecting Clients
+
+Works with Claude Desktop, VS Code Copilot, Cursor, and any MCP-compatible agent:
+
+```json
+{
+  "mcpServers": {
+    "my-server": { "url": "http://localhost:8080/atmosphere/mcp" }
+  }
+}
+```
+
+For clients that only support stdio, build the bridge JAR with `mvn package -Pstdio-bridge -DskipTests` and point the client at the resulting `atmosphere-mcp-*-stdio-bridge.jar`.
+
+## Sample
+
+- [Spring Boot MCP Server](../../samples/spring-boot-mcp-server/) -- tools, resources, and prompts with a React frontend
+
+## Requirements
+
+- Java 21+
+- `atmosphere-runtime` (transitive)
