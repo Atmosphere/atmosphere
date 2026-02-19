@@ -75,7 +75,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
 
     public List<Class<? extends AsyncSupport<?>>> detectWebSocketPresent(final boolean useNativeIfPossible, final boolean useServlet30Async) {
 
-        List<Class<? extends AsyncSupport<?>>> result = new ArrayList<>();
+        var result = new ArrayList<Class<? extends AsyncSupport<?>>>();
         if (useServlet30Async && !useNativeIfPossible) {
             if (!suppress356 && testClassExists(JSR356_WEBSOCKET)) {
                 result.add(JSR356AsyncSupport.class);
@@ -205,7 +205,7 @@ public class DefaultAsyncSupportResolver implements AsyncSupportResolver {
      * @return a AsyncSupport instance
      */
     protected AsyncSupport<?> resolveMultipleNativeSupportConflict(final List<Class<? extends AsyncSupport<?>>> available) {
-        final StringBuilder b = new StringBuilder("Found multiple containers, please specify which one to use: ");
+        final var b = new StringBuilder("Found multiple containers, please specify which one to use: ");
         for (Class<? extends AsyncSupport<?>> cs : available) {
             b.append((cs != null) ? cs.getCanonicalName() : "null").append(", ");
         }

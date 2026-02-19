@@ -54,13 +54,13 @@ public class FocusPoint {
     }
 
     public String getContentURI() {
-        StringBuilder contentURIBuffer = new StringBuilder();
+        var contentURIBuffer = new StringBuilder();
         getContentURI(contentURIBuffer, this);
         return contentURIBuffer.toString();
     }
 
     public String getContentTitle() {
-        StringBuilder titleBuffer = new StringBuilder();
+        var titleBuffer = new StringBuilder();
         getContentTitle(titleBuffer, this);
         return titleBuffer.toString();
     }

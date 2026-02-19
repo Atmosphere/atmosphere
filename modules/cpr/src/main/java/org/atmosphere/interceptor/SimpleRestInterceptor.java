@@ -331,7 +331,7 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
     }
 
     protected static boolean isLastResponse(AtmosphereRequest request, AtmosphereResponse response) {
-        return (response instanceof CompletionAware && ((CompletionAware)response).completed())
+        return (response instanceof CompletionAware ca && ca.completed())
                 || Boolean.TRUE != request.getAttribute(ApplicationConfig.RESPONSE_COMPLETION_AWARE);
     }
 

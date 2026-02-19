@@ -144,7 +144,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
             delegate = new BytecodeBasedAnnotationProcessor(handler);
             scanForAtmosphereAnnotation = true;
         } else {
-            Map<Class<? extends Annotation>, Set<Class<?>>> clone = new HashMap<>(annotations);
+            var clone = new HashMap<>(annotations);
             delegate = new ServletContainerInitializerAnnotationProcessor(handler, clone, config.framework());
         }
         logger.info("AnnotationProcessor {} being used", delegate.getClass());
@@ -175,7 +175,7 @@ public class DefaultAnnotationProcessor implements AnnotationProcessor {
 
             String pathLibs =  IOUtils.realPath(f.getServletContext(), f.getLibPath());
             if (pathLibs != null) {
-                File libFolder = new File(pathLibs);
+                var libFolder = new File(pathLibs);
                 File[] jars = libFolder.listFiles((arg0, arg1) -> arg1.endsWith(".jar"));
 
                 if (jars != null) {

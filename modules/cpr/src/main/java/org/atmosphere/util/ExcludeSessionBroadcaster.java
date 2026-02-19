@@ -70,7 +70,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
             throw new IllegalStateException("This Broadcaster has been destroyed and cannot be used");
         }
 
-        Set<AtmosphereResource> sub = new HashSet<>(resources);
+        var sub = new HashSet<>(resources);
         sub.remove(r);
         start();
         Object newMsg = filter(msg);
@@ -78,7 +78,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
             return null;
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg, sub.size());
+        var f = new BroadcasterFuture<>(newMsg, sub.size());
         dispatchMessages(new Deliver(newMsg, sub, f, msg));
         return f;
     }
@@ -123,7 +123,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
             return futureDone(msg);
         }
 
-        Set<AtmosphereResource> subset = new HashSet<>(resources);
+        var subset = new HashSet<>(resources);
         for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
                     sessions.contains(r.getRequest().getSession())) {
@@ -136,7 +136,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
             return futureDone(msg);
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg, subset.size());
+        var f = new BroadcasterFuture<>(newMsg, subset.size());
         dispatchMessages(new Deliver(newMsg, subset, f, msg));
         return f;
     }
@@ -154,7 +154,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
             return futureDone(msg);
         }
 
-        Set<AtmosphereResource> subset = new HashSet<>(resources);
+        var subset = new HashSet<>(resources);
 
         for (AtmosphereResource r : resources) {
             if (!r.getAtmosphereResourceEvent().isCancelled() &&
@@ -169,7 +169,7 @@ public class ExcludeSessionBroadcaster extends DefaultBroadcaster {
             return futureDone(msg);
         }
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg, subset.size());
+        var f = new BroadcasterFuture<>(newMsg, subset.size());
         dispatchMessages(new Deliver(newMsg, subset, f, msg));
         return f;
     }

@@ -85,7 +85,7 @@ public class AnnotationScanningServletContainerInitializer implements ServletCon
 
     @Override
     public void onStartup(final Set<Class<?>> classes, final ServletContext servletContext) {
-        final Map<Class<? extends Annotation>, Set<Class<?>>> classesByAnnotation = new HashMap<>();
+        final var classesByAnnotation = new HashMap<Class<? extends Annotation>, Set<Class<?>>>();
         if (classes != null) {
             for(final Class<?> clazz : classes) {
                 for(Annotation annotation : clazz.getAnnotations()) {

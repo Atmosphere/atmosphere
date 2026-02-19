@@ -78,8 +78,8 @@ public class DefaultMetaBroadcaster implements MetaBroadcaster {
         if (config != null) {
             Collection<Broadcaster> c = config.getBroadcasterFactory().lookupAll();
 
-            final Map<String, String> m = new HashMap<>();
-            List<Broadcaster> l = new ArrayList<>();
+            final var m = new HashMap<String, String>();
+            var l = new ArrayList<Broadcaster>();
             logger.trace("Map {}", path);
             try {
                 var t = new PathTemplate(path);

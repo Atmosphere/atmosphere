@@ -41,7 +41,7 @@ public class DefaultEndpointMapper<U> implements EndpointMapper<U> {
         U handler = handlers.get(path);
 
         if (handler == null) {
-            final Map<String, String> m = new HashMap<>();
+            final var m = new HashMap<String, String>();
             for (Map.Entry<String, U> e : handlers.entrySet()) {
                 try {
                     var t = new PathTemplate(e.getKey());

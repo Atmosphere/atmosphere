@@ -42,14 +42,14 @@ public class StringFilterAggregator implements BroadcastFilter {
     }
 
     public BroadcastAction filter(String broadcasterId, Object originalMessage, Object message) {
-        if (message instanceof String) {
-            bufferedMessage.get().append(message);
+        if (message instanceof String s) {
+            bufferedMessage.get().append(s);
             if (bufferedMessage.get().length() < maxBufferedString) {
-                return new BroadcastAction(ACTION.ABORT, message);
+                return new BroadcastAction(ACTION.ABORT, s);
             } else {
-                message = bufferedMessage.toString();
+                String flushed = bufferedMessage.toString();
                 bufferedMessage.get().delete(0, bufferedMessage.get().length());
-                return new BroadcastAction(ACTION.CONTINUE, message);
+                return new BroadcastAction(ACTION.CONTINUE, flushed);
             }
         } else {
             return new BroadcastAction(message);

@@ -107,7 +107,7 @@ public class IOUtils {
     }
 
     public static StringBuilder readEntirelyAsString(AtmosphereResource r) throws IOException {
-        final StringBuilder stringBuilder = new StringBuilder();
+        final var stringBuilder = new StringBuilder();
 
         boolean readGetBody = r.getAtmosphereConfig().getInitParameter(ApplicationConfig.READ_GET_BODY, false);
         if (!readGetBody && ((AtmosphereResourceImpl) r).getRequest(false).getMethod().equalsIgnoreCase("GET")) {

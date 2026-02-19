@@ -36,7 +36,7 @@ public class XSSHtmlFilter implements BroadcastFilter {
     public BroadcastAction filter(String broadcasterId, Object originalMessage, Object o) {
         if (o instanceof String message) {
 
-            StringBuilder buffer = new StringBuilder(message.length());
+            var buffer = new StringBuilder(message.length());
 
             for (int i = 0; i < message.length(); i++) {
                 char c = message.charAt(i);

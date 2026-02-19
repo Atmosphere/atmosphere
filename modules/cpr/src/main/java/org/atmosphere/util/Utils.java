@@ -256,7 +256,7 @@ public final class Utils {
     }
 
     public static Set<Field> getInheritedPrivateFields(Class<?> type) {
-        Set<Field> result = new HashSet<>();
+        var result = new HashSet<Field>();
 
         Class<?> i = type;
         while (i != null && i != Object.class) {
@@ -272,7 +272,7 @@ public final class Utils {
     }
 
     public static Set<Method> getInheritedPrivateMethod(Class<?> type) {
-        Set<Method> result = new HashSet<>();
+        var result = new HashSet<Method>();
 
         Class<?> i = type;
         while (i != null && i != Object.class) {
@@ -289,13 +289,13 @@ public final class Utils {
 
     public static boolean requestScopedInjection(AtmosphereConfig config, AtmosphereHandler h) {
         AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
-        if (!(injectableFactory instanceof InjectableObjectFactory)) {
+        if (!(injectableFactory instanceof InjectableObjectFactory iof)) {
             return false;
         }
 
         try {
             Object obj = injectWith(h);
-            return obj != null && ((InjectableObjectFactory) config.framework().objectFactory()).needRequestScoped(obj.getClass());
+            return obj != null && iof.needRequestScoped(obj.getClass());
         } catch (Exception e) {
             LOGGER.error("", e);
             return false;
@@ -307,12 +307,12 @@ public final class Utils {
      */
     public static boolean requestScopedInjection(AtmosphereConfig config, Object o) {
         AtmosphereObjectFactory<?> injectableFactory = config.framework().objectFactory();
-        if (!(injectableFactory instanceof InjectableObjectFactory)) {
+        if (!(injectableFactory instanceof InjectableObjectFactory iof)) {
             return false;
         }
 
         try {
-            return ((InjectableObjectFactory) config.framework().objectFactory()).needRequestScoped(o.getClass());
+            return iof.needRequestScoped(o.getClass());
         } catch (Exception var4) {
             LOGGER.error("", var4);
             return false;

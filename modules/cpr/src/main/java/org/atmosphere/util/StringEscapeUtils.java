@@ -17,7 +17,7 @@
 * Modified from original form by Tim Fox
 */
 /*
- * Copyright 2021 Async-IO.org
+ * Copyright 2008-2026 Async-IO.org
  *
  * Licensed under the Apache License, Version 2.0 (the "License"); you may not
  * use this file except in compliance with the License. You may obtain a copy of
@@ -322,7 +322,7 @@ public class StringEscapeUtils {
       return;
     }
     int sz = str.length();
-    StringBuilder unicode = new StringBuilder();
+    var unicode = new StringBuilder();
     boolean hadSlash = false;
     boolean inUnicode = false;
     for (int i = 0; i < sz; i++) {

@@ -310,7 +310,7 @@ public final class IntrospectionUtils {
         if (value.indexOf("$") < 0) {
             return value;
         }
-        StringBuilder sb = new StringBuilder();
+        var sb = new StringBuilder();
         int prev = 0;
         // assert value!=nil
         int pos;
@@ -505,7 +505,7 @@ public final class IntrospectionUtils {
     public static URL[] getClassPath(String dir, String cpath,
                                      String cpathProp, boolean addTools) throws IOException,
             MalformedURLException {
-        List<URL> jarsV = new ArrayList<>();
+        var jarsV = new ArrayList<URL>();
         if (dir != null) {
             // Add dir/classes first, if it exists
             URL url = getURL(dir, "classes");
@@ -604,7 +604,7 @@ public final class IntrospectionUtils {
         Method m[] = findMethods(c);
         if (m == null)
             return null;
-        List<String> v = new ArrayList<>();
+        var v = new ArrayList<String>();
         for (int i = 0; i < m.length; i++) {
             if (m[i].getName().startsWith("set")
                     && m[i].getParameterTypes().length == 0) {
@@ -623,7 +623,7 @@ public final class IntrospectionUtils {
         Method m[] = findMethods(c);
         if (m == null)
             return null;
-        List<String> v = new ArrayList<>();
+        var v = new ArrayList<String>();
         for (int i = 0; i < m.length; i++) {
             if (m[i].getName().startsWith("set")
                     && m[i].getParameterTypes().length == 1

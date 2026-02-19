@@ -302,8 +302,8 @@ public final class TypeResolver {
             return Unknown.class;
 
         Type bound = bounds[0];
-        if (bound instanceof TypeVariable)
-            bound = resolveBound((TypeVariable<?>) bound);
+        if (bound instanceof TypeVariable<?> tv)
+            bound = resolveBound(tv);
 
         return bound == Object.class ? Unknown.class : bound;
     }

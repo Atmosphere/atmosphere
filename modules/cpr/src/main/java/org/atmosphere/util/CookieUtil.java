@@ -183,7 +183,7 @@ public class CookieUtil {
             return s;
         }
 
-        StringBuilder b = new StringBuilder();
+        var b = new StringBuilder();
         for (int i = 1; i < endIndex; i++) {
             char c = s.charAt(i);
             if (c == '\\') {
