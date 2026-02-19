@@ -287,7 +287,7 @@ public class McpProtocolHandlerTest {
         var result = node.get("result");
         var messages = result.get("messages");
         assertEquals(messages.size(), 2);
-        assertEquals(messages.get(0).get("role").asText(), "assistant");
+        assertEquals(messages.get(0).get("role").asText(), "system");
         assertEquals(messages.get(1).get("role").asText(), "user");
         assertTrue(messages.get(1).get("content").get("text").asText().contains("sales data"));
     }
