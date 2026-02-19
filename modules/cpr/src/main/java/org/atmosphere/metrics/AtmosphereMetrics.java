@@ -16,6 +16,7 @@
 package org.atmosphere.metrics;
 
 import io.micrometer.core.instrument.Counter;
+import io.micrometer.core.instrument.FunctionCounter;
 import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.MeterRegistry;
 import io.micrometer.core.instrument.Tags;
@@ -36,6 +37,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -192,15 +195,15 @@ public final class AtmosphereMetrics {
                 .description("Total cached messages")
                 .register(registry);
 
-        Gauge.builder("atmosphere.cache.evictions", cache, c -> (double) c.evictionCount())
+        FunctionCounter.builder("atmosphere.cache.evictions", cache, c -> (double) c.evictionCount())
                 .description("Total cache evictions")
                 .register(registry);
 
-        Gauge.builder("atmosphere.cache.hits", cache, c -> (double) c.hitCount())
+        FunctionCounter.builder("atmosphere.cache.hits", cache, c -> (double) c.hitCount())
                 .description("Cache retrieval hits")
                 .register(registry);
 
-        Gauge.builder("atmosphere.cache.misses", cache, c -> (double) c.missCount())
+        FunctionCounter.builder("atmosphere.cache.misses", cache, c -> (double) c.missCount())
                 .description("Cache retrieval misses")
                 .register(registry);
 
@@ -219,11 +222,11 @@ public final class AtmosphereMetrics {
      * @param interceptor the backpressure interceptor to instrument
      */
     public void instrumentBackpressure(BackpressureInterceptor interceptor) {
-        Gauge.builder("atmosphere.backpressure.drops", interceptor, i -> (double) i.totalDrops())
+        FunctionCounter.builder("atmosphere.backpressure.drops", interceptor, i -> (double) i.totalDrops())
                 .description("Total messages dropped by backpressure")
                 .register(registry);
 
-        Gauge.builder("atmosphere.backpressure.disconnects", interceptor, i -> (double) i.totalDisconnects())
+        FunctionCounter.builder("atmosphere.backpressure.disconnects", interceptor, i -> (double) i.totalDisconnects())
                 .description("Total clients disconnected by backpressure")
                 .register(registry);
 
@@ -235,7 +238,8 @@ public final class AtmosphereMetrics {
      */
     private class MetricsBroadcasterListener extends BroadcasterListenerAdapter {
 
-        private long broadcastStartNanos;
+        // Keyed by broadcaster to avoid data races when multiple broadcasters fire concurrently
+        private final Map<Broadcaster, Long> broadcastStartTimes = new ConcurrentHashMap<>();
 
         @Override
         public void onPostCreate(Broadcaster b) {
@@ -245,6 +249,7 @@ public final class AtmosphereMetrics {
         @Override
         public void onPreDestroy(Broadcaster b) {
             activeBroadcasters.decrementAndGet();
+            broadcastStartTimes.remove(b);
         }
 
         @Override
@@ -263,14 +268,14 @@ public final class AtmosphereMetrics {
         @Override
         public void onMessage(Broadcaster b, Deliver deliver) {
             messagesBroadcast.increment();
-            broadcastStartNanos = System.nanoTime();
+            broadcastStartTimes.put(b, System.nanoTime());
         }
 
         @Override
         public void onComplete(Broadcaster b) {
-            if (broadcastStartNanos > 0) {
-                broadcastTimer.record(Duration.ofNanos(System.nanoTime() - broadcastStartNanos));
-                broadcastStartNanos = 0;
+            Long startNanos = broadcastStartTimes.remove(b);
+            if (startNanos != null) {
+                broadcastTimer.record(Duration.ofNanos(System.nanoTime() - startNanos));
             }
         }
     }

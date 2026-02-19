@@ -26,6 +26,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicLong;
 
@@ -72,6 +73,7 @@ public class RateLimitingInterceptor extends AtmosphereInterceptorAdapter {
     private Policy policy = Policy.DROP;
 
     private final Map<String, TokenBucket> buckets = new ConcurrentHashMap<>();
+    private final Set<String> registeredListeners = ConcurrentHashMap.newKeySet();
     private final AtomicLong totalDropped = new AtomicLong();
     private final AtomicLong totalDisconnected = new AtomicLong();
 
@@ -122,18 +124,20 @@ public class RateLimitingInterceptor extends AtmosphereInterceptorAdapter {
 
     @Override
     public void postInspect(AtmosphereResource r) {
-        // Register cleanup listener on first postInspect
         var uuid = r.uuid();
-        if (buckets.containsKey(uuid)) {
+        // Register cleanup listener only once per resource to avoid growing the listener list
+        if (buckets.containsKey(uuid) && registeredListeners.add(uuid)) {
             r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
                 @Override
                 public void onDisconnect(AtmosphereResourceEvent event) {
                     buckets.remove(uuid);
+                    registeredListeners.remove(uuid);
                 }
 
                 @Override
                 public void onClose(AtmosphereResourceEvent event) {
                     buckets.remove(uuid);
+                    registeredListeners.remove(uuid);
                 }
             });
         }

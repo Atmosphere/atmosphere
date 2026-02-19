@@ -31,7 +31,11 @@ class EmbabelStreamingAdapter : AiStreamingAdapter<EmbabelStreamingAdapter.Agent
     override fun stream(request: AgentRequest, session: StreamingSession) {
         session.progress("Starting agent: ${request.agentName}...")
         val channel = AtmosphereOutputChannel(session)
-        request.runner(channel)
+        try {
+            request.runner(channel)
+        } finally {
+            session.complete()
+        }
     }
 
     /**

@@ -12,6 +12,7 @@ Example applications demonstrating Atmosphere 4.0 across different deployment ta
 | [spring-boot-langchain4j-chat](spring-boot-langchain4j-chat/) | Spring Boot 4.0 | JAR | — | — | — |
 | [spring-boot-embabel-chat](spring-boot-embabel-chat/) | Spring Boot 4.0 | JAR | — | — | — |
 | [spring-boot-mcp-server](spring-boot-mcp-server/) | Spring Boot 4.0 | JAR | — | — | — |
+| [spring-boot-durable-sessions](spring-boot-durable-sessions/) | Spring Boot 4.0 | JAR | — | — | — |
 | [shared-resources](shared-resources/) | — | — | — | — | — |
 
 ## Quick Start
@@ -32,7 +33,7 @@ cd quarkus-chat && mvn clean package && java -jar target/quarkus-app/quarkus-run
 cd embedded-jetty-websocket-chat && mvn clean install && mvn -Pserver
 ```
 
-All samples run on **http://localhost:8080** — open multiple browser tabs to chat.
+Most samples run on **http://localhost:8080**. The AI samples use different ports to allow running them simultaneously: `spring-boot-langchain4j-chat` on 8081, `spring-boot-embabel-chat` on 8082.
 
 ## The Same Handler Everywhere
 

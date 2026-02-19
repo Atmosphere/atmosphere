@@ -160,7 +160,7 @@ import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
  * <blockquote><pre>
  * AtmosphereFramework f = new AtmosphereFramework();
  * f.init();
- * f.doCometSupport(AtmosphereRequest, AtmosphereResource);
+ * f.doCometSupport(AtmosphereRequest, AtmosphereResponse);
  * f.destroy();
  * </pre></blockquote>
  *

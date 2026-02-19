@@ -61,6 +61,10 @@ All properties are under the `quarkus.atmosphere.*` prefix:
 | `quarkus.atmosphere.servlet-path` | `/atmosphere/*` | Servlet URL mapping |
 | `quarkus.atmosphere.session-support` | `false` | Enable HTTP session support |
 | `quarkus.atmosphere.broadcaster-class` | (default) | Custom `Broadcaster` implementation |
+| `quarkus.atmosphere.broadcaster-cache-class` | (default) | Custom `BroadcasterCache` implementation |
+| `quarkus.atmosphere.load-on-startup` | `1` | Servlet load-on-startup order — **must be > 0** or the servlet will not initialize |
+| `quarkus.atmosphere.heartbeat-interval-in-seconds` | (default) | Heartbeat interval for long-polling fallback |
+| `quarkus.atmosphere.init-params` | (none) | Map of raw `ApplicationConfig` init params passed directly to the servlet |
 
 ## Running
 

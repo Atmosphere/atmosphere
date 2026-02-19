@@ -25,6 +25,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicLong;
@@ -71,6 +72,7 @@ public class BackpressureInterceptor extends AtmosphereInterceptorAdapter {
 
     // Per-client pending message counts
     private final Map<String, AtomicInteger> pendingCounts = new ConcurrentHashMap<>();
+    private final Set<String> registeredListeners = ConcurrentHashMap.newKeySet();
     // Metrics
     private final AtomicLong totalDrops = new AtomicLong();
     private final AtomicLong totalDisconnects = new AtomicLong();
@@ -95,27 +97,31 @@ public class BackpressureInterceptor extends AtmosphereInterceptorAdapter {
         String uuid = r.uuid();
         pendingCounts.computeIfAbsent(uuid, k -> new AtomicInteger(0));
 
-        // Track lifecycle to clean up on disconnect
-        r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
-            @Override
-            public void onBroadcast(AtmosphereResourceEvent event) {
-                // Message delivered — decrement pending count
-                AtomicInteger count = pendingCounts.get(uuid);
-                if (count != null && count.get() > 0) {
-                    count.decrementAndGet();
+        // Register cleanup listener only once per resource to avoid growing the listener list
+        if (registeredListeners.add(uuid)) {
+            r.addEventListener(new AtmosphereResourceEventListenerAdapter() {
+                @Override
+                public void onBroadcast(AtmosphereResourceEvent event) {
+                    // Message delivered — decrement pending count
+                    AtomicInteger count = pendingCounts.get(uuid);
+                    if (count != null && count.get() > 0) {
+                        count.decrementAndGet();
+                    }
                 }
-            }
 
-            @Override
-            public void onDisconnect(AtmosphereResourceEvent event) {
-                pendingCounts.remove(uuid);
-            }
+                @Override
+                public void onDisconnect(AtmosphereResourceEvent event) {
+                    pendingCounts.remove(uuid);
+                    registeredListeners.remove(uuid);
+                }
 
-            @Override
-            public void onClose(AtmosphereResourceEvent event) {
-                pendingCounts.remove(uuid);
-            }
-        });
+                @Override
+                public void onClose(AtmosphereResourceEvent event) {
+                    pendingCounts.remove(uuid);
+                    registeredListeners.remove(uuid);
+                }
+            });
+        }
 
         return Action.CONTINUE;
     }

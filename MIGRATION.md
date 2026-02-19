@@ -34,7 +34,7 @@ java -version
 
 ### Jakarta EE 10+ Container
 
-Atmosphere 4.0 targets **Jakarta Servlet 5.0+** (Jakarta EE 10). You need a
+Atmosphere 4.0 targets **Jakarta Servlet 6.0** (Jakarta EE 10). You need a
 container that implements these APIs:
 
 | Container | Minimum Version |
