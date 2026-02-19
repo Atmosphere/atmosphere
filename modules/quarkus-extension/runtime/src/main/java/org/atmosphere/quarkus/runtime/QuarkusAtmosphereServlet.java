@@ -31,7 +31,18 @@ public class QuarkusAtmosphereServlet extends AtmosphereServlet {
 
     private static final Logger logger = LoggerFactory.getLogger(QuarkusAtmosphereServlet.class);
 
+    private static volatile QuarkusAtmosphereServlet instance;
+
     private Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap;
+    private transient ServletConfig deferredConfig;
+
+    public QuarkusAtmosphereServlet() {
+        instance = this;
+    }
+
+    static QuarkusAtmosphereServlet getInstance() {
+        return instance;
+    }
 
     public void setAnnotationMap(Map<Class<? extends Annotation>, Set<Class<?>>> annotationMap) {
         this.annotationMap = annotationMap;
@@ -39,6 +50,29 @@ public class QuarkusAtmosphereServlet extends AtmosphereServlet {
 
     @Override
     public void init(ServletConfig sc) throws ServletException {
+        if ("buildtime".equals(System.getProperty("org.graalvm.nativeimage.imagecode"))) {
+            // During native image build (STATIC_INIT phase), skip framework init to
+            // avoid creating thread pools that would be captured in the image heap.
+            // The actual init is deferred to RUNTIME_INIT via performDeferredInit().
+            this.deferredConfig = sc;
+            logger.info("QuarkusAtmosphereServlet: deferring init for native image build");
+            return;
+        }
+        performInit(sc);
+    }
+
+    /**
+     * Completes the deferred init at RUNTIME_INIT when running as a native image.
+     * Called by the {@link AtmosphereRecorder} after the Undertow deployment is ready.
+     */
+    void performDeferredInit() throws ServletException {
+        if (deferredConfig != null) {
+            performInit(deferredConfig);
+            deferredConfig = null;
+        }
+    }
+
+    private void performInit(ServletConfig sc) throws ServletException {
         logger.info("QuarkusAtmosphereServlet.init() starting");
 
         if (annotationMap != null) {

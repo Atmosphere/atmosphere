@@ -54,6 +54,23 @@ public class AtmosphereRecorder {
         shutdownContext.addShutdownTask(LazyAtmosphereConfigurator::reset);
     }
 
+    /**
+     * Completes the deferred servlet initialization for native image builds.
+     * During STATIC_INIT the servlet skips framework init to avoid creating threads
+     * that would be captured in the image heap. This method triggers the actual init
+     * at RUNTIME_INIT, after the Undertow deployment is ready.
+     */
+    public void performDeferredInit() {
+        QuarkusAtmosphereServlet servlet = QuarkusAtmosphereServlet.getInstance();
+        if (servlet != null) {
+            try {
+                servlet.performDeferredInit();
+            } catch (jakarta.servlet.ServletException e) {
+                throw new RuntimeException("Failed to initialize Atmosphere framework at runtime", e);
+            }
+        }
+    }
+
     public void registerWebSocketEndpoints(RuntimeValue<ServerWebSocketContainer> container) {
         ServerWebSocketContainer wsContainer = container.getValue();
         LazyAtmosphereConfigurator configurator = new LazyAtmosphereConfigurator();

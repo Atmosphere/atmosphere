@@ -26,8 +26,9 @@ import org.springframework.boot.health.contributor.HealthIndicator;
  * Health indicator for the Atmosphere framework. Reports framework status,
  * version, connection counts, and async transport details.
  *
- * <p>This indicator reports DOWN when the framework has been destroyed
- * or has no registered handlers (not ready to accept traffic).
+ * <p>This indicator reports DOWN only when the framework has been destroyed.
+ * Zero registered handlers is reported as UP with a warning detail, which
+ * is expected in GraalVM native images where annotation scanning is limited.
  * It can be included in Kubernetes health groups:</p>
  * <pre>
  * management.endpoint.health.group.readiness.include=readinessState,atmosphere
@@ -51,16 +52,14 @@ public class AtmosphereHealthIndicator implements HealthIndicator {
         }
 
         int handlers = framework.getAtmosphereHandlers().size();
-        if (handlers == 0) {
-            return Health.down()
-                    .withDetail("version", Version.getRawVersion())
-                    .withDetail("reason", "no handlers registered")
-                    .build();
-        }
 
         var builder = Health.up()
                 .withDetail("version", Version.getRawVersion())
                 .withDetail("handlers", handlers);
+
+        if (handlers == 0) {
+            builder.withDetail("warning", "no handlers registered");
+        }
 
         BroadcasterFactory broadcasterFactory = framework.getBroadcasterFactory();
         if (broadcasterFactory != null) {

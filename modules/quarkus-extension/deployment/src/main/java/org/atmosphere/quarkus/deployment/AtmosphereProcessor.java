@@ -138,6 +138,18 @@ class AtmosphereProcessor {
                 "org.atmosphere.util.ExecutorsFactory"));
     }
 
+    /**
+     * In native image builds the servlet's init() is skipped at STATIC_INIT to avoid
+     * creating thread pools that would be captured in the image heap. This step triggers
+     * the actual framework initialization at RUNTIME_INIT after the Undertow deployment
+     * is ready and the server is about to start accepting connections.
+     */
+    @BuildStep
+    @Record(ExecutionTime.RUNTIME_INIT)
+    void deferredFrameworkInit(AtmosphereRecorder recorder) {
+        recorder.performDeferredInit();
+    }
+
     @BuildStep
     void registerReflection(AtmosphereAnnotationsBuildItem annotations,
                             BuildProducer<ReflectiveClassBuildItem> reflectiveClasses) {
