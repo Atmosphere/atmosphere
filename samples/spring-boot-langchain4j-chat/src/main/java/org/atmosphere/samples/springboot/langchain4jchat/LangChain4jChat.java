@@ -21,6 +21,7 @@ import dev.langchain4j.model.chat.StreamingChatLanguageModel;
 import dev.langchain4j.model.chat.request.ChatRequest;
 import jakarta.inject.Inject;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.langchain4j.LangChain4jStreamingAdapter;
 import org.atmosphere.config.service.Disconnect;
@@ -48,6 +49,7 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 public class LangChain4jChat {
 
     private static final Logger logger = LoggerFactory.getLogger(LangChain4jChat.class);
+    private static final String SYSTEM_PROMPT = PromptLoader.load("prompts/system-prompt.md");
 
     private final LangChain4jStreamingAdapter adapter = new LangChain4jStreamingAdapter();
 
@@ -80,7 +82,7 @@ public class LangChain4jChat {
 
         var chatRequest = ChatRequest.builder()
                 .messages(List.of(
-                        SystemMessage.from("You are a helpful, concise assistant. Keep responses under 500 words unless asked for more detail."),
+                        SystemMessage.from(SYSTEM_PROMPT),
                         UserMessage.from(userMessage)
                 ))
                 .build();

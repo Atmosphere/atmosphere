@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -22,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.mockito.ArgumentCaptor;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -40,6 +42,11 @@ public class AiEndpointProcessorTest {
     public void setUp() throws Exception {
         processor = new AiEndpointProcessor();
         framework = mock(AtmosphereFramework.class);
+    }
+
+    @AfterMethod
+    public void tearDown() {
+        PromptLoader.clearCache();
     }
 
     @Test
@@ -169,6 +176,33 @@ public class AiEndpointProcessorTest {
         assertEquals(handler.systemPrompt(), "");
     }
 
+    @Test
+    public void testSystemPromptFromResource() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ResourcePromptEndpoint());
+
+        processor.handle(framework, (Class) ResourcePromptEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertEquals(handler.systemPrompt(), "You are a helpful assistant.");
+    }
+
+    @Test
+    public void testResourceTakesPrecedenceOverInline() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new BothPromptsEndpoint());
+
+        processor.handle(framework, (Class) BothPromptsEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        // Resource content should win over the inline systemPrompt
+        assertEquals(handler.systemPrompt(), "You are a helpful assistant.");
+    }
+
     // ---- Test fixture classes ----
 
     @AiEndpoint(path = "/atmosphere/test-ai")
@@ -213,6 +247,23 @@ public class AiEndpointProcessorTest {
     }
 
     public static class NotAnnotated {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/resource-prompt",
+                systemPromptResource = "prompts/test-system-prompt.md")
+    public static class ResourcePromptEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/both-prompts",
+                systemPrompt = "This should be ignored.",
+                systemPromptResource = "prompts/test-system-prompt.md")
+    public static class BothPromptsEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
         }

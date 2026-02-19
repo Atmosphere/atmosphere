@@ -15,6 +15,7 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.annotation.Processor;
@@ -54,8 +55,9 @@ public class AiEndpointProcessor implements Processor<Object> {
             validatePromptSignature(promptMethod);
 
             var instance = framework.newClassInstance(Object.class, annotatedClass);
+            var systemPrompt = resolveSystemPrompt(annotation);
             var handler = new AiEndpointHandler(instance, promptMethod,
-                    annotation.timeout(), annotation.systemPrompt());
+                    annotation.timeout(), systemPrompt);
 
             framework.addAtmosphereHandler(annotation.path(), handler, new ArrayList<>());
 
@@ -74,6 +76,17 @@ public class AiEndpointProcessor implements Processor<Object> {
             }
         }
         return null;
+    }
+
+    /**
+     * Resolves the system prompt: resource file takes precedence over inline string.
+     */
+    private String resolveSystemPrompt(AiEndpoint annotation) {
+        var resource = annotation.systemPromptResource();
+        if (resource != null && !resource.isEmpty()) {
+            return PromptLoader.load(resource);
+        }
+        return annotation.systemPrompt();
     }
 
     private void validatePromptSignature(Method method) {

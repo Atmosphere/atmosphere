@@ -78,6 +78,18 @@ public @interface AiEndpoint {
      * {@link org.atmosphere.ai.processor.AiEndpointHandler#SYSTEM_PROMPT_ATTRIBUTE}
      * so the {@code @Prompt} method can retrieve it via
      * {@code resource.getRequest().getAttribute(AiEndpointHandler.SYSTEM_PROMPT_ATTRIBUTE)}.
+     *
+     * <p>If {@link #systemPromptResource()} is also set, the resource file takes precedence.</p>
      */
     String systemPrompt() default "";
+
+    /**
+     * Classpath resource path to a file (typically {@code .md}) containing the system prompt.
+     * When non-empty, the file is loaded once at startup via
+     * {@link org.atmosphere.ai.PromptLoader#load(String)} and takes precedence
+     * over {@link #systemPrompt()}.
+     *
+     * <p>Example: {@code systemPromptResource = "prompts/system-prompt.md"}</p>
+     */
+    String systemPromptResource() default "";
 }

@@ -28,6 +28,8 @@ import org.atmosphere.util.Version;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
+import java.io.UncheckedIOException;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -42,6 +44,8 @@ import java.util.Map;
 public class DemoMcpServer {
 
     private static final String CHAT_PATH = "/atmosphere/chat";
+    private static final String CHAT_SUMMARY_SYSTEM_PROMPT = loadPrompt("prompts/chat-summary-system.md");
+    private static final String ANALYZE_TOPIC_SYSTEM_PROMPT = loadPrompt("prompts/analyze-topic-system.md");
 
     @Inject
     private AtmosphereConfig config;
@@ -160,7 +164,7 @@ public class DemoMcpServer {
         var broadcaster = chatBroadcaster();
         var userCount = broadcaster != null ? broadcaster.getAtmosphereResources().size() : 0;
         return List.of(
-                McpMessage.system("You are a helpful chat moderator assistant."),
+                McpMessage.system(CHAT_SUMMARY_SYSTEM_PROMPT),
                 McpMessage.user("There are currently " + userCount + " users connected to the chat. "
                         + "Summarize the chat status and suggest moderation actions if needed.")
         );
@@ -173,7 +177,7 @@ public class DemoMcpServer {
     ) {
         var depthStr = depth != null ? depth : "moderate";
         return List.of(
-                McpMessage.system("You are an expert analyst. Provide a " + depthStr + " analysis."),
+                McpMessage.system(ANALYZE_TOPIC_SYSTEM_PROMPT + " Provide a " + depthStr + " analysis."),
                 McpMessage.user("Analyze the following topic: " + topic)
         );
     }
@@ -185,6 +189,17 @@ public class DemoMcpServer {
             return config.getBroadcasterFactory().lookup(CHAT_PATH, false);
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private static String loadPrompt(String resourcePath) {
+        try (var stream = DemoMcpServer.class.getClassLoader().getResourceAsStream(resourcePath)) {
+            if (stream == null) {
+                throw new IllegalArgumentException("Prompt resource not found: " + resourcePath);
+            }
+            return new String(stream.readAllBytes(), StandardCharsets.UTF_8).trim();
+        } catch (IOException e) {
+            throw new UncheckedIOException("Failed to read prompt: " + resourcePath, e);
         }
     }
 }

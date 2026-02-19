@@ -17,6 +17,7 @@ package org.atmosphere.samples.springboot.aichat;
 
 import jakarta.inject.Inject;
 import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.config.service.Disconnect;
@@ -42,6 +43,7 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 public class AiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AiChat.class);
+    private static final String SYSTEM_PROMPT = PromptLoader.load("prompts/system-prompt.md");
 
     @Inject
     private AtmosphereResource resource;
@@ -71,7 +73,7 @@ public class AiChat {
         var session = StreamingSessions.start(resource);
 
         var request = ChatCompletionRequest.builder(settings.model())
-                .system("You are a helpful, concise assistant. Keep responses under 500 words unless asked for more detail.")
+                .system(SYSTEM_PROMPT)
                 .user(userMessage)
                 .build();
 
