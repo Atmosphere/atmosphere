@@ -22,7 +22,7 @@ import java.util.Set;
 
 /**
  * A Deliver is an {@link Broadcaster}'s internal token that is created before the message gets Broadcaster. A Deliver gives information about
- * what will be delivered, to whow, etc.
+ * what will be delivered, to whom, etc.
  *
  * @author Jeanfrancois Arcand
  */

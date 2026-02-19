@@ -136,26 +136,24 @@ public class BackpressureInterceptor extends AtmosphereInterceptorAdapter {
         }
 
         // Over high water mark
-        switch (policy) {
+        return switch (policy) {
             case DROP_NEWEST -> {
                 count.decrementAndGet();
                 totalDrops.incrementAndGet();
                 logger.debug("Backpressure DROP_NEWEST for client {} (pending={})", uuid, pending);
-                return false;
+                yield false;
             }
             case DROP_OLDEST -> {
-                // Allow new message but signal that oldest should be dropped
                 totalDrops.incrementAndGet();
                 logger.debug("Backpressure DROP_OLDEST for client {} (pending={})", uuid, pending);
-                return true;
+                yield true;
             }
             case DISCONNECT -> {
                 totalDisconnects.incrementAndGet();
                 logger.warn("Backpressure DISCONNECT for slow client {} (pending={})", uuid, pending);
-                return false;
+                yield false;
             }
-        }
-        return true;
+        };
     }
 
     /**
