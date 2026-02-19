@@ -94,7 +94,7 @@ jobs:
     
     - name: Install frontend dependencies
       working-directory: samples/${{ matrix.sample }}/frontend
-      run: npm ci
+      run: npm install --no-audit --no-fund
     
     - name: Build frontend
       working-directory: samples/${{ matrix.sample }}/frontend
