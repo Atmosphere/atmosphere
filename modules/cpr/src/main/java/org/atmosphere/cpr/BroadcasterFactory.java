@@ -17,6 +17,7 @@
 package org.atmosphere.cpr;
 
 import java.util.Collection;
+import java.util.Optional;
 
 /**
  * Factory for {@link Broadcaster} used by Atmosphere when creating broadcasters.
@@ -106,7 +107,9 @@ public interface BroadcasterFactory {
      *
      * @param id The Broadcaster's unique ID, or name.
      * @return a Broadcaster, or null if not found.
+     * @deprecated Use {@link #findBroadcaster(Object)} which returns {@link Optional} instead of null.
      */
+    @Deprecated(since = "4.0.0", forRemoval = false)
     <T extends Broadcaster> T lookup(Object id);
 
     /**
@@ -117,6 +120,19 @@ public interface BroadcasterFactory {
      * @return a Broadcaster, or null if not found.
      */
     <T extends Broadcaster> T lookup(Object id, boolean createIfNull);
+
+    /**
+     * Lookup a {@link Broadcaster} instance using {@link Broadcaster#getID()} or ID.
+     * <p>
+     * This is the preferred alternative to {@link #lookup(Object)} as it returns an {@link Optional}
+     * instead of null, making the absent-broadcaster case explicit at the call site.
+     *
+     * @param id The Broadcaster's unique ID, or name.
+     * @return an {@link Optional} containing the {@link Broadcaster}, or empty if not found.
+     */
+    default <T extends Broadcaster> Optional<T> findBroadcaster(Object id) {
+        return Optional.ofNullable(lookup(id));
+    }
 
     /**
      * Remove the associated {@link Broadcaster}.

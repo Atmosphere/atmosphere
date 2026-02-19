@@ -94,6 +94,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.CopyOnWriteArrayList;
@@ -2650,6 +2651,14 @@ public class AtmosphereFramework {
         return interceptors;
     }
 
+    /**
+     * Find an {@link AtmosphereInterceptor} of the given type.
+     *
+     * @param c the interceptor class to look for
+     * @return the interceptor instance, or null if not found.
+     * @deprecated Use {@link #findInterceptor(Class)} which returns {@link Optional} instead of null.
+     */
+    @Deprecated(since = "4.0.0", forRemoval = false)
     public <T extends AtmosphereInterceptor> T interceptor(Class<T> c) {
         for (AtmosphereInterceptor i : interceptors) {
             if (c.isInstance(i)) {
@@ -2657,6 +2666,24 @@ public class AtmosphereFramework {
             }
         }
         return null;
+    }
+
+    /**
+     * Find an {@link AtmosphereInterceptor} of the given type.
+     * <p>
+     * This is the preferred alternative to {@link #interceptor(Class)} as it returns an {@link Optional}
+     * instead of null, making the absent-interceptor case explicit at the call site.
+     *
+     * @param c the interceptor class to look for
+     * @return an {@link Optional} containing the interceptor, or empty if not found.
+     */
+    public <T extends AtmosphereInterceptor> Optional<T> findInterceptor(Class<T> c) {
+        for (AtmosphereInterceptor i : interceptors) {
+            if (c.isInstance(i)) {
+                return Optional.of(c.cast(i));
+            }
+        }
+        return Optional.empty();
     }
     public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
         this.annotationProcessorClassName = annotationProcessorClassName;
