@@ -695,7 +695,7 @@ public class ManagedAtmosphereHandlerTest {
 
         @Override
         public void onOpen(WebSocket webSocket) throws IOException {
-            WebSocket w = factory.find(webSocket.resource().uuid());
+            WebSocket w = factory.findWebSocket(webSocket.resource().uuid()).orElse(null);
             r.set(w == null ? null : webSocket.resource());
         }
     }

@@ -773,7 +773,7 @@ public class DefaultBroadcaster implements Broadcaster {
                      * Before caching the message, double check if the client has reconnected, and if true, send the
                      * cached message.
                      */
-                    AtmosphereResource r2 = config.resourcesFactory().find(r.uuid());
+                    AtmosphereResource r2 = config.resourcesFactory().findResource(r.uuid()).orElse(null);
                     logger.trace("Found an AtmosphereResource {} in state {}", r2, r.isSuspended());
                     if (r2 != null && r2.isSuspended() && r.hashCode() != r2.hashCode()) {
                         // Prevent other Broadcast to happens
@@ -1381,7 +1381,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         || ((AtmosphereResourceImpl) r).getRequest(false).getAttribute(INJECTED_ATMOSPHERE_RESOURCE) != null;
 
                 if (duplicate) {
-                    AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().find(r.uuid());
+                    AtmosphereResourceImpl dup = (AtmosphereResourceImpl) config.resourcesFactory().findResource(r.uuid()).orElse(null);
                     if (dup != null && dup != r ) {
                         if ( ! dup.isPendingClose() ) {
                             logger.debug("Duplicate resource {}. Could be caused by a dead connection not detected by your server. " +
@@ -1446,7 +1446,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     (String) ((AtmosphereResourceImpl) r).getRequest(false).getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID) :
                     null;
             if (!backwardCompatible && parentUUID != null) {
-                AtmosphereResource p = config.resourcesFactory().find(parentUUID);
+                AtmosphereResource p = config.resourcesFactory().findResource(parentUUID).orElse(null);
                 if (p != null && !resources.contains(p)) {
                     notifyAndAdd(p);
                 } else if (p == null) {

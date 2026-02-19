@@ -27,6 +27,7 @@ import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.Enumeration;
+import java.util.Optional;
 
 import static org.mockito.Mockito.mock;
 import static org.testng.Assert.assertEquals;
@@ -72,9 +73,15 @@ public class WebSocketFactoryTest {
     @WebSocketFactoryService
     public final static class CustomFactory implements WebSocketFactory {
 
+        @SuppressWarnings("deprecation")
         @Override
         public WebSocket find(String uuid) {
             return null;
+        }
+
+        @Override
+        public Optional<WebSocket> findWebSocket(String uuid) {
+            return Optional.empty();
         }
     }
 
