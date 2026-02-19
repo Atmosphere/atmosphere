@@ -230,7 +230,7 @@
                     <dependency>
                         <groupId>org.atmosphere</groupId>
                         <artifactId>atmosphere-buildtools</artifactId>
-                        <version>4.0.0-SNAPSHOT</version>
+                        <version>3.0.14</version>
                     </dependency>
                 </dependencies>
                 <configuration>
@@ -352,14 +352,14 @@
                         <version>3.3.1</version>
                         <configuration>
                             <aggregate>true</aggregate>
-                            <source>17</source>
+                            <source>21</source>
                             <encoding>UTF-8</encoding>
                             <maxmemory>1g</maxmemory>
                             <doclint>none</doclint>
                             <failOnError>false</failOnError>
                             <failOnWarnings>false</failOnWarnings>
                             <links>
-                                <link>https://docs.oracle.com/en/java/javase/17/docs/api/</link>
+                                <link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
                             </links>
                         </configuration>
                         <executions>
@@ -474,12 +474,12 @@
                         <version>3.3.1</version>
                         <configuration>
                             <aggregate>true</aggregate>
-                            <source>17</source>
+                            <source>21</source>
                             <encoding>UTF-8</encoding>
                             <maxmemory>1g</maxmemory>
                             <doclint>none</doclint>
                             <links>
-                                <link>https://docs.oracle.com/en/java/javase/17/docs/api/</link>
+                                <link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
                             </links>
                         </configuration>
                         <executions>
@@ -521,7 +521,7 @@
                     <doclint>none</doclint>
                     <links>
                         <link>https://jakarta.ee/specifications/platform/9/apidocs/</link>
-                        <link>https://docs.oracle.com/en/java/javase/17/docs/api/</link>
+                        <link>https://docs.oracle.com/en/java/javase/21/docs/api/</link>
                     </links>
                     <excludePackageNames>cometedgwt:org.gwtcomet:com.sun:org.apache:weblogic:org.jboss
                     </excludePackageNames>

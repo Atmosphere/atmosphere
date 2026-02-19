@@ -10,7 +10,7 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 ### What's New in 4.0
 
 - **Virtual Threads** - Every connection runs on a virtual thread, enabling massive scalability
-- **Structured Concurrency** - Reliable broadcast operations with automatic cancellation
+- **Virtual Thread-native** - Thread-safe broadcasting with ReentrantLock (no virtual thread pinning)
 - **Built-in Clustering** - Redis and Kafka broadcasters for multi-node deployments
 - **JDK 21-25 Ready** - Preview & incubator features enabled
 - **Monorepo** - Framework, samples, and TypeScript client in one place
@@ -25,7 +25,7 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 
 | Stack | Artifact | Min version |
 |-------|----------|-------------|
-| **Spring Boot** | `atmosphere-spring-boot-starter` | Spring Boot 3.4+ |
+| **Spring Boot** | `atmosphere-spring-boot-starter` | Spring Boot 4.0+ |
 | **Quarkus** | `atmosphere-quarkus-extension` | Quarkus 3.21+ |
 | **Any Servlet container** | `atmosphere-runtime` | Servlet 6.0+ |
 | **Kotlin DSL** | `atmosphere-kotlin` | Kotlin 2.1+ |
@@ -563,7 +563,7 @@ Production-safe message caching with size limits and TTL:
 
 ### Spring Boot Applications
 
-The `atmosphere-spring-boot-starter` provides zero-configuration integration with **Spring Boot 3.4+**, including auto-configured servlet, Spring DI bridge, and optional Actuator health indicator.
+The `atmosphere-spring-boot-starter` provides zero-configuration integration with **Spring Boot 4.0+**, including auto-configured servlet, Spring DI bridge, and optional Actuator health indicator.
 
 ```xml
 <dependency>
@@ -671,7 +671,7 @@ Custom encoder/decoder classes annotated with Quarkus-scanned annotations are au
 
 ### Standalone / Servlet Container
 
-For Tomcat, Jetty, Undertow, or any Servlet 3.0+ container:
+For Tomcat, Jetty, Undertow, or any Servlet 6.0+ container:
 
 ```xml
 <dependency>
