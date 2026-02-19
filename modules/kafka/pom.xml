@@ -16,7 +16,7 @@
     <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
-        <kafka.version>3.9.0</kafka.version>
+        <kafka.version>3.9.1</kafka.version>
     </properties>
 
     <dependencies>
@@ -56,7 +56,7 @@
         <dependency>
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
-            <version>1.5.18</version>
+            <version>${logback-version}</version>
             <scope>test</scope>
         </dependency>
     </dependencies>
