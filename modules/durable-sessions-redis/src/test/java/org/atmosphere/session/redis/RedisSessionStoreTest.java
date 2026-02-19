@@ -209,14 +209,14 @@ public class RedisSessionStoreTest {
             // Verify it exists
             assertTrue(shortTtlStore.restore("tok-expiry").isPresent());
 
-            // Wait for Redis TTL to expire the key
-            await().atMost(10, TimeUnit.SECONDS)
-                    .until(() -> shortTtlStore.restore("tok-expiry").isEmpty());
-
-            // removeExpired should clean up the index and return stub sessions
-            var expired = shortTtlStore.removeExpired(Duration.ofSeconds(1));
-            assertTrue(expired.stream().anyMatch(s -> "tok-expiry".equals(s.token())),
-                    "Expected tok-expiry in expired list, got: " + expired);
+            // Wait for Redis to expire the key, then removeExpired should find it.
+            // Note: restore() also cleans the index, so we use removeExpired itself
+            // as the poll condition to avoid the index being cleaned prematurely.
+            await().atMost(10, TimeUnit.SECONDS).untilAsserted(() -> {
+                var expired = shortTtlStore.removeExpired(Duration.ofSeconds(1));
+                assertTrue(expired.stream().anyMatch(s -> "tok-expiry".equals(s.token())),
+                        "Expected tok-expiry in expired list, got: " + expired);
+            });
         } finally {
             shortTtlStore.close();
         }
