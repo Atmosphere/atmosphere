@@ -438,12 +438,10 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(session.isClosed(), "Session should be closed after error");
     }
 
-    @SuppressWarnings("null")
     private static ChatResponse chatResponse(String text) {
         return new ChatResponse(List.of(new Generation(new AssistantMessage(text))));
     }
 
-    @SuppressWarnings("null")
     private static ChatClient mockChatClient(String prompt, Flux<ChatResponse> flux) {
         ChatClient client = mock(ChatClient.class);
         var promptSpec = mock(ChatClient.ChatClientRequestSpec.class);

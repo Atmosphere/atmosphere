@@ -186,6 +186,7 @@ public class DefaultBroadcasterFactory implements BroadcasterFactory {
         return lookup(c, id, false);
     }
 
+    @SuppressWarnings("unchecked")
     @Override
     public Broadcaster lookup(Object id) {
         return lookup(clazz, id, false);
