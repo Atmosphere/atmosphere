@@ -35,11 +35,7 @@ public interface BroadcastFilter {
     /**
      * Simple class that tells the {@link Broadcaster} to broadcast or not the transformed value.
      */
-    class BroadcastAction {
-
-        private final ACTION a;
-        private final Object o;
-        private Object originalMsg;
+    record BroadcastAction(ACTION action, Object message, Object originalMessage) {
 
         public enum ACTION {
             /**
@@ -57,30 +53,12 @@ public interface BroadcastFilter {
             SKIP
         }
 
-        public BroadcastAction(ACTION a, Object o) {
-            this.a = a;
-            this.o = o;
+        public BroadcastAction(ACTION action, Object message) {
+            this(action, message, null);
         }
 
-        public BroadcastAction(Object o) {
-            this.a = ACTION.CONTINUE;
-            this.o = o;
-        }
-
-        public Object message() {
-            return o;
-        }
-
-        public ACTION action() {
-            return a;
-        }
-
-        public Object originalMessage() {
-            return originalMsg;
-        }
-
-        void setOriginalMsg(Object originalMsg) {
-            this.originalMsg = originalMsg;
+        public BroadcastAction(Object message) {
+            this(ACTION.CONTINUE, message, null);
         }
     }
 
