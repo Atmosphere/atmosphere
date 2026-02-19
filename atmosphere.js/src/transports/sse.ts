@@ -107,6 +107,16 @@ export class SSETransport<T = unknown> extends BaseTransport<T> {
     if (this.request.withCredentials) {
       xhr.withCredentials = true;
     }
+
+    // Extract session token from POST response headers (for durable sessions)
+    xhr.onreadystatechange = () => {
+      if (xhr.readyState === 4 && xhr.status >= 200 && xhr.status < 300) {
+        if (typeof xhr.getResponseHeader === 'function') {
+          this.protocol.extractSessionToken((name) => xhr.getResponseHeader(name));
+        }
+      }
+    };
+
     xhr.send(data);
   }
 

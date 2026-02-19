@@ -60,15 +60,20 @@ public class AiEndpointProcessorTest {
     }
 
     @Test
-    public void testConfiguresTimeout() throws Exception {
+    public void testConfiguresPerResourceTimeout() throws Exception {
         when(framework.newClassInstance(eq(Object.class), any()))
                 .thenReturn(new CustomTimeoutEndpoint());
 
         processor.handle(framework, (Class) CustomTimeoutEndpoint.class);
 
-        verify(framework).addInitParameter(
-                eq(org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE),
-                eq("60000"));
+        // Timeout should NOT be set globally
+        verify(framework, never()).addInitParameter(
+                eq(org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE), anyString());
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertEquals(handler.suspendTimeout(), 60_000L);
     }
 
     @Test
@@ -78,9 +83,14 @@ public class AiEndpointProcessorTest {
 
         processor.handle(framework, (Class) ValidEndpoint.class);
 
-        verify(framework).addInitParameter(
-                eq(org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE),
-                eq("120000"));
+        // Timeout should NOT be set globally
+        verify(framework, never()).addInitParameter(
+                eq(org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE), anyString());
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertEquals(handler.suspendTimeout(), 120_000L);
     }
 
     @Test
@@ -133,6 +143,32 @@ public class AiEndpointProcessorTest {
         verify(framework, never()).addAtmosphereHandler(anyString(), any(AtmosphereHandler.class), any(List.class));
     }
 
+    @Test
+    public void testSystemPromptPassedToHandler() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new SystemPromptEndpoint());
+
+        processor.handle(framework, (Class) SystemPromptEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertEquals(handler.systemPrompt(), "You are a helpful assistant.");
+    }
+
+    @Test
+    public void testDefaultSystemPromptIsEmpty() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertEquals(handler.systemPrompt(), "");
+    }
+
     // ---- Test fixture classes ----
 
     @AiEndpoint(path = "/atmosphere/test-ai")
@@ -166,6 +202,13 @@ public class AiEndpointProcessorTest {
     public static class ThreeParamEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/system-prompt", systemPrompt = "You are a helpful assistant.")
+    public static class SystemPromptEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
         }
     }
 

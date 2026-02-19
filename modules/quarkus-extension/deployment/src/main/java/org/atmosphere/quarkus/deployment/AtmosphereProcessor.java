@@ -30,6 +30,7 @@ import io.quarkus.deployment.annotations.Record;
 import io.quarkus.deployment.builditem.CombinedIndexBuildItem;
 import io.quarkus.deployment.builditem.FeatureBuildItem;
 import io.quarkus.deployment.builditem.IndexDependencyBuildItem;
+import io.quarkus.deployment.builditem.ShutdownContextBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.NativeImageResourceBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.ReflectiveClassBuildItem;
 import io.quarkus.deployment.builditem.nativeimage.RuntimeInitializedClassBuildItem;
@@ -300,6 +301,18 @@ class AtmosphereProcessor {
     void registerWebSocketEndpoints(AtmosphereRecorder recorder,
                                     ServerWebSocketContainerBuildItem container) {
         recorder.registerWebSocketEndpoints(container.getContainer());
+    }
+
+    /**
+     * Registers a shutdown hook that resets the {@link LazyAtmosphereConfigurator}
+     * before Quarkus dev mode live reload re-initializes the servlet. This ensures
+     * a fresh CountDownLatch and framework reference for each reload cycle.
+     */
+    @BuildStep
+    @Record(ExecutionTime.RUNTIME_INIT)
+    void registerConfiguratorShutdownHook(AtmosphereRecorder recorder,
+                                          ShutdownContextBuildItem shutdownContext) {
+        recorder.registerShutdownHook(shutdownContext);
     }
 
     @BuildStep

@@ -17,6 +17,7 @@
 import type {
   AtmosphereConfig,
   AtmosphereRequest,
+  AtmosphereResponse,
   AtmosphereInterceptor,
   Subscription,
   SubscriptionHandlers,
@@ -88,6 +89,53 @@ export class Atmosphere {
     const currentTransport = activeTransport;
     const eventHandlers = new Map<string, Set<(...args: unknown[]) => void>>();
 
+    // Helper to dispatch an event to all on() listeners for a given event name.
+    const dispatchEvent = (event: string, ...args: unknown[]) => {
+      const listeners = eventHandlers.get(event);
+      if (listeners) {
+        for (const listener of listeners) {
+          listener(...args);
+        }
+      }
+    };
+
+    // Wrap original handlers to also dispatch to on() listeners.
+    const originalMessage = handlers.message;
+    handlers.message = ((response: AtmosphereResponse<T>) => {
+      originalMessage?.(response);
+      dispatchEvent('message', response);
+    }) as SubscriptionHandlers<T>['message'];
+
+    const originalOpen = handlers.open;
+    handlers.open = ((response: AtmosphereResponse<T>) => {
+      originalOpen?.(response);
+      dispatchEvent('open', response);
+    }) as SubscriptionHandlers<T>['open'];
+
+    const originalClose = handlers.close;
+    handlers.close = ((response: AtmosphereResponse<T>) => {
+      originalClose?.(response);
+      dispatchEvent('close', response);
+    }) as SubscriptionHandlers<T>['close'];
+
+    const originalError = handlers.error;
+    handlers.error = ((error: Error) => {
+      originalError?.(error);
+      dispatchEvent('error', error);
+    }) as SubscriptionHandlers<T>['error'];
+
+    const originalReconnect = handlers.reconnect;
+    handlers.reconnect = ((request: AtmosphereRequest, response: AtmosphereResponse<T>) => {
+      originalReconnect?.(request, response);
+      dispatchEvent('reconnect', request, response);
+    }) as SubscriptionHandlers<T>['reconnect'];
+
+    const originalReopen = handlers.reopen;
+    handlers.reopen = ((response: AtmosphereResponse<T>) => {
+      originalReopen?.(response);
+      dispatchEvent('reopen', response);
+    }) as SubscriptionHandlers<T>['reopen'];
+
     const subscription: Subscription = {
       id,
       get state(): ConnectionState {
@@ -120,9 +168,9 @@ export class Atmosphere {
         eventHandlers.get(event)!.add(handler);
       },
       off: (event: string, handler: (...args: unknown[]) => void) => {
-        const handlers = eventHandlers.get(event);
-        if (handlers) {
-          handlers.delete(handler);
+        const listeners = eventHandlers.get(event);
+        if (listeners) {
+          listeners.delete(handler);
         }
       },
     };

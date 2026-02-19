@@ -22,6 +22,7 @@ import jakarta.websocket.DeploymentException;
 import jakarta.websocket.server.ServerEndpointConfig;
 
 import io.quarkus.runtime.RuntimeValue;
+import io.quarkus.runtime.ShutdownContext;
 import io.quarkus.runtime.annotations.Recorder;
 import io.undertow.servlet.api.InstanceFactory;
 import io.undertow.websockets.ServerWebSocketContainer;
@@ -38,6 +39,19 @@ public class AtmosphereRecorder {
     public InstanceFactory<QuarkusAtmosphereServlet> createInstanceFactory(
             Map<String, List<String>> annotationClassNames) {
         return new AtmosphereServletInstanceFactory(annotationClassNames);
+    }
+
+    /**
+     * Registers a shutdown hook that resets the {@link LazyAtmosphereConfigurator}
+     * so that Quarkus dev mode live reloads get a fresh latch and framework reference.
+     * Without this, the {@code CountDownLatch} from the previous run would already be
+     * counted down, and the framework reference would be stale.
+     * <p>
+     * The {@code ShutdownContext} is automatically injected by Quarkus into recorder
+     * methods that declare it as a parameter.
+     */
+    public void registerShutdownHook(ShutdownContext shutdownContext) {
+        shutdownContext.addShutdownTask(LazyAtmosphereConfigurator::reset);
     }
 
     public void registerWebSocketEndpoints(RuntimeValue<ServerWebSocketContainer> container) {

@@ -18,6 +18,7 @@ package org.atmosphere.session.redis;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import io.lettuce.core.RedisClient;
+import io.lettuce.core.ScriptOutputType;
 import io.lettuce.core.api.StatefulRedisConnection;
 import io.lettuce.core.api.sync.RedisCommands;
 import org.atmosphere.session.DurableSession;
@@ -81,7 +82,7 @@ public class RedisSessionStore implements SessionStore {
         this.commands = connection.sync();
         this.mapper = new ObjectMapper();
         this.defaultTtl = defaultTtl;
-        logger.info("Redis session store connected to {}", redisUri);
+        logger.info("Redis session store connected to {}", maskPassword(redisUri));
     }
 
     /**
@@ -131,21 +132,32 @@ public class RedisSessionStore implements SessionStore {
         commands.srem(INDEX_KEY, token);
     }
 
+    /**
+     * Lua script for atomic touch: GET the value, update lastSeen in the JSON,
+     * and SETEX it back — all in a single atomic operation to avoid TOCTOU races.
+     *
+     * <p>KEYS[1] = session key, ARGV[1] = TTL in seconds, ARGV[2] = new lastSeen millis</p>
+     */
+    private static final String TOUCH_SCRIPT = """
+            local json = redis.call('GET', KEYS[1])
+            if not json then
+                return nil
+            end
+            local updated = json:gsub('"lastSeen":%d+', '"lastSeen":' .. ARGV[2])
+            redis.call('SETEX', KEYS[1], tonumber(ARGV[1]), updated)
+            return 1
+            """;
+
     @Override
     public void touch(String token) {
         var key = KEY_PREFIX + token;
-        if (commands.exists(key) > 0) {
-            commands.expire(key, defaultTtl.toSeconds());
-            var json = commands.get(key);
-            if (json != null) {
-                try {
-                    var session = fromJson(json);
-                    var updated = session.withResourceId(session.resourceId());
-                    commands.setex(key, defaultTtl.toSeconds(), toJson(updated));
-                } catch (Exception e) {
-                    logger.warn("Failed to update lastSeen for session {}", token, e);
-                }
-            }
+        try {
+            commands.eval(TOUCH_SCRIPT, ScriptOutputType.INTEGER,
+                    new String[]{key},
+                    String.valueOf(defaultTtl.toSeconds()),
+                    String.valueOf(Instant.now().toEpochMilli()));
+        } catch (Exception e) {
+            logger.warn("Failed to update lastSeen for session {}", token, e);
         }
     }
 
@@ -153,10 +165,13 @@ public class RedisSessionStore implements SessionStore {
     public List<DurableSession> removeExpired(Duration ttl) {
         // Redis TTL handles expiration automatically via SETEX.
         // Clean up the index set by removing tokens whose keys no longer exist.
+        // The key data is already gone (expired by Redis), so we return stub
+        // sessions with the token so callers can perform any cleanup.
         var expired = new ArrayList<DurableSession>();
         var tokens = commands.smembers(INDEX_KEY);
         for (var token : tokens) {
             if (commands.exists(KEY_PREFIX + token) == 0) {
+                expired.add(DurableSession.create(token, ""));
                 commands.srem(INDEX_KEY, token);
             }
         }
@@ -202,5 +217,15 @@ public class RedisSessionStore implements SessionStore {
                 Instant.ofEpochMilli(((Number) map.get("createdAt")).longValue()),
                 Instant.ofEpochMilli(((Number) map.get("lastSeen")).longValue())
         );
+    }
+
+    /**
+     * Mask the password portion of a Redis URI for safe logging.
+     * Turns {@code redis://secret@host:6379} into {@code redis://***@host:6379}.
+     */
+    private static String maskPassword(String uri) {
+        // Redis URIs follow the pattern: redis://[password@]host[:port][/db]
+        // or redis://[username:password@]host[:port][/db]
+        return uri.replaceFirst("(redis[s]?://)([^@]+)@", "$1***@");
     }
 }

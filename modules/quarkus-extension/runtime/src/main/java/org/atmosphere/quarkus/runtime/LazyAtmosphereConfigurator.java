@@ -41,14 +41,36 @@ import org.slf4j.LoggerFactory;
  * Uses a {@link CountDownLatch} to block WebSocket upgrade requests until the
  * servlet has been initialized. This handles the case where a WebSocket connection
  * arrives before the servlet's {@code init()} has completed.
+ * <p>
+ * The framework reference is held in a resettable {@link FrameworkHolder} so that
+ * Quarkus dev mode live reloads get a fresh latch and framework reference each cycle.
+ * Without this, the {@code CountDownLatch} from the previous run would already be
+ * counted down, and {@code frameworkRef} would hold a stale (destroyed) framework,
+ * causing WebSocket connections after reload to use a dead framework.
+ *
+ * @see #reset()
  */
 public class LazyAtmosphereConfigurator extends ServerEndpointConfig.Configurator {
 
     private static final Logger logger = LoggerFactory.getLogger(LazyAtmosphereConfigurator.class);
     private static final int FRAMEWORK_WAIT_SECONDS = 30;
 
-    static final AtomicReference<AtmosphereFramework> frameworkRef = new AtomicReference<>();
-    static final CountDownLatch frameworkReady = new CountDownLatch(1);
+    /**
+     * Holds an {@link AtmosphereFramework} reference together with a
+     * {@link CountDownLatch} that signals when the framework becomes available.
+     * A new holder is created on each {@link #reset()} call, ensuring that
+     * Quarkus dev mode live reloads start with a fresh, un-signalled latch.
+     */
+    static final class FrameworkHolder {
+        final AtomicReference<AtmosphereFramework> ref = new AtomicReference<>();
+        final CountDownLatch latch = new CountDownLatch(1);
+    }
+
+    /**
+     * The current holder. Swapped atomically by {@link #reset()}.
+     */
+    static final AtomicReference<FrameworkHolder> holder =
+            new AtomicReference<>(new FrameworkHolder());
 
     private final ThreadLocal<JSR356Endpoint> endPoint = new ThreadLocal<>();
     private final ThreadLocal<HandshakeRequest> hRequest = new ThreadLocal<>();
@@ -57,20 +79,34 @@ public class LazyAtmosphereConfigurator extends ServerEndpointConfig.Configurato
      * Called by {@link QuarkusAtmosphereServlet#init} after the framework is initialized.
      */
     static void setFramework(AtmosphereFramework framework) {
-        frameworkRef.set(framework);
-        frameworkReady.countDown();
+        FrameworkHolder h = holder.get();
+        h.ref.set(framework);
+        h.latch.countDown();
         logger.debug("AtmosphereFramework reference set in configurator");
+    }
+
+    /**
+     * Resets the configurator for a new lifecycle, clearing the stale framework
+     * reference and creating a fresh latch. This must be called during shutdown
+     * (before Quarkus dev mode live reload re-initializes the servlet) so that
+     * the next startup cycle blocks WebSocket upgrades until the new framework
+     * is ready.
+     */
+    static void reset() {
+        holder.set(new FrameworkHolder());
+        logger.debug("LazyAtmosphereConfigurator reset for new lifecycle");
     }
 
     @Override
     @SuppressWarnings("unchecked")
     public <T> T getEndpointInstance(Class<T> endpointClass) throws InstantiationException {
         if (JSR356Endpoint.class.isAssignableFrom(endpointClass)) {
-            AtmosphereFramework framework = frameworkRef.get();
+            FrameworkHolder h = holder.get();
+            AtmosphereFramework framework = h.ref.get();
             if (framework == null) {
                 logger.debug("Framework not yet available, waiting up to {}s...", FRAMEWORK_WAIT_SECONDS);
                 try {
-                    if (!frameworkReady.await(FRAMEWORK_WAIT_SECONDS, TimeUnit.SECONDS)) {
+                    if (!h.latch.await(FRAMEWORK_WAIT_SECONDS, TimeUnit.SECONDS)) {
                         throw new InstantiationException(
                                 "Timed out waiting for AtmosphereFramework initialization (" +
                                 FRAMEWORK_WAIT_SECONDS + "s)");
@@ -79,7 +115,7 @@ public class LazyAtmosphereConfigurator extends ServerEndpointConfig.Configurato
                     Thread.currentThread().interrupt();
                     throw new InstantiationException("Interrupted waiting for AtmosphereFramework");
                 }
-                framework = frameworkRef.get();
+                framework = h.ref.get();
                 if (framework == null) {
                     throw new InstantiationException("AtmosphereFramework not available after latch release");
                 }

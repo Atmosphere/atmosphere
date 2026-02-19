@@ -73,8 +73,11 @@ public @interface AiEndpoint {
     long timeout() default 120_000L;
 
     /**
-     * Optional system prompt passed as context. The {@code @Prompt} method
-     * can retrieve this via {@code AiEndpoint} annotation on its declaring class.
+     * Optional system prompt passed as context. When non-empty, the value is set
+     * as a request attribute under the key
+     * {@link org.atmosphere.ai.processor.AiEndpointHandler#SYSTEM_PROMPT_ATTRIBUTE}
+     * so the {@code @Prompt} method can retrieve it via
+     * {@code resource.getRequest().getAttribute(AiEndpointHandler.SYSTEM_PROMPT_ATTRIBUTE)}.
      */
     String systemPrompt() default "";
 }

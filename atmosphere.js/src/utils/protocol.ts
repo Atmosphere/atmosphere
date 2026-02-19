@@ -210,6 +210,23 @@ export class AtmosphereProtocol {
   }
 
   /**
+   * Extract and store the session token from HTTP response headers.
+   * Call this after receiving a response from transports that have access
+   * to HTTP headers (long-polling, streaming, SSE POST responses).
+   *
+   * For WebSocket, the browser API does not expose HTTP upgrade response
+   * headers, so the server must embed the token in the protocol handshake
+   * or a dedicated message.
+   */
+  extractSessionToken(getHeader: (name: string) => string | null): void {
+    const token = getHeader('X-Atmosphere-Session-Token');
+    if (token) {
+      this.sessionToken = token;
+      logger.debug(`Session token captured: ${token.substring(0, 8)}...`);
+    }
+  }
+
+  /**
    * Start the heartbeat timer. Sends `heartbeatPadding` at `heartbeatInterval` ms.
    */
   startHeartbeat(): void {

@@ -34,20 +34,33 @@ import java.lang.reflect.Method;
  */
 public class AiEndpointHandler implements AtmosphereHandler {
 
+    /**
+     * Request attribute key for the system prompt configured on the {@code @AiEndpoint}.
+     * The {@code @Prompt} method can retrieve this via
+     * {@code resource.getRequest().getAttribute(AiEndpointHandler.SYSTEM_PROMPT_ATTRIBUTE)}.
+     */
+    public static final String SYSTEM_PROMPT_ATTRIBUTE = "org.atmosphere.ai.systemPrompt";
+
     private static final Logger logger = LoggerFactory.getLogger(AiEndpointHandler.class);
 
     private final Object target;
     private final Method promptMethod;
     private final int paramCount;
+    private final long suspendTimeout;
+    private final String systemPrompt;
 
     /**
      * @param target       the user's @AiEndpoint instance
      * @param promptMethod the @Prompt-annotated method
+     * @param timeout      per-resource suspend timeout in milliseconds
+     * @param systemPrompt the system prompt from the @AiEndpoint annotation (may be empty)
      */
-    public AiEndpointHandler(Object target, Method promptMethod) {
+    public AiEndpointHandler(Object target, Method promptMethod, long timeout, String systemPrompt) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
+        this.suspendTimeout = timeout;
+        this.systemPrompt = systemPrompt != null ? systemPrompt : "";
         this.promptMethod.setAccessible(true);
     }
 
@@ -56,7 +69,10 @@ public class AiEndpointHandler implements AtmosphereHandler {
         if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
                 || resource.transport() == AtmosphereResource.TRANSPORT.SSE
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
-            resource.suspend();
+            resource.suspend(suspendTimeout);
+            if (!systemPrompt.isEmpty()) {
+                resource.getRequest().setAttribute(SYSTEM_PROMPT_ATTRIBUTE, systemPrompt);
+            }
             logger.info("Client {} connected to AI endpoint", resource.uuid());
         }
     }
@@ -116,5 +132,13 @@ public class AiEndpointHandler implements AtmosphereHandler {
 
     Method promptMethod() {
         return promptMethod;
+    }
+
+    long suspendTimeout() {
+        return suspendTimeout;
+    }
+
+    String systemPrompt() {
+        return systemPrompt;
     }
 }

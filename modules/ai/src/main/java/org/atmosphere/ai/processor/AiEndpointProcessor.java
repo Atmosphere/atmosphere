@@ -19,7 +19,6 @@ import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
-import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -55,11 +54,8 @@ public class AiEndpointProcessor implements Processor<Object> {
             validatePromptSignature(promptMethod);
 
             var instance = framework.newClassInstance(Object.class, annotatedClass);
-            var handler = new AiEndpointHandler(instance, promptMethod);
-
-            // Configure timeout
-            framework.addInitParameter(ApplicationConfig.MAX_INACTIVE,
-                    String.valueOf(annotation.timeout()));
+            var handler = new AiEndpointHandler(instance, promptMethod,
+                    annotation.timeout(), annotation.systemPrompt());
 
             framework.addAtmosphereHandler(annotation.path(), handler, new ArrayList<>());
 
