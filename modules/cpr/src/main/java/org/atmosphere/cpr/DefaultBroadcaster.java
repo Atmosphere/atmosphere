@@ -31,7 +31,6 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
@@ -600,8 +599,8 @@ public class DefaultBroadcaster implements Broadcaster {
 
         Object prevMessage = deliver.message;
         if (rec && !delayedBroadcast.isEmpty()) {
-            Iterator<Deliver> i = delayedBroadcast.iterator();
-            StringBuilder b = new StringBuilder();
+            var i = delayedBroadcast.iterator();
+            var b = new StringBuilder();
             while (i.hasNext()) {
                 Deliver e = i.next();
                 e.future.cancel(true);
@@ -700,7 +699,7 @@ public class DefaultBroadcaster implements Broadcaster {
             Object beforeProcessingMessage = deliver.message;
             switch (deliver.type) {
                 case ALL -> {
-                    AtomicInteger count = new AtomicInteger(resources.size());
+                    var count = new AtomicInteger(resources.size());
 
                     for (AtmosphereResource r : resources) {
                         deliver.message = beforeProcessingMessage;
@@ -723,7 +722,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     }
                 }
                 case SET -> {
-                    AtomicInteger count = new AtomicInteger(deliver.resources.size());
+                    var count = new AtomicInteger(deliver.resources.size());
 
                     for (AtmosphereResource r : deliver.resources) {
                         deliver.message = beforeProcessingMessage;
@@ -785,7 +784,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
 
-            AsyncWriteToken w = new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache, count);
+            var w = new AsyncWriteToken(r, deliver.message, deliver.future, deliver.originalMessage, deliver.cache, count);
             if (!outOfOrderBroadcastSupported.get()) {
                 WriteQueue writeQueue = writeQueues.get(r.uuid());
                 if (writeQueue == null) {
@@ -833,7 +832,7 @@ public class DefaultBroadcaster implements Broadcaster {
         }
 
         public List<String> asString() {
-            List<String> l = new ArrayList<>();
+            var l = new ArrayList<String>();
             for (AsyncWriteToken w : queue) {
                 l.add(w.toString());
             }
@@ -970,8 +969,8 @@ public class DefaultBroadcaster implements Broadcaster {
             logger.debug("Sending cached message {} to {}", e.getMessage(), r.uuid());
 
             List<Object> cacheMessages = (List<Object>) e.getMessage();
-            BroadcasterFuture<Object> f = new BroadcasterFuture<>(e.getMessage(), 1);
-            LinkedList<Object> filteredMessage = new LinkedList<>();
+            var f = new BroadcasterFuture<>(e.getMessage(), 1);
+            var filteredMessage = new LinkedList<Object>();
             LinkedList<Object> filteredMessageClone = null;
             Deliver deliver;
             Object newMessage;
@@ -1080,7 +1079,7 @@ public class DefaultBroadcaster implements Broadcaster {
     protected void prepareInvokeOnStateChange(final AtmosphereResource r, final AtmosphereResourceEvent e) {
         if (writeTimeoutInSecond != -1) {
             logger.trace("Registering Write timeout {} for {}", writeTimeoutInSecond, r.uuid());
-            WriteOperation w = new WriteOperation(r, e, Thread.currentThread());
+            var w = new WriteOperation(r, e, Thread.currentThread());
             bc.getScheduledExecutorService().schedule(w, writeTimeoutInSecond, TimeUnit.MILLISECONDS);
 
             try {
@@ -1246,7 +1245,7 @@ public class DefaultBroadcaster implements Broadcaster {
 
         int callee = resources.isEmpty() ? 1 : resources.size();
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg, callee);
+        var f = new BroadcasterFuture<>(newMsg, callee);
         dispatchMessages(new Deliver(newMsg, f, msg));
         return f;
     }
@@ -1291,7 +1290,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return futureDone(msg);
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg, 1);
+        var f = new BroadcasterFuture<>(newMsg, 1);
         dispatchMessages(new Deliver(newMsg, r, f, msg));
         return f;
     }
@@ -1308,7 +1307,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return futureDone(msg);
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<>(newMsg, resources.size());
+        var f = new BroadcasterFuture<>(newMsg, resources.size());
         broadcastOnResume.offer(new Deliver(newMsg, f, msg));
         return f;
     }
@@ -1336,7 +1335,7 @@ public class DefaultBroadcaster implements Broadcaster {
         Object newMsg = filter(msg);
         if (newMsg == null) return futureDone(msg);
 
-        BroadcasterFuture<Object> f = new BroadcasterFuture<>(null, newMsg, subset.size());
+        var f = new BroadcasterFuture<>(null, newMsg, subset.size());
         dispatchMessages(new Deliver(newMsg, subset, f, msg));
         return f;
     }
@@ -1575,8 +1574,8 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        final BroadcasterFuture<Object> future = new BroadcasterFuture<>(msg);
-        final Deliver e = new Deliver(msg, future, o);
+        final var future = new BroadcasterFuture<>(msg);
+        final var e = new Deliver(msg, future, o);
         Future<Object> f;
         if (delay > 0) {
             f = bc.getScheduledExecutorService().schedule(() -> {
@@ -1586,7 +1585,7 @@ public class DefaultBroadcaster implements Broadcaster {
                         Object r = c.call();
                         final Object msg1 = filter(r);
                         if (msg1 != null) {
-                            Deliver deliver = new Deliver(msg1, future, r);
+                            var deliver = new Deliver(msg1, future, r);
                             push(deliver);
                         }
                         return msg1;
@@ -1596,7 +1595,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 final Object msg1 = filter(o);
-                final Deliver e12 = new Deliver(msg1, future, o);
+                final var e12 = new Deliver(msg1, future, o);
                 push(e12);
                 return msg1;
             }, delay, t);
@@ -1628,7 +1627,7 @@ public class DefaultBroadcaster implements Broadcaster {
         final Object msg = filter(o);
         if (msg == null) return null;
 
-        final BroadcasterFuture<Object> f = new BroadcasterFuture<Object>(msg);
+        final var f = new BroadcasterFuture<Object>(msg);
 
         @SuppressWarnings("unchecked")
         Future<Object> result = (Future<Object>) bc.getScheduledExecutorService().scheduleWithFixedDelay(() -> {
@@ -1637,7 +1636,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     Object r = c.call();
                     final Object msg1 = filter(r);
                     if (msg1 != null) {
-                        Deliver deliver = new Deliver(msg1, f, r);
+                        var deliver = new Deliver(msg1, f, r);
                         push(deliver);
                     }
                     return;
@@ -1646,7 +1645,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
             }
             final Object msg1 = filter(o);
-            final Deliver e = new Deliver(msg1, f, o);
+            final var e = new Deliver(msg1, f, o);
             push(e);
         }, waitFor, period, t);
         return result;
