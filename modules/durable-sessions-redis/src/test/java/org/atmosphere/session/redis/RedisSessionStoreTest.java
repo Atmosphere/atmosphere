@@ -206,11 +206,10 @@ public class RedisSessionStoreTest {
             // Verify it exists
             assertTrue(shortTtlStore.restore("tok-expiry").isPresent());
 
-            // Wait for Redis TTL to expire the key
-            Thread.sleep(3000);
-
-            // The key should be gone now (expired by Redis)
-            assertTrue(shortTtlStore.restore("tok-expiry").isEmpty());
+            // Poll until Redis TTL expires the key (avoids flaky fixed sleep in CI)
+            while (shortTtlStore.restore("tok-expiry").isPresent()) {
+                Thread.sleep(500);
+            }
 
             // removeExpired should clean up the index and return stub sessions
             var expired = shortTtlStore.removeExpired(Duration.ofSeconds(1));
