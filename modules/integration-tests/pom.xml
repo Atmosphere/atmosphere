@@ -48,6 +48,13 @@
             <scope>test</scope>
         </dependency>
 
+        <!-- Atmosphere MCP (for MCP integration tests) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-mcp</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Jetty 12 Embedded -->
         <dependency>
             <groupId>org.eclipse.jetty</groupId>

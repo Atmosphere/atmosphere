@@ -1,0 +1,120 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+package org.atmosphere.ai.processor;
+
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.StreamingSessions;
+import org.atmosphere.cpr.AtmosphereHandler;
+import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+
+/**
+ * {@link AtmosphereHandler} that bridges an {@link org.atmosphere.ai.annotation.AiEndpoint}
+ * annotated class to Atmosphere's lifecycle. Handles connect, disconnect, and message
+ * events — delegating prompt handling to the user's {@code @Prompt} method on a virtual thread.
+ */
+public class AiEndpointHandler implements AtmosphereHandler {
+
+    private static final Logger logger = LoggerFactory.getLogger(AiEndpointHandler.class);
+
+    private final Object target;
+    private final Method promptMethod;
+    private final int paramCount;
+
+    /**
+     * @param target       the user's @AiEndpoint instance
+     * @param promptMethod the @Prompt-annotated method
+     */
+    public AiEndpointHandler(Object target, Method promptMethod) {
+        this.target = target;
+        this.promptMethod = promptMethod;
+        this.paramCount = promptMethod.getParameterCount();
+        this.promptMethod.setAccessible(true);
+    }
+
+    @Override
+    public void onRequest(AtmosphereResource resource) throws IOException {
+        if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
+                || resource.transport() == AtmosphereResource.TRANSPORT.SSE
+                || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
+            resource.suspend();
+            logger.info("Client {} connected to AI endpoint", resource.uuid());
+        }
+    }
+
+    @Override
+    public void onStateChange(AtmosphereResourceEvent event) throws IOException {
+        var resource = event.getResource();
+
+        if (event.isClosedByClient() || event.isClosedByApplication()) {
+            logger.info("Client {} disconnected from AI endpoint", resource.uuid());
+            return;
+        }
+
+        if (event.isCancelled()) {
+            logger.info("Client {} unexpectedly disconnected from AI endpoint", resource.uuid());
+            return;
+        }
+
+        var message = event.getMessage();
+        if (message == null) {
+            return;
+        }
+
+        var userMessage = message.toString();
+        logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
+
+        var session = StreamingSessions.start(resource);
+
+        Thread.startVirtualThread(() -> {
+            try {
+                invokePrompt(userMessage, session, resource);
+            } catch (Exception e) {
+                logger.error("Error invoking @Prompt method", e);
+                session.error(e);
+            }
+        });
+    }
+
+    @Override
+    public void destroy() {
+        // no-op
+    }
+
+    private void invokePrompt(String message, StreamingSession session, AtmosphereResource resource)
+            throws InvocationTargetException, IllegalAccessException {
+        if (paramCount == 3) {
+            promptMethod.invoke(target, message, session, resource);
+        } else {
+            promptMethod.invoke(target, message, session);
+        }
+    }
+
+    // visible for testing
+    Object target() {
+        return target;
+    }
+
+    Method promptMethod() {
+        return promptMethod;
+    }
+}
