@@ -135,7 +135,7 @@ jobs:
       run: ./mvnw -B versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
 
     - name: Build release artifacts
-      run: ./mvnw -B clean install -DskipTests -Prelease-profile
+      run: ./mvnw -B clean install -DskipTests -Prelease-profile ${{ inputs.dry_run && '-Dgpg.skip=true' || '' }}
 
     - name: Publish to Maven Central
       if: inputs.dry_run == false
