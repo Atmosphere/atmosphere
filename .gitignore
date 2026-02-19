@@ -29,3 +29,4 @@ atlassian-ide-plugin.xml
 copilot_plan/
 .vscode/
 node_modules/
+website-astro/
