@@ -15,10 +15,6 @@
     <description>Redis-backed durable sessions for Atmosphere Framework</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
-    <properties>
-        <lettuce.version>6.5.5.RELEASE</lettuce.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
@@ -35,13 +31,20 @@
         <dependency>
             <groupId>com.fasterxml.jackson.core</groupId>
             <artifactId>jackson-databind</artifactId>
-            <version>2.18.3</version>
+            <version>${jackson.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.testng</groupId>
             <artifactId>testng</artifactId>
             <version>${testng-version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.testcontainers</groupId>
+            <artifactId>testcontainers</artifactId>
+            <version>1.20.6</version>
             <scope>test</scope>
         </dependency>
 

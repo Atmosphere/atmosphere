@@ -15,10 +15,6 @@
     <description>Redis clustering support for Atmosphere Framework using Lettuce</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
 
-    <properties>
-        <lettuce.version>6.5.5.RELEASE</lettuce.version>
-    </properties>
-
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
@@ -42,7 +38,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.21.0</version>
+            <version>${mockito.version}</version>
             <scope>test</scope>
         </dependency>
 

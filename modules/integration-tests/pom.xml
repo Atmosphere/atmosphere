@@ -17,7 +17,6 @@
 
     <properties>
         <testcontainers.version>1.20.4</testcontainers.version>
-        <lettuce.version>6.5.3.RELEASE</lettuce.version>
         <kafka.version>3.9.0</kafka.version>
         <checkstyle.skip>true</checkstyle.skip>
         <pmd.skip>true</pmd.skip>

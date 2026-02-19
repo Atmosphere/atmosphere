@@ -38,16 +38,12 @@
                 <configuration>
                     <instructions>
                         <Import-Package>
-                            com.sun*;resolution:=optional,
-                            org.glassfish.grizzly*;resolution:=optional,
-                            org.apache.catalina*;resolution:=optional;version="[6.0,9)",
-                            org.apache.tomcat*;resolution:=optional;version="[6.0,9)",
-                            org.eclipse.jetty.continuation;resolution:=optional;version="[7.6,10)",
-                            org.eclipse.jetty.websocket;resolution:=optional;version="[7.6,10)",
+                            org.apache.catalina*;resolution:=optional,
+                            org.apache.tomcat*;resolution:=optional,
+                            org.apache.coyote*;resolution:=optional,
+                            org.eclipse.jetty.websocket*;resolution:=optional,
                             org.eclipse.jetty*;resolution:=optional,
                             org.jboss.servlet*;resolution:=optional,
-                            org.apache.coyote*;resolution:=optional,
-                            org.mortbay.util.ajax*;resolution:=optional,
                             org.atmosphere.inject*;resolution:=optional,
                             org.atmosphere.jboss*;resolution:=optional,
                             org.apache.shiro*;resolution:=optional,
@@ -56,9 +52,7 @@
                             jakarta.websocket*;resolution:=optional,
                             jakarta.enterprise*;resolution:=optional,
                             jakarta.inject*;resolution:=optional,
-                            weblogic.websocket*;resolution:=optional,
                             io.quarkus.runtime*;resolution:=optional,
-                            jakarta.jnlp*;resolution:=optional,
                             org.atmosphere.jersey.util*;resolution:=optional,
                             org.testng;resolution:=optional,
                             *,
@@ -129,7 +123,7 @@
         <dependency>
             <groupId>org.mockito</groupId>
             <artifactId>mockito-core</artifactId>
-            <version>5.21.0</version>
+            <version>${mockito.version}</version>
             <type>jar</type>
             <scope>test</scope>
         </dependency>
