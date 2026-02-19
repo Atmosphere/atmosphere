@@ -121,14 +121,6 @@
                 <version>3.10.0</version>
             </plugin>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-release-plugin</artifactId>
-                <version>3.0.0-M5</version>
-                <configuration>
-                    <releaseProfiles>release-profile</releaseProfiles>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.sonatype.central</groupId>
                 <artifactId>central-publishing-maven-plugin</artifactId>
                 <version>0.9.0</version>

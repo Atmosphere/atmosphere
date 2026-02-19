@@ -14,6 +14,7 @@
     <version>4.0.0-SNAPSHOT</version>
     <name>atmosphere-chat</name>
     <url>http://maven.apache.org</url>
+
     <dependencies>
         <dependency>
             <groupId>org.atmosphere.client</groupId>
@@ -49,6 +50,7 @@
     </dependencies>
     <properties>
         <doclint>none</doclint>
+        <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
     <build>
         <finalName>${project.artifactId}</finalName>

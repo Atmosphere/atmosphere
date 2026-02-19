@@ -152,7 +152,7 @@ jobs:
     - name: Commit release version
       if: inputs.dry_run == false
       run: |
-        git add -A
+        git add -- '**/pom.xml'
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"
         git tag "atmosphere-${{ inputs.release_version }}"
 
@@ -160,7 +160,7 @@ jobs:
       if: inputs.dry_run == false
       run: |
         ./mvnw -B versions:set -DnewVersion=${{ inputs.next_dev_version }} -DgenerateBackupPoms=false
-        git add -A
+        git add -- '**/pom.xml'
         git commit -m "chore: prepare for next development iteration ${{ inputs.next_dev_version }}"
 
     - name: Push commits and tag
