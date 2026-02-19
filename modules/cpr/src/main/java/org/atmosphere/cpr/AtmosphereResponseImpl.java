@@ -1177,10 +1177,10 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
         if (NO_BUFFERING.get() != null) {
             boolean b = forceAsyncIOWriter;
             try {
-                if (data instanceof String) {
-                    asyncIOWriter.write(AtmosphereResponseImpl.this, (String) data);
-                } else if (data instanceof byte[]) {
-                    asyncIOWriter.write(AtmosphereResponseImpl.this, (byte[]) data);
+                if (data instanceof String s) {
+                    asyncIOWriter.write(AtmosphereResponseImpl.this, s);
+                } else if (data instanceof byte[] bytes) {
+                    asyncIOWriter.write(AtmosphereResponseImpl.this, bytes);
                 }
             } catch (IOException e) {
                 handleException(e);
@@ -1195,10 +1195,10 @@ public class AtmosphereResponseImpl extends HttpServletResponseWrapper implement
                 if (previous != null) {
                     boolean b = forceAsyncIOWriter;
                     try {
-                        if (previous instanceof String) {
-                            asyncIOWriter.write(AtmosphereResponseImpl.this, (String) previous);
-                        } else if (previous instanceof byte[]) {
-                            asyncIOWriter.write(AtmosphereResponseImpl.this, (byte[]) previous);
+                        if (previous instanceof String s) {
+                            asyncIOWriter.write(AtmosphereResponseImpl.this, s);
+                        } else if (previous instanceof byte[] bytes) {
+                            asyncIOWriter.write(AtmosphereResponseImpl.this, bytes);
                         }
                     } catch (IOException e) {
                         handleException(e);

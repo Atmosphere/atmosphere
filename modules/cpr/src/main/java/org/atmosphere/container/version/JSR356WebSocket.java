@@ -114,13 +114,13 @@ public class JSR356WebSocket extends WebSocket {
             semaphore.release();
         }
 
-        if (e instanceof NullPointerException) {
-            patchGlassFish((NullPointerException) e);
+        if (e instanceof NullPointerException npe) {
+            patchGlassFish(npe);
             return;
         }
 
-        if (e instanceof RuntimeException) {
-            throw (RuntimeException) e;
+        if (e instanceof RuntimeException re) {
+            throw re;
         }
 
         throw new RuntimeException("Unexpected error while writing to socket", e);

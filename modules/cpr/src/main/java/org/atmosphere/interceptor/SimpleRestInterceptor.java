@@ -157,8 +157,8 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
                     writer = new AtmosphereInterceptorWriter();
                     r.getResponse().asyncIOWriter(writer);
                 }
-                if (writer instanceof AtmosphereInterceptorWriter) {
-                    ((AtmosphereInterceptorWriter)writer).interceptor(interceptor);
+                if (writer instanceof AtmosphereInterceptorWriter aiw) {
+                    aiw.interceptor(interceptor);
                 }
             }
 
@@ -339,8 +339,8 @@ public class SimpleRestInterceptor extends AtmosphereInterceptorAdapter {
         AtmosphereResponse res = r.getResponse();
         AsyncIOWriter writer = res.getAsyncIOWriter();
 
-        if (writer instanceof AtmosphereInterceptorWriter) {
-            ((AtmosphereInterceptorWriter)writer).interceptor(interceptor, 0);
+        if (writer instanceof AtmosphereInterceptorWriter aiw) {
+            aiw.interceptor(interceptor, 0);
         }
     }
 

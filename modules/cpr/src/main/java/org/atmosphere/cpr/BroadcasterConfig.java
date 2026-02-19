@@ -287,8 +287,8 @@ public class BroadcasterConfig {
         logDuplicateFilter(e);
         if (filters.contains(e)) return false;
 
-        if (e instanceof BroadcastFilterLifecycle) {
-            ((BroadcastFilterLifecycle) e).init(config);
+        if (e instanceof BroadcastFilterLifecycle lifecycle) {
+            lifecycle.init(config);
         }
 
         if (init && e instanceof ClusterBroadcastFilter cbf) {
@@ -303,8 +303,8 @@ public class BroadcasterConfig {
             }
         }
 
-        if (e instanceof PerRequestBroadcastFilter) {
-            perRequestFilters.add((PerRequestBroadcastFilter) e);
+        if (e instanceof PerRequestBroadcastFilter perRequest) {
+            perRequestFilters.add(perRequest);
         }
 
         return filters.offer(e);
@@ -368,8 +368,8 @@ public class BroadcasterConfig {
      * @return true if successfully removed
      */
     public boolean removeFilter(BroadcastFilter filter) {
-        if (filter instanceof BroadcastFilterLifecycle) {
-            ((BroadcastFilterLifecycle) filter).destroy();
+        if (filter instanceof BroadcastFilterLifecycle lifecycle) {
+            lifecycle.destroy();
         }
 
         if (filter instanceof PerRequestBroadcastFilter) {

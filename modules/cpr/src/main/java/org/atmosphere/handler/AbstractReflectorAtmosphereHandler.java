@@ -211,8 +211,8 @@ public abstract class AbstractReflectorAtmosphereHandler implements AtmosphereSe
         if (!resumeOnBroadcast) {
             // For legacy reason, check the attribute as well
             Object o = r.getRequest(false).getAttribute(ApplicationConfig.RESUME_ON_BROADCAST);
-            if (o instanceof Boolean) {
-                resumeOnBroadcast = (Boolean) o;
+            if (o instanceof Boolean b) {
+                resumeOnBroadcast = b;
             }
         }
 

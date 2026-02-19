@@ -178,8 +178,8 @@ public class ReflectorServletProcessor extends AbstractReflectorAtmosphereHandle
             throw new RuntimeException(ex);
         } finally {
             // For the sync case, the completion is notified here. For the async case, it is notified by AsyncContext later
-            if (completionAware && r.getResponse() instanceof CompletionAware && !r.getRequest().isAsyncStarted()) {
-                ((CompletionAware)r.getResponse()).onComplete();
+            if (completionAware && r.getResponse() instanceof CompletionAware ca && !r.getRequest().isAsyncStarted()) {
+                ca.onComplete();
             }
         }
     }

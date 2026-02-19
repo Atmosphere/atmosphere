@@ -254,9 +254,7 @@ public class InjectableObjectFactory implements AtmosphereObjectFactory<Injectab
                 for (Injectable<?> c : injectable) {
                     if (c.supportedType(field.getType())) {
 
-                        if (c instanceof InjectIntrospector) {
-                            @SuppressWarnings("rawtypes")
-                            InjectIntrospector raw = (InjectIntrospector) c;
+                        if (c instanceof InjectIntrospector raw) {
                             raw.introspectField(instance.getClass(), field);
                         }
 

@@ -221,8 +221,8 @@ public final class TypeResolver {
             Type genericType = targetType.getGenericSuperclass();
             Class<?> type = targetType.getSuperclass();
             while (type != null && !Object.class.equals(type)) {
-                if (genericType instanceof ParameterizedType)
-                    buildTypeVariableMap((ParameterizedType) genericType, map);
+                if (genericType instanceof ParameterizedType parameterized)
+                    buildTypeVariableMap(parameterized, map);
                 buildTypeVariableMap(type.getGenericInterfaces(), map);
 
                 genericType = type.getGenericSuperclass();
@@ -233,8 +233,8 @@ public final class TypeResolver {
             type = targetType;
             while (type.isMemberClass()) {
                 genericType = type.getGenericSuperclass();
-                if (genericType instanceof ParameterizedType)
-                    buildTypeVariableMap((ParameterizedType) genericType, map);
+                if (genericType instanceof ParameterizedType parameterized)
+                    buildTypeVariableMap(parameterized, map);
 
                 type = type.getEnclosingClass();
             }

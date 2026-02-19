@@ -123,8 +123,7 @@ public class Servlet30CometSupport extends AsynchronousProcessor {
         } catch (Exception e) {
             logger.warn("Exception occurred in getting attribute from request object", e);
         }
-        if (attribute instanceof AsyncContext) {
-            AsyncContext asyncContext = (AsyncContext) attribute;
+        if (attribute instanceof AsyncContext asyncContext) {
             try {
                 asyncContext.complete();
             } catch (IllegalStateException ex) {
