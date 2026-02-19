@@ -91,6 +91,9 @@
     "url": "https://github.com/Atmosphere/atmosphere/issues"
   },
   "homepage": "https://github.com/Atmosphere/atmosphere#readme",
+  "overrides": {
+    "esbuild": ">=0.25.0"
+  },
   "devDependencies": {
     "@types/node": "^20.19.33",
     "@types/react": "^19.2.14",
