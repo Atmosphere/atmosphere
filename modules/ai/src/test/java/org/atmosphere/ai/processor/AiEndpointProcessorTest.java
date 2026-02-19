@@ -32,7 +32,7 @@ import java.util.List;
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
 
-@SuppressWarnings("unchecked")
+@SuppressWarnings({"unchecked", "rawtypes"})
 public class AiEndpointProcessorTest {
 
     private AiEndpointProcessor processor;
