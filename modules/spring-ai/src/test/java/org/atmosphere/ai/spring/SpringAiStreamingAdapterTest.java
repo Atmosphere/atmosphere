@@ -208,6 +208,235 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(session.isClosed(), "Session should be closed after complete");
     }
 
+    // --- New tests below ---
+
+    @Test
+    public void testStreamEmptyFlux() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        // Empty flux - no tokens at all
+        Flux<ChatResponse> flux = Flux.<ChatResponse>empty()
+                .doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClient("empty", flux);
+        adapter.stream(client, "empty", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        // progress + complete = 2
+        verify(resource, timeout(2000).atLeast(2)).write(captor.capture());
+
+        var messages = captor.getAllValues().stream()
+                .map(Object::toString)
+                .toList();
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"progress\"")),
+                "Should send progress first");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"complete\"")),
+                "Should send complete even with empty flux");
+    }
+
+    @Test
+    public void testStreamWithNullText() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        // Generation with null text output
+        var generation = new Generation(new AssistantMessage(null));
+        var response = new ChatResponse(List.of(generation));
+        Flux<ChatResponse> flux = Flux.just(response)
+                .doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClient("null-text", flux);
+        adapter.stream(client, "null-text", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, timeout(2000).atLeast(2)).write(captor.capture());
+
+        var messages = captor.getAllValues().stream()
+                .map(Object::toString)
+                .toList();
+
+        // Should not have sent any token with null text (filtered by the null check)
+        assertFalse(messages.stream().anyMatch(m ->
+                        m.contains("\"type\":\"token\"") && m.contains("\"data\":null")),
+                "Should not send token with null data");
+    }
+
+    @Test
+    public void testStreamProgressMessage() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        Flux<ChatResponse> flux = Flux.just(chatResponse("token"))
+                .doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClient("progress-test", flux);
+        adapter.stream(client, "progress-test", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, timeout(2000).atLeast(3)).write(captor.capture());
+
+        // First message should be the progress message
+        var firstMsg = captor.getAllValues().get(0);
+        assertTrue(firstMsg.contains("\"type\":\"progress\""),
+                "First message should be progress");
+        assertTrue(firstMsg.contains("Connecting to AI model..."),
+                "Progress should contain connecting message");
+    }
+
+    @Test
+    public void testChatRequestRecordAccessors() {
+        var client = mock(ChatClient.class);
+        var request = new SpringAiStreamingAdapter.ChatRequest(client, "my prompt");
+
+        assertSame(request.client(), client);
+        assertEquals(request.prompt(), "my prompt");
+    }
+
+    @Test
+    public void testChatRequestRecordEquality() {
+        var client = mock(ChatClient.class);
+
+        var request1 = new SpringAiStreamingAdapter.ChatRequest(client, "prompt");
+        var request2 = new SpringAiStreamingAdapter.ChatRequest(client, "prompt");
+
+        assertEquals(request1, request2);
+        assertEquals(request1.hashCode(), request2.hashCode());
+    }
+
+    @Test
+    public void testChatRequestRecordInequality() {
+        var client1 = mock(ChatClient.class);
+        var client2 = mock(ChatClient.class);
+
+        var request1 = new SpringAiStreamingAdapter.ChatRequest(client1, "prompt");
+        var request2 = new SpringAiStreamingAdapter.ChatRequest(client2, "prompt");
+
+        assertNotEquals(request1, request2);
+    }
+
+    @Test
+    public void testSessionIdIncludedInMessages() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        Flux<ChatResponse> flux = Flux.just(chatResponse("data"))
+                .doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClient("sid-test", flux);
+        adapter.stream(client, "sid-test", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, timeout(2000).atLeast(3)).write(captor.capture());
+
+        // All messages should include the session ID
+        for (var msg : captor.getAllValues()) {
+            assertTrue(msg.contains("\"sessionId\":\"test-session\""),
+                    "All messages should include sessionId");
+        }
+    }
+
+    @Test
+    public void testStreamWithSpecialCharacters() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        Flux<ChatResponse> flux = Flux.just(
+                chatResponse("He said \"hello\""),
+                chatResponse(" & goodbye")
+        ).doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClient("special", flux);
+        adapter.stream(client, "special", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, timeout(2000).atLeast(4)).write(captor.capture());
+
+        var messages = captor.getAllValues().stream()
+                .map(Object::toString)
+                .toList();
+        // JSON encoding should handle quotes and ampersand
+        assertTrue(messages.stream().anyMatch(m -> m.contains("hello")),
+                "Should contain 'hello'");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("goodbye")),
+                "Should contain 'goodbye'");
+    }
+
+    @Test
+    public void testStreamErrorAfterTokens() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        Flux<ChatResponse> flux = Flux.concat(
+                Flux.just(chatResponse("partial")),
+                Flux.<ChatResponse>error(new RuntimeException("Connection lost"))
+        ).doOnError(t -> latch.countDown());
+
+        ChatClient client = mockChatClient("err-after-tokens", flux);
+        adapter.stream(client, "err-after-tokens", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        // progress + 1 token + error = 3
+        verify(resource, timeout(2000).atLeast(3)).write(captor.capture());
+
+        var messages = captor.getAllValues().stream()
+                .map(Object::toString)
+                .toList();
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"partial\"")),
+                "Should have sent the partial token before error");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")),
+                "Should send error after partial tokens");
+        assertTrue(messages.stream().anyMatch(m -> m.contains("Connection lost")),
+                "Error message should contain cause");
+    }
+
+    @Test
+    public void testSessionClosedAfterStreamComplete() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        Flux<ChatResponse> flux = Flux.just(chatResponse("done"))
+                .doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClient("closed-test", flux);
+
+        assertFalse(session.isClosed(), "Session should be open before streaming");
+
+        adapter.stream(client, "closed-test", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        // Allow time for the doOnComplete callback to fire
+        verify(resource, timeout(2000).atLeast(3)).write(anyString());
+
+        assertTrue(session.isClosed(), "Session should be closed after streaming completes");
+    }
+
+    @Test
+    public void testSessionClosedAfterStreamError() throws Exception {
+        var latch = new CountDownLatch(1);
+
+        Flux<ChatResponse> flux = Flux.<ChatResponse>error(new RuntimeException("fail"))
+                .doOnError(t -> latch.countDown());
+
+        ChatClient client = mockChatClient("err-close-test", flux);
+
+        assertFalse(session.isClosed());
+
+        adapter.stream(client, "err-close-test", session);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        verify(resource, timeout(2000).atLeast(2)).write(anyString());
+
+        assertTrue(session.isClosed(), "Session should be closed after error");
+    }
+
     @SuppressWarnings("null")
     private static ChatResponse chatResponse(String text) {
         return new ChatResponse(List.of(new Generation(new AssistantMessage(text))));

@@ -15,8 +15,12 @@
  */
 package org.atmosphere.kafka;
 
+import org.apache.kafka.clients.consumer.ConsumerRecord;
+import org.apache.kafka.clients.consumer.ConsumerRecords;
 import org.apache.kafka.clients.consumer.KafkaConsumer;
 import org.apache.kafka.clients.producer.KafkaProducer;
+import org.apache.kafka.clients.producer.ProducerRecord;
+import org.apache.kafka.common.TopicPartition;
 import org.apache.kafka.common.header.internals.RecordHeaders;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.AtmosphereConfig;
@@ -30,20 +34,31 @@ import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
+import org.mockito.ArgumentCaptor;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
+import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertNotNull;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 /**
@@ -182,6 +197,138 @@ public class KafkaBroadcasterTest {
         var b1 = new TestableKafkaBroadcaster();
         var b2 = new TestableKafkaBroadcaster();
         assertTrue(!b1.getNodeId().equals(b2.getNodeId()));
+    }
+
+    // --- New tests below ---
+
+    @Test
+    public void testSanitizeTopicNameWithSpecialCharacters() {
+        // Test various special characters that should be replaced with underscores
+        assertEquals(KafkaBroadcaster.sanitizeTopicName("room@#$%"), "room____");
+        assertEquals(KafkaBroadcaster.sanitizeTopicName("a+b=c"), "a_b_c");
+        assertEquals(KafkaBroadcaster.sanitizeTopicName(""), "");
+        assertEquals(KafkaBroadcaster.sanitizeTopicName("already_valid-name.1"), "already_valid-name.1");
+    }
+
+    @Test
+    public void testSanitizeTopicNameWithUnicode() {
+        // Unicode characters should be replaced with underscores
+        assertEquals(KafkaBroadcaster.sanitizeTopicName("chat-\u00e9\u00e8\u00ea"), "chat-___");
+    }
+
+    @Test
+    public void testSerializeEmptyStringMessage() {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        var result = new String(testable.serializeMessage(""), StandardCharsets.UTF_8);
+        assertEquals(result, "");
+    }
+
+    @Test
+    public void testSerializeNullToStringMessage() {
+        // Objects use toString(), so test a custom object
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        var obj = new Object() {
+            @Override
+            public String toString() {
+                return "custom-object";
+            }
+        };
+        var result = new String(testable.serializeMessage(obj), StandardCharsets.UTF_8);
+        assertEquals(result, "custom-object");
+    }
+
+    @Test
+    public void testSerializeEmptyByteArray() {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        var bytes = new byte[0];
+        var result = testable.serializeMessage(bytes);
+        assertEquals(result.length, 0);
+    }
+
+    @Test
+    public void testSerializeMessageWithUtf8Characters() {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        var utf8Msg = "Hello \u4e16\u754c \ud83c\udf0d";
+        var result = testable.serializeMessage(utf8Msg);
+        assertEquals(new String(result, StandardCharsets.UTF_8), utf8Msg);
+    }
+
+    @Test
+    public void testExtractNodeIdWithMultipleHeaders() {
+        // When multiple headers with the same key exist, lastHeader should be used
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        var headers = new RecordHeaders();
+        headers.add(KafkaBroadcaster.NODE_ID_HEADER, "node-1".getBytes(StandardCharsets.UTF_8));
+        headers.add(KafkaBroadcaster.NODE_ID_HEADER, "node-2".getBytes(StandardCharsets.UTF_8));
+        assertEquals(testable.extractNodeId(headers), "node-2");
+    }
+
+    @Test
+    public void testExtractNodeIdWithEmptyValue() {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        var headers = new RecordHeaders();
+        headers.add(KafkaBroadcaster.NODE_ID_HEADER, "".getBytes(StandardCharsets.UTF_8));
+        assertEquals(testable.extractNodeId(headers), "");
+    }
+
+    @Test
+    public void testNodeIdHeaderConstant() {
+        assertEquals(KafkaBroadcaster.NODE_ID_HEADER, "atmosphere-node-id");
+    }
+
+    @Test
+    public void testNodeIdIsNotNull() {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        assertNotNull(testable.getNodeId());
+        assertFalse(testable.getNodeId().isEmpty());
+    }
+
+    @Test
+    public void testMultipleBroadcastsPublishMultipleTimes() throws Exception {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+
+        broadcaster.broadcast("msg-1").get();
+        assertEquals(new String(testable.lastPublishedPayload, StandardCharsets.UTF_8), "msg-1");
+
+        broadcaster.broadcast("msg-2").get();
+        assertEquals(new String(testable.lastPublishedPayload, StandardCharsets.UTF_8), "msg-2");
+
+        broadcaster.broadcast("msg-3").get();
+        assertEquals(new String(testable.lastPublishedPayload, StandardCharsets.UTF_8), "msg-3");
+    }
+
+    @Test
+    public void testBroadcastReturnsNonNullFuture() {
+        Future<Object> future = broadcaster.broadcast("any-msg");
+        assertNotNull(future);
+    }
+
+    @Test
+    public void testTopicNameIncludesPrefix() {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        // Default prefix is "atmosphere." and broadcaster ID is "kafka-test"
+        assertTrue(testable.getTopicName().startsWith("atmosphere."));
+    }
+
+    @Test
+    public void testPublishToKafkaCapturesAllFields() throws Exception {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+
+        broadcaster.broadcast("verify-all-fields").get();
+
+        assertNotNull(testable.lastPublishedTopic, "Topic should be captured");
+        assertNotNull(testable.lastPublishedPayload, "Payload should be captured");
+        assertNotNull(testable.lastPublishedNodeId, "Node ID should be captured");
+        assertEquals(testable.lastPublishedTopic, "atmosphere.kafka-test");
+        assertEquals(testable.lastPublishedNodeId, testable.getNodeId());
+    }
+
+    @Test
+    public void testBroadcastByteArrayMessage() throws Exception {
+        var testable = (TestableKafkaBroadcaster) broadcaster;
+        var bytes = "binary-data".getBytes(StandardCharsets.UTF_8);
+        broadcaster.broadcast(bytes).get();
+        assertEquals(testable.lastPublishedPayload, bytes);
     }
 
     /**

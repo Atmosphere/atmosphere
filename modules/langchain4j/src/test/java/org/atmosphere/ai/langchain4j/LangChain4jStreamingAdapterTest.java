@@ -216,4 +216,221 @@ public class LangChain4jStreamingAdapterTest {
 
         assertTrue(session.isClosed());
     }
+
+    // --- New tests below ---
+
+    @Test
+    public void testResponseHandlerOnPartialResponseWithEmptyString() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        handler.onPartialResponse("");
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(1)).write(captor.capture());
+
+        var msg = captor.getValue();
+        assertTrue(msg.contains("\"type\":\"token\""));
+        assertTrue(msg.contains("\"data\":\"\""));
+    }
+
+    @Test
+    public void testResponseHandlerOnPartialResponseWithSpecialCharacters() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        handler.onPartialResponse("He said \"hello\" & goodbye");
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(1)).write(captor.capture());
+
+        var msg = captor.getValue();
+        assertTrue(msg.contains("\"type\":\"token\""));
+        // JSON should properly escape the quotes
+        assertTrue(msg.contains("hello"));
+    }
+
+    @Test
+    public void testResponseHandlerOnErrorWithNullMessage() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        // Exception with null message
+        handler.onError(new RuntimeException((String) null));
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
+
+        var msg = captor.getValue();
+        assertTrue(msg.contains("\"type\":\"error\""));
+        assertTrue(session.isClosed());
+    }
+
+    @Test
+    public void testResponseHandlerOnCompleteWithNullAiMessage() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        // Build a response without an AiMessage text by using empty message
+        var response = ChatResponse.builder()
+                .aiMessage(AiMessage.from(""))
+                .build();
+
+        handler.onCompleteResponse(response);
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
+
+        // Session should be closed
+        assertTrue(session.isClosed());
+    }
+
+    @Test
+    public void testSessionClosedAfterError() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        assertFalse(session.isClosed());
+        handler.onError(new RuntimeException("fail"));
+        assertTrue(session.isClosed());
+    }
+
+    @Test
+    public void testSessionClosedAfterComplete() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        assertFalse(session.isClosed());
+        handler.onCompleteResponse(ChatResponse.builder()
+                .aiMessage(AiMessage.from("done")).build());
+        assertTrue(session.isClosed());
+    }
+
+    @Test
+    public void testSendAfterCompleteIsIgnored() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        handler.onCompleteResponse(ChatResponse.builder()
+                .aiMessage(AiMessage.from("done")).build());
+
+        // Reset to track only new writes
+        reset(resource);
+        when(resource.write(anyString())).thenReturn(resource);
+
+        // Session is closed, so this send should be silently ignored
+        handler.onPartialResponse("should be ignored");
+
+        // No new writes because session is closed
+        verify(resource, never()).write(anyString());
+    }
+
+    @Test
+    public void testSendAfterErrorIsIgnored() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        handler.onError(new RuntimeException("fail"));
+
+        // Reset to track only new writes
+        reset(resource);
+        when(resource.write(anyString())).thenReturn(resource);
+
+        // Session is closed after error
+        handler.onPartialResponse("should be ignored");
+
+        verify(resource, never()).write(anyString());
+    }
+
+    @Test
+    public void testAdapterSendsProgressMessageFirst() {
+        var model = mock(StreamingChatLanguageModel.class);
+        var chatRequest = mock(ChatRequest.class);
+
+        // Model does nothing (simulates a model that hasn't responded yet)
+        doNothing().when(model).chat(eq(chatRequest), any(StreamingChatResponseHandler.class));
+
+        adapter.stream(model, chatRequest, session);
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(1)).write(captor.capture());
+
+        var msg = captor.getValue();
+        assertTrue(msg.contains("\"type\":\"progress\""));
+        assertTrue(msg.contains("Connecting to AI model..."));
+    }
+
+    @Test
+    public void testLangChain4jRequestRecordAccessors() {
+        var model = mock(StreamingChatLanguageModel.class);
+        var chatRequest = mock(ChatRequest.class);
+
+        var request = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
+
+        assertSame(request.model(), model);
+        assertSame(request.chatRequest(), chatRequest);
+    }
+
+    @Test
+    public void testLangChain4jRequestRecordEquality() {
+        var model = mock(StreamingChatLanguageModel.class);
+        var chatRequest = mock(ChatRequest.class);
+
+        var request1 = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
+        var request2 = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
+
+        assertEquals(request1, request2);
+        assertEquals(request1.hashCode(), request2.hashCode());
+    }
+
+    @Test
+    public void testSequenceNumbersIncrease() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        handler.onPartialResponse("A");
+        handler.onPartialResponse("B");
+        handler.onPartialResponse("C");
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource, times(3)).write(captor.capture());
+
+        var messages = captor.getAllValues();
+        // Extract sequence numbers and verify they are increasing
+        long prevSeq = -1;
+        for (var msg : messages) {
+            int idx = msg.indexOf("\"seq\":");
+            assertTrue(idx > 0, "Message should contain seq field");
+            int start = idx + 6;
+            int end = msg.indexOf("}", start);
+            if (end < 0) end = msg.indexOf(",", start);
+            long seq = Long.parseLong(msg.substring(start, end).trim());
+            assertTrue(seq > prevSeq, "Sequence " + seq + " should be greater than " + prevSeq);
+            prevSeq = seq;
+        }
+    }
+
+    @Test
+    public void testSessionIdIncludedInMessages() {
+        var handler = new AtmosphereStreamingResponseHandler(session);
+
+        handler.onPartialResponse("token");
+
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(resource).write(captor.capture());
+
+        var msg = captor.getValue();
+        assertTrue(msg.contains("\"sessionId\":\"test-session\""));
+    }
+
+    @Test
+    public void testAdapterConvenienceMethodDelegates() {
+        var model = mock(StreamingChatLanguageModel.class);
+        var chatRequest = mock(ChatRequest.class);
+
+        doAnswer(invocation -> {
+            StreamingChatResponseHandler handler = invocation.getArgument(1);
+            handler.onCompleteResponse(
+                    ChatResponse.builder().aiMessage(AiMessage.from("OK")).build());
+            return null;
+        }).when(model).chat(eq(chatRequest), any(StreamingChatResponseHandler.class));
+
+        // Use the 3-arg convenience method
+        adapter.stream(model, chatRequest, session);
+
+        // Verify the model was actually called
+        verify(model).chat(eq(chatRequest), any(StreamingChatResponseHandler.class));
+        assertTrue(session.isClosed());
+    }
 }
