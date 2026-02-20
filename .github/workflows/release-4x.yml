@@ -135,7 +135,13 @@ jobs:
         git config user.email "actions@github.com"
 
     - name: Set release version
-      run: ./mvnw -B versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
+      run: |
+        ./mvnw -B versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
+        # Update standalone POMs not managed by versions:set
+        sed -i "s|<version>.*-SNAPSHOT</version>|<version>${{ inputs.release_version }}</version>|" buildtools/pom.xml
+        for f in samples/spring-boot-ai-chat/pom.xml samples/spring-boot-langchain4j-chat/pom.xml samples/spring-boot-embabel-chat/pom.xml samples/spring-boot-mcp-server/pom.xml samples/spring-boot-durable-sessions/pom.xml; do
+          sed -i "s|<atmosphere.version>.*</atmosphere.version>|<atmosphere.version>${{ inputs.release_version }}</atmosphere.version>|" "$f"
+        done
 
     - name: Build and publish to Maven Central
       if: inputs.dry_run == false
@@ -152,7 +158,7 @@ jobs:
     - name: Commit release version
       if: inputs.dry_run == false
       run: |
-        git add -- '**/pom.xml'
+        git add -- pom.xml '**/pom.xml'
         git commit -m "release: Atmosphere ${{ inputs.release_version }}"
         git tag "atmosphere-${{ inputs.release_version }}"
 
@@ -160,7 +166,12 @@ jobs:
       if: inputs.dry_run == false
       run: |
         ./mvnw -B versions:set -DnewVersion=${{ inputs.next_dev_version }} -DgenerateBackupPoms=false
-        git add -- '**/pom.xml'
+        # Update standalone POMs not managed by versions:set
+        sed -i "s|<version>${{ inputs.release_version }}</version>|<version>${{ inputs.next_dev_version }}</version>|" buildtools/pom.xml
+        for f in samples/spring-boot-ai-chat/pom.xml samples/spring-boot-langchain4j-chat/pom.xml samples/spring-boot-embabel-chat/pom.xml samples/spring-boot-mcp-server/pom.xml samples/spring-boot-durable-sessions/pom.xml; do
+          sed -i "s|<atmosphere.version>${{ inputs.release_version }}</atmosphere.version>|<atmosphere.version>${{ inputs.next_dev_version }}</atmosphere.version>|" "$f"
+        done
+        git add -- pom.xml '**/pom.xml'
         git commit -m "chore: prepare for next development iteration ${{ inputs.next_dev_version }}"
 
     - name: Push commits and tag

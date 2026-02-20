@@ -6,7 +6,7 @@
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
     <description>Atmosphere Framework</description>
-    <version>4.0.1-SNAPSHOT</version>
+    <version>4.0.2-SNAPSHOT</version>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
@@ -186,7 +186,7 @@
                     <dependency>
                         <groupId>org.atmosphere</groupId>
                         <artifactId>atmosphere-buildtools</artifactId>
-                        <version>4.0.1-SNAPSHOT</version>
+                        <version>4.0.2-SNAPSHOT</version>
                     </dependency>
                     <dependency>
                         <groupId>com.puppycrawl.tools</groupId>
@@ -224,7 +224,7 @@
                     <dependency>
                         <groupId>org.atmosphere</groupId>
                         <artifactId>atmosphere-buildtools</artifactId>
-                        <version>4.0.1-SNAPSHOT</version>
+                        <version>4.0.2-SNAPSHOT</version>
                     </dependency>
                 </dependencies>
                 <configuration>

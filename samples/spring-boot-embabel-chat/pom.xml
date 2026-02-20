@@ -12,13 +12,13 @@
 
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>spring-boot-embabel-chat</artifactId>
-    <version>4.0.1-SNAPSHOT</version>
+    <version>4.0.2-SNAPSHOT</version>
     <name>Atmosphere Embabel Agent Chat Sample</name>
     <description>Real-time AI agent chat using Atmosphere + Embabel Agent Framework</description>
 
     <properties>
         <java.version>21</java.version>
-        <atmosphere.version>4.0.1-SNAPSHOT</atmosphere.version>
+        <atmosphere.version>4.0.2-SNAPSHOT</atmosphere.version>
         <embabel.version>0.3.5-SNAPSHOT</embabel.version>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>

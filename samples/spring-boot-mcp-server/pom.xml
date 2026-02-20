@@ -13,7 +13,7 @@
 
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-spring-boot-mcp-server</artifactId>
-    <version>4.0.1-SNAPSHOT</version>
+    <version>4.0.2-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>atmosphere-spring-boot-mcp-server</name>
     <description>Atmosphere MCP server sample — expose tools, resources, and prompts to AI agents</description>
