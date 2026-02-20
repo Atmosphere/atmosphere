@@ -29,7 +29,7 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 
 | Stack | Artifact | Min version |
 |-------|----------|-------------|
-| **Spring Boot** | `atmosphere-spring-boot-starter` | Spring Boot 4.0+ |
+| **Spring Boot** | `atmosphere-spring-boot-starter` | Spring Boot 4.0.2+ |
 | **Quarkus** | `atmosphere-quarkus-extension` | Quarkus 3.21+ |
 | **Any Servlet container** | `atmosphere-runtime` | Servlet 6.0+ |
 | **Kotlin DSL** | `atmosphere-kotlin` | Kotlin 2.1+ |
