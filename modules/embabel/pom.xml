@@ -21,15 +21,6 @@
         <embabel.version>0.3.4</embabel.version>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>embabel-releases</id>
-            <url>https://repo.embabel.com/artifactory/libs-release</url>
-            <releases><enabled>true</enabled></releases>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-    </repositories>
-
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>
