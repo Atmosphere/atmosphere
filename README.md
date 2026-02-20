@@ -462,7 +462,7 @@ resource.writeSuspend("Direct message")   // suspends instead of blocking
 
 ### MCP Server — AI Agent Integration
 
-Expose tools, resources, and prompt templates to AI agents like Claude Desktop or GitHub Copilot. Agents connect over WebSocket and invoke your methods via the standard [Model Context Protocol](https://modelcontextprotocol.io/).
+Expose tools, resources, and prompt templates to any MCP client. Agents connect over WebSocket and invoke your methods via the standard [Model Context Protocol](https://modelcontextprotocol.io/).
 
 ```xml
 <dependency>
@@ -494,9 +494,7 @@ public class MyMcpServer {
 }
 ```
 
-Because MCP runs over Atmosphere's transport layer, agents get **automatic reconnection**, **heartbeats**, and **WebSocket → SSE fallback** — features raw MCP servers don't have.
-
-**Transports:** WebSocket, Streamable HTTP (MCP 2025-03-26 spec), and stdio bridge for Claude Desktop. **Programmatic API** also available — register tools as lambdas with `McpRegistry.registerTool()`.
+**Transports:** WebSocket, Streamable HTTP, stdio (Claude Desktop). Programmatic registration via `McpRegistry.registerTool()` is also supported.
 
 See the [MCP Server wiki guide](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server) and the [Spring Boot MCP sample](https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-mcp-server).
 

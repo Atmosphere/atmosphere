@@ -139,7 +139,7 @@ jobs:
 
     - name: Build and publish to Maven Central
       if: inputs.dry_run == false
-      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/embabel,!modules/integration-tests'
+      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests'
       env:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
@@ -147,7 +147,7 @@ jobs:
 
     - name: Dry run — build only
       if: inputs.dry_run
-      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/embabel,!modules/integration-tests' -Dgpg.skip=true
+      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests' -Dgpg.skip=true
 
     - name: Commit release version
       if: inputs.dry_run == false
@@ -171,6 +171,43 @@ jobs:
 
     outputs:
       tag: atmosphere-${{ inputs.release_version }}
+
+  # ─────────────────────────────────────────────
+  # Phase 3b: Publish to GitHub Packages
+  # ─────────────────────────────────────────────
+  release-github-packages:
+    name: Publish to GitHub Packages
+    needs: [release-maven]
+    if: inputs.dry_run == false
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        ref: atmosphere-${{ inputs.release_version }}
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: 21
+        distribution: 'temurin'
+        cache: 'maven'
+        server-id: github
+        server-username: GITHUB_ACTOR
+        server-password: GITHUB_TOKEN
+
+    - name: Deploy to GitHub Packages
+      run: |
+        ./mvnw -B deploy -DskipTests -Dgpg.skip=true \
+          -DskipCentralPublishing=true \
+          -Dmaven.deploy.skip=false \
+          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests' \
+          -DaltDeploymentRepository=github::https://maven.pkg.github.com/Atmosphere/atmosphere
+      env:
+        GITHUB_ACTOR: ${{ github.actor }}
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   # ─────────────────────────────────────────────
   # Phase 4: Publish atmosphere.js to NPM

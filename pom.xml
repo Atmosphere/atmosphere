@@ -128,6 +128,7 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                     <autoPublish>true</autoPublish>
+                    <skipPublishing>${skipCentralPublishing}</skipPublishing>
                 </configuration>
             </plugin>
             <plugin>
@@ -507,6 +508,9 @@
         <module>samples/quarkus-chat</module>
         <module>samples/spring-boot-langchain4j-chat</module>
         <module>samples/spring-boot-embabel-chat</module>
+        <module>samples/spring-boot-ai-chat</module>
+        <module>samples/spring-boot-mcp-server</module>
+        <module>samples/spring-boot-durable-sessions</module>
         <module>modules/integration-tests</module>
     </modules>
     <reporting>
@@ -622,6 +626,7 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
+        <skipCentralPublishing>false</skipCentralPublishing>
         <maven-plugin.version>1.0.0</maven-plugin.version>
         <servlet-version-range>6.0.0</servlet-version-range>
         <jetty-version>12.0.16</jetty-version>
