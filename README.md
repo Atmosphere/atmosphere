@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="logo.png" alt="Atmosphere" width="120"/>
+</p>
+
 ## Atmosphere 4.0: Modern Real-Time Java with JDK 21+
 
 Atmosphere 4.0 brings cutting-edge Java platform features to real-time web applications. Built on JDK 21-25 with Virtual Threads at its core, offering WebSocket with intelligent fallback to SSE and Long-Polling.
