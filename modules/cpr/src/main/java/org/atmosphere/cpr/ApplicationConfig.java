@@ -833,7 +833,7 @@ public interface ApplicationConfig {
      */
     String DISABLE_ATMOSPHERE_INITIALIZER = "org.atmosphere.cpr.AtmosphereInitializer.disabled";
     /**
-     * Disable Google Analytics.
+     * Disable the startup version check against GitHub releases.
      * Default: true (enabled) <br>
      * Value: org.atmosphere.cpr.AtmosphereFramework.analytics
      */
