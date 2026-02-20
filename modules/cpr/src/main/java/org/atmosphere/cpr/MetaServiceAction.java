@@ -129,7 +129,7 @@ public enum MetaServiceAction {
             } else if (BroadcasterCacheInspector.class.isAssignableFrom(c)) {
                 fwk.inspectors.add(fwk.newClassInstance(BroadcasterCacheInspector.class, (Class) c));
             } else if (AsyncSupportListener.class.isAssignableFrom(c)) {
-                fwk.asyncSupportListeners.add(fwk.newClassInstance(AsyncSupportListener.class, (Class) c));
+                fwk.asyncSupportListener(fwk.newClassInstance(AsyncSupportListener.class, (Class) c));
             } else if (AsyncSupport.class.isAssignableFrom(c)) {
                 fwk.setAsyncSupport(fwk.newClassInstance(AsyncSupport.class, (Class) c));
             } else if (BroadcasterCacheListener.class.isAssignableFrom(c)) {

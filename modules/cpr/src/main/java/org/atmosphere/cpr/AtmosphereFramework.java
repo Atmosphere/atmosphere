@@ -98,7 +98,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.locks.ReentrantLock;
-import java.util.function.Consumer;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER;
@@ -175,8 +174,7 @@ public class AtmosphereFramework {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
     protected final List<String> broadcasterFilters = new ArrayList<>();
-    protected final List<AsyncSupportListener> asyncSupportListeners = new ArrayList<>();
-    protected final List<AtmosphereResourceListener> atmosphereResourceListeners = new ArrayList<>();
+    protected final FrameworkEventDispatcher eventDispatcher = new FrameworkEventDispatcher();
     protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<>();
     protected final HashMap<String, String> initParams = new HashMap<>();
     protected final AtmosphereConfig config;
@@ -238,7 +236,6 @@ public class AtmosphereFramework {
     protected AtmosphereResourceSessionFactory sessionFactory;
     protected String defaultSerializerClassName;
     protected Class<Serializer> defaultSerializerClass;
-    protected final List<AtmosphereFrameworkListener> frameworkListeners = new LinkedList<>();
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
     protected Thread shutdownHook;
     public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = List.of(
@@ -1584,7 +1581,7 @@ public class AtmosphereFramework {
         executeFirstSet = false;
 
         broadcasterFilters.clear();
-        asyncSupportListeners.clear();
+        eventDispatcher.clear();
         possibleComponentsCandidate.clear();
         initParams.clear();
         atmosphereHandlers.clear();
@@ -2415,13 +2412,22 @@ public class AtmosphereFramework {
     }
 
     /**
+     * Return the {@link FrameworkEventDispatcher} for managing listeners and events.
+     *
+     * @return the event dispatcher
+     */
+    public FrameworkEventDispatcher events() {
+        return eventDispatcher;
+    }
+
+    /**
      * Add an {@link AsyncSupportListener}.
      *
      * @param asyncSupportListener an {@link AsyncSupportListener}
      * @return this;
      */
     public AtmosphereFramework asyncSupportListener(AsyncSupportListener asyncSupportListener) {
-        asyncSupportListeners.add(asyncSupportListener);
+        eventDispatcher.addAsyncSupportListener(asyncSupportListener);
         return this;
     }
 
@@ -2431,7 +2437,7 @@ public class AtmosphereFramework {
      * @return
      */
     public List<AsyncSupportListener> asyncSupportListeners() {
-        return asyncSupportListeners;
+        return eventDispatcher.asyncSupportListeners();
     }
 
     /**
@@ -2626,30 +2632,17 @@ public class AtmosphereFramework {
     }
 
     public AtmosphereFramework notify(Action.TYPE type, AtmosphereRequest request, AtmosphereResponse response) {
-        for (AsyncSupportListener l : asyncSupportListeners()) {
-            try {
-                switch (type) {
-                    case TIMEOUT -> l.onTimeout(request, response);
-                    case CANCELLED -> l.onClose(request, response);
-                    case SUSPEND -> l.onSuspend(request, response);
-                    case RESUME -> l.onResume(request, response);
-                    case DESTROYED -> l.onDestroyed(request, response);
-                    default -> {}
-                }
-            } catch (Throwable t) {
-                logger.warn("", t);
-            }
-        }
+        eventDispatcher.notify(type, request, response);
         return this;
     }
 
     public AtmosphereFramework notifyDestroyed(String uuid) {
-        atmosphereResourceListeners().forEach(l -> l.onDisconnect(uuid));
+        eventDispatcher.notifyDestroyed(uuid);
         return this;
     }
 
     public AtmosphereFramework notifySuspended(String uuid) {
-        atmosphereResourceListeners().forEach(l -> l.onSuspended(uuid));
+        eventDispatcher.notifySuspended(uuid);
         return this;
     }
 
@@ -3064,7 +3057,7 @@ public class AtmosphereFramework {
      * @return this;
      */
     public AtmosphereFramework frameworkListener(AtmosphereFrameworkListener l) {
-        frameworkListeners.add(l);
+        eventDispatcher.addFrameworkListener(l);
         return this;
     }
 
@@ -3074,33 +3067,23 @@ public class AtmosphereFramework {
      * @return {@link org.atmosphere.cpr.AtmosphereFrameworkListener}
      */
     public List<AtmosphereFrameworkListener> frameworkListeners() {
-        return frameworkListeners;
-    }
-
-    private void forEachFrameworkListener(Consumer<AtmosphereFrameworkListener> action) {
-        for (AtmosphereFrameworkListener l : frameworkListeners) {
-            try {
-                action.accept(l);
-            } catch (Exception e) {
-                logger.error("", e);
-            }
-        }
+        return eventDispatcher.frameworkListeners();
     }
 
     protected void onPreInit() {
-        forEachFrameworkListener(l -> l.onPreInit(this));
+        eventDispatcher.onPreInit(this);
     }
 
     protected void onPostInit() {
-        forEachFrameworkListener(l -> l.onPostInit(this));
+        eventDispatcher.onPostInit(this);
     }
 
     protected void onPreDestroy() {
-        forEachFrameworkListener(l -> l.onPreDestroy(this));
+        eventDispatcher.onPreDestroy(this);
     }
 
     protected void onPostDestroy() {
-        forEachFrameworkListener(l -> l.onPostDestroy(this));
+        eventDispatcher.onPostDestroy(this);
     }
 
     /**
@@ -3109,7 +3092,7 @@ public class AtmosphereFramework {
      * @return the list of {@link org.atmosphere.cpr.AtmosphereResourceListener}
      */
     public List<AtmosphereResourceListener> atmosphereResourceListeners() {
-        return atmosphereResourceListeners;
+        return eventDispatcher.atmosphereResourceListeners();
     }
 
     /**
@@ -3119,7 +3102,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework atmosphereResourceListener(AtmosphereResourceListener atmosphereResourceListener) {
-        atmosphereResourceListeners.add(atmosphereResourceListener);
+        eventDispatcher.addAtmosphereResourceListener(atmosphereResourceListener);
         return this;
     }
 
