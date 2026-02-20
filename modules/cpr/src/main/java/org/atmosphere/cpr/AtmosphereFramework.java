@@ -15,10 +15,7 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.annotation.Processor;
 import org.atmosphere.cache.BroadcasterCacheInspector;
-import org.atmosphere.cache.DefaultBroadcasterCache;
-import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.config.ApplicationConfiguration;
 import org.atmosphere.config.AtmosphereHandlerConfig;
 import org.atmosphere.config.AtmosphereHandlerProperty;
@@ -35,16 +32,12 @@ import org.atmosphere.util.IOUtils;
 import org.atmosphere.util.IntrospectionUtils;
 import org.atmosphere.util.ServletContextFactory;
 import org.atmosphere.util.UUIDProvider;
-import org.atmosphere.util.Utils;
-import org.atmosphere.util.Version;
 import org.atmosphere.util.VoidServletConfig;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketFactory;
 import org.atmosphere.websocket.WebSocketHandler;
-import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketProtocol;
-import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,20 +46,12 @@ import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 
-import java.io.BufferedReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
-import java.io.InputStreamReader;
 import java.io.UnsupportedEncodingException;
-import java.net.HttpURLConnection;
 import java.net.MalformedURLException;
-import java.net.URI;
-import java.net.URL;
-import java.net.URLClassLoader;
 import java.net.URLDecoder;
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.Enumeration;
 import java.util.HashMap;
@@ -74,26 +59,12 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
-import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedQueue;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.ApplicationConfig.ALLOW_QUERYSTRING_AS_REQUEST;
-import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER;
-import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER_MAPPING;
-import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER_PATH;
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CLASS;
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_FACTORY;
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY;
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_SHAREABLE_LISTENERS;
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_WAIT_TIME;
-import static org.atmosphere.cpr.ApplicationConfig.BROADCAST_FILTER_CLASSES;
 import static org.atmosphere.cpr.ApplicationConfig.CONTENT_TYPE_FIRST_RESPONSE;
 import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
 import static org.atmosphere.cpr.ApplicationConfig.META_SERVICE_PATH;
@@ -102,35 +73,20 @@ import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_ATMOSPHERE_XML;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_BLOCKING_COMETSUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_COMET_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_NATIVE_COMETSUPPORT;
-import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_SUPPORT;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_THROW_EXCEPTION_ON_CLONED_REQUEST;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.cpr.ApplicationConfig.USE_SERVLET_CONTEXT_PARAMETERS;
-import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROCESSOR;
-import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_PROTOCOL;
-import static org.atmosphere.cpr.ApplicationConfig.WEBSOCKET_SUPPORT;
-import static org.atmosphere.cpr.Broadcaster.ROOT_MASTER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_CONFIG;
 import static org.atmosphere.cpr.FrameworkConfig.CDI_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.GUICE_INJECTOR;
-import static org.atmosphere.cpr.FrameworkConfig.HAZELCAST_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.INJECT_LIBARY;
 import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
-import static org.atmosphere.cpr.FrameworkConfig.JGROUPS_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.JMS_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.KAFKA_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.RABBITMQ_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.REDIS_BROADCASTER;
-import static org.atmosphere.cpr.FrameworkConfig.RMI_BROADCASTER;
 import static org.atmosphere.cpr.FrameworkConfig.SPRING_INJECTOR;
 import static org.atmosphere.cpr.FrameworkConfig.THROW_EXCEPTION_ON_CLONED_REQUEST;
-import static org.atmosphere.cpr.FrameworkConfig.XMPP_BROADCASTER;
 import static org.atmosphere.cpr.HeaderConfig.ATMOSPHERE_POST_BODY;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRACKING_ID;
-import static org.atmosphere.util.IOUtils.realPath;
 import static org.atmosphere.websocket.WebSocket.WEBSOCKET_SUSPEND;
 
 /**
@@ -642,12 +598,10 @@ public class AtmosphereFramework {
      *
      * @param sc a ServletConfig
      */
-    @SuppressWarnings("unchecked")
     protected void configureAtmosphereInterceptor(ServletConfig sc) {
         interceptorRegistry.configure(sc);
     }
 
-    @SuppressWarnings("unchecked")
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
         return interceptorRegistry.newInterceptor(a);
     }
@@ -664,12 +618,10 @@ public class AtmosphereFramework {
         classpathScanner.defaultPackagesToScan();
     }
 
-    @SuppressWarnings("unchecked")
     public void configureBroadcasterFactory() {
         broadcasterSetup.configureBroadcasterFactory();
     }
 
-    @SuppressWarnings("unchecked")
     protected void configureBroadcaster() {
         broadcasterSetup.configureBroadcaster();
     }
@@ -856,12 +808,10 @@ public class AtmosphereFramework {
         handlerRegistry.checkWebSocketSupportState();
     }
 
-    @SuppressWarnings("unchecked")
     public void initWebSocket() {
         webSocketConfig.initWebSocket();
     }
 
-    @SuppressWarnings("unchecked")
     public void initEndpointMapper() {
         handlerRegistry.initEndpointMapper();
     }
@@ -1139,7 +1089,6 @@ public class AtmosphereFramework {
         classpathScanner.autoDetectAtmosphereHandlers(servletContext, classloader);
     }
 
-    @SuppressWarnings("unchecked")
     public void loadAtmosphereHandlersFromPath(ClassLoader classloader, String realPath) {
         classpathScanner.loadAtmosphereHandlersFromPath(classloader, realPath);
     }
@@ -1761,7 +1710,6 @@ public class AtmosphereFramework {
         return this;
     }
 
-    @SuppressWarnings("unchecked")
     protected void autoConfigureService(ServletContext sc) throws IOException {
         classpathScanner.autoConfigureService(sc);
     }
@@ -1781,7 +1729,6 @@ public class AtmosphereFramework {
      * @param endpointMapper {@link EndpointMapper}
      * @return this
      */
-    @SuppressWarnings("unchecked")
     public AtmosphereFramework endPointMapper(EndpointMapper<?> endpointMapper) {
         handlerRegistry.endPointMapper(endpointMapper);
         return this;
@@ -2072,7 +2019,6 @@ public class AtmosphereFramework {
         return interceptorRegistry.excludedInterceptors();
     }
 
-    @SuppressWarnings("unchecked")
     public Class<? extends AtmosphereInterceptor>[] defaultInterceptors() {
         return interceptorRegistry.defaultInterceptors();
     }

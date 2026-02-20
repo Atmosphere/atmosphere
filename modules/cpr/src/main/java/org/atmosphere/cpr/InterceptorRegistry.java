@@ -111,7 +111,6 @@ public class InterceptorRegistry {
      * @deprecated Use {@link #findInterceptor(Class)} which returns {@link Optional} instead of null.
      */
     @Deprecated(since = "4.0.0", forRemoval = false)
-    @SuppressWarnings("unchecked")
     public <T extends AtmosphereInterceptor> T interceptor(Class<T> c) {
         for (AtmosphereInterceptor i : interceptors) {
             if (c.isInstance(i)) {
