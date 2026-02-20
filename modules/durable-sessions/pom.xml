@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>4.0.1</version>
+        <version>4.0.2-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>atmosphere-durable-sessions</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.1</version>
+    <version>4.0.2-SNAPSHOT</version>
     <name>atmosphere-durable-sessions</name>
     <description>Durable session SPI for Atmosphere Framework — survive server restarts</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
