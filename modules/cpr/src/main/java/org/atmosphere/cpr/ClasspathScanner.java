@@ -62,6 +62,17 @@ public class ClasspathScanner {
         this.config = config;
     }
 
+    void parseInitParams(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_HANDLER_PATH);
+        if (s != null) {
+            handlersPath = s;
+        }
+        s = sc.getInitParameter(FrameworkConfig.JERSEY_SCANNING_PACKAGE);
+        if (s != null) {
+            packages.add(s);
+        }
+    }
+
     /**
      * Reset all state. Called during framework destroy/reset.
      */

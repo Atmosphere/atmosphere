@@ -77,6 +77,13 @@ public class InterceptorRegistry {
         this.handlersSupplier = handlersSupplier;
     }
 
+    void parseInitParams(jakarta.servlet.ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
+        if (s != null) {
+            excludedInterceptors.addAll(java.util.Arrays.asList(s.trim().replace(" ", "").split(",")));
+        }
+    }
+
     /**
      * Add an {@link AtmosphereInterceptor}. The adding order will be used for invocation.
      */

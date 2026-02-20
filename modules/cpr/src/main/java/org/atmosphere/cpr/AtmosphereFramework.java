@@ -837,15 +837,11 @@ public class AtmosphereFramework {
             asyncSupport = new DefaultAsyncSupportResolver(config).newCometSupport(s);
             isCometSupportSpecified = true;
         }
-        s = sc.getInitParameter(BROADCASTER_CLASS);
-        if (s != null) {
-            broadcasterSetup.setBroadcasterClassName(s);
-            broadcasterSetup.setBroadcasterSpecified(true);
-        }
-        s = sc.getInitParameter(BROADCASTER_CACHE);
-        if (s != null) {
-            broadcasterSetup.setBroadcasterCacheClassName(s);
-        }
+
+        // Delegate broadcaster, scanner, interceptor, and handler params
+        broadcasterSetup.parseInitParams(sc);
+        classpathScanner.parseInitParams(sc);
+        interceptorRegistry.parseInitParams(sc);
 
         s = sc.getInitParameter(PROPERTY_SESSION_SUPPORT);
         if (s == null) {
@@ -875,23 +871,7 @@ public class AtmosphereFramework {
         } else {
             initParams.put(DISABLE_ONSTATE_EVENT, "false");
         }
-        s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
-        if (s != null) {
-            broadcasterSetup.broadcasterFilters().addAll(Arrays.asList(s.split(",")));
-            logger.info("Installing BroadcastFilter class(es) {}", s);
-        }
-        s = sc.getInitParameter(BROADCASTER_LIFECYCLE_POLICY);
-        if (s != null) {
-            broadcasterSetup.setBroadcasterLifeCyclePolicy(s);
-        }
-        s = sc.getInitParameter(BROADCASTER_FACTORY);
-        if (s != null) {
-            broadcasterSetup.setBroadcasterFactoryClassName(s);
-        }
-        s = sc.getInitParameter(ATMOSPHERE_HANDLER_PATH);
-        if (s != null) {
-            classpathScanner.handlersPath = s;
-        }
+
         s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
         if (s != null) {
             atmosphereDotXmlPath = s;
@@ -903,21 +883,6 @@ public class AtmosphereFramework {
         s = sc.getInitParameter(ApplicationConfig.HANDLER_MAPPING_REGEX);
         if (s != null) {
             handlerRegistry.mappingRegex(s);
-        }
-
-        s = sc.getInitParameter(FrameworkConfig.JERSEY_SCANNING_PACKAGE);
-        if (s != null) {
-            classpathScanner.packages.add(s);
-        }
-
-        s = sc.getInitParameter(ApplicationConfig.DEFAULT_SERIALIZER);
-        if (s != null) {
-            broadcasterSetup.setDefaultSerializerClassName(s);
-        }
-
-        s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
-        if (s != null) {
-            interceptorRegistry.excludedInterceptors().addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
         }
     }
 

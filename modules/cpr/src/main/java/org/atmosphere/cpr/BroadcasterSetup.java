@@ -132,6 +132,35 @@ public class BroadcasterSetup {
         this.handlersSupplier = supplier;
     }
 
+    void parseInitParams(jakarta.servlet.ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.BROADCASTER_CLASS);
+        if (s != null) {
+            broadcasterClassName = s;
+            broadcasterSpecified = true;
+        }
+        s = sc.getInitParameter(ApplicationConfig.BROADCASTER_CACHE);
+        if (s != null) {
+            broadcasterCacheClassName = s;
+        }
+        s = sc.getInitParameter(ApplicationConfig.BROADCAST_FILTER_CLASSES);
+        if (s != null) {
+            broadcasterFilters.addAll(java.util.Arrays.asList(s.split(",")));
+            logger.info("Installing BroadcastFilter class(es) {}", s);
+        }
+        s = sc.getInitParameter(ApplicationConfig.BROADCASTER_LIFECYCLE_POLICY);
+        if (s != null) {
+            broadcasterLifeCyclePolicy = s;
+        }
+        s = sc.getInitParameter(ApplicationConfig.BROADCASTER_FACTORY);
+        if (s != null) {
+            broadcasterFactoryClassName = s;
+        }
+        s = sc.getInitParameter(ApplicationConfig.DEFAULT_SERIALIZER);
+        if (s != null) {
+            defaultSerializerClassName = s;
+        }
+    }
+
     /**
      * The order of addition is quite important here.
      */
