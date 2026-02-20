@@ -137,22 +137,17 @@ jobs:
     - name: Set release version
       run: ./mvnw -B versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
 
-    - name: Build release artifacts
-      run: ./mvnw -B clean install -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/integration-tests' ${{ inputs.dry_run && '-Dgpg.skip=true' || '' }}
+    - name: Build and publish to Maven Central
+      if: inputs.dry_run == false
+      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/embabel,!modules/integration-tests'
       env:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
-
-    - name: Publish to Maven Central
-      if: inputs.dry_run == false
-      run: ./mvnw -B deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/integration-tests'
-      env:
         CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
         CENTRAL_PASSWORD: ${{ secrets.CENTRAL_PASSWORD }}
-        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
-    - name: Dry run — skip publish
+    - name: Dry run — build only
       if: inputs.dry_run
-      run: echo "::notice::Dry run — skipping Maven Central publish. Artifacts built successfully."
+      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/embabel,!modules/integration-tests' -Dgpg.skip=true
 
     - name: Commit release version
       if: inputs.dry_run == false
