@@ -27,18 +27,6 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.inject.InjectableObjectFactory;
-import org.atmosphere.interceptor.AndroidAtmosphereInterceptor;
-import org.atmosphere.interceptor.CacheHeadersInterceptor;
-import org.atmosphere.interceptor.CorsInterceptor;
-import org.atmosphere.interceptor.HeartbeatInterceptor;
-import org.atmosphere.interceptor.IdleResourceInterceptor;
-import org.atmosphere.interceptor.InvokationOrder;
-import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
-import org.atmosphere.interceptor.JavaScriptProtocol;
-import org.atmosphere.interceptor.OnDisconnectInterceptor;
-import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
-import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
-import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
 import org.atmosphere.util.AtmosphereConfigReader;
 import org.atmosphere.util.DefaultEndpointMapper;
 import org.atmosphere.util.DefaultUUIDProvider;
@@ -81,7 +69,6 @@ import java.net.URLDecoder;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.LinkedList;
@@ -203,7 +190,6 @@ public class AtmosphereFramework {
     protected boolean autoDetectHandlers = true;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected String metaServicePath = META_SERVICE;
-    protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<>();
     protected boolean scanDone;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     protected final List<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<>();
@@ -220,7 +206,6 @@ public class AtmosphereFramework {
     protected final AtomicBoolean isDestroyed = new AtomicBoolean();
     protected boolean externalizeDestroy;
     protected AnnotationProcessor annotationProcessor;
-    protected final List<String> excludedInterceptors = new ArrayList<>();
     protected final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<>();
     protected final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<>();
     protected AtmosphereResourceFactory arFactory;
@@ -231,19 +216,9 @@ public class AtmosphereFramework {
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
     protected Thread shutdownHook;
     protected final WebSocketConfig webSocketConfig;
-    public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = List.of(
-            CorsInterceptor.class,
-            CacheHeadersInterceptor.class,
-            PaddingAtmosphereInterceptor.class,
-            AndroidAtmosphereInterceptor.class,
-            HeartbeatInterceptor.class,
-            SSEAtmosphereInterceptor.class,
-            JSONPAtmosphereInterceptor.class,
-            JavaScriptProtocol.class,
-            WebSocketMessageSuspendInterceptor.class,
-            OnDisconnectInterceptor.class,
-            IdleResourceInterceptor.class
-    );
+    protected final InterceptorRegistry interceptorRegistry;
+    public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS =
+            InterceptorRegistry.DEFAULT_ATMOSPHERE_INTERCEPTORS;
     private final ReentrantLock resourceFactoryLock = new ReentrantLock();
     private final ReentrantLock sessionFactoryLock = new ReentrantLock();
     private IllegalStateException initializationError;
@@ -295,6 +270,8 @@ public class AtmosphereFramework {
         this.autoDetectHandlers = autoDetectHandlers;
         config = newAtmosphereConfig();
         webSocketConfig = new WebSocketConfig(config);
+        interceptorRegistry = new InterceptorRegistry(config);
+        interceptorRegistry.setHandlersSupplier(() -> atmosphereHandlers);
     }
 
     /**
@@ -905,95 +882,12 @@ public class AtmosphereFramework {
      */
     @SuppressWarnings("unchecked")
     protected void configureAtmosphereInterceptor(ServletConfig sc) {
-        String s = sc.getInitParameter(ApplicationConfig.ATMOSPHERE_INTERCEPTORS);
-        if (s != null) {
-            String[] list = s.split(",");
-            for (String a : list) {
-                try {
-                    AtmosphereInterceptor ai = newClassInstance(AtmosphereInterceptor.class,
-                            (Class<AtmosphereInterceptor>) IOUtils.loadClass(getClass(), a.trim()));
-                    interceptor(ai);
-                } catch (Exception e) {
-                    logger.warn("", e);
-                }
-            }
-        }
-
-        s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
-        if (!Boolean.parseBoolean(s)) {
-            logger.info("Installing Default AtmosphereInterceptors");
-
-            for (Class<? extends AtmosphereInterceptor> a : DEFAULT_ATMOSPHERE_INTERCEPTORS) {
-                if (!excludedInterceptors.contains(a.getName())) {
-                    AtmosphereInterceptor ai = newAInterceptor(a);
-                    if (ai != null) {
-                        interceptors.add(ai);
-                    }
-                } else {
-                    logger.info("Dropping Interceptor {}", a.getName());
-                }
-            }
-            logger.info("Set {} to disable them.", ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTOR);
-        }
-        addDefaultOrAppInterceptors();
+        interceptorRegistry.configure(sc);
     }
 
     @SuppressWarnings("unchecked")
     protected AtmosphereInterceptor newAInterceptor(Class<? extends AtmosphereInterceptor> a) {
-        AtmosphereInterceptor ai = null;
-        try {
-            ai = newClassInstance(AtmosphereInterceptor.class,
-                    (Class<AtmosphereInterceptor>) IOUtils.loadClass(getClass(), a.getName()));
-            logger.info("\t{} : {}", a.getName(), ai);
-        } catch (Exception ex) {
-            logger.warn("", ex);
-        }
-        return ai;
-    }
-
-    private static class InterceptorComparator implements Comparator<AtmosphereInterceptor> {
-        @Override
-        public int compare(AtmosphereInterceptor i1, AtmosphereInterceptor i2) {
-            InvokationOrder.PRIORITY p1, p2;
-
-            if (i1 instanceof InvokationOrder io1) {
-                p1 = io1.priority();
-            } else {
-                p1 = InvokationOrder.PRIORITY.AFTER_DEFAULT;
-            }
-
-            if (i2 instanceof InvokationOrder io2) {
-                p2 = io2.priority();
-            } else {
-                p2 = InvokationOrder.PRIORITY.AFTER_DEFAULT;
-            }
-
-            int orderResult = 0;
-
-            switch (p1) {
-                case AFTER_DEFAULT -> {
-                    switch (p2) {
-                        case BEFORE_DEFAULT, FIRST_BEFORE_DEFAULT -> orderResult = 1;
-                        default -> {}
-                    }
-                }
-                case BEFORE_DEFAULT -> {
-                    switch (p2) {
-                        case AFTER_DEFAULT -> orderResult = -1;
-                        case FIRST_BEFORE_DEFAULT -> orderResult = 1;
-                        default -> {}
-                    }
-                }
-                case FIRST_BEFORE_DEFAULT -> {
-                    switch (p2) {
-                        case AFTER_DEFAULT, BEFORE_DEFAULT -> orderResult = -1;
-                        default -> {}
-                    }
-                }
-            }
-
-            return orderResult;
-        }
+        return interceptorRegistry.newInterceptor(a);
     }
 
     @SuppressWarnings("unchecked")
@@ -1214,7 +1108,7 @@ public class AtmosphereFramework {
 
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
         if (s != null) {
-            excludedInterceptors.addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
+            interceptorRegistry.excludedInterceptors().addAll(Arrays.asList(s.trim().replace(" ", "").split(",")));
         }
     }
 
@@ -1522,15 +1416,7 @@ public class AtmosphereFramework {
     }
 
     protected void destroyInterceptors() {
-        for (AtmosphereHandlerWrapper w : atmosphereHandlers.values()) {
-            for (AtmosphereInterceptor i : w.interceptors) {
-                try {
-                    i.destroy();
-                } catch (Throwable ex) {
-                    logger.warn("", ex);
-                }
-            }
-        }
+        interceptorRegistry.destroyInterceptors(atmosphereHandlers);
     }
 
     public AtmosphereFramework resetStates() {
@@ -1548,10 +1434,9 @@ public class AtmosphereFramework {
         broadcasterListeners.clear();
         packages.clear();
         annotationPackages.clear();
-        excludedInterceptors.clear();
         broadcasterCacheListeners.clear();
         filterManipulators.clear();
-        interceptors.clear();
+        interceptorRegistry.clear();
 
         broadcasterFactory = null;
         arFactory = null;
@@ -2241,90 +2126,28 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework interceptor(AtmosphereInterceptor c) {
-        if (!checkDuplicate(c)) {
-            interceptors.add(c);
-            if (isInit) {
-                addInterceptorToAllWrappers(c);
-            }
-        }
+        interceptorRegistry.addInterceptor(c, isInit);
         return this;
     }
 
     protected void addDefaultOrAppInterceptors() {
-        for (AtmosphereInterceptor c : interceptors) {
-            addInterceptorToAllWrappers(c);
-        }
+        interceptorRegistry.addDefaultOrAppInterceptors();
     }
 
     protected void addInterceptorToAllWrappers(AtmosphereInterceptor c) {
-        c.configure(config);
-        InvokationOrder.PRIORITY p = c instanceof InvokationOrder io ? io.priority() : InvokationOrder.AFTER_DEFAULT;
-
-        logger.info("Installed AtmosphereInterceptor {} with priority {} ", c, p.name());
-        //need insert this new interceptor into all the existing handlers
-        for (AtmosphereHandlerWrapper wrapper : atmosphereHandlers.values()) {
-            addInterceptorToWrapper(wrapper, c);
-        }
+        interceptorRegistry.addInterceptorToAllWrappers(c);
     }
 
     protected void addInterceptorToWrapper(AtmosphereHandlerWrapper wrapper, AtmosphereInterceptor c) {
-        if (!checkDuplicate(wrapper.interceptors, c.getClass())) {
-            wrapper.interceptors.add(c);
-            wrapper.interceptors.sort(new InterceptorComparator());
-        }
+        interceptorRegistry.addInterceptorToWrapper(wrapper, c);
     }
 
     protected void addInterceptorToWrapper(AtmosphereHandlerWrapper wrapper, List<AtmosphereInterceptor> interceptors) {
-
-        for (AtmosphereInterceptor c : this.interceptors) {
-            addInterceptorToWrapper(wrapper, c);
-        }
-
-        for (AtmosphereInterceptor c : interceptors) {
-            addInterceptorToWrapper(wrapper, c);
-            c.configure(config);
-        }
+        interceptorRegistry.addInterceptorToWrapper(wrapper, interceptors);
     }
 
-    /**
-     * <p>
-     * Checks if an instance of the specified {@link AtmosphereInterceptor} implementation exists in the
-     * {@link #interceptors}.
-     * </p>
-     *
-     * @param c the implementation
-     * @return {@code false} if an instance of the same interceptor's class already exists in  {@link #interceptors}, {@code true} otherwise
-     */
-    private boolean checkDuplicate(final AtmosphereInterceptor c) {
-        return checkDuplicate(interceptors, c.getClass());
-    }
-
-    /**
-     * <p>
-     * Checks in the specified list if there is at least one instance of the given
-     * {@link AtmosphereInterceptor interceptor} implementation class.
-     * </p>
-     *
-     * @param interceptorList the interceptors
-     * @param c               the interceptor class
-     * @return {@code false} if an instance of the class already exists in the list, {@code true} otherwise
-     */
-    private boolean checkDuplicate(final List<AtmosphereInterceptor> interceptorList, Class<? extends AtmosphereInterceptor> c) {
-        for (final AtmosphereInterceptor i : interceptorList) {
-            if (i.getClass().equals(c)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    /**
-     * Return the list of {@link AtmosphereInterceptor}.
-     *
-     * @return the list of {@link AtmosphereInterceptor}
-     */
     public LinkedList<AtmosphereInterceptor> interceptors() {
-        return interceptors;
+        return interceptorRegistry.interceptors();
     }
 
     /**
@@ -2336,12 +2159,7 @@ public class AtmosphereFramework {
      */
     @Deprecated(since = "4.0.0", forRemoval = false)
     public <T extends AtmosphereInterceptor> T interceptor(Class<T> c) {
-        for (AtmosphereInterceptor i : interceptors) {
-            if (c.isInstance(i)) {
-                return c.cast(i);
-            }
-        }
-        return null;
+        return interceptorRegistry.interceptor(c);
     }
 
     /**
@@ -2354,12 +2172,7 @@ public class AtmosphereFramework {
      * @return an {@link Optional} containing the interceptor, or empty if not found.
      */
     public <T extends AtmosphereInterceptor> Optional<T> findInterceptor(Class<T> c) {
-        for (AtmosphereInterceptor i : interceptors) {
-            if (c.isInstance(i)) {
-                return Optional.of(c.cast(i));
-            }
-        }
-        return Optional.empty();
+        return interceptorRegistry.findInterceptor(c);
     }
     public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
         this.annotationProcessorClassName = annotationProcessorClassName;
@@ -2382,6 +2195,15 @@ public class AtmosphereFramework {
      */
     public WebSocketConfig webSocket() {
         return webSocketConfig;
+    }
+
+    /**
+     * Return the {@link InterceptorRegistry} for managing interceptor lifecycle.
+     *
+     * @return the interceptor registry
+     */
+    public InterceptorRegistry interceptorRegistry() {
+        return interceptorRegistry;
     }
 
     /**
@@ -2782,7 +2604,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework excludeInterceptor(String interceptor) {
-        excludedInterceptors.add(interceptor);
+        interceptorRegistry.excludeInterceptor(interceptor);
         return this;
     }
 
@@ -2865,12 +2687,12 @@ public class AtmosphereFramework {
     }
 
     public List<String> excludedInterceptors() {
-        return excludedInterceptors;
+        return interceptorRegistry.excludedInterceptors();
     }
 
     @SuppressWarnings("unchecked")
     public Class<? extends AtmosphereInterceptor>[] defaultInterceptors() {
-        return DEFAULT_ATMOSPHERE_INTERCEPTORS.toArray(new Class[DEFAULT_ATMOSPHERE_INTERCEPTORS.size()]);
+        return interceptorRegistry.defaultInterceptors();
     }
 
     public AtmosphereResourceFactory atmosphereFactory() {
