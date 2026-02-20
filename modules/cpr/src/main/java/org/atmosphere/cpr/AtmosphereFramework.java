@@ -1113,15 +1113,6 @@ public class AtmosphereFramework {
     /**
      * Get a list of possible candidates to load as {@link AtmosphereHandler}.
      *
-     * @param f the real path {@link File}
-     */
-    private void getFiles(File f) {
-        classpathScanner.getFiles(f);
-    }
-
-    /**
-     * Configure some attributes on the {@link AtmosphereRequest}.
-     *
      * @param req {@link AtmosphereRequest}
      */
     public AtmosphereFramework configureRequestResponse(AtmosphereRequest req, AtmosphereResponse res) throws UnsupportedEncodingException {
@@ -2032,16 +2023,7 @@ public class AtmosphereFramework {
         return this;
     }
 
-    private AtmosphereFramework configureWebSocketFactory() {
-        webSocketConfig.configureWebSocketFactory();
-        return this;
-    }
-
     public MetaBroadcaster metaBroadcaster() {
-        return broadcasterSetup.metaBroadcaster();
-    }
-
-    private AtmosphereFramework configureMetaBroadcaster() {
         broadcasterSetup.configureMetaBroadcaster();
         return this;
     }
