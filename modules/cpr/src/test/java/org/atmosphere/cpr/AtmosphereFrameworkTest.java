@@ -21,7 +21,6 @@ import org.atmosphere.interceptor.CacheHeadersInterceptor;
 import org.atmosphere.interceptor.CorsInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.IdleResourceInterceptor;
-import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
@@ -369,14 +368,13 @@ public class AtmosphereFrameworkTest {
 
     @Test
     public void testDefaultInterceptorsContents() {
-        assertEquals(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.size(), 11);
+        assertEquals(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.size(), 10);
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(CorsInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(CacheHeadersInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(PaddingAtmosphereInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(AndroidAtmosphereInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(HeartbeatInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(SSEAtmosphereInterceptor.class));
-        assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(JSONPAtmosphereInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(JavaScriptProtocol.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(WebSocketMessageSuspendInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(OnDisconnectInterceptor.class));

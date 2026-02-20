@@ -21,7 +21,6 @@ import org.atmosphere.interceptor.CorsInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.IdleResourceInterceptor;
 import org.atmosphere.interceptor.InvokationOrder;
-import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
@@ -54,7 +53,6 @@ public class InterceptorRegistry {
             AndroidAtmosphereInterceptor.class,
             HeartbeatInterceptor.class,
             SSEAtmosphereInterceptor.class,
-            JSONPAtmosphereInterceptor.class,
             JavaScriptProtocol.class,
             WebSocketMessageSuspendInterceptor.class,
             OnDisconnectInterceptor.class,

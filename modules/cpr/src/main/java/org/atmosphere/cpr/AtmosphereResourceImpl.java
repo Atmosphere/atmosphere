@@ -176,8 +176,6 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
             return TRANSPORT.LONG_POLLING;
         } else if (TRANSPORT.STREAMING.name().equals(s)) {
             return TRANSPORT.STREAMING;
-        } else if (TRANSPORT.JSONP.name().equals(s)) {
-            return TRANSPORT.JSONP;
         } else if (TRANSPORT.WEBSOCKET.name().equals(s)) {
             return TRANSPORT.WEBSOCKET;
         } else if (TRANSPORT.SSE.name().equals(s)) {

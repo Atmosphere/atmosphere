@@ -36,10 +36,6 @@ public interface HeaderConfig {
 
     String POLLING_TRANSPORT = "polling";
 
-    String JSONP_TRANSPORT = "jsonp";
-
-    String JSONP_CALLBACK_NAME = "jsonpTransport";
-
     String WEBSOCKET_TRANSPORT = "websocket";
 
     String SSE_TRANSPORT = "sse";

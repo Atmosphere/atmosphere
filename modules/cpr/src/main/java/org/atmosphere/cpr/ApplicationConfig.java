@@ -797,7 +797,7 @@ public interface ApplicationConfig {
      */
     String CLIENT_HEARTBEAT_INTERVAL_IN_SECONDS = "org.atmosphere.interceptor.HeartbeatInterceptor.clientHeartbeatFrequencyInSeconds";
     /**
-     * Resume the long-polling or jsonp connection on every heartbeat (I/O operations).
+     * Resume the long-polling connection on every heartbeat (I/O operations).
      * <p/>
      * Default: true<br>
      * Value: org.atmosphere.interceptor.HeartbeatInterceptor.resumeOnHeartbeat

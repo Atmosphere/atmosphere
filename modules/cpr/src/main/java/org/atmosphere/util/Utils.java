@@ -103,7 +103,7 @@ public final class Utils {
 
     public static boolean twoConnectionsTransport(AtmosphereResource.TRANSPORT t) {
         return switch (t) {
-            case JSONP, LONG_POLLING, STREAMING, SSE, POLLING, HTMLFILE -> true;
+            case LONG_POLLING, STREAMING, SSE, POLLING, HTMLFILE -> true;
             default -> false;
         };
     }
@@ -120,7 +120,7 @@ public final class Utils {
 
     public static boolean resumableTransport(AtmosphereResource.TRANSPORT t) {
         return switch (t) {
-            case JSONP, LONG_POLLING -> true;
+            case LONG_POLLING -> true;
             default -> false;
         };
     }

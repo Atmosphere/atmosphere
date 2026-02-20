@@ -31,9 +31,6 @@ public interface AtmosphereResource {
 
     enum TRANSPORT {
         POLLING, LONG_POLLING, STREAMING, WEBSOCKET,
-        /** @deprecated JSONP transport has been removed from atmosphere.js 5.0. Use SSE or WebSocket instead. */
-        @Deprecated(since = "4.0.0")
-        JSONP,
         UNDEFINED, SSE, AJAX, HTMLFILE, CLOSE
     }
 

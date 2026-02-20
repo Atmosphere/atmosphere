@@ -1025,7 +1025,7 @@ public class DefaultBroadcaster implements Broadcaster {
                     return true;
                 }
 
-                // If long-polling or JSONP is used we need to set the messages for the event again, because onResume() have cleared them
+                // If long-polling is used we need to set the messages for the event again, because onResume() have cleared them
                 if (willBeResumed) {
                     e.setMessage(filteredMessageClone);
                 }
@@ -1035,7 +1035,7 @@ public class DefaultBroadcaster implements Broadcaster {
                 }
 
                 switch (r.transport()) {
-                    case UNDEFINED, JSONP, AJAX, LONG_POLLING -> {
+                    case UNDEFINED, AJAX, LONG_POLLING -> {
                         return true;
                     }
                     case SSE -> {}

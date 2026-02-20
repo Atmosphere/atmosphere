@@ -223,7 +223,6 @@ class AtmosphereProcessor {
                                 "org.atmosphere.interceptor.AndroidAtmosphereInterceptor",
                                 "org.atmosphere.interceptor.HeartbeatInterceptor",
                                 "org.atmosphere.interceptor.SSEAtmosphereInterceptor",
-                                "org.atmosphere.interceptor.JSONPAtmosphereInterceptor",
                                 "org.atmosphere.interceptor.JavaScriptProtocol",
                                 "org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor",
                                 "org.atmosphere.interceptor.OnDisconnectInterceptor",

@@ -49,7 +49,6 @@ import org.atmosphere.interceptor.CacheHeadersInterceptor;
 import org.atmosphere.interceptor.CorsInterceptor;
 import org.atmosphere.interceptor.HeartbeatInterceptor;
 import org.atmosphere.interceptor.IdleResourceInterceptor;
-import org.atmosphere.interceptor.JSONPAtmosphereInterceptor;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
@@ -171,7 +170,6 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
         registerType(reflection, AndroidAtmosphereInterceptor.class);
         registerType(reflection, HeartbeatInterceptor.class);
         registerType(reflection, SSEAtmosphereInterceptor.class);
-        registerType(reflection, JSONPAtmosphereInterceptor.class);
         registerType(reflection, JavaScriptProtocol.class);
         registerType(reflection, WebSocketMessageSuspendInterceptor.class);
         registerType(reflection, OnDisconnectInterceptor.class);
