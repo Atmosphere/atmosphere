@@ -61,8 +61,11 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
 
-    - name: Full build with tests
-      run: ./mvnw -B clean install -Dgpg.skip=true
+    - name: Install all modules (skip tests)
+      run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
+
+    - name: Run tests
+      run: ./mvnw -B test -Dgpg.skip=true
 
   # ─────────────────────────────────────────────
   # Phase 2: Build atmosphere.js
