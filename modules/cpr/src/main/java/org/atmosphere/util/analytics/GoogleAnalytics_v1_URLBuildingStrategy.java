@@ -18,7 +18,7 @@ package org.atmosphere.util.analytics;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 import java.time.Instant;
-import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 
 /**
  * Fork of https://code.google.com/p/jgoogleanalytics/
@@ -36,7 +36,8 @@ public class GoogleAnalytics_v1_URLBuildingStrategy implements URLBuildingStrate
 
     private static final String TRACKING_URL_Prefix = "http://www.google-analytics.com/__utm.gif";
 
-    private static final Random random = new Random();
+    // Use ThreadLocalRandom to avoid embedding a static Random in the GraalVM native image heap
+
     private static String hostName = "localhost";
 
     static {
@@ -61,6 +62,7 @@ public class GoogleAnalytics_v1_URLBuildingStrategy implements URLBuildingStrate
 
     public String buildURL(FocusPoint focusPoint) {
 
+        var random = ThreadLocalRandom.current();
         int cookie = random.nextInt();
         int randomValue = random.nextInt(2147483647) - 1;
         long now = Instant.now().toEpochMilli();

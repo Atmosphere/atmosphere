@@ -80,8 +80,6 @@ jobs:
   quarkus-native:
     name: Quarkus Native Image
     runs-on: ubuntu-latest
-    # Quarkus 3.31 enables --strict-image-heap which rejects Random instances from dependencies
-    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
 

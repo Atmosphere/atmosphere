@@ -472,10 +472,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         return br;
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public String getRealPath(String path) {
-        return b.request.getRealPath(path);
+        return b.request.getServletContext().getRealPath(path);
     }
 
     @Override
@@ -753,10 +752,9 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
         return b.request.isRequestedSessionIdFromCookie();
     }
 
-    @SuppressWarnings("deprecation")
     @Override
     public boolean isRequestedSessionIdFromUrl() {
-        return b.request.isRequestedSessionIdFromUrl();
+        return b.request.isRequestedSessionIdFromURL();
     }
 
     @Override
