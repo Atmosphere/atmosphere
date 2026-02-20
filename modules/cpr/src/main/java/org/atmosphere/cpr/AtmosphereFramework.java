@@ -798,7 +798,7 @@ public class AtmosphereFramework {
             useStreamForFlushingComments = true;
 
             var packagesInit = new StringBuilder();
-            for (String s : classpathScanner.packages) {
+            for (String s : classpathScanner.packages()) {
                 packagesInit.append(s).append(",");
             }
 
@@ -1555,11 +1555,11 @@ public class AtmosphereFramework {
     }
 
     public String getHandlersPath() {
-        return classpathScanner.handlersPath;
+        return classpathScanner.handlersPath();
     }
 
     public AtmosphereFramework setHandlersPath(String handlersPath) {
-        classpathScanner.handlersPath = handlersPath;
+        classpathScanner.setHandlersPath(handlersPath);
         return this;
     }
 
@@ -1569,7 +1569,7 @@ public class AtmosphereFramework {
      * @return the location of the JARs containing the application classes. Default is WEB-INF/lib
      */
     public String getLibPath() {
-        return classpathScanner.libPath;
+        return classpathScanner.libPath();
     }
 
     /**
@@ -1579,7 +1579,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework setLibPath(String libPath) {
-        classpathScanner.libPath = libPath;
+        classpathScanner.setLibPath(libPath);
         return this;
     }
 
@@ -1661,7 +1661,7 @@ public class AtmosphereFramework {
         return interceptorRegistry.findInterceptor(c);
     }
     public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
-        classpathScanner.annotationProcessorClassName = annotationProcessorClassName;
+        classpathScanner.setAnnotationProcessorClassName(annotationProcessorClassName);
         return this;
     }
 
@@ -1863,7 +1863,7 @@ public class AtmosphereFramework {
         if (clazz.getPackage() == null) {
             logger.error("Class {} must have a package defined", clazz);
         } else {
-            classpathScanner.packages.add(clazz.getPackage().getName());
+            classpathScanner.packages().add(clazz.getPackage().getName());
         }
         return this;
     }
@@ -1937,7 +1937,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework annotationScanned(boolean b) {
-        classpathScanner.annotationFound = b;
+        classpathScanner.setAnnotationFound(b);
         return this;
     }
 
@@ -1951,7 +1951,7 @@ public class AtmosphereFramework {
     }
 
     public List<String> packages() {
-        return classpathScanner.packages;
+        return classpathScanner.packages();
     }
 
     /**
@@ -1960,7 +1960,7 @@ public class AtmosphereFramework {
      * @return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
      */
     public List<String> customAnnotationPackages() {
-        return classpathScanner.annotationPackages;
+        return classpathScanner.annotationPackages();
     }
 
     /**
@@ -1970,7 +1970,7 @@ public class AtmosphereFramework {
      * @return this;
      */
     public AtmosphereFramework addCustomAnnotationPackage(Class<?> p) {
-        classpathScanner.annotationPackages.addLast(p.getPackage().getName());
+        classpathScanner.annotationPackages().addLast(p.getPackage().getName());
         return this;
     }
 
@@ -2015,7 +2015,7 @@ public class AtmosphereFramework {
      * @return the {@link AnnotationProcessor}
      */
     public AnnotationProcessor annotationProcessor() {
-        return classpathScanner.annotationProcessor;
+        return classpathScanner.annotationProcessor();
     }
 
     /**
@@ -2118,11 +2118,11 @@ public class AtmosphereFramework {
     }
 
     public boolean allowAllClassesScan() {
-        return classpathScanner.allowAllClassesScan;
+        return classpathScanner.allowAllClassesScan();
     }
 
     public AtmosphereFramework allowAllClassesScan(boolean allowAllClassesScan) {
-        classpathScanner.allowAllClassesScan = allowAllClassesScan;
+        classpathScanner.setAllowAllClassesScan(allowAllClassesScan);
         return this;
     }
 

@@ -45,21 +45,65 @@ public class ClasspathScanner {
 
     private static final Logger logger = LoggerFactory.getLogger(ClasspathScanner.class);
 
-    String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
+    private String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     AnnotationProcessor annotationProcessor;
-    boolean annotationFound;
+    private boolean annotationFound;
     boolean scanDone;
-    final List<String> packages = new ArrayList<>();
-    final LinkedList<String> annotationPackages = new LinkedList<>();
+    private final List<String> packages = new ArrayList<>();
+    private final LinkedList<String> annotationPackages = new LinkedList<>();
     final ArrayList<String> possibleComponentsCandidate = new ArrayList<>();
-    boolean allowAllClassesScan = true;
-    String handlersPath = DEFAULT_HANDLER_PATH;
-    String libPath = DEFAULT_LIB_PATH;
+    private boolean allowAllClassesScan = true;
+    private String handlersPath = DEFAULT_HANDLER_PATH;
+    private String libPath = DEFAULT_LIB_PATH;
 
     private final AtmosphereConfig config;
 
     ClasspathScanner(AtmosphereConfig config) {
         this.config = config;
+    }
+
+    String handlersPath() {
+        return handlersPath;
+    }
+
+    void setHandlersPath(String handlersPath) {
+        this.handlersPath = handlersPath;
+    }
+
+    String libPath() {
+        return libPath;
+    }
+
+    void setLibPath(String libPath) {
+        this.libPath = libPath;
+    }
+
+    void setAnnotationProcessorClassName(String className) {
+        this.annotationProcessorClassName = className;
+    }
+
+    void setAnnotationFound(boolean annotationFound) {
+        this.annotationFound = annotationFound;
+    }
+
+    boolean allowAllClassesScan() {
+        return allowAllClassesScan;
+    }
+
+    void setAllowAllClassesScan(boolean allowAllClassesScan) {
+        this.allowAllClassesScan = allowAllClassesScan;
+    }
+
+    List<String> packages() {
+        return packages;
+    }
+
+    LinkedList<String> annotationPackages() {
+        return annotationPackages;
+    }
+
+    AnnotationProcessor annotationProcessor() {
+        return annotationProcessor;
     }
 
     void parseInitParams(ServletConfig sc) {
