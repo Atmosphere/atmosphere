@@ -16,6 +16,7 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.annotation.Processor;
+import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.util.IOUtils;
 import org.atmosphere.websocket.WebSocketProtocol;
 import jakarta.servlet.ServletConfig;
@@ -33,8 +34,13 @@ import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
+import static org.atmosphere.cpr.ApplicationConfig.ATMOSPHERE_HANDLER_MAPPING;
+import static org.atmosphere.cpr.ApplicationConfig.DISABLE_ONSTATE_EVENT;
+import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SERVLET_MAPPING;
 import static org.atmosphere.cpr.AtmosphereFramework.DEFAULT_HANDLER_PATH;
 import static org.atmosphere.cpr.AtmosphereFramework.DEFAULT_LIB_PATH;
+import static org.atmosphere.cpr.FrameworkConfig.JERSEY_BROADCASTER;
+import static org.atmosphere.cpr.FrameworkConfig.JERSEY_CONTAINER;
 import static org.atmosphere.util.IOUtils.realPath;
 
 /**
@@ -350,10 +356,85 @@ public class ClasspathScanner {
             autoDetectAtmosphereHandlers(sc.getServletContext(), urlC);
 
             if (fwk.getHandlerRegistry().handlers().isEmpty()) {
-                fwk.detectSupportedFramework(sc);
+                detectSupportedFramework(sc);
             }
         }
 
         autoDetectWebSocketHandler(sc.getServletContext(), urlC);
+    }
+
+    /**
+     * Detect Jersey or other supported frameworks on the classpath and configure
+     * the framework to use them.
+     */
+    @SuppressWarnings("unchecked")
+    boolean detectSupportedFramework(ServletConfig sc) throws Exception {
+        var fwk = config.framework();
+        var broadcasterSetup = fwk.broadcasterSetup;
+
+        String broadcasterClassNameTmp = null;
+
+        boolean isJersey;
+        try {
+            IOUtils.loadClass(fwk.getClass(), JERSEY_CONTAINER);
+            isJersey = true;
+
+            if (!broadcasterSetup.isBroadcasterSpecified()) {
+                broadcasterClassNameTmp = fwk.lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
+                IOUtils.loadClass(fwk.getClass(), broadcasterClassNameTmp);
+            }
+            fwk.useStreamForFlushingComments = true;
+
+            var packagesInit = new StringBuilder();
+            for (String s : packages) {
+                packagesInit.append(s).append(",");
+            }
+
+            fwk.initParams.put(FrameworkConfig.JERSEY_SCANNING_PACKAGE, packagesInit.toString());
+        } catch (Throwable t) {
+            logger.trace("", t);
+            return false;
+        }
+
+        logger.debug("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
+
+        ReflectorServletProcessor rsp = fwk.newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
+        if (broadcasterClassNameTmp != null) broadcasterSetup.setBroadcasterClassName(broadcasterClassNameTmp);
+        configureDetectedFramework(rsp, isJersey);
+        fwk.sessionSupport(false);
+        fwk.initParams.put(DISABLE_ONSTATE_EVENT, "true");
+
+        String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
+        if (mapping == null) {
+            mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
+            if (mapping == null) {
+                mapping = Broadcaster.ROOT_MASTER;
+            }
+        }
+        Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) IOUtils.loadClass(fwk.getClass(), broadcasterSetup.broadcasterClassName());
+
+        broadcasterSetup.broadcasterFactory().destroy();
+
+        broadcasterSetup.setBroadcasterFactory(fwk.newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class));
+        broadcasterSetup.broadcasterFactory().configure(bc, broadcasterSetup.broadcasterLifeCyclePolicy(), config);
+        for (BroadcasterListener b : broadcasterSetup.broadcasterListeners()) {
+            broadcasterSetup.broadcasterFactory().addBroadcasterListener(b);
+        }
+
+        Broadcaster b;
+
+        try {
+            b = broadcasterSetup.broadcasterFactory().get(bc, mapping);
+        } catch (IllegalStateException ex) {
+            logger.warn("Two Broadcaster's named {}. Renaming the second one to {}", mapping, sc.getServletName() + mapping);
+            b = broadcasterSetup.broadcasterFactory().get(bc, sc.getServletName() + mapping);
+        }
+
+        fwk.addAtmosphereHandler(mapping, rsp, b);
+        return true;
+    }
+
+    void configureDetectedFramework(ReflectorServletProcessor rsp, boolean isJersey) {
+        rsp.setServletClassName(JERSEY_CONTAINER);
     }
 }

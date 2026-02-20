@@ -780,78 +780,12 @@ public class AtmosphereFramework {
      * @return true if Jersey classes are detected
      * @throws ClassNotFoundException
      */
-    @SuppressWarnings("unchecked")
     protected boolean detectSupportedFramework(ServletConfig sc) throws Exception {
-
-        String broadcasterClassNameTmp = null;
-
-        boolean isJersey;
-        try {
-            IOUtils.loadClass(getClass(), JERSEY_CONTAINER);
-            isJersey = true;
-
-            if (!broadcasterSetup.isBroadcasterSpecified()) {
-                broadcasterClassNameTmp = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
-
-                IOUtils.loadClass(getClass(), broadcasterClassNameTmp);
-            }
-            useStreamForFlushingComments = true;
-
-            var packagesInit = new StringBuilder();
-            for (String s : classpathScanner.packages()) {
-                packagesInit.append(s).append(",");
-            }
-
-            initParams.put(FrameworkConfig.JERSEY_SCANNING_PACKAGE, packagesInit.toString());
-        } catch (Throwable t) {
-            logger.trace("", t);
-            return false;
-        }
-
-        logger.debug("Missing META-INF/atmosphere.xml but found the Jersey runtime. Starting Jersey");
-
-        // Atmosphere 1.1 : could add regressions
-        // Jersey will itself handle the headers.
-        //initParams.put(WRITE_HEADERS, "false");
-
-        ReflectorServletProcessor rsp = newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
-        if (broadcasterClassNameTmp != null) broadcasterSetup.setBroadcasterClassName(broadcasterClassNameTmp);
-        configureDetectedFramework(rsp, isJersey);
-        sessionSupport(false);
-        initParams.put(DISABLE_ONSTATE_EVENT, "true");
-
-        String mapping = sc.getInitParameter(PROPERTY_SERVLET_MAPPING);
-        if (mapping == null) {
-            mapping = sc.getInitParameter(ATMOSPHERE_HANDLER_MAPPING);
-            if (mapping == null) {
-                mapping = Broadcaster.ROOT_MASTER;
-            }
-        }
-        Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) IOUtils.loadClass(getClass(), broadcasterSetup.broadcasterClassName());
-
-        broadcasterSetup.broadcasterFactory().destroy();
-
-        broadcasterSetup.setBroadcasterFactory(newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class));
-        broadcasterSetup.broadcasterFactory().configure(bc, broadcasterSetup.broadcasterLifeCyclePolicy(), config);
-        for (BroadcasterListener b : broadcasterSetup.broadcasterListeners()) {
-            broadcasterSetup.broadcasterFactory().addBroadcasterListener(b);
-        }
-
-        Broadcaster b;
-
-        try {
-            b = broadcasterSetup.broadcasterFactory().get(bc, mapping);
-        } catch (IllegalStateException ex) {
-            logger.warn("Two Broadcaster's named {}. Renaming the second one to {}", mapping, sc.getServletName() + mapping);
-            b = broadcasterSetup.broadcasterFactory().get(bc, sc.getServletName() + mapping);
-        }
-
-        addAtmosphereHandler(mapping, rsp, b);
-        return true;
+        return classpathScanner.detectSupportedFramework(sc);
     }
 
     protected void configureDetectedFramework(ReflectorServletProcessor rsp, boolean isJersey) {
-        rsp.setServletClassName(JERSEY_CONTAINER);
+        classpathScanner.configureDetectedFramework(rsp, isJersey);
     }
 
     protected String lookupDefaultBroadcasterType(String defaultB) {
