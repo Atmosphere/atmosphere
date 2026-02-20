@@ -15,7 +15,12 @@
  */
 package org.atmosphere.cpr;
 
+import org.atmosphere.annotation.Processor;
+import jakarta.servlet.ServletConfig;
+
+import java.io.File;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -54,5 +59,74 @@ public class ClasspathScanner {
         annotationPackages.clear();
         annotationFound = false;
         scanDone = false;
+    }
+
+    /**
+     * Prevent Atmosphere from scanning the entire class path.
+     */
+    void preventOOM() {
+        String s = config.getInitParameter(ApplicationConfig.SCAN_CLASSPATH);
+        if (s != null) {
+            allowAllClassesScan = Boolean.parseBoolean(s);
+        }
+
+        try {
+            Class.forName("org.testng.Assert");
+            allowAllClassesScan = false;
+        } catch (ClassNotFoundException e) {
+        }
+    }
+
+    void configureScanningPackage(ServletConfig sc, String value) {
+        String packageName = sc.getInitParameter(value);
+        if (packageName != null) {
+            String[] list = packageName.split(",");
+            Collections.addAll(packages, list);
+        }
+    }
+
+    void defaultPackagesToScan() {
+        // Atmosphere HA/Pro
+        packages.add("io.async.control");
+        packages.add("io.async.satellite");
+        packages.add("io.async.postman");
+    }
+
+    void configureAnnotationPackages() {
+        // We must scan the default annotation set.
+        annotationPackages.add(Processor.class.getPackage().getName());
+
+        String s = config.getInitParameter(ApplicationConfig.CUSTOM_ANNOTATION_PACKAGE);
+        if (s != null) {
+            String[] l = s.split(",");
+            for (String p : l) {
+                annotationPackages.addLast(p);
+            }
+        }
+    }
+
+    void installAnnotationProcessor(ServletConfig sc) {
+        String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PROCESSOR);
+        if (s != null) {
+            annotationProcessorClassName = s;
+        }
+    }
+
+    void getFiles(File f) {
+        if (scanDone) return;
+
+        File[] files = f.listFiles();
+        if (files != null) {
+            for (File test : files) {
+                if (test.isDirectory()) {
+                    getFiles(test);
+                } else {
+                    String clazz = test.getAbsolutePath();
+                    if (clazz.endsWith(".class")) {
+                        possibleComponentsCandidate.add(clazz);
+                    }
+                }
+            }
+        }
     }
 }
