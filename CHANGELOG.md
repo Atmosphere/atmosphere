@@ -248,6 +248,28 @@ consult the [Migration Guide](https://github.com/Atmosphere/atmosphere/wiki/Migr
 - `JSR356WebSocketTest` excluded (Mockito cannot mock sealed interfaces
   on JDK 21+).
 
+#### Architecture
+
+- **`AtmosphereFramework` decomposed** into focused component classes.
+  The former 3,400-line god object is now an orchestrator (~2,260 lines)
+  that delegates to single-responsibility components. The public API is
+  fully preserved -- all existing `framework.addAtmosphereHandler()`,
+  `framework.interceptor()`, etc. calls continue to work unchanged.
+  New internal components:
+  - `BroadcasterSetup` -- broadcaster configuration, factory, and lifecycle
+  - `ClasspathScanner` -- annotation scanning, handler/WebSocket auto-detection
+  - `InterceptorRegistry` -- interceptor lifecycle and ordering
+  - `HandlerRegistry` -- handler registration and endpoint mapping
+  - `WebSocketConfig` -- WebSocket protocol and processor configuration
+  - `FrameworkEventDispatcher` -- listener management and lifecycle events
+  - `FrameworkDiagnostics` -- startup diagnostics and analytics reporting
+- **`AtmosphereHandlerWrapper` fields encapsulated.** Previously public
+  mutable fields (`broadcaster`, `interceptors`, `mapping`) are now
+  private with accessor methods.
+- **Inner classes promoted to top-level.** `AtmosphereHandlerWrapper`,
+  `MetaServiceAction`, and `DefaultAtmosphereObjectFactory` are now
+  standalone classes in `org.atmosphere.cpr`.
+
 #### Build
 
 - Legacy Maven repositories (Codehaus, maven.java.net, JBoss Nexus,

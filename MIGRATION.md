@@ -483,6 +483,26 @@ The `AtmosphereFramework` class API is largely unchanged. Key points:
 - `framework.addAtmosphereHandler()` still works
 - `framework.objectFactory()` now accepts a Spring or CDI object factory
 
+**Internal refactoring (4.0):** `AtmosphereFramework` has been decomposed
+into focused component classes (`BroadcasterSetup`, `ClasspathScanner`,
+`InterceptorRegistry`, `HandlerRegistry`, `WebSocketConfig`,
+`FrameworkEventDispatcher`, `FrameworkDiagnostics`). The public API is
+fully preserved -- no application code changes are required.
+
+If your code accesses **`AtmosphereHandlerWrapper`** fields directly:
+
+```java
+// 3.x -- direct field access
+wrapper.broadcaster = myBroadcaster;
+wrapper.interceptors.add(myInterceptor);
+handler = wrapper.atmosphereHandler;
+
+// 4.0 -- use accessor methods
+wrapper.setBroadcaster(myBroadcaster);
+wrapper.interceptors().add(myInterceptor);
+handler = wrapper.atmosphereHandler();
+```
+
 ### Broadcaster
 
 The `DefaultBroadcaster` API is unchanged. One behavioral change:
