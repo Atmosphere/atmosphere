@@ -34,7 +34,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-quarkus-extension</artifactId>
-            <version>4.0.0</version>
+            <version>4.0.1-SNAPSHOT</version>
         </dependency>
 
         <dependency>
