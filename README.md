@@ -45,10 +45,9 @@ graph LR
     end
 
     subgraph Atmosphere
-        WS[WebSocket / SSE<br/>Long-Polling]
-        MCP["@McpServer<br/>tools · resources · prompts"]
-        AI["@AiEndpoint<br/>StreamingSession"]
         RM[RoomManager<br/>rooms · presence]
+        AI["@AiEndpoint<br/>StreamingSession"]
+        MCP["@McpServer<br/>tools · resources · prompts"]
     end
 
     subgraph Backends
@@ -56,15 +55,16 @@ graph LR
         CL[(Redis / Kafka<br/>cluster)]
     end
 
-    B  -- subscribe --> WS
-    WS --> RM
-    WS --> AI
-    AI -- stream tokens --> LLM
+    B -- WebSocket / SSE --> RM
+    B -- WebSocket --> AI
+    AI -- prompt --> LLM
+    LLM -. tokens .-> AI
+    AI -. stream .-> B
     RM -- cluster broadcast --> CL
 
-    M -- JSON-RPC --> MCP
-    MCP -- tool call --> AI
-    MCP -- read --> RM
+    M -- JSON-RPC over WebSocket --> MCP
+    MCP -- invoke tool --> LLM
+    MCP -. result .-> M
 ```
 
 ### Quick start
