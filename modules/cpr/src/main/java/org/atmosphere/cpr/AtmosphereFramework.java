@@ -158,7 +158,6 @@ public class AtmosphereFramework {
     protected static final Logger logger = LoggerFactory.getLogger(AtmosphereFramework.class);
 
     protected final FrameworkEventDispatcher eventDispatcher = new FrameworkEventDispatcher();
-    protected final ArrayList<String> possibleComponentsCandidate = new ArrayList<>();
     protected final HashMap<String, String> initParams = new HashMap<>();
     protected final AtmosphereConfig config;
     protected final AtomicBoolean isCometSupportConfigured = new AtomicBoolean(false);
@@ -172,31 +171,23 @@ public class AtmosphereFramework {
     protected boolean isCometSupportSpecified;
     protected boolean isSessionSupportSpecified;
     protected boolean isThrowExceptionOnClonedRequestSpecified;
-    protected String handlersPath = DEFAULT_HANDLER_PATH;
     protected ServletConfig servletConfig;
     protected boolean autoDetectHandlers = true;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected String metaServicePath = META_SERVICE;
-    protected boolean scanDone;
-    protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
-    protected String libPath = DEFAULT_LIB_PATH;
     protected boolean isInit;
     protected boolean sharedThreadPools = true;
-    protected final List<String> packages = new ArrayList<>();
-    protected final LinkedList<String> annotationPackages = new LinkedList<>();
-    protected boolean allowAllClassesScan = true;
-    protected boolean annotationFound;
     protected boolean executeFirstSet;
     protected AtmosphereObjectFactory<?> objectFactory = new DefaultAtmosphereObjectFactory();
     protected final AtomicBoolean isDestroyed = new AtomicBoolean();
     protected boolean externalizeDestroy;
-    protected AnnotationProcessor annotationProcessor;
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
     protected Thread shutdownHook;
     protected final WebSocketConfig webSocketConfig;
     protected final InterceptorRegistry interceptorRegistry;
     protected final HandlerRegistry handlerRegistry;
     protected final BroadcasterSetup broadcasterSetup;
+    protected final ClasspathScanner classpathScanner;
     public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS =
             InterceptorRegistry.DEFAULT_ATMOSPHERE_INTERCEPTORS;
     private IllegalStateException initializationError;
@@ -251,6 +242,7 @@ public class AtmosphereFramework {
         interceptorRegistry = new InterceptorRegistry(config);
         handlerRegistry = new HandlerRegistry(config, interceptorRegistry);
         broadcasterSetup = new BroadcasterSetup(config);
+        classpathScanner = new ClasspathScanner(config);
         interceptorRegistry.setHandlersSupplier(handlerRegistry::handlers);
         handlerRegistry.setBroadcasterFactorySupplier(() -> broadcasterSetup.broadcasterFactory);
     }
@@ -466,12 +458,12 @@ public class AtmosphereFramework {
 
         String s = config.getInitParameter(ApplicationConfig.SCAN_CLASSPATH);
         if (s != null) {
-            allowAllClassesScan = Boolean.parseBoolean(s);
+            classpathScanner.allowAllClassesScan = Boolean.parseBoolean(s);
         }
 
         try {
             Class.forName("org.testng.Assert");
-            allowAllClassesScan = false;
+            classpathScanner.allowAllClassesScan = false;
         } catch (ClassNotFoundException e) {
         }
     }
@@ -727,13 +719,13 @@ public class AtmosphereFramework {
 
     private void configureAnnotationPackages() {
         // We must scan the default annotation set.
-        annotationPackages.add(Processor.class.getPackage().getName());
+        classpathScanner.annotationPackages.add(Processor.class.getPackage().getName());
 
         String s = config.getInitParameter(ApplicationConfig.CUSTOM_ANNOTATION_PACKAGE);
         if (s != null) {
             String[] l = s.split(",");
             for (String p : l) {
-                annotationPackages.addLast(p);
+                classpathScanner.annotationPackages.addLast(p);
             }
         }
     }
@@ -808,15 +800,15 @@ public class AtmosphereFramework {
         String packageName = sc.getInitParameter(value);
         if (packageName != null) {
             String[] list = packageName.split(",");
-            Collections.addAll(packages, list);
+            Collections.addAll(classpathScanner.packages, list);
         }
     }
 
     protected void defaultPackagesToScan() {
         // Atmosphere HA/Pro
-        packages.add("io.async.control");
-        packages.add("io.async.satellite");
-        packages.add("io.async.postman");
+        classpathScanner.packages.add("io.async.control");
+        classpathScanner.packages.add("io.async.satellite");
+        classpathScanner.packages.add("io.async.postman");
     }
 
     @SuppressWarnings("unchecked")
@@ -882,7 +874,7 @@ public class AtmosphereFramework {
     protected void installAnnotationProcessor(ServletConfig sc) {
         String s = sc.getInitParameter(ApplicationConfig.ANNOTATION_PROCESSOR);
         if (s != null) {
-            annotationProcessorClassName = s;
+            classpathScanner.annotationProcessorClassName = s;
         }
     }
 
@@ -977,7 +969,7 @@ public class AtmosphereFramework {
         }
         s = sc.getInitParameter(ATMOSPHERE_HANDLER_PATH);
         if (s != null) {
-            handlersPath = s;
+            classpathScanner.handlersPath = s;
         }
         s = sc.getInitParameter(PROPERTY_ATMOSPHERE_XML);
         if (s != null) {
@@ -994,7 +986,7 @@ public class AtmosphereFramework {
 
         s = sc.getInitParameter(FrameworkConfig.JERSEY_SCANNING_PACKAGE);
         if (s != null) {
-            packages.add(s);
+            classpathScanner.packages.add(s);
         }
 
         s = sc.getInitParameter(ApplicationConfig.DEFAULT_SERIALIZER);
@@ -1013,7 +1005,7 @@ public class AtmosphereFramework {
         if (!autoDetectHandlers) return;
 
         try {
-            URL url = sc.getServletContext().getResource(handlersPath);
+            URL url = sc.getServletContext().getResource(classpathScanner.handlersPath);
             ClassLoader urlC = url == null ? getClass().getClassLoader() : new URLClassLoader(new URL[]{url},
                     Thread.currentThread().getContextClassLoader());
             loadAtmosphereDotXml(sc.getServletContext().
@@ -1058,7 +1050,7 @@ public class AtmosphereFramework {
             useStreamForFlushingComments = true;
 
             var packagesInit = new StringBuilder();
-            for (String s : packages) {
+            for (String s : classpathScanner.packages) {
                 packagesInit.append(s).append(",");
             }
 
@@ -1287,15 +1279,15 @@ public class AtmosphereFramework {
 
         broadcasterSetup.broadcasterFilters.clear();
         eventDispatcher.clear();
-        possibleComponentsCandidate.clear();
+        classpathScanner.possibleComponentsCandidate.clear();
         initParams.clear();
         handlerRegistry.clear();
         broadcasterSetup.broadcasterTypes.clear();
         objectFactoryType.clear();
         broadcasterSetup.inspectors.clear();
         broadcasterSetup.broadcasterListeners.clear();
-        packages.clear();
-        annotationPackages.clear();
+        classpathScanner.packages.clear();
+        classpathScanner.annotationPackages.clear();
         broadcasterSetup.broadcasterCacheListeners.clear();
         broadcasterSetup.filterManipulators.clear();
         interceptorRegistry.clear();
@@ -1304,7 +1296,7 @@ public class AtmosphereFramework {
         broadcasterSetup.arFactory = null;
         broadcasterSetup.metaBroadcaster = null;
         broadcasterSetup.sessionFactory = null;
-        annotationFound = false;
+        classpathScanner.annotationFound = false;
         return this;
     }
 
@@ -1507,13 +1499,13 @@ public class AtmosphereFramework {
         // If Handler has been added
         if (!handlerRegistry.handlers().isEmpty()) return;
 
-        logger.info("Auto detecting atmosphere handlers {}", handlersPath);
+        logger.info("Auto detecting atmosphere handlers {}", classpathScanner.handlersPath);
 
-        String realPath = servletContext.getRealPath(handlersPath);
+        String realPath = servletContext.getRealPath(classpathScanner.handlersPath);
 
         // Weblogic bug
         if (realPath == null) {
-            URL u = servletContext.getResource(handlersPath);
+            URL u = servletContext.getResource(classpathScanner.handlersPath);
             if (u == null) return;
             realPath = u.getPath();
         }
@@ -1527,9 +1519,9 @@ public class AtmosphereFramework {
 
         if (file.exists() && file.isDirectory()) {
             getFiles(file);
-            scanDone = true;
+            classpathScanner.scanDone = true;
 
-            for (String className : possibleComponentsCandidate) {
+            for (String className : classpathScanner.possibleComponentsCandidate) {
                 try {
                     className = className.replace('\\', '/');
                     className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
@@ -1562,8 +1554,8 @@ public class AtmosphereFramework {
 
         if (webSocketConfig.hasNewProtocol()) return;
 
-        logger.info("Auto detecting WebSocketHandler in {}", handlersPath);
-        loadWebSocketFromPath(classloader, realPath(servletContext, handlersPath));
+        logger.info("Auto detecting WebSocketHandler in {}", classpathScanner.handlersPath);
+        loadWebSocketFromPath(classloader, realPath(servletContext, classpathScanner.handlersPath));
     }
 
     protected void loadWebSocketFromPath(ClassLoader classloader, String realPath) {
@@ -1573,9 +1565,9 @@ public class AtmosphereFramework {
 
         if (file.exists() && file.isDirectory()) {
             getFiles(file);
-            scanDone = true;
+            classpathScanner.scanDone = true;
 
-            for (String className : possibleComponentsCandidate) {
+            for (String className : classpathScanner.possibleComponentsCandidate) {
                 try {
                     className = className.replace('\\', '/');
                     className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
@@ -1598,7 +1590,7 @@ public class AtmosphereFramework {
      * @param f the real path {@link File}
      */
     private void getFiles(File f) {
-        if (scanDone) return;
+        if (classpathScanner.scanDone) return;
 
         File[] files = f.listFiles();
         for (File test : Objects.requireNonNull(files)) {
@@ -1607,7 +1599,7 @@ public class AtmosphereFramework {
             } else {
                 String clazz = test.getAbsolutePath();
                 if (clazz.endsWith(".class")) {
-                    possibleComponentsCandidate.add(clazz);
+                    classpathScanner.possibleComponentsCandidate.add(clazz);
                 }
             }
         }
@@ -1932,11 +1924,11 @@ public class AtmosphereFramework {
     }
 
     public String getHandlersPath() {
-        return handlersPath;
+        return classpathScanner.handlersPath;
     }
 
     public AtmosphereFramework setHandlersPath(String handlersPath) {
-        this.handlersPath = handlersPath;
+        classpathScanner.handlersPath = handlersPath;
         return this;
     }
 
@@ -1946,7 +1938,7 @@ public class AtmosphereFramework {
      * @return the location of the JARs containing the application classes. Default is WEB-INF/lib
      */
     public String getLibPath() {
-        return libPath;
+        return classpathScanner.libPath;
     }
 
     /**
@@ -1956,7 +1948,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework setLibPath(String libPath) {
-        this.libPath = libPath;
+        classpathScanner.libPath = libPath;
         return this;
     }
 
@@ -2038,7 +2030,7 @@ public class AtmosphereFramework {
         return interceptorRegistry.findInterceptor(c);
     }
     public AtmosphereFramework annotationProcessorClassName(String annotationProcessorClassName) {
-        this.annotationProcessorClassName = annotationProcessorClassName;
+        classpathScanner.annotationProcessorClassName = annotationProcessorClassName;
         return this;
     }
 
@@ -2206,49 +2198,49 @@ public class AtmosphereFramework {
 
     @SuppressWarnings("unchecked")
     protected void autoConfigureService(ServletContext sc) throws IOException {
-        String path = handlersPath != DEFAULT_HANDLER_PATH ? handlersPath : realPath(sc, handlersPath);
+        String path = classpathScanner.handlersPath != DEFAULT_HANDLER_PATH ? classpathScanner.handlersPath : realPath(sc, classpathScanner.handlersPath);
         try {
-            annotationProcessor = newClassInstance(AnnotationProcessor.class,
-                    (Class<AnnotationProcessor>) IOUtils.loadClass(getClass(), annotationProcessorClassName));
-            logger.info("Atmosphere is using {} for processing annotation", annotationProcessorClassName);
+            classpathScanner.annotationProcessor = newClassInstance(AnnotationProcessor.class,
+                    (Class<AnnotationProcessor>) IOUtils.loadClass(getClass(), classpathScanner.annotationProcessorClassName));
+            logger.info("Atmosphere is using {} for processing annotation", classpathScanner.annotationProcessorClassName);
 
-            annotationProcessor.configure(config);
+            classpathScanner.annotationProcessor.configure(config);
 
-            if (!packages.isEmpty()) {
-                for (String s : packages) {
-                    annotationProcessor.scan(s);
+            if (!classpathScanner.packages.isEmpty()) {
+                for (String s : classpathScanner.packages) {
+                    classpathScanner.annotationProcessor.scan(s);
                 }
             }
 
             // Second try.
-            if (!annotationFound) {
+            if (!classpathScanner.annotationFound) {
                 if (path != null) {
-                    annotationProcessor.scan(new File(path));
+                    classpathScanner.annotationProcessor.scan(new File(path));
                 }
 
                 // Always scan library
-                String pathLibs = !libPath.equals(DEFAULT_LIB_PATH) ? libPath : realPath(sc, DEFAULT_LIB_PATH);
+                String pathLibs = !classpathScanner.libPath.equals(DEFAULT_LIB_PATH) ? classpathScanner.libPath : realPath(sc, DEFAULT_LIB_PATH);
                 if (pathLibs != null) {
                     var libFolder = new File(pathLibs);
                     File[] jars = libFolder.listFiles((arg0, arg1) -> arg1.endsWith(".jar"));
 
                     if (jars != null) {
                         for (File file : jars) {
-                            annotationProcessor.scan(file);
+                            classpathScanner.annotationProcessor.scan(file);
                         }
                     }
                 }
             }
 
-            if (!annotationFound && allowAllClassesScan) {
+            if (!classpathScanner.annotationFound && classpathScanner.allowAllClassesScan) {
                 logger.debug("Scanning all classes on the classpath");
-                annotationProcessor.scanAll();
+                classpathScanner.annotationProcessor.scanAll();
             }
         } catch (Throwable e) {
             logger.error("", e);
         } finally {
-            if (annotationProcessor != null) {
-                annotationProcessor.destroy();
+            if (classpathScanner.annotationProcessor != null) {
+                classpathScanner.annotationProcessor.destroy();
             }
         }
     }
@@ -2284,7 +2276,7 @@ public class AtmosphereFramework {
         if (clazz.getPackage() == null) {
             logger.error("Class {} must have a package defined", clazz);
         } else {
-            packages.add(clazz.getPackage().getName());
+            classpathScanner.packages.add(clazz.getPackage().getName());
         }
         return this;
     }
@@ -2358,7 +2350,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework annotationScanned(boolean b) {
-        annotationFound = b;
+        classpathScanner.annotationFound = b;
         return this;
     }
 
@@ -2372,7 +2364,7 @@ public class AtmosphereFramework {
     }
 
     public List<String> packages() {
-        return packages;
+        return classpathScanner.packages;
     }
 
     /**
@@ -2381,7 +2373,7 @@ public class AtmosphereFramework {
      * @return the list of packages the framework should look for {@link org.atmosphere.config.AtmosphereAnnotation}
      */
     public List<String> customAnnotationPackages() {
-        return annotationPackages;
+        return classpathScanner.annotationPackages;
     }
 
     /**
@@ -2391,7 +2383,7 @@ public class AtmosphereFramework {
      * @return this;
      */
     public AtmosphereFramework addCustomAnnotationPackage(Class<?> p) {
-        annotationPackages.addLast(p.getPackage().getName());
+        classpathScanner.annotationPackages.addLast(p.getPackage().getName());
         return this;
     }
 
@@ -2436,7 +2428,7 @@ public class AtmosphereFramework {
      * @return the {@link AnnotationProcessor}
      */
     public AnnotationProcessor annotationProcessor() {
-        return annotationProcessor;
+        return classpathScanner.annotationProcessor;
     }
 
     /**
@@ -2539,11 +2531,11 @@ public class AtmosphereFramework {
     }
 
     public boolean allowAllClassesScan() {
-        return allowAllClassesScan;
+        return classpathScanner.allowAllClassesScan;
     }
 
     public AtmosphereFramework allowAllClassesScan(boolean allowAllClassesScan) {
-        this.allowAllClassesScan = allowAllClassesScan;
+        classpathScanner.allowAllClassesScan = allowAllClassesScan;
         return this;
     }
 
