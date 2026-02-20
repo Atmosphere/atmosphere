@@ -13,7 +13,7 @@
 
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-spring-boot-chat</artifactId>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>4.0.1-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>atmosphere-spring-boot-chat</name>
     <description>Atmosphere Chat sample using Spring Boot starter</description>
