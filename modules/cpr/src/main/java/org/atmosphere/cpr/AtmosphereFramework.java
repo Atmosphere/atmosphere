@@ -262,6 +262,14 @@ public class AtmosphereFramework {
         broadcasterSetup.populateBroadcasterType();
     }
 
+    // --- Package-level component accessors for use by extracted classes ---
+
+    HandlerRegistry getHandlerRegistry() { return handlerRegistry; }
+
+    WebSocketConfig getWebSocketConfig() { return webSocketConfig; }
+
+    boolean isAutoDetectHandlers() { return autoDetectHandlers; }
+
     /**
      * The order of addition is quite important here.
      */
@@ -914,25 +922,8 @@ public class AtmosphereFramework {
     }
 
     public void loadConfiguration(ServletConfig sc) throws ServletException {
-
-        if (!autoDetectHandlers) return;
-
         try {
-            URL url = sc.getServletContext().getResource(classpathScanner.handlersPath);
-            ClassLoader urlC = url == null ? getClass().getClassLoader() : new URLClassLoader(new URL[]{url},
-                    Thread.currentThread().getContextClassLoader());
-            loadAtmosphereDotXml(sc.getServletContext().
-                    getResourceAsStream(atmosphereDotXmlPath), urlC);
-
-            if (handlerRegistry.handlers().isEmpty()) {
-                autoDetectAtmosphereHandlers(sc.getServletContext(), urlC);
-
-                if (handlerRegistry.handlers().isEmpty()) {
-                    detectSupportedFramework(sc);
-                }
-            }
-
-            autoDetectWebSocketHandler(sc.getServletContext(), urlC);
+            classpathScanner.loadConfiguration(sc);
         } catch (Throwable t) {
             throw new ServletException(t);
         }
@@ -1367,50 +1358,12 @@ public class AtmosphereFramework {
      */
     public void autoDetectAtmosphereHandlers(ServletContext servletContext, ClassLoader classloader)
             throws MalformedURLException {
-
-        // If Handler has been added
-        if (!handlerRegistry.handlers().isEmpty()) return;
-
-        logger.info("Auto detecting atmosphere handlers {}", classpathScanner.handlersPath);
-
-        String realPath = servletContext.getRealPath(classpathScanner.handlersPath);
-
-        // Weblogic bug
-        if (realPath == null) {
-            URL u = servletContext.getResource(classpathScanner.handlersPath);
-            if (u == null) return;
-            realPath = u.getPath();
-        }
-
-        loadAtmosphereHandlersFromPath(classloader, realPath);
+        classpathScanner.autoDetectAtmosphereHandlers(servletContext, classloader);
     }
 
     @SuppressWarnings("unchecked")
     public void loadAtmosphereHandlersFromPath(ClassLoader classloader, String realPath) {
-        var file = new File(realPath);
-
-        if (file.exists() && file.isDirectory()) {
-            getFiles(file);
-            classpathScanner.scanDone = true;
-
-            for (String className : classpathScanner.possibleComponentsCandidate) {
-                try {
-                    className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
-                    Class<?> clazz = classloader.loadClass(className);
-
-                    if (AtmosphereHandler.class.isAssignableFrom(clazz)) {
-                        AtmosphereHandler handler = newClassInstance(AtmosphereHandler.class, (Class<AtmosphereHandler>) clazz);
-                        String path = "/" + handler.getClass().getSimpleName();
-                        handlerRegistry.handlers().put(handlerRegistry.normalizePath(path),
-                                new AtmosphereHandlerWrapper(broadcasterSetup.broadcasterFactory(), handler, path, config));
-                        logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handler.getClass().getName());
-                    }
-                } catch (Throwable t) {
-                    logger.trace("failed to load class as an AtmosphereHandler: " + className, t);
-                }
-            }
-        }
+        classpathScanner.loadAtmosphereHandlersFromPath(classloader, realPath);
     }
 
     /**
@@ -1423,37 +1376,11 @@ public class AtmosphereFramework {
      */
     protected void autoDetectWebSocketHandler(ServletContext servletContext, ClassLoader classloader)
             throws MalformedURLException {
-
-        if (webSocketConfig.hasNewProtocol()) return;
-
-        logger.info("Auto detecting WebSocketHandler in {}", classpathScanner.handlersPath);
-        loadWebSocketFromPath(classloader, realPath(servletContext, classpathScanner.handlersPath));
+        classpathScanner.autoDetectWebSocketHandler(servletContext, classloader);
     }
 
     protected void loadWebSocketFromPath(ClassLoader classloader, String realPath) {
-        if (realPath == null || realPath.isEmpty()) return;
-
-        var file = new File(realPath);
-
-        if (file.exists() && file.isDirectory()) {
-            getFiles(file);
-            classpathScanner.scanDone = true;
-
-            for (String className : classpathScanner.possibleComponentsCandidate) {
-                try {
-                    className = className.replace('\\', '/');
-                    className = className.replaceFirst("^.*/(WEB-INF|target)(?:/scala-[^/]+)?/(test-)?classes/(.*)\\.class", "$3").replace("/", ".");
-                    Class<?> clazz = classloader.loadClass(className);
-
-                    if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
-                        webSocketConfig.setProtocolClassName(clazz.getName());
-                        logger.info("Auto-detected WebSocketProtocol {}", webSocketConfig.getProtocolClassName());
-                    }
-                } catch (Throwable t) {
-                    logger.trace("failed to load class as an WebSocketProtocol: " + className, t);
-                }
-            }
-        }
+        classpathScanner.loadWebSocketFromPath(classloader, realPath);
     }
 
     /**
@@ -2058,51 +1985,7 @@ public class AtmosphereFramework {
 
     @SuppressWarnings("unchecked")
     protected void autoConfigureService(ServletContext sc) throws IOException {
-        String path = classpathScanner.handlersPath != DEFAULT_HANDLER_PATH ? classpathScanner.handlersPath : realPath(sc, classpathScanner.handlersPath);
-        try {
-            classpathScanner.annotationProcessor = newClassInstance(AnnotationProcessor.class,
-                    (Class<AnnotationProcessor>) IOUtils.loadClass(getClass(), classpathScanner.annotationProcessorClassName));
-            logger.info("Atmosphere is using {} for processing annotation", classpathScanner.annotationProcessorClassName);
-
-            classpathScanner.annotationProcessor.configure(config);
-
-            if (!classpathScanner.packages.isEmpty()) {
-                for (String s : classpathScanner.packages) {
-                    classpathScanner.annotationProcessor.scan(s);
-                }
-            }
-
-            // Second try.
-            if (!classpathScanner.annotationFound) {
-                if (path != null) {
-                    classpathScanner.annotationProcessor.scan(new File(path));
-                }
-
-                // Always scan library
-                String pathLibs = !classpathScanner.libPath.equals(DEFAULT_LIB_PATH) ? classpathScanner.libPath : realPath(sc, DEFAULT_LIB_PATH);
-                if (pathLibs != null) {
-                    var libFolder = new File(pathLibs);
-                    File[] jars = libFolder.listFiles((arg0, arg1) -> arg1.endsWith(".jar"));
-
-                    if (jars != null) {
-                        for (File file : jars) {
-                            classpathScanner.annotationProcessor.scan(file);
-                        }
-                    }
-                }
-            }
-
-            if (!classpathScanner.annotationFound && classpathScanner.allowAllClassesScan) {
-                logger.debug("Scanning all classes on the classpath");
-                classpathScanner.annotationProcessor.scanAll();
-            }
-        } catch (Throwable e) {
-            logger.error("", e);
-        } finally {
-            if (classpathScanner.annotationProcessor != null) {
-                classpathScanner.annotationProcessor.destroy();
-            }
-        }
+        classpathScanner.autoConfigureService(sc);
     }
 
     /**
