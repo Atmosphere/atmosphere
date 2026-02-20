@@ -80,8 +80,6 @@ jobs:
   quarkus-native:
     name: Quarkus Native Image
     runs-on: ubuntu-latest
-    # GraalVM JDK 25 rejects Random/SplittableRandom in image heap — upstream Quarkus/Mandrel issue
-    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
 
@@ -96,7 +94,7 @@ jobs:
       run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment -am
 
     - name: Build Quarkus Native Image (container build)
-      run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat
+      run: ./mvnw -B -Dnative -Dquarkus.native.container-build=true -Dquarkus.native.builder-image=quay.io/quarkus/ubi9-quarkus-mandrel-builder-image:jdk-21 package -DskipTests -Dgpg.skip=true -pl samples/quarkus-chat
       timeout-minutes: 20
 
     - name: Verify Native Binary Exists
