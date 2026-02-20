@@ -138,8 +138,8 @@ consult the [Migration Guide](https://github.com/Atmosphere/atmosphere/wiki/Migr
 
 - **atmosphere.js 5.0** -- complete TypeScript rewrite with zero runtime
   dependencies. Ships as ESM, CJS, and IIFE bundles.
-- **Transport fallback chain** -- WebSocket with automatic fallback to SSE,
-  HTTP streaming, and long-polling. Full protocol handler with heartbeat,
+- **Transport fallback** -- WebSocket with configurable fallback to SSE,
+  HTTP streaming, or long-polling. Full protocol handler with heartbeat,
   reconnection, and message tracking.
 - **React hooks** -- `useAtmosphere`, `useRoom`, `usePresence`,
   `useStreaming` via `atmosphere.js/react`. Includes `AtmosphereProvider`
@@ -334,7 +334,7 @@ consult the [Migration Guide](https://github.com/Atmosphere/atmosphere/wiki/Migr
 | AI streaming SPI | `org.atmosphere` | `atmosphere-ai` | `4.0.0` |
 | Spring AI adapter | `org.atmosphere` | `atmosphere-spring-ai` | `4.0.0` |
 | LangChain4j adapter | `org.atmosphere` | `atmosphere-langchain4j` | `4.0.0` |
-| Embabel adapter | `org.atmosphere` | `atmosphere-embabel` | `4.0.0` |
+| Embabel adapter | `org.atmosphere` | `atmosphere-embabel` | *not yet published (pending Embabel Maven Central release)* |
 | MCP server | `org.atmosphere` | `atmosphere-mcp` | `4.0.0` |
 | Kotlin DSL | `org.atmosphere` | `atmosphere-kotlin` | `4.0.0` |
 | Redis clustering | `org.atmosphere` | `atmosphere-redis` | `4.0.0` |
@@ -365,4 +365,4 @@ For changes in the 2.x and 3.x release lines, see the
 [GitHub Releases](https://github.com/Atmosphere/atmosphere/releases) page
 and the `atmosphere-2.6.x` branch.
 
-[4.0.0]: https://github.com/Atmosphere/atmosphere/releases/tag/atmosphere-project-4.0.0
+[4.0.0]: https://github.com/Atmosphere/atmosphere/releases/tag/atmosphere-4.0.0

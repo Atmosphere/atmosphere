@@ -121,10 +121,6 @@ export class AtmosphereProtocol {
    * Mirrors legacy `_handleProtocol()`.
    */
   handleProtocol(request: AtmosphereRequest, message: string): ProtocolResult {
-    if (request.transport === 'polling') {
-      return { message, wasHandshake: false };
-    }
-
     if (request.enableProtocol && this.firstMessage && message.trim().length > 0) {
       const delimiter = request.messageDelimiter ?? '|';
       const pos = request.trackMessageLength ? 1 : 0;

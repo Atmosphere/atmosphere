@@ -54,20 +54,6 @@ describe('AtmosphereProtocol', () => {
       expect(result.wasHandshake).toBe(false);
       expect(result.message).toBe('regular message');
     });
-
-    it('should skip protocol for polling transport', () => {
-      const protocol = new AtmosphereProtocol();
-      const request: AtmosphereRequest = {
-        url: 'http://localhost/test',
-        transport: 'polling',
-        enableProtocol: true,
-        messageDelimiter: '|',
-      };
-
-      const result = protocol.handleProtocol(request, 'uuid|5000|X|');
-      expect(result.wasHandshake).toBe(false);
-      expect(result.message).toBe('uuid|5000|X|');
-    });
   });
 
   describe('processMessage with trackMessageLength', () => {

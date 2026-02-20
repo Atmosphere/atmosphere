@@ -35,7 +35,8 @@ import { logger } from '../utils/logger';
  * Main Atmosphere client class.
  *
  * Manages subscriptions with automatic transport selection and fallback.
- * Default fallback chain: WebSocket → SSE → Streaming → Long-Polling.
+ * Default transport: WebSocket. Configure `fallbackTransport` for automatic
+ * retry with a different transport on failure.
  */
 export class Atmosphere {
   readonly version = '5.0.0';

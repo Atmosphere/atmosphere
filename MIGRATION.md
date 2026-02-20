@@ -682,7 +682,7 @@ subscription.push({ author: 'user', message: 'hello' });
 | Close | `subSocket.close()` | `await subscription.close()` |
 | Close all | `atmosphere.unsubscribe()` | `await atmosphere.closeAll()` |
 | Transport types | `'websocket'`, `'sse'`, `'long-polling'`, `'streaming'`, `'jsonp'` | `'websocket'`, `'sse'`, `'long-polling'`, `'streaming'` (JSONP removed) |
-| Fallback | Single fallback | Automatic fallback chain: WebSocket -> SSE -> Streaming -> Long-Polling |
+| Fallback | Single fallback | Configurable fallback: e.g. WebSocket → SSE or WebSocket → Long-Polling |
 | Event system | Callbacks only | Callbacks + `subscription.on('event', handler)` |
 | Interceptors | N/A | `AtmosphereInterceptor` interface for transforming outgoing/incoming messages |
 | Reconnect config | `request.reconnectInterval` | Same, plus `maxReconnectOnClose`, `maxWebsocketErrorRetries` |
