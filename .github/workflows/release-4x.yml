@@ -214,7 +214,7 @@ jobs:
       working-directory: atmosphere.js
       run: |
         npm ci
-        npm version ${{ inputs.js_version }} --no-git-tag-version
+        npm version ${{ inputs.js_version }} --no-git-tag-version --allow-same-version
         npm publish --provenance --access public
       env:
         NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
