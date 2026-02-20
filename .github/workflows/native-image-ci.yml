@@ -80,8 +80,6 @@ jobs:
   quarkus-native:
     name: Quarkus Native Image
     runs-on: ubuntu-latest
-    # Mandrel 23.x has internal NPE in ImageHeapScanner — allow failure until fixed upstream
-    continue-on-error: true
     steps:
     - uses: actions/checkout@v4
 
