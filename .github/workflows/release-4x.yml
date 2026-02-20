@@ -139,6 +139,8 @@ jobs:
 
     - name: Build release artifacts
       run: ./mvnw -B clean install -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!modules/integration-tests' ${{ inputs.dry_run && '-Dgpg.skip=true' || '' }}
+      env:
+        GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
 
     - name: Publish to Maven Central
       if: inputs.dry_run == false
