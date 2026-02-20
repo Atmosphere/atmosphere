@@ -2024,6 +2024,10 @@ public class AtmosphereFramework {
     }
 
     public MetaBroadcaster metaBroadcaster() {
+        return broadcasterSetup.metaBroadcaster();
+    }
+
+    private AtmosphereFramework configureMetaBroadcaster() {
         broadcasterSetup.configureMetaBroadcaster();
         return this;
     }
