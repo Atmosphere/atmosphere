@@ -171,6 +171,7 @@ public class FrameworkEventDispatcher {
     public void clear() {
         asyncSupportListeners.clear();
         atmosphereResourceListeners.clear();
-        frameworkListeners.clear();
+        // Note: frameworkListeners is intentionally NOT cleared here.
+        // It must survive resetStates()/destroy() so that onPostDestroy callbacks fire.
     }
 }
