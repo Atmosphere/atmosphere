@@ -963,7 +963,7 @@ public class AtmosphereFramework {
         for (Entry<String, AtmosphereHandlerWrapper> entry : handlerRegistry.handlers().entrySet()) {
             AtmosphereHandlerWrapper handlerWrapper = entry.getValue();
             try {
-                handlerWrapper.atmosphereHandler.destroy();
+                handlerWrapper.atmosphereHandler().destroy();
             } catch (Throwable t) {
                 logger.warn("", t);
             }
@@ -1372,8 +1372,8 @@ public class AtmosphereFramework {
         // We must recreate all previously created Broadcaster.
         for (AtmosphereHandlerWrapper w : handlerRegistry.handlers().values()) {
             // If case one listener is initializing the framework.
-            if (w.broadcaster != null) {
-                w.broadcaster = broadcasterSetup.broadcasterFactory().lookup(w.broadcaster.getID(), true);
+            if (w.broadcaster() != null) {
+                w.setBroadcaster(broadcasterSetup.broadcasterFactory().lookup(w.broadcaster().getID(), true));
             }
         }
         return this;

@@ -265,7 +265,7 @@ public class RoomProtocolInterceptor extends AtmosphereInterceptorAdapter {
 
     private void scanAuthorizer(AtmosphereConfig config) {
         for (var entry : config.handlers().entrySet()) {
-            var handlerClass = entry.getValue().atmosphereHandler.getClass();
+            var handlerClass = entry.getValue().atmosphereHandler().getClass();
             var auth = handlerClass.getAnnotation(RoomAuth.class);
             if (auth != null) {
                 try {

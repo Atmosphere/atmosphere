@@ -100,7 +100,7 @@ public class HandlerRegistry {
             mapping = "/" + mapping;
         }
 
-        createWrapperAndConfigureHandler(h, mapping, l).broadcaster = broadcaster;
+        createWrapperAndConfigureHandler(h, mapping, l).setBroadcaster(broadcaster);
 
         if (!config.framework().isInit) {
             logger.info("Installed AtmosphereHandler {} mapped to context-path {} and Broadcaster Class {}", h.getClass().getName(), mapping, broadcaster.getClass().getName());
@@ -122,7 +122,7 @@ public class HandlerRegistry {
             mapping = "/" + mapping;
         }
 
-        createWrapperAndConfigureHandler(h, mapping, l).broadcaster.setID(broadcasterId);
+        createWrapperAndConfigureHandler(h, mapping, l).broadcaster().setID(broadcasterId);
 
         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", h.getClass().getName(), mapping);
         if (!l.isEmpty()) {
@@ -242,7 +242,7 @@ public class HandlerRegistry {
         AtmosphereHandlerWrapper w;
         for (Entry<String, AtmosphereHandlerWrapper> h : atmosphereHandlers.entrySet()) {
             w = h.getValue();
-            a = w.atmosphereHandler;
+            a = w.atmosphereHandler();
             if (a instanceof AtmosphereServletProcessor asp) {
                 asp.init(config);
             }

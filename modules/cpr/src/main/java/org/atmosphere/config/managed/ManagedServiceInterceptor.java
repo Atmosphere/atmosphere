@@ -46,7 +46,7 @@ public final class ManagedServiceInterceptor extends ServiceInterceptor {
         try {
             if (config.handlers().get(path) == null) {
                 // ManagedService
-                if (w.atmosphereHandler instanceof AnnotatedProxy ap) {
+                if (w.atmosphereHandler() instanceof AnnotatedProxy ap) {
                     ManagedAnnotation a = managed(ap, request.resource());
                     if (a != null) {
                         String targetPath = a.path();
@@ -56,7 +56,7 @@ public final class ManagedServiceInterceptor extends ServiceInterceptor {
                                 if (!singleton) {
                                     ap = proxyHandler();
 
-                                    final Object o = config.framework().newClassInstance(Object.class, ((AnnotatedProxy) w.atmosphereHandler).target().getClass());
+                                    final Object o = config.framework().newClassInstance(Object.class, ((AnnotatedProxy) w.atmosphereHandler()).target().getClass());
                                     ap.configure(config, o);
                                 }
 
@@ -68,7 +68,7 @@ public final class ManagedServiceInterceptor extends ServiceInterceptor {
                                 ((AtmosphereResourceImpl) request.resource()).atmosphereHandler(ap);
 
                                 config.framework().addAtmosphereHandler(path, ap,
-                                        config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors);
+                                        config.getBroadcasterFactory().lookup(a.broadcaster(), path, true), w.interceptors());
                                 request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                             } catch (Throwable e) {
                                 logger.warn("Unable to create AtmosphereHandler", e);

@@ -190,7 +190,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
         }
 
         // handler interceptor lists
-        LinkedList<AtmosphereInterceptor> invokedInterceptors = handlerWrapper.interceptors;
+        LinkedList<AtmosphereInterceptor> invokedInterceptors = handlerWrapper.interceptors();
 
         Action a = invokeInterceptors(invokedInterceptors, resource, tracing);
         if (a.type() != Action.TYPE.CONTINUE && a.type() != Action.TYPE.SKIP_ATMOSPHEREHANDLER) {
@@ -208,7 +208,7 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     throw new AtmosphereMappingException("Invalid state. No AtmosphereHandler maps request for " + req.getRequestURI());
                 }
                 resource = configureWorkflow(resource, handlerWrapper, req, res);
-                resource.setBroadcaster(handlerWrapper.broadcaster);
+                resource.setBroadcaster(handlerWrapper.broadcaster());
             }
 
             //Unit test mock the request and will throw NPE.
@@ -216,15 +216,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                     ? (Boolean) req.getAttribute(SKIP_ATMOSPHEREHANDLER.name()) : Boolean.FALSE;
             if (!skipAtmosphereHandler) {
                 try {
-                    logger.trace("\t Last: {}", handlerWrapper.atmosphereHandler.getClass().getName());
-                    handlerWrapper.atmosphereHandler.onRequest(resource);
+                    logger.trace("\t Last: {}", handlerWrapper.atmosphereHandler().getClass().getName());
+                    handlerWrapper.atmosphereHandler().onRequest(resource);
                 } catch (IOException t) {
                     resource.onThrowable(t);
                     throw t;
                 }
             }
         } finally {
-            postInterceptors(handlerWrapper != null ? handlerWrapper.interceptors : invokedInterceptors, resource);
+            postInterceptors(handlerWrapper != null ? handlerWrapper.interceptors() : invokedInterceptors, resource);
         }
 
         Action action = resource.action();
@@ -241,19 +241,19 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
                                                      AtmosphereRequest req, AtmosphereResponse res) {
 
         // Check Broadcaster state. If destroyed, replace it.
-        Broadcaster b = handlerWrapper.broadcaster;
+        Broadcaster b = handlerWrapper.broadcaster();
         if (b.isDestroyed()) {
             BroadcasterFactory f = config.getBroadcasterFactory();
             broadcasterFactoryLock.lock();
             try {
                 f.remove(b, b.getID());
                 try {
-                    handlerWrapper.broadcaster = f.get(b.getID());
+                    handlerWrapper.setBroadcaster(f.get(b.getID()));
                 } catch (IllegalStateException ex) {
                     // Something wrong occurred, let's not fail and loookup the value
                     logger.trace("", ex);
                     // fallback to lookup
-                    handlerWrapper.broadcaster = f.lookup(b.getID(), true);
+                    handlerWrapper.setBroadcaster(f.lookup(b.getID(), true));
                 }
             } finally {
                 broadcasterFactoryLock.unlock();
@@ -266,15 +266,15 @@ public abstract class AsynchronousProcessor implements AsyncSupport<AtmosphereRe
 
         if (resource == null) {
             resource = (AtmosphereResourceImpl)
-                    config.resourcesFactory().create(config, handlerWrapper.broadcaster, res, this, handlerWrapper.atmosphereHandler);
+                    config.resourcesFactory().create(config, handlerWrapper.broadcaster(), res, this, handlerWrapper.atmosphereHandler());
         } else {
             try {
                 // Make sure it wasn't set before
                 resource.getBroadcaster();
             } catch (IllegalStateException ex) {
-                resource.setBroadcaster(handlerWrapper.broadcaster);
+                resource.setBroadcaster(handlerWrapper.broadcaster());
             }
-            resource.atmosphereHandler(handlerWrapper.atmosphereHandler);
+            resource.atmosphereHandler(handlerWrapper.atmosphereHandler());
         }
 
         req.setAttribute(ATMOSPHERE_RESOURCE, resource);

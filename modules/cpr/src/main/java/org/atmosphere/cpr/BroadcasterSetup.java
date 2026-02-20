@@ -217,16 +217,16 @@ public class BroadcasterSetup {
                 e = i.next();
                 w = e.getValue();
 
-                if (w.broadcaster == null) {
-                    w.broadcaster = broadcasterFactory.get(w.mapping);
+                if (w.broadcaster() == null) {
+                    w.setBroadcaster(broadcasterFactory.get(w.mapping()));
                 } else {
                     if (broadcasterCacheClassName != null
-                            && w.broadcaster.getBroadcasterConfig().getBroadcasterCache().getClass().getName().equals(
+                            && w.broadcaster().getBroadcasterConfig().getBroadcasterCache().getClass().getName().equals(
                             DefaultBroadcasterCache.class.getName())) {
                         BroadcasterCache cache = fwk.newClassInstance(BroadcasterCache.class,
                                 (Class<BroadcasterCache>) IOUtils.loadClass(fwk.getClass(), broadcasterCacheClassName));
                         cache.configure(config);
-                        w.broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
+                        w.broadcaster().getBroadcasterConfig().setBroadcasterCache(cache);
                     }
                 }
             }

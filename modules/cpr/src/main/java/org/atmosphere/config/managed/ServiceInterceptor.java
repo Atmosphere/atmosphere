@@ -72,7 +72,7 @@ public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAda
      * annotation's path value. It will create a new {@link org.atmosphere.cpr.AtmosphereHandler} in case {} is detected .
      */
     protected void mapAnnotatedService(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
-        Broadcaster b = w.broadcaster;
+        Broadcaster b = w.broadcaster();
 
         String path;
         boolean reMap = false;

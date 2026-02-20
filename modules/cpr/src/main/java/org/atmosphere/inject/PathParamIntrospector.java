@@ -56,7 +56,7 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
                     r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
             if (w != null) {
-                if (w.atmosphereHandler instanceof AnnotatedProxy ap) {
+                if (w.atmosphereHandler() instanceof AnnotatedProxy ap) {
                     if (ap.target().getClass().isAnnotationPresent(ManagedService.class)) {
                         String targetPath = ap.target().getClass().getAnnotation(ManagedService.class).path();
                         if (targetPath.contains("{") && targetPath.contains("}")) {

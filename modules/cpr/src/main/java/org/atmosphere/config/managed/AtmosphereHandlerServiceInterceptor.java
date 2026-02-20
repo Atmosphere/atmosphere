@@ -44,16 +44,16 @@ public final class AtmosphereHandlerServiceInterceptor extends ServiceIntercepto
         try {
             if (config.handlers().get(path) == null) {
                 // AtmosphereHandlerService
-                AtmosphereHandlerService m = w.atmosphereHandler.getClass().getAnnotation(AtmosphereHandlerService.class);
+                AtmosphereHandlerService m = w.atmosphereHandler().getClass().getAnnotation(AtmosphereHandlerService.class);
                 if (m != null) {
                     try {
                         String targetPath = m.path();
                         if (targetPath.contains("{") && targetPath.contains("}")) {
-                            boolean singleton = w.atmosphereHandler.getClass().getAnnotation(Singleton.class) != null;
-                            AtmosphereHandler newW = w.atmosphereHandler;
+                            boolean singleton = w.atmosphereHandler().getClass().getAnnotation(Singleton.class) != null;
+                            AtmosphereHandler newW = w.atmosphereHandler();
 
                             if (!singleton) {
-                                newW = config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler.getClass());
+                                newW = config.framework().newClassInstance(AtmosphereHandler.class, w.atmosphereHandler().getClass());
                             }
 
                             request.localAttributes().put(Named.class.getName(), path.substring(targetPath.indexOf("{")));
@@ -61,7 +61,7 @@ public final class AtmosphereHandlerServiceInterceptor extends ServiceIntercepto
                             ((AtmosphereResourceImpl) request.resource()).atmosphereHandler(newW);
 
                             config.framework().addAtmosphereHandler(path, newW,
-                                    config.getBroadcasterFactory().lookup(w.broadcaster.getClass(), path, true), w.interceptors);
+                                    config.getBroadcasterFactory().lookup(w.broadcaster().getClass(), path, true), w.interceptors());
                             request.setAttribute(FrameworkConfig.NEW_MAPPING, "true");
                         }
                     } catch (Throwable e) {

@@ -25,11 +25,10 @@ import java.util.LinkedList;
  */
 public final class AtmosphereHandlerWrapper {
 
-    public final AtmosphereHandler atmosphereHandler;
-    public Broadcaster broadcaster;
-    public String mapping;
-    public final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<>();
-    public boolean create;
+    private final AtmosphereHandler atmosphereHandler;
+    private Broadcaster broadcaster;
+    private String mapping;
+    private final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<>();
     private boolean needRequestScopedInjection;
     private final boolean wilcardMapping;
 
@@ -76,6 +75,26 @@ public final class AtmosphereHandlerWrapper {
                 b.toString()
                 + "\n broadcaster"
                 + "\t" + broadcaster;
+    }
+
+    public AtmosphereHandler atmosphereHandler() {
+        return atmosphereHandler;
+    }
+
+    public Broadcaster broadcaster() {
+        return broadcaster;
+    }
+
+    public void setBroadcaster(Broadcaster broadcaster) {
+        this.broadcaster = broadcaster;
+    }
+
+    public String mapping() {
+        return mapping;
+    }
+
+    public LinkedList<AtmosphereInterceptor> interceptors() {
+        return interceptors;
     }
 
     public boolean needRequestScopedInjection() {

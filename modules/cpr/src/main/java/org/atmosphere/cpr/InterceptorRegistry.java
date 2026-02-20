@@ -237,9 +237,9 @@ public class InterceptorRegistry {
      * Add an interceptor to a specific wrapper.
      */
     public void addInterceptorToWrapper(AtmosphereHandlerWrapper wrapper, AtmosphereInterceptor c) {
-        if (!checkDuplicate(wrapper.interceptors, c.getClass())) {
-            wrapper.interceptors.add(c);
-            wrapper.interceptors.sort(new InterceptorComparator());
+        if (!checkDuplicate(wrapper.interceptors(), c.getClass())) {
+            wrapper.interceptors().add(c);
+            wrapper.interceptors().sort(new InterceptorComparator());
         }
     }
 
@@ -262,7 +262,7 @@ public class InterceptorRegistry {
      */
     public void destroyInterceptors(Map<String, AtmosphereHandlerWrapper> handlers) {
         for (AtmosphereHandlerWrapper w : handlers.values()) {
-            for (AtmosphereInterceptor i : w.interceptors) {
+            for (AtmosphereInterceptor i : w.interceptors()) {
                 try {
                     i.destroy();
                 } catch (Throwable ex) {

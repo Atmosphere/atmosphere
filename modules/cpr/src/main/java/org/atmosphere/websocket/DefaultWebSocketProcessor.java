@@ -390,7 +390,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         if (w == null) {
             l = framework.interceptors();
         } else {
-            l = w.interceptors;
+            l = w.interceptors();
         }
 
         // Globally defined
