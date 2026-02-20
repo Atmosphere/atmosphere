@@ -18,15 +18,15 @@
     <properties>
         <atmosphere.module.name>org.atmosphere.embabel</atmosphere.module.name>
         <kotlin.version>2.1.10</kotlin.version>
-        <embabel.version>0.3.5-SNAPSHOT</embabel.version>
+        <embabel.version>0.3.4</embabel.version>
     </properties>
 
     <repositories>
         <repository>
-            <id>embabel-snapshots</id>
-            <url>https://repo.embabel.com/artifactory/libs-snapshot</url>
-            <releases><enabled>false</enabled></releases>
-            <snapshots><enabled>true</enabled></snapshots>
+            <id>embabel-releases</id>
+            <url>https://repo.embabel.com/artifactory/libs-release</url>
+            <releases><enabled>true</enabled></releases>
+            <snapshots><enabled>false</enabled></snapshots>
         </repository>
     </repositories>
 
