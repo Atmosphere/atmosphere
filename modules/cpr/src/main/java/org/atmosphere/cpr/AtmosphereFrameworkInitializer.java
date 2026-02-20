@@ -111,11 +111,11 @@ public class AtmosphereFrameworkInitializer {
 
         String metaServicePath = sc.getInitParameter(META_SERVICE_PATH) == null ? META_SERVICE : sc.getInitParameter(META_SERVICE_PATH);
         try {
-            final Map<String, AtmosphereFramework.MetaServiceAction> config =
+            final Map<String, MetaServiceAction> config =
                     IOUtils.readServiceFile(metaServicePath + AtmosphereFramework.class.getName());
-            sc.setAttribute(AtmosphereFramework.MetaServiceAction.class.getName(), config);
+            sc.setAttribute(MetaServiceAction.class.getName(), config);
 
-            for (final Map.Entry<String, AtmosphereFramework.MetaServiceAction> action : config.entrySet()) {
+            for (final Map.Entry<String, MetaServiceAction> action : config.entrySet()) {
                 try {
                     final Class<?> c = IOUtils.loadClass(AtmosphereFramework.class, action.getKey());
                     if (AtmosphereFramework.class.isAssignableFrom(c)) {

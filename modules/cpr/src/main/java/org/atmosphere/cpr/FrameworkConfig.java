@@ -15,7 +15,6 @@
  */
 package org.atmosphere.cpr;
 
-import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
 import org.atmosphere.inject.InjectIntrospector;
 import org.atmosphere.interceptor.JavaScriptProtocol;
 import org.atmosphere.websocket.WebSocketProcessor;

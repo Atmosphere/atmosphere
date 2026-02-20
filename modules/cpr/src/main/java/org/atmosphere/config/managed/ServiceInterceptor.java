@@ -17,7 +17,7 @@ package org.atmosphere.config.managed;
 
 import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereConfig;
-import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereInterceptorAdapter;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -46,9 +46,9 @@ public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAda
 
     @Override
     public Action inspect(AtmosphereResource r) {
-        AtmosphereFramework.AtmosphereHandlerWrapper w = null;
+        AtmosphereHandlerWrapper w = null;
         try {
-            w = (AtmosphereFramework.AtmosphereHandlerWrapper)
+            w = (AtmosphereHandlerWrapper)
                                         r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
             if (!w.wildcardMapping()) return Action.CONTINUE;
@@ -71,7 +71,7 @@ public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAda
      * Inspect the request and its mapped {@link org.atmosphere.cpr.AtmosphereHandler} to determine if the '{}' was used when defined the
      * annotation's path value. It will create a new {@link org.atmosphere.cpr.AtmosphereHandler} in case {} is detected .
      */
-    protected void mapAnnotatedService(AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
+    protected void mapAnnotatedService(AtmosphereRequest request, AtmosphereHandlerWrapper w) {
         Broadcaster b = w.broadcaster;
 
         String path;
@@ -95,5 +95,5 @@ public abstract sealed class ServiceInterceptor extends AtmosphereInterceptorAda
         return InvokationOrder.AFTER_DEFAULT;
     }
 
-    protected abstract void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w);
+    protected abstract void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereHandlerWrapper w);
 }

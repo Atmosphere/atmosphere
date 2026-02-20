@@ -17,7 +17,7 @@ package org.atmosphere.inject;
 
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.PathParam;
-import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.FrameworkConfig;
 import org.atmosphere.handler.AnnotatedProxy;
@@ -52,7 +52,7 @@ public class PathParamIntrospector extends InjectIntrospectorAdapter<String> {
         String[] paths = (String[]) r.getRequest().getAttribute(PathParam.class.getName());
 
         if (paths == null || paths.length != 2) {
-            AtmosphereFramework.AtmosphereHandlerWrapper w = (AtmosphereFramework.AtmosphereHandlerWrapper)
+            AtmosphereHandlerWrapper w = (AtmosphereHandlerWrapper)
                     r.getRequest().getAttribute(FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER);
 
             if (w != null) {

@@ -23,6 +23,7 @@ import org.atmosphere.cpr.ApplicationConfig;
 import org.atmosphere.cpr.AsynchronousProcessor;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.atmosphere.cpr.AtmosphereMappingException;
 import org.atmosphere.cpr.AtmosphereRequest;
@@ -384,7 +385,7 @@ public class DefaultWebSocketProcessor implements WebSocketProcessor, Serializab
         String path = webSocketHandler.proxied.getClass().isAnnotationPresent(WebSocketHandlerService.class) ?
                 webSocketHandler.proxied.getClass().getAnnotation(WebSocketHandlerService.class).path() : "/";
 
-        AtmosphereFramework.AtmosphereHandlerWrapper w = framework.getAtmosphereHandlers().get(framework.normalizePath(path));
+        AtmosphereHandlerWrapper w = framework.getAtmosphereHandlers().get(framework.normalizePath(path));
         List<AtmosphereInterceptor> l;
         if (w == null) {
             l = framework.interceptors();

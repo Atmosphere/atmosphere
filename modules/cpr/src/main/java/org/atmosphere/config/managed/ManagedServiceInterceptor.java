@@ -18,7 +18,7 @@ package org.atmosphere.config.managed;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Singleton;
-import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
@@ -41,7 +41,7 @@ public final class ManagedServiceInterceptor extends ServiceInterceptor {
     private final static Logger logger = LoggerFactory.getLogger(ManagedServiceInterceptor.class);
     private final ReentrantLock handlersLock = new ReentrantLock();
 
-    protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereFramework.AtmosphereHandlerWrapper w) {
+    protected void mapAnnotatedService(boolean reMap, String path, AtmosphereRequest request, AtmosphereHandlerWrapper w) {
         handlersLock.lock();
         try {
             if (config.handlers().get(path) == null) {

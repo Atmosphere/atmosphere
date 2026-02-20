@@ -207,7 +207,7 @@ class AtmosphereProcessor {
                                 "org.atmosphere.cpr.AtmosphereResponseImpl",
                                 "org.atmosphere.config.managed.ManagedAtmosphereHandler",
                                 "org.atmosphere.config.managed.AtmosphereHandlerServiceInterceptor",
-                                "org.atmosphere.cpr.AtmosphereFramework$DefaultAtmosphereObjectFactory",
+                                "org.atmosphere.cpr.DefaultAtmosphereObjectFactory",
                                 // AsyncSupport implementations (resolved by DefaultAsyncSupportResolver)
                                 "org.atmosphere.container.JSR356AsyncSupport",
                                 "org.atmosphere.container.Servlet30CometSupport",

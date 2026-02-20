@@ -34,7 +34,7 @@ import java.util.concurrent.locks.ReentrantLock;
 
 import static org.atmosphere.cpr.Action.TYPE.SKIP_ATMOSPHEREHANDLER;
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_SESSION_CREATE;
-import static org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_HANDLER_WRAPPER;
 import static org.atmosphere.cpr.FrameworkConfig.ATMOSPHERE_RESOURCE;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_ERROR;

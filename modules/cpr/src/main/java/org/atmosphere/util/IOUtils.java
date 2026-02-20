@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereServlet;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.MetaServiceAction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -358,7 +359,7 @@ public class IOUtils {
     /**
      * <p>
      * This method reads the given file stored under "META-INF/services" and accessed through the framework's class loader
-     * to specify a list of {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction actions} to be done on different
+     * to specify a list of {@link org.atmosphere.cpr.MetaServiceAction actions} to be done on different
      * service classes ({@link org.atmosphere.cpr.AtmosphereInterceptor}, {@link org.atmosphere.cpr.BroadcastFilter}, etc).
      * </p>
      * <p/>
@@ -374,8 +375,8 @@ public class IOUtils {
      * </p>
      * <p/>
      * <p>
-     * If you don't specify any {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction} before a class, then
-     * default action will be {@link org.atmosphere.cpr.AtmosphereFramework.MetaServiceAction#INSTALL}.
+     * If you don't specify any {@link org.atmosphere.cpr.MetaServiceAction} before a class, then
+     * default action will be {@link org.atmosphere.cpr.MetaServiceAction#INSTALL}.
      * </p>
      * <p/>
      * <p>
@@ -386,13 +387,13 @@ public class IOUtils {
      * @param path the service file to read
      * @return the map associating class to action
      */
-    public static Map<String, AtmosphereFramework.MetaServiceAction> readServiceFile(final String path) {
-        final Map<String, AtmosphereFramework.MetaServiceAction> b = new LinkedHashMap<>();
+    public static Map<String, MetaServiceAction> readServiceFile(final String path) {
+        final Map<String, MetaServiceAction> b = new LinkedHashMap<>();
 
         String line;
         InputStream is = null;
         BufferedReader reader = null;
-        AtmosphereFramework.MetaServiceAction action = AtmosphereFramework.MetaServiceAction.INSTALL;
+        MetaServiceAction action = MetaServiceAction.INSTALL;
 
         try {
             is = AtmosphereFramework.class.getClassLoader().getResourceAsStream(path);
@@ -411,7 +412,7 @@ public class IOUtils {
                     break;
                 } else if (line.isEmpty()) {
                 } else if (line.indexOf('.') == -1) {
-                    action = AtmosphereFramework.MetaServiceAction.valueOf(line);
+                    action = MetaServiceAction.valueOf(line);
                 } else {
                     b.put(line, action);
                 }

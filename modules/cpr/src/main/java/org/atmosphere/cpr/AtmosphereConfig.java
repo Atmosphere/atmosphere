@@ -95,11 +95,11 @@ public class AtmosphereConfig {
     }
 
     /**
-     * Return the list of {@link org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper}s.
+     * Return the list of {@link AtmosphereHandlerWrapper}s.
      *
-     * @return the list of {@link org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper}
+     * @return the list of {@link AtmosphereHandlerWrapper}
      */
-    public Map<String, AtmosphereFramework.AtmosphereHandlerWrapper> handlers() {
+    public Map<String, AtmosphereHandlerWrapper> handlers() {
         return framework.getAtmosphereHandlers();
     }
 

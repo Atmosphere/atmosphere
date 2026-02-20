@@ -136,7 +136,7 @@ public class AtmosphereRuntimeHints implements RuntimeHintsRegistrar {
         registerType(reflection, ManagedAtmosphereHandler.class);
         registerType(reflection, AtmosphereHandlerServiceInterceptor.class);
         registerTypeByName(reflection,
-                "org.atmosphere.cpr.AtmosphereFramework$DefaultAtmosphereObjectFactory");
+                "org.atmosphere.cpr.DefaultAtmosphereObjectFactory");
         registerType(reflection, InjectableObjectFactory.class);
         registerType(reflection, AtmosphereProducers.class);
 

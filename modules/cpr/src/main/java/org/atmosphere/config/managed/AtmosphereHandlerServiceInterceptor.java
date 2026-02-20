@@ -17,7 +17,7 @@ package org.atmosphere.config.managed;
 
 import org.atmosphere.config.service.AtmosphereHandlerService;
 import org.atmosphere.config.service.Singleton;
-import org.atmosphere.cpr.AtmosphereFramework.AtmosphereHandlerWrapper;
+import org.atmosphere.cpr.AtmosphereHandlerWrapper;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
