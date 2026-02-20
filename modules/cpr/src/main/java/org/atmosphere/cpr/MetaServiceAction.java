@@ -125,17 +125,17 @@ public enum MetaServiceAction {
             } else if (BroadcasterCache.class.isAssignableFrom(c)) {
                 fwk.setBroadcasterCacheClassName(c.getName());
             } else if (BroadcastFilter.class.isAssignableFrom(c)) {
-                fwk.broadcasterSetup.broadcasterFilters.add(c.getName());
+                fwk.broadcasterFilters().add(c.getName());
             } else if (BroadcasterCacheInspector.class.isAssignableFrom(c)) {
-                fwk.broadcasterSetup.inspectors.add(fwk.newClassInstance(BroadcasterCacheInspector.class, (Class) c));
+                fwk.inspectors().add(fwk.newClassInstance(BroadcasterCacheInspector.class, (Class) c));
             } else if (AsyncSupportListener.class.isAssignableFrom(c)) {
                 fwk.asyncSupportListener(fwk.newClassInstance(AsyncSupportListener.class, (Class) c));
             } else if (AsyncSupport.class.isAssignableFrom(c)) {
                 fwk.setAsyncSupport(fwk.newClassInstance(AsyncSupport.class, (Class) c));
             } else if (BroadcasterCacheListener.class.isAssignableFrom(c)) {
-                fwk.broadcasterSetup.broadcasterCacheListeners.add(fwk.newClassInstance(BroadcasterCacheListener.class, (Class) c));
+                fwk.broadcasterCacheListeners().add(fwk.newClassInstance(BroadcasterCacheListener.class, (Class) c));
             } else if (BroadcasterConfig.FilterManipulator.class.isAssignableFrom(c)) {
-                fwk.broadcasterSetup.filterManipulators.add(fwk.newClassInstance(BroadcasterConfig.FilterManipulator.class, (Class) c));
+                fwk.filterManipulators().add(fwk.newClassInstance(BroadcasterConfig.FilterManipulator.class, (Class) c));
             } else if (WebSocketProtocol.class.isAssignableFrom(c)) {
                 fwk.setWebSocketProtocolClassName(c.getName());
             } else if (WebSocketProcessor.class.isAssignableFrom(c)) {

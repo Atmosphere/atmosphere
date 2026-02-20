@@ -40,29 +40,89 @@ public class BroadcasterSetup {
 
     private static final Logger logger = LoggerFactory.getLogger(BroadcasterSetup.class);
 
-    final List<String> broadcasterFilters = new ArrayList<>();
-    final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<>();
-    final ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors = new ConcurrentLinkedQueue<>();
-    final List<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<>();
-    final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<>();
-    final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<>();
-    final ReentrantLock resourceFactoryLock = new ReentrantLock();
-    final ReentrantLock sessionFactoryLock = new ReentrantLock();
+    private final List<String> broadcasterFilters = new ArrayList<>();
+    private final ConcurrentLinkedQueue<String> broadcasterTypes = new ConcurrentLinkedQueue<>();
+    private final ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors = new ConcurrentLinkedQueue<>();
+    private final List<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<>();
+    private final LinkedList<BroadcasterCacheListener> broadcasterCacheListeners = new LinkedList<>();
+    private final List<BroadcasterConfig.FilterManipulator> filterManipulators = new ArrayList<>();
+    private final ReentrantLock resourceFactoryLock = new ReentrantLock();
+    private final ReentrantLock sessionFactoryLock = new ReentrantLock();
 
-    String broadcasterClassName = DefaultBroadcaster.class.getName();
-    boolean isBroadcasterSpecified;
-    BroadcasterFactory broadcasterFactory;
-    String broadcasterFactoryClassName;
-    String broadcasterCacheClassName;
-    String broadcasterLifeCyclePolicy = "NEVER";
-    AtmosphereResourceFactory arFactory;
-    MetaBroadcaster metaBroadcaster;
-    AtmosphereResourceSessionFactory sessionFactory;
-    String defaultSerializerClassName;
-    Class<Serializer> defaultSerializerClass;
+    private String broadcasterClassName = DefaultBroadcaster.class.getName();
+    private boolean broadcasterSpecified;
+    private BroadcasterFactory broadcasterFactory;
+    private String broadcasterFactoryClassName;
+    private String broadcasterCacheClassName;
+    private String broadcasterLifeCyclePolicy = "NEVER";
+    private AtmosphereResourceFactory arFactory;
+    private MetaBroadcaster metaBroadcaster;
+    private AtmosphereResourceSessionFactory sessionFactory;
+    private String defaultSerializerClassName;
+    private Class<Serializer> defaultSerializerClass;
 
     private final AtmosphereConfig config;
     private Supplier<Map<String, AtmosphereHandlerWrapper>> handlersSupplier;
+
+    // --- Collection accessors (return mutable collections) ---
+
+    List<String> broadcasterFilters() { return broadcasterFilters; }
+
+    ConcurrentLinkedQueue<String> broadcasterTypes() { return broadcasterTypes; }
+
+    ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors() { return inspectors; }
+
+    List<BroadcasterListener> broadcasterListeners() { return broadcasterListeners; }
+
+    LinkedList<BroadcasterCacheListener> broadcasterCacheListeners() { return broadcasterCacheListeners; }
+
+    List<BroadcasterConfig.FilterManipulator> filterManipulators() { return filterManipulators; }
+
+    // --- Scalar accessors ---
+
+    String broadcasterClassName() { return broadcasterClassName; }
+
+    void setBroadcasterClassName(String name) { this.broadcasterClassName = name; }
+
+    boolean isBroadcasterSpecified() { return broadcasterSpecified; }
+
+    void setBroadcasterSpecified(boolean specified) { this.broadcasterSpecified = specified; }
+
+    BroadcasterFactory broadcasterFactory() { return broadcasterFactory; }
+
+    void setBroadcasterFactory(BroadcasterFactory factory) { this.broadcasterFactory = factory; }
+
+    String broadcasterCacheClassName() { return broadcasterCacheClassName; }
+
+    void setBroadcasterCacheClassName(String name) { this.broadcasterCacheClassName = name; }
+
+    String broadcasterLifeCyclePolicy() { return broadcasterLifeCyclePolicy; }
+
+    void setBroadcasterLifeCyclePolicy(String policy) { this.broadcasterLifeCyclePolicy = policy; }
+
+    void setBroadcasterFactoryClassName(String name) { this.broadcasterFactoryClassName = name; }
+
+    void setDefaultSerializerClassName(String name) { this.defaultSerializerClassName = name; }
+
+    String defaultSerializerClassName() { return defaultSerializerClassName; }
+
+    Class<Serializer> defaultSerializerClass() { return defaultSerializerClass; }
+
+    AtmosphereResourceFactory arFactory() { return arFactory; }
+
+    void setArFactory(AtmosphereResourceFactory factory) { this.arFactory = factory; }
+
+    MetaBroadcaster metaBroadcaster() { return metaBroadcaster; }
+
+    /**
+     * Destroy broadcaster factory, meta-broadcaster, resource factory, and session factory.
+     */
+    void destroyFactories() {
+        if (broadcasterFactory != null) broadcasterFactory.destroy();
+        if (metaBroadcaster != null) metaBroadcaster.destroy();
+        if (arFactory != null) arFactory.destroy();
+        if (sessionFactory != null) sessionFactory.destroy();
+    }
 
     BroadcasterSetup(AtmosphereConfig config) {
         this.config = config;
@@ -90,7 +150,7 @@ public class BroadcasterSetup {
     void configureBroadcasterFactory() {
         var fwk = config.framework();
         try {
-            if (!isBroadcasterSpecified) {
+            if (!broadcasterSpecified) {
                 broadcasterClassName = lookupDefaultBroadcasterType(broadcasterClassName);
             }
 
@@ -154,7 +214,7 @@ public class BroadcasterSetup {
                     logger.info("Detected a Broadcaster {} on the classpath. " +
                             "This broadcaster will be used by default and will override any annotated resources. " +
                             "Set {} to false to change the behavior", b, ApplicationConfig.AUTODETECT_BROADCASTER);
-                    isBroadcasterSpecified = true;
+                    broadcasterSpecified = true;
                     return b;
                 } catch (ClassNotFoundException e) {
                 }
@@ -222,7 +282,9 @@ public class BroadcasterSetup {
         }
     }
 
-    AtmosphereResourceSessionFactory sessionFactory() {
+    AtmosphereResourceSessionFactory getSessionFactory() { return sessionFactory; }
+
+    AtmosphereResourceSessionFactory getOrCreateSessionFactory() {
         if (sessionFactory != null) return sessionFactory;
 
         sessionFactoryLock.lock();
@@ -240,7 +302,7 @@ public class BroadcasterSetup {
         return sessionFactory;
     }
 
-    AtmosphereResourceFactory atmosphereFactory() {
+    AtmosphereResourceFactory getOrCreateAtmosphereFactory() {
         if (arFactory == null) {
             configureAtmosphereResourceFactory();
         }

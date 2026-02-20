@@ -208,8 +208,8 @@ public class AtmosphereFramework {
     };
 
     public void setAndConfigureAtmosphereResourceFactory(AtmosphereResourceFactory arFactory) {
-        broadcasterSetup.arFactory = arFactory;
-        broadcasterSetup.arFactory.configure(config);
+        broadcasterSetup.setArFactory(arFactory);
+        broadcasterSetup.arFactory().configure(config);
     }
 
     // Inner types promoted to top-level classes: AtmosphereHandlerWrapper, MetaServiceAction, DefaultAtmosphereObjectFactory
@@ -245,7 +245,7 @@ public class AtmosphereFramework {
         broadcasterSetup.setHandlersSupplier(handlerRegistry::handlers);
         classpathScanner = new ClasspathScanner(config);
         interceptorRegistry.setHandlersSupplier(handlerRegistry::handlers);
-        handlerRegistry.setBroadcasterFactorySupplier(() -> broadcasterSetup.broadcasterFactory);
+        handlerRegistry.setBroadcasterFactorySupplier(() -> broadcasterSetup.broadcasterFactory());
     }
 
     /**
@@ -518,7 +518,7 @@ public class AtmosphereFramework {
             // Phase 6: Finalization
             analytics();
             if (sc.getServletContext() != null) {
-                sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterSetup.broadcasterFactory);
+                sc.getServletContext().setAttribute(BroadcasterFactory.class.getName(), broadcasterSetup.broadcasterFactory());
             }
 
             String s = config.getInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS);
@@ -623,20 +623,20 @@ public class AtmosphereFramework {
         }
 
         logger.info("Using EndpointMapper {}", handlerRegistry.endPointMapper().getClass());
-        for (String i : broadcasterSetup.broadcasterFilters) {
+        for (String i : broadcasterSetup.broadcasterFilters()) {
             logger.info("Using BroadcastFilter: {}", i);
         }
 
-        if (broadcasterSetup.broadcasterCacheClassName == null || DefaultBroadcasterCache.class.getName().equals(broadcasterSetup.broadcasterCacheClassName)) {
+        if (broadcasterSetup.broadcasterCacheClassName() == null || DefaultBroadcasterCache.class.getName().equals(broadcasterSetup.broadcasterCacheClassName())) {
             logger.warn("No BroadcasterCache configured. Broadcasted message between client reconnection will be LOST. " +
                     "It is recommended to configure the {}", UUIDBroadcasterCache.class.getName());
         } else {
-            logger.info("Using BroadcasterCache: {}", broadcasterSetup.broadcasterCacheClassName);
+            logger.info("Using BroadcasterCache: {}", broadcasterSetup.broadcasterCacheClassName());
         }
 
         String s = config.getInitParameter(BROADCASTER_WAIT_TIME);
 
-        logger.info("Default Broadcaster Class: {}", broadcasterSetup.broadcasterClassName);
+        logger.info("Default Broadcaster Class: {}", broadcasterSetup.broadcasterClassName());
         logger.info("Broadcaster Shared List Resources: {}", config.getInitParameter(BROADCASTER_SHAREABLE_LISTENERS, false));
         logger.info("Broadcaster Polling Wait Time {}", s == null ? DefaultBroadcaster.POLLING_DEFAULT : s);
         logger.info("Shared ExecutorService supported: {}", sharedThreadPools);
@@ -661,11 +661,11 @@ public class AtmosphereFramework {
                 logger.info("Async I/O ExecutorService Pool Size unavailable - Not instance of ThreadPoolExecutor");
             }
         }
-        logger.info("Using BroadcasterFactory: {}", broadcasterSetup.broadcasterFactory.getClass().getName());
-        logger.info("Using AtmosphereResurceFactory: {}", broadcasterSetup.arFactory.getClass().getName());
+        logger.info("Using BroadcasterFactory: {}", broadcasterSetup.broadcasterFactory().getClass().getName());
+        logger.info("Using AtmosphereResurceFactory: {}", broadcasterSetup.arFactory().getClass().getName());
         logger.info("Using WebSocketProcessor: {}", webSocketConfig.getProcessorClassName());
-        if (broadcasterSetup.defaultSerializerClassName != null && !broadcasterSetup.defaultSerializerClassName.isEmpty()) {
-            logger.info("Using Serializer: {}", broadcasterSetup.defaultSerializerClassName);
+        if (broadcasterSetup.defaultSerializerClassName() != null && !broadcasterSetup.defaultSerializerClassName().isEmpty()) {
+            logger.info("Using Serializer: {}", broadcasterSetup.defaultSerializerClassName());
         }
 
         WebSocketProcessor wp = WebSocketProcessorFactory.getDefault().getWebSocketProcessor(this);
@@ -693,9 +693,9 @@ public class AtmosphereFramework {
     }
 
     protected void universe() {
-        Universe.broadcasterFactory(broadcasterSetup.broadcasterFactory);
-        Universe.resourceFactory(broadcasterSetup.arFactory);
-        Universe.sessionResourceFactory(broadcasterSetup.sessionFactory);
+        Universe.broadcasterFactory(broadcasterSetup.broadcasterFactory());
+        Universe.resourceFactory(broadcasterSetup.arFactory());
+        Universe.sessionResourceFactory(broadcasterSetup.getSessionFactory());
         Universe.framework(this);
     }
 
@@ -831,12 +831,12 @@ public class AtmosphereFramework {
         }
         s = sc.getInitParameter(BROADCASTER_CLASS);
         if (s != null) {
-            broadcasterSetup.broadcasterClassName = s;
-            broadcasterSetup.isBroadcasterSpecified = true;
+            broadcasterSetup.setBroadcasterClassName(s);
+            broadcasterSetup.setBroadcasterSpecified(true);
         }
         s = sc.getInitParameter(BROADCASTER_CACHE);
         if (s != null) {
-            broadcasterSetup.broadcasterCacheClassName = s;
+            broadcasterSetup.setBroadcasterCacheClassName(s);
         }
 
         s = sc.getInitParameter(PROPERTY_SESSION_SUPPORT);
@@ -869,16 +869,16 @@ public class AtmosphereFramework {
         }
         s = sc.getInitParameter(BROADCAST_FILTER_CLASSES);
         if (s != null) {
-            broadcasterSetup.broadcasterFilters.addAll(Arrays.asList(s.split(",")));
+            broadcasterSetup.broadcasterFilters().addAll(Arrays.asList(s.split(",")));
             logger.info("Installing BroadcastFilter class(es) {}", s);
         }
         s = sc.getInitParameter(BROADCASTER_LIFECYCLE_POLICY);
         if (s != null) {
-            broadcasterSetup.broadcasterLifeCyclePolicy = s;
+            broadcasterSetup.setBroadcasterLifeCyclePolicy(s);
         }
         s = sc.getInitParameter(BROADCASTER_FACTORY);
         if (s != null) {
-            broadcasterSetup.broadcasterFactoryClassName = s;
+            broadcasterSetup.setBroadcasterFactoryClassName(s);
         }
         s = sc.getInitParameter(ATMOSPHERE_HANDLER_PATH);
         if (s != null) {
@@ -904,7 +904,7 @@ public class AtmosphereFramework {
 
         s = sc.getInitParameter(ApplicationConfig.DEFAULT_SERIALIZER);
         if (s != null) {
-            broadcasterSetup.defaultSerializerClassName = s;
+            broadcasterSetup.setDefaultSerializerClassName(s);
         }
 
         s = sc.getInitParameter(ApplicationConfig.DISABLE_ATMOSPHEREINTERCEPTORS);
@@ -955,7 +955,7 @@ public class AtmosphereFramework {
             IOUtils.loadClass(getClass(), JERSEY_CONTAINER);
             isJersey = true;
 
-            if (!broadcasterSetup.isBroadcasterSpecified) {
+            if (!broadcasterSetup.isBroadcasterSpecified()) {
                 broadcasterClassNameTmp = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
 
                 IOUtils.loadClass(getClass(), broadcasterClassNameTmp);
@@ -980,7 +980,7 @@ public class AtmosphereFramework {
         //initParams.put(WRITE_HEADERS, "false");
 
         ReflectorServletProcessor rsp = newClassInstance(ReflectorServletProcessor.class, ReflectorServletProcessor.class);
-        if (broadcasterClassNameTmp != null) broadcasterSetup.broadcasterClassName = broadcasterClassNameTmp;
+        if (broadcasterClassNameTmp != null) broadcasterSetup.setBroadcasterClassName(broadcasterClassNameTmp);
         configureDetectedFramework(rsp, isJersey);
         sessionSupport(false);
         initParams.put(DISABLE_ONSTATE_EVENT, "true");
@@ -992,23 +992,23 @@ public class AtmosphereFramework {
                 mapping = Broadcaster.ROOT_MASTER;
             }
         }
-        Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) IOUtils.loadClass(getClass(), broadcasterSetup.broadcasterClassName);
+        Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) IOUtils.loadClass(getClass(), broadcasterSetup.broadcasterClassName());
 
-        broadcasterSetup.broadcasterFactory.destroy();
+        broadcasterSetup.broadcasterFactory().destroy();
 
-        broadcasterSetup.broadcasterFactory = newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class);
-        broadcasterSetup.broadcasterFactory.configure(bc, broadcasterSetup.broadcasterLifeCyclePolicy, config);
-        for (BroadcasterListener b : broadcasterSetup.broadcasterListeners) {
-            broadcasterSetup.broadcasterFactory.addBroadcasterListener(b);
+        broadcasterSetup.setBroadcasterFactory(newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class));
+        broadcasterSetup.broadcasterFactory().configure(bc, broadcasterSetup.broadcasterLifeCyclePolicy(), config);
+        for (BroadcasterListener b : broadcasterSetup.broadcasterListeners()) {
+            broadcasterSetup.broadcasterFactory().addBroadcasterListener(b);
         }
 
         Broadcaster b;
 
         try {
-            b = broadcasterSetup.broadcasterFactory.get(bc, mapping);
+            b = broadcasterSetup.broadcasterFactory().get(bc, mapping);
         } catch (IllegalStateException ex) {
             logger.warn("Two Broadcaster's named {}. Renaming the second one to {}", mapping, sc.getServletName() + mapping);
-            b = broadcasterSetup.broadcasterFactory.get(bc, sc.getServletName() + mapping);
+            b = broadcasterSetup.broadcasterFactory().get(bc, sc.getServletName() + mapping);
         }
 
         addAtmosphereHandler(mapping, rsp, b);
@@ -1119,13 +1119,7 @@ public class AtmosphereFramework {
         config.destroy();
 
         // Phase 3: Destroy broadcaster infrastructure
-        BroadcasterFactory factory = broadcasterSetup.broadcasterFactory;
-        if (factory != null) {
-            factory.destroy();
-        }
-        if (broadcasterSetup.metaBroadcaster != null) broadcasterSetup.metaBroadcaster.destroy();
-        if (broadcasterSetup.arFactory != null) broadcasterSetup.arFactory.destroy();
-        if (broadcasterSetup.sessionFactory != null) broadcasterSetup.sessionFactory.destroy();
+        broadcasterSetup.destroyFactories();
 
         // Phase 4: Destroy async support and handlers
         if (asyncSupport != null && asyncSupport instanceof AsynchronousProcessor ap) {
@@ -1245,9 +1239,9 @@ public class AtmosphereFramework {
                     if (handlerProperty.getValue() != null && handlerProperty.getValue().contains("jersey")) {
                         initParams.put(DISABLE_ONSTATE_EVENT, "true");
                         useStreamForFlushingComments = true;
-                        broadcasterSetup.broadcasterClassName = lookupDefaultBroadcasterType(JERSEY_BROADCASTER);
-                        broadcasterSetup.broadcasterFactory.destroy();
-                        broadcasterSetup.broadcasterFactory = null;
+                        broadcasterSetup.setBroadcasterClassName(lookupDefaultBroadcasterType(JERSEY_BROADCASTER));
+                        broadcasterSetup.broadcasterFactory().destroy();
+                        broadcasterSetup.setBroadcasterFactory(null);
                         configureBroadcasterFactory();
                         configureBroadcaster();
                     }
@@ -1269,21 +1263,21 @@ public class AtmosphereFramework {
                      * last one defined.
                      */
                     if (broadcasterClass != null) {
-                        broadcasterSetup.broadcasterClassName = broadcasterClass;
+                        broadcasterSetup.setBroadcasterClassName(broadcasterClass);
                         ClassLoader cl = Thread.currentThread().getContextClassLoader();
-                        Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterSetup.broadcasterClassName);
-                        broadcasterSetup.broadcasterFactory = newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class);
-                        broadcasterSetup.broadcasterFactory.configure(bc, broadcasterSetup.broadcasterLifeCyclePolicy, config);
+                        Class<? extends Broadcaster> bc = (Class<? extends Broadcaster>) cl.loadClass(broadcasterSetup.broadcasterClassName());
+                        broadcasterSetup.setBroadcasterFactory(newClassInstance(BroadcasterFactory.class, DefaultBroadcasterFactory.class));
+                        broadcasterSetup.broadcasterFactory().configure(bc, broadcasterSetup.broadcasterLifeCyclePolicy(), config);
                     }
 
-                    b = broadcasterSetup.broadcasterFactory.lookup(atmoHandler.getContextRoot(), true);
+                    b = broadcasterSetup.broadcasterFactory().lookup(atmoHandler.getContextRoot(), true);
 
                     var wrapper = new AtmosphereHandlerWrapper(handler, b, config);
                     handlerRegistry.handlers().put(handlerRegistry.normalizePath(atmoHandler.getContextRoot()), wrapper);
 
                     String bc = atmoHandler.getBroadcasterCache();
                     if (bc != null) {
-                        broadcasterSetup.broadcasterCacheClassName = bc;
+                        broadcasterSetup.setBroadcasterCacheClassName(bc);
                     }
 
                     if (atmoHandler.getAsyncSupport() != null) {
@@ -1293,7 +1287,7 @@ public class AtmosphereFramework {
                     }
 
                     if (atmoHandler.getBroadcastFilterClasses() != null) {
-                        broadcasterSetup.broadcasterFilters.addAll(atmoHandler.getBroadcastFilterClasses());
+                        broadcasterSetup.broadcasterFilters().addAll(atmoHandler.getBroadcastFilterClasses());
                     }
 
                     var l = new LinkedList<AtmosphereInterceptor>();
@@ -1409,7 +1403,7 @@ public class AtmosphereFramework {
                         AtmosphereHandler handler = newClassInstance(AtmosphereHandler.class, (Class<AtmosphereHandler>) clazz);
                         String path = "/" + handler.getClass().getSimpleName();
                         handlerRegistry.handlers().put(handlerRegistry.normalizePath(path),
-                                new AtmosphereHandlerWrapper(broadcasterSetup.broadcasterFactory, handler, path, config));
+                                new AtmosphereHandlerWrapper(broadcasterSetup.broadcasterFactory(), handler, path, config));
                         logger.info("Installed AtmosphereHandler {} mapped to context-path: {}", handler, handler.getClass().getName());
                     }
                 } catch (Throwable t) {
@@ -1478,7 +1472,7 @@ public class AtmosphereFramework {
      */
     public AtmosphereFramework configureRequestResponse(AtmosphereRequest req, AtmosphereResponse res) throws UnsupportedEncodingException {
         req.setAttribute(PROPERTY_USE_STREAM, useStreamForFlushingComments);
-        req.setAttribute(BROADCASTER_CLASS, broadcasterSetup.broadcasterClassName);
+        req.setAttribute(BROADCASTER_CLASS, broadcasterSetup.broadcasterClassName());
         req.setAttribute(ATMOSPHERE_CONFIG, config);
         req.setAttribute(THROW_EXCEPTION_ON_CLONED_REQUEST, "" + config.isThrowExceptionOnCloned());
 
@@ -1583,7 +1577,7 @@ public class AtmosphereFramework {
      * @return the broadcasterClassName
      */
     public String getDefaultBroadcasterClassName() {
-        return broadcasterSetup.broadcasterClassName;
+        return broadcasterSetup.broadcasterClassName();
     }
 
     /**
@@ -1592,23 +1586,23 @@ public class AtmosphereFramework {
      * @param bccn the broadcasterClassName to set
      */
     public AtmosphereFramework setDefaultBroadcasterClassName(String bccn) {
-        if (broadcasterSetup.isBroadcasterSpecified) {
-            logger.trace("Broadcaster {} already set in web.xml", broadcasterSetup.broadcasterClassName);
+        if (broadcasterSetup.isBroadcasterSpecified()) {
+            logger.trace("Broadcaster {} already set in web.xml", broadcasterSetup.broadcasterClassName());
             return this;
         }
-        broadcasterSetup.isBroadcasterSpecified = true;
+        broadcasterSetup.setBroadcasterSpecified(true);
 
-        broadcasterSetup.broadcasterClassName = bccn;
+        broadcasterSetup.setBroadcasterClassName(bccn);
 
         // Must reconfigure.
-        broadcasterSetup.broadcasterFactory = null;
+        broadcasterSetup.setBroadcasterFactory(null);
         configureBroadcasterFactory();
 
         // We must recreate all previously created Broadcaster.
         for (AtmosphereHandlerWrapper w : handlerRegistry.handlers().values()) {
             // If case one listener is initializing the framework.
             if (w.broadcaster != null) {
-                w.broadcaster = broadcasterSetup.broadcasterFactory.lookup(w.broadcaster.getID(), true);
+                w.broadcaster = broadcasterSetup.broadcasterFactory().lookup(w.broadcaster.getID(), true);
             }
         }
         return this;
@@ -1646,10 +1640,10 @@ public class AtmosphereFramework {
      * @return {@link BroadcasterFactory}
      */
     public BroadcasterFactory getBroadcasterFactory() {
-        if (broadcasterSetup.broadcasterFactory == null) {
+        if (broadcasterSetup.broadcasterFactory() == null) {
             configureBroadcasterFactory();
         }
-        return broadcasterSetup.broadcasterFactory;
+        return broadcasterSetup.broadcasterFactory();
     }
 
     /**
@@ -1659,7 +1653,7 @@ public class AtmosphereFramework {
      * @return {@link BroadcasterFactory}
      */
     public AtmosphereFramework setBroadcasterFactory(final BroadcasterFactory broadcasterFactory) {
-        broadcasterSetup.broadcasterFactory = broadcasterFactory;
+        broadcasterSetup.setBroadcasterFactory(broadcasterFactory);
         configureBroadcaster();
         return this;
     }
@@ -1670,7 +1664,7 @@ public class AtmosphereFramework {
      * @return the {@link org.atmosphere.cpr.BroadcasterCache} class name
      */
     public String getBroadcasterCacheClassName() {
-        return broadcasterSetup.broadcasterCacheClassName;
+        return broadcasterSetup.broadcasterCacheClassName();
     }
 
     /**
@@ -1679,7 +1673,7 @@ public class AtmosphereFramework {
      * @param broadcasterCacheClassName
      */
     public AtmosphereFramework setBroadcasterCacheClassName(String broadcasterCacheClassName) {
-        broadcasterSetup.broadcasterCacheClassName = broadcasterCacheClassName;
+        broadcasterSetup.setBroadcasterCacheClassName(broadcasterCacheClassName);
         return this;
     }
 
@@ -1690,12 +1684,12 @@ public class AtmosphereFramework {
      * @param broadcasterTypeString
      */
     public AtmosphereFramework addBroadcasterType(String broadcasterTypeString) {
-        broadcasterSetup.broadcasterTypes.add(broadcasterTypeString);
+        broadcasterSetup.broadcasterTypes().add(broadcasterTypeString);
         return this;
     }
 
     public ConcurrentLinkedQueue<String> broadcasterTypes() {
-        return broadcasterSetup.broadcasterTypes;
+        return broadcasterSetup.broadcasterTypes();
     }
 
     public String getWebSocketProtocolClassName() {
@@ -1960,8 +1954,8 @@ public class AtmosphereFramework {
      * Add {@link BroadcasterListener} to all created {@link Broadcaster}s.
      */
     public AtmosphereFramework addBroadcasterListener(BroadcasterListener b) {
-        broadcasterSetup.broadcasterFactory.addBroadcasterListener(b);
-        broadcasterSetup.broadcasterListeners.add(b);
+        broadcasterSetup.broadcasterFactory().addBroadcasterListener(b);
+        broadcasterSetup.broadcasterListeners().add(b);
         return this;
     }
 
@@ -1969,12 +1963,12 @@ public class AtmosphereFramework {
      * Add {@link BroadcasterCacheListener} to the {@link BroadcasterCache}.
      */
     public AtmosphereFramework addBroadcasterCacheListener(BroadcasterCacheListener b) {
-        broadcasterSetup.broadcasterCacheListeners.add(b);
+        broadcasterSetup.broadcasterCacheListeners().add(b);
         return this;
     }
 
     public List<BroadcasterCacheListener> broadcasterCacheListeners() {
-        return broadcasterSetup.broadcasterCacheListeners;
+        return broadcasterSetup.broadcasterCacheListeners();
     }
 
     /**
@@ -1984,7 +1978,7 @@ public class AtmosphereFramework {
      * @return this;
      */
     public AtmosphereFramework addBroadcasterCacheInjector(BroadcasterCacheInspector b) {
-        broadcasterSetup.inspectors.add(b);
+        broadcasterSetup.inspectors().add(b);
         return this;
     }
 
@@ -1994,7 +1988,7 @@ public class AtmosphereFramework {
      * @return the list of {@link BroadcasterCacheInspector}s
      */
     public ConcurrentLinkedQueue<BroadcasterCacheInspector> inspectors() {
-        return broadcasterSetup.inspectors;
+        return broadcasterSetup.inspectors();
     }
 
     /**
@@ -2025,7 +2019,7 @@ public class AtmosphereFramework {
      * @return the list of {@link BroadcastFilter}s
      */
     public List<String> broadcasterFilters() {
-        return broadcasterSetup.broadcasterFilters;
+        return broadcasterSetup.broadcasterFilters();
     }
 
     /**
@@ -2034,7 +2028,7 @@ public class AtmosphereFramework {
      * @return
      */
     public AtmosphereFramework broadcasterFilters(BroadcastFilter f) {
-        broadcasterSetup.broadcasterFilters.add(f.getClass().getName());
+        broadcasterSetup.broadcasterFilters().add(f.getClass().getName());
 
         for (Broadcaster b : config.getBroadcasterFactory().lookupAll()) {
             b.getBroadcasterConfig().addFilter(f);
@@ -2303,7 +2297,7 @@ public class AtmosphereFramework {
      * @return true is defined.
      */
     public boolean isBroadcasterSpecified() {
-        return broadcasterSetup.isBroadcasterSpecified;
+        return broadcasterSetup.isBroadcasterSpecified();
     }
 
     protected void configureObjectFactory() {
@@ -2336,12 +2330,12 @@ public class AtmosphereFramework {
     }
 
     public AtmosphereFramework filterManipulator(BroadcasterConfig.FilterManipulator m) {
-        broadcasterSetup.filterManipulators.add(m);
+        broadcasterSetup.filterManipulators().add(m);
         return this;
     }
 
     public List<BroadcasterConfig.FilterManipulator> filterManipulators() {
-        return broadcasterSetup.filterManipulators;
+        return broadcasterSetup.filterManipulators();
     }
 
     public boolean isAServletFilter() {
@@ -2375,16 +2369,16 @@ public class AtmosphereFramework {
     }
 
     public String broadcasterLifeCyclePolicy() {
-        return broadcasterSetup.broadcasterLifeCyclePolicy;
+        return broadcasterSetup.broadcasterLifeCyclePolicy();
     }
 
     public AtmosphereFramework broadcasterLifeCyclePolicy(String broadcasterLifeCyclePolicy) {
-        broadcasterSetup.broadcasterLifeCyclePolicy = broadcasterLifeCyclePolicy;
+        broadcasterSetup.setBroadcasterLifeCyclePolicy(broadcasterLifeCyclePolicy);
         return this;
     }
 
     public List<BroadcasterListener> broadcasterListeners() {
-        return broadcasterSetup.broadcasterListeners;
+        return broadcasterSetup.broadcasterListeners();
     }
 
     public boolean sharedThreadPools() {
@@ -2423,7 +2417,7 @@ public class AtmosphereFramework {
     }
 
     public AtmosphereResourceFactory atmosphereFactory() {
-        return broadcasterSetup.atmosphereFactory();
+        return broadcasterSetup.getOrCreateAtmosphereFactory();
     }
 
     private AtmosphereFramework configureAtmosphereResourceFactory() {
@@ -2437,7 +2431,7 @@ public class AtmosphereFramework {
     }
 
     public MetaBroadcaster metaBroadcaster() {
-        return broadcasterSetup.metaBroadcaster;
+        return broadcasterSetup.metaBroadcaster();
     }
 
     private AtmosphereFramework configureMetaBroadcaster() {
@@ -2451,7 +2445,7 @@ public class AtmosphereFramework {
      * @return the class name as a string, might be null if not configured
      */
     public String getDefaultSerializerClassName() {
-        return broadcasterSetup.defaultSerializerClassName;
+        return broadcasterSetup.defaultSerializerClassName();
     }
 
     /**
@@ -2460,7 +2454,7 @@ public class AtmosphereFramework {
      * @return the class, might be null if not configured
      */
     public Class<Serializer> getDefaultSerializerClass() {
-        return broadcasterSetup.defaultSerializerClass;
+        return broadcasterSetup.defaultSerializerClass();
     }
 
     /**
@@ -2470,7 +2464,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework setDefaultSerializerClassName(String defaultSerializerClassName) {
-        broadcasterSetup.defaultSerializerClassName = defaultSerializerClassName;
+        broadcasterSetup.setDefaultSerializerClassName(defaultSerializerClassName);
         initDefaultSerializer();
         return this;
     }
@@ -2485,7 +2479,7 @@ public class AtmosphereFramework {
      * @return the AtmosphereResourceSessionFactory
      */
     public AtmosphereResourceSessionFactory sessionFactory() {
-        return broadcasterSetup.sessionFactory();
+        return broadcasterSetup.getOrCreateSessionFactory();
     }
 
     /**
