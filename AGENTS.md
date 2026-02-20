@@ -195,6 +195,8 @@ All Java source files must start with:
 ./mvnw checkstyle:checkstyle pmd:check -pl modules/cpr
 ```
 
+**Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing.
+
 ### Before Merging / PR
 ```bash
 # Full build with all checks
