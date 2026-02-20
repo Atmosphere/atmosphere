@@ -51,9 +51,6 @@ import org.atmosphere.util.UUIDProvider;
 import org.atmosphere.util.Utils;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.VoidServletConfig;
-import org.atmosphere.util.analytics.FocusPoint;
-import org.atmosphere.util.analytics.JGoogleAnalyticsTracker;
-import org.atmosphere.util.analytics.ModuleDetection;
 import org.atmosphere.websocket.DefaultWebSocketFactory;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
@@ -1112,72 +1109,44 @@ public class AtmosphereFramework {
     protected void analytics() {
         if (!config.getInitParameter(ApplicationConfig.ANALYTICS, true)) return;
 
-        final String container = getServletContext().getServerInfo();
         var t = new Thread(() -> {
             try {
-                logger.debug("Retrieving Atmosphere's latest version from http://async-io.org/version.html");
-                HttpURLConnection urlConnection = (HttpURLConnection)
-                        URI.create("http://async-io.org/version.html").toURL().openConnection();
-                urlConnection.setRequestProperty("User-Agent", "Mozilla/5.0");
-                urlConnection.setRequestProperty("Connection", "keep-alive");
-                urlConnection.setRequestProperty("Cache-Control", "max-age=0");
-                urlConnection.setRequestProperty("Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8");
-                urlConnection.setRequestProperty("Accept-Language", "en-US,en;q=0.8");
-                urlConnection.setRequestProperty("Accept-Charset", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                urlConnection.setRequestProperty("If-Modified-Since", "ISO-8859-1,utf-8;q=0.7,*;q=0.3");
-                urlConnection.setInstanceFollowRedirects(true);
+                var currentVersion = Version.getRawVersion();
+                if (currentVersion.contains("SNAPSHOT")) return;
 
-                var in = new BufferedReader(new InputStreamReader(
-                        urlConnection.getInputStream()));
+                logger.debug("Checking for Atmosphere updates via GitHub API");
+                var url = URI.create("https://api.github.com/repos/Atmosphere/atmosphere/releases/latest").toURL();
+                var conn = (HttpURLConnection) url.openConnection();
+                conn.setRequestProperty("Accept", "application/vnd.github+json");
+                conn.setRequestProperty("User-Agent", "Atmosphere/" + currentVersion);
+                conn.setConnectTimeout(5000);
+                conn.setReadTimeout(5000);
+                conn.setInstanceFollowRedirects(true);
 
-                String inputLine;
-                String newVersion = Version.getRawVersion();
-                String clientVersion = null;
-                String nextMajorRelease = null;
-                boolean nextAvailable = false;
-                if (!newVersion.contains("SNAPSHOT")) {
-                    try {
-                        while ((inputLine = in.readLine()) != null) {
-                            inputLine = inputLine.trim();
-                            if (inputLine.startsWith("ATMO23_VERSION=")) {
-                                newVersion = inputLine.substring("ATMO23_VERSION=".length());
-                            } else if (inputLine.startsWith("CLIENT3_VERSION=")) {
-                                clientVersion = inputLine.substring("CLIENT3_VERSION=".length());
-                                break;
-                            } else if (inputLine.startsWith("ATMO_RELEASE_VERSION=")) {
-                                nextMajorRelease = inputLine.substring("ATMO_RELEASE_VERSION=".length());
-                                if (nextMajorRelease.compareTo(Version.getRawVersion()) > 0
-                                        && !nextMajorRelease.toLowerCase().contains("rc")
-                                        && !nextMajorRelease.toLowerCase().contains("beta")) {
-                                    nextAvailable = true;
-                                }
-                            }
-                        }
-                    } finally {
-                        if (clientVersion != null) {
-                            logger.info("Latest version of Atmosphere's JavaScript Client {}", clientVersion);
-                        }
-                        if (newVersion.compareTo(Version.getRawVersion()) > 0) {
-                            if (nextAvailable) {
-                                logger.info("\n\n\tAtmosphere Framework Updates\n\tMinor available (bugs fixes): {}\n\tMajor available (new features): {}", newVersion, nextMajorRelease);
-                            } else {
-                                logger.info("\n\n\tAtmosphere Framework Updates:\n\tMinor Update available (bugs fixes): {}", newVersion);
-                            }
-                        } else if (nextAvailable) {
-                            logger.info("\n\n\tAtmosphere Framework Updates:\n\tMajor Update available (new features): {}", nextMajorRelease);
-                        }
-                        try {
-                            in.close();
-                        } catch (IOException ex) {
-                        }
-                        urlConnection.disconnect();
+                try {
+                    if (conn.getResponseCode() != HttpURLConnection.HTTP_OK) return;
+
+                    var body = new String(conn.getInputStream().readAllBytes());
+                    // Minimal JSON parsing — extract "tag_name":"atmosphere-X.Y.Z"
+                    int idx = body.indexOf("\"tag_name\"");
+                    if (idx < 0) return;
+                    int start = body.indexOf('"', idx + 10) + 1;
+                    int end = body.indexOf('"', start);
+                    var tag = body.substring(start, end);
+                    var latestVersion = tag.startsWith("atmosphere-") ? tag.substring(11) : tag;
+
+                    if (latestVersion.compareTo(currentVersion) > 0
+                            && !latestVersion.toLowerCase().contains("rc")
+                            && !latestVersion.toLowerCase().contains("beta")) {
+                        logger.info("\n\n\tAtmosphere {} is available (you are running {})"
+                                        + "\n\thttps://github.com/Atmosphere/atmosphere/releases/tag/{}",
+                                latestVersion, currentVersion, tag);
                     }
+                } finally {
+                    conn.disconnect();
                 }
-
-                var tracker = new JGoogleAnalyticsTracker(ModuleDetection.detect(), Version.getRawVersion(), "UA-31990725-1");
-                tracker.trackSynchronously(new FocusPoint(container, new FocusPoint("Atmosphere")));
-
             } catch (Throwable e) {
+                // Best-effort version check — never fail startup
             }
         });
         t.setDaemon(true);
