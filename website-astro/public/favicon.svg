@@ -1,6 +1,30 @@
-<svg width="32" height="32" viewBox="0 0 32 32" fill="none" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" rx="6" fill="#0a0e14"/>
-  <circle cx="16" cy="16" r="10" stroke="#00d4ff" stroke-width="1.5" opacity="0.3"/>
-  <circle cx="16" cy="16" r="6" stroke="#00d4ff" stroke-width="1.5" opacity="0.6"/>
-  <circle cx="16" cy="16" r="2.5" fill="#00d4ff"/>
+<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
+  <rect width="32" height="32" rx="7" fill="#0a0e14"/>
+  <svg viewBox="0 0 200 200" x="3" y="3" width="26" height="26">
+    <defs>
+    <linearGradient id="ga" x1="30" y1="170" x2="160" y2="30" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#3d2508"/>
+      <stop offset="30%" stop-color="#6a4b1c"/>
+      <stop offset="60%" stop-color="#8c6c35"/>
+      <stop offset="85%" stop-color="#b8944a"/>
+      <stop offset="100%" stop-color="#d4b060"/>
+    </linearGradient>
+    <linearGradient id="gb" x1="170" y1="30" x2="40" y2="170" gradientUnits="userSpaceOnUse">
+      <stop offset="0%" stop-color="#efe0b8"/>
+      <stop offset="25%" stop-color="#dbcda3"/>
+      <stop offset="50%" stop-color="#c4a86a"/>
+      <stop offset="80%" stop-color="#a08040"/>
+      <stop offset="100%" stop-color="#7a5a28"/>
+    </linearGradient>
+    <filter id="shadow" x="-10%" y="-10%" width="120%" height="120%">
+      <feDropShadow dx="1.5" dy="1.5" stdDeviation="2.5" flood-color="#1a0e00" flood-opacity="0.35"/>
+    </filter>
+    </defs>
+    <g filter="url(#shadow)">
+    <path d="M 72.0 51.5 L 74.2 36.0 A 69 69 0 0 1 158.5 136.6 L 178.9 149.3 L 129.7 147.5 L 116.1 110.1 L 136.5 122.8 A 43 43 0 0 0 83.9 60.1 Z" fill="url(#ga)"/>
+    <path d="M 128.0 148.5 L 125.8 164.0 A 69 69 0 0 1 41.5 63.4 L 21.1 50.7 L 70.3 52.5 L 83.9 89.9 L 63.5 77.2 A 43 43 0 0 0 116.1 139.9 Z" fill="url(#gb)"/>
+    <path d="M 166.6 82.1 A 69 69 0 0 1 158.5 136.6 L 136.5 122.8 A 43 43 0 0 0 141.5 88.9 Z" fill="url(#ga)"/>
+    <path d="M 158.5 136.6 L 178.9 149.3 L 129.7 147.5 L 116.1 110.1 L 136.5 122.8 Z" fill="url(#ga)"/>
+    </g>
+  </svg>
 </svg>
