@@ -2,9 +2,9 @@
   <img src="logo.png" alt="Atmosphere" width="120"/>
 </p>
 
-## Atmosphere 4.0: Modern Real-Time Java with JDK 21+
+## Atmosphere 4.0 — Real-Time Java Framework (JDK 21+)
 
-Atmosphere 4.0 brings cutting-edge Java platform features to real-time web applications. Built on JDK 21-25 with Virtual Threads at its core, offering WebSocket with intelligent fallback to SSE and Long-Polling.
+Real-time server for Java. WebSocket with fallback to SSE and Long-Polling. Rooms, presence, AI/LLM streaming, and MCP server — all over the same transport.
 
 [![Atmosphere CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
 [![Atmosphere.js CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml)
@@ -13,17 +13,15 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 
 ### What's New in 4.0
 
-- **Virtual Threads** - Every connection runs on a virtual thread, enabling massive scalability
-- **Virtual Thread-native** - Thread-safe broadcasting with ReentrantLock (no virtual thread pinning)
-- **Built-in Clustering** - Redis and Kafka broadcasters for multi-node deployments
-- **JDK 21-25 Ready** - Preview & incubator features enabled
-- **Monorepo** - Framework, samples, and TypeScript client in one place
-- **Jakarta EE 10+** - Servlet 6.0, WebSocket 2.1, CDI 4.0
-- **TypeScript Client** - Modern atmosphere.js 5.0 with type safety and React/Vue/Svelte hooks
-- **AI/LLM Streaming** - Built-in adapters for Spring AI, LangChain4j, and Embabel Agent Framework
-- **Kotlin DSL** - Idiomatic builder and coroutine extensions
-- **Native Image** - GraalVM native builds for Spring Boot and Quarkus
-- **MCP Server** - Expose tools, resources, and prompts to AI agents (Claude, Copilot) over WebSocket
+- **WebSocket + SSE + Long-Polling** — automatic transport negotiation and fallback
+- **Rooms & Presence** — server-side room management with join/leave events and message history
+- **MCP Server** — expose tools, resources, and prompts to any MCP client over WebSocket
+- **AI/LLM Streaming** — token-by-token streaming with adapters for Spring AI, LangChain4j, and Embabel
+- **Clustering** — Redis and Kafka broadcasters for multi-node deployments
+- **Durable Sessions** — sessions survive server restarts (SQLite / Redis backed)
+- **TypeScript Client** — atmosphere.js 5.0 with React/Vue/Svelte hooks
+- **Kotlin DSL** — builder API and coroutine extensions
+- **Native Image** — GraalVM native builds for Spring Boot and Quarkus
 
 ### Choose Your Stack
 
@@ -36,6 +34,38 @@ Atmosphere 4.0 brings cutting-edge Java platform features to real-time web appli
 | **AI Streaming** | `atmosphere-ai` | JDK 21+ |
 | **MCP Server** | `atmosphere-mcp` | JDK 21+ |
 | **Durable Sessions** | `atmosphere-durable-sessions` | JDK 21+ |
+
+### Architecture — MCP & AI Streaming
+
+```mermaid
+graph LR
+    subgraph Clients
+        B[Browser<br/>atmosphere.js]
+        M[MCP Client<br/>Claude / Copilot / any]
+    end
+
+    subgraph Atmosphere
+        WS[WebSocket / SSE<br/>Long-Polling]
+        MCP["@McpServer<br/>tools · resources · prompts"]
+        AI["@AiEndpoint<br/>StreamingSession"]
+        RM[RoomManager<br/>rooms · presence]
+    end
+
+    subgraph Backends
+        LLM[LLM / AI Service]
+        CL[(Redis / Kafka<br/>cluster)]
+    end
+
+    B  -- subscribe --> WS
+    WS --> RM
+    WS --> AI
+    AI -- stream tokens --> LLM
+    RM -- cluster broadcast --> CL
+
+    M -- JSON-RPC --> MCP
+    MCP -- tool call --> AI
+    MCP -- read --> RM
+```
 
 ### Quick start
 
@@ -87,7 +117,7 @@ npm install atmosphere.js
 
 #### Framework Integration
 
-atmosphere.js ships with first-class hooks for React, Vue, and Svelte — connection management, rooms, and presence tracking out of the box:
+atmosphere.js includes hooks for React, Vue, and Svelte:
 
 <details>
 <summary>React</summary>
@@ -223,7 +253,7 @@ const { count, isOnline } = usePresence(
 
 ### Rooms & Presence
 
-Built-in room management with presence tracking — no external dependencies:
+Server-side room management with presence tracking:
 
 ```java
 RoomManager rooms = RoomManager.getOrCreate(framework);
@@ -238,27 +268,11 @@ lobby.onPresence(event -> log.info("{} {} room '{}'",
 
 ### AI/LLM Streaming
 
-Stream AI responses token-by-token to browsers with built-in adapters for **Spring AI**, **LangChain4j**, and **Embabel Agent Framework**. All adapters share the same wire protocol via the `atmosphere-ai` SPI — adding a new AI framework means implementing one interface.
+Stream AI responses token-by-token to browsers. Adapters for **Spring AI**, **LangChain4j**, and **Embabel**. All adapters implement the `atmosphere-ai` SPI — one interface to add a new framework.
 
-```xml
-<!-- Shared SPI (always required) -->
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-ai</artifactId>
-    <version>4.0.0</version>
-</dependency>
+#### `@AiEndpoint`
 
-<!-- Pick your AI framework adapter -->
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-spring-ai</artifactId>     <!-- Spring AI -->
-    <version>4.0.0</version>
-</dependency>
-```
-
-#### `@AiEndpoint` — zero-boilerplate AI handler
-
-The `@AiEndpoint` annotation eliminates the `@ManagedService` ceremony for AI use cases. Just annotate a class and a `@Prompt` method — the framework handles suspend, session creation, and virtual thread dispatch:
+The `@AiEndpoint` annotation removes boilerplate for AI use cases. Annotate a class and a `@Prompt` method — the framework handles suspend, session creation, and virtual thread dispatch:
 
 ```java
 @AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
@@ -421,14 +435,6 @@ const { fullText, isStreaming, send } = useStreaming(
 
 Idiomatic Kotlin API with coroutine support:
 
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-kotlin</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
-
 ```kotlin
 import org.atmosphere.kotlin.atmosphere
 
@@ -460,17 +466,9 @@ broadcaster.broadcastSuspend("Hello!")     // suspends instead of blocking
 resource.writeSuspend("Direct message")   // suspends instead of blocking
 ```
 
-### MCP Server — AI Agent Integration
+### MCP Server
 
-Expose tools, resources, and prompt templates to any MCP client. Agents connect over WebSocket and invoke your methods via the standard [Model Context Protocol](https://modelcontextprotocol.io/).
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-mcp</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
+Expose tools, resources, and prompt templates to any MCP client. Clients connect over WebSocket and invoke your methods via the standard [Model Context Protocol](https://modelcontextprotocol.io/).
 
 ```java
 @McpServer(name = "my-server", path = "/atmosphere/mcp")
@@ -494,7 +492,7 @@ public class MyMcpServer {
 }
 ```
 
-**Transports:** WebSocket, Streamable HTTP, stdio (Claude Desktop). Programmatic registration via `McpRegistry.registerTool()` is also supported.
+**Transports:** WebSocket, Streamable HTTP, stdio. Programmatic registration via `McpRegistry.registerTool()` is also supported.
 
 See the [MCP Server wiki guide](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server) and the [Spring Boot MCP sample](https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-mcp-server).
 
@@ -565,15 +563,7 @@ Production-safe message caching with size limits and TTL:
 
 ### Spring Boot Applications
 
-The `atmosphere-spring-boot-starter` provides zero-configuration integration with **Spring Boot 4.0+**, including auto-configured servlet, Spring DI bridge, and optional Actuator health indicator.
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
+The `atmosphere-spring-boot-starter` provides auto-configuration for **Spring Boot 4.0+** — servlet registration, Spring DI bridge, and optional Actuator health indicator.
 
 Configure via `application.yml`:
 
@@ -602,7 +592,7 @@ atmosphere:
 <details>
 <summary>GraalVM Native Image (Spring Boot)</summary>
 
-The starter includes Spring AOT runtime hints (`AtmosphereRuntimeHints`) that register all required reflection and resource metadata automatically. No manual configuration is needed -- just activate the `native` Maven profile:
+The starter includes Spring AOT runtime hints (`AtmosphereRuntimeHints`) that register reflection and resource metadata automatically. Activate the `native` Maven profile:
 
 ```bash
 # Build a native executable
@@ -621,14 +611,6 @@ If your application uses custom `AtmosphereHandler`, `BroadcasterCache`, or enco
 ### Quarkus Applications
 
 The `atmosphere-quarkus-extension` brings Atmosphere to **Quarkus 3.21+** with build-time annotation scanning via Jandex, Arc CDI integration, and native image support.
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
 
 Configure via `application.properties`:
 
@@ -673,32 +655,16 @@ Custom encoder/decoder classes annotated with Quarkus-scanned annotations are au
 
 ### Standalone / Servlet Container
 
-For Tomcat, Jetty, Undertow, or any Servlet 6.0+ container:
+For Tomcat, Jetty, Undertow, or any Servlet 6.0+ container — add `atmosphere-runtime` to your dependencies.
 
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
+### Clustering
 
-### Clustering (Multi-Node)
-
-Scale across multiple server instances with built-in Redis or Kafka broadcasters. Messages broadcast on any node are automatically delivered to clients connected to all other nodes.
+Scale across multiple nodes with Redis or Kafka broadcasters. Messages broadcast on any node are delivered to clients on all other nodes.
 
 <details>
 <summary>Redis clustering</summary>
 
-Add the Redis module — auto-detected on the classpath:
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-redis</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
+Add `atmosphere-redis` — auto-detected on the classpath.
 
 Configure via init-param or `application.properties`:
 
@@ -714,15 +680,7 @@ Uses [Lettuce](https://lettuce.io/) 6.x for non-blocking Redis pub/sub.
 <details>
 <summary>Kafka clustering</summary>
 
-Add the Kafka module — auto-detected on the classpath:
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-kafka</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
+Add `atmosphere-kafka` — auto-detected on the classpath.
 
 Configure via init-param or `application.properties`:
 
@@ -740,14 +698,6 @@ Uses the standard [Apache Kafka client](https://kafka.apache.org/) 3.x.
 
 Sessions survive server restarts. On reconnection the client sends its session token and the server
 restores room memberships, broadcaster subscriptions, and metadata automatically.
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-durable-sessions-sqlite</artifactId>
-    <version>4.0.0</version>
-</dependency>
-```
 
 ```properties
 atmosphere.durable-sessions.enabled=true
