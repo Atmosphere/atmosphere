@@ -198,6 +198,9 @@ jobs:
         server-username: GITHUB_ACTOR
         server-password: GITHUB_TOKEN
 
+    - name: Install locally first
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -DskipCentralPublishing=true
+
     - name: Deploy to GitHub Packages
       run: |
         ./mvnw -B deploy -DskipTests -Dgpg.skip=true \
