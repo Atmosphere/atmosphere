@@ -137,9 +137,9 @@ public enum MetaServiceAction {
             } else if (BroadcasterConfig.FilterManipulator.class.isAssignableFrom(c)) {
                 fwk.filterManipulators.add(fwk.newClassInstance(BroadcasterConfig.FilterManipulator.class, (Class) c));
             } else if (WebSocketProtocol.class.isAssignableFrom(c)) {
-                fwk.webSocketProtocolClassName = c.getName();
+                fwk.setWebSocketProtocolClassName(c.getName());
             } else if (WebSocketProcessor.class.isAssignableFrom(c)) {
-                fwk.webSocketProcessorClassName = c.getName();
+                fwk.setWebsocketProcessorClassName(c.getName());
             } else if (AtmosphereResourceFactory.class.isAssignableFrom(c)) {
                 fwk.setAndConfigureAtmosphereResourceFactory(fwk.newClassInstance(AtmosphereResourceFactory.class, (Class) c));
             } else if (AtmosphereFrameworkListener.class.isAssignableFrom(c)) {

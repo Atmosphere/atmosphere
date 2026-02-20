@@ -51,7 +51,6 @@ import org.atmosphere.util.UUIDProvider;
 import org.atmosphere.util.Utils;
 import org.atmosphere.util.Version;
 import org.atmosphere.util.VoidServletConfig;
-import org.atmosphere.websocket.DefaultWebSocketFactory;
 import org.atmosphere.websocket.DefaultWebSocketProcessor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketFactory;
@@ -189,7 +188,6 @@ public class AtmosphereFramework {
     protected boolean useNativeImplementation;
     protected boolean useBlockingImplementation;
     protected boolean useStreamForFlushingComments = true;
-    protected boolean useServlet30 = true;
     protected AsyncSupport<?> asyncSupport;
     protected String broadcasterClassName = DefaultBroadcaster.class.getName();
     protected boolean isCometSupportSpecified;
@@ -199,22 +197,16 @@ public class AtmosphereFramework {
     protected BroadcasterFactory broadcasterFactory;
     protected String broadcasterFactoryClassName;
     protected String broadcasterCacheClassName;
-    protected boolean webSocketEnabled = true;
     protected String broadcasterLifeCyclePolicy = "NEVER";
-    protected String webSocketProtocolClassName = SimpleHttpProtocol.class.getName();
-    protected WebSocketProtocol webSocketProtocol;
     protected String handlersPath = DEFAULT_HANDLER_PATH;
     protected ServletConfig servletConfig;
     protected boolean autoDetectHandlers = true;
-    private boolean hasNewWebSocketProtocol;
     protected String atmosphereDotXmlPath = DEFAULT_ATMOSPHERE_CONFIG_PATH;
     protected String metaServicePath = META_SERVICE;
     protected final LinkedList<AtmosphereInterceptor> interceptors = new LinkedList<>();
     protected boolean scanDone;
     protected String annotationProcessorClassName = "org.atmosphere.cpr.DefaultAnnotationProcessor";
     protected final List<BroadcasterListener> broadcasterListeners = new CopyOnWriteArrayList<>();
-    protected String webSocketProcessorClassName = DefaultWebSocketProcessor.class.getName();
-    protected boolean webSocketProtocolInitialized;
     protected EndpointMapper<AtmosphereHandlerWrapper> endpointMapper = new DefaultEndpointMapper<>();
     protected String libPath = DEFAULT_LIB_PATH;
     protected boolean isInit;
@@ -238,6 +230,7 @@ public class AtmosphereFramework {
     protected Class<Serializer> defaultSerializerClass;
     private UUIDProvider uuidProvider = new DefaultUUIDProvider();
     protected Thread shutdownHook;
+    protected final WebSocketConfig webSocketConfig;
     public static final List<Class<? extends AtmosphereInterceptor>> DEFAULT_ATMOSPHERE_INTERCEPTORS = List.of(
             CorsInterceptor.class,
             CacheHeadersInterceptor.class,
@@ -251,9 +244,7 @@ public class AtmosphereFramework {
             OnDisconnectInterceptor.class,
             IdleResourceInterceptor.class
     );
-    private WebSocketFactory webSocketFactory;
     private final ReentrantLock resourceFactoryLock = new ReentrantLock();
-    private final ReentrantLock webSocketFactoryLock = new ReentrantLock();
     private final ReentrantLock sessionFactoryLock = new ReentrantLock();
     private IllegalStateException initializationError;
 
@@ -303,6 +294,7 @@ public class AtmosphereFramework {
         this.isFilter = isFilter;
         this.autoDetectHandlers = autoDetectHandlers;
         config = newAtmosphereConfig();
+        webSocketConfig = new WebSocketConfig(config);
     }
 
     /**
@@ -810,7 +802,7 @@ public class AtmosphereFramework {
         }
         logger.info("Using BroadcasterFactory: {}", broadcasterFactory.getClass().getName());
         logger.info("Using AtmosphereResurceFactory: {}", arFactory.getClass().getName());
-        logger.info("Using WebSocketProcessor: {}", webSocketProcessorClassName);
+        logger.info("Using WebSocketProcessor: {}", webSocketConfig.getProcessorClassName());
         if (defaultSerializerClassName != null && !defaultSerializerClassName.isEmpty()) {
             logger.info("Using Serializer: {}", defaultSerializerClassName);
         }
@@ -1105,26 +1097,7 @@ public class AtmosphereFramework {
     }
 
     protected void doInitParamsForWebSocket(ServletConfig sc) {
-        String s = sc.getInitParameter(WEBSOCKET_SUPPORT);
-        if (s != null) {
-            webSocketEnabled = Boolean.parseBoolean(s);
-            sessionSupport(false);
-        }
-        s = sc.getInitParameter(WEBSOCKET_PROTOCOL);
-        if (s != null) {
-            webSocketProtocolClassName = s;
-            hasNewWebSocketProtocol = true;
-        }
-
-        s = sc.getInitParameter(WEBSOCKET_PROCESSOR);
-        if (s != null) {
-            webSocketProcessorClassName = s;
-        }
-
-        s = config.getInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT_SERVLET3);
-        if (s != null) {
-            useServlet30 = Boolean.parseBoolean(s);
-        }
+        webSocketConfig.doInitParams(sc);
     }
 
     /**
@@ -1445,7 +1418,7 @@ public class AtmosphereFramework {
     }
 
     public void checkWebSocketSupportState() {
-        if (atmosphereHandlers.isEmpty() && !(webSocketProtocol instanceof SimpleHttpProtocol)) {
+        if (atmosphereHandlers.isEmpty() && !(webSocketConfig.getProtocol() instanceof SimpleHttpProtocol)) {
             logger.debug("Adding a void AtmosphereHandler mapped to /* to allow WebSocket application only");
             addAtmosphereHandler(Broadcaster.ROOT_MASTER, new AbstractReflectorAtmosphereHandler() {
                 @Override
@@ -1465,23 +1438,7 @@ public class AtmosphereFramework {
 
     @SuppressWarnings("unchecked")
     public void initWebSocket() {
-        if (webSocketProtocolInitialized) return;
-
-        if (webSocketProtocol == null) {
-            try {
-                webSocketProtocol = newClassInstance(WebSocketProtocol.class,
-                        (Class<WebSocketProtocol>) IOUtils.loadClass(this.getClass(), webSocketProtocolClassName));
-                logger.info("Installed WebSocketProtocol {} ", webSocketProtocolClassName);
-            } catch (Exception ex) {
-                logger.error("Cannot load the WebSocketProtocol {}", getWebSocketProtocolClassName(), ex);
-                try {
-                    webSocketProtocol = newClassInstance(WebSocketProtocol.class, SimpleHttpProtocol.class);
-                } catch (Exception e) {
-                }
-            }
-        }
-        webSocketProtocolInitialized = true;
-        webSocketProtocol.configure(config);
+        webSocketConfig.initWebSocket();
     }
 
     @SuppressWarnings("unchecked")
@@ -1785,7 +1742,7 @@ public class AtmosphereFramework {
         // Was defined in atmosphere.xml
         if (getAsyncSupport() == null) {
             setAsyncSupport(createAsyncSupportResolver()
-                    .resolve(useNativeImplementation, useBlockingImplementation, useServlet30));
+                    .resolve(useNativeImplementation, useBlockingImplementation, webSocketConfig.isUseServlet30()));
         }
     }
 
@@ -1855,7 +1812,7 @@ public class AtmosphereFramework {
     protected void autoDetectWebSocketHandler(ServletContext servletContext, ClassLoader classloader)
             throws MalformedURLException {
 
-        if (hasNewWebSocketProtocol) return;
+        if (webSocketConfig.hasNewProtocol()) return;
 
         logger.info("Auto detecting WebSocketHandler in {}", handlersPath);
         loadWebSocketFromPath(classloader, realPath(servletContext, handlersPath));
@@ -1877,8 +1834,8 @@ public class AtmosphereFramework {
                     Class<?> clazz = classloader.loadClass(className);
 
                     if (WebSocketProtocol.class.isAssignableFrom(clazz)) {
-                        webSocketProtocolClassName = clazz.getName();
-                        logger.info("Auto-detected WebSocketProtocol {}", webSocketProtocolClassName);
+                        webSocketConfig.setProtocolClassName(clazz.getName());
+                        logger.info("Auto-detected WebSocketProtocol {}", webSocketConfig.getProtocolClassName());
                     }
                 } catch (Throwable t) {
                     logger.trace("failed to load class as an WebSocketProtocol: " + className, t);
@@ -2062,7 +2019,7 @@ public class AtmosphereFramework {
     }
 
     public boolean isUseServlet30() {
-        return useServlet30;
+        return webSocketConfig.isUseServlet30();
     }
 
     /**
@@ -2136,12 +2093,11 @@ public class AtmosphereFramework {
     }
 
     public String getWebSocketProtocolClassName() {
-        return webSocketProtocolClassName;
+        return webSocketConfig.getProtocolClassName();
     }
 
     public AtmosphereFramework setWebSocketProtocolClassName(String webSocketProtocolClassName) {
-        hasNewWebSocketProtocol = true;
-        this.webSocketProtocolClassName = webSocketProtocolClassName;
+        webSocketConfig.setProtocolClassName(webSocketProtocolClassName);
         return this;
     }
 
@@ -2197,8 +2153,7 @@ public class AtmosphereFramework {
     }
 
     public WebSocketProtocol getWebSocketProtocol() {
-        initWebSocket();
-        return webSocketProtocol;
+        return webSocketConfig.getProtocol();
     }
 
     public boolean isUseNativeImplementation() {
@@ -2263,7 +2218,7 @@ public class AtmosphereFramework {
      * @return {@link org.atmosphere.websocket.WebSocketProcessor}
      */
     public String getWebSocketProcessorClassName() {
-        return webSocketProcessorClassName;
+        return webSocketConfig.getProcessorClassName();
     }
 
     /**
@@ -2274,7 +2229,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework setWebsocketProcessorClassName(String webSocketProcessorClassName) {
-        this.webSocketProcessorClassName = webSocketProcessorClassName;
+        webSocketConfig.setProcessorClassName(webSocketProcessorClassName);
         return this;
     }
 
@@ -2418,6 +2373,15 @@ public class AtmosphereFramework {
      */
     public FrameworkEventDispatcher events() {
         return eventDispatcher;
+    }
+
+    /**
+     * Return the {@link WebSocketConfig} for managing WebSocket settings.
+     *
+     * @return the WebSocket configuration
+     */
+    public WebSocketConfig webSocket() {
+        return webSocketConfig;
     }
 
     /**
@@ -2849,15 +2813,15 @@ public class AtmosphereFramework {
     }
 
     public void setUseServlet30(boolean useServlet30) {
-        this.useServlet30 = useServlet30;
+        webSocketConfig.setUseServlet30(useServlet30);
     }
 
     public boolean webSocketEnabled() {
-        return webSocketEnabled;
+        return webSocketConfig.isEnabled();
     }
 
     public AtmosphereFramework webSocketEnabled(boolean webSocketEnabled) {
-        this.webSocketEnabled = webSocketEnabled;
+        webSocketConfig.setEnabled(webSocketEnabled);
         return this;
     }
 
@@ -2935,19 +2899,7 @@ public class AtmosphereFramework {
     }
 
     private AtmosphereFramework configureWebSocketFactory() {
-        if (webSocketFactory != null) return this;
-
-        webSocketFactoryLock.lock();
-        try {
-            if (webSocketFactory != null) return this;
-            try {
-                webSocketFactory = newClassInstance(WebSocketFactory.class, DefaultWebSocketFactory.class);
-            } catch (InstantiationException | IllegalAccessException e) {
-                logger.error("", e);
-            }
-        } finally {
-            webSocketFactoryLock.unlock();
-        }
+        webSocketConfig.configureWebSocketFactory();
         return this;
     }
 
@@ -3132,10 +3084,7 @@ public class AtmosphereFramework {
      * @return the {@link WebSocketFactory}
      */
     public WebSocketFactory webSocketFactory() {
-        if (webSocketFactory == null) {
-            configureWebSocketFactory();
-        }
-        return webSocketFactory;
+        return webSocketConfig.getFactory();
     }
 
     /**
@@ -3145,7 +3094,7 @@ public class AtmosphereFramework {
      * @return this
      */
     public AtmosphereFramework webSocketFactory(WebSocketFactory webSocketFactory) {
-        this.webSocketFactory = webSocketFactory;
+        webSocketConfig.setFactory(webSocketFactory);
         return this;
     }
 
