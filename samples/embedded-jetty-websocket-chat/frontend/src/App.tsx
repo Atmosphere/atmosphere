@@ -15,7 +15,7 @@ export function App() {
       reconnect: true,
       reconnectInterval: 5000,
       maxReconnectOnClose: 10,
-      trackMessageLength: true,
+      trackMessageLength: false,
       contentType: 'application/json',
     }),
     [],
