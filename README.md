@@ -83,7 +83,7 @@ public void onMessage(String prompt) {
 </details>
 
 <details>
-<summary>Embabel adapter (Kotlin)</summary>
+<summary>Embabel adapter</summary>
 
 ```kotlin
 @Message
