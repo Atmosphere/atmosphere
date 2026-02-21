@@ -7,11 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [4.0.0] - 2026-02-18
 
-Atmosphere 4.0 is a ground-up modernization of the framework for JDK 21+ and
-Jakarta EE 10. It retains the annotation-driven programming model and transport
-abstraction that have been the backbone of the project since 2008, while
-introducing first-class support for virtual threads, AI/LLM streaming, rooms
-and presence, native image compilation, and modern frontend frameworks.
+Atmosphere 4.0 is a rewrite of the framework for JDK 21+ and Jakarta EE 10.
+It keeps the annotation-driven programming model and transport abstraction from
+prior versions, and adds support for virtual threads, AI/LLM streaming, rooms
+and presence, native image compilation, and frontend framework bindings.
 
 This release succeeds the 2.x/3.x line (last release: 3.1.0 / 2.6.5). The
 `javax.servlet` namespace, Java 8 runtime, and legacy application server
@@ -136,7 +135,7 @@ consult the [Migration Guide](https://github.com/Atmosphere/atmosphere/wiki/Migr
 
 #### Client Library
 
-- **atmosphere.js 5.0** -- complete TypeScript rewrite with zero runtime
+- **atmosphere.js 5.0** -- TypeScript rewrite with no runtime
   dependencies. Ships as ESM, CJS, and IIFE bundles.
 - **Transport fallback** -- WebSocket with configurable fallback to SSE,
   HTTP streaming, or long-polling. Full protocol handler with heartbeat,

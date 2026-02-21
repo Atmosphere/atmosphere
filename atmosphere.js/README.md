@@ -1,6 +1,6 @@
 # atmosphere.js
 
-Modern TypeScript client for the Atmosphere Framework - WebSocket, SSE, and Comet support for real-time web applications.
+TypeScript client for the Atmosphere Framework. Supports WebSocket, SSE, and Long-Polling transports.
 
 [![npm version](https://img.shields.io/npm/v/atmosphere.js)](https://www.npmjs.com/package/atmosphere.js)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.4-blue)](https://www.typescriptlang.org/)
@@ -8,13 +8,13 @@ Modern TypeScript client for the Atmosphere Framework - WebSocket, SSE, and Come
 
 ## Features
 
-✨ **Modern TypeScript** - Full type safety and IntelliSense support  
-🚀 **Multiple Transports** - WebSocket, SSE, Long-polling, Streaming  
-🔄 **Auto-reconnection** - Intelligent reconnection with exponential backoff  
-📦 **Tree-shakeable** - Import only what you need  
-🎯 **Zero Runtime Dependencies** - React, Vue, and Svelte are optional peer dependencies
-🔌 **Promise-based API** - Modern async/await support
-🧪 **Well Tested** - Comprehensive test coverage
+- TypeScript with full type safety and IntelliSense support
+- Multiple transports: WebSocket, SSE, Long-polling, Streaming
+- Automatic reconnection with exponential backoff
+- Tree-shakeable — import only what you need
+- No runtime dependencies (React, Vue, and Svelte are optional peer dependencies)
+- Promise-based API with async/await
+- Comprehensive test coverage
 
 ## Installation
 
@@ -719,4 +719,4 @@ Contributions are welcome! Please feel free to submit a Pull Request.
 
 ---
 
-**Built with ❤️ by the Atmosphere team**
+Maintained by the Atmosphere team.

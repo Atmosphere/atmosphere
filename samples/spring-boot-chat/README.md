@@ -1,6 +1,6 @@
 # Atmosphere Chat — Spring Boot
 
-A full-featured real-time chat application on Spring Boot, showcasing rooms, presence, message history, REST API, Micrometer metrics, and Actuator health checks.
+A real-time chat application on Spring Boot, demonstrating rooms, presence, message history, REST API, Micrometer metrics, and Actuator health checks.
 
 ## What It Demonstrates
 
