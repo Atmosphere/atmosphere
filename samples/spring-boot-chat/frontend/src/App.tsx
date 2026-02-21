@@ -373,7 +373,7 @@ export function App() {
               ...prev,
               {
                 author: 'system',
-                message: `Joined room. Members: ${parsed.members.join(', ')}`,
+                message: `Joined room. Members: ${parsed.members.map((m: { id: string }) => m.id).join(', ')}`,
                 time: Date.now(),
               },
             ]);
@@ -420,6 +420,11 @@ export function App() {
       sendJoin(push, ROOM, text);
     } else {
       sendBroadcast(push, ROOM, text);
+      // Add our own message locally — server excludes sender from broadcast
+      setMessages((prev) => [
+        ...prev,
+        { author: name, message: text, time: Date.now() },
+      ]);
     }
   };
 
