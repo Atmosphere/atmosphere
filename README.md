@@ -49,7 +49,7 @@ Configure with environment variables — no code changes to switch providers:
 | `LLM_API_KEY` | API key (or `GEMINI_API_KEY` for Gemini) | — |
 | `LLM_BASE_URL` | Override endpoint (auto-detected from model name) | auto |
 
-### Server — with Spring AI or LangChain4j
+### Server — with Spring AI, LangChain4j, or Embabel
 
 Atmosphere doesn't replace your AI framework. It gives it a transport:
 
@@ -77,6 +77,22 @@ public void onMessage(String prompt) {
     model.chat(ChatMessage.userMessage(prompt),
         new AtmosphereStreamingResponseHandler(session));
     // LangChain4j callbacks → session.send(token) → WebSocket frame
+}
+```
+
+</details>
+
+<details>
+<summary>Embabel adapter (Kotlin)</summary>
+
+```kotlin
+@Message
+fun onMessage(prompt: String) {
+    val session = StreamingSessions.start(resource)
+    embabelAdapter.stream(AgentRequest("assistant") { channel ->
+        agentPlatform.run(prompt, channel)
+    }, session)
+    // Embabel agent events → session.send(token) / session.progress() → WebSocket frame
 }
 ```
 
@@ -182,44 +198,24 @@ npm install atmosphere.js
 | Kotlin DSL | `atmosphere-kotlin` | Builder API and coroutine extensions |
 | TypeScript client | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte bindings |
 
-## Architecture
-
-```mermaid
-graph LR
-    subgraph Clients
-        B[Browser<br/>atmosphere.js]
-        M[MCP Client<br/>Claude / Copilot / any]
-    end
-
-    subgraph Atmosphere
-        RM[RoomManager<br/>rooms · presence]
-        AI["@AiEndpoint<br/>StreamingSession"]
-        MCP["@McpServer<br/>tools · resources · prompts"]
-    end
-
-    subgraph Backends
-        LLM[LLM / AI Service]
-        CL[(Redis / Kafka<br/>cluster)]
-    end
-
-    B -- WebSocket / SSE --> RM
-    B -- WebSocket --> AI
-    AI -- prompt --> LLM
-    LLM -. tokens .-> AI
-    AI -. stream .-> B
-    RM -- cluster broadcast --> CL
-
-    M -- JSON-RPC over WebSocket --> MCP
-    MCP -- invoke tool --> LLM
-    MCP -. result .-> M
-```
-
-The diagram shows the three main paths:
-- **Browsers** connect to rooms for real-time messaging, or to AI endpoints for LLM streaming
-- **MCP clients** (Claude, Copilot, etc.) connect via JSON-RPC over WebSocket to invoke tools and read resources
-- **Backends** provide LLM services and optional Redis/Kafka clustering
-
 ## Usage
+
+### AI streaming endpoint
+
+Stream LLM responses token-by-token to the browser:
+
+```java
+@AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
+public class MyChatBot {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        myLlmClient.stream(message)
+            .forEach(token -> session.send(token));
+        session.complete();
+    }
+}
+```
 
 ### Chat handler (rooms path)
 
