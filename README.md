@@ -4,12 +4,119 @@
 
 # Atmosphere
 
-A Java framework for building real-time applications over WebSocket, SSE, and Long-Polling. Runs on Spring Boot, Quarkus, or any Servlet 6.0+ container. Includes server-side rooms with presence tracking, AI/LLM token streaming, and an MCP server implementation.
+The real-time transport layer for Java. Stream AI/LLM tokens, chat messages, and live data to browsers over WebSocket, SSE, and Long-Polling — with built-in rooms, presence, clustering, and MCP support. Runs on Spring Boot, Quarkus, or any Servlet 6.0+ container.
 
 [![Maven Central](https://img.shields.io/maven-central/v/org.atmosphere/atmosphere-runtime?label=Maven%20Central&color=blue)](https://central.sonatype.com/artifact/org.atmosphere/atmosphere-runtime)
 [![npm](https://img.shields.io/npm/v/atmosphere.js?label=atmosphere.js&color=blue)](https://www.npmjs.com/package/atmosphere.js)
 [![Atmosphere CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
 [![Atmosphere.js CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml)
+
+## AI/LLM Token Streaming
+
+Frameworks like Spring AI, LangChain4j, and Embabel handle **LLM ↔ server** communication. Atmosphere handles the other half: **server ↔ browser**. It streams tokens to the client in real time over WebSocket (with SSE/Long-Polling fallback), manages reconnection and backpressure, and provides React/Vue/Svelte hooks — so you don't have to build all of that yourself.
+
+### What you get
+
+- **`@AiEndpoint` + `@Prompt`** — annotate a class, receive prompts, stream tokens. Runs on virtual threads.
+- **Built-in LLM client** — zero-dependency `OpenAiCompatibleClient` that talks to OpenAI, Gemini, Ollama, or any OpenAI-compatible API. No Spring AI or LangChain4j required.
+- **Adapter SPI** — plug in Spring AI (`Flux<ChatResponse>`), LangChain4j (`StreamingChatResponseHandler`), or Embabel (`OutputChannel`). All converge on the same `StreamingSession` interface.
+- **Standardized wire protocol** — every token is a JSON frame with `type`, `data`, `sessionId`, and `seq` for ordering. Progress events, metadata (model, token usage), and error frames are built in.
+- **AI as a room participant** — `LlmRoomMember` joins a Room like any user. When someone sends a message, the LLM receives it, streams a response, and broadcasts it back. Humans and AI in the same room.
+- **Client hooks** — `useStreaming()` for React/Vue/Svelte gives you `fullText`, `isStreaming`, `progress`, `metadata`, and `error` out of the box.
+
+### Server — 5 lines with the built-in client
+
+```java
+@AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
+public class MyChatBot {
+
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        AiConfig.get().client().streamChatCompletion(
+            ChatCompletionRequest.builder(AiConfig.get().model())
+                .user(message).build(),
+            session);
+    }
+}
+```
+
+Configure with environment variables — no code changes to switch providers:
+
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `LLM_MODE` | `remote` (cloud) or `local` (Ollama) | `remote` |
+| `LLM_MODEL` | `gemini-2.5-flash`, `gpt-4o`, `o3-mini`, `llama3.2`, … | `gemini-2.5-flash` |
+| `LLM_API_KEY` | API key (or `GEMINI_API_KEY` for Gemini) | — |
+| `LLM_BASE_URL` | Override endpoint (auto-detected from model name) | auto |
+
+### Server — with Spring AI or LangChain4j
+
+Atmosphere doesn't replace your AI framework. It gives it a transport:
+
+<details>
+<summary>Spring AI adapter</summary>
+
+```java
+@Message
+public void onMessage(String prompt) {
+    StreamingSession session = StreamingSessions.start(resource);
+    springAiAdapter.stream(chatClient, prompt, session);
+    // Spring AI's Flux<ChatResponse> → session.send(token) → WebSocket frame
+}
+```
+
+</details>
+
+<details>
+<summary>LangChain4j adapter</summary>
+
+```java
+@Message
+public void onMessage(String prompt) {
+    StreamingSession session = StreamingSessions.start(resource);
+    model.chat(ChatMessage.userMessage(prompt),
+        new AtmosphereStreamingResponseHandler(session));
+    // LangChain4j callbacks → session.send(token) → WebSocket frame
+}
+```
+
+</details>
+
+### Browser — React
+
+```tsx
+import { useStreaming } from 'atmosphere.js/react';
+
+function AiChat() {
+  const { fullText, isStreaming, progress, send } = useStreaming({
+    request: { url: '/ai/chat', transport: 'websocket' },
+  });
+
+  return (
+    <div>
+      <button onClick={() => send('Explain WebSockets')} disabled={isStreaming}>
+        Ask
+      </button>
+      {progress && <p className="muted">{progress}</p>}
+      <p>{fullText}</p>
+    </div>
+  );
+}
+```
+
+### AI in rooms — virtual members
+
+```java
+var client = AiConfig.get().client();
+var assistant = new LlmRoomMember("assistant", client, "gpt-4o",
+    "You are a helpful coding assistant");
+
+Room room = rooms.room("dev-chat");
+room.joinVirtual(assistant);
+// Now when any user sends a message, the LLM responds in the same room
+```
+
+See the [AI / LLM Streaming wiki](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming) for the full guide.
 
 ## Installation
 
@@ -137,23 +244,6 @@ public class Chat {
 }
 ```
 
-### AI streaming endpoint (AI path)
-
-Stream LLM responses token-by-token to the browser:
-
-```java
-@AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
-public class MyChatBot {
-
-    @Prompt
-    public void onPrompt(String message, StreamingSession session) {
-        myLlmClient.stream(message)
-            .forEach(token -> session.send(token));
-        session.complete();
-    }
-}
-```
-
 ### MCP server (MCP path)
 
 Expose tools, resources, and prompt templates to MCP clients:
@@ -207,71 +297,6 @@ lobby.broadcast("Hello everyone!");
 lobby.onPresence(event -> log.info("{} {} room '{}'",
     event.member().id(), event.type(), event.room().name()));
 ```
-
-## AI/LLM Streaming
-
-Adapters for Spring AI, LangChain4j, and Embabel. All implement the `atmosphere-ai` SPI.
-
-<details>
-<summary>Spring AI</summary>
-
-```java
-@ManagedService(path = "/ai/chat")
-public class AiChat {
-
-    @Inject private AtmosphereResource resource;
-
-    @Message
-    public void onMessage(String prompt) {
-        StreamingSession session = StreamingSessions.start(resource);
-        springAiAdapter.stream(chatClient, prompt, session);
-    }
-}
-```
-
-</details>
-
-<details>
-<summary>LangChain4j</summary>
-
-```java
-@ManagedService(path = "/ai/chat")
-public class AiChat {
-
-    @Inject private AtmosphereResource resource;
-
-    @Message
-    public void onMessage(String prompt) {
-        StreamingSession session = StreamingSessions.start(resource);
-        model.chat(ChatMessage.userMessage(prompt),
-            new AtmosphereStreamingResponseHandler(session));
-    }
-}
-```
-
-</details>
-
-<details>
-<summary>Browser streaming (React)</summary>
-
-```tsx
-import { AtmosphereProvider, useStreaming } from 'atmosphere.js/react';
-
-function AiChat() {
-  const { fullText, isStreaming, send } = useStreaming({
-    request: { url: '/ai/chat', transport: 'websocket' },
-  });
-
-  return (
-    <div>
-      <button onClick={() => send('What is Atmosphere?')} disabled={isStreaming}>Ask</button>
-      <p>{fullText}</p>
-    </div>
-  );
-}
-```
-
-</details>
 
 ## Framework Integration
 
