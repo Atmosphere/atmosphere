@@ -8,7 +8,7 @@ AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `Stre
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai</artifactId>
-    <version>4.0.0-SNAPSHOT</version>
+    <version>4.0.1</version>
 </dependency>
 ```
 

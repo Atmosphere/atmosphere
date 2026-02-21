@@ -85,14 +85,14 @@ atmosphere/
 │   └── quarkus-chat/
 ├── atmosphere.js/                 (TypeScript client library)
 ├── assembly/
-└── pom.xml                        (4.0.0-SNAPSHOT, JDK 21)
+└── pom.xml                        (4.0.2-SNAPSHOT, JDK 21)
 ```
 
 ### Key Artifacts
 | Module | ArtifactId | Description |
 |--------|-----------|-------------|
 | Core | `atmosphere-runtime` | Main framework JAR |
-| Spring Boot | `spring-boot-starter-atmosphere` | Spring Boot 4.0 auto-configuration |
+| Spring Boot | `atmosphere-spring-boot-starter` | Spring Boot 4.0 auto-configuration |
 | Quarkus Runtime | `atmosphere-quarkus-extension` | Quarkus 3.21+ runtime |
 | Quarkus Deployment | `atmosphere-quarkus-extension-deployment` | Quarkus build-time processing |
 

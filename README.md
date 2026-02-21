@@ -607,7 +607,7 @@ framework.interceptor(new BackpressureInterceptor());
 - [MCP Server](https://github.com/Atmosphere/atmosphere/wiki/MCP-Server)
 - [Durable Sessions](https://github.com/Atmosphere/atmosphere/wiki/Durable-Sessions)
 - [Kotlin DSL](https://github.com/Atmosphere/atmosphere/wiki/Kotlin-DSL)
-- [FAQ](https://github.com/Atmosphere/atmosphere/wiki/Frequently-Asked-Questions)
+- [Migration Guide](https://github.com/Atmosphere/atmosphere/wiki/Migrating-from-2.x-to-4.0)
 - [Javadoc](http://atmosphere.github.io/atmosphere/apidocs/)
 - [atmosphere.js API](https://github.com/Atmosphere/atmosphere/wiki/atmosphere.js-API)
 - [React / Vue / Svelte bindings](https://github.com/Atmosphere/atmosphere/wiki/Framework-Hooks-React-Vue-Svelte)
