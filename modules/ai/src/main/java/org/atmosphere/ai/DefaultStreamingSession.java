@@ -30,8 +30,8 @@ import java.util.concurrent.atomic.AtomicLong;
  * Default implementation of {@link StreamingSession} that writes
  * JSON-encoded streaming messages directly to an {@link AtmosphereResource}.
  *
- * <p>Uses {@code resource.write()} to bypass the broadcaster dispatch cycle
- * and avoid re-triggering {@code @Message} handlers.</p>
+ * <p>Uses {@code resource.getBroadcaster().broadcast()} so that all connected
+ * clients receive AI tokens, not just the originator.</p>
  *
  * <p>Wire protocol:</p>
  * <pre>
@@ -137,11 +137,13 @@ final class DefaultStreamingSession implements StreamingSession {
     }
 
     private void broadcast(String json) {
-        // Write directly to the resource to avoid re-triggering @Message handlers
+        // Broadcast to all connected clients via the Broadcaster.
+        // This does NOT re-trigger @Message handlers — broadcast() invokes
+        // onStateChange(), not onMessage().
         try {
-            resource.write(json);
+            resource.getBroadcaster().broadcast(json);
         } catch (Exception e) {
-            logger.warn("Failed to write to resource {}: {}", resource.uuid(), e.getMessage());
+            logger.warn("Failed to broadcast from session {}: {}", sessionId, e.getMessage());
         }
     }
 
