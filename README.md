@@ -45,7 +45,7 @@ Configure with environment variables — no code changes to switch providers:
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `LLM_MODE` | `remote` (cloud) or `local` (Ollama) | `remote` |
-| `LLM_MODEL` | `gemini-2.5-flash`, `gpt-4o`, `o3-mini`, `llama3.2`, … | `gemini-2.5-flash` |
+| `LLM_MODEL` | `gemini-2.5-flash`, `gpt-5`, `o3-mini`, `llama3.2`, … | `gemini-2.5-flash` |
 | `LLM_API_KEY` | API key (or `GEMINI_API_KEY` for Gemini) | — |
 | `LLM_BASE_URL` | Override endpoint (auto-detected from model name) | auto |
 
@@ -124,7 +124,7 @@ function AiChat() {
 
 ```java
 var client = AiConfig.get().client();
-var assistant = new LlmRoomMember("assistant", client, "gpt-4o",
+var assistant = new LlmRoomMember("assistant", client, "gpt-5",
     "You are a helpful coding assistant");
 
 Room room = rooms.room("dev-chat");
