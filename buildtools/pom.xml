@@ -40,6 +40,7 @@
                 <configuration>
                     <publishingServerId>central</publishingServerId>
                     <autoPublish>true</autoPublish>
+                    <skipPublishing>true</skipPublishing>
                 </configuration>
             </plugin>
             <plugin>
