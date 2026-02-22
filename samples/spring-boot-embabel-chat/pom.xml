@@ -11,9 +11,9 @@
     </parent>
 
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>spring-boot-embabel-chat</artifactId>
-    <version>4.0.2-SNAPSHOT</version>
-    <name>Atmosphere Embabel Agent Chat Sample</name>
+    <artifactId>atmosphere-spring-boot-embabel-chat</artifactId>
+    <version>4.0.3-SNAPSHOT</version>
+    <name>atmosphere-spring-boot-embabel-chat</name>
     <description>Real-time AI agent chat using Atmosphere + Embabel Agent Framework</description>
 
     <properties>

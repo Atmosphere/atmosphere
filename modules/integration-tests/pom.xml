@@ -12,7 +12,7 @@
     </parent>
 
     <artifactId>atmosphere-integration-tests</artifactId>
-    <name>Atmosphere :: Integration Tests</name>
+    <name>atmosphere-integration-tests</name>
     <description>End-to-end integration tests with embedded Jetty and Testcontainers</description>
 
     <properties>

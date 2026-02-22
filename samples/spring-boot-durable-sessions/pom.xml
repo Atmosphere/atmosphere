@@ -13,7 +13,7 @@
 
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-spring-boot-durable-sessions</artifactId>
-    <version>4.0.2-SNAPSHOT</version>
+    <version>4.0.3-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>atmosphere-spring-boot-durable-sessions</name>
     <description>Atmosphere Durable Sessions sample — survive server restarts</description>

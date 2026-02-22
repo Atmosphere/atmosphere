@@ -11,9 +11,9 @@
     </parent>
 
     <groupId>org.atmosphere.samples</groupId>
-    <artifactId>spring-boot-ai-chat</artifactId>
-    <version>4.0.2-SNAPSHOT</version>
-    <name>Atmosphere Spring Boot AI Chat Sample</name>
+    <artifactId>atmosphere-spring-boot-ai-chat</artifactId>
+    <version>4.0.3-SNAPSHOT</version>
+    <name>atmosphere-spring-boot-ai-chat</name>
     <description>Real-time AI chat using Atmosphere + OpenAI-compatible APIs (Gemini, Ollama, OpenAI)</description>
 
     <properties>
