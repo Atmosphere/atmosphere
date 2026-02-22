@@ -977,6 +977,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             try {
                 bis.close();
             } catch (IOException e) {
+                // Best-effort close during destroy
             }
         }
 
@@ -984,6 +985,7 @@ public class AtmosphereRequestImpl extends HttpServletRequestWrapper implements 
             try {
                 br.close();
             } catch (IOException e) {
+                // Best-effort close during destroy
             }
         }
 

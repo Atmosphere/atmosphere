@@ -349,7 +349,9 @@ public class AtmosphereInterceptorTest {
 
         try{
             processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance());
-        } catch(Throwable t){}
+        } catch(Throwable t){
+            // Expected — mock request may throw; we only care that postInspect was called
+        }
         assertTrue(postInspected.get());
     }
 }

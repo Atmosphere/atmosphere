@@ -97,6 +97,7 @@ public class WebSocketConfig {
                 try {
                     webSocketProtocol = config.framework().newClassInstance(WebSocketProtocol.class, SimpleHttpProtocol.class);
                 } catch (Exception e) {
+                    logger.error("Cannot load fallback WebSocketProtocol", e);
                 }
             }
         }

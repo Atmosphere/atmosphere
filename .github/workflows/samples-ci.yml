@@ -53,6 +53,7 @@ jobs:
     
     - name: Test Sample - ${{ matrix.sample }}
       run: ./mvnw -B test -Dgpg.skip=true -pl samples/${{ matrix.sample }}
+      # embedded-jetty-websocket-chat has no tests (standalone demo app)
       if: matrix.sample != 'embedded-jetty-websocket-chat'
       env:
         GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
