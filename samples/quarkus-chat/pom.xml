@@ -4,17 +4,20 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
     <modelVersion>4.0.0</modelVersion>
 
+    <parent>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.3-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
+    </parent>
+
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-quarkus-chat</artifactId>
-    <version>4.0.3-SNAPSHOT</version>
     <packaging>jar</packaging>
     <name>atmosphere-quarkus-chat</name>
     <description>Atmosphere Chat sample using Quarkus extension</description>
 
     <properties>
-        <quarkus.version>3.31.3</quarkus.version>
-        <maven.compiler.release>21</maven.compiler.release>
-        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
 
@@ -34,7 +37,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-quarkus-extension</artifactId>
-            <version>4.0.3-SNAPSHOT</version>
+            <version>${project.version}</version>
         </dependency>
 
         <dependency>

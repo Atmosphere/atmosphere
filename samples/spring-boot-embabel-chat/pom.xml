@@ -4,21 +4,18 @@
     <modelVersion>4.0.0</modelVersion>
 
     <parent>
-        <groupId>org.springframework.boot</groupId>
-        <artifactId>spring-boot-starter-parent</artifactId>
-        <version>4.0.2</version>
-        <relativePath/>
+        <groupId>org.atmosphere</groupId>
+        <artifactId>atmosphere-project</artifactId>
+        <version>4.0.3-SNAPSHOT</version>
+        <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-spring-boot-embabel-chat</artifactId>
-    <version>4.0.3-SNAPSHOT</version>
     <name>atmosphere-spring-boot-embabel-chat</name>
     <description>Real-time AI agent chat using Atmosphere + Embabel Agent Framework</description>
 
     <properties>
-        <java.version>21</java.version>
-        <atmosphere.version>4.0.3-SNAPSHOT</atmosphere.version>
         <embabel.version>0.3.5-SNAPSHOT</embabel.version>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
@@ -30,22 +27,31 @@
         </repository>
     </repositories>
 
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
-        <!-- Atmosphere Spring Boot Starter -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-spring-boot-starter</artifactId>
-            <version>${atmosphere.version}</version>
+            <version>${project.version}</version>
         </dependency>
 
-        <!-- Atmosphere Embabel adapter -->
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-embabel</artifactId>
-            <version>${atmosphere.version}</version>
+            <version>${project.version}</version>
         </dependency>
 
-        <!-- Embabel Agent Platform (auto-configures AgentPlatform bean) -->
         <dependency>
             <groupId>com.embabel.agent</groupId>
             <artifactId>embabel-agent-api</artifactId>
@@ -62,13 +68,11 @@
             <version>${embabel.version}</version>
         </dependency>
 
-        <!-- Spring Boot Web -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-web</artifactId>
         </dependency>
 
-        <!-- Jakarta Inject for @Inject -->
         <dependency>
             <groupId>jakarta.inject</groupId>
             <artifactId>jakarta.inject-api</artifactId>
@@ -81,6 +85,7 @@
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
+                <version>${spring-boot.version}</version>
             </plugin>
         </plugins>
     </build>

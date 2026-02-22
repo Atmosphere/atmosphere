@@ -642,6 +642,8 @@
         <jackson.version>2.18.3</jackson.version>
         <mockito.version>5.21.0</mockito.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
+        <spring-boot.version>4.0.2</spring-boot.version>
+        <quarkus.version>3.31.3</quarkus.version>
         <atmosphere.module.name>org.atmosphere</atmosphere.module.name>
     </properties>
 </project>
