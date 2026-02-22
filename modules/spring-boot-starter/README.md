@@ -8,7 +8,7 @@ Auto-configuration for running Atmosphere on Spring Boot 4.0+. Registers `Atmosp
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.1</version>
+    <version>4.0.2</version>
 </dependency>
 ```
 

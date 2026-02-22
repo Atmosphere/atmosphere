@@ -114,7 +114,5 @@ chat/
     └── webapp/
         ├── WEB-INF/web.xml              # AtmosphereServlet config
         ├── index.html                   # Chat UI
-        └── javascript/
-            ├── atmosphere.js            # atmosphere.js 5.0 client
-            └── application.js           # Chat client logic
+        └── assets/                      # Bundled atmosphere.js + chat client
 ```

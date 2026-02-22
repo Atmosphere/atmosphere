@@ -77,7 +77,7 @@ spring-boot-ai-chat/
     ├── java/.../aichat/
     │   ├── AiChatApplication.java    # Spring Boot entry point
     │   ├── AiChat.java               # @ManagedService WebSocket endpoint
-    │   └── LlmConfig.java            # AiConfig Spring bean
+    │   └── LlmConfig.java            # @Configuration bridging Spring properties to AiConfig
     └── resources/
         ├── application.yml           # Atmosphere + LLM config
         └── static/

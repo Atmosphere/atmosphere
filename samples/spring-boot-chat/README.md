@@ -177,7 +177,5 @@ spring-boot-chat/
         ├── application.yml              # Spring Boot + Atmosphere config
         └── static/
             ├── index.html               # Tabbed chat UI
-            └── javascript/
-                ├── atmosphere.js         # atmosphere.js 5.0 client
-                └── application-new.js    # Chat client logic
+            └── assets/                  # Bundled atmosphere.js + chat client
 ```

@@ -124,7 +124,7 @@ subscription.push({ message: 'Hello' });       // Object (auto-stringified)
 subscription.push(new ArrayBuffer(8));         // Binary data
 
 // Get current state
-const state = subscription.state; // 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'closed' | 'error'
+const state = subscription.state; // 'disconnected' | 'connecting' | 'connected' | 'reconnecting' | 'suspended' | 'closed' | 'error'
 
 // Close the subscription
 await subscription.close();
@@ -618,16 +618,18 @@ Message types: `token`, `progress`, `complete`, `error`, `metadata`.
 
 ### `parseStreamingMessage(raw)`
 
-Low-level decoder that parses a raw string into a `StreamingMessage`, or returns `null` if it is not a valid streaming protocol message:
+Low-level decoder that parses a raw string into a `StreamingMessage`, or returns `null` if it is not a valid streaming protocol message. This is an internal utility used by `subscribeStreaming`:
 
 ```typescript
-import { parseStreamingMessage } from 'atmosphere.js';
+import { parseStreamingMessage } from 'atmosphere.js/streaming/decoder';
 
 const msg = parseStreamingMessage('{"type":"token","data":"Hi","sessionId":"s1","seq":1}');
 if (msg) {
   console.log(msg.type, msg.data); // "token" "Hi"
 }
 ```
+
+> **Note**: Most applications should use `subscribeStreaming` or framework hooks (`useStreaming`) instead of calling this directly.
 
 ### `subscribeStreaming(atmosphere, request, handlers)`
 
@@ -694,7 +696,7 @@ npm run build
 npm run dev
 
 # Type checking
-npm run type-check
+npm run typecheck
 
 # Linting
 npm run lint

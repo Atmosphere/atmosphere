@@ -8,7 +8,7 @@ The core framework for building real-time web applications in Java. Provides a p
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.1</version>
+    <version>4.0.2</version>
 </dependency>
 ```
 

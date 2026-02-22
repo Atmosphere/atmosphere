@@ -81,9 +81,7 @@ embedded-jetty-websocket-chat/
     │   └── WebSocketChat.java               # @WebSocketHandlerService handler
     └── webapp/
         ├── index.html                       # Chat UI
-        └── javascript/
-            ├── atmosphere.js                # atmosphere.js 5.0 client
-            └── application.js               # Chat client logic
+        └── assets/                          # Bundled atmosphere.js + chat client
 ```
 
 > **Note**: For annotation-driven development (`@ManagedService`, `@RoomService`), see the [WAR chat](../chat/), [Spring Boot chat](../spring-boot-chat/), or [Quarkus chat](../quarkus-chat/) samples instead.

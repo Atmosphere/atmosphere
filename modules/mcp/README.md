@@ -8,7 +8,7 @@ MCP (Model Context Protocol) server module for Atmosphere. Exposes annotation-dr
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-mcp</artifactId>
-    <version>4.0.1</version>
+    <version>4.0.2</version>
 </dependency>
 ```
 

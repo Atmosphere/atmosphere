@@ -55,7 +55,7 @@ spring-boot-langchain4j-chat/
     ├── java/.../langchain4jchat/
     │   ├── LangChain4jChatApplication.java   # Spring Boot entry point
     │   ├── LangChain4jChat.java              # @ManagedService endpoint
-    │   └── LlmConfig.java                    # LangChain4j model + AiConfig setup
+    │   └── LlmConfig.java                    # @Configuration: LangChain4j model + AiConfig beans
     └── resources/
         ├── application.yml
         └── static/
