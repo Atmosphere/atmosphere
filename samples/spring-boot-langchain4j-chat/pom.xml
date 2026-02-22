@@ -18,7 +18,7 @@
 
     <properties>
         <java.version>21</java.version>
-        <atmosphere.version>4.0.2</atmosphere.version>
+        <atmosphere.version>4.0.3-SNAPSHOT</atmosphere.version>
         <langchain4j.version>1.0.0-beta3</langchain4j.version>
         <maven.deploy.skip>true</maven.deploy.skip>
     </properties>
