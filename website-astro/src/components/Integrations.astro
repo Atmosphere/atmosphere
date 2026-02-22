@@ -112,11 +112,6 @@ LLM_MODEL=gemini-2.5-flash`,
 
           <p class="stack-description">{stack.description}</p>
 
-          <div class="stack-artifact">
-            <span class="artifact-label">Maven</span>
-            <code class="artifact-id">{stack.artifact}</code>
-          </div>
-
           {stack.config && (
             <div class="stack-config">
               <div class="config-header">
@@ -126,12 +121,18 @@ LLM_MODEL=gemini-2.5-flash`,
             </div>
           )}
 
-          <a href={stack.sampleUrl} class="stack-link" target="_blank" rel="noopener noreferrer">
-            View sample
-            <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
-              <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
-            </svg>
-          </a>
+          <div class="stack-footer">
+            <div class="stack-artifact">
+              <code class="artifact-id">{stack.artifact}</code>
+            </div>
+
+            <a href={stack.sampleUrl} class="stack-link" target="_blank" rel="noopener noreferrer">
+              View sample
+              <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+                <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
+            </a>
+          </div>
         </article>
       ))}
     </div>
@@ -277,7 +278,10 @@ LLM_MODEL=gemini-2.5-flash`,
     color: var(--color-text-secondary);
     line-height: 1.6;
     margin-bottom: var(--space-lg);
-    flex-grow: 1;
+  }
+
+  .stack-footer {
+    margin-top: auto;
   }
 
   .stack-artifact {
@@ -288,17 +292,6 @@ LLM_MODEL=gemini-2.5-flash`,
     background: var(--color-bg-tertiary);
     border-radius: 6px;
     margin-bottom: var(--space-md);
-  }
-
-  .artifact-label {
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    text-transform: uppercase;
-    letter-spacing: 0.05em;
-    color: var(--color-text-muted);
-    padding: 0.1em 0.4em;
-    background: var(--color-bg-elevated);
-    border-radius: 3px;
   }
 
   .artifact-id {
@@ -350,7 +343,6 @@ LLM_MODEL=gemini-2.5-flash`,
     font-weight: 500;
     color: var(--color-accent);
     transition: all 0.2s var(--ease-out-quad);
-    margin-top: auto;
   }
 
   .stack-link:hover {
