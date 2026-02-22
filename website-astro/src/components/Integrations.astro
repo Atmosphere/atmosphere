@@ -112,15 +112,6 @@ LLM_MODEL=gemini-2.5-flash`,
 
           <p class="stack-description">{stack.description}</p>
 
-          {stack.config && (
-            <div class="stack-config">
-              <div class="config-header">
-                <span class="config-file">{stack.configFile}</span>
-              </div>
-              <pre class="config-code"><code>{stack.config}</code></pre>
-            </div>
-          )}
-
           <div class="stack-footer">
             <div class="stack-artifact">
               <code class="artifact-id">{stack.artifact}</code>
@@ -298,41 +289,6 @@ LLM_MODEL=gemini-2.5-flash`,
     font-family: var(--font-mono);
     font-size: 0.8125rem;
     color: var(--color-accent);
-  }
-
-  .stack-config {
-    background: var(--color-bg-tertiary);
-    border: 1px solid var(--color-border);
-    border-radius: 8px;
-    overflow: hidden;
-    margin-bottom: var(--space-md);
-  }
-
-  .config-header {
-    padding: var(--space-sm) var(--space-md);
-    border-bottom: 1px solid var(--color-border);
-    background: var(--color-bg-elevated);
-  }
-
-  .config-file {
-    font-family: var(--font-mono);
-    font-size: 0.6875rem;
-    color: var(--color-text-muted);
-  }
-
-  .config-code {
-    padding: var(--space-md);
-    margin: 0;
-    font-family: var(--font-mono);
-    font-size: 0.75rem;
-    line-height: 1.6;
-    color: var(--color-text-secondary);
-    overflow-x: auto;
-    white-space: pre;
-  }
-
-  .config-code code {
-    white-space: pre;
   }
 
   .stack-link {
