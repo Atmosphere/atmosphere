@@ -82,8 +82,7 @@ spring-boot-ai-chat/
         ├── application.yml           # Atmosphere + LLM config
         └── static/
             ├── index.html            # Chat UI
-            └── javascript/
-                └── atmosphere.js     # Client library
+            └── assets/               # Bundled atmosphere.js client
 ```
 
 ## See Also

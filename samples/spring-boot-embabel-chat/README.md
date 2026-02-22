@@ -83,7 +83,7 @@ spring-boot-embabel-chat/
         ├── application.yml
         └── static/
             ├── index.html
-            └── javascript/atmosphere.js
+            └── assets/                    # Bundled atmosphere.js client
 ```
 
 ## See Also

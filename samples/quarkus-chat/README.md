@@ -98,9 +98,7 @@ quarkus-chat/
         ├── application.properties           # Quarkus + Atmosphere config
         └── META-INF/resources/
             ├── index.html                   # Chat UI
-            └── javascript/
-                ├── atmosphere.js             # atmosphere.js 5.0 client
-                └── application.js            # Chat client logic
+            └── assets/                      # Bundled atmosphere.js + chat client
 ```
 
 > **Portability**: The `Chat.java` handler is identical across the [WAR](../chat/), [Spring Boot](../spring-boot-chat/), and Quarkus samples — only the packaging and configuration differ.
