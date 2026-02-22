@@ -23,6 +23,10 @@ export default defineConfig({
 
   projects: [
     {
+      name: 'chat',
+      testMatch: /\/chat\.spec\.ts/,
+    },
+    {
       name: 'spring-boot-chat',
       testMatch: /spring-boot-chat\.spec\.ts/,
     },

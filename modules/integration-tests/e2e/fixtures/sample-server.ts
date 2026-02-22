@@ -11,8 +11,8 @@ export interface SampleConfig {
   /** Directory under samples/ */
   dir: string;
   port: number;
-  /** How to start: spring-boot JAR, embedded-jetty JAR, or quarkus */
-  type: 'spring-boot' | 'embedded-jetty' | 'quarkus';
+  /** How to start: spring-boot JAR, embedded-jetty JAR, quarkus, or jetty-war (mvn jetty:run) */
+  type: 'spring-boot' | 'embedded-jetty' | 'quarkus' | 'jetty-war';
   /** Extra environment variables (e.g. API keys) */
   env?: Record<string, string>;
   /** Extra JVM args */
@@ -20,6 +20,12 @@ export interface SampleConfig {
 }
 
 export const SAMPLES: Record<string, SampleConfig> = {
+  'chat': {
+    name: 'chat',
+    dir: 'chat',
+    port: 8080,
+    type: 'jetty-war',
+  },
   'spring-boot-chat': {
     name: 'spring-boot-chat',
     dir: 'spring-boot-chat',
@@ -130,20 +136,31 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
     throw new Error(`Port ${config.port} is already in use. Stop the conflicting process first.`);
   }
 
-  const jar = findJar(config.dir, config.type);
-  const args = [...(config.jvmArgs ?? []), '-jar', jar];
+  const samplePath = resolve(ROOT, 'samples', config.dir);
+  let proc: ChildProcess;
 
-  if (config.type === 'spring-boot') {
-    args.push(`--server.port=${config.port}`);
+  if (config.type === 'jetty-war') {
+    // WAR-based samples use mvn jetty:run
+    const mvnw = resolve(ROOT, 'mvnw');
+    proc = spawn(mvnw, ['-B', `jetty:run`, `-Djetty.port=${config.port}`], {
+      cwd: samplePath,
+      env: { ...process.env, ...(config.env ?? {}) },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } else {
+    const jar = findJar(config.dir, config.type);
+    const args = [...(config.jvmArgs ?? []), '-jar', jar];
+
+    if (config.type === 'spring-boot') {
+      args.push(`--server.port=${config.port}`);
+    }
+
+    proc = spawn('java', args, {
+      cwd: samplePath,
+      env: { ...process.env, ...(config.env ?? {}) },
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
   }
-
-  const env = { ...process.env, ...(config.env ?? {}) };
-
-  const proc = spawn('java', args, {
-    cwd: resolve(ROOT, 'samples', config.dir),
-    env,
-    stdio: ['ignore', 'pipe', 'pipe'],
-  });
 
   // Collect output for debugging
   let output = '';
