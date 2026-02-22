@@ -217,7 +217,8 @@ jobs:
         ./mvnw -B deploy -DskipTests -Dgpg.skip=true \
           -DskipCentralPublishing=true \
           -Dmaven.deploy.skip=false \
-          -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests' \
+          -Pfastinstall \
+          -pl '!buildtools,!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests' \
           -DaltDeploymentRepository=github::https://maven.pkg.github.com/Atmosphere/atmosphere
       env:
         GITHUB_ACTOR: ${{ github.actor }}
