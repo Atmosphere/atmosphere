@@ -5,6 +5,36 @@ All notable changes to the Atmosphere Framework are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [4.0.3] - 2026-02-22
+
+### Fixed
+
+- **Room Protocol broadcast bug.** `DefaultRoom.broadcast()` now wraps messages
+  in `RawMessage` to bypass `@Message` decoder mangling. Room JSON envelopes
+  (join/leave/message events) are delivered intact to clients.
+- **`enableHistory()` NPE.** `UUIDBroadcasterCache` is now properly configured
+  before use, preventing `NullPointerException` when room history is enabled.
+- **Native Image build.** Spring Boot samples use `process-aot` and `exec`
+  classifier in the `native` profile so GraalVM can find the main class.
+
+### Added
+
+- **`RawMessage` API** (`org.atmosphere.cpr.RawMessage`) — first-class public
+  wrapper for pre-encoded messages that bypass `@Message` decoder/encoder
+  pipelines. `ManagedAtmosphereHandler.Managed` is deprecated in favor of
+  `RawMessage`.
+- **Playwright E2E tests** for all sample applications (chat, spring-boot-chat,
+  embedded-jetty, quarkus-chat, AI samples, durable-sessions, MCP server).
+
+### Changed
+
+- **Unified parent POM.** All samples now inherit from `atmosphere-project`,
+  making `mvn versions:set` update every module in a single command.
+- **Normalized artifact names.** All modules use lowercase kebab-case
+  `atmosphere-*` naming consistently.
+- **Release workflow hardened.** Stale tags are cleaned before tagging, and
+  `git rebase` handles diverged branches during release builds.
+
 ## [4.0.0] - 2026-02-18
 
 Atmosphere 4.0 is a rewrite of the framework for JDK 21+ and Jakarta EE 10.
