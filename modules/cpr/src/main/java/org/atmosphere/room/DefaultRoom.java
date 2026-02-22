@@ -15,11 +15,11 @@
  */
 package org.atmosphere.room;
 
-import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterListenerAdapter;
+import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -124,8 +124,8 @@ public class DefaultRoom implements Room {
     @Override
     public Future<Object> broadcast(Object message) {
         dispatchToVirtualMembers(message, null);
-        // Wrap in Managed so @ManagedService handlers pass it through without decoding
-        return broadcaster.broadcast(new ManagedAtmosphereHandler.Managed(message));
+        // Wrap in RawMessage so @ManagedService handlers pass it through without decoding
+        return broadcaster.broadcast(new RawMessage(message));
     }
 
     @Override
@@ -137,14 +137,14 @@ public class DefaultRoom implements Room {
         if (subset.isEmpty()) {
             return java.util.concurrent.CompletableFuture.completedFuture(message);
         }
-        return broadcaster.broadcast(new ManagedAtmosphereHandler.Managed(message), subset);
+        return broadcaster.broadcast(new RawMessage(message), subset);
     }
 
     @Override
     public Future<Object> sendTo(Object message, String uuid) {
         for (AtmosphereResource r : broadcaster.getAtmosphereResources()) {
             if (r.uuid().equals(uuid)) {
-                return broadcaster.broadcast(new ManagedAtmosphereHandler.Managed(message), r);
+                return broadcaster.broadcast(new RawMessage(message), r);
             }
         }
         return java.util.concurrent.CompletableFuture.completedFuture(null);

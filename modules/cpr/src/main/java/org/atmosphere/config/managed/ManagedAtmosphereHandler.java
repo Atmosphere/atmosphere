@@ -35,6 +35,7 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceFactory;
 import org.atmosphere.cpr.AtmosphereResourceHeartbeatEventListener;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
+import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.AnnotatedProxy;
 import org.atmosphere.util.IOUtils;
@@ -173,7 +174,7 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
                 if ( e.methodInfo.deliverTo == DeliverTo.DELIVER_TO.RESOURCE && !resource.transport().equals(AtmosphereResource.TRANSPORT.WEBSOCKET)) {
                     r = resourcesFactory.findResource(resource.uuid()).orElse(resource);
                 }
-                IOUtils.deliver(new Managed(e.encodedObject), null, e.methodInfo.deliverTo, r);
+                IOUtils.deliver(new RawMessage(e.encodedObject), null, e.methodInfo.deliverTo, r);
             }
         } else if (method.equalsIgnoreCase("delete")) {
             invoke(onDeleteMethod, resource);
@@ -216,8 +217,8 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         } else {
             Object o;
             if (msg != null) {
-                if (msg instanceof Managed managed) {
-                    Object newMsg = managed.o;
+                if (msg instanceof RawMessage raw) {
+                    Object newMsg = raw.message();
                     event.setMessage(newMsg);
                     // encoding might be needed again since BroadcasterFilter might have modified message body
                     // This makes application development more simpler.
@@ -511,21 +512,19 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
         }
     }
 
-    public final static class Managed implements Serializable {
+    /**
+     * @deprecated Use {@link RawMessage} instead.
+     */
+    @Deprecated(since = "4.0.3", forRemoval = true)
+    public final static class Managed extends RawMessage {
         private static final long serialVersionUID = -126253550299206646L;
 
-        final Object o;
-
         public Managed(Object o) {
-            this.o = o;
-        }
-
-        public String toString() {
-            return o.toString();
+            super(o);
         }
 
         public Object object() {
-            return o;
+            return message();
         }
     }
 }
