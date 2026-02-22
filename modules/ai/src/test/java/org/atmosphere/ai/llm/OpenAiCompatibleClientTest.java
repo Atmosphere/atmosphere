@@ -17,6 +17,7 @@ package org.atmosphere.ai.llm;
 
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -26,6 +27,7 @@ import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
+import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
@@ -33,12 +35,16 @@ import static org.testng.Assert.*;
 public class OpenAiCompatibleClientTest {
 
     private AtmosphereResource resource;
+    private Broadcaster broadcaster;
 
+    @SuppressWarnings("unchecked")
     @BeforeMethod
     public void setUp() {
         resource = mock(AtmosphereResource.class);
+        broadcaster = mock(Broadcaster.class);
         when(resource.uuid()).thenReturn("r1");
-        when(resource.write(anyString())).thenReturn(resource);
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
     }
 
     @Test
@@ -110,7 +116,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(request, session);
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, atLeast(3)).write(captor.capture());
+        verify(broadcaster, atLeast(3)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream().toList();
 
@@ -140,7 +146,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(request, session);
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, atLeast(2)).write(captor.capture());
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream().toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
@@ -168,7 +174,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, atLeast(3)).write(captor.capture());
+        verify(broadcaster, atLeast(3)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream().toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"metadata\"") && m.contains("usage.totalTokens")));
@@ -197,7 +203,7 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, atLeast(2)).write(captor.capture());
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream().toList();
         // Only "OK" should be sent as a token, not empty string

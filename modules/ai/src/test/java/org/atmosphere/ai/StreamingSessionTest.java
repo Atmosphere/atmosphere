@@ -17,11 +17,13 @@ package org.atmosphere.ai;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.mockito.ArgumentCaptor;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import java.util.List;
+import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
@@ -31,13 +33,17 @@ public class StreamingSessionTest {
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
     private AtmosphereResource resource;
+    private Broadcaster broadcaster;
     private StreamingSession session;
 
+    @SuppressWarnings("unchecked")
     @BeforeMethod
     public void setUp() {
         resource = mock(AtmosphereResource.class);
+        broadcaster = mock(Broadcaster.class);
         when(resource.uuid()).thenReturn("resource-uuid");
-        when(resource.write(anyString())).thenReturn(resource);
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
         session = StreamingSessions.start("test-session", resource);
     }
 
@@ -46,7 +52,7 @@ public class StreamingSessionTest {
         session.send("Hello");
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource).write(captor.capture());
+        verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "token");
@@ -61,7 +67,7 @@ public class StreamingSessionTest {
         session.send(" world");
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, times(2)).write(captor.capture());
+        verify(broadcaster, times(2)).broadcast(captor.capture());
 
         List<String> messages = captor.getAllValues();
         var first = MAPPER.readTree(messages.get(0));
@@ -77,7 +83,7 @@ public class StreamingSessionTest {
         session.progress("Thinking...");
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource).write(captor.capture());
+        verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "progress");
@@ -89,7 +95,7 @@ public class StreamingSessionTest {
         session.complete();
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource).write(captor.capture());
+        verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "complete");
@@ -102,7 +108,7 @@ public class StreamingSessionTest {
         session.complete("Full response here");
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource).write(captor.capture());
+        verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "complete");
@@ -114,7 +120,7 @@ public class StreamingSessionTest {
         session.error(new RuntimeException("Connection lost"));
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource).write(captor.capture());
+        verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "error");
@@ -125,21 +131,21 @@ public class StreamingSessionTest {
     @Test
     public void testSendAfterCloseIsIgnored() {
         session.complete();
-        reset(resource);
+        reset(broadcaster);
 
         session.send("should be ignored");
 
-        verify(resource, never()).write(anyString());
+        verify(broadcaster, never()).broadcast(anyString());
     }
 
     @Test
     public void testDoubleCompleteIsIgnored() {
         session.complete();
-        reset(resource);
+        reset(broadcaster);
 
         session.complete();
 
-        verify(resource, never()).write(anyString());
+        verify(broadcaster, never()).broadcast(anyString());
     }
 
     @Test
@@ -147,7 +153,7 @@ public class StreamingSessionTest {
         session.sendMetadata("model", "gpt-4");
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource).write(captor.capture());
+        verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(captor.getValue());
         assertEquals(json.get("type").asText(), "metadata");
@@ -162,7 +168,7 @@ public class StreamingSessionTest {
         }
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, times(2)).write(captor.capture());
+        verify(broadcaster, times(2)).broadcast(captor.capture());
 
         var last = MAPPER.readTree(captor.getAllValues().get(1));
         assertEquals(last.get("type").asText(), "complete");
@@ -194,7 +200,7 @@ public class StreamingSessionTest {
         session.complete("Hello world!");
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, times(6)).write(captor.capture());
+        verify(broadcaster, times(6)).broadcast(captor.capture());
 
         List<String> messages = captor.getAllValues();
         var types = messages.stream()
