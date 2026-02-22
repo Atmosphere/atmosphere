@@ -205,9 +205,26 @@ jobs:
         java-version: 21
         distribution: 'temurin'
         cache: 'maven'
-        server-id: github
-        server-username: GITHUB_ACTOR
-        server-password: GITHUB_TOKEN
+
+    - name: Configure Maven settings
+      run: |
+        mkdir -p ~/.m2
+        cat > ~/.m2/settings.xml << 'EOF'
+        <settings>
+          <servers>
+            <server>
+              <id>github</id>
+              <username>${env.GITHUB_ACTOR}</username>
+              <password>${env.GITHUB_TOKEN}</password>
+            </server>
+            <server>
+              <id>central</id>
+              <username>unused</username>
+              <password>unused</password>
+            </server>
+          </servers>
+        </settings>
+        EOF
 
     - name: Install locally first
       run: ./mvnw -B install -DskipTests -Dgpg.skip=true -DskipCentralPublishing=true -Pfastinstall
