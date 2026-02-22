@@ -127,13 +127,13 @@ public class EmbeddedWebSocketHandler {
 
         @Override
         public WebSocket write(String s) {
-            System.out.println(s);
+            logger.info(s);
             return this;
         }
 
         @Override
         public WebSocket write(byte[] b, int offset, int length) {
-            System.out.println(new String(b, offset, length));
+            logger.info(new String(b, offset, length));
             return this;
         }
 

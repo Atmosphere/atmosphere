@@ -567,6 +567,16 @@
                 <artifactId>maven-bundle-plugin</artifactId>
                 <version>${felix-version}</version>
             </dependency>
+            <dependency>
+                <groupId>jakarta.websocket</groupId>
+                <artifactId>jakarta.websocket-api</artifactId>
+                <version>${jakarta-websocket-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>jakarta.inject</groupId>
+                <artifactId>jakarta.inject-api</artifactId>
+                <version>${jakarta-inject-api.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <!-- All dependencies are available on Maven Central. Legacy repositories
@@ -641,6 +651,9 @@
         <shade-version>1.2.1</shade-version>
         <felix-version>5.1.9</felix-version>
         <ahc.version>1.9.40</ahc.version>
+        <jakarta-servlet-api.version>5.0.0</jakarta-servlet-api.version>
+        <jakarta-websocket-api.version>2.0.0</jakarta-websocket-api.version>
+        <jakarta-inject-api.version>2.0.1</jakarta-inject-api.version>
         <slf4j-impl-version>2.0.16</slf4j-impl-version>
         <slf4j-version>2.0.17</slf4j-version>
         <logback-version>1.5.25</logback-version>

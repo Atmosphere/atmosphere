@@ -147,7 +147,6 @@ public class DefaultBroadcasterTest {
             broadcaster.removeAtmosphereResource(ar);
             cache.clear();
 
-            //System.out.println(iterations++ + ": message:" + retrievedMessage);
             assertEquals(message, retrievedMessage);
         }
 
