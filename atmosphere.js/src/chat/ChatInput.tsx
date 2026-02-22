@@ -61,6 +61,7 @@ export function ChatInput({
     { style: inputBarStyle(resolved.dark) },
     createElement('input', {
       type: 'text',
+      'data-testid': 'chat-input',
       value: text,
       onChange: (e: any) => setText(e.target.value),
       onKeyDown: handleKey,
@@ -70,7 +71,7 @@ export function ChatInput({
     }),
     createElement(
       'button',
-      { onClick: handleSend, disabled: disabled || !text.trim(), style: sendButtonStyle(resolved) },
+      { 'data-testid': 'chat-send', onClick: handleSend, disabled: disabled || !text.trim(), style: sendButtonStyle(resolved) },
       'Send',
     ),
   );

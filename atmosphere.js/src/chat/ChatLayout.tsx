@@ -52,7 +52,7 @@ export function ChatLayout({
 
   return createElement(
     'div',
-    { style: containerStyle(resolved.dark) },
+    { 'data-testid': 'chat-layout', style: containerStyle(resolved.dark) },
     createElement(
       'div',
       { style: headerStyle(resolved) },

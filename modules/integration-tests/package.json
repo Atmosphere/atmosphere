@@ -1,0 +1,19 @@
+{
+  "name": "atmosphere-e2e-tests",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Playwright E2E tests for Atmosphere sample applications",
+  "scripts": {
+    "test": "npx playwright test",
+    "test:headed": "npx playwright test --headed",
+    "test:ui": "npx playwright test --ui",
+    "test:spring-boot-chat": "npx playwright test spring-boot-chat",
+    "test:embedded-jetty": "npx playwright test embedded-jetty-chat",
+    "test:quarkus": "npx playwright test quarkus-chat",
+    "test:ai": "npx playwright test ai-chat langchain4j embabel",
+    "report": "npx playwright show-report"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.50.0"
+  }
+}

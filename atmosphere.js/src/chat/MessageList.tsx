@@ -39,7 +39,7 @@ export function MessageList({ messages, currentUser, theme: themeProp }: Message
 
   return createElement(
     'div',
-    { style: messageAreaStyle(resolved.dark) },
+    { 'data-testid': 'message-list', style: messageAreaStyle(resolved.dark) },
     messages.map((msg, i) =>
       msg.author === 'system'
         ? createElement('div', { key: i, style: systemStyle }, msg.message)

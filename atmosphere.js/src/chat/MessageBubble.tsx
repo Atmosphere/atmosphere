@@ -34,11 +34,11 @@ export function MessageBubble({ msg, currentUser, theme: themeProp }: MessageBub
 
   return createElement(
     'div',
-    { style: bubbleStyle(isOwn, resolved) },
+    { 'data-testid': 'message-bubble', style: bubbleStyle(isOwn, resolved) },
     createElement(
       'div',
       { style: { display: 'flex', alignItems: 'baseline' } },
-      createElement('span', { style: authorStyle }, msg.author),
+      createElement('span', { 'data-testid': 'message-author', style: authorStyle }, msg.author),
       msg.time
         ? createElement('span', { style: timeStyle }, formatTime(msg.time))
         : null,

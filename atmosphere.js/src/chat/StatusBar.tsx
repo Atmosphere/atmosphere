@@ -37,8 +37,8 @@ export interface StatusBarProps {
 export function StatusBar({ state }: StatusBarProps) {
   return createElement(
     'div',
-    { style: statusBarStyle() },
-    createElement('span', { style: statusDotStyle(state) }),
-    createElement('span', null, LABELS[state] ?? state),
+    { 'data-testid': 'status-bar', style: statusBarStyle() },
+    createElement('span', { 'data-testid': 'status-dot', style: statusDotStyle(state) }),
+    createElement('span', { 'data-testid': 'status-label' }, LABELS[state] ?? state),
   );
 }
