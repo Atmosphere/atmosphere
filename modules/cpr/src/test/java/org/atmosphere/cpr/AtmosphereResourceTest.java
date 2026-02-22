@@ -19,8 +19,6 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.handler.ReflectorServletProcessor;
 import org.atmosphere.websocket.WebSocket;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.*;
 import java.io.ByteArrayOutputStream;
@@ -37,13 +35,15 @@ import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereResourceTest {
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
@@ -69,7 +69,6 @@ public class AtmosphereResourceTest {
             }
         });
     }
-
 
     @Test
     public void testUUID() throws IOException, ServletException {
@@ -111,7 +110,7 @@ public class AtmosphereResourceTest {
         });
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
-        assertEquals(e.get(), e2.get());
+        assertEquals(e2.get(), e.get());
     }
 
     @Test
@@ -182,11 +181,11 @@ public class AtmosphereResourceTest {
         AtmosphereResource r = parentRequest.resource();
         Broadcaster b = r.getBroadcaster();
 
-        assertEquals(b.getAtmosphereResources().size(), 1);
+        assertEquals(1, b.getAtmosphereResources().size());
 
         AtmosphereResourceImpl.class.cast(r).cancel();
 
-        assertEquals(b.getAtmosphereResources().size(), 0);
+        assertEquals(0, b.getAtmosphereResources().size());
 
     }
 
@@ -208,17 +207,17 @@ public class AtmosphereResourceTest {
                         framework.getBroadcasterFactory().get(),
                         request, response, null, null);
 
-        assertEquals(res0, res1);
+        assertEquals(res1, res0);
 
         HashSet<AtmosphereResource> set = new HashSet<>();
         set.add(res0);
         set.add(res1);
 
-        assertEquals(set.size(),1);
+        assertEquals(1, set.size());
         assertTrue(set.contains(res0));
         assertTrue(set.contains(res1));
-        assertEquals(res0,set.iterator().next());
-        assertEquals(res1,set.iterator().next());
+        assertEquals(set.iterator().next(), res0);
+        assertEquals(set.iterator().next(), res1);
     }
 
     @Test
@@ -320,10 +319,10 @@ public class AtmosphereResourceTest {
         response.getOutputStream();
         response.write("hello".getBytes());
         // written unbuffered
-        assertEquals(baos.toString(), "hello");
+        assertEquals("hello", baos.toString());
         response.write("hello again".getBytes());
         // written unbuffered
-        assertEquals(baos.toString(), "hellohello again");
+        assertEquals("hellohello again", baos.toString());
     }
 
     @Test
@@ -336,16 +335,16 @@ public class AtmosphereResourceTest {
         response.getOutputStream();
         response.write("hello".getBytes());
         // buffering the data and nothing written
-        assertEquals(baos.toString(), "");
+        assertEquals("", baos.toString());
         response.write("hello again".getBytes());
         // buffering the new data and writing the previously buffered data
-        assertEquals(baos.toString(), "hello");
+        assertEquals("hello", baos.toString());
         ((AtmosphereResponseImpl)response).onComplete();
         // the buffered data is written
-        assertEquals(baos.toString(), "hellohello again");
+        assertEquals("hellohello again", baos.toString());
         response.write("bye".getBytes());
         // written unbuffered
-        assertEquals(baos.toString(), "hellohello againbye");
+        assertEquals("hellohello againbye", baos.toString());
     }
 
     @Test
@@ -359,22 +358,22 @@ public class AtmosphereResourceTest {
         response.getOutputStream();
         response.write("hello".getBytes());
         // buffering the data and nothing written
-        assertEquals(baos.toString(), "");
+        assertEquals("", baos.toString());
         response.write("hello again".getBytes());
         // buffering the new data and writing the previously buffered data
-        assertEquals(baos.toString(), "hello");
+        assertEquals("hello", baos.toString());
         ((AtmosphereResponseImpl)response).onComplete();
         // the buffered data is written
-        assertEquals(baos.toString(), "hellohello again");
+        assertEquals("hellohello again", baos.toString());
         response.write("bye".getBytes());
         // written buffered again
-        assertEquals(baos.toString(), "hellohello again");
+        assertEquals("hellohello again", baos.toString());
         response.write("bye again".getBytes());
         // the buffered data is written
-        assertEquals(baos.toString(), "hellohello againbye");
+        assertEquals("hellohello againbye", baos.toString());
         ((AtmosphereResponseImpl)response).onComplete();
         // the buffered data is flushed
-        assertEquals(baos.toString(), "hellohello againbyebye again");
+        assertEquals("hellohello againbyebye again", baos.toString());
     }
 
     private static class TestAsyncIOWriter implements AsyncIOWriter {

@@ -15,37 +15,37 @@
  */
 package org.atmosphere.interceptor;
 
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
-
 import static org.atmosphere.interceptor.JavaScriptProtocol.tryParseVersion;
-import static org.testng.Assert.assertEquals;
+
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JavaScriptProtocolTest {
 
-    @DataProvider(name = "versions")
-    public Object[][] versions() {
-        return new Object[][]{
-                // Valid input
-                {"2.2.1", 221},
-                {"2.2.1.beta", 221},
-                {"1.0.10", 1010},
-                {"3.0.0.RC1", 300},
-                {"0.0.0.snapshot", 0},
-                {"1.2.3.snapshot.x", 123},
-
-                // Invalid input
-                {"1...", 0},
-                {"2.", 0},
-                {"2.2", 0},
-                {"1.2.a", 0},
-                {"invalid", 0},
-                {"", 0}
-        };
+    static Stream<Arguments> versions() {
+        return Stream.of(
+                Arguments.of("2.2.1", 221),
+                Arguments.of("2.2.1.beta", 221),
+                Arguments.of("1.0.10", 1010),
+                Arguments.of("3.0.0.RC1", 300),
+                Arguments.of("0.0.0.snapshot", 0),
+                Arguments.of("1.2.3.snapshot.x", 123),
+                Arguments.of("1...", 0),
+                Arguments.of("2.", 0),
+                Arguments.of("2.2", 0),
+                Arguments.of("1.2.a", 0),
+                Arguments.of("invalid", 0),
+                Arguments.of("", 0)
+        );
     }
 
-    @Test(dataProvider = "versions")
+    @ParameterizedTest
+    @MethodSource("versions")
     public void testTryParseVersion(String version, int expected) {
-        assertEquals(tryParseVersion(version), expected);
+        assertEquals(expected, tryParseVersion(version));
     }
 }

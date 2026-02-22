@@ -17,23 +17,28 @@ package org.atmosphere.integrationtests.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
 
-import static org.testng.Assert.*;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for MCP Streamable HTTP transport with a live embedded server.
  * Validates the full JSON-RPC round-trip over HTTP POST, session management via
  * Mcp-Session-Id, and DELETE session termination.
  */
-@Test(groups = "core")
+@Tag("core")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class McpHttpIntegrationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -42,7 +47,7 @@ public class McpHttpIntegrationTest {
     private HttpClient httpClient;
 
     @SuppressWarnings("resource") // closed in tearDown()
-    @BeforeClass
+    @BeforeAll
     public void setUp() throws Exception {
         server = new EmbeddedAtmosphereServer()
                 .withAnnotationPackage("org.atmosphere.integrationtests.mcp")
@@ -51,13 +56,14 @@ public class McpHttpIntegrationTest {
         httpClient = HttpClient.newHttpClient();
     }
 
-    @AfterClass
+    @AfterAll
     public void tearDown() throws Exception {
         httpClient.close();
         server.close();
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testInitialize() throws Exception {
         var response = postJsonRpc("""
                 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
@@ -66,21 +72,22 @@ public class McpHttpIntegrationTest {
                   "clientInfo":{"name":"test-client","version":"1.0.0"}
                 }}""", null);
 
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
 
         var body = MAPPER.readTree(response.body());
-        assertEquals(body.get("jsonrpc").asText(), "2.0");
-        assertEquals(body.get("id").asInt(), 1);
+        assertEquals("2.0", body.get("jsonrpc").asText());
+        assertEquals(1, body.get("id").asInt());
 
         var result = body.get("result");
         assertNotNull(result, "Initialize response must have result");
-        assertEquals(result.get("protocolVersion").asText(), "2025-03-26");
-        assertEquals(result.get("serverInfo").get("name").asText(), "test-server");
-        assertEquals(result.get("serverInfo").get("version").asText(), "1.0.0");
+        assertEquals("2025-03-26", result.get("protocolVersion").asText());
+        assertEquals("test-server", result.get("serverInfo").get("name").asText());
+        assertEquals("1.0.0", result.get("serverInfo").get("version").asText());
         assertTrue(result.get("capabilities").has("tools"));
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testInitializeReturnsSessionId() throws Exception {
         var response = postJsonRpc("""
                 {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
@@ -94,14 +101,15 @@ public class McpHttpIntegrationTest {
         assertFalse(sessionId.isBlank());
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testToolsList() throws Exception {
         var sessionId = initializeAndGetSessionId();
 
         var response = postJsonRpc("""
                 {"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}""", sessionId);
 
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
         var body = MAPPER.readTree(response.body());
         var tools = body.get("result").get("tools");
         assertNotNull(tools);
@@ -116,7 +124,8 @@ public class McpHttpIntegrationTest {
         assertTrue(toolNames.contains("add"), "Should contain add tool");
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testToolsCallEcho() throws Exception {
         var sessionId = initializeAndGetSessionId();
 
@@ -125,16 +134,17 @@ public class McpHttpIntegrationTest {
                   "name":"echo","arguments":{"text":"hello world"}
                 }}""", sessionId);
 
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
         var body = MAPPER.readTree(response.body());
         var result = body.get("result");
         assertFalse(result.get("isError").asBoolean());
         var content = result.get("content").get(0);
-        assertEquals(content.get("type").asText(), "text");
-        assertEquals(content.get("text").asText(), "Echo: hello world");
+        assertEquals("text", content.get("type").asText());
+        assertEquals("Echo: hello world", content.get("text").asText());
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testToolsCallAdd() throws Exception {
         var sessionId = initializeAndGetSessionId();
 
@@ -143,14 +153,15 @@ public class McpHttpIntegrationTest {
                   "name":"add","arguments":{"a":3,"b":7}
                 }}""", sessionId);
 
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
         var body = MAPPER.readTree(response.body());
         var result = body.get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals(result.get("content").get(0).get("text").asText(), "10");
+        assertEquals("10", result.get("content").get(0).get("text").asText());
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testUnknownToolReturnsError() throws Exception {
         var sessionId = initializeAndGetSessionId();
 
@@ -159,24 +170,26 @@ public class McpHttpIntegrationTest {
                   "name":"nonexistent","arguments":{}
                 }}""", sessionId);
 
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
         var body = MAPPER.readTree(response.body());
         assertNotNull(body.get("error"), "Should return error for unknown tool");
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testPing() throws Exception {
         var sessionId = initializeAndGetSessionId();
 
         var response = postJsonRpc("""
                 {"jsonrpc":"2.0","id":6,"method":"ping","params":{}}""", sessionId);
 
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
         var body = MAPPER.readTree(response.body());
         assertNotNull(body.get("result"));
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testDeleteSession() throws Exception {
         var sessionId = initializeAndGetSessionId();
 
@@ -187,10 +200,11 @@ public class McpHttpIntegrationTest {
                 .build();
 
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        assertEquals(response.statusCode(), 204);
+        assertEquals(204, response.statusCode());
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testNotificationReturns202() throws Exception {
         var sessionId = initializeAndGetSessionId();
 
@@ -198,10 +212,11 @@ public class McpHttpIntegrationTest {
         var response = postJsonRpc("""
                 {"jsonrpc":"2.0","method":"notifications/initialized","params":{}}""", sessionId);
 
-        assertEquals(response.statusCode(), 202);
+        assertEquals(202, response.statusCode());
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testEmptyBodyReturns400() throws Exception {
         var request = HttpRequest.newBuilder()
                 .uri(URI.create(server.getBaseUrl() + "/mcp"))
@@ -210,7 +225,7 @@ public class McpHttpIntegrationTest {
                 .build();
 
         var response = httpClient.send(request, HttpResponse.BodyHandlers.ofString());
-        assertEquals(response.statusCode(), 400);
+        assertEquals(400, response.statusCode());
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -223,7 +238,7 @@ public class McpHttpIntegrationTest {
                   "clientInfo":{"name":"test-client","version":"1.0.0"}
                 }}""", null);
 
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
         return response.headers().firstValue("Mcp-Session-Id").orElse(null);
     }
 

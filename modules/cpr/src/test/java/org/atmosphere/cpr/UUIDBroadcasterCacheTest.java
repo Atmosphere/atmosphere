@@ -18,9 +18,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -33,7 +30,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class UUIDBroadcasterCacheTest {
     private AtmosphereResource ar;
@@ -43,7 +44,7 @@ public class UUIDBroadcasterCacheTest {
     private AtmosphereConfig config;
 
     @SuppressWarnings("deprecation")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
@@ -64,7 +65,7 @@ public class UUIDBroadcasterCacheTest {
         broadcaster.addAtmosphereResource(ar);
     }
 
-    @AfterMethod
+    @AfterEach
     public void addAR() {
         broadcaster.removeAtmosphereResource(ar);
         config.getBroadcasterFactory().destroy();
@@ -78,7 +79,7 @@ public class UUIDBroadcasterCacheTest {
         broadcaster.broadcast("e2").get();
         broadcaster.broadcast("e3").get();
 
-        assertEquals(broadcasterCache.messages().get(ar.uuid()).size(), 2);
+        assertEquals(2, broadcasterCache.messages().get(ar.uuid()).size());
     }
 
     @Test
@@ -86,13 +87,13 @@ public class UUIDBroadcasterCacheTest {
         broadcaster.broadcast("e1").get();
         broadcaster.removeAtmosphereResource(ar);
         broadcaster.broadcast("e2").get();
-        assertEquals(1, broadcasterCache.messages().size());
+        assertEquals(broadcasterCache.messages().size(), 1);
 
         broadcaster.addAtmosphereResource(ar);
         broadcaster.broadcast("e3").get();
 
-        assertEquals(broadcasterCache.messages().size(), 1);
-        assertEquals(broadcasterCache.messages().get(ar.uuid()).size(), 1);
+        assertEquals(1, broadcasterCache.messages().size());
+        assertEquals(1, broadcasterCache.messages().get(ar.uuid()).size());
     }
 
     @Test
@@ -102,7 +103,7 @@ public class UUIDBroadcasterCacheTest {
         broadcaster.broadcast("e1").get();
         broadcaster.broadcast("e2").get();
 
-        assertEquals(1, broadcasterCache.messages().size());
+        assertEquals(broadcasterCache.messages().size(), 1);
     }
 
     @Test
@@ -139,7 +140,7 @@ public class UUIDBroadcasterCacheTest {
 
         latch.await(10, TimeUnit.SECONDS);
 
-        assertEquals(broadcasterCache.messages().get(ar.uuid()).size(), 100);
+        assertEquals(100, broadcasterCache.messages().get(ar.uuid()).size());
     }
 
     public final static class AR implements AtmosphereHandler {
@@ -159,6 +160,5 @@ public class UUIDBroadcasterCacheTest {
         public void destroy() {
         }
     }
-
 
 }

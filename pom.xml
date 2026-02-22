@@ -573,9 +573,16 @@
          (Codehaus, maven.java.net, JBoss Nexus, Sonatype) removed during Java 21 upgrade. -->
     <dependencies>
         <dependency>
-            <groupId>org.testng</groupId>
-            <artifactId>testng</artifactId>
-            <version>${testng-version}</version>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter</artifactId>
+            <version>${junit-jupiter.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.junit.jupiter</groupId>
+            <artifactId>junit-jupiter-params</artifactId>
+            <version>${junit-jupiter.version}</version>
             <scope>test</scope>
         </dependency>
 
@@ -638,7 +645,7 @@
         <slf4j-version>2.0.17</slf4j-version>
         <logback-version>1.5.25</logback-version>
         <commons-pool2>2.12.0</commons-pool2>
-        <testng-version>7.10.2</testng-version>
+        <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>2.18.3</jackson.version>
         <mockito.version>5.21.0</mockito.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>

@@ -16,27 +16,27 @@
 package org.atmosphere.session.sqlite;
 
 import org.atmosphere.session.DurableSession;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SqliteSessionStoreTest {
 
     private SqliteSessionStore store;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         store = SqliteSessionStore.inMemory();
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() {
         store.close();
     }
@@ -48,8 +48,8 @@ public class SqliteSessionStoreTest {
 
         var restored = store.restore("tok-1");
         assertTrue(restored.isPresent());
-        assertEquals(restored.get().token(), "tok-1");
-        assertEquals(restored.get().resourceId(), "res-1");
+        assertEquals("tok-1", restored.get().token());
+        assertEquals("res-1", restored.get().resourceId());
     }
 
     @Test
@@ -63,7 +63,7 @@ public class SqliteSessionStoreTest {
         store.save(DurableSession.create("tok-1", "res-1").withResourceId("res-2"));
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.resourceId(), "res-2");
+        assertEquals("res-2", restored.resourceId());
     }
 
     @Test
@@ -103,8 +103,8 @@ public class SqliteSessionStoreTest {
 
         var expired = store.removeExpired(Duration.ofHours(1));
 
-        assertEquals(expired.size(), 1);
-        assertEquals(expired.get(0).token(), "tok-old");
+        assertEquals(1, expired.size());
+        assertEquals("tok-old", expired.get(0).token());
         assertTrue(store.restore("tok-old").isEmpty());
         assertTrue(store.restore("tok-fresh").isPresent());
     }
@@ -124,7 +124,7 @@ public class SqliteSessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.rooms(), Set.of("room-a", "room-b", "room with spaces"));
+        assertEquals(Set.of("room-a", "room-b", "room with spaces"), restored.rooms());
     }
 
     @Test
@@ -134,7 +134,7 @@ public class SqliteSessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.broadcasters(), Set.of("/chat", "/notifications", "/path/with/slashes"));
+        assertEquals(Set.of("/chat", "/notifications", "/path/with/slashes"), restored.broadcasters());
     }
 
     @Test
@@ -144,9 +144,9 @@ public class SqliteSessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.metadata().get("user"), "alice");
-        assertEquals(restored.metadata().get("role"), "admin");
-        assertEquals(restored.metadata().get("key,with,commas"), "value");
+        assertEquals("alice", restored.metadata().get("user"));
+        assertEquals("admin", restored.metadata().get("role"));
+        assertEquals("value", restored.metadata().get("key,with,commas"));
     }
 
     @Test
@@ -169,8 +169,8 @@ public class SqliteSessionStoreTest {
 
         var restored = store.restore("tok-1").get();
         // Millisecond precision (SQLite stores millis)
-        assertEquals(restored.createdAt().toEpochMilli(), now.toEpochMilli());
-        assertEquals(restored.lastSeen().toEpochMilli(), now.toEpochMilli());
+        assertEquals(now.toEpochMilli(), restored.createdAt().toEpochMilli());
+        assertEquals(now.toEpochMilli(), restored.lastSeen().toEpochMilli());
     }
 
     @Test

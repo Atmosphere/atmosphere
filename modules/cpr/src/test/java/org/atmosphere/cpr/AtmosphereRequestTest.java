@@ -21,9 +21,6 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.Arrays;
@@ -38,17 +35,17 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
-import static org.testng.AssertJUnit.fail;
+import static org.junit.jupiter.api.Assertions.fail;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereRequestTest {
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
@@ -75,7 +72,7 @@ public class AtmosphereRequestTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void stop() {
         framework.destroy();
     }
@@ -124,8 +121,8 @@ public class AtmosphereRequestTest {
         });
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
-        assertEquals(e.get(), "application/xml");
-        assertEquals(e2.get().toLowerCase(), "long_polling");
+        assertEquals("application/xml", e.get());
+        assertEquals("long_polling", e2.get().toLowerCase());
     }
 
     @Test
@@ -166,7 +163,7 @@ public class AtmosphereRequestTest {
         });
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
-        assertEquals(e.get(), "a=b");
+        assertEquals("a=b", e.get());
     }
 
     @Test
@@ -208,7 +205,7 @@ public class AtmosphereRequestTest {
         });
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
-        assertEquals(e.get(), "a=b");
+        assertEquals("a=b", e.get());
     }
 
     @Test
@@ -249,7 +246,7 @@ public class AtmosphereRequestTest {
         });
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
-        assertEquals(e.get(), "a=b");
+        assertEquals("a=b", e.get());
     }
 
     @Test
@@ -276,7 +273,7 @@ public class AtmosphereRequestTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance().delegateToNativeResponse(false));
 
-        assertEquals(e.get().getCharacterEncoding(), "utf-8");
+        assertEquals("utf-8", e.get().getCharacterEncoding());
     }
 
     @Test
@@ -299,7 +296,7 @@ public class AtmosphereRequestTest {
         assertNotNull(e.get());
         assertTrue(e.get().hasString());
         assertFalse(e.get().hasBytes());
-        assertEquals(e.get().asString(), "test");
+        assertEquals("test", e.get().asString());
 
     }
 
@@ -323,7 +320,7 @@ public class AtmosphereRequestTest {
         assertNotNull(e.get());
         assertTrue(e.get().hasBytes());
         assertFalse(e.get().hasString());
-        assertEquals(new String(e.get().asBytes()), "test");
+        assertEquals("test", new String(e.get().asBytes()));
 
     }
     @Test
@@ -331,11 +328,11 @@ public class AtmosphereRequestTest {
         // a non-empty body
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").body("test".getBytes()).build();
         // default type for a non-empty body
-        assertEquals(request.getContentType(), "text/plain");
+        assertEquals("text/plain", request.getContentType());
         // no body
         request = new AtmosphereRequestImpl.Builder().pathInfo("/a").build();
         // default type for a non-empty type
-        assertEquals(request.getContentType(), "text/plain");
+        assertEquals("text/plain", request.getContentType());
 
         // no content-type explicitly set
         request = new AtmosphereRequestImpl.Builder().pathInfo("/a").contentType(null).build();
@@ -390,6 +387,5 @@ public class AtmosphereRequestTest {
             executor.awaitTermination(1, TimeUnit.MINUTES);
         }
     }
-
 
 }

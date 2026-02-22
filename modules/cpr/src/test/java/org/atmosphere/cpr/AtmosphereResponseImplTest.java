@@ -1,16 +1,32 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
 package org.atmosphere.cpr;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
 
 import java.util.Collections;
 import java.util.Enumeration;
+import java.util.List;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereResponseImplTest {
 
@@ -18,7 +34,7 @@ public class AtmosphereResponseImplTest {
 
     private final AtmosphereHandler handler = mock(AtmosphereHandler.class);
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(mock(AsyncSupport.class));
@@ -52,7 +68,7 @@ public class AtmosphereResponseImplTest {
                 .header("header 1", "header 1 value")
                 .header("header 2", null)
                 .build();
-        assertEquals(response.getHeaders("header 1"), Collections.singleton("header 1 value"));
+        assertEquals(List.of("header 1 value"), response.getHeaders("header 1"));
     }
 
     @Test
@@ -62,7 +78,7 @@ public class AtmosphereResponseImplTest {
                 .header("header 1", "header 1 value")
                 .header("header 2", null)
                 .build();
-        assertEquals(response.getHeaders("header 2"), Collections.singleton(null));
+        assertEquals(Collections.singletonList(null), response.getHeaders("header 2"));
     }
 
     @Test
@@ -73,6 +89,6 @@ public class AtmosphereResponseImplTest {
                 .header("header 2", null)
                 .build();
 
-        assertEquals(response.getHeaders("header 3"), null);
+        assertEquals(null, response.getHeaders("header 3"));
     }
 }

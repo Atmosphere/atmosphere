@@ -15,9 +15,8 @@
  */
 package org.atmosphere.util;
 
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Created by Romain on 17/03/14.
@@ -31,15 +30,15 @@ public class IOUtilsTest {
 
         testFullPath = "/foo/bar/*";
         testCleanedPath = IOUtils.getCleanedServletPath(testFullPath);
-        assertEquals(testCleanedPath, "/foo/bar");
+        assertEquals("/foo/bar", testCleanedPath);
 
         testFullPath = "foo/bar/**/*";
         testCleanedPath = IOUtils.getCleanedServletPath(testFullPath);
-        assertEquals(testCleanedPath, "/foo/bar/**");
+        assertEquals("/foo/bar/**", testCleanedPath);
 
         testFullPath = "/com.zyxabc.abc.Abc/gwtCometEvent*";
         testCleanedPath = IOUtils.getCleanedServletPath(testFullPath);
-        assertEquals(testCleanedPath, "/com.zyxabc.abc.Abc/gwtCometEvent");
+        assertEquals("/com.zyxabc.abc.Abc/gwtCometEvent", testCleanedPath);
     }
 
 }

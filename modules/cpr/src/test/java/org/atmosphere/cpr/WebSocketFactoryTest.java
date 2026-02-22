@@ -18,9 +18,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.config.service.WebSocketFactoryService;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -30,14 +27,17 @@ import java.util.Enumeration;
 import java.util.Optional;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class WebSocketFactoryTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(mock(AsyncSupport.class));
@@ -65,7 +65,7 @@ public class WebSocketFactoryTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void destroy(){
         framework.destroy();
     }
@@ -87,8 +87,7 @@ public class WebSocketFactoryTest {
     @Test
     public void testAnnotation() throws IOException, ServletException {
         assertNotNull(framework.webSocketFactory());
-        assertEquals(CustomFactory.class, framework.webSocketFactory().getClass());
+        assertEquals(framework.webSocketFactory().getClass(), CustomFactory.class);
     }
-
 
 }

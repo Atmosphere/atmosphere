@@ -15,15 +15,15 @@
  */
 package org.atmosphere.room;
 
-import static org.testng.Assert.*;
-
 import java.util.List;
 import java.util.Map;
 
 import org.atmosphere.room.protocol.RoomProtocolCodec;
 import org.atmosphere.room.protocol.RoomProtocolMessage;
 import org.json.JSONObject;
-import org.testng.annotations.Test;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RoomProtocolCodecTest {
 
@@ -37,9 +37,9 @@ public class RoomProtocolCodecTest {
 
         assertInstanceOf(msg, RoomProtocolMessage.Join.class);
         var join = (RoomProtocolMessage.Join) msg;
-        assertEquals(join.room(), "lobby");
-        assertEquals(join.memberId(), "alice");
-        assertEquals(join.metadata().get("avatar"), "pic.jpg");
+        assertEquals("lobby", join.room());
+        assertEquals("alice", join.memberId());
+        assertEquals("pic.jpg", join.metadata().get("avatar"));
     }
 
     @Test
@@ -50,7 +50,7 @@ public class RoomProtocolCodecTest {
 
         assertInstanceOf(msg, RoomProtocolMessage.Join.class);
         var join = (RoomProtocolMessage.Join) msg;
-        assertEquals(join.room(), "lobby");
+        assertEquals("lobby", join.room());
         assertNull(join.memberId());
         assertTrue(join.metadata().isEmpty());
     }
@@ -62,7 +62,7 @@ public class RoomProtocolCodecTest {
         var msg = RoomProtocolCodec.decode(json);
 
         assertInstanceOf(msg, RoomProtocolMessage.Leave.class);
-        assertEquals(msg.room(), "lobby");
+        assertEquals("lobby", msg.room());
     }
 
     @Test
@@ -73,8 +73,8 @@ public class RoomProtocolCodecTest {
 
         assertInstanceOf(msg, RoomProtocolMessage.Broadcast.class);
         var broadcast = (RoomProtocolMessage.Broadcast) msg;
-        assertEquals(broadcast.room(), "lobby");
-        assertEquals(broadcast.data(), "hello world");
+        assertEquals("lobby", broadcast.room());
+        assertEquals("hello world", broadcast.data());
     }
 
     @Test
@@ -85,26 +85,32 @@ public class RoomProtocolCodecTest {
 
         assertInstanceOf(msg, RoomProtocolMessage.Direct.class);
         var direct = (RoomProtocolMessage.Direct) msg;
-        assertEquals(direct.room(), "lobby");
-        assertEquals(direct.targetId(), "bob");
-        assertEquals(direct.data(), "hi bob");
+        assertEquals("lobby", direct.room());
+        assertEquals("bob", direct.targetId());
+        assertEquals("hi bob", direct.data());
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void testDecodeUnknownType() {
-        RoomProtocolCodec.decode("""
-                {"type":"unknown","room":"lobby"}""");
+            assertThrows(IllegalArgumentException.class, () -> {
+            RoomProtocolCodec.decode("""
+                    {"type":"unknown","room":"lobby"}""");
+            });
     }
 
-    @Test(expectedExceptions = org.json.JSONException.class)
+    @Test
     public void testDecodeMalformedJson() {
-        RoomProtocolCodec.decode("not json");
+            assertThrows(org.json.JSONException.class, () -> {
+            RoomProtocolCodec.decode("not json");
+            });
     }
 
-    @Test(expectedExceptions = org.json.JSONException.class)
+    @Test
     public void testDecodeMissingType() {
-        RoomProtocolCodec.decode("""
-                {"room":"lobby"}""");
+            assertThrows(org.json.JSONException.class, () -> {
+            RoomProtocolCodec.decode("""
+                    {"room":"lobby"}""");
+            });
     }
 
     // --- Encode tests ---
@@ -118,13 +124,13 @@ public class RoomProtocolCodecTest {
         var json = RoomProtocolCodec.encodeJoinAck("lobby", members);
         var obj = new JSONObject(json);
 
-        assertEquals(obj.getString("type"), "join_ack");
-        assertEquals(obj.getString("room"), "lobby");
-        assertEquals(obj.getJSONArray("members").length(), 2);
+        assertEquals("join_ack", obj.getString("type"));
+        assertEquals("lobby", obj.getString("room"));
+        assertEquals(2, obj.getJSONArray("members").length());
 
         var first = obj.getJSONArray("members").getJSONObject(0);
-        assertEquals(first.getString("id"), "alice");
-        assertEquals(first.getJSONObject("metadata").getString("avatar"), "a.jpg");
+        assertEquals("alice", first.getString("id"));
+        assertEquals("a.jpg", first.getJSONObject("metadata").getString("avatar"));
     }
 
     @Test
@@ -133,10 +139,10 @@ public class RoomProtocolCodecTest {
         var json = RoomProtocolCodec.encodePresence("lobby", "join", member);
         var obj = new JSONObject(json);
 
-        assertEquals(obj.getString("type"), "presence");
-        assertEquals(obj.getString("room"), "lobby");
-        assertEquals(obj.getString("action"), "join");
-        assertEquals(obj.getString("memberId"), "alice");
+        assertEquals("presence", obj.getString("type"));
+        assertEquals("lobby", obj.getString("room"));
+        assertEquals("join", obj.getString("action"));
+        assertEquals("alice", obj.getString("memberId"));
     }
 
     @Test
@@ -144,7 +150,7 @@ public class RoomProtocolCodecTest {
         var json = RoomProtocolCodec.encodePresence("lobby", "leave", null);
         var obj = new JSONObject(json);
 
-        assertEquals(obj.getString("type"), "presence");
+        assertEquals("presence", obj.getString("type"));
         assertFalse(obj.has("memberId"));
     }
 
@@ -153,10 +159,10 @@ public class RoomProtocolCodecTest {
         var json = RoomProtocolCodec.encodeMessage("lobby", "alice", "hello");
         var obj = new JSONObject(json);
 
-        assertEquals(obj.getString("type"), "message");
-        assertEquals(obj.getString("room"), "lobby");
-        assertEquals(obj.getString("from"), "alice");
-        assertEquals(obj.getString("data"), "hello");
+        assertEquals("message", obj.getString("type"));
+        assertEquals("lobby", obj.getString("room"));
+        assertEquals("alice", obj.getString("from"));
+        assertEquals("hello", obj.getString("data"));
     }
 
     @Test
@@ -164,7 +170,7 @@ public class RoomProtocolCodecTest {
         var json = RoomProtocolCodec.encodeMessage("lobby", null, "hello");
         var obj = new JSONObject(json);
 
-        assertEquals(obj.getString("type"), "message");
+        assertEquals("message", obj.getString("type"));
         assertFalse(obj.has("from"));
     }
 
@@ -173,9 +179,9 @@ public class RoomProtocolCodecTest {
         var json = RoomProtocolCodec.encodeError("lobby", "Unauthorized");
         var obj = new JSONObject(json);
 
-        assertEquals(obj.getString("type"), "error");
-        assertEquals(obj.getString("room"), "lobby");
-        assertEquals(obj.getString("data"), "Unauthorized");
+        assertEquals("error", obj.getString("type"));
+        assertEquals("lobby", obj.getString("room"));
+        assertEquals("Unauthorized", obj.getString("data"));
     }
 
     // --- Helpers ---

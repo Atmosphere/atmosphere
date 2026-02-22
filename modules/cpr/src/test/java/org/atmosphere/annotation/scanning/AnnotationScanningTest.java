@@ -28,21 +28,21 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.testng.Assert.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AnnotationScanningTest {
     private AtmosphereFramework framework;
     private static final AtomicBoolean suspended = new AtomicBoolean();
     private static final AtomicBoolean disconnected = new AtomicBoolean();
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());

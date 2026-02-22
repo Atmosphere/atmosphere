@@ -53,9 +53,6 @@ import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketFactory;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.annotation.PostConstruct;
 import jakarta.inject.Inject;
@@ -78,15 +75,16 @@ import static org.atmosphere.cpr.HeaderConfig.LONG_POLLING_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.WEBSOCKET_TRANSPORT;
 import static org.atmosphere.cpr.HeaderConfig.X_ATMOSPHERE_TRANSPORT;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
     private static final AtomicReference<AtmosphereResource> r = new AtomicReference<>();
     private static final AtomicReference<String> message = new AtomicReference<>();
-
 
     public final class ArrayBaseWebSocket extends WebSocket {
 
@@ -119,7 +117,7 @@ public class ManagedAtmosphereHandlerTest {
         }
     }
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
@@ -163,7 +161,7 @@ public class ManagedAtmosphereHandlerTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void after() {
         r.set(null);
         framework.destroy();
@@ -290,7 +288,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "message");
+        assertEquals("message", message.get());
 
     }
 
@@ -328,7 +326,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "message");
+        assertEquals("message", message.get());
     }
 
     @ManagedService(path = "/j")
@@ -386,7 +384,7 @@ public class ManagedAtmosphereHandlerTest {
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/priority").method("GET").build();
         request.header(X_ATMOSPHERE_TRANSPORT, LONG_POLLING_TRANSPORT);
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(framework.getAtmosphereHandlers().get("/priority").interceptors().getFirst().toString(), "XXX");
+        assertEquals("XXX", framework.getAtmosphereHandlers().get("/priority").interceptors().getFirst().toString());
 
         assertNotNull(r.get());
     }
@@ -414,7 +412,7 @@ public class ManagedAtmosphereHandlerTest {
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
 
         assertNotNull(r.get());
-        assertEquals(r.get().getBroadcaster().getClass().getName(), SimpleBroadcaster.class.getName());
+        assertEquals(SimpleBroadcaster.class.getName(), r.get().getBroadcaster().getClass().getName());
 
     }
 
@@ -458,7 +456,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "message");
+        assertEquals("message", message.get());
 
     }
 
@@ -501,7 +499,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "message");
+        assertEquals("message", message.get());
     }
 
     @ManagedService(path = "/heartbeat")
@@ -546,7 +544,7 @@ public class ManagedAtmosphereHandlerTest {
         request.setAttribute(FrameworkConfig.INJECTED_ATMOSPHERE_RESOURCE, res);
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
         assertNotNull(message.get());
-        assertEquals(message.get(), Heartbeat.paddingData);
+        assertEquals(Heartbeat.paddingData, message.get());
     }
 
     @ManagedService(path = "/injectAnnotation")
@@ -607,7 +605,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), framework.metaBroadcaster().toString());
+        assertEquals(framework.metaBroadcaster().toString(), message.get());
 
     }
 
@@ -657,7 +655,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "postConstructmessage");
+        assertEquals("postConstructmessage", message.get());
 
     }
 
@@ -743,7 +741,7 @@ public class ManagedAtmosphereHandlerTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(r.get().getBroadcaster());
-        assertEquals(r.get().getBroadcaster().getID(), "/test");
+        assertEquals("/test", r.get().getBroadcaster().getID());
 
     }
 

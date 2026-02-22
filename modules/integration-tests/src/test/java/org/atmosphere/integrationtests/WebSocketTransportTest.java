@@ -15,10 +15,6 @@
  */
 package org.atmosphere.integrationtests;
 
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.WebSocket;
@@ -30,31 +26,40 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 
-import static org.testng.Assert.assertTrue;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for WebSocket transport with a live embedded Jetty server.
  */
-@Test(groups = "core")
+@Tag("core")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class WebSocketTransportTest {
 
     private EmbeddedAtmosphereServer server;
     private HttpClient httpClient;
 
-    @BeforeClass
+    @BeforeAll
     public void setUp() throws Exception {
         server = new EmbeddedAtmosphereServer();
         server.start();
         httpClient = HttpClient.newHttpClient();
     }
 
-    @AfterClass
+    @AfterAll
     public void tearDown() throws Exception {
         httpClient.close();
         server.close();
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testWebSocketConnectAndEcho() throws Exception {
         var received = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);
@@ -78,7 +83,8 @@ public class WebSocketTransportTest {
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testMultipleClientsReceiveBroadcast() throws Exception {
         int clientCount = 5;
         var clients = new java.util.ArrayList<WebSocket>();
@@ -108,7 +114,8 @@ public class WebSocketTransportTest {
         }
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testBroadcasterIsolation() throws Exception {
         var echoReceived = new CopyOnWriteArrayList<String>();
         var room2Received = new CopyOnWriteArrayList<String>();
@@ -141,7 +148,8 @@ public class WebSocketTransportTest {
         wsRoom2.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 10_000)
+    @Timeout(value = 10_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testClientDisconnect() throws Exception {
         var openLatch = new CountDownLatch(1);
         var received = new CopyOnWriteArrayList<String>();

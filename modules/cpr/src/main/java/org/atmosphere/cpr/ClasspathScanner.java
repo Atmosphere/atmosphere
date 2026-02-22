@@ -144,7 +144,7 @@ public class ClasspathScanner {
         }
 
         try {
-            Class.forName("org.testng.Assert");
+            Class.forName("org.junit.jupiter.api.Assertions");
             allowAllClassesScan = false;
         } catch (ClassNotFoundException e) {
         }

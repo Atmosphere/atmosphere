@@ -17,9 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.util.ExcludeSessionBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -29,7 +26,11 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ExcludeSessionBroadcasterTest {
 
@@ -39,7 +40,7 @@ public class ExcludeSessionBroadcasterTest {
     private AtmosphereConfig config;
 
     @SuppressWarnings("deprecation")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
@@ -58,7 +59,7 @@ public class ExcludeSessionBroadcasterTest {
         broadcaster.addAtmosphereResource(ar);
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
         atmosphereHandler.value.set(new HashSet<>());
@@ -68,7 +69,7 @@ public class ExcludeSessionBroadcasterTest {
     @Test
     public void testDirectBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(atmosphereHandler.value.get(), new HashSet<>());
+        assertEquals(new HashSet<>(), atmosphereHandler.value.get());
     }
 
     public final static class AR implements AtmosphereHandler {

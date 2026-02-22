@@ -16,8 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -31,14 +29,16 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class QueryStringTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
@@ -98,7 +98,7 @@ public class QueryStringTest {
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(q.get());
-        assertEquals(q.get(), "a=b&b=d&c=f");
+        assertEquals("a=b&b=d&c=f", q.get());
     }
 
     @Test
@@ -130,7 +130,7 @@ public class QueryStringTest {
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(q.get());
-        assertEquals(q.get(), "");
+        assertEquals("", q.get());
     }
 
     @Test
@@ -162,6 +162,6 @@ public class QueryStringTest {
 
         r.get().getBroadcaster().broadcast("yo").get();
         assertNotNull(q.get());
-        assertEquals(q.get(), "text/x-gwt-rpc; charset=UTF-8");
+        assertEquals("text/x-gwt-rpc; charset=UTF-8", q.get());
     }
 }

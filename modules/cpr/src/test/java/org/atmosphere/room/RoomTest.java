@@ -16,7 +16,6 @@
 package org.atmosphere.room;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.*;
 
 import java.io.IOException;
 import java.util.ArrayList;
@@ -40,9 +39,11 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RoomTest {
 
@@ -50,7 +51,7 @@ public class RoomTest {
     private DefaultBroadcasterFactory factory;
     private RoomManager roomManager;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
@@ -59,7 +60,7 @@ public class RoomTest {
         roomManager = RoomManager.create(config.framework());
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         roomManager.destroyAll();
         factory.destroy();
@@ -72,9 +73,9 @@ public class RoomTest {
     public void testRoomCreation() {
         Room room = roomManager.room("lobby");
         assertNotNull(room);
-        assertEquals(room.name(), "lobby");
+        assertEquals("lobby", room.name());
         assertTrue(room.isEmpty());
-        assertEquals(room.size(), 0);
+        assertEquals(0, room.size());
     }
 
     @Test
@@ -90,11 +91,11 @@ public class RoomTest {
         var ar = createResource();
 
         room.join(ar);
-        assertEquals(room.size(), 1);
+        assertEquals(1, room.size());
         assertTrue(room.contains(ar));
 
         room.leave(ar);
-        assertEquals(room.size(), 0);
+        assertEquals(0, room.size());
         assertFalse(room.contains(ar));
     }
 
@@ -105,7 +106,7 @@ public class RoomTest {
         var ar2 = createResource();
 
         room.join(ar1).join(ar2);
-        assertEquals(room.size(), 2);
+        assertEquals(2, room.size());
         assertTrue(room.contains(ar1));
         assertTrue(room.contains(ar2));
     }
@@ -133,7 +134,7 @@ public class RoomTest {
         room.broadcast("hello").get();
         latch.await(5, TimeUnit.SECONDS);
 
-        assertEquals(received.size(), 2, "Both resources should have received the message");
+        assertEquals(2, received.size(), "Both resources should have received the message");
     }
 
     @Test
@@ -149,7 +150,7 @@ public class RoomTest {
         room.broadcast("hello", sender).get();
         latch.await(5, TimeUnit.SECONDS);
 
-        assertEquals(received.size(), 1, "Only receiver should get the message");
+        assertEquals(1, received.size(), "Only receiver should get the message");
     }
 
     @Test
@@ -165,7 +166,7 @@ public class RoomTest {
         room.sendTo("direct", ar2.uuid()).get();
         latch.await(5, TimeUnit.SECONDS);
 
-        assertEquals(received.size(), 1, "Only target should receive direct message");
+        assertEquals(1, received.size(), "Only target should receive direct message");
     }
 
     // --- Presence events ---
@@ -179,8 +180,8 @@ public class RoomTest {
         var ar = createResource();
         room.join(ar);
 
-        assertEquals(events.size(), 1);
-        assertEquals(events.getFirst().type(), PresenceEvent.Type.JOIN);
+        assertEquals(1, events.size());
+        assertEquals(PresenceEvent.Type.JOIN, events.getFirst().type());
         assertSame(events.getFirst().member(), ar);
         assertSame(events.getFirst().room(), room);
     }
@@ -195,8 +196,8 @@ public class RoomTest {
         room.onPresence(events::add);
         room.leave(ar);
 
-        assertEquals(events.size(), 1);
-        assertEquals(events.getFirst().type(), PresenceEvent.Type.LEAVE);
+        assertEquals(1, events.size());
+        assertEquals(PresenceEvent.Type.LEAVE, events.getFirst().type());
     }
 
     // --- RoomManager ---
@@ -213,8 +214,8 @@ public class RoomTest {
         roomManager.room("a");
         roomManager.room("b");
         roomManager.room("c");
-        assertEquals(roomManager.all().size(), 3);
-        assertEquals(roomManager.count(), 3);
+        assertEquals(3, roomManager.all().size());
+        assertEquals(3, roomManager.count());
     }
 
     @Test
@@ -231,14 +232,16 @@ public class RoomTest {
         roomManager.room("a");
         roomManager.room("b");
         roomManager.destroyAll();
-        assertEquals(roomManager.count(), 0);
+        assertEquals(0, roomManager.count());
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    @Test
     public void testJoinDestroyedRoomThrows() throws Exception {
-        Room room = roomManager.room("temp");
-        room.destroy();
-        room.join(createResource());
+            assertThrows(IllegalStateException.class, () -> {
+            Room room = roomManager.room("temp");
+            room.destroy();
+            room.join(createResource());
+            });
     }
 
     // --- PresenceEvent record ---
@@ -249,7 +252,7 @@ public class RoomTest {
         var ar = createResource();
         var event = new PresenceEvent(PresenceEvent.Type.JOIN, room, ar);
 
-        assertEquals(event.type(), PresenceEvent.Type.JOIN);
+        assertEquals(PresenceEvent.Type.JOIN, event.type());
         assertSame(event.room(), room);
         assertSame(event.member(), ar);
     }
@@ -262,7 +265,7 @@ public class RoomTest {
         var vm = new TestVirtualMember("bot-1");
 
         room.joinVirtual(vm);
-        assertEquals(room.virtualMembers().size(), 1);
+        assertEquals(1, room.virtualMembers().size());
         assertTrue(room.virtualMembers().contains(vm));
     }
 
@@ -285,8 +288,8 @@ public class RoomTest {
         room.broadcast("hello");
 
         // Virtual member dispatch is synchronous within broadcast()
-        assertEquals(vm.receivedMessages.size(), 1);
-        assertEquals(vm.receivedMessages.getFirst(), "hello");
+        assertEquals(1, vm.receivedMessages.size());
+        assertEquals("hello", vm.receivedMessages.getFirst());
     }
 
     @Test
@@ -300,7 +303,7 @@ public class RoomTest {
 
         // Broadcast excluding sender — virtual member should still receive it
         room.broadcast("from-human", ar);
-        assertEquals(vm.receivedMessages.size(), 1);
+        assertEquals(1, vm.receivedMessages.size());
 
         // Virtual member broadcast excludes itself via dispatchToVirtualMembers
         // The virtual member calls room.broadcast() which dispatches to others
@@ -316,12 +319,12 @@ public class RoomTest {
         var vm = new TestVirtualMember("assistant");
         room.joinVirtual(vm);
 
-        assertEquals(events.size(), 1);
-        assertEquals(events.getFirst().type(), PresenceEvent.Type.JOIN);
+        assertEquals(1, events.size());
+        assertEquals(PresenceEvent.Type.JOIN, events.getFirst().type());
         assertTrue(events.getFirst().isVirtual());
         assertNull(events.getFirst().member());
         assertNotNull(events.getFirst().memberInfo());
-        assertEquals(events.getFirst().memberInfo().id(), "assistant");
+        assertEquals("assistant", events.getFirst().memberInfo().id());
     }
 
     @Test
@@ -334,8 +337,8 @@ public class RoomTest {
         room.onPresence(events::add);
         room.leaveVirtual(vm);
 
-        assertEquals(events.size(), 1);
-        assertEquals(events.getFirst().type(), PresenceEvent.Type.LEAVE);
+        assertEquals(1, events.size());
+        assertEquals(PresenceEvent.Type.LEAVE, events.getFirst().type());
         assertTrue(events.getFirst().isVirtual());
     }
 
@@ -354,18 +357,20 @@ public class RoomTest {
         assertTrue(room.isDestroyed());
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    @Test
     public void testJoinVirtualOnDestroyedRoomThrows() {
-        Room room = roomManager.room("temp");
-        room.destroy();
-        room.joinVirtual(new TestVirtualMember("bot"));
+            assertThrows(IllegalStateException.class, () -> {
+            Room room = roomManager.room("temp");
+            room.destroy();
+            room.joinVirtual(new TestVirtualMember("bot"));
+            });
     }
 
     @Test
     public void testVirtualMemberMetadata() {
         var vm = new TestVirtualMember("assistant");
         var meta = vm.metadata();
-        assertEquals(meta.get("type"), "test");
+        assertEquals("test", meta.get("type"));
     }
 
     // --- Helpers ---
@@ -388,7 +393,6 @@ public class RoomTest {
             return Map.of("type", "test");
         }
     }
-
 
     @SuppressWarnings("deprecation")
     private AtmosphereResource createResource() throws IOException {

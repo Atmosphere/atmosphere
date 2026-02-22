@@ -16,7 +16,6 @@
 package org.atmosphere.metrics;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.*;
 
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.trace.Span;
@@ -28,11 +27,13 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.*;
 import org.atmosphere.util.ExecutorsFactory;
 import org.mockito.Mockito;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.IOException;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereTracingTest {
 
@@ -45,7 +46,7 @@ public class AtmosphereTracingTest {
     private Scope scope;
 
     @SuppressWarnings("unchecked")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
@@ -69,7 +70,7 @@ public class AtmosphereTracingTest {
         Mockito.when(span.addEvent(Mockito.anyString(), Mockito.any(io.opentelemetry.api.common.Attributes.class))).thenReturn(span);
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         broadcaster.destroy();
         factory.destroy();
@@ -83,7 +84,7 @@ public class AtmosphereTracingTest {
 
         var action = tracing.inspect(resource);
 
-        assertEquals(action, Action.CONTINUE);
+        assertEquals(Action.CONTINUE, action);
         Mockito.verify(tracer).spanBuilder(Mockito.anyString());
         Mockito.verify(spanBuilder).startSpan();
         Mockito.verify(span).makeCurrent();

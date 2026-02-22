@@ -17,9 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.util.UUID;
 import java.util.concurrent.CountDownLatch;
@@ -28,8 +25,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for the {@link org.atmosphere.cpr.DefaultBroadcasterFactory}.
@@ -41,14 +40,14 @@ public class DefaultBroadcasterFactoryTest {
     private AtmosphereConfig config;
     private DefaultBroadcasterFactory factory;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
         factory.configure(DefaultBroadcaster.class, "NEVER", config);
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSet() throws Exception {
         config.destroy();
         ExecutorsFactory.reset(config);
@@ -71,11 +70,13 @@ public class DefaultBroadcasterFactoryTest {
         assert id.equals(result.getID());
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    @Test
     public void testGet_Object_Twice() {
-        String id = "id";
-        factory.get(id);
-        factory.get(id);
+            assertThrows(IllegalStateException.class, () -> {
+            String id = "id";
+            factory.get(id);
+            factory.get(id);
+            });
     }
 
     @Test
@@ -109,11 +110,13 @@ public class DefaultBroadcasterFactoryTest {
         assert factory.lookup(DefaultBroadcaster.class, id2) == null;
     }
 
-    @Test(expectedExceptions = IllegalStateException.class)
+    @Test
     public void testLookup_Class_Object_BadClass() {
-        String id = "id";
-        factory.get(id);
-        factory.lookup(SimpleBroadcaster.class, id);
+            assertThrows(IllegalStateException.class, () -> {
+            String id = "id";
+            factory.get(id);
+            factory.lookup(SimpleBroadcaster.class, id);
+            });
     }
 
     @Test
@@ -149,7 +152,7 @@ public class DefaultBroadcasterFactoryTest {
         factory.lookup("/atmosphere", true);
         factory.lookup("/atmosphere", true);
 
-        assertEquals(factory.lookupAll().size(), 1);
+        assertEquals(1, factory.lookupAll().size());
     }
 
     @Test
@@ -158,7 +161,7 @@ public class DefaultBroadcasterFactoryTest {
         factory.lookup("/atmosphere@atmosphere.com", true);
         factory.lookup("/atmosphere", true);
 
-        assertEquals(factory.lookupAll().size(), 2);
+        assertEquals(2, factory.lookupAll().size());
     }
 
     @Test
@@ -166,7 +169,7 @@ public class DefaultBroadcasterFactoryTest {
         factory.lookup("/atmosphere@atmosphere.com", true);
         factory.lookup("/atmosphere@atmosphere.com", true);
 
-        assertEquals(factory.lookupAll().size(), 1);
+        assertEquals(1, factory.lookupAll().size());
     }
 
     @Test
@@ -205,8 +208,8 @@ public class DefaultBroadcasterFactoryTest {
         }
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(f.lookupAll().size(), 100);
-            assertEquals(created.get(), 100);
+            assertEquals(100, f.lookupAll().size());
+            assertEquals(100, created.get());
         } finally {
             f.destroy();
         }
@@ -253,16 +256,16 @@ public class DefaultBroadcasterFactoryTest {
 
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(latch.getCount(), 0);
-            assertEquals(f.lookupAll().size(), 1);
-            assertEquals(created.get(), 1);
-            assertEquals(TestBroadcaster.instance.get(), 1);
+            assertEquals(0, latch.getCount());
+            assertEquals(1, f.lookupAll().size());
+            assertEquals(1, created.get());
+            assertEquals(1, TestBroadcaster.instance.get());
         } finally {
             f.destroy();
             r.shutdownNow();
         }
 
-        assertEquals(TestBroadcaster.instance.get(), 1);
+        assertEquals(1, TestBroadcaster.instance.get());
 
     }
 

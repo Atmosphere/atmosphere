@@ -16,19 +16,15 @@
 package org.atmosphere.cpr;
 
 import org.mockito.Mockito;
-import org.testng.annotations.Test;
 
 import java.util.Collections;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNotSame;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertSame;
-import static org.testng.Assert.fail;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * @author uklance (https://github.com/uklance)
@@ -57,14 +53,14 @@ public class DefaultAtmosphereResourceSessionFactoryTest {
         assertNotSame(s1, s2);
 
         s1.setAttribute("att1", "s1v1");
-        assertEquals("s1v1", s1.getAttribute("att1", String.class));
-        assertEquals(Collections.singleton("att1"), s1.getAttributeNames());
+        assertEquals(s1.getAttribute("att1", String.class), "s1v1");
+        assertEquals(s1.getAttributeNames(), Collections.singleton("att1"));
 
         s2.setAttribute("att1", "s2v1");
-        assertEquals("s2v1", s2.getAttribute("att1", String.class));
+        assertEquals(s2.getAttribute("att1", String.class), "s2v1");
 
         s1.setAttribute("att1", "s1v2");
-        assertEquals("s1v2", s1.getAttribute("att1"));
+        assertEquals(s1.getAttribute("att1"), "s1v2");
 
         verify(r1).addEventListener(disconnectListener);
         verify(r2).addEventListener(disconnectListener);

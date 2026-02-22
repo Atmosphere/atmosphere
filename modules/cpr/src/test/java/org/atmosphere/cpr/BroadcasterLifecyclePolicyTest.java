@@ -16,23 +16,23 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class BroadcasterLifecyclePolicyTest {
     private AtmosphereFramework framework;
 
-
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
@@ -55,7 +55,7 @@ public class BroadcasterLifecyclePolicyTest {
         }).init();
     }
 
-    @AfterMethod
+    @AfterEach
     public void after() {
         framework.destroy();
     }
@@ -195,7 +195,6 @@ public class BroadcasterLifecyclePolicyTest {
         @Override
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
         }
-
 
         @Override
         public void destroy() {

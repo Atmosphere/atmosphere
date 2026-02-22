@@ -27,8 +27,6 @@ import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
-import org.testng.annotations.DataProvider;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -43,7 +41,13 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.*;
+
+import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereFrameworkTest {
 
@@ -86,7 +90,7 @@ public class AtmosphereFrameworkTest {
         assertNotNull(value.get());
 
         // The interceptor must be installed and called one time.
-        assertEquals(1, value.get());
+        assertEquals(value.get(), 1);
     }
 
     @Test
@@ -195,7 +199,7 @@ public class AtmosphereFrameworkTest {
             }
         });
         s.destroy();
-        assertEquals(count.get(), 4);
+        assertEquals(4, count.get());
     }
 
     public class MyAtmosphereServlet extends AtmosphereServlet {
@@ -336,12 +340,16 @@ public class AtmosphereFrameworkTest {
         assertTrue(b.get());
     }
 
-    @DataProvider(name = "autodetectBroadcaster")
-    private Object[][] autodetectBroadcasterDataProvider() {
-        return new Object[][]{{null, true}, {"true", true}, {"false", false}};
+    static Stream<Arguments> autodetectBroadcasterDataProvider() {
+        return Stream.of(
+                Arguments.of(null, true),
+                Arguments.of("true", true),
+                Arguments.of("false", false)
+        );
     }
 
-    @Test(dataProvider = "autodetectBroadcaster")
+    @ParameterizedTest
+    @MethodSource("autodetectBroadcasterDataProvider")
     public void autodetectBroadcaster(String autodetectBroadcasterConfig, boolean expectedAutodetect) {
         ServletConfig servletConfig = mock(ServletConfig.class);
         when(servletConfig.getInitParameter(ApplicationConfig.AUTODETECT_BROADCASTER)).thenReturn(autodetectBroadcasterConfig);
@@ -350,7 +358,7 @@ public class AtmosphereFrameworkTest {
         framework.servletConfig = servletConfig;
 
         boolean actualAutodetect = framework.autodetectBroadcaster();
-        assertEquals(actualAutodetect, expectedAutodetect);
+        assertEquals(expectedAutodetect, actualAutodetect);
     }
 
     @Test
@@ -361,14 +369,16 @@ public class AtmosphereFrameworkTest {
         assertTrue(actualAutodetect);
     }
 
-    @Test(expectedExceptions = UnsupportedOperationException.class)
+    @Test
     public void testDefaultInterceptorsImmutable() {
-        AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.add(CorsInterceptor.class);
+            assertThrows(UnsupportedOperationException.class, () -> {
+            AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.add(CorsInterceptor.class);
+            });
     }
 
     @Test
     public void testDefaultInterceptorsContents() {
-        assertEquals(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.size(), 10);
+        assertEquals(10, AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.size());
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(CorsInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(CacheHeadersInterceptor.class));
         assertTrue(AtmosphereFramework.DEFAULT_ATMOSPHERE_INTERCEPTORS.contains(PaddingAtmosphereInterceptor.class));
@@ -396,6 +406,6 @@ public class AtmosphereFrameworkTest {
         framework.addAtmosphereHandler("/*", mock(AtmosphereHandler.class));
         framework.init(servletConfig);
 
-        assertEquals(framework.getWebSocketProtocol().getClass(), SimpleHttpProtocol.class);
+        assertEquals(SimpleHttpProtocol.class, framework.getWebSocketProtocol().getClass());
     }
 }

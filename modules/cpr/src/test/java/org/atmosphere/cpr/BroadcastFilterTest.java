@@ -17,8 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.client.TrackMessageSizeFilter;
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -32,7 +30,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class BroadcastFilterTest {
 
@@ -40,7 +41,7 @@ public class BroadcastFilterTest {
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         AtmosphereConfig config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
@@ -67,7 +68,7 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new Filter());
         broadcaster.broadcast("0").get();
 
-        assertEquals(atmosphereHandler.value.get().toString(), "0foo");
+        assertEquals("0foo", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -114,7 +115,7 @@ public class BroadcastFilterTest {
 
         broadcaster.broadcast("0").get();
 
-        assertEquals(atmosphereHandler.value.get().toString(), "0foo");
+        assertEquals("0foo", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -127,7 +128,7 @@ public class BroadcastFilterTest {
 
         broadcaster.broadcast("0").get();
 
-        assertEquals(atmosphereHandler.value.get().toString(), "01234");
+        assertEquals("01234", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -140,7 +141,7 @@ public class BroadcastFilterTest {
 
         broadcaster.broadcast("0").get();
 
-        assertEquals(atmosphereHandler.value.get().toString(), "01234");
+        assertEquals("01234", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -155,7 +156,7 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new PerRequestFilter("4"));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "012341234");
+        assertEquals("012341234", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -169,7 +170,7 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new Filter("4"));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "01234abc");
+        assertEquals("01234abc", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -183,14 +184,14 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new Filter("4"));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "01a2b3c4");
+        assertEquals("01a2b3c4", atmosphereHandler.value.get().toString());
     }
 
     @Test
     public void testAbortFilter() throws ExecutionException, InterruptedException {
         broadcaster.getBroadcasterConfig().addFilter(new AbortFilter(true));
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "");
+        assertEquals("", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -199,14 +200,14 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new AbortFilter(true));
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "");
+        assertEquals("", atmosphereHandler.value.get().toString());
     }
 
     @Test
     public void testSkipFilter() throws ExecutionException, InterruptedException {
         broadcaster.getBroadcasterConfig().addFilter(new SlipFilter(true));
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "0-filter-perFilter");
+        assertEquals("0-filter-perFilter", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -216,9 +217,8 @@ public class BroadcastFilterTest {
         broadcaster.getBroadcasterConfig().addFilter(new SlipFilter(false));
         broadcaster.getBroadcasterConfig().addFilter(new DoNohingFilter("b"));
 
-
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "0-filter-perFilter");
+        assertEquals("0-filter-perFilter", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -226,14 +226,14 @@ public class BroadcastFilterTest {
         broadcaster.removeAtmosphereResource(ar);
         broadcaster.getBroadcasterConfig().addFilter(new VoidAtmosphereResource("1"));
         String s = (String) broadcaster.broadcast("0").get();
-        assertEquals(s, "01");
+        assertEquals("01", s);
     }
 
     @Test
     public void testMessageLengthFilter() throws ExecutionException, InterruptedException {
         broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
+        assertEquals("1|0", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -254,7 +254,7 @@ public class BroadcastFilterTest {
 
         broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
+        assertEquals("1|0", atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -278,16 +278,15 @@ public class BroadcastFilterTest {
 
         broadcaster.getBroadcasterConfig().addFilter(new TrackMessageSizeFilter());
         broadcaster.broadcast("0", s).get();
-        assertEquals(atmosphereHandler.value.get().toString(), "1|0");
+        assertEquals("1|0", atmosphereHandler.value.get().toString());
     }
-
 
     @Test
     public void testAbortPerFilterFuture() throws ExecutionException, InterruptedException {
         broadcaster.getBroadcasterConfig().addFilter(new AbortFilter2());
 
         broadcaster.broadcast("0").get();
-        assertEquals(atmosphereHandler.value.get().toString(), "");
+        assertEquals("", atmosphereHandler.value.get().toString());
     }
 
     private final static class PerRequestFilter implements PerRequestBroadcastFilter {

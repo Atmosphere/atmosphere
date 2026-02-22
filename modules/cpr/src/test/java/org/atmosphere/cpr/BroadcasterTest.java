@@ -16,8 +16,6 @@
 package org.atmosphere.cpr;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.Enumeration;
@@ -37,10 +35,11 @@ import jakarta.servlet.ServletException;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("deprecation")
 public class BroadcasterTest {
@@ -50,7 +49,7 @@ public class BroadcasterTest {
     private AR atmosphereHandler;
     private AtmosphereConfig config;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
@@ -68,7 +67,7 @@ public class BroadcasterTest {
         broadcaster.addAtmosphereResource(ar);
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSetUp() throws Exception {
         broadcaster.destroy();
         atmosphereHandler.value.set(ConcurrentHashMap.newKeySet());
@@ -79,7 +78,7 @@ public class BroadcasterTest {
     @Test
     public void testDirectBroadcastMethod() throws ExecutionException, InterruptedException, ServletException {
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(atmosphereHandler.value.get().toArray()[0], ar);
+        assertEquals(ar, atmosphereHandler.value.get().toArray()[0]);
     }
 
     @Test
@@ -87,7 +86,7 @@ public class BroadcasterTest {
         broadcaster.resumeAll();
 
         broadcaster.broadcast("foo").get();
-        assertEquals(atmosphereHandler.value.get(), new HashSet<>());
+        assertEquals(new HashSet<>(), atmosphereHandler.value.get());
     }
 
     @Test
@@ -98,8 +97,8 @@ public class BroadcasterTest {
         AtmosphereResourceImpl.class.cast(ar).cancel();
         AtmosphereResourceImpl.class.cast(ar)._destroy();
 
-        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
-        assertEquals(two.getAtmosphereResources().size(), 0);
+        assertEquals(0, broadcaster.getAtmosphereResources().size());
+        assertEquals(0, two.getAtmosphereResources().size());
     }
 
     @Test
@@ -116,8 +115,8 @@ public class BroadcasterTest {
 
         AsynchronousProcessor.class.cast(ar.getAtmosphereConfig().framework().getAsyncSupport()).timedout(ar.getRequest(), ar.getResponse());
 
-        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
-        assertEquals(two.getAtmosphereResources().size(), 0);
+        assertEquals(0, broadcaster.getAtmosphereResources().size());
+        assertEquals(0, two.getAtmosphereResources().size());
     }
 
     @Test
@@ -134,8 +133,8 @@ public class BroadcasterTest {
 
         AsynchronousProcessor.class.cast(ar.getAtmosphereConfig().framework().getAsyncSupport()).cancelled(ar.getRequest(), ar.getResponse());
 
-        assertEquals(broadcaster.getAtmosphereResources().size(), 0);
-        assertEquals(two.getAtmosphereResources().size(), 0);
+        assertEquals(0, broadcaster.getAtmosphereResources().size());
+        assertEquals(0, two.getAtmosphereResources().size());
     }
 
     @Test
@@ -196,7 +195,7 @@ public class BroadcasterTest {
 
         broadcaster.broadcast("foo", set).get();
 
-        assertEquals(atmosphereHandler.value.get().size(), set.size());
+        assertEquals(set.size(), atmosphereHandler.value.get().size());
     }
 
     public final static class AR implements AtmosphereHandler {
@@ -279,7 +278,7 @@ public class BroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(deliveryCount.get(), messageCount * set.size());
+        assertEquals(messageCount * set.size(), deliveryCount.get());
 
         b.destroy();
         ExecutorsFactory.reset(config);
@@ -337,7 +336,7 @@ public class BroadcasterTest {
 
         b1.destroy();
         
-        Assert.assertNull(broadcasterFactory.lookup("/LEAJ/EXISTS"));
+        assertNull(broadcasterFactory.lookup("/LEAJ/EXISTS"));
     }
 
     @Test

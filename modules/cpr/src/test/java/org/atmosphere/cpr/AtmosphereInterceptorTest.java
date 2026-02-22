@@ -17,8 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.interceptor.InvokationOrder;
 import org.mockito.Mockito;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -29,8 +27,10 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereInterceptorTest {
 
@@ -39,7 +39,7 @@ public class AtmosphereInterceptorTest {
     private AsynchronousProcessor processor;
     private final AtmosphereHandler handler = mock(AtmosphereHandler.class);
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(mock(AsyncSupport.class));
@@ -95,7 +95,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CONTINUE);
     }
 
     @Test
@@ -120,7 +120,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CONTINUE, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CONTINUE);
         framework.interceptor(new AtmosphereInterceptor() {
             @Override
             public void configure(AtmosphereConfig config) {
@@ -139,7 +139,7 @@ public class AtmosphereInterceptorTest {
             public void postInspect(AtmosphereResource r) {
             }
         });
-        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CREATED);
     }
 
     @Test
@@ -162,7 +162,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CANCELLED, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CANCELLED);
     }
 
     @Test
@@ -185,7 +185,7 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CREATED);
     }
 
     @Test
@@ -209,9 +209,9 @@ public class AtmosphereInterceptorTest {
             }
         });
 
-        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
-        assertEquals(framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString(), "CORS Interceptor Support");
-        assertEquals(framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().getFirst().toString(), "XXX");
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CREATED);
+        assertEquals("CORS Interceptor Support", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString());
+        assertEquals("XXX", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().getFirst().toString());
 
     }
 
@@ -270,8 +270,8 @@ public class AtmosphereInterceptorTest {
         };
         framework.addAtmosphereHandler("/*", handler);
 
-        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
-        assertEquals(1, count.get());
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CREATED);
+        assertEquals(count.get(), 1);
 
     }
 
@@ -315,9 +315,9 @@ public class AtmosphereInterceptorTest {
             });
         } catch (Exception ignored) {
         }
-        assertEquals(Action.CREATED, processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()));
-        assertEquals(framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString(), "CORS Interceptor Support");
-        assertEquals(framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().getFirst().toString(), "XXX");
+        assertEquals(processor.service(mock(AtmosphereRequestImpl.class), AtmosphereResponseImpl.newInstance()), Action.CREATED);
+        assertEquals("CORS Interceptor Support", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().removeFirst().toString());
+        assertEquals("XXX", framework.getAtmosphereHandlers().get("/" + AtmosphereFramework.MAPPING_REGEX).interceptors().getFirst().toString());
     }
 
     @Test

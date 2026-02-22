@@ -21,9 +21,6 @@ import org.atmosphere.pool.BoundedApachePoolableProvider;
 import org.atmosphere.pool.PoolableBroadcasterFactory;
 import org.atmosphere.pool.UnboundedApachePoolableProvider;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.util.UUID;
 import java.util.concurrent.ConcurrentLinkedQueue;
@@ -33,9 +30,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for the {@link PoolableBroadcasterFactory}.
@@ -47,7 +45,7 @@ public class PoolableBroadcasterFactoryTest {
     private AtmosphereConfig config;
     private PoolableBroadcasterFactory factory;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         AtmosphereFramework f = new AtmosphereFramework();
         config = f.getAtmosphereConfig();
@@ -57,7 +55,7 @@ public class PoolableBroadcasterFactoryTest {
         f.setBroadcasterFactory(factory);
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSet() throws Exception {
         config.destroy();
         ExecutorsFactory.reset(config);
@@ -91,21 +89,21 @@ public class PoolableBroadcasterFactoryTest {
 
         assert result2 != null;
         assert result2 instanceof DefaultBroadcaster;
-        assertEquals(result2, result);
+        assertEquals(result, result2);
     }
 
     @Test
     public void testImplementation() {
         assertNotNull(factory.poolableProvider());
         assertNotNull(factory.poolableProvider().implementation());
-        assertEquals(factory.poolableProvider().implementation().getClass(), GenericObjectPool.class);
+        assertEquals(GenericObjectPool.class, factory.poolableProvider().implementation().getClass());
         @SuppressWarnings("unchecked")
         GenericObjectPool<Broadcaster> nativePool = (GenericObjectPool<Broadcaster>) factory.poolableProvider().implementation();
         assertTrue(nativePool.getLifo());
         GenericObjectPoolConfig<Broadcaster> c = new GenericObjectPoolConfig<>();
         c.setMaxTotal(1);
         nativePool.setConfig(c);
-        assertEquals(1, nativePool.getMaxTotal());
+        assertEquals(nativePool.getMaxTotal(), 1);
     }
 
     @Test
@@ -144,8 +142,8 @@ public class PoolableBroadcasterFactoryTest {
 
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(created.get(), 100);
-            assertEquals(c.size(), 100);
+            assertEquals(100, created.get());
+            assertEquals(100, c.size());
 
             for (Broadcaster b : c) {
                 b.destroy();
@@ -153,7 +151,7 @@ public class PoolableBroadcasterFactoryTest {
 
             assertNotNull(factory.lookup("name" + UUID.randomUUID().toString(), true).broadcast("test"));
 
-            assertEquals(factory.poolableProvider().poolSize(), 100);
+            assertEquals(100, factory.poolableProvider().poolSize());
 
         } finally {
             factory.destroy();
@@ -199,9 +197,9 @@ public class PoolableBroadcasterFactoryTest {
         }
         try {
             assertTrue(latch.await(20, TimeUnit.SECONDS));
-            assertEquals(latch.getCount(), 0);
-            assertEquals(c.size(), 1000);
-            assertEquals(created.get(), 1000);
+            assertEquals(0, latch.getCount());
+            assertEquals(1000, c.size());
+            assertEquals(1000, created.get());
 
             for (Broadcaster b : c) {
                 b.destroy();
@@ -209,8 +207,7 @@ public class PoolableBroadcasterFactoryTest {
 
             assertNotNull(factory.lookup("name" + UUID.randomUUID().toString(), true).broadcast("test"));
 
-            assertEquals(factory.poolableProvider().poolSize(), 1000);
-
+            assertEquals(1000, factory.poolableProvider().poolSize());
 
         } finally {
             factory.destroy();

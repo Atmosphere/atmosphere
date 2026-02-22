@@ -15,11 +15,10 @@
  */
 package org.atmosphere.util;
 
-import org.testng.annotations.Test;
-
 import java.util.HashMap;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PathTemplateTest {
 
@@ -29,7 +28,7 @@ public class PathTemplateTest {
         var vars = new HashMap<String, String>();
 
         assertTrue(t.match("/chat/general", vars));
-        assertEquals(vars.get("room"), "general");
+        assertEquals("general", vars.get("room"));
     }
 
     @Test
@@ -38,8 +37,8 @@ public class PathTemplateTest {
         var vars = new HashMap<String, String>();
 
         assertTrue(t.match("/api/v2/users", vars));
-        assertEquals(vars.get("version"), "v2");
-        assertEquals(vars.get("resource"), "users");
+        assertEquals("v2", vars.get("version"));
+        assertEquals("users", vars.get("resource"));
     }
 
     @Test
@@ -48,7 +47,7 @@ public class PathTemplateTest {
         var vars = new HashMap<String, String>();
 
         assertTrue(t.match("/item/42", vars));
-        assertEquals(vars.get("id"), "42");
+        assertEquals("42", vars.get("id"));
 
         assertFalse(t.match("/item/abc", vars));
     }
@@ -79,7 +78,7 @@ public class PathTemplateTest {
         var vars = new HashMap<String, String>();
 
         assertTrue(t.match("/api/v1.0/123", vars));
-        assertEquals(vars.get("id"), "123");
+        assertEquals("123", vars.get("id"));
 
         // dot is escaped, so 'v1X0' should not match
         assertFalse(t.match("/api/v1X0/123", vars));
@@ -91,7 +90,7 @@ public class PathTemplateTest {
         var vars = new HashMap<String, String>();
 
         assertTrue(t.match("/data/12-abc", vars));
-        assertEquals(vars.get("key"), "12-abc");
+        assertEquals("12-abc", vars.get("key"));
     }
 
     @Test
@@ -122,25 +121,31 @@ public class PathTemplateTest {
         assertFalse(t.match(null, new HashMap<>()));
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void nullTemplate() {
-        new PathTemplate(null);
+            assertThrows(IllegalArgumentException.class, () -> {
+            new PathTemplate(null);
+            });
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void emptyTemplate() {
-        new PathTemplate("");
+            assertThrows(IllegalArgumentException.class, () -> {
+            new PathTemplate("");
+            });
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class)
+    @Test
     public void unclosedBrace() {
-        new PathTemplate("/chat/{room");
+        assertThrows(IllegalArgumentException.class, () -> {
+            new PathTemplate("/chat/{room");
+        });
     }
 
     @Test
     public void getTemplate() {
         var t = new PathTemplate("/chat/{room}");
-        assertEquals(t.getTemplate(), "/chat/{room}");
+        assertEquals("/chat/{room}", t.getTemplate());
     }
 
     @Test
@@ -149,7 +154,7 @@ public class PathTemplateTest {
         var vars = new HashMap<String, String>();
 
         assertTrue(t.match("/x/x", vars));
-        assertEquals(vars.get("a"), "x");
+        assertEquals("x", vars.get("a"));
     }
 
     @Test

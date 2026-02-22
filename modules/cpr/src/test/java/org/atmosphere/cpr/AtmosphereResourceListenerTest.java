@@ -17,8 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -29,12 +27,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereResourceListenerTest {
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
@@ -145,7 +146,6 @@ public class AtmosphereResourceListenerTest {
             }
         });
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-
 
         assertTrue(preSuspended.get());
         assertTrue(suspended.get());

@@ -33,9 +33,6 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -48,8 +45,11 @@ import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter.*;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class EncoderDecoderTest {
     private AtmosphereFramework framework;
@@ -57,7 +57,7 @@ public class EncoderDecoderTest {
     private static final AtomicReference<String> message = new AtomicReference<String>();
     private static final AtomicReference<CountDownLatch> latch = new AtomicReference<>(new CountDownLatch(1));
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
@@ -102,7 +102,7 @@ public class EncoderDecoderTest {
         latch.set(new CountDownLatch(1));
     }
 
-    @AfterMethod
+    @AfterEach
     public void after() {
         r.set(null);
         framework.destroy();
@@ -224,7 +224,7 @@ public class EncoderDecoderTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "message");
+        assertEquals("message", message.get());
 
     }
 
@@ -236,7 +236,7 @@ public class EncoderDecoderTest {
         assertNotNull(r.get());
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "message");
+        assertEquals("message", message.get());
 
     }
 
@@ -259,8 +259,8 @@ public class EncoderDecoderTest {
         latch.get().await(5, TimeUnit.SECONDS);
         r.get().resume();
         assertNotNull(message.get());
-        assertEquals(message.get(), "message");
-        assertEquals(ref.get(), "message-yo!");
+        assertEquals("message", message.get());
+        assertEquals("message-yo!", ref.get());
 
     }
 }

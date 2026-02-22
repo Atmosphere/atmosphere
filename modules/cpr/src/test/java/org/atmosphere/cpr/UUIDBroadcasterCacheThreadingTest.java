@@ -17,12 +17,14 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.UUIDBroadcasterCache;
-import org.testng.Assert;
-import org.testng.annotations.Test;
 
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicInteger;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import org.junit.jupiter.api.Test;
 
 public class UUIDBroadcasterCacheThreadingTest {
 
@@ -58,7 +60,7 @@ public class UUIDBroadcasterCacheThreadingTest {
                 totalRetrieved += messages.size();
             }
         }
-        Assert.assertEquals(totalRetrieved, NUM_MESSAGES);
+        assertEquals(NUM_MESSAGES, totalRetrieved);
     }
 
     private BroadcastMessage createBroadcastMessage() {

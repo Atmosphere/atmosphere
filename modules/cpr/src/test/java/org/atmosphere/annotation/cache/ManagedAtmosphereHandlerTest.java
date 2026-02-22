@@ -27,9 +27,6 @@ import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -39,7 +36,11 @@ import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ManagedAtmosphereHandlerTest {
     private AtmosphereFramework framework;
@@ -47,7 +48,7 @@ public class ManagedAtmosphereHandlerTest {
     @SuppressWarnings("unused")
     private static final AtomicReference<String> message = new AtomicReference<>();
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
@@ -89,7 +90,7 @@ public class ManagedAtmosphereHandlerTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void after() {
         r.set(null);
         framework.destroy();
@@ -104,7 +105,7 @@ public class ManagedAtmosphereHandlerTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/cache").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(framework.getBroadcasterFactory().lookup("/*", true).getBroadcasterConfig().getBroadcasterCache().getClass(), UUIDBroadcasterCache.class);
+        assertEquals(UUIDBroadcasterCache.class, framework.getBroadcasterFactory().lookup("/*", true).getBroadcasterConfig().getBroadcasterCache().getClass());
 
     }
 }

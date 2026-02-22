@@ -19,19 +19,17 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcastFilter.BroadcastAction;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link RedisClusterBroadcastFilter} including lifecycle and message flow.
@@ -41,14 +39,14 @@ public class RedisClusterBroadcastFilterTest {
     private TestableRedisClusterBroadcastFilter filter;
     private AtmosphereConfig config;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         filter = new TestableRedisClusterBroadcastFilter();
         filter.init(config);
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() {
         filter.destroy();
     }
@@ -66,8 +64,8 @@ public class RedisClusterBroadcastFilterTest {
 
         filter.setBroadcaster(broadcaster);
 
-        assertEquals(filter.getBroadcaster(), broadcaster);
-        assertEquals(filter.subscribedChannel, "test-channel");
+        assertEquals(broadcaster, filter.getBroadcaster());
+        assertEquals("test-channel", filter.subscribedChannel);
     }
 
     @Test
@@ -78,9 +76,9 @@ public class RedisClusterBroadcastFilterTest {
 
         var result = filter.filter("test-channel", "original", "transformed");
 
-        assertEquals(result.action(), BroadcastAction.ACTION.CONTINUE);
-        assertEquals(result.message(), "transformed");
-        assertEquals(filter.lastPublishedChannel, "test-channel");
+        assertEquals(BroadcastAction.ACTION.CONTINUE, result.action());
+        assertEquals("transformed", result.message());
+        assertEquals("test-channel", filter.lastPublishedChannel);
         assertTrue(filter.lastPublishedMessage.endsWith("||transformed"));
     }
 
@@ -119,17 +117,17 @@ public class RedisClusterBroadcastFilterTest {
 
     @Test
     public void testSerializeStringMessage() {
-        assertEquals(filter.serializeMessage("hello"), "hello");
+        assertEquals("hello", filter.serializeMessage("hello"));
     }
 
     @Test
     public void testSerializeByteArrayMessage() {
-        assertEquals(filter.serializeMessage("bytes".getBytes(StandardCharsets.UTF_8)), "bytes");
+        assertEquals("bytes", filter.serializeMessage("bytes".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
     public void testSerializeObjectMessage() {
-        assertEquals(filter.serializeMessage(99), "99");
+        assertEquals("99", filter.serializeMessage(99));
     }
 
     @Test

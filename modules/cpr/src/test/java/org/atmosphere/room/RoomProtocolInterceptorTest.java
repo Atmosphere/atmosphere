@@ -16,7 +16,6 @@
 package org.atmosphere.room;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.*;
 
 import java.io.IOException;
 
@@ -34,9 +33,11 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RoomProtocolInterceptorTest {
 
@@ -45,7 +46,7 @@ public class RoomProtocolInterceptorTest {
     private RoomManager roomManager;
     private RoomProtocolInterceptor interceptor;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
@@ -57,7 +58,7 @@ public class RoomProtocolInterceptorTest {
         interceptor.configure(config);
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         roomManager.destroyAll();
         factory.destroy();
@@ -74,17 +75,17 @@ public class RoomProtocolInterceptorTest {
         );
 
         var action = interceptor.inspect(resource);
-        assertEquals(action, Action.CANCELLED, "Join should consume the message");
+        assertEquals(Action.CANCELLED, action, "Join should consume the message");
 
         assertTrue(roomManager.exists("lobby"));
         var room = roomManager.room("lobby");
-        assertEquals(room.size(), 1);
+        assertEquals(1, room.size());
         assertTrue(room.contains(resource));
 
         var member = room.memberOf(resource);
         assertTrue(member.isPresent());
-        assertEquals(member.get().id(), "alice");
-        assertEquals(member.get().metadata().get("avatar"), "pic.jpg");
+        assertEquals("alice", member.get().id());
+        assertEquals("pic.jpg", member.get().metadata().get("avatar"));
     }
 
     @Test
@@ -95,10 +96,10 @@ public class RoomProtocolInterceptorTest {
         );
 
         var action = interceptor.inspect(resource);
-        assertEquals(action, Action.CANCELLED);
+        assertEquals(Action.CANCELLED, action);
 
         var room = roomManager.room("lobby");
-        assertEquals(room.size(), 1);
+        assertEquals(1, room.size());
         assertTrue(room.memberOf(resource).isEmpty(), "No member info without memberId");
     }
 
@@ -117,8 +118,8 @@ public class RoomProtocolInterceptorTest {
         interceptor.inspect(r2);
 
         var room = roomManager.room("lobby");
-        assertEquals(room.size(), 2);
-        assertEquals(room.memberInfo().size(), 2);
+        assertEquals(2, room.size());
+        assertEquals(2, room.memberInfo().size());
     }
 
     // --- Leave flow ---
@@ -130,7 +131,7 @@ public class RoomProtocolInterceptorTest {
         var resource = createResource();
         var member = new RoomMember("alice");
         room.join(resource, member);
-        assertEquals(room.size(), 1);
+        assertEquals(1, room.size());
 
         // Now leave via interceptor using a new resource that is in the room
         // We test the interceptor's leave by creating a fresh request
@@ -142,7 +143,7 @@ public class RoomProtocolInterceptorTest {
         var leaveResource = createResourceWithBody(leaveBody);
         // First add it to the room so leave has something to remove
         room.join(leaveResource);
-        assertEquals(room.size(), 2);
+        assertEquals(2, room.size());
 
         interceptor.inspect(leaveResource);
         assertFalse(room.contains(leaveResource), "Resource should be removed after leave");
@@ -163,7 +164,7 @@ public class RoomProtocolInterceptorTest {
                 {"type":"broadcast","room":"lobby","data":"hello"}"""
         );
         var action = interceptor.inspect(r2);
-        assertEquals(action, Action.CANCELLED, "Broadcast should consume the message");
+        assertEquals(Action.CANCELLED, action, "Broadcast should consume the message");
     }
 
     // --- Direct message flow ---
@@ -183,7 +184,7 @@ public class RoomProtocolInterceptorTest {
                 {"type":"direct","room":"lobby","targetId":"nobody","data":"hi"}"""
         );
         var action = interceptor.inspect(r2);
-        assertEquals(action, Action.CANCELLED);
+        assertEquals(Action.CANCELLED, action);
     }
 
     @Test
@@ -205,7 +206,7 @@ public class RoomProtocolInterceptorTest {
                 {"type":"direct","room":"lobby","targetId":"alice","data":"hi alice"}"""
         );
         var action = interceptor.inspect(r3);
-        assertEquals(action, Action.CANCELLED);
+        assertEquals(Action.CANCELLED, action);
     }
 
     // --- Non-protocol messages pass through ---
@@ -214,21 +215,21 @@ public class RoomProtocolInterceptorTest {
     public void testNonJsonPassesThrough() throws Exception {
         var resource = createResourceWithBody("not json at all");
         var action = interceptor.inspect(resource);
-        assertEquals(action, Action.CONTINUE, "Non-JSON should pass through");
+        assertEquals(Action.CONTINUE, action, "Non-JSON should pass through");
     }
 
     @Test
     public void testEmptyBodyPassesThrough() throws Exception {
         var resource = createResourceWithBody("");
         var action = interceptor.inspect(resource);
-        assertEquals(action, Action.CONTINUE, "Empty body should pass through");
+        assertEquals(Action.CONTINUE, action, "Empty body should pass through");
     }
 
     @Test
     public void testNullBodyPassesThrough() throws Exception {
         var resource = createResource();
         var action = interceptor.inspect(resource);
-        assertEquals(action, Action.CONTINUE, "Null body should pass through");
+        assertEquals(Action.CONTINUE, action, "Null body should pass through");
     }
 
     @Test
@@ -236,15 +237,14 @@ public class RoomProtocolInterceptorTest {
         var resource = createResourceWithBody("""
                 {"someKey":"someValue"}""");
         var action = interceptor.inspect(resource);
-        assertEquals(action, Action.CONTINUE, "Non-room JSON should pass through");
+        assertEquals(Action.CONTINUE, action, "Non-room JSON should pass through");
     }
 
     // --- Priority ---
 
     @Test
     public void testPriorityIsBeforeDefault() {
-        assertEquals(interceptor.priority(),
-                org.atmosphere.interceptor.InvokationOrder.BEFORE_DEFAULT);
+        assertEquals(org.atmosphere.interceptor.InvokationOrder.BEFORE_DEFAULT, interceptor.priority());
     }
 
     // --- RoomManager.getOrCreate ---
@@ -268,9 +268,9 @@ public class RoomProtocolInterceptorTest {
         room.join(r2, new RoomMember("bob"));
 
         var info = room.memberInfo();
-        assertEquals(info.size(), 2);
-        assertEquals(info.get(r1.uuid()).id(), "alice");
-        assertEquals(info.get(r2.uuid()).id(), "bob");
+        assertEquals(2, info.size());
+        assertEquals("alice", info.get(r1.uuid()).id());
+        assertEquals("bob", info.get(r2.uuid()).id());
     }
 
     @Test
@@ -278,7 +278,7 @@ public class RoomProtocolInterceptorTest {
         var room = roomManager.room("test");
         var r1 = createResource();
         room.join(r1, new RoomMember("alice"));
-        assertEquals(room.memberInfo().size(), 1);
+        assertEquals(1, room.memberInfo().size());
 
         room.leave(r1);
         assertTrue(room.memberInfo().isEmpty());
@@ -306,9 +306,9 @@ public class RoomProtocolInterceptorTest {
         var r1 = createResource();
         room.join(r1, new RoomMember("alice", java.util.Map.of("role", "admin")));
 
-        assertEquals(events.size(), 1);
+        assertEquals(1, events.size());
         assertNotNull(events.getFirst().memberInfo());
-        assertEquals(events.getFirst().memberInfo().id(), "alice");
+        assertEquals("alice", events.getFirst().memberInfo().id());
     }
 
     @Test
@@ -320,7 +320,7 @@ public class RoomProtocolInterceptorTest {
         var r1 = createResource();
         room.join(r1);
 
-        assertEquals(events.size(), 1);
+        assertEquals(1, events.size());
         assertNull(events.getFirst().memberInfo());
     }
 

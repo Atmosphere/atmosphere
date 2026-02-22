@@ -142,7 +142,7 @@ All Java source files must start with:
 - Use `@Override` on all overriding methods
 - Prefer `StringBuilder` over string concatenation in loops
 - Use `List.of()`, `Map.of()`, `Set.of()` for unmodifiable collections
-- Existing tests use TestNG; new tests in starter/quarkus modules use JUnit 5
+- All tests use JUnit 5 (`org.junit.jupiter`)
 
 ### Build Enforcement
 - Checkstyle: runs in `validate` phase (failsOnError=true)
@@ -171,9 +171,9 @@ All Java source files must start with:
 - Some tests excluded on JDK 25+ (BlockingIOCometSupport incompatibility)
 - `JSR356WebSocketTest` excluded (Mockito cannot mock sealed interfaces on JDK 21+)
 - `BroadcasterCacheTest` excluded (BlockingIOCometSupport incompatibility)
-- TestNG is the test framework for core modules
-- JUnit 5 via `spring-boot-starter-test` for the Spring Boot starter
-- JUnit 5 via `quarkus-junit5` for the Quarkus extension
+- JUnit 5 is the test framework for all modules
+- Spring Boot starter uses JUnit 5 via `spring-boot-starter-test`
+- Quarkus extension uses JUnit 5 via `quarkus-junit5`
 
 ## Pre-Commit Validation
 

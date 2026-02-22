@@ -30,9 +30,6 @@ import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -43,10 +40,11 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link KafkaBroadcaster} including full lifecycle and message flow.
@@ -60,7 +58,7 @@ public class KafkaBroadcasterTest {
     private TestHandler handler;
 
     @SuppressWarnings("deprecation")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
@@ -80,7 +78,7 @@ public class KafkaBroadcasterTest {
         broadcaster.addAtmosphereResource(ar);
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         broadcaster.destroy();
         config.getBroadcasterFactory().destroy();
@@ -90,7 +88,7 @@ public class KafkaBroadcasterTest {
     @Test
     public void testTopicNameGenerated() {
         var testable = (TestableKafkaBroadcaster) broadcaster;
-        assertEquals(testable.getTopicName(), "atmosphere.kafka-test");
+        assertEquals("atmosphere.kafka-test", testable.getTopicName());
     }
 
     @Test
@@ -99,8 +97,8 @@ public class KafkaBroadcasterTest {
 
         var testable = (TestableKafkaBroadcaster) broadcaster;
         assertNotNull(testable.lastPublishedPayload);
-        assertEquals(new String(testable.lastPublishedPayload, StandardCharsets.UTF_8), "hello-kafka");
-        assertEquals(testable.lastPublishedTopic, "atmosphere.kafka-test");
+        assertEquals("hello-kafka", new String(testable.lastPublishedPayload, StandardCharsets.UTF_8));
+        assertEquals("atmosphere.kafka-test", testable.lastPublishedTopic);
     }
 
     @Test
@@ -109,7 +107,7 @@ public class KafkaBroadcasterTest {
 
         var testable = (TestableKafkaBroadcaster) broadcaster;
         assertNotNull(testable.lastPublishedNodeId);
-        assertEquals(testable.lastPublishedNodeId, testable.getNodeId());
+        assertEquals(testable.getNodeId(), testable.lastPublishedNodeId);
     }
 
     @Test
@@ -131,7 +129,7 @@ public class KafkaBroadcasterTest {
     public void testSerializeStringMessage() {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var result = new String(testable.serializeMessage("hello"), StandardCharsets.UTF_8);
-        assertEquals(result, "hello");
+        assertEquals("hello", result);
     }
 
     @Test
@@ -139,22 +137,22 @@ public class KafkaBroadcasterTest {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var bytes = "raw bytes".getBytes(StandardCharsets.UTF_8);
         var result = testable.serializeMessage(bytes);
-        assertEquals(result, bytes);
+        assertEquals(bytes, result);
     }
 
     @Test
     public void testSerializeObjectMessage() {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var result = new String(testable.serializeMessage(42), StandardCharsets.UTF_8);
-        assertEquals(result, "42");
+        assertEquals("42", result);
     }
 
     @Test
     public void testSanitizeTopicName() {
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("my-broadcaster"), "my-broadcaster");
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("/chat/room1"), "_chat_room1");
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("chat.room.1"), "chat.room.1");
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("chat room"), "chat_room");
+        assertEquals("my-broadcaster", KafkaBroadcaster.sanitizeTopicName("my-broadcaster"));
+        assertEquals("_chat_room1", KafkaBroadcaster.sanitizeTopicName("/chat/room1"));
+        assertEquals("chat.room.1", KafkaBroadcaster.sanitizeTopicName("chat.room.1"));
+        assertEquals("chat_room", KafkaBroadcaster.sanitizeTopicName("chat room"));
     }
 
     @Test
@@ -162,21 +160,21 @@ public class KafkaBroadcasterTest {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var headers = new RecordHeaders();
         headers.add(KafkaBroadcaster.NODE_ID_HEADER, "test-node".getBytes(StandardCharsets.UTF_8));
-        assertEquals(testable.extractNodeId(headers), "test-node");
+        assertEquals("test-node", testable.extractNodeId(headers));
     }
 
     @Test
     public void testExtractNodeIdMissing() {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var headers = new RecordHeaders();
-        assertEquals(testable.extractNodeId(headers), null);
+        assertEquals(null, testable.extractNodeId(headers));
     }
 
     @Test
     public void testConfigConstants() {
-        assertEquals(KafkaBroadcaster.KAFKA_BOOTSTRAP_SERVERS, "org.atmosphere.kafka.bootstrap.servers");
-        assertEquals(KafkaBroadcaster.KAFKA_TOPIC_PREFIX, "org.atmosphere.kafka.topic.prefix");
-        assertEquals(KafkaBroadcaster.KAFKA_GROUP_ID, "org.atmosphere.kafka.group.id");
+        assertEquals("org.atmosphere.kafka.bootstrap.servers", KafkaBroadcaster.KAFKA_BOOTSTRAP_SERVERS);
+        assertEquals("org.atmosphere.kafka.topic.prefix", KafkaBroadcaster.KAFKA_TOPIC_PREFIX);
+        assertEquals("org.atmosphere.kafka.group.id", KafkaBroadcaster.KAFKA_GROUP_ID);
     }
 
     @Test
@@ -191,23 +189,23 @@ public class KafkaBroadcasterTest {
     @Test
     public void testSanitizeTopicNameWithSpecialCharacters() {
         // Test various special characters that should be replaced with underscores
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("room@#$%"), "room____");
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("a+b=c"), "a_b_c");
-        assertEquals(KafkaBroadcaster.sanitizeTopicName(""), "");
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("already_valid-name.1"), "already_valid-name.1");
+        assertEquals("room____", KafkaBroadcaster.sanitizeTopicName("room@#$%"));
+        assertEquals("a_b_c", KafkaBroadcaster.sanitizeTopicName("a+b=c"));
+        assertEquals("", KafkaBroadcaster.sanitizeTopicName(""));
+        assertEquals("already_valid-name.1", KafkaBroadcaster.sanitizeTopicName("already_valid-name.1"));
     }
 
     @Test
     public void testSanitizeTopicNameWithUnicode() {
         // Unicode characters should be replaced with underscores
-        assertEquals(KafkaBroadcaster.sanitizeTopicName("chat-\u00e9\u00e8\u00ea"), "chat-___");
+        assertEquals("chat-___", KafkaBroadcaster.sanitizeTopicName("chat-\u00e9\u00e8\u00ea"));
     }
 
     @Test
     public void testSerializeEmptyStringMessage() {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var result = new String(testable.serializeMessage(""), StandardCharsets.UTF_8);
-        assertEquals(result, "");
+        assertEquals("", result);
     }
 
     @Test
@@ -221,7 +219,7 @@ public class KafkaBroadcasterTest {
             }
         };
         var result = new String(testable.serializeMessage(obj), StandardCharsets.UTF_8);
-        assertEquals(result, "custom-object");
+        assertEquals("custom-object", result);
     }
 
     @Test
@@ -229,7 +227,7 @@ public class KafkaBroadcasterTest {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var bytes = new byte[0];
         var result = testable.serializeMessage(bytes);
-        assertEquals(result.length, 0);
+        assertEquals(0, result.length);
     }
 
     @Test
@@ -237,7 +235,7 @@ public class KafkaBroadcasterTest {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var utf8Msg = "Hello \u4e16\u754c \ud83c\udf0d";
         var result = testable.serializeMessage(utf8Msg);
-        assertEquals(new String(result, StandardCharsets.UTF_8), utf8Msg);
+        assertEquals(utf8Msg, new String(result, StandardCharsets.UTF_8));
     }
 
     @Test
@@ -247,7 +245,7 @@ public class KafkaBroadcasterTest {
         var headers = new RecordHeaders();
         headers.add(KafkaBroadcaster.NODE_ID_HEADER, "node-1".getBytes(StandardCharsets.UTF_8));
         headers.add(KafkaBroadcaster.NODE_ID_HEADER, "node-2".getBytes(StandardCharsets.UTF_8));
-        assertEquals(testable.extractNodeId(headers), "node-2");
+        assertEquals("node-2", testable.extractNodeId(headers));
     }
 
     @Test
@@ -255,12 +253,12 @@ public class KafkaBroadcasterTest {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var headers = new RecordHeaders();
         headers.add(KafkaBroadcaster.NODE_ID_HEADER, "".getBytes(StandardCharsets.UTF_8));
-        assertEquals(testable.extractNodeId(headers), "");
+        assertEquals("", testable.extractNodeId(headers));
     }
 
     @Test
     public void testNodeIdHeaderConstant() {
-        assertEquals(KafkaBroadcaster.NODE_ID_HEADER, "atmosphere-node-id");
+        assertEquals("atmosphere-node-id", KafkaBroadcaster.NODE_ID_HEADER);
     }
 
     @Test
@@ -275,13 +273,13 @@ public class KafkaBroadcasterTest {
         var testable = (TestableKafkaBroadcaster) broadcaster;
 
         broadcaster.broadcast("msg-1").get();
-        assertEquals(new String(testable.lastPublishedPayload, StandardCharsets.UTF_8), "msg-1");
+        assertEquals("msg-1", new String(testable.lastPublishedPayload, StandardCharsets.UTF_8));
 
         broadcaster.broadcast("msg-2").get();
-        assertEquals(new String(testable.lastPublishedPayload, StandardCharsets.UTF_8), "msg-2");
+        assertEquals("msg-2", new String(testable.lastPublishedPayload, StandardCharsets.UTF_8));
 
         broadcaster.broadcast("msg-3").get();
-        assertEquals(new String(testable.lastPublishedPayload, StandardCharsets.UTF_8), "msg-3");
+        assertEquals("msg-3", new String(testable.lastPublishedPayload, StandardCharsets.UTF_8));
     }
 
     @Test
@@ -306,8 +304,8 @@ public class KafkaBroadcasterTest {
         assertNotNull(testable.lastPublishedTopic, "Topic should be captured");
         assertNotNull(testable.lastPublishedPayload, "Payload should be captured");
         assertNotNull(testable.lastPublishedNodeId, "Node ID should be captured");
-        assertEquals(testable.lastPublishedTopic, "atmosphere.kafka-test");
-        assertEquals(testable.lastPublishedNodeId, testable.getNodeId());
+        assertEquals("atmosphere.kafka-test", testable.lastPublishedTopic);
+        assertEquals(testable.getNodeId(), testable.lastPublishedNodeId);
     }
 
     @Test
@@ -315,7 +313,7 @@ public class KafkaBroadcasterTest {
         var testable = (TestableKafkaBroadcaster) broadcaster;
         var bytes = "binary-data".getBytes(StandardCharsets.UTF_8);
         broadcaster.broadcast(bytes).get();
-        assertEquals(testable.lastPublishedPayload, bytes);
+        assertEquals(bytes, testable.lastPublishedPayload);
     }
 
     /**

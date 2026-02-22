@@ -15,25 +15,25 @@
  */
 package org.atmosphere.metrics;
 
-import static org.testng.Assert.*;
-
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.util.Map;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereHealthTest {
 
     private AtmosphereConfig config;
     private DefaultBroadcasterFactory factory;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
@@ -41,7 +41,7 @@ public class AtmosphereHealthTest {
         config.framework().setBroadcasterFactory(factory);
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         factory.destroy();
         ExecutorsFactory.reset(config);
@@ -52,9 +52,9 @@ public class AtmosphereHealthTest {
         var health = new AtmosphereHealth(config.framework());
         Map<String, Object> status = health.check();
 
-        assertEquals(status.get("status"), "UP");
+        assertEquals("UP", status.get("status"));
         assertNotNull(status.get("version"));
-        assertEquals(status.get("connections"), 0);
+        assertEquals(0, status.get("connections"));
         assertTrue((int) status.get("broadcasters") >= 0);
         assertTrue(health.isHealthy());
     }
@@ -67,7 +67,7 @@ public class AtmosphereHealthTest {
         var health = new AtmosphereHealth(config.framework());
         Map<String, Object> status = health.check();
 
-        assertEquals(status.get("status"), "UP");
+        assertEquals("UP", status.get("status"));
         assertTrue((int) status.get("broadcasters") >= 2);
     }
 
@@ -78,7 +78,7 @@ public class AtmosphereHealthTest {
         var health = new AtmosphereHealth(config.framework());
         Map<String, Object> status = health.check();
 
-        assertEquals(status.get("status"), "DOWN");
+        assertEquals("DOWN", status.get("status"));
         assertFalse(health.isHealthy());
         // No connection/broadcaster details when DOWN
         assertNull(status.get("connections"));

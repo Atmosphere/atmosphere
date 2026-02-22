@@ -16,9 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -28,8 +25,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class WriteTimeoutTest {
 
@@ -38,7 +38,7 @@ public class WriteTimeoutTest {
     private AR atmosphereHandler;
     private AtmosphereConfig config;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework()
             .addInitParameter("org.atmosphere.cpr.Broadcaster.writeTimeout", "2000")
@@ -50,7 +50,7 @@ public class WriteTimeoutTest {
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSetUp() throws Exception {
         broadcaster.destroy();
         config.getBroadcasterFactory().destroy();
@@ -83,7 +83,7 @@ public class WriteTimeoutTest {
         broadcaster.broadcast("foo", ar).get();
         guard.await(10, TimeUnit.SECONDS);
         assertNotNull(t.get());
-        assertEquals(t.get().getMessage(), "Unable to write after 2000");
+        assertEquals("Unable to write after 2000", t.get().getMessage());
     }
 
     @Test
@@ -107,7 +107,7 @@ public class WriteTimeoutTest {
             }
         });
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(t.get(), null);
+        assertEquals(null, t.get());
     }
 
     public final static class AR implements AtmosphereHandler {

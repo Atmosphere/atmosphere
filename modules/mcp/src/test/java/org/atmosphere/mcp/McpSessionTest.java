@@ -16,11 +16,11 @@
 package org.atmosphere.mcp;
 
 import org.atmosphere.mcp.runtime.McpSession;
-import org.testng.annotations.Test;
 
 import java.util.Map;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Unit tests for {@link McpSession} — TTL, pending notification queue, attributes.
@@ -31,7 +31,7 @@ public class McpSessionTest {
     public void testSessionIdIsUnique() {
         var s1 = new McpSession();
         var s2 = new McpSession();
-        assertNotEquals(s1.sessionId(), s2.sessionId());
+        assertNotEquals(s2.sessionId(), s1.sessionId());
         assertNotNull(s1.sessionId());
     }
 
@@ -51,8 +51,8 @@ public class McpSessionTest {
         assertTrue(session.clientCapabilities().isEmpty());
 
         session.setClientInfo("TestClient", "1.0", Map.of("sampling", Map.of()));
-        assertEquals(session.clientName(), "TestClient");
-        assertEquals(session.clientVersion(), "1.0");
+        assertEquals("TestClient", session.clientName());
+        assertEquals("1.0", session.clientVersion());
         assertTrue(session.clientCapabilities().containsKey("sampling"));
     }
 
@@ -68,7 +68,7 @@ public class McpSessionTest {
     public void testAttributes() {
         var session = new McpSession();
         session.setAttribute("key1", "value1");
-        assertEquals(session.<String>getAttribute("key1"), "value1");
+        assertEquals("value1", session.<String>getAttribute("key1"));
         assertNull(session.getAttribute("nonexistent"));
     }
 
@@ -101,7 +101,7 @@ public class McpSessionTest {
     @Test
     public void testPendingNotificationsEmpty() {
         var session = new McpSession();
-        assertEquals(session.pendingCount(), 0);
+        assertEquals(0, session.pendingCount());
         assertTrue(session.drainPendingNotifications().isEmpty());
     }
 
@@ -111,14 +111,14 @@ public class McpSessionTest {
         session.addPendingNotification("msg1");
         session.addPendingNotification("msg2");
         session.addPendingNotification("msg3");
-        assertEquals(session.pendingCount(), 3);
+        assertEquals(3, session.pendingCount());
 
         var drained = session.drainPendingNotifications();
-        assertEquals(drained.size(), 3);
-        assertEquals(drained.get(0), "msg1");
-        assertEquals(drained.get(1), "msg2");
-        assertEquals(drained.get(2), "msg3");
-        assertEquals(session.pendingCount(), 0);
+        assertEquals(3, drained.size());
+        assertEquals("msg1", drained.get(0));
+        assertEquals("msg2", drained.get(1));
+        assertEquals("msg3", drained.get(2));
+        assertEquals(0, session.pendingCount());
     }
 
     @Test
@@ -129,11 +129,11 @@ public class McpSessionTest {
         session.addPendingNotification("c");
         session.addPendingNotification("d");
 
-        assertEquals(session.pendingCount(), 3);
+        assertEquals(3, session.pendingCount());
         var drained = session.drainPendingNotifications();
-        assertEquals(drained.get(0), "b");
-        assertEquals(drained.get(1), "c");
-        assertEquals(drained.get(2), "d");
+        assertEquals("b", drained.get(0));
+        assertEquals("c", drained.get(1));
+        assertEquals("d", drained.get(2));
     }
 
     @Test
@@ -141,9 +141,9 @@ public class McpSessionTest {
         var session = new McpSession();
         session.addPendingNotification("x");
         session.drainPendingNotifications();
-        assertEquals(session.pendingCount(), 0);
+        assertEquals(0, session.pendingCount());
         session.addPendingNotification("y");
-        assertEquals(session.pendingCount(), 1);
+        assertEquals(1, session.pendingCount());
     }
 
     @Test
@@ -152,10 +152,10 @@ public class McpSessionTest {
         for (int i = 0; i < 150; i++) {
             session.addPendingNotification("msg-" + i);
         }
-        assertEquals(session.pendingCount(), McpSession.DEFAULT_MAX_PENDING);
+        assertEquals(McpSession.DEFAULT_MAX_PENDING, session.pendingCount());
         var drained = session.drainPendingNotifications();
         // Should have the last 100 messages (50-149)
-        assertEquals(drained.get(0), "msg-50");
-        assertEquals(drained.get(99), "msg-149");
+        assertEquals("msg-50", drained.get(0));
+        assertEquals("msg-149", drained.get(99));
     }
 }

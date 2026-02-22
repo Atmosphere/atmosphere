@@ -19,7 +19,6 @@ import org.atmosphere.cpr.*;
 import org.atmosphere.util.IOUtils;
 import org.json.JSONObject;
 import org.mockito.Mockito;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -31,8 +30,8 @@ import java.util.Enumeration;
 import java.util.HashMap;
 import java.util.Map;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNull;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SimpleRestInterceptorTest {
     private AtmosphereFramework framework;
@@ -49,11 +48,11 @@ public class SimpleRestInterceptorTest {
         interceptor.configure(config);
 
         AtmosphereRequest dispatchedRequest = interceptor.createAtmosphereRequest(resource.getRequest(), IOUtils.readEntirelyAsString(resource).toString());
-        assertEquals(dispatchedRequest.getMethod(), "POST");
-        assertEquals(dispatchedRequest.getRequestURI(), "/topics/test");
-        assertEquals(dispatchedRequest.getContentType(), "application/json");
-        assertEquals(extractContent(dispatchedRequest.getReader()), "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
-        assertEquals(dispatchedRequest.getHeader("X-Request-Key"), "0123456789#123");
+        assertEquals("POST", dispatchedRequest.getMethod());
+        assertEquals("/topics/test", dispatchedRequest.getRequestURI());
+        assertEquals("application/json", dispatchedRequest.getContentType());
+        assertEquals("{\"records\": [{\"value\": \"S2Fma2E=\"}]}", extractContent(dispatchedRequest.getReader()));
+        assertEquals("0123456789#123", dispatchedRequest.getHeader("X-Request-Key"));
     }
 
     @Test
@@ -70,14 +69,14 @@ public class SimpleRestInterceptorTest {
         interceptor.configure(config);
 
         AtmosphereRequest dispatchedRequest1 = interceptor.createAtmosphereRequest(resource1.getRequest(), IOUtils.readEntirelyAsString(resource1).toString());
-        assertEquals(dispatchedRequest1.getMethod(), "POST");
-        assertEquals(dispatchedRequest1.getRequestURI(), "/topics/test");
-        assertEquals(dispatchedRequest1.getContentType(), "application/json");
+        assertEquals("POST", dispatchedRequest1.getMethod());
+        assertEquals("/topics/test", dispatchedRequest1.getRequestURI());
+        assertEquals("application/json", dispatchedRequest1.getContentType());
 
         AtmosphereRequest dispatchedRequest2 = interceptor.createAtmosphereRequest(resource1.getRequest(), IOUtils.readEntirelyAsString(resource2).toString());
         assertNull(dispatchedRequest2);
 
-        assertEquals(extractContent(dispatchedRequest1.getReader()), "{\"records\": [{\"value\": \"S2Fma2E=\"}]}");
+        assertEquals("{\"records\": [{\"value\": \"S2Fma2E=\"}]}", extractContent(dispatchedRequest1.getReader()));
     }
 
     @Test
@@ -188,11 +187,11 @@ public class SimpleRestInterceptorTest {
     }
 
     private void verify(JSONObject headers, Reader body, Map<String, Object> expectedHeaders, String expectedBody) {
-        assertEquals(expectedHeaders.size(), headers.length());
+        assertEquals(headers.length(), expectedHeaders.size());
         for (String key : expectedHeaders.keySet()) {
-            assertEquals(headers.get(key), expectedHeaders.get(key), "value of key " + key + " differs");
+            assertEquals(expectedHeaders.get(key), headers.get(key), "value of key " + key + " differs");
         }
-        assertEquals(extractContent(body), expectedBody);
+        assertEquals(expectedBody, extractContent(body));
     }
 
     private String extractContent(Reader reader) {

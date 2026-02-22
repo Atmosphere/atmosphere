@@ -20,8 +20,6 @@ import org.atmosphere.cpr.AsyncIOInterceptor;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -30,7 +28,10 @@ import java.util.Arrays;
 import java.util.Enumeration;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertFalse;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  *
@@ -39,7 +40,7 @@ public class WebSocketTest {
     private static final byte[] TEST_DATA = "Hello Atmosphere!".getBytes();
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));

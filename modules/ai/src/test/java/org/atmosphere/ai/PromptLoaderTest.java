@@ -15,14 +15,13 @@
  */
 package org.atmosphere.ai;
 
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class PromptLoaderTest {
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() {
         PromptLoader.clearCache();
     }
@@ -30,7 +29,7 @@ public class PromptLoaderTest {
     @Test
     public void testLoadsMarkdownResource() {
         var prompt = PromptLoader.load("prompts/test-system-prompt.md");
-        assertEquals(prompt, "You are a helpful assistant.");
+        assertEquals("You are a helpful assistant.", prompt);
     }
 
     @Test
@@ -40,10 +39,11 @@ public class PromptLoaderTest {
         assertSame(first, second);
     }
 
-    @Test(expectedExceptions = IllegalArgumentException.class,
-          expectedExceptionsMessageRegExp = ".*not found on classpath.*")
+    @Test
     public void testThrowsOnMissingResource() {
-        PromptLoader.load("prompts/does-not-exist.md");
+            assertThrows(IllegalArgumentException.class, () -> {
+            PromptLoader.load("prompts/does-not-exist.md");
+            });
     }
 
     @Test

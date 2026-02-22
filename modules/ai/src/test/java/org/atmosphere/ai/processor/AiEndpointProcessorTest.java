@@ -23,14 +23,15 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.mockito.ArgumentCaptor;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.util.List;
 
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings({"unchecked", "rawtypes"})
 public class AiEndpointProcessorTest {
@@ -38,13 +39,13 @@ public class AiEndpointProcessorTest {
     private AiEndpointProcessor processor;
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         processor = new AiEndpointProcessor();
         framework = mock(AtmosphereFramework.class);
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() {
         PromptLoader.clearCache();
     }
@@ -61,7 +62,7 @@ public class AiEndpointProcessorTest {
         var interceptorsCaptor = ArgumentCaptor.forClass(List.class);
         verify(framework).addAtmosphereHandler(pathCaptor.capture(), handlerCaptor.capture(), interceptorsCaptor.capture());
 
-        assertEquals(pathCaptor.getValue(), "/atmosphere/test-ai");
+        assertEquals("/atmosphere/test-ai", pathCaptor.getValue());
         assertNotNull(handlerCaptor.getValue());
         assertTrue(handlerCaptor.getValue() instanceof AiEndpointHandler);
     }
@@ -80,7 +81,7 @@ public class AiEndpointProcessorTest {
         var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
-        assertEquals(handler.suspendTimeout(), 60_000L);
+        assertEquals(60_000L, handler.suspendTimeout());
     }
 
     @Test
@@ -97,7 +98,7 @@ public class AiEndpointProcessorTest {
         var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
-        assertEquals(handler.suspendTimeout(), 120_000L);
+        assertEquals(120_000L, handler.suspendTimeout());
     }
 
     @Test
@@ -140,7 +141,7 @@ public class AiEndpointProcessorTest {
 
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
         assertSame(handler.target(), instance);
-        assertEquals(handler.promptMethod().getName(), "onPrompt");
+        assertEquals("onPrompt", handler.promptMethod().getName());
     }
 
     @Test
@@ -160,7 +161,7 @@ public class AiEndpointProcessorTest {
         var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
-        assertEquals(handler.systemPrompt(), "You are a helpful assistant.");
+        assertEquals("You are a helpful assistant.", handler.systemPrompt());
     }
 
     @Test
@@ -173,7 +174,7 @@ public class AiEndpointProcessorTest {
         var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
-        assertEquals(handler.systemPrompt(), "");
+        assertEquals("", handler.systemPrompt());
     }
 
     @Test
@@ -186,7 +187,7 @@ public class AiEndpointProcessorTest {
         var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
-        assertEquals(handler.systemPrompt(), "You are a helpful assistant.");
+        assertEquals("You are a helpful assistant.", handler.systemPrompt());
     }
 
     @Test
@@ -200,7 +201,7 @@ public class AiEndpointProcessorTest {
         verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
         var handler = (AiEndpointHandler) handlerCaptor.getValue();
         // Resource content should win over the inline systemPrompt
-        assertEquals(handler.systemPrompt(), "You are a helpful assistant.");
+        assertEquals("You are a helpful assistant.", handler.systemPrompt());
     }
 
     // ---- Test fixture classes ----

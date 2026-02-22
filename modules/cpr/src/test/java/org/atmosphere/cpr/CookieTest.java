@@ -16,9 +16,6 @@
 package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -32,14 +29,17 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CookieTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
@@ -66,7 +66,7 @@ public class CookieTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSet() throws Exception {
         framework.destroy();
     }
@@ -104,8 +104,8 @@ public class CookieTest {
         assertNotNull(cValue.get());
 
         Cookie i = c.iterator().next();
-        assertEquals(i.getName(), cValue.get().getName());
-        assertEquals(i.getValue(), cValue.get().getValue());
+        assertEquals(cValue.get().getName(), i.getName());
+        assertEquals(cValue.get().getValue(), i.getValue());
     }
 
     @Test
@@ -149,8 +149,8 @@ public class CookieTest {
         assertNotNull(cValue.get());
 
         Cookie i = c.iterator().next();
-        assertEquals(i.getName(), cValue.get().getName());
-        assertEquals(i.getValue(), cValue.get().getValue());
-        assertEquals("yo=man; Domain=dasdasdasd; Path=/ya; HttpOnly", response.headers().get("Set-Cookie"));
+        assertEquals(cValue.get().getName(), i.getName());
+        assertEquals(cValue.get().getValue(), i.getValue());
+        assertEquals(response.headers().get("Set-Cookie"), "yo=man; Domain=dasdasdasd; Path=/ya; HttpOnly");
     }
 }

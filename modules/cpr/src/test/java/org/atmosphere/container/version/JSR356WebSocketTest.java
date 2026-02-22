@@ -32,8 +32,6 @@ import org.atmosphere.websocket.WebSocketProcessor;
 import org.mockito.Mockito;
 import org.mockito.invocation.InvocationOnMock;
 import org.mockito.stubbing.Answer;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -54,8 +52,12 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class JSR356WebSocketTest {
 
@@ -63,7 +65,7 @@ public class JSR356WebSocketTest {
     private Session session;
     private RemoteEndpoint.Async asyncRemoteEndpoint;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         session = mock(Session.class);
         when(session.isOpen()).thenReturn(true);
@@ -79,7 +81,8 @@ public class JSR356WebSocketTest {
         };
     }
 
-    @Test(timeOut = 1000)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void test_semaphore_is_released_in_case_of_successful_write() throws Exception {
         mockWriteResult(new SendResult());
 
@@ -89,7 +92,8 @@ public class JSR356WebSocketTest {
         verify(asyncRemoteEndpoint, times(2)).sendText(eq("Hello"), any(SendHandler.class));
     }
 
-    @Test(timeOut = 1000)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void test_semaphore_is_released_in_case_of_failing_write() throws Exception {
         mockWriteResult(new SendResult(new RuntimeException("Fails")));
 
@@ -99,7 +103,8 @@ public class JSR356WebSocketTest {
         verify(asyncRemoteEndpoint, times(2)).sendText(eq("Hello"), any(SendHandler.class));
     }
 
-    @Test(timeOut = 1000)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void test_semaphore_is_released_in_case_of_NPE_in_getAsyncRemote() throws Exception {
         when(session.getAsyncRemote()).thenThrow(new NullPointerException()).thenReturn(asyncRemoteEndpoint);
         webSocket.write("Hello1");
@@ -108,22 +113,28 @@ public class JSR356WebSocketTest {
         verify(asyncRemoteEndpoint).sendText(eq("Hello2"), any(SendHandler.class));
     }
 
-    @Test(timeOut = 1000, expectedExceptions = RuntimeException.class)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void test_semaphore_is_released_in_case_of_ERROR_in_getAsyncRemote() throws Exception {
-        when(session.getAsyncRemote()).thenThrow(new Error("Unexpected error")).thenReturn(asyncRemoteEndpoint);
-        webSocket.write("Hello1");
-        webSocket.write("Hello2");
+        assertThrows(RuntimeException.class, () -> {
+            when(session.getAsyncRemote()).thenThrow(new Error("Unexpected error")).thenReturn(asyncRemoteEndpoint);
+            webSocket.write("Hello1");
+            webSocket.write("Hello2");
 
-        verify(asyncRemoteEndpoint).sendText(eq("Hello2"), any(SendHandler.class));
+            verify(asyncRemoteEndpoint).sendText(eq("Hello2"), any(SendHandler.class));
+        });
     }
 
-    @Test(timeOut = 1000, expectedExceptions = RuntimeException.class)
+    @Timeout(value = 1000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void test_semaphore_is_released_in_case_of_RuntimeException_in_getAsyncRemote() throws Exception {
-        when(session.getAsyncRemote()).thenThrow(new IllegalArgumentException("Invalid argument")).thenReturn(asyncRemoteEndpoint);
-        webSocket.write("Hello1");
-        webSocket.write("Hello2");
+        assertThrows(RuntimeException.class, () -> {
+            when(session.getAsyncRemote()).thenThrow(new IllegalArgumentException("Invalid argument")).thenReturn(asyncRemoteEndpoint);
+            webSocket.write("Hello1");
+            webSocket.write("Hello2");
 
-        verify(asyncRemoteEndpoint).sendText(eq("Hello2"), any(SendHandler.class));
+            verify(asyncRemoteEndpoint).sendText(eq("Hello2"), any(SendHandler.class));
+        });
     }
 
     private void mockWriteResult(final SendResult sendResult) {
@@ -181,8 +192,7 @@ public class JSR356WebSocketTest {
         Enumeration<String> attributeNames = request.getAttributeNames();
         while (attributeNames.hasMoreElements()) {
             String attributeName = attributeNames.nextElement();
-            assertEquals(request.getAttribute(attributeName), sessionAttributes.get(attributeName),
-                    "Attribute value should match the value from the HttpSession");
+            assertEquals(sessionAttributes.get(attributeName), request.getAttribute(attributeName), "Attribute value should match the value from the HttpSession");
         }
     }
 

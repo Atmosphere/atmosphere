@@ -15,31 +15,32 @@
  */
 package org.atmosphere.room;
 
-import static org.testng.Assert.*;
-
 import java.util.Map;
 
-import org.testng.annotations.Test;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RoomMemberTest {
 
     @Test
     public void testRecordConstruction() {
         var member = new RoomMember("alice", Map.of("avatar", "pic.jpg"));
-        assertEquals(member.id(), "alice");
-        assertEquals(member.metadata().get("avatar"), "pic.jpg");
+        assertEquals("alice", member.id());
+        assertEquals("pic.jpg", member.metadata().get("avatar"));
     }
 
     @Test
     public void testConvenienceConstructor() {
         var member = new RoomMember("bob");
-        assertEquals(member.id(), "bob");
+        assertEquals("bob", member.id());
         assertTrue(member.metadata().isEmpty());
     }
 
-    @Test(expectedExceptions = NullPointerException.class)
+    @Test
     public void testNullIdThrows() {
-        new RoomMember(null);
+            assertThrows(NullPointerException.class, () -> {
+            new RoomMember(null);
+            });
     }
 
     @Test
@@ -59,14 +60,14 @@ public class RoomMemberTest {
     public void testEquality() {
         var m1 = new RoomMember("alice", Map.of("k", "v"));
         var m2 = new RoomMember("alice", Map.of("k", "v"));
-        assertEquals(m1, m2);
-        assertEquals(m1.hashCode(), m2.hashCode());
+        assertEquals(m2, m1);
+        assertEquals(m2.hashCode(), m1.hashCode());
     }
 
     @Test
     public void testInequality() {
         var m1 = new RoomMember("alice");
         var m2 = new RoomMember("bob");
-        assertNotEquals(m1, m2);
+        assertNotEquals(m2, m1);
     }
 }

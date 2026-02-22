@@ -25,9 +25,6 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
 import org.mockito.ArgumentCaptor;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
@@ -38,8 +35,11 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link KafkaBroadcaster} lifecycle management, producer/consumer
@@ -50,13 +50,13 @@ public class KafkaResourceLifecycleTest {
     private AtmosphereConfig config;
     private DefaultBroadcasterFactory factory;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         factory = new DefaultBroadcasterFactory();
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         factory.destroy();
         ExecutorsFactory.reset(config);
@@ -164,8 +164,8 @@ public class KafkaResourceLifecycleTest {
         verify(mockProducer).send(captor.capture());
 
         var record = captor.getValue();
-        assertEquals(record.topic(), "atmosphere.publish-test");
-        assertEquals(new String((byte[]) record.value(), StandardCharsets.UTF_8), "test-message");
+        assertEquals("atmosphere.publish-test", record.topic());
+        assertEquals("test-message", new String((byte[]) record.value(), StandardCharsets.UTF_8));
         assertNotNull(record.headers().lastHeader(KafkaBroadcaster.NODE_ID_HEADER));
 
         broadcaster.releaseExternalResources();
@@ -222,7 +222,7 @@ public class KafkaResourceLifecycleTest {
         verify(mockProducer).send(captor.capture());
 
         // The key should be the broadcaster ID
-        assertEquals(captor.getValue().key(), "key-test");
+        assertEquals("key-test", captor.getValue().key());
 
         broadcaster.releaseExternalResources();
     }
@@ -248,7 +248,7 @@ public class KafkaResourceLifecycleTest {
         @SuppressWarnings("rawtypes")
         ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
         verify(mockConsumer).subscribe(captor.capture());
-        assertEquals(captor.getValue(), List.of("atmosphere.subscribe-test"));
+        assertEquals(List.of("atmosphere.subscribe-test"), captor.getValue());
     }
 
     @Test
@@ -278,7 +278,7 @@ public class KafkaResourceLifecycleTest {
         var header = captor.getValue().headers().lastHeader(KafkaBroadcaster.NODE_ID_HEADER);
         assertNotNull(header);
         var headerNodeId = new String(header.value(), StandardCharsets.UTF_8);
-        assertEquals(headerNodeId, broadcaster.getNodeId());
+        assertEquals(broadcaster.getNodeId(), headerNodeId);
 
         broadcaster.releaseExternalResources();
     }

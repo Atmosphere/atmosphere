@@ -17,10 +17,6 @@ package org.atmosphere.session.redis;
 
 import org.atmosphere.session.DurableSession;
 import org.testcontainers.containers.GenericContainer;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -29,16 +25,24 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.awaitility.Awaitility.await;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for {@link RedisSessionStore} using Testcontainers.
  *
  * <p>Requires Docker. Tests are skipped if Docker is unavailable.</p>
  */
-@Test(groups = "redis")
+@Tag("redis")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class RedisSessionStoreTest {
 
     private static final boolean DOCKER_AVAILABLE = isDockerAvailable();
@@ -50,7 +54,7 @@ public class RedisSessionStoreTest {
     private RedisSessionStore store;
 
     @SuppressWarnings("resource") // closed in tearDown()
-    @BeforeClass
+    @BeforeAll
     public void setUp() {
         if (!DOCKER_AVAILABLE) {
             return;
@@ -64,7 +68,7 @@ public class RedisSessionStoreTest {
         store = new RedisSessionStore(redisUri, Duration.ofHours(24));
     }
 
-    @AfterMethod
+    @AfterEach
     public void cleanUp() {
         if (!DOCKER_AVAILABLE || store == null) {
             return;
@@ -80,7 +84,7 @@ public class RedisSessionStoreTest {
         store.remove("tok-expiry");
     }
 
-    @AfterClass
+    @AfterAll
     public void tearDown() {
         if (store != null) {
             store.close();
@@ -101,8 +105,8 @@ public class RedisSessionStoreTest {
 
         var restored = store.restore("tok-1");
         assertTrue(restored.isPresent());
-        assertEquals(restored.get().token(), "tok-1");
-        assertEquals(restored.get().resourceId(), "res-1");
+        assertEquals("tok-1", restored.get().token());
+        assertEquals("res-1", restored.get().resourceId());
     }
 
     @Test
@@ -122,7 +126,7 @@ public class RedisSessionStoreTest {
         store.save(DurableSession.create("tok-1", "res-1").withResourceId("res-2"));
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.resourceId(), "res-2");
+        assertEquals("res-2", restored.resourceId());
     }
 
     // --- remove ---
@@ -188,16 +192,17 @@ public class RedisSessionStoreTest {
         store.touch("tok-1");
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.token(), "tok-1");
-        assertEquals(restored.resourceId(), "res-1");
-        assertEquals(restored.rooms(), Set.of("room-a"));
-        assertEquals(restored.broadcasters(), Set.of("/chat"));
-        assertEquals(restored.metadata().get("user"), "alice");
+        assertEquals("tok-1", restored.token());
+        assertEquals("res-1", restored.resourceId());
+        assertEquals(Set.of("room-a"), restored.rooms());
+        assertEquals(Set.of("/chat"), restored.broadcasters());
+        assertEquals("alice", restored.metadata().get("user"));
     }
 
     // --- expiry / removeExpired ---
 
-    @Test(timeOut = 15_000)
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testRemoveExpiredCleansUpIndex() {
         skipIfNoDocker();
 
@@ -243,7 +248,7 @@ public class RedisSessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.rooms(), Set.of("room-a", "room-b", "room with spaces"));
+        assertEquals(Set.of("room-a", "room-b", "room with spaces"), restored.rooms());
     }
 
     // --- serialization: broadcasters ---
@@ -257,7 +262,7 @@ public class RedisSessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.broadcasters(), Set.of("/chat", "/notifications", "/path/with/slashes"));
+        assertEquals(Set.of("/chat", "/notifications", "/path/with/slashes"), restored.broadcasters());
     }
 
     // --- serialization: metadata ---
@@ -271,9 +276,9 @@ public class RedisSessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.metadata().get("user"), "alice");
-        assertEquals(restored.metadata().get("role"), "admin");
-        assertEquals(restored.metadata().get("key,with,commas"), "value");
+        assertEquals("alice", restored.metadata().get("user"));
+        assertEquals("admin", restored.metadata().get("role"));
+        assertEquals("value", restored.metadata().get("key,with,commas"));
     }
 
     // --- serialization: empty collections ---
@@ -304,8 +309,8 @@ public class RedisSessionStoreTest {
 
         var restored = store.restore("tok-1").get();
         // Millisecond precision (JSON stores epoch millis)
-        assertEquals(restored.createdAt().toEpochMilli(), now.toEpochMilli());
-        assertEquals(restored.lastSeen().toEpochMilli(), now.toEpochMilli());
+        assertEquals(now.toEpochMilli(), restored.createdAt().toEpochMilli());
+        assertEquals(now.toEpochMilli(), restored.lastSeen().toEpochMilli());
     }
 
     // --- close idempotency ---
@@ -333,7 +338,7 @@ public class RedisSessionStoreTest {
         for (int i = 0; i < 100; i++) {
             var restored = store.restore("tok-" + i);
             assertTrue(restored.isPresent(), "Session tok-" + i + " should exist");
-            assertEquals(restored.get().resourceId(), "res-" + i);
+            assertEquals("res-" + i, restored.get().resourceId());
         }
     }
 
@@ -353,20 +358,20 @@ public class RedisSessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.token(), "tok-1");
-        assertEquals(restored.resourceId(), "res-1");
-        assertEquals(restored.rooms(), Set.of("room-x", "room-y"));
-        assertEquals(restored.broadcasters(), Set.of("/broadcast/a", "/broadcast/b"));
-        assertEquals(restored.metadata(), Map.of("user", "bob", "theme", "dark"));
-        assertEquals(restored.createdAt().toEpochMilli(), now.toEpochMilli());
-        assertEquals(restored.lastSeen().toEpochMilli(), now.toEpochMilli());
+        assertEquals("tok-1", restored.token());
+        assertEquals("res-1", restored.resourceId());
+        assertEquals(Set.of("room-x", "room-y"), restored.rooms());
+        assertEquals(Set.of("/broadcast/a", "/broadcast/b"), restored.broadcasters());
+        assertEquals(Map.of("user", "bob", "theme", "dark"), restored.metadata());
+        assertEquals(now.toEpochMilli(), restored.createdAt().toEpochMilli());
+        assertEquals(now.toEpochMilli(), restored.lastSeen().toEpochMilli());
     }
 
     // --- helper ---
 
     private static void skipIfNoDocker() {
         if (!DOCKER_AVAILABLE) {
-            throw new org.testng.SkipException("Docker not available");
+            org.junit.jupiter.api.Assumptions.abort("Docker not available");
         }
     }
 

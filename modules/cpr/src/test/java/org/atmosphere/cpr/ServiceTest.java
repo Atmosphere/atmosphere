@@ -18,19 +18,19 @@ package org.atmosphere.cpr;
 import org.atmosphere.config.service.AtmosphereFrameworkListenerService;
 import org.atmosphere.config.service.BroadcasterService;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 
-import static org.testng.Assert.assertEquals;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ServiceTest {
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.addAnnotationPackage(B.class);
@@ -53,19 +53,19 @@ public class ServiceTest {
         }).init();
     }
 
-    @AfterMethod
+    @AfterEach
     public void after() {
         framework.destroy();
     }
 
     @Test
     public void testBroadcasterService() throws IOException, ServletException {
-        assertEquals(framework.getBroadcasterFactory().get("test").getClass().getName(), B.class.getName());
+        assertEquals(B.class.getName(), framework.getBroadcasterFactory().get("test").getClass().getName());
     }
 
     @Test
     public void testFrameworkListenerService() throws IOException, ServletException {
-        assertEquals(framework.frameworkListeners().get(0).getClass().getName(), C.class.getName());
+        assertEquals(C.class.getName(), framework.frameworkListeners().get(0).getClass().getName());
     }
 
     @BroadcasterService

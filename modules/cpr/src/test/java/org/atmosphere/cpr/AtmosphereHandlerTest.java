@@ -17,8 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -30,9 +28,10 @@ import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereHandlerTest {
     private AtmosphereFramework framework;
@@ -41,7 +40,7 @@ public class AtmosphereHandlerTest {
     private Broadcaster broadcaster;
     private AR atmosphereHandler;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
@@ -82,7 +81,6 @@ public class AtmosphereHandlerTest {
             }
         });
     }
-
 
     @Test
     public void tesOnStateChange() throws IOException, ServletException {
@@ -141,13 +139,12 @@ public class AtmosphereHandlerTest {
                 mock(BlockingIOCometSupport.class),
                 atmosphereHandler);
 
-
         broadcaster.addAtmosphereResource(ar);
 
         List<byte[]> l = new ArrayList<byte[]>();
         l.add("yo".getBytes());
         broadcaster.broadcast(l).get();
-        assertEquals("yo", new String(ref.get()));
+        assertEquals(new String(ref.get()), "yo");
     }
 
     public final static class AR extends AbstractReflectorAtmosphereHandler {

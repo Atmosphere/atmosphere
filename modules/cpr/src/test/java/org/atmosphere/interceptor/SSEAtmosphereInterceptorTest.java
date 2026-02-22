@@ -31,20 +31,20 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.HeaderConfig;
 import org.mockito.Mockito;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Enumeration;
 
-import static org.testng.Assert.assertEquals;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SSEAtmosphereInterceptorTest {
     private AtmosphereFramework framework;
     private AtmosphereConfig config;
 
-    @BeforeMethod
+    @BeforeEach
     public void setup() throws Exception {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(Mockito.mock(AsyncSupport.class));
@@ -117,21 +117,21 @@ public class SSEAtmosphereInterceptorTest {
         
         // no newline
         response.write("Good Morning".getBytes());
-        assertEquals(baos.toString(), "data:Good Morning\r\n\r\n");
+        assertEquals("data:Good Morning\r\n\r\n", baos.toString());
         baos.reset();
         
         // \n
         response.write("Hello World!\nHave a nice day!".getBytes());
-        assertEquals(baos.toString(), "data:Hello World!\r\ndata:Have a nice day!\r\n\r\n");
+        assertEquals("data:Hello World!\r\ndata:Have a nice day!\r\n\r\n", baos.toString());
         baos.reset();
 
         // \r
         response.write("Hello World!\rHave a nice day!".getBytes());
-        assertEquals(baos.toString(), "data:Hello World!\r\ndata:Have a nice day!\r\n\r\n");
+        assertEquals("data:Hello World!\r\ndata:Have a nice day!\r\n\r\n", baos.toString());
         baos.reset();
 
         // \r\n
         response.write("Hello World!\r\nHave a nice day!".getBytes());
-        assertEquals(baos.toString(), "data:Hello World!\r\ndata:Have a nice day!\r\n\r\n");
+        assertEquals("data:Hello World!\r\ndata:Have a nice day!\r\n\r\n", baos.toString());
     }
 }

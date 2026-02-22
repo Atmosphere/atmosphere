@@ -16,9 +16,9 @@
 package org.atmosphere.mcp;
 
 import org.atmosphere.mcp.bridge.McpStdioBridge;
-import org.testng.annotations.Test;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for the stdio-to-HTTP MCP bridge.
@@ -29,34 +29,34 @@ public class McpStdioBridgeTest {
     public void testParseSseDataSingleEvent() {
         var sse = "event: message\ndata: {\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}\n\n";
         var result = McpStdioBridge.parseSseData(sse);
-        assertEquals(result, "{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}");
+        assertEquals("{\"jsonrpc\":\"2.0\",\"id\":1,\"result\":{}}", result);
     }
 
     @Test
     public void testParseSseDataMultipleEvents() {
         var sse = "event: message\ndata: {\"first\":true}\n\nevent: message\ndata: {\"second\":true}\n\n";
         var result = McpStdioBridge.parseSseData(sse);
-        assertEquals(result, "{\"first\":true}\n{\"second\":true}");
+        assertEquals("{\"first\":true}\n{\"second\":true}", result);
     }
 
     @Test
     public void testParseSseDataNoSpace() {
         var sse = "data:{\"compact\":true}\n\n";
         var result = McpStdioBridge.parseSseData(sse);
-        assertEquals(result, "{\"compact\":true}");
+        assertEquals("{\"compact\":true}", result);
     }
 
     @Test
     public void testParseSseDataEmpty() {
         var result = McpStdioBridge.parseSseData("");
-        assertEquals(result, "");
+        assertEquals("", result);
     }
 
     @Test
     public void testParseSseDataIgnoresNonDataLines() {
         var sse = "event: message\nid: 42\ndata: {\"result\":\"ok\"}\nretry: 1000\n\n";
         var result = McpStdioBridge.parseSseData(sse);
-        assertEquals(result, "{\"result\":\"ok\"}");
+        assertEquals("{\"result\":\"ok\"}", result);
     }
 
     @Test

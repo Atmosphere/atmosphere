@@ -26,8 +26,6 @@ import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpHandler;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
 import org.atmosphere.mcp.runtime.McpSession;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.BufferedReader;
 import java.io.PrintWriter;
@@ -35,7 +33,10 @@ import java.io.StringReader;
 import java.io.StringWriter;
 
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for Streamable HTTP transport support in McpHandler.
@@ -53,7 +54,7 @@ public class McpStreamableHttpTest {
         }
     }
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         var registry = new McpRegistry();
         registry.scan(new SimpleMcpServer());
@@ -75,7 +76,7 @@ public class McpStreamableHttpTest {
         handler.onRequest(resource);
 
         var node = mapper.readTree(output.toString());
-        assertEquals(node.get("id").asInt(), 1);
+        assertEquals(1, node.get("id").asInt());
         assertNotNull(node.get("result"));
         verify(resource.getResponse()).setContentType("application/json");
         verify(resource.getResponse()).setStatus(200);
@@ -102,7 +103,7 @@ public class McpStreamableHttpTest {
         // Extract JSON from SSE
         var json = raw.replace("event: message\ndata: ", "").replace("\n\n", "");
         var node = mapper.readTree(json);
-        assertEquals(node.get("id").asInt(), 1);
+        assertEquals(1, node.get("id").asInt());
     }
 
     // ── POST notification returns 202 ────────────────────────────────────
@@ -153,7 +154,7 @@ public class McpStreamableHttpTest {
         verify(resource.getResponse()).setHeader(eq("Mcp-Session-Id"), argThat(s -> s != null && !s.isEmpty()));
 
         // Session should be stored
-        assertEquals(handler.sessions().size(), 1);
+        assertEquals(1, handler.sessions().size());
     }
 
     @Test
@@ -215,7 +216,7 @@ public class McpStreamableHttpTest {
         when(resource1.getResponse().getWriter()).thenReturn(new PrintWriter(output));
         handler.onRequest(resource1);
 
-        assertEquals(handler.sessions().size(), 1);
+        assertEquals(1, handler.sessions().size());
         var sessionId = handler.sessions().keySet().iterator().next();
 
         // DELETE

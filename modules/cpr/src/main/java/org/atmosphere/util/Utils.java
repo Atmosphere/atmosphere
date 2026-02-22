@@ -54,8 +54,8 @@ public final class Utils {
     private static boolean RUNNING_TEST = false;
     static {
         try {
-            // Check if TestNG is on the classpath
-            Class.forName("org.testng.TestNG");
+            // Check if JUnit 5 is on the classpath
+            Class.forName("org.junit.jupiter.api.Test");
             RUNNING_TEST = true;
         } catch (ClassNotFoundException aE) {
         }

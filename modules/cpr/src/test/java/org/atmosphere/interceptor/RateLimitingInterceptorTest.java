@@ -15,37 +15,34 @@
  */
 package org.atmosphere.interceptor;
 
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class RateLimitingInterceptorTest {
 
     private RateLimitingInterceptor interceptor;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         interceptor = new RateLimitingInterceptor();
     }
 
     @Test
     public void testDefaultConfiguration() {
-        assertEquals(interceptor.maxMessages(), 100);
-        assertEquals(interceptor.policy(), RateLimitingInterceptor.Policy.DROP);
+        assertEquals(100, interceptor.maxMessages());
+        assertEquals(RateLimitingInterceptor.Policy.DROP, interceptor.policy());
     }
 
     @Test
     public void testTotalDropsStartsAtZero() {
-        assertEquals(interceptor.totalDropped(), 0);
-        assertEquals(interceptor.totalDisconnected(), 0);
+        assertEquals(0, interceptor.totalDropped());
+        assertEquals(0, interceptor.totalDisconnected());
     }
 
     @Test
     public void testTrackedClientsStartsAtZero() {
-        assertEquals(interceptor.trackedClients(), 0);
+        assertEquals(0, interceptor.trackedClients());
     }
 
     @Test
@@ -101,20 +98,18 @@ public class RateLimitingInterceptorTest {
         bucket.tryConsume();
         // Verify destroy doesn't throw
         interceptor.destroy();
-        assertEquals(interceptor.trackedClients(), 0);
+        assertEquals(0, interceptor.trackedClients());
     }
 
     @Test
     public void testPolicyEnum() {
-        assertEquals(RateLimitingInterceptor.Policy.values().length, 2);
-        assertEquals(RateLimitingInterceptor.Policy.valueOf("DROP"),
-                RateLimitingInterceptor.Policy.DROP);
-        assertEquals(RateLimitingInterceptor.Policy.valueOf("DISCONNECT"),
-                RateLimitingInterceptor.Policy.DISCONNECT);
+        assertEquals(2, RateLimitingInterceptor.Policy.values().length);
+        assertEquals(RateLimitingInterceptor.Policy.DROP, RateLimitingInterceptor.Policy.valueOf("DROP"));
+        assertEquals(RateLimitingInterceptor.Policy.DISCONNECT, RateLimitingInterceptor.Policy.valueOf("DISCONNECT"));
     }
 
     @Test
     public void testPriorityIsBeforeDefault() {
-        assertEquals(interceptor.priority(), InvokationOrder.BEFORE_DEFAULT);
+        assertEquals(InvokationOrder.BEFORE_DEFAULT, interceptor.priority());
     }
 }

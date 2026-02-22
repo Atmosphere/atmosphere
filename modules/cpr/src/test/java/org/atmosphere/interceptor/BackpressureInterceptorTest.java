@@ -15,17 +15,15 @@
  */
 package org.atmosphere.interceptor;
 
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class BackpressureInterceptorTest {
 
     private BackpressureInterceptor interceptor;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         interceptor = new BackpressureInterceptor();
     }
@@ -36,7 +34,7 @@ public class BackpressureInterceptorTest {
         for (int i = 0; i < 100; i++) {
             assertTrue(interceptor.allowMessage("client1"));
         }
-        assertEquals(interceptor.pendingCount("client1"), 100);
+        assertEquals(100, interceptor.pendingCount("client1"));
     }
 
     @Test
@@ -54,21 +52,21 @@ public class BackpressureInterceptorTest {
 
         String uuid = "test-client";
         assertTrue(lowLimit.allowMessage(uuid));
-        assertEquals(lowLimit.pendingCount(uuid), 1);
+        assertEquals(1, lowLimit.pendingCount(uuid));
 
         assertTrue(lowLimit.allowMessage(uuid));
-        assertEquals(lowLimit.pendingCount(uuid), 2);
+        assertEquals(2, lowLimit.pendingCount(uuid));
     }
 
     @Test
     public void testPendingCountUnknownClient() {
-        assertEquals(interceptor.pendingCount("unknown"), 0);
+        assertEquals(0, interceptor.pendingCount("unknown"));
     }
 
     @Test
     public void testTotalDropsStartsAtZero() {
-        assertEquals(interceptor.totalDrops(), 0);
-        assertEquals(interceptor.totalDisconnects(), 0);
+        assertEquals(0, interceptor.totalDrops());
+        assertEquals(0, interceptor.totalDisconnects());
     }
 
     @Test
@@ -79,8 +77,8 @@ public class BackpressureInterceptorTest {
 
     @Test
     public void testDefaultConfiguration() {
-        assertEquals(interceptor.highWaterMark(), 1000);
-        assertEquals(interceptor.policy(), BackpressureInterceptor.Policy.DROP_OLDEST);
+        assertEquals(1000, interceptor.highWaterMark());
+        assertEquals(BackpressureInterceptor.Policy.DROP_OLDEST, interceptor.policy());
     }
 
     @Test

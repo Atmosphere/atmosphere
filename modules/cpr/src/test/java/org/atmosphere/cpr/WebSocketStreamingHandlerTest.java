@@ -19,9 +19,6 @@ import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
 import org.atmosphere.websocket.WebSocketStreamingHandler;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -37,14 +34,17 @@ import java.util.concurrent.ExecutionException;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class WebSocketStreamingHandlerTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
@@ -72,7 +72,7 @@ public class WebSocketStreamingHandlerTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void destroy() throws Throwable {
         framework.destroy();
     }
@@ -89,7 +89,7 @@ public class WebSocketStreamingHandlerTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
 
-        assertEquals(b.toString(), "yoWebSocket");
+        assertEquals("yoWebSocket", b.toString());
     }
 
     private void registerWebSocketHandler(String path, WebSocketStreamingHandler w) {
@@ -112,7 +112,7 @@ public class WebSocketStreamingHandlerTest {
             processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
             fail();
         } catch (Exception ex) {
-            assertEquals(ex.getClass(), AtmosphereMappingException.class);
+            assertEquals(AtmosphereMappingException.class, ex.getClass());
         }
     }
 
@@ -130,14 +130,14 @@ public class WebSocketStreamingHandlerTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
-        assertEquals(b.toString(), "a");
+        assertEquals("a", b.toString());
 
         request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "b");
 
         // The WebSocketHandler is shared.
-        assertEquals(b.toString(), "ab");
+        assertEquals("ab", b.toString());
     }
 
     @Test
@@ -159,7 +159,7 @@ public class WebSocketStreamingHandlerTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
-        assertEquals(b.toString(), "a");
+        assertEquals("a", b.toString());
         ByteArrayOutputStream b2 = new ByteArrayOutputStream();
         final WebSocket w2 = new ArrayBaseWebSocket(b2);
         request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
@@ -167,7 +167,7 @@ public class WebSocketStreamingHandlerTest {
         processor.invokeWebSocketProtocol(w2, "b");
 
         // The WebSocketHandler is shared.
-        assertEquals(b2.toString(), "2b");
+        assertEquals("2b", b2.toString());
     }
 
     public static class EchoHandler implements WebSocketStreamingHandler {
@@ -200,7 +200,6 @@ public class WebSocketStreamingHandlerTest {
             webSocket.write(drainReader(reader));
         }
     }
-
 
     public final class ArrayBaseWebSocket extends WebSocket {
 
@@ -243,6 +242,5 @@ public class WebSocketStreamingHandlerTest {
         cb.flip();
         return cb.toString();
     }
-
 
 }

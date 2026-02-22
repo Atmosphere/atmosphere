@@ -19,8 +19,6 @@ import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.mockito.ArgumentCaptor;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.ByteArrayInputStream;
 import java.net.http.HttpClient;
@@ -30,7 +28,10 @@ import java.nio.charset.StandardCharsets;
 import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class OpenAiCompatibleClientTest {
 
@@ -38,7 +39,7 @@ public class OpenAiCompatibleClientTest {
     private Broadcaster broadcaster;
 
     @SuppressWarnings("unchecked")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         resource = mock(AtmosphereResource.class);
         broadcaster = mock(Broadcaster.class);
@@ -50,14 +51,14 @@ public class OpenAiCompatibleClientTest {
     @Test
     public void testChatMessageFactories() {
         var system = ChatMessage.system("You are helpful");
-        assertEquals(system.role(), "system");
-        assertEquals(system.content(), "You are helpful");
+        assertEquals("system", system.role());
+        assertEquals("You are helpful", system.content());
 
         var user = ChatMessage.user("Hello");
-        assertEquals(user.role(), "user");
+        assertEquals("user", user.role());
 
         var assistant = ChatMessage.assistant("Hi!");
-        assertEquals(assistant.role(), "assistant");
+        assertEquals("assistant", assistant.role());
     }
 
     @Test
@@ -69,21 +70,21 @@ public class OpenAiCompatibleClientTest {
                 .maxTokens(1024)
                 .build();
 
-        assertEquals(request.model(), "gpt-4");
-        assertEquals(request.messages().size(), 2);
-        assertEquals(request.messages().get(0).role(), "system");
-        assertEquals(request.messages().get(1).role(), "user");
-        assertEquals(request.temperature(), 0.5);
-        assertEquals(request.maxTokens(), 1024);
+        assertEquals("gpt-4", request.model());
+        assertEquals(2, request.messages().size());
+        assertEquals("system", request.messages().get(0).role());
+        assertEquals("user", request.messages().get(1).role());
+        assertEquals(0.5, request.temperature());
+        assertEquals(1024, request.maxTokens());
     }
 
     @Test
     public void testSimpleRequestFactory() {
         var request = ChatCompletionRequest.of("gemini-2.0-flash", "Hello!");
-        assertEquals(request.model(), "gemini-2.0-flash");
-        assertEquals(request.messages().size(), 1);
-        assertEquals(request.messages().get(0).role(), "user");
-        assertEquals(request.messages().get(0).content(), "Hello!");
+        assertEquals("gemini-2.0-flash", request.model());
+        assertEquals(1, request.messages().size());
+        assertEquals("user", request.messages().get(0).role());
+        assertEquals("Hello!", request.messages().get(0).content());
     }
 
     @Test
@@ -208,7 +209,7 @@ public class OpenAiCompatibleClientTest {
         var messages = captor.getAllValues().stream().toList();
         // Only "OK" should be sent as a token, not empty string
         long tokenCount = messages.stream().filter(m -> m.contains("\"type\":\"token\"")).count();
-        assertEquals(tokenCount, 1);
+        assertEquals(1, tokenCount);
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"OK\"")));
     }
 
@@ -216,7 +217,7 @@ public class OpenAiCompatibleClientTest {
     public void testAdapterName() {
         var client = OpenAiCompatibleClient.builder().build();
         var adapter = new LlmStreamingAdapter(client);
-        assertEquals(adapter.name(), "openai-compatible");
+        assertEquals("openai-compatible", adapter.name());
     }
 
     @Test

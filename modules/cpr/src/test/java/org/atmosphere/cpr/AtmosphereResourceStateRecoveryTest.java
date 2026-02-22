@@ -18,9 +18,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.handler.AtmosphereHandlerAdapter;
 import org.atmosphere.interceptor.AtmosphereResourceStateRecovery;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -32,8 +29,12 @@ import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereResourceStateRecoveryTest {
 
@@ -42,7 +43,7 @@ public class AtmosphereResourceStateRecoveryTest {
     private final AtmosphereResourceStateRecovery recovery = new AtmosphereResourceStateRecovery();
     private AtmosphereResource r;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(mock(AsyncSupport.class));
@@ -52,7 +53,7 @@ public class AtmosphereResourceStateRecoveryTest {
         r.setBroadcaster(config.getBroadcasterFactory().lookup("/*", true));
     }
 
-    @AfterMethod
+    @AfterEach
     public void destroy() {
         recovery.states().clear();
         framework.destroy();
@@ -63,7 +64,7 @@ public class AtmosphereResourceStateRecoveryTest {
         recovery.configure(config);
         recovery.inspect(r);
         r.suspend();
-        assertEquals(recovery.states().size(), 1);
+        assertEquals(1, recovery.states().size());
     }
 
     @Test
@@ -73,7 +74,7 @@ public class AtmosphereResourceStateRecoveryTest {
         recovery.inspect(r);
         r.suspend();
         r.getBroadcaster().removeAtmosphereResource(r);
-        assertEquals(recovery.states().get(r.uuid()).ids().size(), 0);
+        assertEquals(0, recovery.states().get(r.uuid()).ids().size());
     }
 
     @Test
@@ -83,7 +84,7 @@ public class AtmosphereResourceStateRecoveryTest {
         r.suspend();
         r.getBroadcaster().removeAtmosphereResource(r);
         r.close();
-        assertEquals(recovery.states().size(), 1);
+        assertEquals(1, recovery.states().size());
     }
 
     @Test
@@ -101,11 +102,12 @@ public class AtmosphereResourceStateRecoveryTest {
         latch.await(2, TimeUnit.SECONDS);
         r.resume();
         assertTrue(resumed.get());
-        assertEquals(recovery.states().size(), 1);
+        assertEquals(1, recovery.states().size());
     }
 
     // This test is no longer working since isClosedByClient changes the behavior.
-    @Test(enabled = false)
+    @Disabled
+    @Test
     public void restoreStateTest() throws ServletException, IOException {
         recovery.configure(config);
         recovery.inspect(r);
@@ -122,8 +124,8 @@ public class AtmosphereResourceStateRecoveryTest {
 
         r.suspend();
 
-        assertEquals(recovery.states().size(), 1);
-        assertEquals(recovery.states().get(r.uuid()).ids().size(), 5);
+        assertEquals(1, recovery.states().size());
+        assertEquals(5, recovery.states().get(r.uuid()).ids().size());
 
     }
 
@@ -142,12 +144,13 @@ public class AtmosphereResourceStateRecoveryTest {
 
         r.suspend();
 
-        assertEquals(recovery.states().size(), 1);
-        assertEquals(recovery.states().get(r.uuid()).ids().size(), 4);
+        assertEquals(1, recovery.states().size());
+        assertEquals(4, recovery.states().get(r.uuid()).ids().size());
 
     }
 
-    @Test(enabled = false)
+    @Disabled
+    @Test
     public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
         final AtomicReference<Object> ref = new AtomicReference<Object>();
         AtmosphereResourceImpl r = (AtmosphereResourceImpl) config.resourcesFactory().create(config, "1234567");
@@ -165,7 +168,6 @@ public class AtmosphereResourceStateRecoveryTest {
         config.getBroadcasterFactory().lookup("/2", true).addAtmosphereResource(r);
         config.getBroadcasterFactory().lookup("/3", true).addAtmosphereResource(r);
         config.getBroadcasterFactory().lookup("/4", true).addAtmosphereResource(r);
-
 
         r.suspend();
         config.metaBroadcaster().broadcastTo("/1", "Initialize Cache").get();
@@ -190,13 +192,13 @@ public class AtmosphereResourceStateRecoveryTest {
         recovery.inspect(r2);
 
         assertTrue(List.class.isAssignableFrom(ref.get().getClass()));
-        assertEquals(List.class.cast(ref.get()).size(), 4);
+        assertEquals(4, List.class.cast(ref.get()).size());
 
         StringBuilder b = new StringBuilder();
         for (Object o : List.class.cast(ref.get())) {
             b.append(o.toString());
         }
-        assertEquals(b.toString(), "1234");
+        assertEquals("1234", b.toString());
 
     }
 

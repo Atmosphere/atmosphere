@@ -27,9 +27,6 @@ import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -43,9 +40,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.BiConsumer;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Tests for {@link RedisBroadcaster} including full lifecycle and message flow.
@@ -64,7 +63,7 @@ public class RedisBroadcasterTest {
     private TestHandler handler;
 
     @SuppressWarnings("deprecation")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         IN_MEMORY_BUS.clear();
         config = new AtmosphereFramework().getAtmosphereConfig();
@@ -85,7 +84,7 @@ public class RedisBroadcasterTest {
         broadcaster.addAtmosphereResource(ar);
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         broadcaster.destroy();
         config.getBroadcasterFactory().destroy();
@@ -96,7 +95,7 @@ public class RedisBroadcasterTest {
     @Test
     public void testInitializeSubscribesToChannel() {
         var testable = (TestableRedisBroadcaster) broadcaster;
-        assertEquals(testable.subscribedChannel, "redis-test");
+        assertEquals("redis-test", testable.subscribedChannel);
     }
 
     @Test
@@ -104,7 +103,7 @@ public class RedisBroadcasterTest {
         var testable = (TestableRedisBroadcaster) broadcaster;
         broadcaster.broadcast("hello").get();
         assertNotNull(testable.lastPublishedChannel);
-        assertEquals(testable.lastPublishedChannel, "redis-test");
+        assertEquals("redis-test", testable.lastPublishedChannel);
         assertTrue(testable.lastPublishedMessage.endsWith("||hello"));
     }
 
@@ -136,7 +135,7 @@ public class RedisBroadcasterTest {
         testable.onRedisMessage(nodeId + "||echo-msg");
 
         // Should NOT have delivered — latch should still be at 1
-        assertEquals(handler.latch.getCount(), 1);
+        assertEquals(1, handler.latch.getCount());
     }
 
     @Test
@@ -172,19 +171,19 @@ public class RedisBroadcasterTest {
     @Test
     public void testSerializeStringMessage() {
         var testable = (TestableRedisBroadcaster) broadcaster;
-        assertEquals(testable.serializeMessage("hello"), "hello");
+        assertEquals("hello", testable.serializeMessage("hello"));
     }
 
     @Test
     public void testSerializeByteArrayMessage() {
         var testable = (TestableRedisBroadcaster) broadcaster;
-        assertEquals(testable.serializeMessage("hello bytes".getBytes(StandardCharsets.UTF_8)), "hello bytes");
+        assertEquals("hello bytes", testable.serializeMessage("hello bytes".getBytes(StandardCharsets.UTF_8)));
     }
 
     @Test
     public void testSerializeObjectMessage() {
         var testable = (TestableRedisBroadcaster) broadcaster;
-        assertEquals(testable.serializeMessage(42), "42");
+        assertEquals("42", testable.serializeMessage(42));
     }
 
     @Test
@@ -196,8 +195,8 @@ public class RedisBroadcasterTest {
 
     @Test
     public void testConfigConstants() {
-        assertEquals(RedisBroadcaster.REDIS_URL, "org.atmosphere.redis.url");
-        assertEquals(RedisBroadcaster.REDIS_PASSWORD, "org.atmosphere.redis.password");
+        assertEquals("org.atmosphere.redis.url", RedisBroadcaster.REDIS_URL);
+        assertEquals("org.atmosphere.redis.password", RedisBroadcaster.REDIS_PASSWORD);
     }
 
     @Test

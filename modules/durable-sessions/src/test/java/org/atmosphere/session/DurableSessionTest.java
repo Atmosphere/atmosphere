@@ -15,13 +15,12 @@
  */
 package org.atmosphere.session;
 
-import org.testng.annotations.Test;
-
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DurableSessionTest {
 
@@ -30,8 +29,8 @@ public class DurableSessionTest {
         var before = Instant.now();
         var session = DurableSession.create("tok-1", "res-1");
 
-        assertEquals(session.token(), "tok-1");
-        assertEquals(session.resourceId(), "res-1");
+        assertEquals("tok-1", session.token());
+        assertEquals("res-1", session.resourceId());
         assertTrue(session.rooms().isEmpty());
         assertTrue(session.broadcasters().isEmpty());
         assertTrue(session.metadata().isEmpty());
@@ -44,9 +43,9 @@ public class DurableSessionTest {
         var session = DurableSession.create("tok-1", "res-1");
         var updated = session.withRooms(Set.of("chat", "lobby"));
 
-        assertEquals(updated.rooms(), Set.of("chat", "lobby"));
-        assertEquals(updated.token(), "tok-1");
-        assertEquals(updated.resourceId(), "res-1");
+        assertEquals(Set.of("chat", "lobby"), updated.rooms());
+        assertEquals("tok-1", updated.token());
+        assertEquals("res-1", updated.resourceId());
         // Original is unchanged (immutable record)
         assertTrue(session.rooms().isEmpty());
     }
@@ -56,7 +55,7 @@ public class DurableSessionTest {
         var session = DurableSession.create("tok-1", "res-1");
         var updated = session.withBroadcasters(Set.of("/chat", "/notifications"));
 
-        assertEquals(updated.broadcasters(), Set.of("/chat", "/notifications"));
+        assertEquals(Set.of("/chat", "/notifications"), updated.broadcasters());
         assertTrue(session.broadcasters().isEmpty());
     }
 
@@ -65,7 +64,7 @@ public class DurableSessionTest {
         var session = DurableSession.create("tok-1", "res-1");
         var updated = session.withMetadata(Map.of("user", "alice", "role", "admin"));
 
-        assertEquals(updated.metadata(), Map.of("user", "alice", "role", "admin"));
+        assertEquals(Map.of("user", "alice", "role", "admin"), updated.metadata());
         assertTrue(session.metadata().isEmpty());
     }
 
@@ -74,9 +73,9 @@ public class DurableSessionTest {
         var session = DurableSession.create("tok-1", "res-1");
         var updated = session.withResourceId("res-2");
 
-        assertEquals(updated.resourceId(), "res-2");
-        assertEquals(updated.token(), "tok-1");
-        assertEquals(session.resourceId(), "res-1");
+        assertEquals("res-2", updated.resourceId());
+        assertEquals("tok-1", updated.token());
+        assertEquals("res-1", session.resourceId());
     }
 
     @Test

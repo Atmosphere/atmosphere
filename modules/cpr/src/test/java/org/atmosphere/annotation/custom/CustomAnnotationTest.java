@@ -29,9 +29,6 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -46,7 +43,11 @@ import java.util.Enumeration;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertNotNull;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CustomAnnotationTest {
     private AtmosphereFramework framework;
@@ -54,7 +55,7 @@ public class CustomAnnotationTest {
     @SuppressWarnings("unused")
     private static final AtomicReference<String> message = new AtomicReference<String>();
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
@@ -98,7 +99,7 @@ public class CustomAnnotationTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void after() {
         r.set(null);
         framework.destroy();

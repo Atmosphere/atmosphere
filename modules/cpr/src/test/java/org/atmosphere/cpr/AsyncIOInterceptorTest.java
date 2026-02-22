@@ -15,14 +15,14 @@
  */
 package org.atmosphere.cpr;
 
-import org.testng.annotations.Test;
-
 import jakarta.servlet.ServletException;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.atmosphere.cpr.ApplicationConfig.PROPERTY_USE_STREAM;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AsyncIOInterceptorTest {
 
@@ -56,7 +56,7 @@ public class AsyncIOInterceptorTest {
             public void redirect(AtmosphereResponse response, String location) {
             }
         })).write("test");
-        assertEquals(s.get(), "test");
+        assertEquals("test", s.get());
     }
 
     @Test
@@ -112,7 +112,7 @@ public class AsyncIOInterceptorTest {
             public void redirect(AtmosphereResponse response, String location) {
             }
         })).write("test");
-        assertEquals(s.get().toString(), "test-yoyo");
+        assertEquals("test-yoyo", s.get().toString());
     }
 
 }

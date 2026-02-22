@@ -20,8 +20,6 @@ import org.atmosphere.cache.BroadcastMessage;
 import org.atmosphere.cache.CacheMessage;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.cpr.BroadcasterCacheTest.AR;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.util.ArrayList;
@@ -37,7 +35,10 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DefaultBroadcasterTest {
 
@@ -60,7 +61,7 @@ public class DefaultBroadcasterTest {
         }
     }
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         AtmosphereFramework framework = new AtmosphereFramework();
         framework.addInitParameter(ApplicationConfig.BROADCASTER_CACHE_STRATEGY, "beforeFilter");
@@ -147,7 +148,7 @@ public class DefaultBroadcasterTest {
             cache.clear();
 
             //System.out.println(iterations++ + ": message:" + retrievedMessage);
-            assertEquals(retrievedMessage, message);
+            assertEquals(message, retrievedMessage);
         }
 
     }

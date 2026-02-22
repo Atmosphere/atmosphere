@@ -15,13 +15,12 @@
  */
 package org.atmosphere.util;
 
-import org.testng.annotations.Test;
-
 import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class ChunkConcatReaderPoolTest {
     static final String[] TEST_MESSAGES = {"This is the first line.", "And this is the second line.", "Finally, this is the last line."};
@@ -62,13 +61,13 @@ public class ChunkConcatReaderPoolTest {
         pool.addChunk("123", new StringReader(TEST_MESSAGES[0]), true);
         assertTrue(reader.ready());
         String s = readOnlyAvailable(reader);
-        assertEquals(s, TEST_MESSAGES[0]);
+        assertEquals(TEST_MESSAGES[0], s);
         assertFalse(reader.ready());
         for (int i = 1; i < TEST_MESSAGES.length; i++) {
             pool.addChunk("123", new StringReader(TEST_MESSAGES[i]), i < TEST_MESSAGES.length - 1);
             assertTrue(reader.ready());
             s = readOnlyAvailable(reader);
-            assertEquals(s, TEST_MESSAGES[i]);
+            assertEquals(TEST_MESSAGES[i], s);
             assertFalse(reader.ready());
         }
     }
@@ -99,7 +98,7 @@ public class ChunkConcatReaderPoolTest {
             pool.addChunk("123", new StringReader(TEST_MESSAGES[i]), i < TEST_MESSAGES.length - 1);
         }
         String data = readAll(reader, limit, TEST_MESSAGES_CONCATENATED.length() < limit);
-        assertEquals(data, TEST_MESSAGES_CONCATENATED);
+        assertEquals(TEST_MESSAGES_CONCATENATED, data);
     }
 
     private void performtestReassembleDelayedChunkedMessages(int limit) throws Exception {
@@ -120,7 +119,7 @@ public class ChunkConcatReaderPoolTest {
             }
         }).start();
         String data = readAll(reader, 5, false);
-        assertEquals(TEST_MESSAGES_CONCATENATED, data);
+        assertEquals(data, TEST_MESSAGES_CONCATENATED);
     }
 
     private static String readAll(Reader reader, int limit, boolean once) throws IOException {
@@ -145,7 +144,7 @@ public class ChunkConcatReaderPoolTest {
         while (reader.ready()) {
             try {
                 int c = reader.read(buf, 0, buf.length);
-                assertNotEquals(c, -1);
+                assertNotEquals(-1, c);
                 sb.append(buf, 0, c);
             } catch (IOException e) {
                 e.printStackTrace();

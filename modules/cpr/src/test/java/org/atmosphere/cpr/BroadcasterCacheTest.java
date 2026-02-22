@@ -23,9 +23,6 @@ import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -38,8 +35,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.AssertJUnit.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class BroadcasterCacheTest {
 
@@ -50,7 +51,7 @@ public class BroadcasterCacheTest {
     private AtmosphereConfig config;
 
     @SuppressWarnings("deprecation")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         DefaultBroadcasterFactory factory = new DefaultBroadcasterFactory();
@@ -69,7 +70,7 @@ public class BroadcasterCacheTest {
         broadcaster.addAtmosphereResource(ar);
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSetUp() throws Exception {
         broadcaster.removeAtmosphereResource(ar);
         config.getBroadcasterFactory().destroy();
@@ -98,7 +99,7 @@ public class BroadcasterCacheTest {
         });
 
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(cachedMessage.get().size(), 0);
+        assertEquals(0, cachedMessage.get().size());
     }
 
     @Test
@@ -123,7 +124,7 @@ public class BroadcasterCacheTest {
         });
 
         broadcaster.broadcast("foo", ar).get();
-        assertEquals(cachedMessage.get().size(), 0);
+        assertEquals(0, cachedMessage.get().size());
     }
 
     @Test
@@ -151,7 +152,7 @@ public class BroadcasterCacheTest {
 
         broadcaster.broadcast("foo", ar);
         latch.await(10, TimeUnit.SECONDS);
-        assertEquals(cachedMessage.get().size(), 0);
+        assertEquals(0, cachedMessage.get().size());
     }
 
     @Test
@@ -180,11 +181,10 @@ public class BroadcasterCacheTest {
 
         broadcaster.broadcast("foo", ar);
         latch.await(10, TimeUnit.SECONDS);
-        assertEquals(cachedMessage.get().size(), 1);
+        assertEquals(1, cachedMessage.get().size());
     }
 
     public final static class AR implements AtmosphereHandler {
-
 
         @Override
         public void onRequest(AtmosphereResource e) throws IOException {
@@ -214,7 +214,7 @@ public class BroadcasterCacheTest {
 
         List<Object> l = cache.retrieveFromCache(broadcaster.getID(), ar.uuid());
         assertNotNull(l);
-        assertEquals(l.isEmpty(), true);
+        assertEquals(true, l.isEmpty());
     }
 
     @Test
@@ -232,7 +232,7 @@ public class BroadcasterCacheTest {
 
         List<Object> l = cache.retrieveFromCache(broadcaster.getID(), r.uuid());
         assertNotNull(l);
-        assertEquals(l.isEmpty(), false);
+        assertEquals(false, l.isEmpty());
     }
 
     @Test
@@ -253,10 +253,10 @@ public class BroadcasterCacheTest {
 
         b.broadcast("raide").get();
 
-        assertEquals(cache.messages().isEmpty(), false);
+        assertEquals(false, cache.messages().isEmpty());
         List<Object> l = cache.retrieveFromCache(b.getID(), ar.uuid());
         assertNotNull(l);
-        assertEquals(l.isEmpty(), false);
+        assertEquals(false, l.isEmpty());
     }
 
     @Test
@@ -275,6 +275,6 @@ public class BroadcasterCacheTest {
         b.broadcast("raide").get();
 
         // Blocked by the cache because suspend has been called.
-        assertEquals(cache.messages().isEmpty(), true);
+        assertEquals(true, cache.messages().isEmpty());
     }
 }

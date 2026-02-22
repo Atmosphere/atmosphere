@@ -20,7 +20,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
 import org.mockito.ArgumentCaptor;
-import org.testng.annotations.Test;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -33,7 +32,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for the AI streaming SPI — concurrency, multi-session,
@@ -83,7 +84,7 @@ public class StreamingIntegrationTest {
                     "Sequence number should be unique: " + json.get("seq"));
         }
 
-        assertEquals(seqs.size(), threadCount * tokensPerThread);
+        assertEquals(threadCount * tokensPerThread, seqs.size());
     }
 
     @Test
@@ -125,8 +126,8 @@ public class StreamingIntegrationTest {
                 .filter(j -> "session-2".equals(j.get("sessionId").asText()))
                 .count();
 
-        assertEquals(session1Count, 2, "Session 1 should have 2 messages (token + complete)");
-        assertEquals(session2Count, 3, "Session 2 should have 3 messages (2 tokens + complete)");
+        assertEquals(2, session1Count, "Session 1 should have 2 messages (token + complete)");
+        assertEquals(3, session2Count, "Session 2 should have 3 messages (2 tokens + complete)");
     }
 
     @Test
@@ -197,7 +198,7 @@ public class StreamingIntegrationTest {
         }
 
         assertTrue(doneLatch.await(10, TimeUnit.SECONDS));
-        assertEquals(errors.get(), 0, "No exceptions should be thrown");
+        assertEquals(0, errors.get(), "No exceptions should be thrown");
         assertTrue(session.isClosed(), "Session should be closed");
     }
 
@@ -224,11 +225,11 @@ public class StreamingIntegrationTest {
         }
 
         // Should have: token, token, progress, complete (auto-close)
-        assertEquals(capturedTypes.size(), 4);
-        assertEquals(capturedTypes.get(0), "token");
-        assertEquals(capturedTypes.get(1), "token");
-        assertEquals(capturedTypes.get(2), "progress");
-        assertEquals(capturedTypes.get(3), "complete");
+        assertEquals(4, capturedTypes.size());
+        assertEquals("token", capturedTypes.get(0));
+        assertEquals("token", capturedTypes.get(1));
+        assertEquals("progress", capturedTypes.get(2));
+        assertEquals("complete", capturedTypes.get(3));
     }
 
     @Test
@@ -264,13 +265,13 @@ public class StreamingIntegrationTest {
         var metaMsgs = messages.stream()
                 .filter(j -> "metadata".equals(j.get("type").asText()))
                 .toList();
-        assertEquals(metaMsgs.size(), 3);
-        assertEquals(metaMsgs.get(0).get("key").asText(), "model");
-        assertEquals(metaMsgs.get(0).get("value").asText(), "gpt-4o");
-        assertEquals(metaMsgs.get(1).get("key").asText(), "temperature");
-        assertEquals(metaMsgs.get(1).get("value").asDouble(), 0.7);
-        assertEquals(metaMsgs.get(2).get("key").asText(), "tokens_used");
-        assertEquals(metaMsgs.get(2).get("value").asInt(), 42);
+        assertEquals(3, metaMsgs.size());
+        assertEquals("model", metaMsgs.get(0).get("key").asText());
+        assertEquals("gpt-4o", metaMsgs.get(0).get("value").asText());
+        assertEquals("temperature", metaMsgs.get(1).get("key").asText());
+        assertEquals(0.7, metaMsgs.get(1).get("value").asDouble());
+        assertEquals("tokens_used", metaMsgs.get(2).get("key").asText());
+        assertEquals(42, metaMsgs.get(2).get("value").asInt());
     }
 
     @Test
@@ -331,9 +332,9 @@ public class StreamingIntegrationTest {
         assertTrue(json.has("sessionId"), "Must have 'sessionId' field");
         assertTrue(json.has("seq"), "Must have 'seq' field");
 
-        assertEquals(json.get("type").asText(), "token");
-        assertEquals(json.get("data").asText(), "Hello");
-        assertEquals(json.get("sessionId").asText(), "wire-test");
+        assertEquals("token", json.get("type").asText());
+        assertEquals("Hello", json.get("data").asText());
+        assertEquals("wire-test", json.get("sessionId").asText());
         assertTrue(json.get("seq").asLong() > 0, "Seq should be positive");
 
         // Verify it's valid JSON that JavaScript can parse
@@ -357,7 +358,7 @@ public class StreamingIntegrationTest {
         verify(broadcaster).broadcast(captor.capture());
 
         var json = MAPPER.readTree(captor.getValue());
-        assertEquals(json.get("data").asText().length(), 10_000);
+        assertEquals(10_000, json.get("data").asText().length());
     }
 
     @Test

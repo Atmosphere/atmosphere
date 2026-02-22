@@ -143,7 +143,7 @@ public class AsyncTestHelper {
     
     /**
      * Shuts down the executor service.
-     * Should be called in test cleanup (@AfterMethod or @After)
+     * Should be called in test cleanup (@AfterEach)
      */
     public void shutdown() {
         logger.debug("Shutting down AsyncTestHelper executor");

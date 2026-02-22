@@ -15,10 +15,6 @@
  */
 package org.atmosphere.integrationtests;
 
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -30,19 +26,26 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for long-polling transport.
  */
-@Test(groups = "core")
+@Tag("core")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class LongPollingTransportTest {
 
     private EmbeddedAtmosphereServer server;
     private HttpClient httpClient;
 
-    @BeforeClass
+    @BeforeAll
     public void setUp() throws Exception {
         server = new EmbeddedAtmosphereServer();
         server.start();
@@ -51,13 +54,14 @@ public class LongPollingTransportTest {
                 .build();
     }
 
-    @AfterClass
+    @AfterAll
     public void tearDown() throws Exception {
         httpClient.close();
         server.close();
     }
 
-    @Test(timeOut = 15_000)
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testLongPollingSubscribeAndReceive() throws Exception {
         var trackingId = UUID.randomUUID().toString();
         var received = new CopyOnWriteArrayList<String>();
@@ -114,7 +118,8 @@ public class LongPollingTransportTest {
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 15_000)
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testLongPollingSendMessage() throws Exception {
         // Connect a WebSocket client to receive broadcasts
         var wsReceived = new CopyOnWriteArrayList<String>();
@@ -145,7 +150,7 @@ public class LongPollingTransportTest {
                 .build();
 
         var response = httpClient.send(postRequest, HttpResponse.BodyHandlers.ofString());
-        assertEquals(response.statusCode(), 200);
+        assertEquals(200, response.statusCode());
 
         assertTrue(wsLatch.await(5, TimeUnit.SECONDS),
                 "WebSocket client should receive the POST broadcast, got: " + wsReceived);

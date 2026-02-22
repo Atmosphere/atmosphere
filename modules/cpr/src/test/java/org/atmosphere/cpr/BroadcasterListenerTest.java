@@ -17,9 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cache.UUIDBroadcasterCache;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import java.io.IOException;
@@ -31,8 +28,10 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class BroadcasterListenerTest {
     private AtmosphereFramework framework;
@@ -41,8 +40,7 @@ public class BroadcasterListenerTest {
     private static final AtomicBoolean preDestroyed = new AtomicBoolean();
     private static final AtomicBoolean onMessage = new AtomicBoolean();
 
-
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
@@ -65,7 +63,7 @@ public class BroadcasterListenerTest {
         }).addBroadcasterListener(new L());
     }
 
-    @AfterMethod
+    @AfterEach
     public void after() {
         BAR.count.set(0);
         framework.destroy();
@@ -105,14 +103,13 @@ public class BroadcasterListenerTest {
         assertTrue(onMessage.get());
     }
 
-
     @Test
     public void testOnBroadcast() throws IOException, ServletException {
         framework.addAtmosphereHandler("/*", new BAR()).init();
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(BAR.count.get(), 1);
+        assertEquals(1, BAR.count.get());
     }
 
     @Test
@@ -121,7 +118,7 @@ public class BroadcasterListenerTest {
 
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(BAR.count.get(), 1);
+        assertEquals(1, BAR.count.get());
     }
 
     @Test
@@ -132,7 +129,7 @@ public class BroadcasterListenerTest {
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(BAR.count.get(), 1);
+        assertEquals(1, BAR.count.get());
         assertTrue(onMessage.get());
     }
 
@@ -145,7 +142,7 @@ public class BroadcasterListenerTest {
         m.put(HeaderConfig.X_ATMOSPHERE_TRANSPORT, HeaderConfig.LONG_POLLING_TRANSPORT);
         AtmosphereRequest request = new AtmosphereRequestImpl.Builder().headers(m).pathInfo("/a").method("GET").build();
         framework.doCometSupport(request, AtmosphereResponseImpl.newInstance());
-        assertEquals(CachedAR.count.get(), 3);
+        assertEquals(3, CachedAR.count.get());
     }
 
     public final static class CachedAR implements AtmosphereHandler {
@@ -187,7 +184,6 @@ public class BroadcasterListenerTest {
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
         }
 
-
         @Override
         public void destroy() {
         }
@@ -196,7 +192,6 @@ public class BroadcasterListenerTest {
     public final static class BAR implements AtmosphereHandler {
 
         static AtomicInteger count = new AtomicInteger();
-
 
         @Override
         public void onRequest(AtmosphereResource e) throws IOException {
@@ -220,12 +215,10 @@ public class BroadcasterListenerTest {
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
         }
 
-
         @Override
         public void destroy() {
         }
     }
-
 
     public final static class AR implements AtmosphereHandler {
 
@@ -244,7 +237,6 @@ public class BroadcasterListenerTest {
         @Override
         public void onStateChange(AtmosphereResourceEvent e) throws IOException {
         }
-
 
         @Override
         public void destroy() {

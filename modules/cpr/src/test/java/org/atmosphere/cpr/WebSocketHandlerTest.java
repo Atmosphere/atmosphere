@@ -20,9 +20,6 @@ import org.atmosphere.util.SimpleBroadcaster;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketHandler;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.inject.Inject;
 import jakarta.servlet.ServletConfig;
@@ -36,15 +33,17 @@ import java.util.concurrent.ExecutionException;
 
 import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RESPONSE;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.fail;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class WebSocketHandlerTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new BlockingIOCometSupport(framework.getAtmosphereConfig()));
@@ -73,7 +72,7 @@ public class WebSocketHandlerTest {
         framework.setDefaultBroadcasterClassName(SimpleBroadcaster.class.getName());
     }
 
-    @AfterMethod
+    @AfterEach
     public void destroy() throws Throwable {
         framework.destroy();
     }
@@ -90,7 +89,7 @@ public class WebSocketHandlerTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
 
-        assertEquals(b.toString(), "yoWebSocket");
+        assertEquals("yoWebSocket", b.toString());
     }
 
     @Test
@@ -106,7 +105,7 @@ public class WebSocketHandlerTest {
             processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
             fail();
         } catch (Exception ex) {
-            assertEquals(ex.getClass(), AtmosphereMappingException.class);
+            assertEquals(AtmosphereMappingException.class, ex.getClass());
         }
     }
 
@@ -124,14 +123,14 @@ public class WebSocketHandlerTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
-        assertEquals(b.toString(), "a");
+        assertEquals("a", b.toString());
 
         request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "b");
 
         // The WebSocketHandler is shared.
-        assertEquals(b.toString(), "ab");
+        assertEquals("ab", b.toString());
     }
 
     @Test
@@ -153,7 +152,7 @@ public class WebSocketHandlerTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "a");
 
-        assertEquals(b.toString(), "a");
+        assertEquals("a", b.toString());
         ByteArrayOutputStream b2 = new ByteArrayOutputStream();
         final WebSocket w2 = new ArrayBaseWebSocket(b2);
         request = new AtmosphereRequestImpl.Builder().destroyable(false).body("b").pathInfo("/b").build();
@@ -161,7 +160,7 @@ public class WebSocketHandlerTest {
         processor.invokeWebSocketProtocol(w2, "b");
 
         // The WebSocketHandler is shared.
-        assertEquals(b2.toString(), "2b");
+        assertEquals("2b", b2.toString());
     }
 
     public static class EchoHandler implements WebSocketHandler {
@@ -212,7 +211,6 @@ public class WebSocketHandlerTest {
 
         assertNotNull(e.request);
     }
-
 
     public final class ArrayBaseWebSocket extends WebSocket {
 

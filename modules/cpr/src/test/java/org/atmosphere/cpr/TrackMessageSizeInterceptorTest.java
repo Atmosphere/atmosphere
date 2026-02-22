@@ -19,9 +19,6 @@ import org.atmosphere.client.TrackMessageSizeInterceptor;
 import org.atmosphere.interceptor.TrackMessageSizeB64Interceptor;
 import org.atmosphere.websocket.WebSocket;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -35,7 +32,11 @@ import java.util.HashMap;
 import java.util.Map;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class TrackMessageSizeInterceptorTest {
 
@@ -52,7 +53,7 @@ public class TrackMessageSizeInterceptorTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
@@ -84,7 +85,7 @@ public class TrackMessageSizeInterceptorTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void destroy() throws Throwable {
         framework.destroy();
     }
@@ -169,7 +170,7 @@ public class TrackMessageSizeInterceptorTest {
 
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, websocketMessage);
-        assertEquals(b.toString(), expected);
+        assertEquals(expected, b.toString());
     }
 
     public final class ArrayBaseWebSocket extends WebSocket {

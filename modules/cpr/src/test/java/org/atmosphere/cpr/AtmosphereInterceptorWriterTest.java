@@ -17,10 +17,8 @@ package org.atmosphere.cpr;
 
 import java.io.IOException;
 
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.fail;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereInterceptorWriterTest {
 
@@ -59,7 +57,7 @@ public class AtmosphereInterceptorWriterTest {
             p++;
         }
 
-        assertEquals(filters.length, p, "the wrong size of the list");
+        assertEquals(p, filters.length, "the wrong size of the list");
 
         p = filters.length;
         for (AsyncIOInterceptor f : writer.reversedFilters) {
@@ -69,7 +67,7 @@ public class AtmosphereInterceptorWriterTest {
             }
         }
 
-        assertEquals(filters.length, filters.length - p, "the wrong size of the list");
+        assertEquals(filters.length - p, filters.length, "the wrong size of the list");
     }
 
     private class TestFilter implements AsyncIOInterceptor {

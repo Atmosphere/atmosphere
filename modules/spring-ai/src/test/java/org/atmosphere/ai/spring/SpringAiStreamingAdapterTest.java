@@ -24,8 +24,6 @@ import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.model.Generation;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 import reactor.core.publisher.Flux;
 
 import java.util.List;
@@ -34,7 +32,10 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("null")
 public class SpringAiStreamingAdapterTest {
@@ -45,7 +46,7 @@ public class SpringAiStreamingAdapterTest {
     private SpringAiStreamingAdapter adapter;
 
     @SuppressWarnings("unchecked")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("resource-1");
@@ -58,7 +59,7 @@ public class SpringAiStreamingAdapterTest {
 
     @Test
     public void testName() {
-        assertEquals(adapter.name(), "spring-ai");
+        assertEquals("spring-ai", adapter.name());
     }
 
     @Test
@@ -300,7 +301,7 @@ public class SpringAiStreamingAdapterTest {
         var request = new SpringAiStreamingAdapter.ChatRequest(client, "my prompt");
 
         assertSame(request.client(), client);
-        assertEquals(request.prompt(), "my prompt");
+        assertEquals("my prompt", request.prompt());
     }
 
     @Test
@@ -310,8 +311,8 @@ public class SpringAiStreamingAdapterTest {
         var request1 = new SpringAiStreamingAdapter.ChatRequest(client, "prompt");
         var request2 = new SpringAiStreamingAdapter.ChatRequest(client, "prompt");
 
-        assertEquals(request1, request2);
-        assertEquals(request1.hashCode(), request2.hashCode());
+        assertEquals(request2, request1);
+        assertEquals(request2.hashCode(), request1.hashCode());
     }
 
     @Test
@@ -322,7 +323,7 @@ public class SpringAiStreamingAdapterTest {
         var request1 = new SpringAiStreamingAdapter.ChatRequest(client1, "prompt");
         var request2 = new SpringAiStreamingAdapter.ChatRequest(client2, "prompt");
 
-        assertNotEquals(request1, request2);
+        assertNotEquals(request2, request1);
     }
 
     @Test

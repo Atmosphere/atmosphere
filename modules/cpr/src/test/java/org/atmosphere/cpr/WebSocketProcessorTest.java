@@ -20,9 +20,6 @@ import org.atmosphere.websocket.WebSocketEventListener;
 import org.atmosphere.websocket.WebSocketEventListenerAdapter;
 import org.atmosphere.websocket.WebSocketHandlerAdapter;
 import org.atmosphere.websocket.WebSocketProcessor;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
@@ -44,16 +41,17 @@ import static org.atmosphere.cpr.ApplicationConfig.RECYCLE_ATMOSPHERE_REQUEST_RE
 import static org.atmosphere.cpr.ApplicationConfig.SUSPENDED_ATMOSPHERE_RESOURCE_UUID;
 import static org.atmosphere.websocket.WebSocketEventListener.WebSocketEvent.TYPE.DISCONNECT;
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertTrue;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class WebSocketProcessorTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(new AsynchronousProcessor(framework.getAtmosphereConfig()) {
@@ -86,7 +84,7 @@ public class WebSocketProcessorTest {
         });
     }
 
-    @AfterMethod
+    @AfterEach
     public void destroy() throws Throwable {
         framework.destroy();
     }
@@ -121,7 +119,7 @@ public class WebSocketProcessorTest {
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         framework.getBroadcasterFactory().findBroadcaster("/*").orElseThrow().broadcast("yoBroadcast").get();
 
-        assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
+        assertEquals("yoCometyoWebSocketyoBroadcast", b.toString());
 
     }
 
@@ -153,7 +151,7 @@ public class WebSocketProcessorTest {
         processor.open(w, request, AtmosphereResponseImpl.newInstance(framework.getAtmosphereConfig(), request, w));
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
 
-        assertEquals(url.get(), "http://127.0.0.1:8080");
+        assertEquals("http://127.0.0.1:8080", url.get());
 
     }
 
@@ -190,7 +188,7 @@ public class WebSocketProcessorTest {
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         framework.getBroadcasterFactory().findBroadcaster("/*").orElseThrow().broadcast("yoBroadcast").get();
 
-        assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcastyoBroadcast");
+        assertEquals("yoCometyoWebSocketyoBroadcastyoBroadcast", b.toString());
 
     }
 
@@ -231,8 +229,8 @@ public class WebSocketProcessorTest {
         assertNotNull(cValue.get());
 
         Cookie i = c.iterator().next();
-        assertEquals(i.getName(), cValue.get().getName());
-        assertEquals(i.getValue(), cValue.get().getValue());
+        assertEquals(cValue.get().getName(), i.getName());
+        assertEquals(cValue.get().getValue(), i.getValue());
     }
 
     @Test
@@ -270,7 +268,7 @@ public class WebSocketProcessorTest {
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent<>("Disconnect", DISCONNECT, w));
 
         assertNotNull(uuid.get());
-        assertEquals(uuid.get(), request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
+        assertEquals(request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID), uuid.get());
     }
 
     @Test
@@ -347,7 +345,7 @@ public class WebSocketProcessorTest {
         processor.notifyListener(w, new WebSocketEventListener.WebSocketEvent<>("Close", WebSocketEventListener.WebSocketEvent.TYPE.CLOSE, w));
 
         assertNotNull(uuid.get());
-        assertEquals(uuid.get(), request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID));
+        assertEquals(request.getAttribute(SUSPENDED_ATMOSPHERE_RESOURCE_UUID), uuid.get());
     }
 
     public final class ArrayBaseWebSocket extends WebSocket {
@@ -406,7 +404,7 @@ public class WebSocketProcessorTest {
         processor.invokeWebSocketProtocol(w, "yoWebSocket");
         framework.getBroadcasterFactory().findBroadcaster("/*").orElseThrow().broadcast("yoBroadcast").get();
 
-        assertEquals(b.toString(), "yoCometyoWebSocketyoBroadcast");
+        assertEquals("yoCometyoWebSocketyoBroadcast", b.toString());
 
     }
 

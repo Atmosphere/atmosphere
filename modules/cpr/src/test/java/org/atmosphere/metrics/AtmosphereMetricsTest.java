@@ -16,8 +16,6 @@
 package org.atmosphere.metrics;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
 
 import java.io.IOException;
 import java.util.concurrent.CountDownLatch;
@@ -40,9 +38,11 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class AtmosphereMetricsTest {
 
@@ -50,7 +50,7 @@ public class AtmosphereMetricsTest {
     private Broadcaster broadcaster;
     private SimpleMeterRegistry registry;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         var factory = new DefaultBroadcasterFactory();
@@ -64,7 +64,7 @@ public class AtmosphereMetricsTest {
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() throws Exception {
         broadcaster.destroy();
         config.getBroadcasterFactory().destroy();
@@ -91,8 +91,8 @@ public class AtmosphereMetricsTest {
 
         assertTrue(activeGauge != null, "connections.active gauge should be registered");
         assertTrue(totalCounter != null, "connections.total counter should be registered");
-        assertEquals(activeGauge.value(), 1.0, "Should have 1 active connection");
-        assertEquals(totalCounter.count(), 1.0, "Should have 1 total connection");
+        assertEquals(1.0, activeGauge.value(), "Should have 1 active connection");
+        assertEquals(1.0, totalCounter.count(), "Should have 1 total connection");
     }
 
     @Test
@@ -106,7 +106,7 @@ public class AtmosphereMetricsTest {
 
         Counter counter = registry.find("atmosphere.messages.broadcast").counter();
         assertTrue(counter != null, "messages.broadcast counter should be registered");
-        assertEquals(counter.count(), 1.0, "Should have 1 message broadcast");
+        assertEquals(1.0, counter.count(), "Should have 1 message broadcast");
     }
 
     @Test
@@ -120,7 +120,7 @@ public class AtmosphereMetricsTest {
 
         Timer timer = registry.find("atmosphere.broadcast.timer").timer();
         assertTrue(timer != null, "broadcast.timer should be registered");
-        assertEquals(timer.count(), 1L, "Should have 1 timer recording");
+        assertEquals(1L, timer.count(), "Should have 1 timer recording");
         assertTrue(timer.totalTime(TimeUnit.NANOSECONDS) > 0, "Timer should have recorded time");
     }
 
@@ -131,10 +131,10 @@ public class AtmosphereMetricsTest {
         broadcaster.addAtmosphereResource(ar);
 
         Gauge activeGauge = registry.find("atmosphere.connections.active").gauge();
-        assertEquals(activeGauge.value(), 1.0);
+        assertEquals(1.0, activeGauge.value());
 
         broadcaster.removeAtmosphereResource(ar);
-        assertEquals(activeGauge.value(), 0.0, "Should have 0 active connections after removal");
+        assertEquals(0.0, activeGauge.value(), "Should have 0 active connections after removal");
     }
 
     @SuppressWarnings("deprecation")

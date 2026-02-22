@@ -15,21 +15,20 @@
  */
 package org.atmosphere.session;
 
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Map;
 import java.util.Set;
 
-import static org.testng.Assert.*;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class InMemorySessionStoreTest {
 
     private InMemorySessionStore store;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         store = new InMemorySessionStore();
     }
@@ -41,8 +40,8 @@ public class InMemorySessionStoreTest {
 
         var restored = store.restore("tok-1");
         assertTrue(restored.isPresent());
-        assertEquals(restored.get().token(), "tok-1");
-        assertEquals(restored.get().resourceId(), "res-1");
+        assertEquals("tok-1", restored.get().token());
+        assertEquals("res-1", restored.get().resourceId());
     }
 
     @Test
@@ -61,7 +60,7 @@ public class InMemorySessionStoreTest {
 
         var restored = store.restore("tok-1");
         assertTrue(restored.isPresent());
-        assertEquals(restored.get().resourceId(), "res-2");
+        assertEquals("res-2", restored.get().resourceId());
     }
 
     @Test
@@ -103,8 +102,8 @@ public class InMemorySessionStoreTest {
 
         var expired = store.removeExpired(Duration.ofHours(1));
 
-        assertEquals(expired.size(), 1);
-        assertEquals(expired.get(0).token(), "tok-old");
+        assertEquals(1, expired.size());
+        assertEquals("tok-old", expired.get(0).token());
         assertTrue(store.restore("tok-old").isEmpty());
         assertTrue(store.restore("tok-fresh").isPresent());
     }
@@ -126,8 +125,8 @@ public class InMemorySessionStoreTest {
         store.save(session);
 
         var restored = store.restore("tok-1").get();
-        assertEquals(restored.rooms(), Set.of("chat", "lobby"));
-        assertEquals(restored.broadcasters(), Set.of("/chat", "/lobby"));
-        assertEquals(restored.metadata(), Map.of("user", "alice"));
+        assertEquals(Set.of("chat", "lobby"), restored.rooms());
+        assertEquals(Set.of("/chat", "/lobby"), restored.broadcasters());
+        assertEquals(Map.of("user", "alice"), restored.metadata());
     }
 }

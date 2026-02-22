@@ -16,9 +16,6 @@
 package org.atmosphere.integrationtests;
 
 import org.atmosphere.cpr.ApplicationConfig;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -30,7 +27,14 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static org.testng.Assert.assertTrue;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for Kafka-based clustering with real Kafka via Testcontainers.
@@ -39,7 +43,8 @@ import static org.testng.Assert.assertTrue;
  *
  * Requires Docker — tests are skipped if Docker is unavailable.
  */
-@Test(groups = "kafka")
+@Tag("kafka")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class KafkaClusteringTest {
 
     private static final boolean DOCKER_AVAILABLE = isDockerAvailable();
@@ -50,7 +55,7 @@ public class KafkaClusteringTest {
     private HttpClient httpClient;
 
     @SuppressWarnings("resource") // closed in tearDown()
-    @BeforeClass
+    @BeforeAll
     public void setUp() throws Exception {
         if (!DOCKER_AVAILABLE) {
             return;
@@ -76,7 +81,7 @@ public class KafkaClusteringTest {
         httpClient = HttpClient.newHttpClient();
     }
 
-    @AfterClass
+    @AfterAll
     public void tearDown() throws Exception {
         if (httpClient != null) httpClient.close();
         if (nodeA != null) nodeA.close();
@@ -84,10 +89,11 @@ public class KafkaClusteringTest {
         if (kafka != null) kafka.stop();
     }
 
-    @Test(timeOut = 30_000)
+    @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testCrossNodeBroadcast() throws Exception {
         if (!DOCKER_AVAILABLE) {
-            throw new org.testng.SkipException("Docker not available");
+            org.junit.jupiter.api.Assumptions.abort("Docker not available");
         }
 
         var receivedOnB = new CopyOnWriteArrayList<String>();
@@ -127,10 +133,11 @@ public class KafkaClusteringTest {
         wsB.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 30_000)
+    @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testTopicIsolation() throws Exception {
         if (!DOCKER_AVAILABLE) {
-            throw new org.testng.SkipException("Docker not available");
+            org.junit.jupiter.api.Assumptions.abort("Docker not available");
         }
 
         var receivedOnEcho = new CopyOnWriteArrayList<String>();
@@ -171,10 +178,11 @@ public class KafkaClusteringTest {
         wsRoom2.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 30_000)
+    @Timeout(value = 30_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testEchoPrevention() throws Exception {
         if (!DOCKER_AVAILABLE) {
-            throw new org.testng.SkipException("Docker not available");
+            org.junit.jupiter.api.Assumptions.abort("Docker not available");
         }
 
         var receivedOnA = new CopyOnWriteArrayList<String>();

@@ -17,7 +17,6 @@ package org.atmosphere.cpr;
 
 import org.atmosphere.cpr.AtmosphereRequestImpl.NoOpsRequest;
 import org.atmosphere.util.FakeHttpSession;
-import org.testng.annotations.Test;
 
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -25,8 +24,9 @@ import java.io.IOException;
 import java.util.concurrent.ExecutionException;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertNotNull;
-import static org.testng.Assert.assertNull;
+
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class SessionTest {
 

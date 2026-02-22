@@ -15,25 +15,25 @@
  */
 package org.atmosphere.cpr;
 
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
-
 import jakarta.servlet.ServletConfig;
 import jakarta.servlet.ServletContext;
 import java.util.Enumeration;
 import java.util.Optional;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.AssertJUnit.assertEquals;
-import static org.testng.AssertJUnit.assertFalse;
-import static org.testng.AssertJUnit.assertNotNull;
-import static org.testng.AssertJUnit.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 
 public class AtmosphereResourceFactoryTest {
 
     private AtmosphereFramework framework;
 
-    @BeforeMethod
+    @BeforeEach
     public void create() throws Throwable {
         framework = new AtmosphereFramework();
         framework.setAsyncSupport(mock(AsyncSupport.class));
@@ -104,7 +104,7 @@ public class AtmosphereResourceFactoryTest {
         b2.addAtmosphereResource(r.suspend());
 
         assertTrue(framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid()).isPresent());
-        assertEquals(framework.getAtmosphereConfig().resourcesFactory().remove(r.uuid()), r);
+        assertEquals(r, framework.getAtmosphereConfig().resourcesFactory().remove(r.uuid()));
         assertFalse(framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid()).isPresent());
     }
 
@@ -121,7 +121,7 @@ public class AtmosphereResourceFactoryTest {
 
         var found = framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid());
         assertTrue(found.isPresent());
-        assertEquals(2, found.get().broadcasters().size());
+        assertEquals(found.get().broadcasters().size(), 2);
 
     }
 
@@ -135,7 +135,7 @@ public class AtmosphereResourceFactoryTest {
 
         Optional<AtmosphereResource> result = framework.getAtmosphereConfig().resourcesFactory().findResource(r.uuid());
         assertTrue(result.isPresent());
-        assertEquals(r.uuid(), result.get().uuid());
+        assertEquals(result.get().uuid(), r.uuid());
     }
 
     @Test

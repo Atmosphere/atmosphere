@@ -27,11 +27,12 @@ import org.atmosphere.cpr.Broadcaster;
 
 import java.util.concurrent.Future;
 import org.mockito.ArgumentCaptor;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("null")
 public class LangChain4jStreamingAdapterTest {
@@ -42,7 +43,7 @@ public class LangChain4jStreamingAdapterTest {
     private LangChain4jStreamingAdapter adapter;
 
     @SuppressWarnings("unchecked")
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("resource-1");
@@ -55,7 +56,7 @@ public class LangChain4jStreamingAdapterTest {
 
     @Test
     public void testName() {
-        assertEquals(adapter.name(), "langchain4j");
+        assertEquals("langchain4j", adapter.name());
     }
 
     @Test
@@ -383,8 +384,8 @@ public class LangChain4jStreamingAdapterTest {
         var request1 = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
         var request2 = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
 
-        assertEquals(request1, request2);
-        assertEquals(request1.hashCode(), request2.hashCode());
+        assertEquals(request2, request1);
+        assertEquals(request2.hashCode(), request1.hashCode());
     }
 
     @Test

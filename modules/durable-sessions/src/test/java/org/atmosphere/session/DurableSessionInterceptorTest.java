@@ -25,15 +25,16 @@ import org.atmosphere.cpr.AtmosphereResponse;
 import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.BroadcasterFactory;
 import org.mockito.ArgumentCaptor;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.time.Duration;
 import java.util.List;
 import java.util.Set;
 
 import static org.mockito.Mockito.*;
-import static org.testng.Assert.*;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class DurableSessionInterceptorTest {
 
@@ -47,7 +48,7 @@ public class DurableSessionInterceptorTest {
     private BroadcasterFactory broadcasterFactory;
     private ServletContext servletContext;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() {
         store = new InMemorySessionStore();
         interceptor = new DurableSessionInterceptor(store, Duration.ofHours(24), Duration.ofMinutes(5));
@@ -80,7 +81,7 @@ public class DurableSessionInterceptorTest {
 
         var action = interceptor.inspect(resource);
 
-        assertEquals(action, Action.CONTINUE);
+        assertEquals(Action.CONTINUE, action);
         // Should set session token in response
         verify(response).setHeader(eq(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER), anyString());
     }
@@ -96,7 +97,7 @@ public class DurableSessionInterceptorTest {
         verify(response).setHeader(eq(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER), captor.capture());
         // Token should be a UUID
         assertNotNull(captor.getValue());
-        assertEquals(captor.getValue().length(), 36);
+        assertEquals(36, captor.getValue().length());
     }
 
     @Test
@@ -115,7 +116,7 @@ public class DurableSessionInterceptorTest {
 
         var action = interceptor.inspect(resource);
 
-        assertEquals(action, Action.CONTINUE);
+        assertEquals(Action.CONTINUE, action);
         verify(response).setHeader(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER, "existing-token");
         verify(broadcaster).addAtmosphereResource(resource);
     }
@@ -126,11 +127,11 @@ public class DurableSessionInterceptorTest {
 
         var action = interceptor.inspect(resource);
 
-        assertEquals(action, Action.CONTINUE);
+        assertEquals(Action.CONTINUE, action);
         // Should create a new token, not reuse the expired one
         var captor = ArgumentCaptor.forClass(String.class);
         verify(response).setHeader(eq(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER), captor.capture());
-        assertNotEquals(captor.getValue(), "expired-token");
+        assertNotEquals("expired-token", captor.getValue());
     }
 
     @Test
@@ -143,7 +144,7 @@ public class DurableSessionInterceptorTest {
 
         var action = interceptor.inspect(resource);
 
-        assertEquals(action, Action.CONTINUE);
+        assertEquals(Action.CONTINUE, action);
         verify(response).setHeader(DurableSessionInterceptor.SESSION_TOKEN_RESPONSE_HEADER, "param-token");
     }
 
@@ -160,7 +161,7 @@ public class DurableSessionInterceptorTest {
         interceptor.saveCurrentState(resource, "save-token");
 
         var restored = store.restore("save-token").get();
-        assertEquals(restored.broadcasters(), Set.of("/chat"));
+        assertEquals(Set.of("/chat"), restored.broadcasters());
     }
 
     @Test
@@ -176,7 +177,7 @@ public class DurableSessionInterceptorTest {
 
         // Should NOT throw — should gracefully create a new session
         var action = failInterceptor.inspect(resource);
-        assertEquals(action, Action.CONTINUE);
+        assertEquals(Action.CONTINUE, action);
     }
 
     @Test
@@ -192,7 +193,7 @@ public class DurableSessionInterceptorTest {
 
         // Should NOT throw
         var action = failInterceptor.inspect(resource);
-        assertEquals(action, Action.CONTINUE);
+        assertEquals(Action.CONTINUE, action);
     }
 
     @Test
@@ -203,6 +204,6 @@ public class DurableSessionInterceptorTest {
 
     @Test
     public void testPriority() {
-        assertEquals(interceptor.priority(), org.atmosphere.interceptor.InvokationOrder.BEFORE_DEFAULT);
+        assertEquals(org.atmosphere.interceptor.InvokationOrder.BEFORE_DEFAULT, interceptor.priority());
     }
 }

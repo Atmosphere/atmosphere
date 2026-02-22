@@ -18,21 +18,20 @@ package org.atmosphere.cache;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.util.ExecutorsFactory;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.util.List;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertTrue;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class UUIDBroadcasterCacheHardeningTest {
 
     private UUIDBroadcasterCache cache;
     private AtmosphereConfig config;
 
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework().getAtmosphereConfig();
         cache = new UUIDBroadcasterCache();
@@ -40,7 +39,7 @@ public class UUIDBroadcasterCacheHardeningTest {
         cache.start();
     }
 
-    @AfterMethod
+    @AfterEach
     public void tearDown() {
         cache.stop();
         ExecutorsFactory.reset(config);
@@ -57,13 +56,13 @@ public class UUIDBroadcasterCacheHardeningTest {
             cache.addToCache("b1", "client1", new BroadcastMessage("msg" + i));
         }
 
-        assertEquals(cache.messages().get("client1").size(), 3);
+        assertEquals(3, cache.messages().get("client1").size());
 
         List<Object> retrieved = cache.retrieveFromCache("b1", "client1");
-        assertEquals(retrieved.size(), 3);
-        assertEquals(retrieved.get(0), "msg3");
-        assertEquals(retrieved.get(1), "msg4");
-        assertEquals(retrieved.get(2), "msg5");
+        assertEquals(3, retrieved.size());
+        assertEquals("msg3", retrieved.get(0));
+        assertEquals("msg4", retrieved.get(1));
+        assertEquals("msg5", retrieved.get(2));
     }
 
     @Test
@@ -118,7 +117,7 @@ public class UUIDBroadcasterCacheHardeningTest {
             freshCache.addToCache("b1", "client1", new BroadcastMessage("msg" + i));
         }
 
-        assertEquals(freshCache.messages().get("client1").size(), 100);
+        assertEquals(100, freshCache.messages().get("client1").size());
         freshCache.stop();
     }
 
@@ -134,7 +133,7 @@ public class UUIDBroadcasterCacheHardeningTest {
             cache.addToCache("b1", "c2", new BroadcastMessage("c2-" + i));
         }
 
-        assertEquals(cache.messages().get("c1").size(), 2);
-        assertEquals(cache.messages().get("c2").size(), 2);
+        assertEquals(2, cache.messages().get("c1").size());
+        assertEquals(2, cache.messages().get("c2").size());
     }
 }

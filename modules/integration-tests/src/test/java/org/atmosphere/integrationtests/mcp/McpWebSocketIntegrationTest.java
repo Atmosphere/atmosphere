@@ -17,9 +17,6 @@ package org.atmosphere.integrationtests.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.integrationtests.EmbeddedAtmosphereServer;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
 
 import java.net.URI;
 import java.net.http.HttpClient;
@@ -31,13 +28,21 @@ import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 
-import static org.testng.Assert.*;
+import java.util.concurrent.TimeUnit;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.Tag;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInstance;
+import org.junit.jupiter.api.Timeout;
+import static org.junit.jupiter.api.Assertions.*;
 
 /**
  * Integration tests for MCP over WebSocket transport with a live embedded server.
  * Validates JSON-RPC round-trip, tool invocation, and session lifecycle.
  */
-@Test(groups = "core")
+@Tag("core")
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public class McpWebSocketIntegrationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
@@ -46,7 +51,7 @@ public class McpWebSocketIntegrationTest {
     private HttpClient httpClient;
 
     @SuppressWarnings("resource") // closed in tearDown()
-    @BeforeClass
+    @BeforeAll
     public void setUp() throws Exception {
         server = new EmbeddedAtmosphereServer()
                 .withAnnotationPackage("org.atmosphere.integrationtests.mcp")
@@ -55,13 +60,14 @@ public class McpWebSocketIntegrationTest {
         httpClient = HttpClient.newHttpClient();
     }
 
-    @AfterClass
+    @AfterAll
     public void tearDown() throws Exception {
         httpClient.close();
         server.close();
     }
 
-    @Test(timeOut = 15_000)
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testWebSocketInitializeAndToolCall() throws Exception {
         var received = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);
@@ -103,20 +109,20 @@ public class McpWebSocketIntegrationTest {
         var initResponse = findResponseById(received, 1);
         assertNotNull(initResponse, "Should have initialize response");
         var initResult = MAPPER.readTree(initResponse);
-        assertEquals(initResult.get("result").get("serverInfo").get("name").asText(), "test-server");
+        assertEquals("test-server", initResult.get("result").get("serverInfo").get("name").asText());
 
         // Verify echo response
         var echoResponse = findResponseById(received, 2);
         assertNotNull(echoResponse, "Should have echo response");
         var echoResult = MAPPER.readTree(echoResponse);
         assertFalse(echoResult.get("result").get("isError").asBoolean());
-        assertEquals(echoResult.get("result").get("content").get(0).get("text").asText(),
-                "Echo: ws-test-message");
+        assertEquals("Echo: ws-test-message", echoResult.get("result").get("content").get(0).get("text").asText());
 
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 15_000)
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testWebSocketToolsList() throws Exception {
         var received = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);
@@ -152,7 +158,8 @@ public class McpWebSocketIntegrationTest {
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 15_000)
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testWebSocketAddTool() throws Exception {
         var received = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);
@@ -185,12 +192,13 @@ public class McpWebSocketIntegrationTest {
         assertNotNull(addResponse);
         var result = MAPPER.readTree(addResponse).get("result");
         assertFalse(result.get("isError").asBoolean());
-        assertEquals(result.get("content").get(0).get("text").asText(), "42");
+        assertEquals("42", result.get("content").get(0).get("text").asText());
 
         ws.sendClose(WebSocket.NORMAL_CLOSURE, "done").join();
     }
 
-    @Test(timeOut = 15_000)
+    @Timeout(value = 15_000, unit = TimeUnit.MILLISECONDS)
+    @Test
     public void testWebSocketPing() throws Exception {
         var received = new CopyOnWriteArrayList<String>();
         var openLatch = new CountDownLatch(1);

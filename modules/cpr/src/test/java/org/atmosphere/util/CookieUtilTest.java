@@ -20,9 +20,8 @@ import java.util.Set;
 
 import jakarta.servlet.http.Cookie;
 
-import org.testng.annotations.Test;
-
-import static org.testng.Assert.assertEquals;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 public class CookieUtilTest {
     private static final String[] COOKIES1 = {"theme=light; sessionToken=abc123", "name=atmosphere"};
@@ -34,14 +33,14 @@ public class CookieUtilTest {
             CookieUtil.ServerCookieDecoder.STRICT.decode(cookieHeader, cookies);
         }
         
-        assertEquals(cookies.size(), 3);
+        assertEquals(3, cookies.size());
         for (Cookie cookie : cookies) {
             if ("theme".equals(cookie.getName())) {
-                assertEquals(cookie.getValue(), "light");
+                assertEquals("light", cookie.getValue());
             } else if ("sessionToken".equals(cookie.getName())) {
-                assertEquals(cookie.getValue(), "abc123");
+                assertEquals("abc123", cookie.getValue());
             } else if ("name".equals(cookie.getName())) {
-                assertEquals(cookie.getValue(), "atmosphere");
+                assertEquals("atmosphere", cookie.getValue());
             }
         }
     }

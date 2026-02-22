@@ -18,9 +18,6 @@ package org.atmosphere.cpr;
 import org.atmosphere.container.BlockingIOCometSupport;
 import org.atmosphere.util.ExecutorsFactory;
 import org.atmosphere.util.SimpleBroadcaster;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
-import org.testng.annotations.Test;
 
 import java.io.IOException;
 import java.util.HashSet;
@@ -31,7 +28,11 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.mockito.Mockito.mock;
-import static org.testng.Assert.assertEquals;
+
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("deprecation")
 public class ConcurrentBroadcasterTest {
@@ -41,7 +42,7 @@ public class ConcurrentBroadcasterTest {
     private AR atmosphereHandler;
     private AtmosphereConfig config;
     
-    @BeforeMethod
+    @BeforeEach
     public void setUp() throws Exception {
         config = new AtmosphereFramework()
                 .addInitParameter(ApplicationConfig.BROADCASTER_SHARABLE_THREAD_POOLS, "true")
@@ -53,7 +54,7 @@ public class ConcurrentBroadcasterTest {
         broadcaster = factory.get(DefaultBroadcaster.class, "test");
     }
 
-    @AfterMethod
+    @AfterEach
     public void unSetUp() throws Exception {
         broadcaster.destroy();
         config.getBroadcasterFactory().destroy();
@@ -132,7 +133,7 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(atmosphereHandler.value.get().toString(), b.toString());
+        assertEquals(b.toString(), atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -165,7 +166,7 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(a.count.get(), count * client);
+        assertEquals(count * client, a.count.get());
         //Thread.sleep(600000);
     }
 
@@ -209,7 +210,7 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(a.count.get(), count * client);
+        assertEquals(count * client, a.count.get());
         //Thread.sleep(600000);
     }
 
@@ -253,7 +254,7 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(a.count.get(), count * client);
+        assertEquals(count * client, a.count.get());
         //Thread.sleep(600000);
     }
 
@@ -294,7 +295,7 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(a.count.get(), count * client);
+        assertEquals(count * client, a.count.get());
         //Thread.sleep(600000);
     }
 
@@ -339,7 +340,7 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(atmosphereHandler.value.get().toString(), b.toString());
+        assertEquals(b.toString(), atmosphereHandler.value.get().toString());
     }
 
     @Test
@@ -386,7 +387,7 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(a.count.get(), count * set.size());
+        assertEquals(count * set.size(), a.count.get());
     }
 
     @Test
@@ -429,8 +430,8 @@ public class ConcurrentBroadcasterTest {
         }
         latch.await(60, TimeUnit.SECONDS);
 
-        assertEquals(target.count.get(), count);
-        assertEquals(other.count.get(), 0);
+        assertEquals(count, target.count.get());
+        assertEquals(0, other.count.get());
     }
 
     AtmosphereResource newAR(AtmosphereHandler a) {
