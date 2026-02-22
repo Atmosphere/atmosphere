@@ -144,7 +144,7 @@ const features = [
 
     <div class="features-grid">
       {features.map((feature, index) => (
-        <article class="feature-card" data-feature={index} style={`--delay: ${index * 0.1}s`} role="button" tabindex="0" aria-haspopup="dialog">
+        <article class="feature-card" data-feature={index} style={`--delay: ${(index * 0.1).toFixed(1)}s`} role="button" tabindex="0" aria-haspopup="dialog">
           <div class="feature-icon" set:html={feature.icon} />
           <h3 class="feature-title">{feature.title}</h3>
           <p class="feature-description">{feature.description}</p>

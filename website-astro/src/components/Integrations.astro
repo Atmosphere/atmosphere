@@ -98,7 +98,7 @@ LLM_MODEL=gemini-2.5-flash`,
 
     <div class="stacks-grid">
       {stacks.map((stack, index) => (
-        <article class="stack-card" style={`--delay: ${index * 0.1}s`}>
+        <article class="stack-card" style={`--delay: ${(index * 0.1).toFixed(1)}s`}>
           <div class="stack-header">
             <div class="stack-icon" set:html={stack.icon} />
             <div>

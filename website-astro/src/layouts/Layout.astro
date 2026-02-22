@@ -4,7 +4,8 @@ interface Props {
   description?: string;
 }
 
-const { title, description = "A battle-tested real-time framework for the JVM" } = Astro.props;
+const { title, description = "Real-time AI streaming framework for Java. Stream LLM responses, MCP tools, and live data over WebSocket with SSE fallback, rooms, presence, and Kafka/Redis clustering." } = Astro.props;
+const canonicalUrl = new URL(Astro.url.pathname, Astro.site);
 ---
 
 <!doctype html>
@@ -13,12 +14,52 @@ const { title, description = "A battle-tested real-time framework for the JVM" }
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
-    <meta name="keywords" content="Java, WebSockets, Server Sent Events, Real-time, Async, JVM, Framework, Spring Boot, Quarkus" />
+    <meta name="keywords" content="Java, WebSocket, SSE, Real-time, AI, LLM, Streaming, MCP, Virtual Threads, Spring Boot, Quarkus, Kafka, Redis, Clustering, JVM, Framework" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="canonical" href={canonicalUrl.href} />
+
+    <!-- Open Graph -->
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content={canonicalUrl.href} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:image" content={new URL('/logo.svg', Astro.site).href} />
+    <meta property="og:site_name" content="Atmosphere" />
+
+    <!-- Twitter Card -->
+    <meta name="twitter:card" content="summary" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={new URL('/logo.svg', Astro.site).href} />
+
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Serif:ital@0;1&family=JetBrains+Mono:wght@400;500&family=Geist:wght@300;400;500;600&display=swap" rel="stylesheet" />
     <title>{title}</title>
+
+    <!-- Structured Data -->
+    <script type="application/ld+json" set:html={JSON.stringify({
+      "@context": "https://schema.org",
+      "@type": "SoftwareApplication",
+      "name": "Atmosphere",
+      "applicationCategory": "DeveloperApplication",
+      "operatingSystem": "JVM",
+      "url": "https://async-io.org",
+      "description": description,
+      "license": "https://www.apache.org/licenses/LICENSE-2.0",
+      "codeRepository": "https://github.com/Atmosphere/atmosphere",
+      "programmingLanguage": "Java",
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "author": {
+        "@type": "Organization",
+        "name": "Async-IO.org",
+        "url": "https://async-io.org"
+      }
+    })} />
   </head>
   <body>
     <slot />
