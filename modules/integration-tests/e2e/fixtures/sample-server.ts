@@ -17,6 +17,8 @@ export interface SampleConfig {
   env?: Record<string, string>;
   /** Extra JVM args */
   jvmArgs?: string[];
+  /** Main class for embedded-jetty type (exec:java) */
+  mainClass?: string;
 }
 
 export const SAMPLES: Record<string, SampleConfig> = {
@@ -37,6 +39,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
     dir: 'embedded-jetty-websocket-chat',
     port: 8080,
     type: 'embedded-jetty',
+    mainClass: 'org.atmosphere.samples.chat.EmbeddedJettyWebSocketChat',
   },
   'quarkus-chat': {
     name: 'quarkus-chat',
@@ -138,13 +141,22 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
 
   const samplePath = resolve(ROOT, 'samples', config.dir);
   let proc: ChildProcess;
+  const env = { ...process.env, ...(config.env ?? {}) };
 
   if (config.type === 'jetty-war') {
     // WAR-based samples use mvn jetty:run
     const mvnw = resolve(ROOT, 'mvnw');
     proc = spawn(mvnw, ['-B', `jetty:run`, `-Djetty.port=${config.port}`], {
       cwd: samplePath,
-      env: { ...process.env, ...(config.env ?? {}) },
+      env,
+      stdio: ['ignore', 'pipe', 'pipe'],
+    });
+  } else if (config.type === 'embedded-jetty') {
+    // Embedded Jetty samples use mvn exec:java with explicit mainClass
+    const mvnw = resolve(ROOT, 'mvnw');
+    proc = spawn(mvnw, ['-B', 'exec:java', `-Dexec.mainClass=${config.mainClass}`, `-Dserver.port=${config.port}`], {
+      cwd: samplePath,
+      env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   } else {
@@ -157,7 +169,7 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
 
     proc = spawn('java', args, {
       cwd: samplePath,
-      env: { ...process.env, ...(config.env ?? {}) },
+      env,
       stdio: ['ignore', 'pipe', 'pipe'],
     });
   }
