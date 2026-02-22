@@ -4,14 +4,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>4.0.3-SNAPSHOT</version>
+        <version>4.0.3</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-chat</artifactId>
     <packaging>war</packaging>
-    <version>4.0.3-SNAPSHOT</version>
+    <version>4.0.3</version>
     <name>atmosphere-chat</name>
     <url>http://maven.apache.org</url>
 
@@ -35,7 +35,7 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-runtime</artifactId>
-            <version>4.0.3-SNAPSHOT</version>
+            <version>4.0.3</version>
         </dependency>
         <dependency>
             <groupId>jakarta.inject</groupId>
