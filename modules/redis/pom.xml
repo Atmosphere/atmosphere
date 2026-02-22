@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>4.0.2-SNAPSHOT</version>
+        <version>4.0.2</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>atmosphere-redis</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.2-SNAPSHOT</version>
+    <version>4.0.2</version>
     <name>atmosphere-redis</name>
     <description>Redis clustering support for Atmosphere Framework using Lettuce</description>
     <url>https://github.com/Atmosphere/atmosphere</url>

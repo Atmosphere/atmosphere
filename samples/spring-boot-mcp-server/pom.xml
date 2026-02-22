@@ -22,13 +22,13 @@
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-spring-boot-starter</artifactId>
-            <version>4.0.2-SNAPSHOT</version>
+            <version>4.0.2</version>
         </dependency>
 
         <dependency>
             <groupId>org.atmosphere</groupId>
             <artifactId>atmosphere-mcp</artifactId>
-            <version>4.0.2-SNAPSHOT</version>
+            <version>4.0.2</version>
         </dependency>
 
         <dependency>
