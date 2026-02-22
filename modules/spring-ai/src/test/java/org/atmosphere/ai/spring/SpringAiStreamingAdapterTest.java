@@ -18,6 +18,7 @@ package org.atmosphere.ai.spring;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 import org.mockito.ArgumentCaptor;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.messages.AssistantMessage;
@@ -30,6 +31,7 @@ import reactor.core.publisher.Flux;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.Future;
 
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.*;
@@ -38,14 +40,18 @@ import static org.testng.Assert.*;
 public class SpringAiStreamingAdapterTest {
 
     private AtmosphereResource resource;
+    private Broadcaster broadcaster;
     private StreamingSession session;
     private SpringAiStreamingAdapter adapter;
 
+    @SuppressWarnings("unchecked")
     @BeforeMethod
     public void setUp() {
         resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("resource-1");
-        when(resource.write(anyString())).thenReturn(resource);
+        broadcaster = mock(Broadcaster.class);
+        when(resource.getBroadcaster()).thenReturn(broadcaster);
+        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
         session = StreamingSessions.start("test-session", resource);
         adapter = new SpringAiStreamingAdapter();
     }
@@ -76,7 +82,7 @@ public class SpringAiStreamingAdapterTest {
 
         var captor = ArgumentCaptor.forClass(String.class);
         // 1 progress + 3 tokens + 1 complete = 5
-        verify(resource, timeout(2000).atLeast(5)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(5)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -109,7 +115,7 @@ public class SpringAiStreamingAdapterTest {
 
         var captor = ArgumentCaptor.forClass(String.class);
         // progress + complete = 2 (no tokens because getResult() is null)
-        verify(resource, timeout(2000).atLeast(2)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(2)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -134,7 +140,7 @@ public class SpringAiStreamingAdapterTest {
 
         var captor = ArgumentCaptor.forClass(String.class);
         // progress + error = 2
-        verify(resource, timeout(2000).atLeast(2)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(2)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -160,7 +166,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, timeout(2000).atLeast(3)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(3)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -185,7 +191,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, timeout(2000).atLeast(6)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(6)).broadcast(captor.capture());
 
         // Verify sequence numbers are monotonically increasing
         var seqValues = captor.getAllValues().stream()
@@ -226,7 +232,7 @@ public class SpringAiStreamingAdapterTest {
 
         var captor = ArgumentCaptor.forClass(String.class);
         // progress + complete = 2
-        verify(resource, timeout(2000).atLeast(2)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(2)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -253,7 +259,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, timeout(2000).atLeast(2)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(2)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -278,7 +284,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, timeout(2000).atLeast(3)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(3)).broadcast(captor.capture());
 
         // First message should be the progress message
         var firstMsg = captor.getAllValues().get(0);
@@ -332,7 +338,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, timeout(2000).atLeast(3)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(3)).broadcast(captor.capture());
 
         // All messages should include the session ID
         for (var msg : captor.getAllValues()) {
@@ -356,7 +362,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         var captor = ArgumentCaptor.forClass(String.class);
-        verify(resource, timeout(2000).atLeast(4)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(4)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -384,7 +390,7 @@ public class SpringAiStreamingAdapterTest {
 
         var captor = ArgumentCaptor.forClass(String.class);
         // progress + 1 token + error = 3
-        verify(resource, timeout(2000).atLeast(3)).write(captor.capture());
+        verify(broadcaster, timeout(2000).atLeast(3)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(Object::toString)
@@ -413,7 +419,7 @@ public class SpringAiStreamingAdapterTest {
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
         // Allow time for the doOnComplete callback to fire
-        verify(resource, timeout(2000).atLeast(3)).write(anyString());
+        verify(broadcaster, timeout(2000).atLeast(3)).broadcast(anyString());
 
         assertTrue(session.isClosed(), "Session should be closed after streaming completes");
     }
@@ -433,7 +439,7 @@ public class SpringAiStreamingAdapterTest {
 
         assertTrue(latch.await(5, TimeUnit.SECONDS));
 
-        verify(resource, timeout(2000).atLeast(2)).write(anyString());
+        verify(broadcaster, timeout(2000).atLeast(2)).broadcast(anyString());
 
         assertTrue(session.isClosed(), "Session should be closed after error");
     }
