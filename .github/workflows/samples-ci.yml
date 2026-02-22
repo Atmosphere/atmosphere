@@ -30,6 +30,9 @@ jobs:
           - spring-boot-chat
           - quarkus-chat
           - embedded-jetty-websocket-chat
+          - spring-boot-ai-chat
+          - spring-boot-langchain4j-chat
+          - spring-boot-embabel-chat
       fail-fast: false
     
     steps:
@@ -43,7 +46,7 @@ jobs:
         cache: 'maven'
     
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/spring-boot-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment -am
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/ai,modules/spring-boot-starter,modules/quarkus-extension/runtime,modules/quarkus-extension/deployment -am
     
     - name: Build Sample - ${{ matrix.sample }}
       run: ./mvnw -B package -DskipTests -Dgpg.skip=true -pl samples/${{ matrix.sample }}
@@ -51,6 +54,8 @@ jobs:
     - name: Test Sample - ${{ matrix.sample }}
       run: ./mvnw -B test -Dgpg.skip=true -pl samples/${{ matrix.sample }}
       if: matrix.sample != 'embedded-jetty-websocket-chat'
+      env:
+        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
     
     - name: Upload Build Artifacts
       if: failure()
