@@ -57,12 +57,17 @@ public class OpenAiCompatibleClient implements LlmClient {
     private final String apiKey;
     private final HttpClient httpClient;
     private final Duration timeout;
+    private final int maxRetries;
+    private final Duration retryBaseDelay;
 
-    private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient, Duration timeout) {
+    private OpenAiCompatibleClient(String baseUrl, String apiKey, HttpClient httpClient,
+                                   Duration timeout, int maxRetries, Duration retryBaseDelay) {
         this.baseUrl = baseUrl.endsWith("/") ? baseUrl.substring(0, baseUrl.length() - 1) : baseUrl;
         this.apiKey = apiKey;
         this.httpClient = httpClient;
         this.timeout = timeout;
+        this.maxRetries = maxRetries;
+        this.retryBaseDelay = retryBaseDelay;
     }
 
     /**
@@ -114,16 +119,63 @@ public class OpenAiCompatibleClient implements LlmClient {
             session.progress("Connecting to AI model...");
 
             var requestBody = buildRequestBody(request);
-            var httpRequest = buildHttpRequest(requestBody);
 
             logger.debug("Streaming chat completion: model={}, messages={}", request.model(), request.messages().size());
 
-            var response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+            HttpResponse<java.io.InputStream> response = null;
+            Exception lastException = null;
 
-            if (response.statusCode() != 200) {
-                var errorBody = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
-                logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
-                session.error(new LlmException("API returned " + response.statusCode() + ": " + extractErrorMessage(errorBody)));
+            for (int attempt = 0; attempt <= maxRetries; attempt++) {
+                try {
+                    var httpRequest = buildHttpRequest(requestBody);
+                    response = httpClient.send(httpRequest, HttpResponse.BodyHandlers.ofInputStream());
+
+                    if (response.statusCode() == 200) {
+                        break;
+                    }
+
+                    var errorBody = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
+
+                    if (!isRetryable(response.statusCode()) || attempt == maxRetries) {
+                        logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
+                        session.error(new LlmException("API returned " + response.statusCode()
+                                + ": " + extractErrorMessage(errorBody)));
+                        return;
+                    }
+
+                    var delay = computeRetryDelay(attempt, response);
+                    logger.warn("LLM API error ({}), retrying in {}ms (attempt {}/{})",
+                            response.statusCode(), delay.toMillis(), attempt + 1, maxRetries);
+                    Thread.sleep(delay.toMillis());
+                    response = null;
+                } catch (java.net.http.HttpTimeoutException e) {
+                    lastException = e;
+                    if (attempt == maxRetries) {
+                        break;
+                    }
+                    var delay = computeRetryDelay(attempt, null);
+                    logger.warn("LLM request timeout, retrying in {}ms (attempt {}/{})",
+                            delay.toMillis(), attempt + 1, maxRetries, e);
+                    Thread.sleep(delay.toMillis());
+                } catch (java.io.IOException e) {
+                    lastException = e;
+                    if (attempt == maxRetries) {
+                        break;
+                    }
+                    var delay = computeRetryDelay(attempt, null);
+                    logger.warn("LLM connection error, retrying in {}ms (attempt {}/{})",
+                            delay.toMillis(), attempt + 1, maxRetries, e);
+                    Thread.sleep(delay.toMillis());
+                }
+            }
+
+            if (response == null || response.statusCode() != 200) {
+                var cause = lastException != null ? lastException
+                        : new LlmException("Failed after " + (maxRetries + 1) + " attempts");
+                logger.error("LLM API failed after {} retries", maxRetries, cause);
+                if (!session.isClosed()) {
+                    session.error(cause);
+                }
                 return;
             }
 
@@ -149,6 +201,30 @@ public class OpenAiCompatibleClient implements LlmClient {
                 session.error(e);
             }
         }
+    }
+
+    private static boolean isRetryable(int statusCode) {
+        return statusCode == 429 || statusCode == 500 || statusCode == 502 || statusCode == 503;
+    }
+
+    private Duration computeRetryDelay(int attempt, HttpResponse<?> response) {
+        // Respect Retry-After header on 429 responses
+        if (response != null && response.statusCode() == 429) {
+            var retryAfter = response.headers().firstValue("Retry-After");
+            if (retryAfter.isPresent()) {
+                try {
+                    var seconds = Integer.parseInt(retryAfter.get());
+                    return Duration.ofSeconds(Math.min(seconds, 60));
+                } catch (NumberFormatException ignored) {
+                    // Fall through to exponential backoff
+                }
+            }
+        }
+        // Exponential backoff with jitter: base * 2^attempt + random jitter
+        long baseMs = retryBaseDelay.toMillis();
+        long delayMs = baseMs * (1L << attempt);
+        long jitter = (long) (delayMs * 0.2 * Math.random());
+        return Duration.ofMillis(Math.min(delayMs + jitter, 30_000));
     }
 
     private void processSSELine(String line, StreamingSession session) {
@@ -281,6 +357,8 @@ public class OpenAiCompatibleClient implements LlmClient {
         private String apiKey;
         private HttpClient httpClient;
         private Duration timeout = Duration.ofSeconds(120);
+        private int maxRetries = 3;
+        private Duration retryBaseDelay = Duration.ofMillis(500);
 
         private Builder() {
         }
@@ -305,11 +383,30 @@ public class OpenAiCompatibleClient implements LlmClient {
             return this;
         }
 
+        /**
+         * Maximum number of retries on transient errors (429, 500, 502, 503)
+         * and connection/timeout failures. Default is 3.
+         */
+        public Builder maxRetries(int maxRetries) {
+            this.maxRetries = maxRetries;
+            return this;
+        }
+
+        /**
+         * Base delay for exponential backoff between retries.
+         * Actual delay is {@code base * 2^attempt} with 20% jitter, capped at 30s.
+         * Default is 500ms.
+         */
+        public Builder retryBaseDelay(Duration retryBaseDelay) {
+            this.retryBaseDelay = retryBaseDelay;
+            return this;
+        }
+
         public OpenAiCompatibleClient build() {
             var client = this.httpClient != null ? this.httpClient : HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(30))
                     .build();
-            return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout);
+            return new OpenAiCompatibleClient(baseUrl, apiKey, client, timeout, maxRetries, retryBaseDelay);
         }
     }
 }

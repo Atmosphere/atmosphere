@@ -214,6 +214,140 @@ public class OpenAiCompatibleClientTest {
     }
 
     @Test
+    public void testRetryOn429ThenSuccess() throws Exception {
+        var errorBody = """
+                {"error":{"message":"Rate limited","type":"rate_limit_error"}}
+                """;
+        var sseResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(429, errorBody),
+                new MockResponse(200, sseResponse)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .maxRetries(2)
+                .retryBaseDelay(java.time.Duration.ofMillis(10))
+                .build();
+
+        var session = StreamingSessions.start("test-retry-429", resource);
+        client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
+
+        // Should have retried and succeeded
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
+        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"data\":\"OK\"")));
+    }
+
+    @Test
+    public void testNoRetryOn401() throws Exception {
+        var errorBody = """
+                {"error":{"message":"Invalid key","type":"auth_error"}}
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(401, errorBody)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .maxRetries(3)
+                .retryBaseDelay(java.time.Duration.ofMillis(10))
+                .build();
+
+        var session = StreamingSessions.start("test-no-retry-401", resource);
+        client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
+
+        // Should NOT retry on 401
+        verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(broadcaster, atLeast(1)).broadcast(captor.capture());
+        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
+    }
+
+    @Test
+    public void testRetryExhausted() throws Exception {
+        var errorBody = """
+                {"error":{"message":"Server error","type":"server_error"}}
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(503, errorBody),
+                new MockResponse(503, errorBody),
+                new MockResponse(503, errorBody)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .maxRetries(2)
+                .retryBaseDelay(java.time.Duration.ofMillis(10))
+                .build();
+
+        var session = StreamingSessions.start("test-retry-exhausted", resource);
+        client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
+
+        // Should have tried 3 times (initial + 2 retries)
+        verify(httpClient, times(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(broadcaster, atLeast(1)).broadcast(captor.capture());
+        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
+    }
+
+    @Test
+    public void testRetryOnConnectionError() throws Exception {
+        var sseResponse = """
+                data: {"id":"chatcmpl-1","choices":[{"index":0,"delta":{"content":"OK"},"finish_reason":"stop"}]}
+
+                data: [DONE]
+
+                """;
+
+        var httpClient = mockHttpClientWithIOExceptionThenSuccess(sseResponse);
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .maxRetries(2)
+                .retryBaseDelay(java.time.Duration.ofMillis(10))
+                .build();
+
+        var session = StreamingSessions.start("test-retry-io", resource);
+        client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
+
+        verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        var captor = ArgumentCaptor.forClass(String.class);
+        verify(broadcaster, atLeast(2)).broadcast(captor.capture());
+        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"data\":\"OK\"")));
+    }
+
+    @Test
+    public void testZeroRetriesDisablesRetry() throws Exception {
+        var errorBody = """
+                {"error":{"message":"Server error","type":"server_error"}}
+                """;
+
+        var httpClient = mockHttpClientSequence(
+                new MockResponse(503, errorBody)
+        );
+        var client = OpenAiCompatibleClient.builder()
+                .baseUrl("http://localhost:11434/v1")
+                .httpClient(httpClient)
+                .maxRetries(0)
+                .build();
+
+        var session = StreamingSessions.start("test-zero-retries", resource);
+        client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
+
+        verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+    }
+
+    @Test
     public void testAdapterName() {
         var client = OpenAiCompatibleClient.builder().build();
         var adapter = new LlmStreamingAdapter(client);
@@ -242,6 +376,45 @@ public class OpenAiCompatibleClientTest {
         );
         when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
                 .thenReturn(response);
+        return httpClient;
+    }
+
+    private record MockResponse(int statusCode, String body) {}
+
+    @SuppressWarnings("unchecked")
+    private HttpClient mockHttpClientSequence(MockResponse... responses) throws Exception {
+        var httpClient = mock(HttpClient.class);
+        // Build all mock responses FIRST to avoid nested when() calls
+        HttpResponse<java.io.InputStream>[] mocks = new HttpResponse[responses.length];
+        for (int i = 0; i < responses.length; i++) {
+            var mr = responses[i];
+            HttpResponse<java.io.InputStream> resp = mock(HttpResponse.class);
+            doReturn(mr.statusCode()).when(resp).statusCode();
+            doReturn(new ByteArrayInputStream(mr.body().getBytes(StandardCharsets.UTF_8)))
+                    .when(resp).body();
+            doReturn(java.net.http.HttpHeaders.of(java.util.Map.of(), (a, b) -> true))
+                    .when(resp).headers();
+            mocks[i] = resp;
+        }
+        // Chain all responses using doReturn with varargs for subsequent returns
+        var first = mocks[0];
+        var rest = java.util.Arrays.copyOfRange(mocks, 1, mocks.length);
+        doReturn(first, (Object[]) rest)
+                .when(httpClient).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
+        return httpClient;
+    }
+
+    @SuppressWarnings("unchecked")
+    private HttpClient mockHttpClientWithIOExceptionThenSuccess(String successBody) throws Exception {
+        var httpClient = mock(HttpClient.class);
+        var successResponse = mock(HttpResponse.class);
+        when(successResponse.statusCode()).thenReturn(200);
+        when(successResponse.body()).thenReturn(
+                new ByteArrayInputStream(successBody.getBytes(StandardCharsets.UTF_8))
+        );
+        when(httpClient.send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class)))
+                .thenThrow(new java.io.IOException("Connection refused"))
+                .thenReturn(successResponse);
         return httpClient;
     }
 }
