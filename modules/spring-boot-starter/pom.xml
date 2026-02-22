@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>4.0.3</version>
+        <version>4.0.4-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.3</version>
+    <version>4.0.4-SNAPSHOT</version>
     <name>atmosphere-spring-boot-starter</name>
     <description>Spring Boot auto-configuration for Atmosphere Framework</description>
     <url>https://github.com/Atmosphere/atmosphere</url>

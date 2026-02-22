@@ -3,14 +3,14 @@
     <parent>
         <groupId>org.atmosphere</groupId>
         <artifactId>atmosphere-project</artifactId>
-        <version>4.0.3</version>
+        <version>4.0.4-SNAPSHOT</version>
         <relativePath>../../pom.xml</relativePath>
     </parent>
 
     <modelVersion>4.0.0</modelVersion>
     <artifactId>atmosphere-ai</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.3</version>
+    <version>4.0.4-SNAPSHOT</version>
     <name>atmosphere-ai</name>
     <description>AI/LLM streaming SPI for Atmosphere Framework — shared interfaces for Spring AI, LangChain4j, Embabel, and custom adapters</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
