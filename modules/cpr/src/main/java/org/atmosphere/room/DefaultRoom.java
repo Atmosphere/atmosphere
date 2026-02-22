@@ -15,6 +15,7 @@
  */
 package org.atmosphere.room;
 
+import org.atmosphere.config.managed.ManagedAtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEventListenerAdapter;
 import org.atmosphere.cpr.Broadcaster;
@@ -25,13 +26,13 @@ import org.slf4j.LoggerFactory;
 import org.atmosphere.cache.UUIDBroadcasterCache;
 
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.Future;
+import java.util.List;
 import java.util.function.Consumer;
 
 /**
@@ -123,26 +124,27 @@ public class DefaultRoom implements Room {
     @Override
     public Future<Object> broadcast(Object message) {
         dispatchToVirtualMembers(message, null);
-        return broadcaster.broadcast(message);
+        // Wrap in Managed so @ManagedService handlers pass it through without decoding
+        return broadcaster.broadcast(new ManagedAtmosphereHandler.Managed(message));
     }
 
     @Override
     public Future<Object> broadcast(Object message, AtmosphereResource sender) {
         // Broadcast to everyone except sender
         dispatchToVirtualMembers(message, sender.uuid());
-        Set<AtmosphereResource> targets = new java.util.HashSet<>(broadcaster.getAtmosphereResources());
-        targets.remove(sender);
-        if (targets.isEmpty()) {
+        var subset = new java.util.HashSet<>(broadcaster.getAtmosphereResources());
+        subset.remove(sender);
+        if (subset.isEmpty()) {
             return java.util.concurrent.CompletableFuture.completedFuture(message);
         }
-        return broadcaster.broadcast(message, targets);
+        return broadcaster.broadcast(new ManagedAtmosphereHandler.Managed(message), subset);
     }
 
     @Override
     public Future<Object> sendTo(Object message, String uuid) {
         for (AtmosphereResource r : broadcaster.getAtmosphereResources()) {
             if (r.uuid().equals(uuid)) {
-                return broadcaster.broadcast(message, r);
+                return broadcaster.broadcast(new ManagedAtmosphereHandler.Managed(message), r);
             }
         }
         return java.util.concurrent.CompletableFuture.completedFuture(null);
@@ -188,6 +190,7 @@ public class DefaultRoom implements Room {
     public Room enableHistory(int maxMessages) {
         this.historySize = maxMessages;
         var cache = new UUIDBroadcasterCache();
+        cache.configure(broadcaster.getBroadcasterConfig().getAtmosphereConfig());
         cache.setMaxPerClient(maxMessages);
         broadcaster.getBroadcasterConfig().setBroadcasterCache(cache);
         logger.debug("Enabled history ({} max) for room '{}'", maxMessages, name);
