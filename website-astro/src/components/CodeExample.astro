@@ -5,10 +5,11 @@
   <div class="code-container">
     <div class="section-header">
       <span class="section-label">Quick Start</span>
-      <h2 class="section-title">Simple, powerful, familiar</h2>
+      <h2 class="section-title">AI streaming in minutes</h2>
       <p class="section-description">
-        Write real-time applications with clean, annotation-based Java on the server
-        and intuitive JavaScript on the client.
+        Keep your LLM stack and add Atmosphere as the transport layer:
+        server-side streaming with <code>@AiEndpoint</code>, MCP tools with <code>@McpServer</code>,
+        and client-side rendering with <code>useStreaming()</code>.
       </p>
     </div>
 
@@ -24,75 +25,194 @@
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
               <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
             </svg>
-            Chat.java
+            ChatWithMcpParticipant.java
           </span>
           <span class="code-lang">Server</span>
         </div>
-        <pre class="code-block"><code class="language-java"><span class="hl-import">import org.atmosphere.config.service.*;</span>
-<span class="hl-import">import jakarta.inject.Inject;</span>
+        <pre class="code-block"><code class="language-java"><span class="hl-annotation">@ManagedService</span>(path = <span class="hl-string">"/atmosphere/chat"</span>)
+<span class="hl-keyword">public class</span> ChatEndpoint &#123;
+    <span class="hl-annotation">@Message</span>
+    <span class="hl-keyword">public</span> <span class="hl-type">String</span> onMessage(<span class="hl-type">String</span> message) &#123;
+        <span class="hl-keyword">return</span> message; <span class="hl-comment">// human users chat in real time</span>
+    &#125;
+&#125;
 
-<span class="hl-annotation">@ManagedService</span>(path = <span class="hl-string">"/chat"</span>)
-<span class="hl-keyword">public class</span> Chat &#123;
+<span class="hl-annotation">@McpServer</span>(name = <span class="hl-string">"chat-participant"</span>, path = <span class="hl-string">"/atmosphere/mcp"</span>)
+<span class="hl-keyword">public class</span> ChatMcpParticipant &#123;
+    <span class="hl-annotation">@Inject</span> <span class="hl-keyword">private</span> <span class="hl-type">AtmosphereConfig</span> config;
 
-    <span class="hl-annotation">@Inject</span>
-    <span class="hl-keyword">private</span> <span class="hl-type">AtmosphereResource</span> r;
-
-    <span class="hl-annotation">@Ready</span>
-    <span class="hl-keyword">public void</span> onReady() &#123;
-        log.info(<span class="hl-string">"Connected: &#123;&#125;"</span>, r.uuid());
+    <span class="hl-annotation">@McpTool</span>(name = <span class="hl-string">"say_in_chat"</span>, description = <span class="hl-string">"Send a message as MCP Agent"</span>)
+    <span class="hl-keyword">public</span> <span class="hl-type">String</span> sayInChat(
+            <span class="hl-annotation">@McpParam</span>(name = <span class="hl-string">"text"</span>) <span class="hl-type">String</span> text) &#123;
+        <span class="hl-keyword">var</span> chat = config.getBroadcasterFactory().lookup(<span class="hl-string">"/atmosphere/chat"</span>, <span class="hl-keyword">true</span>);
+        chat.broadcast(<span class="hl-string">"&#123;\"author\":\"MCP Agent\",\"message\":\""</span> + text + <span class="hl-string">"\"&#125;"</span>);
+        <span class="hl-keyword">return</span> <span class="hl-string">"sent"</span>;
     &#125;
 
-    <span class="hl-annotation">@Message</span>(encoders = &#123;<span class="hl-type">JacksonEncoder</span>.class&#125;,
-            decoders = &#123;<span class="hl-type">JacksonDecoder</span>.class&#125;)
-    <span class="hl-keyword">public</span> <span class="hl-type">Message</span> onMessage(<span class="hl-type">Message</span> message) &#123;
-        <span class="hl-keyword">return</span> message; <span class="hl-comment">// broadcast to all</span>
+    <span class="hl-annotation">@McpResource</span>(uri = <span class="hl-string">"atmosphere://chat/presence"</span>, name = <span class="hl-string">"Chat Presence"</span>)
+    <span class="hl-keyword">public</span> <span class="hl-type">String</span> presence() &#123;
+        <span class="hl-keyword">var</span> chat = config.getBroadcasterFactory().lookup(<span class="hl-string">"/atmosphere/chat"</span>, <span class="hl-keyword">false</span>);
+        <span class="hl-keyword">var</span> online = chat == <span class="hl-keyword">null</span> ? <span class="hl-string">"0"</span> : <span class="hl-type">String</span>.valueOf(chat.getAtmosphereResources().size());
+        <span class="hl-keyword">return</span> <span class="hl-string">"onlineUsers="</span> + online;
     &#125;
 &#125;</code></pre>
       </div>
 
-      <div class="code-panel">
-        <div class="code-header">
-          <div class="code-dots">
-            <span></span>
-            <span></span>
-            <span></span>
-          </div>
-          <span class="code-filename">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
-              <path d="M17 3a2.85 2.85 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z"/>
-            </svg>
-            client.js
-          </span>
-          <span class="code-lang">Client</span>
-        </div>
-        <pre class="code-block"><code class="language-javascript"><span class="hl-keyword">import</span> &#123; atmosphere &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js'</span>;
+      <div class="code-panel client-carousel-panel">
+        <div class="client-carousel-track" id="quickStartHooks">
+          <article class="client-slide">
+            <div class="code-header">
+              <div class="code-dots"><span></span><span></span><span></span></div>
+              <span class="code-filename">AiChat.tsx</span>
+              <span class="code-lang">React</span>
+            </div>
+            <pre class="code-block"><code class="language-javascript"><span class="hl-keyword">import</span> &#123; useState &#125; <span class="hl-keyword">from</span> <span class="hl-string">'react'</span>;
+<span class="hl-keyword">import</span> &#123; useStreaming &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/react'</span>;
 
-<span class="hl-keyword">const</span> sub = <span class="hl-keyword">await</span> atmosphere.subscribe(
-  &#123;
-    <span class="hl-property">url</span>: <span class="hl-string">'/chat'</span>,
-    <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
-    <span class="hl-property">fallbackTransport</span>: <span class="hl-string">'long-polling'</span>,
-  &#125;,
-  &#123;
-    <span class="hl-property">open</span>: (res) =&gt; <span class="hl-type">console</span>.log(<span class="hl-string">'Connected via'</span>, res.transport),
-    <span class="hl-property">message</span>: (res) =&gt; <span class="hl-type">console</span>.log(<span class="hl-string">'Received:'</span>, res.responseBody),
-  &#125;
+<span class="hl-keyword">const</span> [prompt, setPrompt] = <span class="hl-function">useState</span>(<span class="hl-string">''</span>);
+<span class="hl-keyword">const</span> [messages, setMessages] = <span class="hl-function">useState</span>([
+  &#123; <span class="hl-property">author</span>: <span class="hl-string">'assistant'</span>, <span class="hl-property">text</span>: <span class="hl-string">'I can join your room in real time.'</span> &#125;
+]);
+<span class="hl-keyword">const</span> &#123; fullText, progress, status, send, reset &#125; = <span class="hl-function">useStreaming</span>(&#123;
+  <span class="hl-property">request</span>: &#123; <span class="hl-property">url</span>: <span class="hl-string">'/ai/chat'</span>, <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span> &#125;
+&#125;);
+
+<span class="hl-keyword">const</span> submit = <span class="hl-keyword">async</span> (e) =&gt; &#123;
+  e.preventDefault();
+  <span class="hl-keyword">if</span> (!prompt.trim()) <span class="hl-keyword">return</span>;
+  <span class="hl-keyword">const</span> next = prompt;
+  <span class="hl-function">setPrompt</span>(<span class="hl-string">''</span>);
+  <span class="hl-function">setMessages</span>((list) =&gt; [...list, &#123; <span class="hl-property">author</span>: <span class="hl-string">'you'</span>, <span class="hl-property">text</span>: next &#125;]);
+  <span class="hl-function">reset</span>();
+  <span class="hl-keyword">await</span> <span class="hl-function">send</span>(&#123; <span class="hl-property">prompt</span>: next, <span class="hl-property">room</span>: <span class="hl-string">'support'</span> &#125;);
+&#125;;
+
+<span class="hl-keyword">return</span> (
+  &lt;section&gt;
+    &#123;messages.map((m, i) =&gt; &lt;p key=&#123;i&#125;&gt;&#123;m.author&#125;: &#123;m.text&#125;&lt;/p&gt;)&#125;
+    &#123;fullText &amp;&amp; &lt;p&gt;assistant: &#123;fullText&#125;&lt;/p&gt;&#125;
+    &lt;small&gt;&#123;progress?.phase || status&#125;&lt;/small&gt;
+    &lt;form onSubmit=&#123;submit&#125;&gt;&lt;input value=&#123;prompt&#125; onChange=&#123;(e) =&gt; setPrompt(e.target.value)&#125; /&gt;&lt;button disabled=&#123;status === 'streaming'&#125;&gt;Send&lt;/button&gt;&lt;/form&gt;
+  &lt;/section&gt;
 );
+</code></pre>
+          </article>
+          <article class="client-slide">
+            <div class="code-header">
+              <div class="code-dots"><span></span><span></span><span></span></div>
+              <span class="code-filename">AiChat.vue</span>
+              <span class="code-lang">Vue</span>
+            </div>
+            <pre class="code-block"><code class="language-javascript"><span class="hl-comment">&lt;script setup&gt;</span>
+<span class="hl-keyword">import</span> &#123; ref &#125; <span class="hl-keyword">from</span> <span class="hl-string">'vue'</span>;
+<span class="hl-keyword">import</span> &#123; useStreaming &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/vue'</span>;
 
-sub.push(JSON.stringify(&#123; <span class="hl-property">text</span>: <span class="hl-string">'Hello!'</span> &#125;));</code></pre>
+<span class="hl-keyword">const</span> prompt = <span class="hl-function">ref</span>(<span class="hl-string">''</span>);
+<span class="hl-keyword">const</span> messages = <span class="hl-function">ref</span>([
+  &#123; <span class="hl-property">author</span>: <span class="hl-string">'assistant'</span>, <span class="hl-property">text</span>: <span class="hl-string">'I stream updates in real time.'</span> &#125;
+]);
+<span class="hl-keyword">const</span> &#123; fullText, progress, status, send, reset &#125; = <span class="hl-function">useStreaming</span>(&#123;
+  <span class="hl-property">request</span>: &#123; <span class="hl-property">url</span>: <span class="hl-string">'/ai/chat'</span>, <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span> &#125;
+&#125;);
+
+<span class="hl-keyword">const</span> submit = <span class="hl-keyword">async</span> () =&gt; &#123;
+  <span class="hl-keyword">if</span> (!prompt.value.trim()) <span class="hl-keyword">return</span>;
+  <span class="hl-keyword">const</span> next = prompt.value;
+  prompt.value = <span class="hl-string">''</span>;
+  messages.value.push(&#123; <span class="hl-property">author</span>: <span class="hl-string">'you'</span>, <span class="hl-property">text</span>: next &#125;);
+  <span class="hl-function">reset</span>();
+  <span class="hl-keyword">await</span> <span class="hl-function">send</span>(&#123; <span class="hl-property">prompt</span>: next, <span class="hl-property">room</span>: <span class="hl-string">'support'</span> &#125;);
+&#125;;
+&lt;/script&gt;
+&lt;template&gt;
+  &lt;p v-for="(m, i) in messages" :key="i"&gt;&#123;&#123; m.author &#125;&#125;: &#123;&#123; m.text &#125;&#125;&lt;/p&gt;
+  &lt;p v-if="fullText"&gt;assistant: &#123;&#123; fullText &#125;&#125;&lt;/p&gt;
+  &lt;small&gt;&#123;&#123; progress?.phase || status &#125;&#125;&lt;/small&gt;
+  &lt;form @submit.prevent="submit"&gt;&lt;input v-model="prompt" /&gt;&lt;button :disabled="status === 'streaming'"&gt;Send&lt;/button&gt;&lt;/form&gt;
+&lt;/template&gt;</code></pre>
+          </article>
+          <article class="client-slide">
+            <div class="code-header">
+              <div class="code-dots"><span></span><span></span><span></span></div>
+              <span class="code-filename">AiChat.svelte</span>
+              <span class="code-lang">Svelte</span>
+            </div>
+            <pre class="code-block"><code class="language-javascript"><span class="hl-comment">&lt;script&gt;</span>
+<span class="hl-keyword">import</span> &#123; useStreaming &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/svelte'</span>;
+
+<span class="hl-keyword">let</span> prompt = <span class="hl-string">''</span>;
+<span class="hl-keyword">let</span> messages = [
+  &#123; <span class="hl-property">author</span>: <span class="hl-string">'assistant'</span>, <span class="hl-property">text</span>: <span class="hl-string">'MCP + chat updates arrive in one stream.'</span> &#125;
+];
+<span class="hl-keyword">const</span> &#123; fullText, progress, status, send, reset &#125; = <span class="hl-function">useStreaming</span>(&#123;
+  <span class="hl-property">request</span>: &#123; <span class="hl-property">url</span>: <span class="hl-string">'/ai/chat'</span>, <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span> &#125;
+&#125;);
+
+<span class="hl-keyword">const</span> submit = <span class="hl-keyword">async</span> () =&gt; &#123;
+  <span class="hl-keyword">if</span> (!prompt.trim()) <span class="hl-keyword">return</span>;
+  <span class="hl-keyword">const</span> next = prompt;
+  prompt = <span class="hl-string">''</span>;
+  messages = [...messages, &#123; <span class="hl-property">author</span>: <span class="hl-string">'you'</span>, <span class="hl-property">text</span>: next &#125;];
+  <span class="hl-function">reset</span>();
+  <span class="hl-keyword">await</span> <span class="hl-function">send</span>(&#123; <span class="hl-property">prompt</span>: next, <span class="hl-property">room</span>: <span class="hl-string">'support'</span> &#125;);
+&#125;;
+&lt;/script&gt;
+
+&#123;#each messages as m&#125;
+  &lt;p&gt;&#123;m.author&#125;: &#123;m.text&#125;&lt;/p&gt;
+&#123;/each&#125;
+&#123;#if $fullText&#125;&lt;p&gt;assistant: &#123;$fullText&#125;&lt;/p&gt;&#123;/if&#125;
+&lt;small&gt;&#123;$progress?.phase || $status&#125;&lt;/small&gt;
+&lt;form on:submit|preventDefault=&#123;submit&#125;&gt;&lt;input bind:value=&#123;prompt&#125; /&gt;&lt;button disabled=&#123;$status === 'streaming'&#125;&gt;Send&lt;/button&gt;&lt;/form&gt;</code></pre>
+          </article>
+        </div>
+        <div class="carousel-dots">
+          <button class="quick-hooks-dot is-active" type="button" data-index="0" aria-label="Show React hook"></button>
+          <button class="quick-hooks-dot" type="button" data-index="1" aria-label="Show Vue hook"></button>
+          <button class="quick-hooks-dot" type="button" data-index="2" aria-label="Show Svelte hook"></button>
+        </div>
       </div>
     </div>
 
     <div class="code-cta">
-      <a href="https://github.com/Atmosphere/atmosphere/wiki" class="btn btn-outline" target="_blank" rel="noopener noreferrer">
-        Full Documentation
+      <a href="https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming" class="btn btn-outline" target="_blank" rel="noopener noreferrer">
+        AI Streaming Guide
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </a>
+      <a href="https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-mcp-server" class="btn btn-ghost" target="_blank" rel="noopener noreferrer">
+        MCP Annotations Sample
+        <svg width="14" height="14" viewBox="0 0 12 12" fill="none">
+          <path d="M3.5 8.5L8.5 3.5M8.5 3.5H4.5M8.5 3.5V7.5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
       </a>
     </div>
   </div>
 </section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const track = document.getElementById('quickStartHooks');
+    if (!track) return;
+    const dots = Array.from(document.querySelectorAll('.quick-hooks-dot'));
+    let current = 0;
+
+    const syncCarousel = (behavior = 'smooth') => {
+      track.scrollTo({ left: current * track.clientWidth, behavior });
+      dots.forEach((dot, idx) => dot.classList.toggle('is-active', idx === current));
+    };
+
+    dots.forEach((dot) => {
+      dot.addEventListener('click', () => {
+        current = Number(dot.getAttribute('data-index') || '0');
+        syncCarousel();
+      });
+    });
+
+    window.addEventListener('resize', () => syncCarousel('auto'));
+  });
+</script>
 
 <style>
   .code-example {
@@ -139,7 +259,7 @@ sub.push(JSON.stringify(&#123; <span class="hl-property">text</span>: <span clas
 
   .code-panels {
     display: grid;
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: 1.15fr 1fr;
     gap: var(--space-lg);
     margin-bottom: var(--space-2xl);
   }
@@ -155,6 +275,54 @@ sub.push(JSON.stringify(&#123; <span class="hl-property">text</span>: <span clas
   .code-panel:hover {
     border-color: var(--color-border-accent);
     box-shadow: 0 20px 40px -20px rgba(0, 0, 0, 0.5);
+  }
+
+  .client-carousel-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .client-carousel-track {
+    display: flex;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .client-carousel-track::-webkit-scrollbar {
+    display: none;
+  }
+
+  .client-slide {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
+  }
+
+  .carousel-dots {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-xs);
+    padding: var(--space-sm) var(--space-md);
+    border-top: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+  }
+
+  .quick-hooks-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 999px;
+    border: 0;
+    padding: 0;
+    cursor: pointer;
+    background: var(--color-border);
+    transition: transform 0.2s var(--ease-out-quad), background 0.2s var(--ease-out-quad);
+  }
+
+  .quick-hooks-dot.is-active {
+    background: var(--color-accent);
+    transform: scale(1.2);
   }
 
   .code-header {

@@ -8,23 +8,16 @@ const footerLinks = [
       { label: 'Documentation', href: 'https://github.com/Atmosphere/atmosphere/wiki', external: true },
       { label: 'Spring Boot Sample', href: 'https://github.com/Atmosphere/atmosphere/tree/main/samples/spring-boot-chat', external: true },
       { label: 'Quarkus Sample', href: 'https://github.com/Atmosphere/atmosphere/tree/main/samples/quarkus-chat', external: true },
-      { label: 'Maven Central', href: 'https://search.maven.org/search?q=g:org.atmosphere', external: true },
+      { label: 'GitHub', href: 'https://github.com/Atmosphere/atmosphere', external: true },
     ],
   },
   {
     title: 'Enterprise',
     links: [
-      { label: 'Satellite (Clustering)', href: 'https://github.com/Atmosphere/atmosphere/wiki/Clustering-Kafka-and-Redis', external: true },
+      { label: 'Cloud (Clustering)', href: 'https://github.com/Atmosphere/atmosphere/wiki/Clustering-Kafka-and-Redis', external: true },
       { label: 'Support Plans', href: '#support' },
       { label: 'Integrations', href: '#integrations' },
       { label: 'Sponsor', href: 'https://github.com/sponsors/Atmosphere', external: true },
-    ],
-  },
-  {
-    title: 'Community',
-    links: [
-      { label: 'GitHub', href: 'https://github.com/Atmosphere/atmosphere', external: true },
-      { label: 'Twitter', href: 'https://twitter.com/asyncio', external: true },
     ],
   },
 ];
@@ -75,13 +68,6 @@ const footerLinks = [
       <p class="footer-copyright">
         &copy; 2008&ndash;{currentYear} <a href="https://async-io.org" target="_blank" rel="noopener noreferrer">Async-IO.org</a>. All rights reserved.
       </p>
-      <div class="footer-meta">
-        <span>Made with Astro</span>
-        <span class="footer-divider">&middot;</span>
-        <a href="https://github.com/Atmosphere/atmosphere" target="_blank" rel="noopener noreferrer">
-          Edit on GitHub
-        </a>
-      </div>
     </div>
   </div>
 </footer>
@@ -187,27 +173,6 @@ const footerLinks = [
 
   .footer-copyright a:hover {
     color: var(--color-text-primary);
-  }
-
-  .footer-meta {
-    display: flex;
-    align-items: center;
-    gap: var(--space-sm);
-    font-size: 0.8125rem;
-    color: var(--color-text-muted);
-  }
-
-  .footer-meta a {
-    color: var(--color-text-secondary);
-    transition: color 0.2s var(--ease-out-quad);
-  }
-
-  .footer-meta a:hover {
-    color: var(--color-text-primary);
-  }
-
-  .footer-divider {
-    opacity: 0.5;
   }
 
   @media (max-width: 900px) {

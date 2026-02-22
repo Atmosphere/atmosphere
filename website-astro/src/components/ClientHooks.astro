@@ -10,19 +10,18 @@ const frameworks = [
       <ellipse cx="12" cy="12" rx="10" ry="4" stroke="#61DAFB" stroke-width="1" fill="none" transform="rotate(60 12 12)"/>
       <ellipse cx="12" cy="12" rx="10" ry="4" stroke="#61DAFB" stroke-width="1" fill="none" transform="rotate(120 12 12)"/>
     </svg>`,
-    code: `<span class="hl-keyword">import</span> &#123; useAtmosphere &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/react'</span>;
+    code: `<span class="hl-keyword">import</span> &#123; useStreaming &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/react'</span>;
 
-<span class="hl-keyword">export default function</span> <span class="hl-function">Chat</span>() &#123;
-  <span class="hl-keyword">const</span> &#123; data, push, status &#125; = <span class="hl-function">useAtmosphere</span>(&#123;
-    <span class="hl-property">url</span>: <span class="hl-string">'/chat'</span>,
-    <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
+<span class="hl-keyword">export default function</span> <span class="hl-function">AiChat</span>() &#123;
+  <span class="hl-keyword">const</span> &#123; fullText, progress, isStreaming, send &#125; = <span class="hl-function">useStreaming</span>(&#123;
+    <span class="hl-property">request</span>: &#123; <span class="hl-property">url</span>: <span class="hl-string">'/ai/chat'</span>, <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span> &#125;,
   &#125;);
 
   <span class="hl-keyword">return</span> (
     &lt;<span class="hl-type">div</span>&gt;
-      &lt;<span class="hl-type">p</span>&gt;Status: &#123;status&#125;&lt;/<span class="hl-type">p</span>&gt;
-      &lt;<span class="hl-type">ul</span>&gt;&#123;data.map(<span class="hl-property">m</span> =&gt; &lt;<span class="hl-type">li</span>&gt;&#123;m&#125;&lt;/<span class="hl-type">li</span>&gt;)&#125;&lt;/<span class="hl-type">ul</span>&gt;
-      &lt;<span class="hl-type">button</span> <span class="hl-property">onClick</span>=&#123;() =&gt; push(<span class="hl-string">'Hello!'</span>)&#125;&gt;Send&lt;/<span class="hl-type">button</span>&gt;
+      &lt;<span class="hl-type">button</span> <span class="hl-property">onClick</span>=&#123;() =&gt; send(<span class="hl-string">'Summarize this PR'</span>)&#125; <span class="hl-property">disabled</span>=&#123;isStreaming&#125;&gt;Ask&lt;/<span class="hl-type">button</span>&gt;
+      &#123;progress &amp;&amp; &lt;<span class="hl-type">p</span>&gt;&#123;progress&#125;&lt;/<span class="hl-type">p</span>&gt;&#125;
+      &lt;<span class="hl-type">p</span>&gt;&#123;fullText&#125;&lt;/<span class="hl-type">p</span>&gt;
     &lt;/<span class="hl-type">div</span>&gt;
   );
 &#125;`,
@@ -36,18 +35,17 @@ const frameworks = [
       <path d="M6.5 3H12l0 0 5.5 0L12 13.5 6.5 3z" fill="#35495E"/>
     </svg>`,
     code: `<span class="hl-comment">&lt;script setup&gt;</span>
-<span class="hl-keyword">import</span> &#123; useAtmosphere &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/vue'</span>;
+<span class="hl-keyword">import</span> &#123; useStreaming &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/vue'</span>;
 
-<span class="hl-keyword">const</span> &#123; data, push, status &#125; = <span class="hl-function">useAtmosphere</span>(&#123;
-  <span class="hl-property">url</span>: <span class="hl-string">'/chat'</span>,
-  <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
+<span class="hl-keyword">const</span> &#123; fullText, progress, isStreaming, send &#125; = <span class="hl-function">useStreaming</span>(&#123;
+  <span class="hl-property">request</span>: &#123; <span class="hl-property">url</span>: <span class="hl-string">'/ai/chat'</span>, <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span> &#125;,
 &#125;);
 <span class="hl-comment">&lt;/script&gt;</span>
 
 <span class="hl-comment">&lt;template&gt;</span>
-  &lt;<span class="hl-type">p</span>&gt;Status: &#123;&#123; status &#125;&#125;&lt;/<span class="hl-type">p</span>&gt;
-  &lt;<span class="hl-type">ul</span>&gt;&lt;<span class="hl-type">li</span> <span class="hl-property">v-for</span>=<span class="hl-string">"m in data"</span>&gt;&#123;&#123; m &#125;&#125;&lt;/<span class="hl-type">li</span>&gt;&lt;/<span class="hl-type">ul</span>&gt;
-  &lt;<span class="hl-type">button</span> <span class="hl-property">@click</span>=<span class="hl-string">"push('Hello!')"</span>&gt;Send&lt;/<span class="hl-type">button</span>&gt;
+  &lt;<span class="hl-type">button</span> <span class="hl-property">:disabled</span>=<span class="hl-string">"isStreaming"</span> <span class="hl-property">@click</span>=<span class="hl-string">"send('Summarize this PR')"</span>&gt;Ask&lt;/<span class="hl-type">button</span>&gt;
+  &lt;<span class="hl-type">p</span> <span class="hl-property">v-if</span>=<span class="hl-string">"progress"</span>&gt;&#123;&#123; progress &#125;&#125;&lt;/<span class="hl-type">p</span>&gt;
+  &lt;<span class="hl-type">p</span>&gt;&#123;&#123; fullText &#125;&#125;&lt;/<span class="hl-type">p</span>&gt;
 <span class="hl-comment">&lt;/template&gt;</span>`,
   },
   {
@@ -59,19 +57,16 @@ const frameworks = [
       <path d="M9.7 18.6c-1.5.4-3.1-.2-3.9-1.5-.5-.8-.7-1.7-.4-2.6l.2-.5.1-.3.3.2c.6.5 1.3.8 2 1l.2.1v.2c0 .3.1.6.3.8.4.5 1.1.7 1.7.5l.4-.2 5.3-3.5c.3-.2.5-.5.5-.9.1-.4 0-.8-.2-1.1-.4-.5-1.1-.7-1.7-.5l-2 1.3c-1.5.9-3.5.6-4.8-.7-.7-.8-1-1.8-.8-2.8.2-.9.7-1.7 1.4-2.2L13 2.4c.4-.3.9-.5 1.4-.6 1.5-.4 3.1.2 3.9 1.5.5.8.7 1.7.4 2.6l-.2.5-.1.3-.3-.2c-.6-.5-1.3-.8-2-1l-.2-.1v-.2c0-.3-.1-.6-.3-.8-.4-.5-1.1-.7-1.7-.5l-.4.2-5.3 3.5c-.3.2-.5.5-.5.9-.1.4 0 .8.2 1.1.4.5 1.1.7 1.7.5l2-1.3c1.5-.9 3.5-.6 4.8.7.7.8 1 1.8.8 2.8-.2.9-.7 1.7-1.4 2.2l-5.3 3.5c-.4.3-.9.5-1.4.6z" fill="white"/>
     </svg>`,
     code: `<span class="hl-comment">&lt;script&gt;</span>
-<span class="hl-keyword">import</span> &#123; useAtmosphere &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/svelte'</span>;
+<span class="hl-keyword">import</span> &#123; useStreaming &#125; <span class="hl-keyword">from</span> <span class="hl-string">'atmosphere.js/svelte'</span>;
 
-<span class="hl-keyword">const</span> &#123; data, push, status &#125; = <span class="hl-function">useAtmosphere</span>(&#123;
-  <span class="hl-property">url</span>: <span class="hl-string">'/chat'</span>,
-  <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span>,
+<span class="hl-keyword">const</span> &#123; fullText, progress, isStreaming, send &#125; = <span class="hl-function">useStreaming</span>(&#123;
+  <span class="hl-property">request</span>: &#123; <span class="hl-property">url</span>: <span class="hl-string">'/ai/chat'</span>, <span class="hl-property">transport</span>: <span class="hl-string">'websocket'</span> &#125;,
 &#125;);
 <span class="hl-comment">&lt;/script&gt;</span>
 
-&lt;<span class="hl-type">p</span>&gt;Status: &#123;$status&#125;&lt;/<span class="hl-type">p</span>&gt;
-&#123;#each $data as m&#125;
-  &lt;<span class="hl-type">li</span>&gt;&#123;m&#125;&lt;/<span class="hl-type">li</span>&gt;
-&#123;/each&#125;
-&lt;<span class="hl-type">button</span> <span class="hl-property">on:click</span>=&#123;() =&gt; push(<span class="hl-string">'Hello!'</span>)&#125;&gt;Send&lt;/<span class="hl-type">button</span>&gt;`,
+&lt;<span class="hl-type">button</span> <span class="hl-property">on:click</span>=&#123;() =&gt; send(<span class="hl-string">'Summarize this PR'</span>)&#125; <span class="hl-property">disabled</span>=&#123;$isStreaming&#125;&gt;Ask&lt;/<span class="hl-type">button</span>&gt;
+&#123;#if $progress&#125;&lt;<span class="hl-type">p</span>&gt;&#123;$progress&#125;&lt;/<span class="hl-type">p</span>&gt;&#123;/if&#125;
+&lt;<span class="hl-type">p</span>&gt;&#123;$fullText&#125;&lt;/<span class="hl-type">p</span>&gt;`,
   },
 ];
 ---
@@ -80,34 +75,46 @@ const frameworks = [
   <div class="hooks-container">
     <div class="section-header">
       <span class="section-label">Client SDKs</span>
-      <h2 class="section-title">First-class framework hooks</h2>
+      <h2 class="section-title">Streaming hooks for AI UX</h2>
       <p class="section-description">
-        Reactive bindings for React, Vue, and Svelte. One <code>useAtmosphere</code> call
-        gives you connection state, incoming data, and a push function—no boilerplate.
+        Reactive bindings for React, Vue, and Svelte. One <code>useStreaming</code> call
+        gives you streaming text, progress updates, metadata, and send controls.
       </p>
     </div>
 
-    <div class="hooks-grid">
-      {frameworks.map((fw, index) => (
-        <article class="hook-card" style={`--delay: ${index * 0.1}s`}>
-          <div class="hook-header">
-            <div class="hook-icon" set:html={fw.icon} />
-            <h3 class="hook-name">{fw.name}</h3>
-          </div>
-          <div class="hook-code-panel">
-            <div class="code-header">
-              <div class="code-dots">
-                <span></span>
-                <span></span>
-                <span></span>
-              </div>
-              <span class="code-filename">{fw.file}</span>
-              <span class="code-lang">{fw.lang}</span>
+    <div class="hooks-carousel">
+      <button class="carousel-btn" type="button" data-dir="-1" aria-label="Previous client example">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="M10 3 5 8l5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
+      <div class="hooks-grid" id="clientHooksCarousel">
+        {frameworks.map((fw, index) => (
+          <article class="hook-card" style={`--delay: ${index * 0.1}s`}>
+            <div class="hook-header">
+              <div class="hook-icon" set:html={fw.icon} />
+              <h3 class="hook-name">{fw.name}</h3>
             </div>
-            <pre class="code-block"><code set:html={fw.code} /></pre>
-          </div>
-        </article>
-      ))}
+            <div class="hook-code-panel">
+              <div class="code-header">
+                <div class="code-dots">
+                  <span></span>
+                  <span></span>
+                  <span></span>
+                </div>
+                <span class="code-filename">{fw.file}</span>
+                <span class="code-lang">{fw.lang}</span>
+              </div>
+              <pre class="code-block"><code set:html={fw.code} /></pre>
+            </div>
+          </article>
+        ))}
+      </div>
+      <button class="carousel-btn" type="button" data-dir="1" aria-label="Next client example">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <path d="m6 3 5 5-5 5" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+        </svg>
+      </button>
     </div>
 
     <div class="hooks-cta">
@@ -126,6 +133,20 @@ const frameworks = [
     </div>
   </div>
 </section>
+
+<script>
+  document.addEventListener('DOMContentLoaded', () => {
+    const carousel = document.getElementById('clientHooksCarousel');
+    if (!carousel) return;
+
+    document.querySelectorAll('.hooks-carousel .carousel-btn').forEach((button) => {
+      button.addEventListener('click', () => {
+        const dir = Number(button.getAttribute('data-dir') || '1');
+        carousel.scrollBy({ left: dir * carousel.clientWidth, behavior: 'smooth' });
+      });
+    });
+  });
+</script>
 
 <style>
   .client-hooks {
@@ -190,14 +211,50 @@ const frameworks = [
     border-radius: 4px;
   }
 
-  .hooks-grid {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: var(--space-lg);
+  .hooks-carousel {
+    display: flex;
+    align-items: center;
+    gap: var(--space-sm);
     margin-bottom: var(--space-2xl);
   }
 
+  .carousel-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 999px;
+    border: 1px solid var(--color-border);
+    background: var(--color-bg-tertiary);
+    color: var(--color-text-secondary);
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    flex-shrink: 0;
+    transition: all 0.2s var(--ease-out-quad);
+  }
+
+  .carousel-btn:hover {
+    color: var(--color-text-primary);
+    border-color: var(--color-border-accent);
+  }
+
+  .hooks-grid {
+    display: flex;
+    gap: var(--space-lg);
+    width: 100%;
+    overflow-x: auto;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+
+  .hooks-grid::-webkit-scrollbar {
+    display: none;
+  }
+
   .hook-card {
+    flex: 0 0 100%;
+    scroll-snap-align: start;
     background: var(--color-bg-tertiary);
     border: 1px solid var(--color-border);
     border-radius: 12px;
@@ -355,10 +412,8 @@ const frameworks = [
   }
 
   @media (max-width: 1024px) {
-    .hooks-grid {
-      grid-template-columns: 1fr;
-      max-width: 500px;
-      margin: 0 auto var(--space-2xl);
+    .carousel-btn {
+      display: none;
     }
   }
 

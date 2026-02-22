@@ -116,16 +116,16 @@ const features = [
       <circle cx="12" cy="15" r="2"/>
       <path d="M12 17v2"/>
     </svg>`,
-    title: 'AI & MCP Integration',
-    description: 'Stream LLM tokens over WebSocket. MCP server for AI agents. Adapters for Spring AI, LangChain4j, and Embabel.',
-    detail: `<p>Two ways to integrate AI — <strong>streaming</strong> and <strong>MCP server</strong>.</p>
+    title: 'AI/LLM Streaming + MCP',
+    description: 'Built-in AI transport with @AiEndpoint, OpenAI-compatible client, framework adapters, and MCP server support.',
+    detail: `<p>Atmosphere provides the <strong>server ↔ browser transport layer</strong> for AI apps, while your model framework handles inference.</p>
 <ul>
-<li><strong>LLM Streaming</strong> — token-by-token delivery over WebSocket</li>
-<li><strong>MCP Server</strong> — annotation or programmatic tools, resources, and prompts</li>
-<li><strong>3 transports</strong> — WebSocket, Streamable HTTP, stdio bridge</li>
-<li><strong>Adapters</strong> — Spring AI, LangChain4j, Embabel, OpenAI-compatible</li>
-<li><strong>Virtual members</strong> — add an LLM as a room participant</li>
-<li><strong>Client hooks</strong> — useStreaming() for React, Vue, Svelte</li>
+<li><strong>@AiEndpoint + @Prompt</strong> — AI endpoint lifecycle with virtual-thread prompt handlers</li>
+<li><strong>OpenAiCompatibleClient</strong> — Gemini, OpenAI, Ollama, and OpenAI-compatible APIs</li>
+<li><strong>Adapter SPI</strong> — Spring AI Flux, LangChain4j callbacks, and Embabel agent events</li>
+              <li><strong>StreamingSession protocol</strong> — content/progress/metadata/complete/error frames with ordering</li>
+<li><strong>LlmRoomMember</strong> — add AI assistants as virtual room participants</li>
+<li><strong>MCP annotations</strong> — @McpServer, @McpTool, @McpResource, and @McpPrompt for agent-ready servers</li>
 </ul>`,
     wikiLink: 'https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming',
   },
@@ -136,9 +136,9 @@ const features = [
   <div class="features-container">
     <div class="section-header">
       <span class="section-label">Capabilities</span>
-      <h2 class="section-title">Everything you need for real-time</h2>
+      <h2 class="section-title">Everything you need for real-time AI apps</h2>
       <p class="section-description">
-        A complete toolkit for building scalable, real-time applications on the JVM.
+        A complete toolkit for shipping scalable AI chat, agents, and live collaboration on the JVM.
       </p>
     </div>
 

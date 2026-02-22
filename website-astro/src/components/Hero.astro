@@ -9,21 +9,17 @@
   </div>
 
   <div class="hero-content">
-    <div class="hero-badge">
-      <span class="badge-dot"></span>
-      <span>Atmosphere 4.0 — JDK 21+ Virtual Threads &amp; Native Image</span>
-    </div>
-
     <h1 class="hero-title">
       <span class="title-line title-accent">Atmosphere</span>
-      <span class="title-line">Real-time for the JVM</span>
+      <span class="title-line title-subline">Real-time AI streaming for Java</span>
     </h1>
 
     <p class="hero-description">
-      A battle-tested, enterprise-grade real-time framework for Java.
-      Virtual Threads, WebSockets, SSE, and graceful fallbacks—with first-class
-      Spring Boot 4, Quarkus 3, and Servlet starters. Built-in Rooms, Presence,
-      AI/LLM streaming, Kotlin DSL, and Kafka/Redis clustering.
+      Build AI-native real-time apps without rebuilding transport from scratch.
+      Keep your model stack (Spring AI, LangChain4j, Embabel, or OpenAI-compatible APIs),
+      and let Atmosphere stream responses, progress, and metadata to browsers over
+      WebSocket with SSE/Long-Polling fallback, rooms/presence, and clustering —
+      while still supporting classic real-time applications.
     </p>
 
     <div class="hero-actions">
@@ -34,7 +30,7 @@
         View on GitHub
       </a>
       <a href="#code" class="btn btn-secondary">
-        Quick Start
+        AI Quick Start
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <path d="M3 8h10M9 4l4 4-4 4" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
         </svg>
@@ -168,6 +164,10 @@
 
   .title-line:nth-child(2) {
     animation-delay: 0.2s;
+  }
+
+  .title-subline {
+    font-size: clamp(1.35rem, 4.2vw, 2.6rem);
   }
 
   .title-accent {
