@@ -40,6 +40,8 @@ public interface HeaderConfig {
 
     String SSE_TRANSPORT = "sse";
 
+    String GRPC_TRANSPORT = "grpc";
+
     String DISCONNECT_TRANSPORT_MESSAGE = "close";
 
     String WEBSOCKET_X_ATMOSPHERE_TRANSPORT= X_ATMOSPHERE_TRANSPORT + "=" + WEBSOCKET_TRANSPORT;

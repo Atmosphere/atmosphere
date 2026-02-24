@@ -1,0 +1,70 @@
+/*
+ * Copyright 2008-2026 Async-IO.org
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License"); you may not
+ * use this file except in compliance with the License. You may obtain a copy of
+ * the License at
+ *
+ * http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS, WITHOUT
+ * WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied. See the
+ * License for the specific language governing permissions and limitations under
+ * the License.
+ */
+syntax = "proto3";
+
+package org.atmosphere.grpc;
+
+option java_package = "org.atmosphere.grpc.proto";
+option java_outer_classname = "AtmosphereProto";
+option java_multiple_files = true;
+
+// Bidirectional streaming service for Atmosphere Framework.
+// Clients connect via a single Stream RPC and exchange AtmosphereMessages
+// to subscribe/unsubscribe to broadcasters and send/receive messages.
+service AtmosphereService {
+    // Bidirectional streaming — client and server exchange messages
+    rpc Stream(stream AtmosphereMessage) returns (stream AtmosphereMessage);
+}
+
+message AtmosphereMessage {
+    // Message type
+    MessageType type = 1;
+
+    // Broadcaster topic/path (e.g., "/chat", "/notifications")
+    string topic = 2;
+
+    // Text payload
+    string payload = 3;
+
+    // Binary payload
+    bytes binary_payload = 4;
+
+    // Arbitrary metadata (tracking-id, custom headers, etc.)
+    map<string, string> headers = 5;
+
+    // Server-assigned tracking ID for the connection
+    string tracking_id = 6;
+}
+
+enum MessageType {
+    // Client subscribes to a broadcaster topic
+    SUBSCRIBE = 0;
+
+    // Client unsubscribes from a broadcaster topic
+    UNSUBSCRIBE = 1;
+
+    // Regular message (client → server or server → client)
+    MESSAGE = 2;
+
+    // Keepalive heartbeat
+    HEARTBEAT = 3;
+
+    // Server acknowledgement (e.g., subscribe confirmation)
+    ACK = 4;
+
+    // Error response from server
+    ERROR = 5;
+}

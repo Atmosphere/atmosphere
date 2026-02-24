@@ -511,6 +511,7 @@
         <module>samples/spring-boot-ai-chat</module>
         <module>samples/spring-boot-mcp-server</module>
         <module>samples/spring-boot-durable-sessions</module>
+        <module>samples/grpc-chat</module>
         <module>modules/integration-tests</module>
     </modules>
     <reporting>

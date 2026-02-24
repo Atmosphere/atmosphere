@@ -24,6 +24,7 @@
         <module>embabel</module>
         <module>redis</module>
         <module>kafka</module>
+        <module>grpc</module>
         <module>durable-sessions</module>
         <module>durable-sessions-sqlite</module>
         <module>durable-sessions-redis</module>

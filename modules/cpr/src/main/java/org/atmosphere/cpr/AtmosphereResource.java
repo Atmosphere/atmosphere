@@ -31,7 +31,7 @@ public interface AtmosphereResource {
 
     enum TRANSPORT {
         POLLING, LONG_POLLING, STREAMING, WEBSOCKET,
-        UNDEFINED, SSE, AJAX, HTMLFILE, CLOSE
+        UNDEFINED, SSE, AJAX, HTMLFILE, CLOSE, GRPC
     }
 
     /**

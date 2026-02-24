@@ -43,6 +43,8 @@ public class AtmosphereProperties {
 
     private Map<String, String> initParams = new HashMap<>();
 
+    private GrpcProperties grpc = new GrpcProperties();
+
     public String getServletPath() {
         return servletPath;
     }
@@ -121,6 +123,47 @@ public class AtmosphereProperties {
 
     public void setDurableSessions(DurableSessionsProperties durableSessions) {
         this.durableSessions = durableSessions;
+    }
+
+    public GrpcProperties getGrpc() {
+        return grpc;
+    }
+
+    public void setGrpc(GrpcProperties grpc) {
+        this.grpc = grpc;
+    }
+
+    public static class GrpcProperties {
+
+        private boolean enabled = false;
+
+        private int port = 9090;
+
+        private boolean enableReflection = true;
+
+        public boolean isEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public int getPort() {
+            return port;
+        }
+
+        public void setPort(int port) {
+            this.port = port;
+        }
+
+        public boolean isEnableReflection() {
+            return enableReflection;
+        }
+
+        public void setEnableReflection(boolean enableReflection) {
+            this.enableReflection = enableReflection;
+        }
     }
 
     public static class DurableSessionsProperties {

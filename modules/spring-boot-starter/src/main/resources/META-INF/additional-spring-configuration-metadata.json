@@ -71,6 +71,24 @@
       "type": "java.lang.Long",
       "description": "Interval in seconds between expired session cleanup runs.",
       "defaultValue": 60
+    },
+    {
+      "name": "atmosphere.grpc.enabled",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable the Atmosphere gRPC transport server. Requires atmosphere-grpc on the classpath.",
+      "defaultValue": false
+    },
+    {
+      "name": "atmosphere.grpc.port",
+      "type": "java.lang.Integer",
+      "description": "Port for the gRPC server.",
+      "defaultValue": 9090
+    },
+    {
+      "name": "atmosphere.grpc.enable-reflection",
+      "type": "java.lang.Boolean",
+      "description": "Whether to enable gRPC server reflection (useful for grpcurl and debugging).",
+      "defaultValue": true
     }
   ],
   "hints": [
