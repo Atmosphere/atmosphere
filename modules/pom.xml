@@ -30,5 +30,6 @@
         <module>durable-sessions-redis</module>
         <module>spring-boot-starter</module>
         <module>quarkus-extension</module>
+        <module>wasync</module>
     </modules>
 </project>
