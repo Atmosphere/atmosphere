@@ -197,6 +197,7 @@ npm install atmosphere.js
 | Durable sessions | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
 | Kotlin DSL | `atmosphere-kotlin` | Builder API and coroutine extensions |
 | TypeScript client | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte bindings |
+| Java client | `atmosphere-wasync` | Async Java client — WebSocket, SSE, streaming, long-polling (JDK 21+) |
 
 ## Rooms & Presence
 
@@ -555,7 +556,7 @@ framework.interceptor(new BackpressureInterceptor());
 ## Client Libraries
 
 - **TypeScript/JavaScript**: [atmosphere.js](https://github.com/Atmosphere/atmosphere/tree/main/atmosphere.js) 5.0 (included in this repository)
-- **Java/Scala/Android**: [wAsync](https://github.com/Atmosphere/wasync)
+- **Java**: [wAsync](modules/wasync/) 4.x — fluent async client powered by `java.net.http` (JDK 21+), supports WebSocket, SSE, streaming, and long-polling
 
 ## Commercial Support
 

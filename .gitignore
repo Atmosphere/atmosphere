@@ -30,3 +30,4 @@ copilot_plan/
 .vscode/
 node_modules/
 website-astro/
+.copilot/
