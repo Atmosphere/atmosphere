@@ -6,7 +6,7 @@
     <packaging>pom</packaging>
     <name>atmosphere-project</name>
     <description>Atmosphere Framework</description>
-    <version>4.0.4</version>
+    <version>4.0.5-SNAPSHOT</version>
     <url>https://github.com/Atmosphere/atmosphere</url>
     <scm>
         <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
