@@ -11,7 +11,6 @@
     <artifactId>atmosphere-runtime-libs</artifactId>
     <name>atmosphere-runtime-libs</name>
     <description>Atmosphere runtime libraries distribution</description>
-    <version>4.0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
 
     <dependencies>

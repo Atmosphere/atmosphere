@@ -10,7 +10,6 @@
     <groupId>org.atmosphere.samples</groupId>
     <artifactId>atmosphere-jetty-embedded-websocket</artifactId>
     <packaging>jar</packaging>
-    <version>4.0.4-SNAPSHOT</version>
     <name>atmosphere-jetty-embedded-websocket</name>
     <url>http://maven.apache.org</url>
 

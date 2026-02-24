@@ -9,7 +9,6 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-modules</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
     <packaging>pom</packaging>
     <name>atmosphere-modules</name>
     <description>Atmosphere Framework modules</description>
