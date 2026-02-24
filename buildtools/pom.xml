@@ -1,20 +1,46 @@
 <?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Standalone POM — cannot inherit from atmosphere-project because the parent POM's
+  checkstyle/PMD plugins depend on this module, creating a circular dependency.
+  The release workflow uses versions:set + sed to keep the version in sync.
+-->
 <project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
-    <parent>
-        <groupId>org.atmosphere</groupId>
-        <artifactId>atmosphere-project</artifactId>
-        <version>4.0.4-SNAPSHOT</version>
-    </parent>
-
     <modelVersion>4.0.0</modelVersion>
+    <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-buildtools</artifactId>
+    <version>4.0.4-SNAPSHOT</version>
     <name>atmosphere-buildtools</name>
     <description>Build tools for Atmosphere Framework</description>
+    <url>https://github.com/Atmosphere/atmosphere</url>
 
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <maven.deploy.skip>true</maven.deploy.skip>
         <gpg.skip>true</gpg.skip>
     </properties>
+
+    <licenses>
+        <license>
+            <name>Apache License 2.0</name>
+            <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+            <distribution>repo</distribution>
+        </license>
+    </licenses>
+
+    <developers>
+        <developer>
+            <id>jfarcand</id>
+            <name>Jeanfrancois Arcand</name>
+            <email>jfarcand@apache.org</email>
+        </developer>
+    </developers>
+
+    <scm>
+        <connection>scm:git:git@github.com:Atmosphere/atmosphere.git</connection>
+        <developerConnection>scm:git:git@github.com:Atmosphere/atmosphere.git</developerConnection>
+        <url>https://github.com/Atmosphere/atmosphere</url>
+        <tag>HEAD</tag>
+    </scm>
 
     <build>
         <plugins>

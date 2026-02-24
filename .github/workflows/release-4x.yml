@@ -61,8 +61,8 @@ jobs:
         distribution: 'temurin'
         cache: 'maven'
 
-    - name: Install buildtools first (needed by checkstyle/PMD)
-      run: ./mvnw -B install -pl buildtools -DskipTests -Dgpg.skip=true
+    - name: Install buildtools first (checkstyle/PMD depend on it)
+      run: ./mvnw -B install -pl buildtools -Pfastinstall -Dgpg.skip=true
 
     - name: Install all modules (skip tests)
       run: ./mvnw -B clean install -DskipTests -Dgpg.skip=true
@@ -140,6 +140,8 @@ jobs:
     - name: Set release version
       run: |
         ./mvnw -B versions:set -DnewVersion=${{ inputs.release_version }} -DgenerateBackupPoms=false
+        # buildtools has no parent — update manually
+        sed -i "s|<version>.*-SNAPSHOT</version>|<version>${{ inputs.release_version }}</version>|" buildtools/pom.xml
 
     - name: Build and publish to Maven Central
       if: inputs.dry_run == false
@@ -167,6 +169,8 @@ jobs:
       if: inputs.dry_run == false
       run: |
         ./mvnw -B versions:set -DnewVersion=${{ inputs.next_dev_version }} -DgenerateBackupPoms=false
+        # buildtools has no parent — update manually
+        sed -i "s|<version>${{ inputs.release_version }}</version>|<version>${{ inputs.next_dev_version }}</version>|" buildtools/pom.xml
         git add -- pom.xml '**/pom.xml'
         git commit -m "chore: prepare for next development iteration ${{ inputs.next_dev_version }}"
 
