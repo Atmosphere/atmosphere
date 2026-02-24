@@ -22,8 +22,6 @@ import org.atmosphere.wasync.Options;
 import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.Socket;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -34,7 +32,11 @@ import java.util.concurrent.CompletableFuture;
 
 /**
  * HTTP streaming {@link org.atmosphere.wasync.Transport} using {@link HttpClient}.
- * Reads the response body as a continuous stream of lines.
+ * Reads the response body as a continuous stream of data chunks.
+ *
+ * <p>Unlike line-based reading, this transport reads data in chunks as they become
+ * available from the server. This is necessary because Atmosphere's streaming transport
+ * does not append newline delimiters after each broadcast message.</p>
  */
 public class StreamTransport extends AbstractTransport {
 
@@ -82,31 +84,39 @@ public class StreamTransport extends AbstractTransport {
                         connectFuture.complete(null);
                     }
 
-                    readThread = Thread.ofVirtual().name("wasync-stream").start(() -> {
-                        try (var reader = new BufferedReader(
-                                new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
-                            String line;
-                            while ((line = reader.readLine()) != null) {
-                                if (!line.isEmpty()) {
-                                    dispatchMessage(Event.MESSAGE, line, decoders, resolver);
-                                }
-                            }
-                        } catch (Exception e) {
-                            if (status != Socket.STATUS.CLOSE) {
-                                onThrowable(e);
-                            }
-                        } finally {
-                            if (status != Socket.STATUS.CLOSE) {
-                                status = Socket.STATUS.CLOSE;
-                                dispatchEvent(Event.CLOSE, "");
-                            }
-                        }
-                    });
+                    readThread = Thread.ofVirtual().name("wasync-stream").start(
+                            () -> readLoop(response));
                 })
                 .exceptionally(t -> {
                     onThrowable(t);
                     return null;
                 });
+    }
+
+    /**
+     * Read data from the streaming response as it arrives. Data is read in chunks
+     * (not line-by-line) because Atmosphere does not add newline delimiters.
+     */
+    protected void readLoop(HttpResponse<java.io.InputStream> response) {
+        try (var is = response.body()) {
+            var buf = new byte[4096];
+            int n;
+            while ((n = is.read(buf)) != -1) {
+                var chunk = new String(buf, 0, n, StandardCharsets.UTF_8).strip();
+                if (!chunk.isEmpty()) {
+                    dispatchMessage(Event.MESSAGE, chunk, decoders, resolver);
+                }
+            }
+        } catch (Exception e) {
+            if (status != Socket.STATUS.CLOSE) {
+                onThrowable(e);
+            }
+        } finally {
+            if (status != Socket.STATUS.CLOSE) {
+                status = Socket.STATUS.CLOSE;
+                dispatchEvent(Event.CLOSE, "");
+            }
+        }
     }
 
     /**

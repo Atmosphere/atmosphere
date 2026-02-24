@@ -20,21 +20,29 @@ import org.atmosphere.wasync.Options;
 import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.Socket;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
 import java.net.http.HttpResponse;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 
 /**
  * Long-polling {@link org.atmosphere.wasync.Transport} using {@link HttpClient}.
  * Sends repeated HTTP requests, each of which blocks until a message is available.
+ *
+ * <p>Atmosphere suspends the initial GET request and holds the connection open until
+ * data is available. Once data is written, the response completes and the client
+ * immediately sends a new GET to continue polling.</p>
  */
 public class LongPollingTransport extends AbstractTransport {
 
     private final HttpClient httpClient;
     private final Options options;
     private volatile boolean running;
+    private volatile Thread pollThread;
 
     public LongPollingTransport(HttpClient httpClient, Options options) {
         this.httpClient = httpClient;
@@ -47,60 +55,50 @@ public class LongPollingTransport extends AbstractTransport {
     }
 
     /**
-     * Start the long-polling loop.
+     * Start the long-polling loop. OPEN is dispatched immediately since the server
+     * may hold the first request indefinitely until data is available.
      */
     public CompletableFuture<Void> connect(URI uri, Request request) {
         running = true;
-        var decoders = request.decoders();
-        var resolver = request.functionResolver();
 
-        var reqBuilder = HttpRequest.newBuilder(uri);
-        request.headers().forEach((name, values) -> values.forEach(v -> reqBuilder.header(name, v)));
-        reqBuilder.GET();
+        // Dispatch OPEN immediately — long-polling "connects" by starting the poll loop
+        status = Socket.STATUS.OPEN;
+        dispatchEvent(Event.OPEN, "long-polling");
+        if (connectFuture != null) {
+            connectFuture.complete(null);
+        }
 
-        return httpClient.sendAsync(reqBuilder.build(), HttpResponse.BodyHandlers.ofString())
-                .thenAccept(response -> {
-                    int statusCode = response.statusCode();
-                    dispatchEvent(Event.STATUS, statusCode);
+        pollThread = Thread.ofVirtual().name("wasync-longpoll").start(() -> poll(uri, request));
 
-                    if (statusCode != 200) {
-                        onThrowable(new RuntimeException("HTTP " + statusCode));
-                        return;
-                    }
-
-                    status = Socket.STATUS.OPEN;
-                    dispatchEvent(Event.OPEN, response.toString());
-                    if (connectFuture != null) {
-                        connectFuture.complete(null);
-                    }
-
-                    var body = response.body();
-                    if (body != null && !body.isEmpty()) {
-                        dispatchMessage(Event.MESSAGE, body, decoders, resolver);
-                    }
-
-                    // Start polling loop on a virtual thread
-                    Thread.ofVirtual().name("wasync-longpoll").start(() -> poll(uri, request));
-                })
-                .exceptionally(t -> {
-                    onThrowable(t);
-                    return null;
-                });
+        return CompletableFuture.completedFuture(null);
     }
 
     private void poll(URI uri, Request request) {
+        var decoders = request.decoders();
+        var resolver = request.functionResolver();
+
         while (running && status != Socket.STATUS.CLOSE) {
             try {
                 var reqBuilder = HttpRequest.newBuilder(uri);
-                request.headers().forEach((name, values) -> values.forEach(v -> reqBuilder.header(name, v)));
+                request.headers().forEach((name, values) ->
+                        values.forEach(v -> reqBuilder.header(name, v)));
                 reqBuilder.GET();
 
-                var response = httpClient.send(reqBuilder.build(), HttpResponse.BodyHandlers.ofString());
+                var response = httpClient.send(reqBuilder.build(),
+                        HttpResponse.BodyHandlers.ofInputStream());
                 if (response.statusCode() == 200) {
-                    var body = response.body();
-                    if (body != null && !body.isEmpty()) {
-                        dispatchMessage(Event.MESSAGE, body, request.decoders(),
-                                request.functionResolver());
+                    try (var reader = new BufferedReader(
+                            new InputStreamReader(response.body(), StandardCharsets.UTF_8))) {
+                        var sb = new StringBuilder();
+                        var buf = new char[4096];
+                        int n;
+                        while ((n = reader.read(buf)) != -1) {
+                            sb.append(buf, 0, n);
+                        }
+                        var body = sb.toString().strip();
+                        if (!body.isEmpty()) {
+                            dispatchMessage(Event.MESSAGE, body, decoders, resolver);
+                        }
                     }
                 } else {
                     logger.warn("Long-poll received HTTP {}", response.statusCode());
@@ -110,7 +108,7 @@ public class LongPollingTransport extends AbstractTransport {
                 break;
             } catch (Exception e) {
                 if (running) {
-                    onThrowable(e);
+                    logger.debug("Long-poll error", e);
                     break;
                 }
             }
@@ -137,5 +135,8 @@ public class LongPollingTransport extends AbstractTransport {
     public void close() {
         running = false;
         status = Socket.STATUS.CLOSE;
+        if (pollThread != null) {
+            pollThread.interrupt();
+        }
     }
 }

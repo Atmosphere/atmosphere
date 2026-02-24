@@ -16,52 +16,47 @@
 package org.atmosphere.wasync;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import org.atmosphere.config.service.WebSocketHandlerService;
+import org.atmosphere.config.managed.Encoder;
+import org.atmosphere.config.managed.Decoder;
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.ManagedService;
+import org.atmosphere.config.service.Message;
+import org.atmosphere.config.service.Ready;
+import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
-import org.atmosphere.util.SimpleBroadcaster;
-import org.atmosphere.websocket.WebSocket;
-import org.atmosphere.websocket.WebSocketEventListenerAdapter;
-import org.atmosphere.websocket.WebSocketStreamingHandlerAdapter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
+import jakarta.inject.Inject;
 import java.io.IOException;
-import java.io.Reader;
 import java.util.Date;
 
 /**
- * Simple WebSocket chat handler for integration tests.
- * Broadcasts all received messages to all connected clients.
+ * Chat handler for integration tests using {@link ManagedService}.
+ * Supports all transports: WebSocket, SSE, streaming, and long-polling.
  */
-@WebSocketHandlerService(path = "/chat", broadcaster = SimpleBroadcaster.class,
-        atmosphereConfig = {"org.atmosphere.websocket.WebSocketProtocol=org.atmosphere.websocket.protocol.StreamingHttpProtocol"})
-public class ChatHandler extends WebSocketStreamingHandlerAdapter {
+@ManagedService(path = "/chat")
+public class ChatHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(ChatHandler.class);
-    private final ObjectMapper mapper = new ObjectMapper();
 
-    @Override
-    public void onOpen(WebSocket webSocket) throws IOException {
-        webSocket.resource().addEventListener(new WebSocketEventListenerAdapter() {
-            @Override
-            public void onDisconnect(AtmosphereResourceEvent event) {
-                logger.debug("Client disconnected: {}", event.getResource().uuid());
-            }
-        });
+    @Inject
+    private AtmosphereResource resource;
+
+    @Ready
+    public void onReady() {
+        logger.debug("Client connected: {} via {}", resource.uuid(), resource.transport());
     }
 
-    @Override
-    public void onTextStream(WebSocket webSocket, Reader reader) {
-        try (var br = new BufferedReader(reader)) {
-            var line = br.readLine();
-            if (line != null) {
-                var data = mapper.readValue(line, ChatMessage.class);
-                webSocket.broadcast(mapper.writeValueAsString(data));
-            }
-        } catch (Exception e) {
-            logger.error("Failed to process message", e);
-        }
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.debug("Client disconnected: {}", event.getResource().uuid());
+    }
+
+    @Message(encoders = {ChatEncoder.class}, decoders = {ChatDecoder.class})
+    public ChatMessage onMessage(ChatMessage message) {
+        logger.debug("{} sent: {}", message.author(), message.message());
+        return message;
     }
 
     public record ChatMessage(String author, String message, long time) {
@@ -71,6 +66,32 @@ public class ChatHandler extends WebSocketStreamingHandlerAdapter {
 
         public ChatMessage(String author, String message) {
             this(author, message, new Date().getTime());
+        }
+    }
+
+    public static class ChatEncoder implements Encoder<ChatMessage, String> {
+        private final ObjectMapper mapper = new ObjectMapper();
+
+        @Override
+        public String encode(ChatMessage m) {
+            try {
+                return mapper.writeValueAsString(m);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    public static class ChatDecoder implements Decoder<String, ChatMessage> {
+        private final ObjectMapper mapper = new ObjectMapper();
+
+        @Override
+        public ChatMessage decode(String s) {
+            try {
+                return mapper.readValue(s, ChatMessage.class);
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
         }
     }
 }

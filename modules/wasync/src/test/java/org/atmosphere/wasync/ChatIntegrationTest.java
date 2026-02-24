@@ -371,4 +371,181 @@ class ChatIntegrationTest {
 
         socket.close();
     }
+
+    @Test
+    void sseTransportConnectsAndReceivesMessage() throws Exception {
+        var client = AtmosphereClient.newClient();
+        var messages = new CopyOnWriteArrayList<String>();
+        var openLatch = new CountDownLatch(1);
+        var messageLatch = new CountDownLatch(1);
+
+        var options = client.newOptionsBuilder()
+                .reconnect(false)
+                .build();
+
+        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+                .uri("http://localhost:" + port + "/chat")
+                .transport(Request.TRANSPORT.SSE)
+                .enableProtocol(false)
+                .build();
+
+        var socket = client.create(options);
+        socket.on(Event.OPEN, o -> openLatch.countDown())
+              .on(Event.MESSAGE, m -> {
+                  var msg = m.toString().strip();
+                  if (!msg.isEmpty() && msg.startsWith("{")) {
+                      messages.add(msg);
+                      messageLatch.countDown();
+                  }
+              })
+              .open(request);
+
+        assertTrue(openLatch.await(10, TimeUnit.SECONDS), "SSE should connect");
+
+        // Send a message via a separate WebSocket client (SSE is read-only for receive)
+        var sender = AtmosphereClient.newClient();
+        var senderOpen = new CountDownLatch(1);
+
+        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+                .uri("ws://localhost:" + port + "/chat")
+                .transport(Request.TRANSPORT.WEBSOCKET)
+                .enableProtocol(false)
+                .build();
+
+        var senderSocket = sender.create(options);
+        senderSocket.on(Event.OPEN, o -> senderOpen.countDown())
+                    .open(senderRequest);
+
+        assertTrue(senderOpen.await(10, TimeUnit.SECONDS), "Sender should connect");
+
+        senderSocket.fire(mapper.writeValueAsString(
+                new ChatHandler.ChatMessage("SSE-Test", "Hello via SSE")));
+
+        assertTrue(messageLatch.await(10, TimeUnit.SECONDS),
+                "SSE client should receive broadcast");
+        var received = mapper.readValue(messages.getFirst(), ChatHandler.ChatMessage.class);
+        assertEquals("SSE-Test", received.author());
+        assertEquals("Hello via SSE", received.message());
+
+        senderSocket.close();
+        socket.close();
+    }
+
+    @Test
+    void longPollingTransportConnectsAndReceivesMessage() throws Exception {
+        var client = AtmosphereClient.newClient();
+        var messages = new CopyOnWriteArrayList<String>();
+        var openLatch = new CountDownLatch(1);
+        var messageLatch = new CountDownLatch(1);
+
+        var options = client.newOptionsBuilder()
+                .reconnect(false)
+                .build();
+
+        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+                .uri("http://localhost:" + port + "/chat")
+                .transport(Request.TRANSPORT.LONG_POLLING)
+                .enableProtocol(false)
+                .build();
+
+        var socket = client.create(options);
+        socket.on(Event.OPEN, o -> openLatch.countDown())
+              .on(Event.MESSAGE, m -> {
+                  var msg = m.toString().strip();
+                  if (!msg.isEmpty() && msg.startsWith("{")) {
+                      messages.add(msg);
+                      messageLatch.countDown();
+                  }
+              })
+              .open(request);
+
+        assertTrue(openLatch.await(10, TimeUnit.SECONDS), "Long-polling should connect");
+
+        // Send a message via a separate WebSocket client
+        var sender = AtmosphereClient.newClient();
+        var senderOpen = new CountDownLatch(1);
+
+        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+                .uri("ws://localhost:" + port + "/chat")
+                .transport(Request.TRANSPORT.WEBSOCKET)
+                .enableProtocol(false)
+                .build();
+
+        var senderSocket = sender.create(options);
+        senderSocket.on(Event.OPEN, o -> senderOpen.countDown())
+                    .open(senderRequest);
+
+        assertTrue(senderOpen.await(10, TimeUnit.SECONDS), "Sender should connect");
+
+        senderSocket.fire(mapper.writeValueAsString(
+                new ChatHandler.ChatMessage("LP-Test", "Hello via long-polling")));
+
+        assertTrue(messageLatch.await(10, TimeUnit.SECONDS),
+                "Long-polling client should receive broadcast");
+        var received = mapper.readValue(messages.getFirst(), ChatHandler.ChatMessage.class);
+        assertEquals("LP-Test", received.author());
+        assertEquals("Hello via long-polling", received.message());
+
+        senderSocket.close();
+        socket.close();
+    }
+
+    @Test
+    void streamingTransportConnectsAndReceivesMessage() throws Exception {
+        var client = AtmosphereClient.newClient();
+        var messages = new CopyOnWriteArrayList<String>();
+        var openLatch = new CountDownLatch(1);
+        var messageLatch = new CountDownLatch(1);
+
+        var options = client.newOptionsBuilder()
+                .reconnect(false)
+                .build();
+
+        var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+                .uri("http://localhost:" + port + "/chat")
+                .transport(Request.TRANSPORT.STREAMING)
+                .enableProtocol(false)
+                .build();
+
+        var socket = client.create(options);
+        socket.on(Event.OPEN, o -> openLatch.countDown())
+              .on(Event.MESSAGE, m -> {
+                  var msg = m.toString().strip();
+                  if (!msg.isEmpty() && msg.startsWith("{")) {
+                      messages.add(msg);
+                      messageLatch.countDown();
+                  }
+              })
+              .open(request);
+
+        assertTrue(openLatch.await(10, TimeUnit.SECONDS), "Streaming should connect");
+
+        // Send a message via a separate WebSocket client
+        var sender = AtmosphereClient.newClient();
+        var senderOpen = new CountDownLatch(1);
+
+        var senderRequest = ((AtmosphereRequestBuilder) sender.newRequestBuilder())
+                .uri("ws://localhost:" + port + "/chat")
+                .transport(Request.TRANSPORT.WEBSOCKET)
+                .enableProtocol(false)
+                .build();
+
+        var senderSocket = sender.create(options);
+        senderSocket.on(Event.OPEN, o -> senderOpen.countDown())
+                    .open(senderRequest);
+
+        assertTrue(senderOpen.await(10, TimeUnit.SECONDS), "Sender should connect");
+
+        senderSocket.fire(mapper.writeValueAsString(
+                new ChatHandler.ChatMessage("Stream-Test", "Hello via streaming")));
+
+        assertTrue(messageLatch.await(10, TimeUnit.SECONDS),
+                "Streaming client should receive broadcast");
+        var received = mapper.readValue(messages.getFirst(), ChatHandler.ChatMessage.class);
+        assertEquals("Stream-Test", received.author());
+        assertEquals("Hello via streaming", received.message());
+
+        senderSocket.close();
+        socket.close();
+    }
 }
