@@ -87,7 +87,7 @@ export function App() {
 
   return (
     <ChatLayout
-      title="🤖 Atmosphere + Embabel Agent"
+      title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere + Embabel Agent</>}
       subtitle="Real-time agent streaming via WebSocket"
       theme="embabel"
       headerExtra={modelBadge}

@@ -23,8 +23,8 @@ import { containerStyle, headerStyle, titleStyle, subtitleStyle } from './styles
 import { StatusBar } from './StatusBar';
 
 export interface ChatLayoutProps {
-  /** Main title shown in the header. */
-  title: string;
+  /** Main title shown in the header. Accepts a string or ReactNode (e.g. an image + text). */
+  title: ReactNode;
   /** Subtitle shown below the title. */
   subtitle?: string;
   /** Theme name (preset key) or custom ChatTheme object. */

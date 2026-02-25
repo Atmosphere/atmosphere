@@ -87,7 +87,7 @@ export function App() {
 
   return (
     <ChatLayout
-      title="🤖 Atmosphere AI Chat"
+      title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere AI Chat</>}
       subtitle="Real-time streaming via WebSocket"
       theme="ai"
       headerExtra={modelBadge}
