@@ -47,6 +47,8 @@ class SpringAtmosphereObjectFactoryTest {
         factory.configure(framework.getAtmosphereConfig());
     }
 
+    // === Path 1: Existing Spring bean lookup ===
+
     @Test
     void springBeanFoundAndReturned() throws Exception {
         TestService result = factory.newClassInstance(TestService.class, TestService.class);
@@ -55,12 +57,86 @@ class SpringAtmosphereObjectFactoryTest {
     }
 
     @Test
+    void springBeanReturnsSameInstanceEveryTime() throws Exception {
+        TestService first = factory.newClassInstance(TestService.class, TestService.class);
+        TestService second = factory.newClassInstance(TestService.class, TestService.class);
+        assertThat(first).isSameAs(second);
+    }
+
+    // === Path 2: Spring createBean (full autowiring) ===
+
+    @Test
     void nonBeanClassCreatedAndAutowired() throws Exception {
         AutowiredComponent result = factory.newClassInstance(
                 AutowiredComponent.class, AutowiredComponent.class);
         assertThat(result).isNotNull();
         assertThat(result.testService).isNotNull();
     }
+
+    @Test
+    void nonBeanWithMultipleSpringDeps() throws Exception {
+        MultiDepsComponent result = factory.newClassInstance(
+                MultiDepsComponent.class, MultiDepsComponent.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("TestService via @Autowired").isNotNull();
+        assertThat(result.otherService).as("OtherService via @Autowired").isNotNull();
+    }
+
+    // === Path 3: Hybrid injection (Atmosphere + Spring) ===
+
+    @Test
+    void hybridInjectionInjectsSpringBeansAfterAtmosphereFallback() throws Exception {
+        HybridComponent result = factory.newClassInstance(
+                HybridComponent.class, HybridComponent.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("Spring bean should be injected").isNotNull();
+        assertThat(result.testService).isSameAs(applicationContext.getBean(TestService.class));
+    }
+
+    @Test
+    void hybridInjectionWithMultipleSpringBeans() throws Exception {
+        HybridMultiComponent result = factory.newClassInstance(
+                HybridMultiComponent.class, HybridMultiComponent.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("TestService should be injected").isNotNull();
+        assertThat(result.otherService).as("OtherService should be injected").isNotNull();
+        assertThat(result.testService).isSameAs(applicationContext.getBean(TestService.class));
+        assertThat(result.otherService).isSameAs(applicationContext.getBean(OtherService.class));
+    }
+
+    @Test
+    void hybridInjectionWithAtmosphereResourceAndEvent() throws Exception {
+        // Simulates a real @ManagedService with AtmosphereResource + AtmosphereResourceEvent
+        // (both Atmosphere-managed) plus a Spring bean
+        FullManagedServiceLike result = factory.newClassInstance(
+                FullManagedServiceLike.class, FullManagedServiceLike.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("Spring bean should be injected").isNotNull();
+        // AtmosphereResource and AtmosphereResourceEvent are injected per-request by
+        // Atmosphere, so they'll be null at creation time — that's expected
+    }
+
+    @Test
+    void hybridInjectionLeavesNonSpringFieldsNull() throws Exception {
+        // Fields whose type is NOT a Spring bean should remain null
+        HybridWithUnresolvable result = factory.newClassInstance(
+                HybridWithUnresolvable.class, HybridWithUnresolvable.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("Spring bean should be injected").isNotNull();
+        assertThat(result.unresolvable).as("Non-Spring field stays null").isNull();
+    }
+
+    @Test
+    void hybridInjectionInheritsFromParent() throws Exception {
+        // Spring bean declared in parent class should also get injected
+        ChildWithInheritedInject result = factory.newClassInstance(
+                ChildWithInheritedInject.class, ChildWithInheritedInject.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("Parent @Inject field should be injected").isNotNull();
+        assertThat(result.otherService).as("Child @Inject field should be injected").isNotNull();
+    }
+
+    // === Edge cases ===
 
     @Test
     void isAssignableFromInjectableObjectFactory() {
@@ -75,17 +151,20 @@ class SpringAtmosphereObjectFactoryTest {
     }
 
     @Test
-    void hybridInjectionInjectsSpringBeansAfterAtmosphereFallback() throws Exception {
-        // HybridComponent has @Inject for both AtmosphereResource (Atmosphere-managed)
-        // and TestService (Spring-managed). Spring's createBean() will fail because
-        // it can't resolve AtmosphereResource, so the factory should fall back to
-        // Atmosphere's injector and then inject Spring beans into remaining fields.
-        HybridComponent result = factory.newClassInstance(
-                HybridComponent.class, HybridComponent.class);
+    void classWithNoInjectFieldsStillWorks() throws Exception {
+        NoInjectComponent result = factory.newClassInstance(
+                NoInjectComponent.class, NoInjectComponent.class);
         assertThat(result).isNotNull();
-        assertThat(result.testService).as("Spring bean should be injected").isNotNull();
-        assertThat(result.testService).isSameAs(applicationContext.getBean(TestService.class));
     }
+
+    @Test
+    void classWithOnlyAtmosphereDepsStillWorks() throws Exception {
+        AtmosphereOnlyComponent result = factory.newClassInstance(
+                AtmosphereOnlyComponent.class, AtmosphereOnlyComponent.class);
+        assertThat(result).isNotNull();
+    }
+
+    // === Configuration and fixtures ===
 
     @Configuration
     static class TestConfig {
@@ -93,14 +172,105 @@ class SpringAtmosphereObjectFactoryTest {
         public TestService testService() {
             return new TestService();
         }
+
+        @Bean
+        public OtherService otherService() {
+            return new OtherService();
+        }
     }
 
-    static class TestService {
+    public static class TestService {
     }
 
-    static class AutowiredComponent {
+    public static class OtherService {
+    }
+
+    public static class UnresolvableService {
+    }
+
+    // Path 2 fixtures
+
+    public static class AutowiredComponent {
         @Autowired
         TestService testService;
+    }
+
+    public static class MultiDepsComponent {
+        @Autowired
+        TestService testService;
+
+        @Autowired
+        OtherService otherService;
+    }
+
+    // Path 3 fixtures (hybrid: @Inject with Atmosphere + Spring types)
+
+    public static class HybridComponent {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        TestService testService;
+    }
+
+    public static class HybridMultiComponent {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        TestService testService;
+
+        @Inject
+        OtherService otherService;
+    }
+
+    public static class FullManagedServiceLike {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        AtmosphereResourceEvent event;
+
+        @Inject
+        TestService testService;
+    }
+
+    public static class HybridWithUnresolvable {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        TestService testService;
+
+        @Inject
+        UnresolvableService unresolvable;
+    }
+
+    public static class ParentWithInject {
+        @Inject
+        TestService testService;
+    }
+
+    public static class ChildWithInheritedInject extends ParentWithInject {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        OtherService otherService;
+    }
+
+    // Edge case fixtures
+
+    public static class NoInjectComponent {
+        String name = "no-inject";
+    }
+
+    public static class AtmosphereOnlyComponent {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        AtmosphereResourceEvent event;
     }
 
     public static class SimpleHandler implements AtmosphereHandler {
@@ -115,19 +285,5 @@ class SpringAtmosphereObjectFactoryTest {
         @Override
         public void destroy() {
         }
-    }
-
-    /**
-     * Simulates a {@code @ManagedService} that uses {@code @Inject} for both
-     * Atmosphere-managed objects and Spring beans. Spring's {@code createBean()}
-     * will fail because AtmosphereResource is not a Spring bean, triggering the
-     * hybrid injection path.
-     */
-    public static class HybridComponent {
-        @Inject
-        AtmosphereResource resource;
-
-        @Inject
-        TestService testService;
     }
 }

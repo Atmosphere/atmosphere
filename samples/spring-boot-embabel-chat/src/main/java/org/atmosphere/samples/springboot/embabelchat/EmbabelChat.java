@@ -15,6 +15,7 @@
  */
 package org.atmosphere.samples.springboot.embabelchat;
 
+import com.embabel.agent.core.AgentPlatform;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.ManagedService;
@@ -34,6 +35,10 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
  * In demo mode (no {@code OPENAI_API_KEY}), streams simulated responses.
  * When a real API key is configured, delegates to {@link AgentRunner} which
  * uses the Embabel {@code AgentPlatform}.
+ *
+ * <p>{@code @Inject} works for both Atmosphere-managed objects ({@code AtmosphereResource})
+ * and Spring beans ({@code AgentPlatform}) thanks to
+ * {@code SpringAtmosphereObjectFactory}'s hybrid injection.</p>
  */
 @ManagedService(path = "/atmosphere/embabel-chat", atmosphereConfig = {
         MAX_INACTIVE + "=120000",
@@ -53,11 +58,16 @@ public class EmbabelChat {
         DEMO_MODE = (key == null || key.isBlank());
     }
 
+    // Atmosphere-managed — injected per-request
     @Inject
     private AtmosphereResource resource;
 
     @Inject
     private AtmosphereResourceEvent event;
+
+    // Spring-managed — injected at creation time by SpringAtmosphereObjectFactory
+    @Inject
+    private AgentPlatform agentPlatform;
 
     @Ready
     public void onReady() {
@@ -82,11 +92,7 @@ public class EmbabelChat {
             var session = StreamingSessions.start(resource);
             Thread.startVirtualThread(() -> DemoResponseProducer.stream(userMessage, session));
         } else {
-            // Real mode: AgentPlatform is available via EmbabelAutoConfig
-            AgentRunner.run(userMessage, resource,
-                    org.springframework.web.context.ContextLoader
-                            .getCurrentWebApplicationContext()
-                            .getBean(com.embabel.agent.core.AgentPlatform.class));
+            AgentRunner.run(userMessage, resource, agentPlatform);
         }
     }
 }
