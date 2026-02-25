@@ -40,6 +40,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-adk</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <dependency>
             <groupId>com.google.adk</groupId>
             <artifactId>google-adk</artifactId>
             <version>${google-adk.version}</version>

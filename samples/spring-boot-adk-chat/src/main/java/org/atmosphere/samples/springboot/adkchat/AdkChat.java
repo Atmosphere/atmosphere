@@ -15,9 +15,11 @@
  */
 package org.atmosphere.samples.springboot.adkchat;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.inject.Inject;
+import org.atmosphere.ai.StreamingSessions;
+import org.atmosphere.ai.adk.AdkEventAdapter;
 import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.Heartbeat;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -25,19 +27,15 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.LinkedHashMap;
-import java.util.concurrent.atomic.AtomicLong;
-
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
  * Atmosphere managed service that bridges ADK agent responses to WebSocket clients.
  *
  * <p>When a user sends a message, a simulated ADK event stream is created and
- * each token is written directly to the originating client's WebSocket via
- * {@link AtmosphereResource#write(String)}. This avoids the Broadcaster
- * pipeline, preventing message echo/loop issues in single-user streaming
- * scenarios.</p>
+ * bridged to all connected clients via {@link AdkEventAdapter}. Each streaming
+ * token is broadcast through the Broadcaster so every browser sees the
+ * conversation in real-time — just like the spring-boot-chat sample.</p>
  */
 @ManagedService(path = "/atmosphere/adk-chat", atmosphereConfig = {
         MAX_INACTIVE + "=120000"
@@ -45,13 +43,17 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 public class AdkChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AdkChat.class);
-    private static final ObjectMapper MAPPER = new ObjectMapper();
 
     @Inject
     private AtmosphereResource resource;
 
     @Inject
     private AtmosphereResourceEvent event;
+
+    @Heartbeat
+    public void onHeartbeat(final AtmosphereResourceEvent event) {
+        logger.trace("Heartbeat from {}", event.getResource());
+    }
 
     @Ready
     public void onReady() {
@@ -71,46 +73,11 @@ public class AdkChat {
     public void onMessage(String userMessage) {
         logger.info("Received from {}: {}", resource.uuid(), userMessage);
 
-        // Capture the resource reference — @ManagedService is a singleton,
-        // so the field may be overwritten by another request before the
-        // async RxJava callback fires.
-        final AtmosphereResource client = resource;
-        final AtomicLong seq = new AtomicLong(0);
+        // Broadcast streaming tokens to ALL connected clients via the Broadcaster,
+        // same pattern as the spring-boot-chat sample.
+        var session = StreamingSessions.start(resource);
 
         var events = DemoEventProducer.stream(userMessage);
-
-        // Write each streaming token directly to this client's WebSocket.
-        // Using resource.write() instead of Broadcaster.broadcast() to
-        // avoid message echo/loop in the @ManagedService pipeline.
-        events.subscribe(
-                event -> event.content().ifPresent(content ->
-                        content.parts().ifPresent(parts ->
-                                parts.forEach(part ->
-                                        part.text().ifPresent(text -> {
-                                            if (!text.isEmpty()) {
-                                                writeJson(client, "token", text, seq);
-                                            }
-                                        })
-                                )
-                        )
-                ),
-                error -> writeJson(client, "error",
-                        error.getMessage() != null ? error.getMessage() : "Unknown error", seq),
-                () -> writeJson(client, "complete", null, seq)
-        );
-    }
-
-    private void writeJson(AtmosphereResource client, String type, String data, AtomicLong seq) {
-        try {
-            var msg = new LinkedHashMap<String, Object>();
-            msg.put("type", type);
-            if (data != null) {
-                msg.put("data", data);
-            }
-            msg.put("seq", seq.incrementAndGet());
-            client.write(MAPPER.writeValueAsString(msg));
-        } catch (Exception e) {
-            logger.warn("Failed to write to client {}: {}", client.uuid(), e.getMessage());
-        }
+        AdkEventAdapter.bridge(events, session);
     }
 }
