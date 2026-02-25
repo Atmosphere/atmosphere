@@ -1,0 +1,5 @@
+atmosphere:
+  packages: org.atmosphere.samples.springboot.adkchat
+
+server:
+  port: 8080

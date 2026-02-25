@@ -1,0 +1,331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Atmosphere + ADK Chat</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+            height: 100vh;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            max-width: 800px;
+            margin: 0 auto;
+        }
+        .header {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            padding: 20px 24px;
+            text-align: center;
+        }
+        .header h1 {
+            margin: 0;
+            font-size: 22px;
+            font-weight: 700;
+        }
+        .header p {
+            margin: 4px 0 0;
+            font-size: 13px;
+            opacity: 0.85;
+        }
+        .status-bar {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 6px;
+            padding: 6px 0;
+            font-size: 12px;
+        }
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #adb5bd;
+        }
+        .status-dot.connected { background: #28a745; }
+        .status-dot.reconnecting { background: #ffc107; }
+        .status-dot.error { background: #dc3545; }
+        #messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+            background: #16213e;
+        }
+        .bubble {
+            max-width: 85%;
+            padding: 10px 14px;
+            word-break: break-word;
+            line-height: 1.5;
+            white-space: pre-wrap;
+        }
+        .bubble.user {
+            align-self: flex-end;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border-radius: 16px 16px 4px 16px;
+        }
+        .bubble.agent {
+            align-self: flex-start;
+            background: #16213e;
+            border: 1px solid #2a2a4a;
+            color: #e0e0e0;
+            border-radius: 16px 16px 16px 4px;
+        }
+        .bubble .author {
+            font-weight: 600;
+            font-size: 13px;
+            margin-bottom: 2px;
+            color: #667eea;
+        }
+        .bubble.system {
+            text-align: center;
+            color: #28a745;
+            font-size: 13px;
+            padding: 6px 12px;
+            background: rgba(40, 167, 69, 0.1);
+            border-radius: 8px;
+            align-self: center;
+        }
+        .bubble.error-msg {
+            text-align: center;
+            color: #dc3545;
+            font-size: 13px;
+            padding: 6px 12px;
+            background: rgba(220, 53, 69, 0.1);
+            border-radius: 8px;
+            align-self: center;
+        }
+        .cursor {
+            display: inline-block;
+            width: 8px;
+            height: 18px;
+            background: #667eea;
+            margin-left: 2px;
+            vertical-align: text-bottom;
+            animation: blink 1s step-end infinite;
+        }
+        @keyframes blink {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0; }
+        }
+        .input-bar {
+            display: flex;
+            gap: 8px;
+            padding: 12px 16px;
+            border-top: 1px solid #2a2a4a;
+            background: #1a1a2e;
+        }
+        .input-bar input {
+            flex: 1;
+            padding: 10px 14px;
+            border: 1px solid #2a2a4a;
+            border-radius: 20px;
+            font-size: 14px;
+            outline: none;
+            background: #16213e;
+            color: #e0e0e0;
+        }
+        .input-bar input:focus { border-color: #667eea; }
+        .input-bar input:disabled { opacity: 0.5; }
+        .input-bar button {
+            padding: 10px 20px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color: #fff;
+            border: none;
+            border-radius: 20px;
+            font-weight: 600;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .input-bar button:hover { opacity: 0.9; }
+        .input-bar button:disabled { opacity: 0.5; cursor: not-allowed; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🤖 Atmosphere + ADK Chat</h1>
+            <p>Google ADK Agent • Streaming Tokens • WebSocket Transport</p>
+        </div>
+        <div class="status-bar">
+            <span id="status-dot" class="status-dot"></span>
+            <span id="status-text">Connecting…</span>
+        </div>
+        <div id="messages">
+            <div class="bubble system">
+                Welcome! This demo streams Google ADK agent responses via Atmosphere WebSocket.
+                Try typing "hello", "atmosphere", or "adk".
+            </div>
+        </div>
+        <div class="input-bar">
+            <input type="text" id="input" placeholder="Type a message…" disabled autocomplete="off" />
+            <button id="send" disabled>Send</button>
+        </div>
+    </div>
+
+    <script>
+        const messagesDiv = document.getElementById('messages');
+        const input = document.getElementById('input');
+        const sendBtn = document.getElementById('send');
+        const statusDot = document.getElementById('status-dot');
+        const statusText = document.getElementById('status-text');
+
+        let ws = null;
+        let currentAgentBubble = null;
+        let streaming = false;
+        let reconnectTimer = null;
+
+        function setStatus(state) {
+            statusDot.className = 'status-dot ' + state;
+            statusText.textContent = state === 'connected' ? 'Connected'
+                : state === 'reconnecting' ? 'Reconnecting…'
+                : state === 'error' ? 'Disconnected' : 'Connecting…';
+        }
+
+        function connect() {
+            if (reconnectTimer) { clearTimeout(reconnectTimer); reconnectTimer = null; }
+            setStatus('');
+            const protocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+            ws = new WebSocket(protocol + '//' + location.host + '/atmosphere/adk-chat');
+
+            ws.onopen = function() {
+                setStatus('connected');
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            };
+
+            ws.onmessage = function(event) {
+                var raw = event.data;
+                if (!raw || !raw.trim()) return;
+                try {
+                    var data = JSON.parse(raw);
+                    if (data && data.type) {
+                        handleStreamEvent(data);
+                        return;
+                    }
+                } catch (e) { /* not JSON */ }
+            };
+
+            ws.onclose = function() {
+                setStatus('reconnecting');
+                input.disabled = true;
+                sendBtn.disabled = true;
+                finishStreaming();
+                reconnectTimer = setTimeout(connect, 3000);
+            };
+
+            ws.onerror = function() {
+                setStatus('error');
+            };
+        }
+
+        function handleStreamEvent(data) {
+            switch (data.type) {
+                case 'token':
+                    if (!currentAgentBubble) {
+                        currentAgentBubble = createAgentBubble();
+                    }
+                    var textEl = currentAgentBubble.querySelector('.text');
+                    textEl.textContent += (data.data || '');
+                    messagesDiv.scrollTop = messagesDiv.scrollHeight;
+                    break;
+                case 'progress':
+                    appendSystem(data.data || '');
+                    break;
+                case 'complete':
+                    finishStreaming();
+                    break;
+                case 'error':
+                    appendError(data.data || 'Unknown error');
+                    finishStreaming();
+                    break;
+            }
+        }
+
+        function finishStreaming() {
+            if (currentAgentBubble) {
+                var cursor = currentAgentBubble.querySelector('.cursor');
+                if (cursor) cursor.remove();
+            }
+            currentAgentBubble = null;
+            streaming = false;
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                input.disabled = false;
+                sendBtn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function sendMessage() {
+            var text = input.value.trim();
+            if (!text || !ws || ws.readyState !== WebSocket.OPEN || streaming) return;
+            appendUser(text);
+            ws.send(text);
+            input.value = '';
+            streaming = true;
+            input.disabled = true;
+            sendBtn.disabled = true;
+        }
+
+        function appendUser(text) {
+            var div = document.createElement('div');
+            div.className = 'bubble user';
+            div.textContent = text;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function createAgentBubble() {
+            var div = document.createElement('div');
+            div.className = 'bubble agent';
+            var author = document.createElement('div');
+            author.className = 'author';
+            author.textContent = 'ADK Agent';
+            var textSpan = document.createElement('span');
+            textSpan.className = 'text';
+            var cursorSpan = document.createElement('span');
+            cursorSpan.className = 'cursor';
+            div.appendChild(author);
+            div.appendChild(textSpan);
+            div.appendChild(cursorSpan);
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+            return div;
+        }
+
+        function appendSystem(text) {
+            var div = document.createElement('div');
+            div.className = 'bubble system';
+            div.textContent = text;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        function appendError(text) {
+            var div = document.createElement('div');
+            div.className = 'bubble error-msg';
+            div.textContent = '⚠️ ' + text;
+            messagesDiv.appendChild(div);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+
+        input.addEventListener('keydown', function(e) {
+            if (e.key === 'Enter') sendMessage();
+        });
+        sendBtn.addEventListener('click', sendMessage);
+
+        connect();
+    </script>
+</body>
+</html>
