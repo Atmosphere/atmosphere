@@ -36,7 +36,7 @@ public interface Request {
      * Available transports, in priority order.
      */
     enum TRANSPORT {
-        WEBSOCKET, SSE, STREAMING, LONG_POLLING
+        WEBSOCKET, SSE, STREAMING, LONG_POLLING, GRPC
     }
 
     /**

@@ -16,6 +16,7 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.wasync</atmosphere.module.name>
+        <grpc.version>1.71.0</grpc.version>
     </properties>
 
     <dependencies>
@@ -23,6 +24,32 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
             <version>${slf4j-version}</version>
+        </dependency>
+
+        <!-- Optional gRPC transport dependencies -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-grpc</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>${grpc.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>${grpc.version}</version>
+            <optional>true</optional>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>${grpc.version}</version>
+            <optional>true</optional>
         </dependency>
 
         <!-- Test: Embedded Jetty server for E2E tests -->

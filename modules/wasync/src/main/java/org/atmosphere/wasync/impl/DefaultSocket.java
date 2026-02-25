@@ -23,6 +23,7 @@ import org.atmosphere.wasync.Options;
 import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.Socket;
 import org.atmosphere.wasync.Transport;
+import org.atmosphere.wasync.transport.GrpcTransport;
 import org.atmosphere.wasync.transport.LongPollingTransport;
 import org.atmosphere.wasync.transport.SSETransport;
 import org.atmosphere.wasync.transport.StreamTransport;
@@ -143,6 +144,7 @@ public class DefaultSocket implements Socket {
             case SSETransport sse -> sse.connect(uri, request);
             case StreamTransport stream -> stream.connect(uri, request);
             case LongPollingTransport lp -> lp.connect(uri, request);
+            case GrpcTransport grpc -> grpc.connect(uri, request);
             default -> throw new IllegalStateException("Unknown transport: " + transport);
         }
 
@@ -235,6 +237,7 @@ public class DefaultSocket implements Socket {
             case WebSocketTransport ws -> ws.sendText(text);
             case StreamTransport stream -> stream.sendText(text, uri, request);
             case LongPollingTransport lp -> lp.sendText(text, uri, request);
+            case GrpcTransport grpc -> grpc.sendText(text);
             default -> CompletableFuture.failedFuture(
                     new UnsupportedOperationException("Cannot fire on " + activeTransport.name()));
         };
@@ -277,6 +280,7 @@ public class DefaultSocket implements Socket {
             case SSE -> new SSETransport(httpClient, options);
             case STREAMING -> new StreamTransport(httpClient, options);
             case LONG_POLLING -> new LongPollingTransport(httpClient, options);
+            case GRPC -> new GrpcTransport(options);
         };
     }
 
