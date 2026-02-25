@@ -4,7 +4,7 @@
 
 # Atmosphere
 
-A transport-agnostic real-time framework for the JVM built around two core abstractions: **Broadcaster** (a named pub/sub channel that fans out messages to subscribers) and **AtmosphereResource** (a connection, regardless of transport). Application code publishes to a Broadcaster; the framework delivers over WebSocket, SSE, Long-Polling, or gRPC — the transport is pluggable and transparent. Rewritten for JDK 21 virtual threads.
+A transport-agnostic real-time framework for the JVM built around two core abstractions: **Broadcaster** (a named pub/sub channel that fans out messages to subscribers) and **AtmosphereResource** (a connection, regardless of transport). Application code publishes to a Broadcaster; the framework delivers over WebSocket, SSE, Long-Polling, gRPC, or MCP — the transport is pluggable and transparent. Rewritten for JDK 21 virtual threads.
 
 [![Maven Central](https://img.shields.io/maven-central/v/org.atmosphere/atmosphere-runtime?label=Maven%20Central&color=blue)](https://central.sonatype.com/artifact/org.atmosphere/atmosphere-runtime)
 [![npm](https://img.shields.io/npm/v/atmosphere.js?label=atmosphere.js&color=blue)](https://www.npmjs.com/package/atmosphere.js)
@@ -17,7 +17,7 @@ A transport-agnostic real-time framework for the JVM built around two core abstr
 
 **AtmosphereResource** — represents a single connection. It wraps the underlying transport (WebSocket frame, SSE event stream, HTTP response, or gRPC stream) behind a uniform API. Resources subscribe to Broadcasters.
 
-**Transport** — the wire protocol. Atmosphere ships with WebSocket, SSE, Long-Polling, and gRPC transports. The transport is selected per-connection and can fall back automatically (e.g., WebSocket → SSE → Long-Polling).
+**Transport** — the wire protocol. Atmosphere ships with WebSocket, SSE, Long-Polling, gRPC, and MCP transports. The transport is selected per-connection and can fall back automatically (e.g., WebSocket → SSE → Long-Polling).
 
 ```java
 @ManagedService(path = "/chat")
@@ -25,7 +25,7 @@ public class Chat {
 
     @Ready
     public void onReady(AtmosphereResource r) {
-        // r could be WebSocket, SSE, Long-Polling, or gRPC — doesn't matter
+        // r could be WebSocket, SSE, Long-Polling, gRPC, or MCP — doesn't matter
         log.info("{} connected via {}", r.uuid(), r.transport());
     }
 
