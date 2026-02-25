@@ -72,7 +72,7 @@ export function App() {
 
   return (
     <ChatLayout
-      title="🤖 Atmosphere + ADK Chat"
+      title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere + ADK Chat</>}
       subtitle="Google ADK Agent • Streaming Tokens • WebSocket Transport"
       theme="ai"
     >
