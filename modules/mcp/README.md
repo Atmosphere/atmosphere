@@ -78,6 +78,58 @@ For clients that only support stdio, build the bridge JAR with `mvn package -Pst
 
 - [Spring Boot MCP Server](../../samples/spring-boot-mcp-server/) -- tools, resources, and prompts with a React frontend
 
+## Injectable Parameters
+
+`@McpTool` methods can declare framework types as parameters. These are auto-injected at invocation time and excluded from the tool's JSON Schema (MCP clients never see them):
+
+| Type | What's injected | Requires |
+|------|----------------|----------|
+| `Broadcaster` | `BroadcasterFactory.lookup(topic, true)` | A `@McpParam(name="topic")` argument in the call |
+| `StreamingSession` | `BroadcasterStreamingSession` wrapping the topic's Broadcaster | A `@McpParam(name="topic")` argument + `atmosphere-ai` on classpath |
+| `AtmosphereConfig` | The framework's `AtmosphereConfig` | Nothing |
+| `BroadcasterFactory` | The framework's `BroadcasterFactory` | Nothing |
+| `AtmosphereFramework` | The framework instance | Nothing |
+
+### Example: Push Messages to Browser Clients
+
+```java
+@McpServer(name = "my-server", path = "/atmosphere/mcp")
+public class MyMcpServer {
+
+    @McpTool(name = "broadcast", description = "Send a message to a chat topic")
+    public String broadcast(
+            @McpParam(name = "message") String message,
+            @McpParam(name = "topic") String topic,
+            Broadcaster broadcaster) {
+        broadcaster.broadcast(message);
+        return "sent to " + topic;
+    }
+}
+```
+
+When an AI agent calls this tool with `{"message": "hello", "topic": "/chat"}`, the message is broadcast to all WebSocket/SSE/gRPC clients subscribed to `/chat`.
+
+### Example: Stream LLM Tokens to Browsers
+
+With `atmosphere-ai` on the classpath, inject a `StreamingSession` that wraps the topic's Broadcaster:
+
+```java
+@McpTool(name = "ask_ai", description = "Ask AI and stream answer to a topic")
+public String askAi(
+        @McpParam(name = "question") String question,
+        @McpParam(name = "topic") String topic,
+        StreamingSession session) {
+    // session.send() broadcasts to all clients on the topic
+    Thread.startVirtualThread(() -> {
+        var request = ChatCompletionRequest.builder(model).user(question).build();
+        client.streamChatCompletion(request, session);
+    });
+    return "streaming to " + topic;
+}
+```
+
+See [atmosphere-ai README](../ai/README.md) for more on `StreamingSession` and wire protocol.
+
 ## Requirements
 
 - Java 21+
