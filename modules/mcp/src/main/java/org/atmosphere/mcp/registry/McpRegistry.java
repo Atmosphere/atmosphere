@@ -303,6 +303,10 @@ public final class McpRegistry {
     private static List<ParamEntry> extractParams(Method method) {
         var params = new ArrayList<ParamEntry>();
         for (Parameter p : method.getParameters()) {
+            // Skip framework-injectable types — they're not JSON-RPC arguments
+            if (isInjectableType(p.getType())) {
+                continue;
+            }
             var mcpParam = p.getAnnotation(McpParam.class);
             if (mcpParam != null) {
                 params.add(new ParamEntry(mcpParam.name(), mcpParam.description(),
@@ -313,6 +317,31 @@ public final class McpRegistry {
             }
         }
         return params;
+    }
+
+    /**
+     * Returns true if the given type is a framework-injectable type that should
+     * not appear in the tool's JSON Schema (it's injected by the framework,
+     * not supplied by the MCP client).
+     */
+    public static boolean isInjectableType(Class<?> type) {
+        // Core Atmosphere types
+        if (type == org.atmosphere.cpr.Broadcaster.class
+                || type == org.atmosphere.cpr.AtmosphereConfig.class
+                || type == org.atmosphere.cpr.BroadcasterFactory.class
+                || type == org.atmosphere.cpr.AtmosphereFramework.class) {
+            return true;
+        }
+        // atmosphere-ai StreamingSession (optional dependency)
+        try {
+            var streamingSessionClass = Class.forName("org.atmosphere.ai.StreamingSession");
+            if (streamingSessionClass.isAssignableFrom(type)) {
+                return true;
+            }
+        } catch (ClassNotFoundException ignored) {
+            // atmosphere-ai not on classpath
+        }
+        return false;
     }
 
     private static String jsonSchemaType(Class<?> type) {

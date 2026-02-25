@@ -16,6 +16,7 @@
 package org.atmosphere.mcp;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResponse;
@@ -58,7 +59,8 @@ public class McpStreamableHttpTest {
     public void setUp() {
         var registry = new McpRegistry();
         registry.scan(new SimpleMcpServer());
-        var protocolHandler = new McpProtocolHandler("test-server", "1.0.0", registry);
+        var protocolHandler = new McpProtocolHandler("test-server", "1.0.0", registry,
+                mock(AtmosphereConfig.class));
         handler = new McpHandler(protocolHandler);
     }
 

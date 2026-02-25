@@ -51,7 +51,8 @@ public class McpServerProcessor implements Processor<Object> {
             registry.scan(instance);
 
             var protocolHandler = new McpProtocolHandler(
-                    annotation.name(), annotation.version(), registry);
+                    annotation.name(), annotation.version(), registry,
+                    framework.getAtmosphereConfig());
 
             var handler = new McpHandler(protocolHandler);
             framework.addAtmosphereHandler(annotation.path(), handler, new ArrayList<>());

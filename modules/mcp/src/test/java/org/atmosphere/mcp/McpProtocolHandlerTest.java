@@ -17,6 +17,7 @@ package org.atmosphere.mcp;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.cpr.AtmosphereRequest;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.mcp.annotation.McpParam;
@@ -93,7 +94,8 @@ public class McpProtocolHandlerTest {
     public void setUp() {
         var registry = new McpRegistry();
         registry.scan(new TestMcpServer());
-        handler = new McpProtocolHandler("test-server", "1.0.0", registry);
+        var config = mock(AtmosphereConfig.class);
+        handler = new McpProtocolHandler("test-server", "1.0.0", registry, config);
 
         resource = mock(AtmosphereResource.class);
         var request = mock(AtmosphereRequest.class);
@@ -365,7 +367,7 @@ public class McpProtocolHandlerTest {
         registry.registerTool("upper", "Convert to uppercase",
                 List.of(new McpRegistry.ParamEntry("text", "Input text", true, String.class)),
                 args -> ((String) args.get("text")).toUpperCase());
-        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry, mock(AtmosphereConfig.class));
 
         var request = """
                 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{
@@ -383,7 +385,7 @@ public class McpProtocolHandlerTest {
     public void testDynamicToolNoParams() throws Exception {
         var registry = new McpRegistry();
         registry.registerTool("version", "Get version", args -> "4.0.0");
-        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry, mock(AtmosphereConfig.class));
 
         var request = """
                 {"jsonrpc":"2.0","id":1,"method":"tools/call","params":{"name":"version"}}""";
@@ -408,7 +410,7 @@ public class McpProtocolHandlerTest {
         var registry = new McpRegistry();
         registry.registerResource("app://status", "Status", "App status",
                 "application/json", args -> "{\"up\":true}");
-        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry, mock(AtmosphereConfig.class));
 
         var request = """
                 {"jsonrpc":"2.0","id":1,"method":"resources/read","params":{"uri":"app://status"}}""";
@@ -426,7 +428,7 @@ public class McpProtocolHandlerTest {
 
         assertEquals(4, registry.tools().size()); // 3 annotation + 1 dynamic
 
-        var testHandler = new McpProtocolHandler("test", "1.0.0", registry);
+        var testHandler = new McpProtocolHandler("test", "1.0.0", registry, mock(AtmosphereConfig.class));
         var request = """
                 {"jsonrpc":"2.0","id":1,"method":"tools/list"}""";
         var node = mapper.readTree(testHandler.handleMessage(resource, request));

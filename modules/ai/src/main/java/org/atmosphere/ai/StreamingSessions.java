@@ -16,6 +16,7 @@
 package org.atmosphere.ai;
 
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
 
 import java.util.UUID;
 
@@ -55,5 +56,28 @@ public final class StreamingSessions {
      */
     public static StreamingSession start(String sessionId, AtmosphereResource resource) {
         return new DefaultStreamingSession(sessionId, resource);
+    }
+
+    /**
+     * Start a new streaming session that broadcasts to a topic.
+     * Use this when no specific {@link AtmosphereResource} is available
+     * (e.g., from an MCP tool call that needs to stream tokens to browser clients).
+     *
+     * @param broadcaster the broadcaster to stream tokens through
+     * @return a new streaming session
+     */
+    public static StreamingSession start(Broadcaster broadcaster) {
+        return new BroadcasterStreamingSession(UUID.randomUUID().toString(), broadcaster);
+    }
+
+    /**
+     * Start a new streaming session with a specific session ID that broadcasts to a topic.
+     *
+     * @param sessionId   a caller-provided session ID (for correlation)
+     * @param broadcaster the broadcaster to stream tokens through
+     * @return a new streaming session
+     */
+    public static StreamingSession start(String sessionId, Broadcaster broadcaster) {
+        return new BroadcasterStreamingSession(sessionId, broadcaster);
     }
 }

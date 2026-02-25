@@ -18,7 +18,11 @@ package org.atmosphere.mcp.runtime;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.atmosphere.cpr.AtmosphereConfig;
+import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.mcp.protocol.JsonRpc;
 import org.atmosphere.mcp.protocol.McpMethod;
 import org.atmosphere.mcp.registry.McpRegistry;
@@ -43,11 +47,14 @@ public final class McpProtocolHandler {
     private final String serverName;
     private final String serverVersion;
     private final McpRegistry registry;
+    private final AtmosphereConfig config;
 
-    public McpProtocolHandler(String serverName, String serverVersion, McpRegistry registry) {
+    public McpProtocolHandler(String serverName, String serverVersion,
+                              McpRegistry registry, AtmosphereConfig config) {
         this.serverName = serverName;
         this.serverVersion = serverVersion;
         this.registry = registry;
+        this.config = config;
     }
 
     /**
@@ -334,19 +341,73 @@ public final class McpProtocolHandler {
     private Object[] bindArguments(java.lang.reflect.Method method,
                                    List<McpRegistry.ParamEntry> paramEntries,
                                    JsonNode arguments) {
-        if (paramEntries.isEmpty()) {
-            return new Object[0];
+        var methodParams = method.getParameters();
+        var args = new Object[methodParams.length];
+        int paramIdx = 0;
+
+        // Resolve the topic from JSON arguments (used for Broadcaster/StreamingSession injection)
+        String topic = null;
+        if (arguments != null && arguments.has("topic")) {
+            topic = arguments.get("topic").asText();
         }
-        var args = new Object[paramEntries.size()];
-        for (int i = 0; i < paramEntries.size(); i++) {
-            var param = paramEntries.get(i);
-            if (arguments != null && arguments.has(param.name())) {
-                args[i] = convertParam(arguments.get(param.name()), param.type());
-            } else {
-                args[i] = defaultValue(param.type());
+
+        for (int i = 0; i < methodParams.length; i++) {
+            var type = methodParams[i].getType();
+            if (McpRegistry.isInjectableType(type)) {
+                args[i] = resolveInjectable(type, topic);
+            } else if (paramIdx < paramEntries.size()) {
+                var param = paramEntries.get(paramIdx);
+                if (arguments != null && arguments.has(param.name())) {
+                    args[i] = convertParam(arguments.get(param.name()), param.type());
+                } else {
+                    args[i] = defaultValue(param.type());
+                }
+                paramIdx++;
             }
         }
         return args;
+    }
+
+    /**
+     * Resolve framework-injectable types for @McpTool method parameters.
+     */
+    private Object resolveInjectable(Class<?> type, String topic) {
+        if (type == AtmosphereConfig.class) {
+            return config;
+        }
+        if (type == BroadcasterFactory.class) {
+            return config.getBroadcasterFactory();
+        }
+        if (type == AtmosphereFramework.class) {
+            return config.framework();
+        }
+        if (type == Broadcaster.class) {
+            if (topic == null) {
+                logger.warn("Broadcaster injection requires a 'topic' argument");
+                return null;
+            }
+            return config.getBroadcasterFactory().lookup(topic, true);
+        }
+        // StreamingSession — create a BroadcasterStreamingSession wrapping the topic's Broadcaster
+        try {
+            var streamingSessionClass = Class.forName("org.atmosphere.ai.StreamingSession");
+            if (streamingSessionClass.isAssignableFrom(type)) {
+                if (topic == null) {
+                    logger.warn("StreamingSession injection requires a 'topic' argument");
+                    return null;
+                }
+                var broadcaster = config.getBroadcasterFactory().lookup(topic, true);
+                // Use StreamingSessions.start(Broadcaster) via reflection to avoid hard compile dependency
+                var factoryClass = Class.forName("org.atmosphere.ai.StreamingSessions");
+                var startMethod = factoryClass.getMethod("start", Broadcaster.class);
+                return startMethod.invoke(null, broadcaster);
+            }
+        } catch (ClassNotFoundException ignored) {
+            // atmosphere-ai not on classpath
+        } catch (Exception e) {
+            logger.warn("Failed to create StreamingSession for topic {}", topic, e);
+        }
+        return null;
     }
 
     /**

@@ -25,6 +25,14 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Optional: enables StreamingSession injection in @McpTool methods -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <version>${project.version}</version>
+            <optional>true</optional>
+        </dependency>
+
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
