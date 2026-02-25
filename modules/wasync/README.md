@@ -2,7 +2,7 @@
 
 A fluent, lightweight WebSocket/HTTP client for the [Atmosphere Framework](https://github.com/Atmosphere/atmosphere), powered by `java.net.http` (JDK 21+). Zero external dependencies beyond SLF4J.
 
-wAsync supports **WebSocket**, **Server-Sent Events (SSE)**, **HTTP Streaming**, and **Long-Polling** transports with automatic fallback, reconnection, and a type-safe encoder/decoder pipeline.
+wAsync supports **WebSocket**, **Server-Sent Events (SSE)**, **HTTP Streaming**, **Long-Polling**, and **gRPC** transports with automatic fallback, reconnection, and a type-safe encoder/decoder pipeline.
 
 ## Quick Start
 
@@ -12,7 +12,7 @@ wAsync supports **WebSocket**, **Server-Sent Events (SSE)**, **HTTP Streaming**,
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-wasync</artifactId>
-    <version>4.0.4-SNAPSHOT</version>
+    <version>4.0.4</version>
 </dependency>
 ```
 
@@ -50,6 +50,7 @@ wAsync supports four transports. Specify one or chain them for automatic fallbac
 | `SSE` | Server-Sent Events | Server push over HTTP |
 | `STREAMING` | HTTP chunked streaming | Continuous server push |
 | `LONG_POLLING` | Repeated HTTP requests | Universal fallback |
+| `GRPC` | gRPC bidirectional streaming | High-performance binary protocol over HTTP/2 |
 
 ### Transport Fallback
 
@@ -92,6 +93,41 @@ var socket = client.create()
 // Sending data works the same way — POST under the hood
 socket.fire("{\"action\": \"subscribe\", \"topic\": \"news\"}");
 ```
+
+### gRPC Example
+
+Connect to an Atmosphere gRPC server using bidirectional streaming. Requires `atmosphere-grpc`, `grpc-netty-shaded`, `grpc-protobuf`, and `grpc-stub` on the classpath.
+
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-grpc</artifactId>
+    <version>4.0.4</version>
+</dependency>
+<dependency>
+    <groupId>io.grpc</groupId>
+    <artifactId>grpc-netty-shaded</artifactId>
+    <version>1.71.0</version>
+</dependency>
+```
+
+```java
+var client = AtmosphereClient.newClient();
+
+var request = ((AtmosphereRequestBuilder) client.newRequestBuilder())
+        .uri("grpc://localhost:9090/chat")
+        .transport(Request.TRANSPORT.GRPC)
+        .build();
+
+var socket = client.create()
+        .on(Event.OPEN, o -> System.out.println("gRPC connected"))
+        .on(Event.MESSAGE, m -> System.out.println("Received: " + m))
+        .open(request);
+
+socket.fire("Hello via gRPC!");
+```
+
+The gRPC transport uses Protocol Buffers over HTTP/2 for high-performance binary messaging. On connect, it automatically subscribes to the URI path as a topic.
 
 ## Events
 
@@ -336,13 +372,13 @@ public class ChatClient {
 │  .close()     │                                  │
 ├─────────────────────────────────────────────────┤
 │            Transport Layer (auto-fallback)        │
-│  ┌───────────┬──────┬───────────┬─────────────┐  │
-│  │ WebSocket │ SSE  │ Streaming │ Long-Poll   │  │
-│  │ (duplex)  │(push)│ (chunked) │ (repeated)  │  │
-│  └───────────┴──────┴───────────┴─────────────┘  │
+│  ┌──────────┬──────┬──────────┬─────────┬──────┐ │
+│  │WebSocket │ SSE  │Streaming │Long-Poll│ gRPC │ │
+│  │(duplex)  │(push)│(chunked) │(repeated)│(H2) │ │
+│  └──────────┴──────┴──────────┴─────────┴──────┘ │
 ├─────────────────────────────────────────────────┤
-│              java.net.http (JDK 21+)             │
-│       HttpClient  ·  WebSocket  ·  HttpRequest   │
+│  java.net.http (JDK 21+)  ·  grpc-java (opt.)   │
+│  HttpClient · WebSocket · HttpRequest · gRPC     │
 └─────────────────────────────────────────────────┘
 ```
 
@@ -350,7 +386,8 @@ public class ChatClient {
 
 - **Java 21+**
 - **SLF4J** (logging facade — bring your own binding)
-- No other dependencies
+- **gRPC transport** (optional): `atmosphere-grpc`, `grpc-netty-shaded`, `grpc-protobuf`, `grpc-stub`
+- No other dependencies for WebSocket/SSE/Streaming/Long-Polling
 
 ## Building
 

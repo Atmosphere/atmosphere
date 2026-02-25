@@ -142,7 +142,7 @@ See the [AI / LLM Streaming wiki](https://github.com/Atmosphere/atmosphere/wiki/
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.3</version>
+    <version>4.0.4</version>
 </dependency>
 ```
 
@@ -151,7 +151,7 @@ For Spring Boot:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.3</version>
+    <version>4.0.4</version>
 </dependency>
 ```
 
@@ -160,18 +160,18 @@ For Quarkus:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.3</version>
+    <version>4.0.4</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'org.atmosphere:atmosphere-runtime:4.0.3'
+implementation 'org.atmosphere:atmosphere-runtime:4.0.4'
 // or
-implementation 'org.atmosphere:atmosphere-spring-boot-starter:4.0.3'
+implementation 'org.atmosphere:atmosphere-spring-boot-starter:4.0.4'
 // or
-implementation 'org.atmosphere:atmosphere-quarkus-extension:4.0.3'
+implementation 'org.atmosphere:atmosphere-quarkus-extension:4.0.4'
 ```
 
 ### npm (TypeScript/JavaScript client)
@@ -185,7 +185,8 @@ npm install atmosphere.js
 | Module | Artifact | Description |
 |--------|----------|-------------|
 | Core runtime | `atmosphere-runtime` | WebSocket, SSE, Long-Polling transport layer (Servlet 6.0+) |
-| Spring Boot starter | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0.2+ |
+| gRPC transport | `atmosphere-grpc` | gRPC bidirectional streaming transport (grpc-java 1.71) |
+| Spring Boot starter | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0.2+ (includes optional gRPC) |
 | Quarkus extension | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
 | AI streaming | `atmosphere-ai` | Token-by-token LLM response streaming |
 | Spring AI adapter | `atmosphere-spring-ai` | Spring AI `ChatClient` integration |
@@ -197,7 +198,7 @@ npm install atmosphere.js
 | Durable sessions | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
 | Kotlin DSL | `atmosphere-kotlin` | Builder API and coroutine extensions |
 | TypeScript client | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte bindings |
-| Java client | `atmosphere-wasync` | Async Java client — WebSocket, SSE, streaming, long-polling (JDK 21+) |
+| Java client | `atmosphere-wasync` | Async Java client — WebSocket, SSE, streaming, long-polling, and gRPC (JDK 21+) |
 
 ## Rooms & Presence
 
@@ -239,6 +240,45 @@ atmosphere:
 | `broadcaster-class` | | Custom Broadcaster FQCN |
 | `broadcaster-cache-class` | | Custom BroadcasterCache FQCN |
 | `init-params` | | Map of any `ApplicationConfig` key/value |
+
+</details>
+
+<details>
+<summary>gRPC transport</summary>
+
+The starter can also launch a gRPC server alongside the servlet container when `atmosphere-grpc` is on the classpath:
+
+```yaml
+atmosphere:
+  grpc:
+    enabled: true
+    port: 9090
+    enable-reflection: true
+```
+
+| Property | Default | Description |
+|----------|---------|-------------|
+| `atmosphere.grpc.enabled` | `false` | Enable gRPC transport server |
+| `atmosphere.grpc.port` | `9090` | gRPC server port |
+| `atmosphere.grpc.enable-reflection` | `true` | Enable gRPC server reflection |
+
+Define a `GrpcHandler` bean to handle gRPC events:
+
+```java
+@Bean
+public GrpcHandler grpcHandler() {
+    return new GrpcHandlerAdapter() {
+        @Override
+        public void onOpen(GrpcChannel channel) {
+            log.info("gRPC client connected: {}", channel.uuid());
+        }
+        @Override
+        public void onMessage(GrpcChannel channel, String message) {
+            log.info("gRPC message: {}", message);
+        }
+    };
+}
+```
 
 </details>
 
@@ -291,6 +331,32 @@ quarkus.atmosphere.packages=com.example.chat
 Requires GraalVM JDK 21+ or Mandrel. Use `-Dquarkus.native.container-build=true` to build without a local GraalVM installation.
 
 </details>
+
+### Standalone gRPC
+
+Use the gRPC transport without a servlet container:
+
+```java
+var framework = new AtmosphereFramework();
+
+try (var server = AtmosphereGrpcServer.builder()
+        .framework(framework)
+        .port(9090)
+        .handler(new MyGrpcHandler())
+        .build()) {
+    server.start();
+    server.awaitTermination();
+}
+```
+
+Clients connect using Protocol Buffers over HTTP/2. Test with [grpcurl](https://github.com/fullstorydev/grpcurl):
+
+```bash
+grpcurl -plaintext -d '{"type":"SUBSCRIBE","topic":"/chat"}' \
+  localhost:9090 atmosphere.AtmosphereService/Stream
+```
+
+See the [gRPC chat sample](samples/grpc-chat/) for a complete example.
 
 ## Framework client bindings
 
@@ -556,7 +622,7 @@ framework.interceptor(new BackpressureInterceptor());
 ## Client Libraries
 
 - **TypeScript/JavaScript**: [atmosphere.js](https://github.com/Atmosphere/atmosphere/tree/main/atmosphere.js) 5.0 (included in this repository)
-- **Java**: [wAsync](modules/wasync/) 4.x — fluent async client powered by `java.net.http` (JDK 21+), supports WebSocket, SSE, streaming, and long-polling
+- **Java**: [wAsync](modules/wasync/) 4.x — fluent async client powered by `java.net.http` (JDK 21+), supports WebSocket, SSE, streaming, long-polling, and gRPC
 
 ## Commercial Support
 
