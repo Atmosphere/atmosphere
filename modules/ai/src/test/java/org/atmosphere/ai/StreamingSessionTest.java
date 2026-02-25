@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.RawMessage;
 import org.mockito.ArgumentCaptor;
 
 import java.util.List;
@@ -44,18 +45,23 @@ public class StreamingSessionTest {
         broadcaster = mock(Broadcaster.class);
         when(resource.uuid()).thenReturn("resource-uuid");
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         session = StreamingSessions.start("test-session", resource);
+    }
+
+    /** Extract the JSON string from a captured RawMessage. */
+    private static String raw(RawMessage msg) {
+        return (String) msg.message();
     }
 
     @Test
     public void testSendToken() throws Exception {
         session.send("Hello");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var json = MAPPER.readTree(captor.getValue());
+        var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals("token", json.get("type").asText());
         assertEquals("Hello", json.get("data").asText());
         assertEquals("test-session", json.get("sessionId").asText());
@@ -67,12 +73,12 @@ public class StreamingSessionTest {
         session.send("Hello");
         session.send(" world");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, times(2)).broadcast(captor.capture());
 
-        List<String> messages = captor.getAllValues();
-        var first = MAPPER.readTree(messages.get(0));
-        var second = MAPPER.readTree(messages.get(1));
+        var messages = captor.getAllValues();
+        var first = MAPPER.readTree(raw(messages.get(0)));
+        var second = MAPPER.readTree(raw(messages.get(1)));
 
         assertEquals(1L, first.get("seq").asLong());
         assertEquals(2L, second.get("seq").asLong());
@@ -83,10 +89,10 @@ public class StreamingSessionTest {
     public void testProgress() throws Exception {
         session.progress("Thinking...");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var json = MAPPER.readTree(captor.getValue());
+        var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals("progress", json.get("type").asText());
         assertEquals("Thinking...", json.get("data").asText());
     }
@@ -95,10 +101,10 @@ public class StreamingSessionTest {
     public void testComplete() throws Exception {
         session.complete();
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var json = MAPPER.readTree(captor.getValue());
+        var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals("complete", json.get("type").asText());
         assertFalse(json.has("data"));
         assertTrue(session.isClosed());
@@ -108,10 +114,10 @@ public class StreamingSessionTest {
     public void testCompleteWithSummary() throws Exception {
         session.complete("Full response here");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var json = MAPPER.readTree(captor.getValue());
+        var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals("complete", json.get("type").asText());
         assertEquals("Full response here", json.get("data").asText());
     }
@@ -120,10 +126,10 @@ public class StreamingSessionTest {
     public void testError() throws Exception {
         session.error(new RuntimeException("Connection lost"));
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var json = MAPPER.readTree(captor.getValue());
+        var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals("error", json.get("type").asText());
         assertEquals("Connection lost", json.get("data").asText());
         assertTrue(session.isClosed());
@@ -136,7 +142,7 @@ public class StreamingSessionTest {
 
         session.send("should be ignored");
 
-        verify(broadcaster, never()).broadcast(anyString());
+        verify(broadcaster, never()).broadcast(any());
     }
 
     @Test
@@ -146,17 +152,17 @@ public class StreamingSessionTest {
 
         session.complete();
 
-        verify(broadcaster, never()).broadcast(anyString());
+        verify(broadcaster, never()).broadcast(any());
     }
 
     @Test
     public void testSendMetadata() throws Exception {
         session.sendMetadata("model", "gpt-4");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var json = MAPPER.readTree(captor.getValue());
+        var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals("metadata", json.get("type").asText());
         assertEquals("model", json.get("key").asText());
         assertEquals("gpt-4", json.get("value").asText());
@@ -168,10 +174,10 @@ public class StreamingSessionTest {
             s.send("token");
         }
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, times(2)).broadcast(captor.capture());
 
-        var last = MAPPER.readTree(captor.getAllValues().get(1));
+        var last = MAPPER.readTree(raw(captor.getAllValues().get(1)));
         assertEquals("complete", last.get("type").asText());
         assertTrue(session.isClosed());
     }
@@ -200,14 +206,13 @@ public class StreamingSessionTest {
         session.send("!");
         session.complete("Hello world!");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, times(6)).broadcast(captor.capture());
 
-        List<String> messages = captor.getAllValues();
-        var types = messages.stream()
+        var types = captor.getAllValues().stream()
                 .map(m -> {
                     try {
-                        return MAPPER.readTree(m).get("type").asText();
+                        return MAPPER.readTree(raw(m)).get("type").asText();
                     } catch (Exception e) {
                         return "error";
                     }

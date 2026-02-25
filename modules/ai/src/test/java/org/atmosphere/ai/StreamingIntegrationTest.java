@@ -19,6 +19,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.RawMessage;
 import org.mockito.ArgumentCaptor;
 
 import java.util.ArrayList;
@@ -44,13 +45,17 @@ public class StreamingIntegrationTest {
 
     private static final ObjectMapper MAPPER = new ObjectMapper();
 
+    private static String raw(RawMessage msg) {
+        return (String) msg.message();
+    }
+
     @Test
     public void testConcurrentTokenSending() throws Exception {
         var resource = mock(AtmosphereResource.class);
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("concurrent-session", resource);
 
         int threadCount = 10;
@@ -73,13 +78,13 @@ public class StreamingIntegrationTest {
 
         assertTrue(latch.await(10, TimeUnit.SECONDS), "All threads should complete");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, times(threadCount * tokensPerThread)).broadcast(captor.capture());
 
         // Verify all sequence numbers are unique
         Set<Long> seqs = ConcurrentHashMap.newKeySet();
         for (var msg : captor.getAllValues()) {
-            var json = MAPPER.readTree(msg);
+            var json = MAPPER.readTree(raw(msg));
             assertTrue(seqs.add(json.get("seq").asLong()),
                     "Sequence number should be unique: " + json.get("seq"));
         }
@@ -93,7 +98,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
 
         var session1 = StreamingSessions.start("session-1", resource);
         var session2 = StreamingSessions.start("session-2", resource);
@@ -104,13 +109,13 @@ public class StreamingIntegrationTest {
         session2.send("Still going");
         session2.complete();
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, times(5)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(m -> {
                     try {
-                        return MAPPER.readTree((String) m);
+                        return MAPPER.readTree(raw(m));
                     } catch (Exception e) {
                         fail("Failed to parse JSON: " + m);
                         return null;
@@ -136,12 +141,12 @@ public class StreamingIntegrationTest {
         when(resource1.uuid()).thenReturn("res-1");
         var broadcaster1 = mock(Broadcaster.class);
         when(resource1.getBroadcaster()).thenReturn(broadcaster1);
-        when(broadcaster1.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster1.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var resource2 = mock(AtmosphereResource.class);
         when(resource2.uuid()).thenReturn("res-2");
         var broadcaster2 = mock(Broadcaster.class);
         when(resource2.getBroadcaster()).thenReturn(broadcaster2);
-        when(broadcaster2.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster2.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
 
         var session1 = StreamingSessions.start("iso-1", resource1);
         var session2 = StreamingSessions.start("iso-2", resource2);
@@ -149,8 +154,8 @@ public class StreamingIntegrationTest {
         session1.send("Only for broadcaster1");
         session2.send("Only for broadcaster2");
 
-        verify(broadcaster1, times(1)).broadcast(anyString());
-        verify(broadcaster2, times(1)).broadcast(anyString());
+        verify(broadcaster1, times(1)).broadcast(any(RawMessage.class));
+        verify(broadcaster2, times(1)).broadcast(any(RawMessage.class));
 
         // Closing one should not affect the other
         session1.complete();
@@ -158,7 +163,7 @@ public class StreamingIntegrationTest {
         assertFalse(session2.isClosed());
 
         session2.send("Still works");
-        verify(broadcaster2, times(2)).broadcast(anyString());
+        verify(broadcaster2, times(2)).broadcast(any(RawMessage.class));
     }
 
     @Test
@@ -167,7 +172,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("race-session", resource);
 
         int threadCount = 50;
@@ -208,15 +213,16 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         List<String> capturedTypes = new ArrayList<>();
 
         doAnswer(inv -> {
-            String json = inv.getArgument(0);
+            RawMessage rawMsg = inv.getArgument(0);
+            String json = raw(rawMsg);
             var node = MAPPER.readTree(json);
             capturedTypes.add(node.get("type").asText());
             return null;
-        }).when(broadcaster).broadcast(anyString());
+        }).when(broadcaster).broadcast(any(RawMessage.class));
 
         try (var session = StreamingSessions.start("auto-close", resource)) {
             session.send("token1");
@@ -238,7 +244,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("meta-session", resource);
 
         session.sendMetadata("model", "gpt-4o");
@@ -248,13 +254,13 @@ public class StreamingIntegrationTest {
         session.send(" world");
         session.complete("Hello world");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, times(6)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream()
                 .map(m -> {
                     try {
-                        return MAPPER.readTree((String) m);
+                        return MAPPER.readTree(raw(m));
                     } catch (Exception e) {
                         return null;
                     }
@@ -280,7 +286,7 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("error-session", resource);
 
         session.send("some data");
@@ -291,7 +297,7 @@ public class StreamingIntegrationTest {
         // Subsequent sends should be ignored
         session.send("ignored");
 
-        verify(broadcaster, times(2)).broadcast(anyString()); // token + error only
+        verify(broadcaster, times(2)).broadcast(any(RawMessage.class)); // token + error only
     }
 
     @Test
@@ -300,13 +306,13 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("double-close", resource);
 
         session.complete();
         session.error(new RuntimeException("Should be ignored"));
 
-        verify(broadcaster, times(1)).broadcast(anyString()); // only complete
+        verify(broadcaster, times(1)).broadcast(any(RawMessage.class)); // only complete
     }
 
     @Test
@@ -315,16 +321,16 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("wire-test", resource);
 
         session.send("Hello");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        String raw = captor.getValue();
-        JsonNode json = MAPPER.readTree(raw);
+        String wireJson = raw(captor.getValue());
+        JsonNode json = MAPPER.readTree(wireJson);
 
         // Verify all required wire protocol fields are present
         assertTrue(json.has("type"), "Must have 'type' field");
@@ -338,7 +344,7 @@ public class StreamingIntegrationTest {
         assertTrue(json.get("seq").asLong() > 0, "Seq should be positive");
 
         // Verify it's valid JSON that JavaScript can parse
-        assertNotNull(MAPPER.readTree(raw));
+        assertNotNull(MAPPER.readTree(wireJson));
     }
 
     @Test
@@ -347,17 +353,17 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("large-session", resource);
 
         // Simulate a large token (e.g. a code block)
         String largeToken = "x".repeat(10_000);
         session.send(largeToken);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var json = MAPPER.readTree(captor.getValue());
+        var json = MAPPER.readTree(raw(captor.getValue()));
         assertEquals(10_000, json.get("data").asText().length());
     }
 
@@ -367,19 +373,19 @@ public class StreamingIntegrationTest {
         when(resource.uuid()).thenReturn("res-1");
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
         var session = StreamingSessions.start("special-session", resource);
 
         session.send("He said \"hello\" and\nnewline\ttab");
         session.send("Unicode: 你好世界 🌍");
         session.send("<script>alert('xss')</script>");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, times(3)).broadcast(captor.capture());
 
         // All should be valid JSON
         for (var msg : captor.getAllValues()) {
-            JsonNode json = MAPPER.readTree(msg);
+            JsonNode json = MAPPER.readTree(raw(msg));
             assertNotNull(json.get("data").asText());
         }
     }

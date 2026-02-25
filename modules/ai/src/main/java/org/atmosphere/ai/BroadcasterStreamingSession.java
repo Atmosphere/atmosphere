@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -127,7 +128,7 @@ final class BroadcasterStreamingSession implements StreamingSession {
 
     private void broadcast(String json) {
         try {
-            broadcaster.broadcast(json);
+            broadcaster.broadcast(new RawMessage(json));
         } catch (Exception e) {
             logger.warn("Failed to broadcast from session {}: {}", sessionId, e.getMessage());
         }

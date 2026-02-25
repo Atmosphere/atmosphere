@@ -18,6 +18,7 @@ package org.atmosphere.ai;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -137,11 +138,11 @@ final class DefaultStreamingSession implements StreamingSession {
     }
 
     private void broadcast(String json) {
-        // Broadcast to all connected clients via the Broadcaster.
-        // This does NOT re-trigger @Message handlers — broadcast() invokes
-        // onStateChange(), not onMessage().
+        // Wrap in RawMessage so ManagedAtmosphereHandler.onStateChange()
+        // delivers the JSON as-is without re-invoking @Message handlers,
+        // which would cause infinite recursion.
         try {
-            resource.getBroadcaster().broadcast(json);
+            resource.getBroadcaster().broadcast(new RawMessage(json));
         } catch (Exception e) {
             logger.warn("Failed to broadcast from session {}: {}", sessionId, e.getMessage());
         }

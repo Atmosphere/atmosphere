@@ -18,6 +18,7 @@ package org.atmosphere.ai.llm;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.Broadcaster;
+import org.atmosphere.cpr.RawMessage;
 import org.mockito.ArgumentCaptor;
 
 import java.io.ByteArrayInputStream;
@@ -45,7 +46,12 @@ public class OpenAiCompatibleClientTest {
         broadcaster = mock(Broadcaster.class);
         when(resource.uuid()).thenReturn("r1");
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any(RawMessage.class))).thenReturn(mock(Future.class));
+    }
+
+    /** Extract the JSON string from a captured RawMessage. */
+    private static String raw(RawMessage msg) {
+        return (String) msg.message();
     }
 
     @Test
@@ -116,10 +122,10 @@ public class OpenAiCompatibleClientTest {
 
         client.streamChatCompletion(request, session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(3)).broadcast(captor.capture());
 
-        var messages = captor.getAllValues().stream().toList();
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
 
         // Should have: progress, "Hello", " world", "!", complete
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"progress\"")));
@@ -146,10 +152,10 @@ public class OpenAiCompatibleClientTest {
 
         client.streamChatCompletion(request, session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(2)).broadcast(captor.capture());
 
-        var messages = captor.getAllValues().stream().toList();
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
         assertTrue(messages.stream().anyMatch(m -> m.contains("Invalid API key")));
     }
@@ -174,10 +180,10 @@ public class OpenAiCompatibleClientTest {
         var session = StreamingSessions.start("test-usage", resource);
         client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(3)).broadcast(captor.capture());
 
-        var messages = captor.getAllValues().stream().toList();
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
         assertTrue(messages.stream().anyMatch(m -> m.contains("\"type\":\"metadata\"") && m.contains("usage.totalTokens")));
     }
 
@@ -203,10 +209,10 @@ public class OpenAiCompatibleClientTest {
         var session = StreamingSessions.start("test-empty", resource);
         client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(2)).broadcast(captor.capture());
 
-        var messages = captor.getAllValues().stream().toList();
+        var messages = captor.getAllValues().stream().map(m -> raw(m)).toList();
         // Only "OK" should be sent as a token, not empty string
         long tokenCount = messages.stream().filter(m -> m.contains("\"type\":\"token\"")).count();
         assertEquals(1, tokenCount);
@@ -241,9 +247,9 @@ public class OpenAiCompatibleClientTest {
 
         // Should have retried and succeeded
         verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(2)).broadcast(captor.capture());
-        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"data\":\"OK\"")));
+        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"data\":\"OK\"")));
     }
 
     @Test
@@ -267,9 +273,9 @@ public class OpenAiCompatibleClientTest {
 
         // Should NOT retry on 401
         verify(httpClient, times(1)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(1)).broadcast(captor.capture());
-        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
+        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"type\":\"error\"")));
     }
 
     @Test
@@ -295,9 +301,9 @@ public class OpenAiCompatibleClientTest {
 
         // Should have tried 3 times (initial + 2 retries)
         verify(httpClient, times(3)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(1)).broadcast(captor.capture());
-        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"type\":\"error\"")));
+        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"type\":\"error\"")));
     }
 
     @Test
@@ -321,9 +327,9 @@ public class OpenAiCompatibleClientTest {
         client.streamChatCompletion(ChatCompletionRequest.of("test", "Hi"), session);
 
         verify(httpClient, times(2)).send(any(HttpRequest.class), any(HttpResponse.BodyHandler.class));
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(RawMessage.class);
         verify(broadcaster, atLeast(2)).broadcast(captor.capture());
-        assertTrue(captor.getAllValues().stream().anyMatch(m -> m.contains("\"data\":\"OK\"")));
+        assertTrue(captor.getAllValues().stream().map(m -> raw(m)).anyMatch(m -> m.contains("\"data\":\"OK\"")));
     }
 
     @Test
