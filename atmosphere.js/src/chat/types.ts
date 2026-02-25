@@ -39,9 +39,9 @@ export interface ChatTheme {
  * Built-in theme presets.
  */
 export const themes: Record<string, ChatTheme> = {
-  default: { gradient: ['#667eea', '#764ba2'], accent: '#667eea' },
-  ai: { gradient: ['#667eea', '#764ba2'], accent: '#667eea', dark: true },
-  langchain4j: { gradient: ['#e040fb', '#7c4dff'], accent: '#e040fb', dark: true },
-  embabel: { gradient: ['#00b4d8', '#0077b6'], accent: '#00b4d8', dark: true },
-  mcp: { gradient: ['#667eea', '#764ba2'], accent: '#667eea' },
+  default: { gradient: ['#4a5a8a', '#5c3d7a'], accent: '#4a5a8a' },
+  ai: { gradient: ['#4a5a8a', '#5c3d7a'], accent: '#4a5a8a', dark: true },
+  langchain4j: { gradient: ['#7a3a8a', '#4a3a7a'], accent: '#7a3a8a', dark: true },
+  embabel: { gradient: ['#2a7a8a', '#1a5a7a'], accent: '#2a7a8a', dark: true },
+  mcp: { gradient: ['#4a5a8a', '#5c3d7a'], accent: '#4a5a8a' },
 };

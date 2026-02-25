@@ -1,0 +1,27 @@
+# Atmosphere + Spring AI Chat
+# Uses Spring AI's ChatClient for LLM integration.
+#
+# Set OPENAI_API_KEY (or any OpenAI-compatible provider key) to enable real responses.
+# Without an API key, the app runs in demo mode with simulated streaming.
+#
+# Example .envrc for OpenAI:
+#   export OPENAI_API_KEY=sk-...
+#
+# Example .envrc for Gemini (OpenAI-compatible endpoint):
+#   export OPENAI_API_KEY=AIza...
+#   export SPRING_AI_OPENAI_BASE_URL=https://generativelanguage.googleapis.com/v1beta/openai
+#   export SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL=gemini-2.5-flash
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.springaichat
+
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:demo}
+      chat:
+        options:
+          model: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:gpt-4o-mini}
+
+server:
+  port: 8083
