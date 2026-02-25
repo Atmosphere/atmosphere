@@ -34,7 +34,7 @@ public final class DemoResponseProducer {
         var words = response.split("(?<=\\s)");
 
         try {
-            session.progress("Demo mode — no API key configured");
+            session.progress("Demo mode — set LLM_API_KEY to enable real responses");
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);

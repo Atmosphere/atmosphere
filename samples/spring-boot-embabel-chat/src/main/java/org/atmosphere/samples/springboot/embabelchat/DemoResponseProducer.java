@@ -34,7 +34,7 @@ public final class DemoResponseProducer {
         var words = response.split("(?<=\\s)");
 
         try {
-            session.progress("Demo mode — no OPENAI_API_KEY configured");
+            session.progress("Demo mode — set OPENAI_API_KEY to enable real agents");
             for (var word : words) {
                 session.send(word);
                 Thread.sleep(50);
