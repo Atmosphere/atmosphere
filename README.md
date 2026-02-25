@@ -4,25 +4,50 @@
 
 # Atmosphere
 
-The missing transport layer between your LLM and your browser. Spring AI gives you `Flux<ChatResponse>`. LangChain4j gives you `StreamingChatResponseHandler`. Neither delivers tokens to the user. Atmosphere does — over WebSocket with SSE/Long-Polling fallback, reconnection, rooms, presence, and Kafka/Redis clustering. Add one dependency to your Spring Boot or Quarkus app.
+A transport-agnostic real-time framework for the JVM built around two core abstractions: **Broadcaster** (a named pub/sub channel that fans out messages to subscribers) and **AtmosphereResource** (a connection, regardless of transport). Application code publishes to a Broadcaster; the framework delivers over WebSocket, SSE, Long-Polling, or gRPC — the transport is pluggable and transparent. Rewritten for JDK 21 virtual threads.
 
 [![Maven Central](https://img.shields.io/maven-central/v/org.atmosphere/atmosphere-runtime?label=Maven%20Central&color=blue)](https://central.sonatype.com/artifact/org.atmosphere/atmosphere-runtime)
 [![npm](https://img.shields.io/npm/v/atmosphere.js?label=atmosphere.js&color=blue)](https://www.npmjs.com/package/atmosphere.js)
 [![Atmosphere CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
 [![Atmosphere.js CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml)
 
+## Core Concepts
+
+**Broadcaster** — a named channel. Call `broadcaster.broadcast(message)` and every subscribed resource receives it, regardless of transport. Broadcasters support caching, filtering, and clustering (Redis, Kafka) out of the box.
+
+**AtmosphereResource** — represents a single connection. It wraps the underlying transport (WebSocket frame, SSE event stream, HTTP response, or gRPC stream) behind a uniform API. Resources subscribe to Broadcasters.
+
+**Transport** — the wire protocol. Atmosphere ships with WebSocket, SSE, Long-Polling, and gRPC transports. The transport is selected per-connection and can fall back automatically (e.g., WebSocket → SSE → Long-Polling).
+
+```java
+@ManagedService(path = "/chat")
+public class Chat {
+
+    @Ready
+    public void onReady(AtmosphereResource r) {
+        // r could be WebSocket, SSE, Long-Polling, or gRPC — doesn't matter
+        log.info("{} connected via {}", r.uuid(), r.transport());
+    }
+
+    @Message(encoders = JacksonEncoder.class, decoders = JacksonDecoder.class)
+    public ChatMessage onMessage(ChatMessage message) {
+        // Return value is broadcast to all subscribers
+        return message;
+    }
+}
+```
+
 ## AI/LLM Token Streaming
 
-Frameworks like Spring AI, LangChain4j, and Embabel handle **LLM ↔ server** communication. Atmosphere handles the other half: **server ↔ browser**. Built on 18 years of WebSocket experience, rewritten for JDK 21 virtual threads. It streams tokens to the client in real time over WebSocket (with SSE/Long-Polling fallback), manages reconnection and backpressure, and provides React/Vue/Svelte hooks — so you don't have to build all of that yourself.
+Atmosphere also serves as a transport layer for AI applications. Frameworks like Spring AI, LangChain4j, and Embabel handle LLM communication; Atmosphere delivers tokens to the browser in real time over any supported transport.
 
 ### What you get
 
-- **`@AiEndpoint` + `@Prompt`** — annotate a class, receive prompts, stream tokens. Runs on virtual threads.
-- **Built-in LLM client** — zero-dependency `OpenAiCompatibleClient` that talks to OpenAI, Gemini, Ollama, or any OpenAI-compatible API. No Spring AI or LangChain4j required.
-- **Adapter SPI** — plug in Spring AI (`Flux<ChatResponse>`), LangChain4j (`StreamingChatResponseHandler`), or Embabel (`OutputChannel`). Your framework generates tokens; Atmosphere delivers them.
-- **Standardized wire protocol** — every token is a JSON frame with `type`, `data`, `sessionId`, and `seq` for ordering. Progress events, metadata (model, token usage), and error frames are built in.
-- **AI as a room participant** — `LlmRoomMember` joins a Room like any user. When someone sends a message, the LLM receives it, streams a response, and broadcasts it back. Humans and AI in the same room.
-- **Client hooks** — `useStreaming()` for React/Vue/Svelte gives you `fullText`, `isStreaming`, `progress`, `metadata`, and `error` out of the box. No custom WebSocket code.
+- **`@AiEndpoint` + `@Prompt`** — annotate a class, receive prompts, stream tokens.
+- **Built-in LLM client** — zero-dependency `OpenAiCompatibleClient` that talks to OpenAI, Gemini, Ollama, or any OpenAI-compatible API.
+- **Adapter SPI** — plug in Spring AI, LangChain4j, or Embabel. Your framework generates tokens; Atmosphere delivers them over the Broadcaster.
+- **AI as a room participant** — `LlmRoomMember` joins a Room like any user. The LLM subscribes to the same Broadcaster as human participants.
+- **Client hooks** — `useStreaming()` for React/Vue/Svelte.
 
 ### Server — 5 lines with the built-in client
 
