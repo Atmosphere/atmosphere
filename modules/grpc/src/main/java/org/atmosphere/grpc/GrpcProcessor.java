@@ -16,6 +16,7 @@
 package org.atmosphere.grpc;
 
 import io.grpc.stub.StreamObserver;
+import org.atmosphere.cpr.Action;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -26,6 +27,7 @@ import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.HeaderConfig;
 import org.atmosphere.grpc.proto.AtmosphereMessage;
 import org.atmosphere.grpc.proto.MessageType;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -69,6 +71,7 @@ public class GrpcProcessor {
         var response = new AtmosphereResponseImpl.Builder()
                 .asyncIOWriter(writer)
                 .request(request)
+                .writeHeader(false)
                 .build();
 
         try {
@@ -76,6 +79,9 @@ public class GrpcProcessor {
                     config, request, response, framework.getAsyncSupport());
             if (resource instanceof AtmosphereResourceImpl impl) {
                 impl.transport(TRANSPORT.GRPC);
+                impl.atmosphereHandler(new AbstractReflectorAtmosphereHandler.Default());
+                impl.action().type(Action.TYPE.SUSPEND);
+                impl.action().timeout(-1);
             }
             channel.resource(resource);
         } catch (Exception e) {
@@ -148,6 +154,8 @@ public class GrpcProcessor {
             handler.onBinaryMessage(channel, message.getBinaryPayload().toByteArray());
         }
 
+        // Broadcast through Atmosphere's transport-agnostic Broadcaster so that
+        // ALL subscribed resources (WebSocket, SSE, gRPC, etc.) receive the message.
         if (!message.getTopic().isEmpty()) {
             var broadcaster = framework.getBroadcasterFactory().lookup(message.getTopic(), false);
             if (broadcaster != null) {

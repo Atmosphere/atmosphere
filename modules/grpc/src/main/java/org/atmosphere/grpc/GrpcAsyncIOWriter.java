@@ -19,7 +19,7 @@ import org.atmosphere.cpr.AsyncIOWriter;
 import org.atmosphere.cpr.AtmosphereResponse;
 
 import java.io.IOException;
-import java.util.Arrays;
+import java.nio.charset.StandardCharsets;
 
 /**
  * Bridges Atmosphere's response writing to a {@link GrpcChannel}.
@@ -52,17 +52,15 @@ public class GrpcAsyncIOWriter implements AsyncIOWriter {
 
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, byte[] data) throws IOException {
-        channel.write(data);
+        // Atmosphere delivers text payloads as UTF-8 bytes through the OutputStream;
+        // convert to String so gRPC clients receive it as payload (not binary_payload).
+        channel.write(new String(data, StandardCharsets.UTF_8));
         return this;
     }
 
     @Override
     public AsyncIOWriter write(AtmosphereResponse r, byte[] data, int offset, int length) throws IOException {
-        if (offset == 0 && length == data.length) {
-            channel.write(data);
-        } else {
-            channel.write(Arrays.copyOfRange(data, offset, offset + length));
-        }
+        channel.write(new String(data, offset, length, StandardCharsets.UTF_8));
         return this;
     }
 

@@ -59,34 +59,34 @@ class GrpcAsyncIOWriterTest {
 
     @Test
     void writeBytesDelegatesToChannel() throws IOException {
-        byte[] data = {10, 20, 30};
+        byte[] data = "abc".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         var result = writer.write(response, data);
 
         assertSame(writer, result);
         var captor = ArgumentCaptor.forClass(AtmosphereMessage.class);
         verify(observer).onNext(captor.capture());
-        assertArrayEquals(data, captor.getValue().getBinaryPayload().toByteArray());
+        assertEquals("abc", captor.getValue().getPayload());
     }
 
     @Test
     void writeBytesWithFullRangeDelegatesToChannel() throws IOException {
-        byte[] data = {1, 2, 3};
+        byte[] data = "xyz".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         var result = writer.write(response, data, 0, data.length);
 
         assertSame(writer, result);
         var captor = ArgumentCaptor.forClass(AtmosphereMessage.class);
         verify(observer).onNext(captor.capture());
-        assertArrayEquals(data, captor.getValue().getBinaryPayload().toByteArray());
+        assertEquals("xyz", captor.getValue().getPayload());
     }
 
     @Test
     void writeBytesWithOffsetSlicesCorrectly() throws IOException {
-        byte[] data = {1, 2, 3, 4, 5};
+        byte[] data = "hello".getBytes(java.nio.charset.StandardCharsets.UTF_8);
         writer.write(response, data, 1, 3);
 
         var captor = ArgumentCaptor.forClass(AtmosphereMessage.class);
         verify(observer).onNext(captor.capture());
-        assertArrayEquals(new byte[]{2, 3, 4}, captor.getValue().getBinaryPayload().toByteArray());
+        assertEquals("ell", captor.getValue().getPayload());
     }
 
     @Test

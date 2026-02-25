@@ -36,6 +36,7 @@ public class EmbeddedAtmosphereServer implements AutoCloseable {
     private final ServerConnector connector;
     private final Map<String, String> initParams = new HashMap<>();
     private String annotationPackage = "org.atmosphere.integrationtests";
+    private AtmosphereServlet atmosphereServlet;
 
     public EmbeddedAtmosphereServer() {
         server = new Server();
@@ -44,6 +45,11 @@ public class EmbeddedAtmosphereServer implements AutoCloseable {
         server.addConnector(connector);
         // Disable auto-detection of clustered broadcasters (Redis/Kafka) on classpath
         initParams.put(ApplicationConfig.AUTODETECT_BROADCASTER, "false");
+    }
+
+    public EmbeddedAtmosphereServer withPort(int port) {
+        connector.setPort(port);
+        return this;
     }
 
     public EmbeddedAtmosphereServer withAnnotationPackage(String pkg) {
@@ -62,7 +68,7 @@ public class EmbeddedAtmosphereServer implements AutoCloseable {
 
         JakartaWebSocketServletContainerInitializer.configure(context, null);
 
-        var atmosphereServlet = new AtmosphereServlet();
+        atmosphereServlet = new AtmosphereServlet();
         var holder = new ServletHolder(atmosphereServlet);
         holder.setInitParameter(ApplicationConfig.ANNOTATION_PACKAGE, annotationPackage);
         holder.setInitParameter(ApplicationConfig.WEBSOCKET_SUPPORT, "true");
@@ -88,6 +94,10 @@ public class EmbeddedAtmosphereServer implements AutoCloseable {
 
     public String getWebSocketUrl() {
         return "ws://localhost:" + getPort();
+    }
+
+    public org.atmosphere.cpr.AtmosphereFramework getFramework() {
+        return atmosphereServlet.framework();
     }
 
     @Override

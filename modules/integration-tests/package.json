@@ -14,6 +14,8 @@
     "report": "npx playwright show-report"
   },
   "devDependencies": {
+    "@grpc/grpc-js": "^1.14.3",
+    "@grpc/proto-loader": "^0.8.0",
     "@playwright/test": "^1.50.0",
     "@types/ws": "^8.18.1",
     "ws": "^8.19.0"

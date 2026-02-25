@@ -54,6 +54,44 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Atmosphere gRPC -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-grpc</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
+        <!-- Atmosphere wAsync client -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-wasync</artifactId>
+            <version>${project.version}</version>
+            <scope>test</scope>
+        </dependency>
+
+        <!-- gRPC dependencies for client-side -->
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-netty-shaded</artifactId>
+            <version>1.71.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-protobuf</artifactId>
+            <version>1.71.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-stub</artifactId>
+            <version>1.71.0</version>
+        </dependency>
+        <dependency>
+            <groupId>io.grpc</groupId>
+            <artifactId>grpc-inprocess</artifactId>
+            <version>1.71.0</version>
+            <scope>test</scope>
+        </dependency>
+
         <!-- Jetty 12 Embedded -->
         <dependency>
             <groupId>org.eclipse.jetty</groupId>
@@ -71,12 +109,11 @@
             <version>${jetty-version}</version>
         </dependency>
 
-        <!-- Jakarta Servlet -->
+        <!-- Jakarta Servlet (compile scope: needed at runtime for embedded Jetty + exec:java) -->
         <dependency>
             <groupId>jakarta.servlet</groupId>
             <artifactId>jakarta.servlet-api</artifactId>
             <version>6.1.0</version>
-            <scope>provided</scope>
         </dependency>
 
         <!-- Logging -->
@@ -84,7 +121,7 @@
             <groupId>ch.qos.logback</groupId>
             <artifactId>logback-classic</artifactId>
             <version>${logback-version}</version>
-            <scope>test</scope>
+            <scope>runtime</scope>
         </dependency>
         <!-- Testcontainers -->
         <dependency>

@@ -44,6 +44,7 @@ public class GrpcTransport extends AbstractTransport {
     private final Options options;
     private volatile ManagedChannel channel;
     private volatile StreamObserver<AtmosphereMessage> requestObserver;
+    private volatile String topic;
     private List<Decoder<?, ?>> decoders = List.of();
     private FunctionResolver resolver = FunctionResolver.DEFAULT;
 
@@ -65,7 +66,7 @@ public class GrpcTransport extends AbstractTransport {
 
         var host = uri.getHost();
         var port = uri.getPort() > 0 ? uri.getPort() : 443;
-        var topic = uri.getPath() != null ? uri.getPath() : "/";
+        this.topic = uri.getPath() != null ? uri.getPath() : "/";
 
         channel = ManagedChannelBuilder.forAddress(host, port)
                 .usePlaintext()
@@ -139,10 +140,13 @@ public class GrpcTransport extends AbstractTransport {
             return CompletableFuture.failedFuture(new IllegalStateException("gRPC stream not connected"));
         }
         try {
-            var msg = AtmosphereMessage.newBuilder()
+            var builder = AtmosphereMessage.newBuilder()
                     .setType(MessageType.MESSAGE)
-                    .setPayload(text)
-                    .build();
+                    .setPayload(text);
+            if (topic != null) {
+                builder.setTopic(topic);
+            }
+            var msg = builder.build();
             requestObserver.onNext(msg);
             return CompletableFuture.completedFuture(null);
         } catch (Exception e) {
