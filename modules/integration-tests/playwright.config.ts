@@ -55,6 +55,10 @@ export default defineConfig({
       testMatch: /embabel-chat\.spec\.ts/,
     },
     {
+      name: 'spring-ai-chat',
+      testMatch: /spring-ai-chat\.spec\.ts/,
+    },
+    {
       name: 'durable-sessions',
       testMatch: /durable-sessions\.spec\.ts/,
     },

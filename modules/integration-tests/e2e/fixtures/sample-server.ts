@@ -65,6 +65,12 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8082,
     type: 'spring-boot',
   },
+  'spring-boot-spring-ai-chat': {
+    name: 'spring-boot-spring-ai-chat',
+    dir: 'spring-boot-spring-ai-chat',
+    port: 8083,
+    type: 'spring-boot',
+  },
   'spring-boot-mcp-server': {
     name: 'spring-boot-mcp-server',
     dir: 'spring-boot-mcp-server',
