@@ -15,6 +15,10 @@
  */
 package org.atmosphere.spring.boot;
 
+import java.lang.reflect.Field;
+
+import jakarta.inject.Inject;
+
 import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.inject.InjectableObjectFactory;
 import org.slf4j.Logger;
@@ -60,7 +64,44 @@ public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
                     defaultType.getName());
         }
 
-        return super.newClassInstance(classType, defaultType);
+        // Hybrid path: Atmosphere creates the instance and injects its own
+        // managed objects (AtmosphereResource, AtmosphereResourceEvent, etc.),
+        // then we inject any Spring beans into remaining @Inject fields.
+        U instance = super.newClassInstance(classType, defaultType);
+        injectSpringBeans(instance);
+        return instance;
+    }
+
+    /**
+     * Inject Spring-managed beans into {@code @Inject}-annotated fields that
+     * Atmosphere's injector left null (i.e. fields whose type is a Spring bean).
+     * This enables {@code @ManagedService} classes to use {@code @Inject} for
+     * both Atmosphere-managed objects and Spring beans.
+     */
+    private void injectSpringBeans(Object instance) {
+        for (Class<?> clazz = instance.getClass(); clazz != null && clazz != Object.class;
+             clazz = clazz.getSuperclass()) {
+            for (Field field : clazz.getDeclaredFields()) {
+                if (!field.isAnnotationPresent(Inject.class)) {
+                    continue;
+                }
+                try {
+                    String[] names = applicationContext.getBeanNamesForType(field.getType());
+                    if (names.length > 0) {
+                        field.setAccessible(true);
+                        if (field.get(instance) == null) {
+                            field.set(instance, applicationContext.getBean(field.getType()));
+                            logger.trace("Injected Spring bean {} into {}.{}",
+                                    field.getType().getSimpleName(),
+                                    instance.getClass().getSimpleName(), field.getName());
+                        }
+                    }
+                } catch (Exception e) {
+                    logger.trace("Could not inject Spring bean for {}.{}",
+                            instance.getClass().getSimpleName(), field.getName());
+                }
+            }
+        }
     }
 
     @Override

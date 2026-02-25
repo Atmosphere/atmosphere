@@ -17,6 +17,8 @@ package org.atmosphere.spring.boot;
 
 import java.io.IOException;
 
+import jakarta.inject.Inject;
+
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
@@ -72,6 +74,19 @@ class SpringAtmosphereObjectFactoryTest {
         assertThat(result).isNotNull();
     }
 
+    @Test
+    void hybridInjectionInjectsSpringBeansAfterAtmosphereFallback() throws Exception {
+        // HybridComponent has @Inject for both AtmosphereResource (Atmosphere-managed)
+        // and TestService (Spring-managed). Spring's createBean() will fail because
+        // it can't resolve AtmosphereResource, so the factory should fall back to
+        // Atmosphere's injector and then inject Spring beans into remaining fields.
+        HybridComponent result = factory.newClassInstance(
+                HybridComponent.class, HybridComponent.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("Spring bean should be injected").isNotNull();
+        assertThat(result.testService).isSameAs(applicationContext.getBean(TestService.class));
+    }
+
     @Configuration
     static class TestConfig {
         @Bean
@@ -100,5 +115,19 @@ class SpringAtmosphereObjectFactoryTest {
         @Override
         public void destroy() {
         }
+    }
+
+    /**
+     * Simulates a {@code @ManagedService} that uses {@code @Inject} for both
+     * Atmosphere-managed objects and Spring beans. Spring's {@code createBean()}
+     * will fail because AtmosphereResource is not a Spring bean, triggering the
+     * hybrid injection path.
+     */
+    public static class HybridComponent {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        TestService testService;
     }
 }

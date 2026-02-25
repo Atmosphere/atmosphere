@@ -36,6 +36,10 @@ import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
  * between Spring AI's {@link ChatClient} and Atmosphere's {@link org.atmosphere.ai.StreamingSession}.
  * Users keep their Spring AI code (ChatClient, Advisors) and get real-time
  * WebSocket push for free.</p>
+ *
+ * <p>{@code @Inject} works for both Atmosphere-managed objects ({@code AtmosphereResource})
+ * and Spring beans ({@code ChatClient.Builder}, {@code SpringAiStreamingAdapter}) thanks to
+ * {@code SpringAtmosphereObjectFactory}'s hybrid injection.</p>
  */
 @ManagedService(path = "/atmosphere/spring-ai-chat", atmosphereConfig = {
         MAX_INACTIVE + "=120000"
@@ -51,11 +55,19 @@ public class SpringAiChat {
         DEMO_MODE = apiKey == null || apiKey.isBlank() || "demo".equals(apiKey);
     }
 
+    // Atmosphere-managed — injected per-request
     @Inject
     private AtmosphereResource resource;
 
     @Inject
     private AtmosphereResourceEvent event;
+
+    // Spring-managed — injected at creation time by SpringAtmosphereObjectFactory
+    @Inject
+    private ChatClient.Builder chatClientBuilder;
+
+    @Inject
+    private SpringAiStreamingAdapter adapter;
 
     @Ready
     public void onReady() {
@@ -83,12 +95,7 @@ public class SpringAiChat {
         }
 
         // Use Spring AI's ChatClient via the SpringAiStreamingAdapter.
-        // The ChatClient bean is auto-configured by spring-ai-starter-model-openai
-        // and the adapter is auto-configured by atmosphere-spring-ai.
-        Thread.startVirtualThread(() -> {
-            var chatClient = SpringBeanAccessor.getBean(ChatClient.Builder.class).build();
-            var adapter = SpringBeanAccessor.getBean(SpringAiStreamingAdapter.class);
-            adapter.stream(chatClient, userMessage, session);
-        });
+        // Both beans are injected via @Inject — no manual bean lookup needed.
+        Thread.startVirtualThread(() -> adapter.stream(chatClientBuilder.build(), userMessage, session));
     }
 }
