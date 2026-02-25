@@ -33,7 +33,7 @@ import org.springframework.context.annotation.Bean;
  */
 @AutoConfiguration(after = AtmosphereAutoConfiguration.class)
 @ConditionalOnClass({MeterRegistry.class, AtmosphereMetrics.class})
-@ConditionalOnBean(AtmosphereFramework.class)
+@ConditionalOnBean({AtmosphereFramework.class, MeterRegistry.class})
 public class AtmosphereMetricsAutoConfiguration {
 
     @Bean

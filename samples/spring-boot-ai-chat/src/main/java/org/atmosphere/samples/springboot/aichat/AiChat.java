@@ -72,6 +72,11 @@ public class AiChat {
         var settings = AiConfig.get();
         var session = StreamingSessions.start(resource);
 
+        if (settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+            Thread.startVirtualThread(() -> DemoResponseProducer.stream(userMessage, session));
+            return;
+        }
+
         var request = ChatCompletionRequest.builder(settings.model())
                 .system(SYSTEM_PROMPT)
                 .user(userMessage)

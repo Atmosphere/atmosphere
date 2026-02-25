@@ -16,13 +16,18 @@
 package org.atmosphere.samples.springboot.embabelchat;
 
 import com.embabel.agent.autoconfigure.platform.AgentPlatformAutoConfiguration;
-import org.springframework.boot.SpringApplication;
-import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnExpression;
+import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Import;
 
-@SpringBootApplication(exclude = AgentPlatformAutoConfiguration.class)
-public class EmbabelChatApplication {
-
-    public static void main(String[] args) {
-        SpringApplication.run(EmbabelChatApplication.class, args);
-    }
+/**
+ * Conditionally enables Embabel's {@link AgentPlatformAutoConfiguration} only
+ * when a real OpenAI API key is configured. When the key is absent or set to
+ * the placeholder {@code "demo"}, Embabel beans are not loaded and the app
+ * falls back to demo mode in {@link AgentRunner}.
+ */
+@Configuration
+@ConditionalOnExpression("'${spring.ai.openai.api-key:demo}' != 'demo'")
+@Import(AgentPlatformAutoConfiguration.class)
+public class EmbabelAutoConfig {
 }

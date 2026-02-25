@@ -80,6 +80,11 @@ public class LangChain4jChat {
         var settings = AiConfig.get();
         var session = StreamingSessions.start(resource);
 
+        if (settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+            Thread.startVirtualThread(() -> DemoResponseProducer.stream(userMessage, session));
+            return;
+        }
+
         var chatRequest = ChatRequest.builder()
                 .messages(List.of(
                         SystemMessage.from(SYSTEM_PROMPT),

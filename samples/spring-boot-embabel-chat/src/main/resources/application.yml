@@ -8,7 +8,7 @@ atmosphere:
 spring:
   ai:
     openai:
-      api-key: ${OPENAI_API_KEY:${LLM_API_KEY:}}
+      api-key: ${OPENAI_API_KEY:${LLM_API_KEY:demo}}
       base-url: ${LLM_BASE_URL:https://api.openai.com}
       chat:
         options:

@@ -18,12 +18,10 @@ package org.atmosphere.samples.springboot.embabelchat;
 import com.embabel.agent.core.AgentPlatform;
 import com.embabel.agent.core.ProcessOptions;
 import org.atmosphere.ai.StreamingSessions;
-import org.atmosphere.ai.embabel.AtmosphereOutputChannel;
 import org.atmosphere.ai.embabel.EmbabelStreamingAdapter;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
 import java.util.Map;
 
@@ -33,26 +31,23 @@ import java.util.Map;
  * <p>Receives user prompts from the {@link EmbabelChat} endpoint, looks up
  * the deployed {@code chat-assistant} agent, and executes it through the
  * Embabel {@link AgentPlatform}. Agent events (tokens, progress, logs) flow
- * through the {@link AtmosphereOutputChannel} to the connected browser in
- * real time.</p>
+ * through the {@link org.atmosphere.ai.embabel.AtmosphereOutputChannel}
+ * to the connected browser in real time.</p>
  */
-@Component
-public class AgentRunner {
+public final class AgentRunner {
 
     private static final Logger logger = LoggerFactory.getLogger(AgentRunner.class);
     private static final EmbabelStreamingAdapter ADAPTER = new EmbabelStreamingAdapter();
 
-    private final AgentPlatform agentPlatform;
-
-    public AgentRunner(AgentPlatform agentPlatform) {
-        this.agentPlatform = agentPlatform;
+    private AgentRunner() {
     }
 
     /**
      * Run the {@code chat-assistant} agent for the given prompt, streaming
      * results to the browser via Atmosphere's WebSocket transport.
      */
-    public void run(String userMessage, AtmosphereResource resource) {
+    public static void run(String userMessage, AtmosphereResource resource,
+                           AgentPlatform agentPlatform) {
         var session = StreamingSessions.start(resource);
 
         var agent = agentPlatform.agents().stream()

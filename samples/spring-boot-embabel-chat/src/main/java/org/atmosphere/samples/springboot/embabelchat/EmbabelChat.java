@@ -15,7 +15,7 @@
  */
 package org.atmosphere.samples.springboot.embabelchat;
 
-import jakarta.inject.Inject;
+import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.ManagedService;
 import org.atmosphere.config.service.Ready;
@@ -24,13 +24,16 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import jakarta.inject.Inject;
+
 import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
 import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
  * Atmosphere managed service for Embabel agent chat.
- * Delegates to {@link AgentRunner} which uses the Embabel {@code AgentPlatform}
- * to run agents and stream events to the browser.
+ * In demo mode (no {@code OPENAI_API_KEY}), streams simulated responses.
+ * When a real API key is configured, delegates to {@link AgentRunner} which
+ * uses the Embabel {@code AgentPlatform}.
  */
 @ManagedService(path = "/atmosphere/embabel-chat", atmosphereConfig = {
         MAX_INACTIVE + "=120000",
@@ -40,18 +43,26 @@ public class EmbabelChat {
 
     private static final Logger logger = LoggerFactory.getLogger(EmbabelChat.class);
 
+    private static final boolean DEMO_MODE;
+
+    static {
+        var key = System.getenv("OPENAI_API_KEY");
+        if (key == null || key.isBlank()) {
+            key = System.getenv("LLM_API_KEY");
+        }
+        DEMO_MODE = (key == null || key.isBlank());
+    }
+
     @Inject
     private AtmosphereResource resource;
 
     @Inject
     private AtmosphereResourceEvent event;
 
-    @Inject
-    private AgentRunner agentRunner;
-
     @Ready
     public void onReady() {
-        logger.info("Client {} connected to Embabel agent chat", resource.uuid());
+        logger.info("Client {} connected to Embabel agent chat (demo={})",
+                resource.uuid(), DEMO_MODE);
     }
 
     @Disconnect
@@ -66,6 +77,16 @@ public class EmbabelChat {
     @org.atmosphere.config.service.Message
     public void onMessage(String userMessage) {
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
-        agentRunner.run(userMessage, resource);
+
+        if (DEMO_MODE) {
+            var session = StreamingSessions.start(resource);
+            Thread.startVirtualThread(() -> DemoResponseProducer.stream(userMessage, session));
+        } else {
+            // Real mode: AgentPlatform is available via EmbabelAutoConfig
+            AgentRunner.run(userMessage, resource,
+                    org.springframework.web.context.ContextLoader
+                            .getCurrentWebApplicationContext()
+                            .getBean(com.embabel.agent.core.AgentPlatform.class));
+        }
     }
 }
