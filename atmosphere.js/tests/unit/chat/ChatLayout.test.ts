@@ -111,6 +111,6 @@ describe('ChatLayout', () => {
     const html = renderToString(
       createElement(ChatLayout, { title: 'T', theme: 'nonexistent' }, createElement('div')),
     );
-    expect(html).toContain('#667eea');
+    expect(html).toContain('#4a5a8a');
   });
 });
