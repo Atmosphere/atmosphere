@@ -23,7 +23,9 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.inject.InjectableObjectFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.NoUniqueBeanDefinitionException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.context.ApplicationContext;
 
@@ -78,6 +80,10 @@ public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
      * annotated fields that Atmosphere's injector left null (i.e. fields whose
      * type is a Spring bean). This enables {@code @ManagedService} classes to
      * use either annotation for both Atmosphere-managed objects and Spring beans.
+     * <p>
+     * When multiple beans of the same type exist, {@code @Qualifier} is used
+     * to disambiguate; without it a {@link NoUniqueBeanDefinitionException}
+     * is logged and the field is skipped.
      */
     private void injectSpringBeans(Object instance) {
         for (Class<?> clazz = instance.getClass(); clazz != null && clazz != Object.class;
@@ -92,18 +98,34 @@ public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
                     if (names.length > 0) {
                         field.setAccessible(true);
                         if (field.get(instance) == null) {
-                            field.set(instance, applicationContext.getBean(field.getType()));
+                            Object bean = resolveBean(field);
+                            field.set(instance, bean);
                             logger.trace("Injected Spring bean {} into {}.{}",
                                     field.getType().getSimpleName(),
                                     instance.getClass().getSimpleName(), field.getName());
                         }
                     }
+                } catch (NoUniqueBeanDefinitionException e) {
+                    logger.warn("Multiple beans of type {} for {}.{} — add @Qualifier to disambiguate",
+                            field.getType().getSimpleName(),
+                            instance.getClass().getSimpleName(), field.getName());
                 } catch (Exception e) {
                     logger.warn("Could not inject Spring bean for {}.{}: {}",
                             instance.getClass().getSimpleName(), field.getName(), e.getMessage());
                 }
             }
         }
+    }
+
+    /**
+     * Resolve a Spring bean for the given field, using {@code @Qualifier} if present.
+     */
+    private Object resolveBean(Field field) {
+        var qualifier = field.getAnnotation(Qualifier.class);
+        if (qualifier != null && !qualifier.value().isEmpty()) {
+            return applicationContext.getBean(qualifier.value(), field.getType());
+        }
+        return applicationContext.getBean(field.getType());
     }
 
     @Override

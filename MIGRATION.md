@@ -143,6 +143,22 @@ using them, check the new dedicated modules:
 | `atmosphere-xmpp` | Removed. |
 | `atmosphere-jersey` | Removed. Use `@ManagedService` or `@AtmosphereService` directly. |
 
+### Removed APIs and Features
+
+The following APIs and features have been removed in 4.0:
+
+| Removed | Description | Alternative |
+|---------|-------------|-------------|
+| `@MeteorService` | Annotation-driven Meteor/Comet endpoints | Use `@ManagedService` with long-polling or SSE transport |
+| `Meteor` class | Comet push abstraction | Use `@ManagedService` with `Broadcaster` for server push |
+| `JSONPAtmosphereInterceptor` | JSONP transport support | Use long-polling or SSE — all modern browsers support CORS |
+| `NettyCometSupport` | Netty native comet transport | Use Jetty 12, Tomcat 11, or another Jakarta EE 10 container |
+
+> **Note:** These removals are intentional. The Meteor API predated WebSocket
+> and modern SSE support. JSONP was a workaround for same-origin-policy
+> restrictions that CORS has replaced. Netty comet was a niche deployment
+> option superseded by the standard Jakarta Servlet container model.
+
 ### New Optional Modules
 
 Atmosphere 4.0 introduces several new optional modules:

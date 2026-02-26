@@ -70,12 +70,20 @@ public class AiEndpointProcessor implements Processor<Object> {
     }
 
     private Method findPromptMethod(Class<?> clazz) {
+        Method found = null;
         for (var method : clazz.getDeclaredMethods()) {
             if (method.isAnnotationPresent(Prompt.class)) {
-                return method;
+                if (found != null) {
+                    throw new IllegalArgumentException(
+                            "@AiEndpoint class " + clazz.getName()
+                                    + " has multiple @Prompt methods: "
+                                    + found.getName() + " and " + method.getName()
+                                    + ". Exactly one @Prompt method is required.");
+                }
+                found = method;
             }
         }
-        return null;
+        return found;
     }
 
     /**

@@ -204,6 +204,14 @@ public class AiEndpointProcessorTest {
         assertEquals("You are a helpful assistant.", handler.systemPrompt());
     }
 
+    @Test
+    public void testRejectsMultiplePromptMethods() throws Exception {
+        processor.handle(framework, (Class) MultiplePromptEndpoint.class);
+
+        // Multiple @Prompt methods should prevent registration
+        verify(framework, never()).addAtmosphereHandler(anyString(), any(AtmosphereHandler.class), any(List.class));
+    }
+
     // ---- Test fixture classes ----
 
     @AiEndpoint(path = "/atmosphere/test-ai")
@@ -267,6 +275,17 @@ public class AiEndpointProcessorTest {
     public static class BothPromptsEndpoint {
         @Prompt
         public void onPrompt(String message, StreamingSession session) {
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/multi-prompt")
+    public static class MultiplePromptEndpoint {
+        @Prompt
+        public void firstPrompt(String message, StreamingSession session) {
+        }
+
+        @Prompt
+        public void secondPrompt(String message, StreamingSession session) {
         }
     }
 }

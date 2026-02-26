@@ -27,6 +27,7 @@ import org.atmosphere.inject.InjectableObjectFactory;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.AnnotationConfigApplicationContext;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -165,6 +166,24 @@ class SpringAtmosphereObjectFactoryTest {
         assertThat(result.otherService).as("@Autowired OtherService").isNotNull();
     }
 
+    @Test
+    void hybridInjectionWithQualifierDisambiguates() throws Exception {
+        HybridQualifiedComponent result = factory.newClassInstance(
+                HybridQualifiedComponent.class, HybridQualifiedComponent.class);
+        assertThat(result).isNotNull();
+        assertThat(result.greeter).as("@Qualifier-resolved Greeter").isNotNull();
+        assertThat(result.greeter.name).isEqualTo("primary");
+    }
+
+    @Test
+    void hybridInjectionWithoutQualifierLogsWarningOnAmbiguity() throws Exception {
+        HybridAmbiguousComponent result = factory.newClassInstance(
+                HybridAmbiguousComponent.class, HybridAmbiguousComponent.class);
+        assertThat(result).isNotNull();
+        // Without @Qualifier, ambiguous beans leave the field null (logged as warning)
+        assertThat(result.greeter).as("Ambiguous Greeter without @Qualifier").isNull();
+    }
+
     // === Edge cases ===
 
     @Test
@@ -206,12 +225,30 @@ class SpringAtmosphereObjectFactoryTest {
         public OtherService otherService() {
             return new OtherService();
         }
+
+        @Bean("primaryGreeter")
+        public Greeter primaryGreeter() {
+            return new Greeter("primary");
+        }
+
+        @Bean("secondaryGreeter")
+        public Greeter secondaryGreeter() {
+            return new Greeter("secondary");
+        }
     }
 
     public static class TestService {
     }
 
     public static class OtherService {
+    }
+
+    public static class Greeter {
+        public final String name;
+
+        public Greeter(String name) {
+            this.name = name;
+        }
     }
 
     public static class UnresolvableService {
@@ -318,6 +355,23 @@ class SpringAtmosphereObjectFactoryTest {
 
         @Autowired
         OtherService otherService;
+    }
+
+    public static class HybridQualifiedComponent {
+        @Inject
+        AtmosphereResource resource;
+
+        @Autowired
+        @Qualifier("primaryGreeter")
+        Greeter greeter;
+    }
+
+    public static class HybridAmbiguousComponent {
+        @Inject
+        AtmosphereResource resource;
+
+        @Autowired
+        Greeter greeter;
     }
 
     // Edge case fixtures
