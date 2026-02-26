@@ -68,6 +68,39 @@ All properties are under the `atmosphere.*` prefix:
 - `RoomManager` -- the room API for presence and message history
 - `AtmosphereHealthIndicator` -- Actuator health check (when `spring-boot-health` is on the classpath)
 
+## Observability
+
+### OpenTelemetry Tracing (Auto-Configured)
+
+Add `opentelemetry-api` to your classpath and provide an `OpenTelemetry` bean — the starter automatically registers `AtmosphereTracing`:
+
+```xml
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-api</artifactId>
+</dependency>
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-sdk</artifactId>
+</dependency>
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-exporter-otlp</artifactId>
+</dependency>
+```
+
+Every Atmosphere request generates a trace span with transport, resource UUID, broadcaster, and action attributes. Disable with `atmosphere.tracing.enabled=false`.
+
+When `atmosphere-mcp` is also on the classpath, an `McpTracing` bean is auto-created for MCP tool/resource/prompt call tracing.
+
+### Micrometer Metrics (Auto-Configured)
+
+When `micrometer-core` and `MeterRegistry` are on the classpath, `AtmosphereMetricsAutoConfiguration` registers `atmosphere.connections`, `atmosphere.messages`, and `atmosphere.broadcasters` gauges.
+
+### Sample
+
+See [Spring Boot OTel Chat](../../samples/spring-boot-otel-chat/) for a complete example with Jaeger.
+
 ## GraalVM Native Image
 
 The starter includes `AtmosphereRuntimeHints` for native image support. Build with `mvn clean package -Pnative`.

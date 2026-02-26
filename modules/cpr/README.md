@@ -67,6 +67,37 @@ Register `AtmosphereServlet` in `web.xml` or programmatically:
 </servlet>
 ```
 
+## Observability
+
+### OpenTelemetry Tracing
+
+`AtmosphereTracing` is an interceptor that creates OTel trace spans for every Atmosphere request:
+
+```java
+OpenTelemetry otel = GlobalOpenTelemetry.get();
+framework.interceptor(new AtmosphereTracing(otel));
+```
+
+**Span attributes:**
+
+| Attribute | Description |
+|---|---|
+| `atmosphere.resource.uuid` | Resource UUID |
+| `atmosphere.transport` | Transport type (WEBSOCKET, SSE, LONG_POLLING) |
+| `atmosphere.action` | Action result (CONTINUE, SUSPEND, RESUME) |
+| `atmosphere.broadcaster` | Broadcaster ID |
+| `atmosphere.disconnect.reason` | Disconnect reason (if applicable) |
+
+With Spring Boot, this is auto-configured — see the [spring-boot-starter](../spring-boot-starter/) module.
+
+### Micrometer Metrics
+
+```java
+AtmosphereMetrics.install(framework, meterRegistry);
+```
+
+Registers `atmosphere.connections`, `atmosphere.messages`, and `atmosphere.broadcasters` gauges/counters.
+
 ## Samples
 
 - [WAR Chat](../../samples/chat/) -- standard WAR deployment with `@ManagedService`

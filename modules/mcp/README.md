@@ -130,6 +130,38 @@ public String askAi(
 
 See [atmosphere-ai README](../ai/README.md) for more on `StreamingSession` and wire protocol.
 
+## Observability
+
+### OpenTelemetry Tracing
+
+`McpTracing` wraps every `tools/call`, `resources/read`, and `prompts/get` invocation in an OTel trace span. Add `opentelemetry-api` to your classpath:
+
+```xml
+<dependency>
+    <groupId>io.opentelemetry</groupId>
+    <artifactId>opentelemetry-api</artifactId>
+    <optional>true</optional>
+</dependency>
+```
+
+Wire it programmatically:
+
+```java
+var tracing = new McpTracing(openTelemetry);
+protocolHandler.setTracing(tracing);
+```
+
+With the Spring Boot starter, `McpTracing` is auto-configured when an `OpenTelemetry` bean is present.
+
+**Span attributes:**
+
+| Attribute | Description |
+|---|---|
+| `mcp.tool.name` | Tool/resource/prompt name |
+| `mcp.tool.type` | `"tool"`, `"resource"`, or `"prompt"` |
+| `mcp.tool.arg_count` | Number of arguments provided |
+| `mcp.tool.error` | `true` if invocation failed |
+
 ## Requirements
 
 - Java 21+
