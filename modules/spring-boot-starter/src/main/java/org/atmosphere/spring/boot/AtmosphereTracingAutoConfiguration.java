@@ -18,6 +18,7 @@ package org.atmosphere.spring.boot;
 import io.opentelemetry.api.OpenTelemetry;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.metrics.AtmosphereTracing;
+import org.atmosphere.mcp.runtime.McpTracing;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
@@ -32,6 +33,9 @@ import org.springframework.context.annotation.Bean;
  * <p>Creates trace spans for each Atmosphere request covering the full lifecycle
  * (inspect → suspend → broadcast → disconnect). Spans include attributes for
  * transport type, resource UUID, broadcaster ID, and disconnect reason.</p>
+ *
+ * <p>When {@code atmosphere-mcp} is on the classpath, also creates an {@link McpTracing}
+ * bean that wraps MCP tool/resource/prompt calls in trace spans.</p>
  *
  * <p>Enable with {@code atmosphere.tracing.enabled=true} (default).
  * Requires {@code io.opentelemetry:opentelemetry-api} on the classpath and an
@@ -53,5 +57,12 @@ public class AtmosphereTracingAutoConfiguration {
         var tracing = new AtmosphereTracing(openTelemetry);
         framework.interceptor(tracing);
         return tracing;
+    }
+
+    @Bean
+    @ConditionalOnMissingBean
+    @ConditionalOnClass(McpTracing.class)
+    public McpTracing mcpTracing(OpenTelemetry openTelemetry) {
+        return new McpTracing(openTelemetry);
     }
 }
