@@ -20,10 +20,11 @@ jobs:
       with:
         ref: main
 
-    - name: Setup Node.js 22
+    - name: Setup Node.js 24
       uses: actions/setup-node@v4
       with:
-        node-version: 22
+        node-version: '24'
+        registry-url: 'https://registry.npmjs.org'
         cache: 'npm'
         cache-dependency-path: atmosphere.js/package-lock.json
 
@@ -42,7 +43,7 @@ jobs:
 
     - name: Publish to NPM (Trusted Publishing / OIDC)
       working-directory: atmosphere.js
-      run: npm publish --provenance --access public
+      run: npm publish --access public
 
     - name: Commit and tag JS release
       run: |
