@@ -1912,6 +1912,10 @@ public class AtmosphereFramework {
         }
 
         if (!(objectFactory instanceof DefaultAtmosphereObjectFactory)) {
+            // Re-configure with init-params now available (may have been set
+            // before servlet init, e.g. Spring Boot sets the factory at bean
+            // creation time before init-params are loaded).
+            objectFactory.configure(config);
             logger.trace("ObjectFactory already set to {}", objectFactory);
         }
     }

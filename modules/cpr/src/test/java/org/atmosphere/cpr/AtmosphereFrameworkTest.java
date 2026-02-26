@@ -26,6 +26,7 @@ import org.atmosphere.interceptor.OnDisconnectInterceptor;
 import org.atmosphere.interceptor.PaddingAtmosphereInterceptor;
 import org.atmosphere.interceptor.SSEAtmosphereInterceptor;
 import org.atmosphere.interceptor.WebSocketMessageSuspendInterceptor;
+import org.atmosphere.inject.InjectableObjectFactory;
 import org.atmosphere.websocket.protocol.SimpleHttpProtocol;
 
 import jakarta.servlet.ServletConfig;
@@ -407,5 +408,27 @@ public class AtmosphereFrameworkTest {
         framework.init(servletConfig);
 
         assertEquals(SimpleHttpProtocol.class, framework.getWebSocketProtocol().getClass());
+    }
+
+    @Test
+    public void testObjectFactoryReconfiguredOnInit() throws Exception {
+        // Simulates Spring Boot flow: factory is set before init(), so
+        // configure() initially sees no init-params. After init() loads
+        // init-params, configureObjectFactory() must re-call configure().
+        AtmosphereFramework framework = new AtmosphereFramework();
+        framework.addInitParameter(ApplicationConfig.WEBSOCKET_SUPPRESS_JSR356, "true");
+
+        var factory = new InjectableObjectFactory();
+        framework.objectFactory(factory);
+
+        // At this point configure() was called but config has no servlet yet.
+        // Set an init-param that configure() reads.
+        framework.addInitParameter(ApplicationConfig.INJECTION_TRY, "42");
+        framework.addAtmosphereHandler("/*", mock(AtmosphereHandler.class));
+        framework.init();
+
+        // After init(), configureObjectFactory() re-calls configure() so the
+        // factory picks up the init-param value.
+        assertSame(factory, framework.objectFactory());
     }
 }
