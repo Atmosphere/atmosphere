@@ -20,7 +20,7 @@ on:
         description: 'atmosphere.js version (e.g., 5.0.0) — only if publishing JS'
         required: false
         type: string
-        default: '5.0.0'
+        default: '5.0.1'
       dry_run:
         description: 'Dry run — build and verify without publishing'
         required: true
@@ -145,7 +145,7 @@ jobs:
 
     - name: Build and publish to Maven Central
       if: inputs.dry_run == false
-      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests'
+      run: ./mvnw -B clean deploy -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-adk-chat,!samples/spring-boot-spring-ai-chat,!samples/spring-boot-otel-chat,!samples/grpc-chat,!modules/embabel,!modules/integration-tests'
       env:
         GPG_PASSPHRASE: ${{ secrets.GPG_PASSPHRASE }}
         CENTRAL_USERNAME: ${{ secrets.CENTRAL_USERNAME }}
@@ -153,7 +153,7 @@ jobs:
 
     - name: Dry run — build only
       if: inputs.dry_run
-      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests' -Dgpg.skip=true
+      run: ./mvnw -B clean verify -DskipTests -Prelease-profile -pl '!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-adk-chat,!samples/spring-boot-spring-ai-chat,!samples/spring-boot-otel-chat,!samples/grpc-chat,!modules/embabel,!modules/integration-tests' -Dgpg.skip=true
 
     - name: Commit release version
       if: inputs.dry_run == false
@@ -238,7 +238,7 @@ jobs:
           -DskipCentralPublishing=true \
           -Dmaven.deploy.skip=false \
           -Pfastinstall \
-          -pl '!buildtools,!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!modules/embabel,!modules/integration-tests' \
+          -pl '!buildtools,!samples/chat,!samples/embedded-jetty-websocket-chat,!samples/spring-boot-chat,!samples/quarkus-chat,!samples/spring-boot-langchain4j-chat,!samples/spring-boot-embabel-chat,!samples/spring-boot-ai-chat,!samples/spring-boot-mcp-server,!samples/spring-boot-durable-sessions,!samples/spring-boot-adk-chat,!samples/spring-boot-spring-ai-chat,!samples/spring-boot-otel-chat,!samples/grpc-chat,!modules/embabel,!modules/integration-tests' \
           -DaltDeploymentRepository=github::https://maven.pkg.github.com/Atmosphere/atmosphere
       env:
         GITHUB_ACTOR: ${{ github.actor }}
