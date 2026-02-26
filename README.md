@@ -167,7 +167,7 @@ See the [AI / LLM Streaming wiki](https://github.com/Atmosphere/atmosphere/wiki/
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.4</version>
+    <version>4.0.5</version>
 </dependency>
 ```
 
@@ -176,7 +176,7 @@ For Spring Boot:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.4</version>
+    <version>4.0.5</version>
 </dependency>
 ```
 
@@ -185,18 +185,18 @@ For Quarkus:
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.4</version>
+    <version>4.0.5</version>
 </dependency>
 ```
 
 ### Gradle
 
 ```groovy
-implementation 'org.atmosphere:atmosphere-runtime:4.0.4'
+implementation 'org.atmosphere:atmosphere-runtime:4.0.5'
 // or
-implementation 'org.atmosphere:atmosphere-spring-boot-starter:4.0.4'
+implementation 'org.atmosphere:atmosphere-spring-boot-starter:4.0.5'
 // or
-implementation 'org.atmosphere:atmosphere-quarkus-extension:4.0.4'
+implementation 'org.atmosphere:atmosphere-quarkus-extension:4.0.5'
 ```
 
 ### npm (TypeScript/JavaScript client)
