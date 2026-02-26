@@ -223,6 +223,9 @@ class ChatIntegrationTest {
         assertTrue(aliceOpen.await(10, TimeUnit.SECONDS), "Alice should connect");
         assertTrue(bobOpen.await(10, TimeUnit.SECONDS), "Bob should connect");
 
+        // Allow time for both resources to be fully registered in the Broadcaster
+        Thread.sleep(500);
+
         // Alice sends a message — Bob should receive it (broadcast to all)
         alice.fire(mapper.writeValueAsString(
                 new ChatHandler.ChatMessage("Alice", "Can you see this, Bob?")));
