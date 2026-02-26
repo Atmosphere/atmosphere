@@ -41,6 +41,8 @@ jobs:
         npm run build
         npm version ${{ inputs.js_version }} --no-git-tag-version --allow-same-version
         npm publish --provenance --access public
+      env:
+        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
     - name: Commit and tag JS release
       run: |
