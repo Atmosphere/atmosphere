@@ -48,6 +48,7 @@ public final class McpProtocolHandler {
     private final String serverVersion;
     private final McpRegistry registry;
     private final AtmosphereConfig config;
+    private volatile McpTracing tracing;
 
     public McpProtocolHandler(String serverName, String serverVersion,
                               McpRegistry registry, AtmosphereConfig config) {
@@ -55,6 +56,13 @@ public final class McpProtocolHandler {
         this.serverVersion = serverVersion;
         this.registry = registry;
         this.config = config;
+    }
+
+    /**
+     * Set the optional MCP tracing instance for OpenTelemetry instrumentation.
+     */
+    public void setTracing(McpTracing tracing) {
+        this.tracing = tracing;
     }
 
     /**
@@ -175,24 +183,14 @@ public final class McpProtocolHandler {
 
         var tool = toolOpt.get();
         var arguments = params.has("arguments") ? params.get("arguments") : null;
+        int argCount = arguments != null ? arguments.size() : 0;
 
         try {
-            Object result;
-            if (tool.isDynamic()) {
-                // Lambda-based tool — pass arguments as Map<String, Object>
-                var argMap = bindArgumentsAsMap(tool.params(), arguments);
-                result = tool.handler().execute(argMap);
-            } else {
-                // Annotation-based tool — invoke via reflection
-                var args = bindArguments(tool.method(), tool.params(), arguments);
-                result = tool.method().invoke(tool.instance(), args);
+            if (tracing != null) {
+                return tracing.traced("tool", toolName, argCount,
+                        () -> executeToolCall(id, tool, arguments));
             }
-            var text = result instanceof String s ? s : mapper.writeValueAsString(result);
-
-            return JsonRpc.Response.success(id, Map.of(
-                    "content", List.of(Map.of("type", "text", "text", text)),
-                    "isError", false
-            ));
+            return executeToolCall(id, tool, arguments);
         } catch (InvocationTargetException e) {
             var cause = e.getCause() != null ? e.getCause() : e;
             logger.warn("Tool {} invocation failed", toolName, cause);
@@ -204,6 +202,29 @@ public final class McpProtocolHandler {
             logger.warn("Tool {} invocation failed", toolName, e);
             return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
                     "Tool invocation failed: " + e.getMessage());
+        }
+    }
+
+    private JsonRpc.Response executeToolCall(Object id,
+                                              McpRegistry.ToolEntry tool,
+                                              JsonNode arguments) throws Exception {
+        try {
+            Object result;
+            if (tool.isDynamic()) {
+                var argMap = bindArgumentsAsMap(tool.params(), arguments);
+                result = tool.handler().execute(argMap);
+            } else {
+                var args = bindArguments(tool.method(), tool.params(), arguments);
+                result = tool.method().invoke(tool.instance(), args);
+            }
+            var text = result instanceof String s ? s : mapper.writeValueAsString(result);
+
+            return JsonRpc.Response.success(id, Map.of(
+                    "content", List.of(Map.of("type", "text", "text", text)),
+                    "isError", false
+            ));
+        } catch (InvocationTargetException e) {
+            throw e;
         }
     }
 
