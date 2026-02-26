@@ -136,6 +136,35 @@ class SpringAtmosphereObjectFactoryTest {
         assertThat(result.otherService).as("Child @Inject field should be injected").isNotNull();
     }
 
+    @Test
+    void hybridInjectionWithAutowiredSpringBeans() throws Exception {
+        HybridAutowiredComponent result = factory.newClassInstance(
+                HybridAutowiredComponent.class, HybridAutowiredComponent.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("@Autowired Spring bean should be injected").isNotNull();
+        assertThat(result.testService).isSameAs(applicationContext.getBean(TestService.class));
+    }
+
+    @Test
+    void hybridInjectionMixedInjectAndAutowired() throws Exception {
+        HybridMixedAnnotations result = factory.newClassInstance(
+                HybridMixedAnnotations.class, HybridMixedAnnotations.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("@Inject Spring bean").isNotNull();
+        assertThat(result.otherService).as("@Autowired Spring bean").isNotNull();
+        assertThat(result.testService).isSameAs(applicationContext.getBean(TestService.class));
+        assertThat(result.otherService).isSameAs(applicationContext.getBean(OtherService.class));
+    }
+
+    @Test
+    void hybridInjectionAutowiredWithMultipleBeans() throws Exception {
+        HybridMultiAutowired result = factory.newClassInstance(
+                HybridMultiAutowired.class, HybridMultiAutowired.class);
+        assertThat(result).isNotNull();
+        assertThat(result.testService).as("@Autowired TestService").isNotNull();
+        assertThat(result.otherService).as("@Autowired OtherService").isNotNull();
+    }
+
     // === Edge cases ===
 
     @Test
@@ -256,6 +285,38 @@ class SpringAtmosphereObjectFactoryTest {
         AtmosphereResource resource;
 
         @Inject
+        OtherService otherService;
+    }
+
+    // Path 3 fixtures (hybrid: @Autowired with Atmosphere + Spring types)
+
+    public static class HybridAutowiredComponent {
+        @Inject
+        AtmosphereResource resource;
+
+        @Autowired
+        TestService testService;
+    }
+
+    public static class HybridMixedAnnotations {
+        @Inject
+        AtmosphereResource resource;
+
+        @Inject
+        TestService testService;
+
+        @Autowired
+        OtherService otherService;
+    }
+
+    public static class HybridMultiAutowired {
+        @Inject
+        AtmosphereResource resource;
+
+        @Autowired
+        TestService testService;
+
+        @Autowired
         OtherService otherService;
     }
 

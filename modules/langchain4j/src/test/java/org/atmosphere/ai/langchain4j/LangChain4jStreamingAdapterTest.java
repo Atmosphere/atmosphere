@@ -49,7 +49,7 @@ public class LangChain4jStreamingAdapterTest {
         when(resource.uuid()).thenReturn("resource-1");
         broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any())).thenReturn(mock(Future.class));
         session = StreamingSessions.start("test-session", resource);
         adapter = new LangChain4jStreamingAdapter();
     }
@@ -66,7 +66,7 @@ public class LangChain4jStreamingAdapterTest {
         handler.onPartialResponse("Hello");
         handler.onPartialResponse(" world");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster, times(2)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream().map(Object::toString).toList();
@@ -83,7 +83,7 @@ public class LangChain4jStreamingAdapterTest {
 
         handler.onCompleteResponse(response);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster).broadcast(captor.capture());
 
         var msg = captor.getValue().toString();
@@ -99,7 +99,7 @@ public class LangChain4jStreamingAdapterTest {
         var response = ChatResponse.builder().aiMessage(AiMessage.from("")).build();
         handler.onCompleteResponse(response);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster).broadcast(captor.capture());
 
         var msg = captor.getValue().toString();
@@ -112,7 +112,7 @@ public class LangChain4jStreamingAdapterTest {
 
         handler.onError(new RuntimeException("Model timeout"));
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster).broadcast(captor.capture());
 
         var msg = captor.getValue().toString();
@@ -134,7 +134,7 @@ public class LangChain4jStreamingAdapterTest {
         var aiMessage = AiMessage.from("The answer is 42");
         handler.onCompleteResponse(ChatResponse.builder().aiMessage(aiMessage).build());
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster, times(5)).broadcast(captor.capture());
 
         var messages = captor.getAllValues().stream().map(Object::toString).toList();
@@ -168,7 +168,7 @@ public class LangChain4jStreamingAdapterTest {
 
         adapter.stream(model, chatRequest, session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         // progress + 2 tokens + complete = 4
         verify(broadcaster, times(4)).broadcast(captor.capture());
 
@@ -194,7 +194,7 @@ public class LangChain4jStreamingAdapterTest {
 
         adapter.stream(model, chatRequest, session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         // progress + 1 token + error = 3
         verify(broadcaster, times(3)).broadcast(captor.capture());
 
@@ -220,7 +220,7 @@ public class LangChain4jStreamingAdapterTest {
         var request = new LangChain4jStreamingAdapter.LangChain4jRequest(model, chatRequest);
         adapter.stream(request, session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster, atLeast(2)).broadcast(captor.capture());
 
         assertTrue(session.isClosed());
@@ -234,10 +234,10 @@ public class LangChain4jStreamingAdapterTest {
 
         handler.onPartialResponse("");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster, times(1)).broadcast(captor.capture());
 
-        var msg = captor.getValue();
+        var msg = captor.getValue().toString();
         assertTrue(msg.contains("\"type\":\"token\""));
         assertTrue(msg.contains("\"data\":\"\""));
     }
@@ -248,10 +248,10 @@ public class LangChain4jStreamingAdapterTest {
 
         handler.onPartialResponse("He said \"hello\" & goodbye");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster, times(1)).broadcast(captor.capture());
 
-        var msg = captor.getValue();
+        var msg = captor.getValue().toString();
         assertTrue(msg.contains("\"type\":\"token\""));
         // JSON should properly escape the quotes
         assertTrue(msg.contains("hello"));
@@ -264,10 +264,10 @@ public class LangChain4jStreamingAdapterTest {
         // Exception with null message
         handler.onError(new RuntimeException((String) null));
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var msg = captor.getValue();
+        var msg = captor.getValue().toString();
         assertTrue(msg.contains("\"type\":\"error\""));
         assertTrue(session.isClosed());
     }
@@ -283,7 +283,7 @@ public class LangChain4jStreamingAdapterTest {
 
         handler.onCompleteResponse(response);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster).broadcast(captor.capture());
 
         // Session should be closed
@@ -320,13 +320,13 @@ public class LangChain4jStreamingAdapterTest {
         reset(resource);
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any())).thenReturn(mock(Future.class));
 
         // Session is closed, so this send should be silently ignored
         handler.onPartialResponse("should be ignored");
 
         // No new writes because session is closed
-        verify(broadcaster, never()).broadcast(anyString());
+        verify(broadcaster, never()).broadcast(any());
     }
 
     @Test
@@ -339,12 +339,12 @@ public class LangChain4jStreamingAdapterTest {
         reset(resource);
         var broadcaster = mock(Broadcaster.class);
         when(resource.getBroadcaster()).thenReturn(broadcaster);
-        when(broadcaster.broadcast(anyString())).thenReturn(mock(Future.class));
+        when(broadcaster.broadcast(any())).thenReturn(mock(Future.class));
 
         // Session is closed after error
         handler.onPartialResponse("should be ignored");
 
-        verify(broadcaster, never()).broadcast(anyString());
+        verify(broadcaster, never()).broadcast(any());
     }
 
     @Test
@@ -357,10 +357,10 @@ public class LangChain4jStreamingAdapterTest {
 
         adapter.stream(model, chatRequest, session);
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster, times(1)).broadcast(captor.capture());
 
-        var msg = captor.getValue();
+        var msg = captor.getValue().toString();
         assertTrue(msg.contains("\"type\":\"progress\""));
         assertTrue(msg.contains("Connecting to AI model..."));
     }
@@ -396,10 +396,10 @@ public class LangChain4jStreamingAdapterTest {
         handler.onPartialResponse("B");
         handler.onPartialResponse("C");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster, times(3)).broadcast(captor.capture());
 
-        var messages = captor.getAllValues();
+        var messages = captor.getAllValues().stream().map(Object::toString).toList();
         // Extract sequence numbers and verify they are increasing
         long prevSeq = -1;
         for (var msg : messages) {
@@ -420,10 +420,10 @@ public class LangChain4jStreamingAdapterTest {
 
         handler.onPartialResponse("token");
 
-        var captor = ArgumentCaptor.forClass(String.class);
+        var captor = ArgumentCaptor.forClass(Object.class);
         verify(broadcaster).broadcast(captor.capture());
 
-        var msg = captor.getValue();
+        var msg = captor.getValue().toString();
         assertTrue(msg.contains("\"sessionId\":\"test-session\""));
     }
 

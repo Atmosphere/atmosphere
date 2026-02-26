@@ -106,7 +106,7 @@ public class AtmosphereResourceStateRecoveryTest {
     }
 
     // This test is no longer working since isClosedByClient changes the behavior.
-    @Disabled
+    @Disabled("isClosedByClient changes invalidate the expected state transitions")
     @Test
     public void restoreStateTest() throws ServletException, IOException {
         recovery.configure(config);
@@ -149,7 +149,7 @@ public class AtmosphereResourceStateRecoveryTest {
 
     }
 
-    @Disabled
+    @Disabled("Long-polling aggregation with cache requires isClosedByClient fix")
     @Test
     public void longPollingAggregatedTest() throws ServletException, IOException, ExecutionException, InterruptedException {
         final AtomicReference<Object> ref = new AtomicReference<Object>();

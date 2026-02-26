@@ -23,6 +23,7 @@ import org.atmosphere.cpr.AtmosphereConfig;
 import org.atmosphere.inject.InjectableObjectFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.config.AutowireCapableBeanFactory;
 import org.springframework.context.ApplicationContext;
 
@@ -73,16 +74,17 @@ public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
     }
 
     /**
-     * Inject Spring-managed beans into {@code @Inject}-annotated fields that
-     * Atmosphere's injector left null (i.e. fields whose type is a Spring bean).
-     * This enables {@code @ManagedService} classes to use {@code @Inject} for
-     * both Atmosphere-managed objects and Spring beans.
+     * Inject Spring-managed beans into {@code @Inject} or {@code @Autowired}
+     * annotated fields that Atmosphere's injector left null (i.e. fields whose
+     * type is a Spring bean). This enables {@code @ManagedService} classes to
+     * use either annotation for both Atmosphere-managed objects and Spring beans.
      */
     private void injectSpringBeans(Object instance) {
         for (Class<?> clazz = instance.getClass(); clazz != null && clazz != Object.class;
              clazz = clazz.getSuperclass()) {
             for (Field field : clazz.getDeclaredFields()) {
-                if (!field.isAnnotationPresent(Inject.class)) {
+                if (!field.isAnnotationPresent(Inject.class)
+                        && !field.isAnnotationPresent(Autowired.class)) {
                     continue;
                 }
                 try {
@@ -97,8 +99,8 @@ public class SpringAtmosphereObjectFactory extends InjectableObjectFactory {
                         }
                     }
                 } catch (Exception e) {
-                    logger.trace("Could not inject Spring bean for {}.{}",
-                            instance.getClass().getSimpleName(), field.getName());
+                    logger.warn("Could not inject Spring bean for {}.{}: {}",
+                            instance.getClass().getSimpleName(), field.getName(), e.getMessage());
                 }
             }
         }

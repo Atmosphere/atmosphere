@@ -19,14 +19,6 @@
         <spring-ai.version>2.0.0-M2</spring-ai.version>
     </properties>
 
-    <repositories>
-        <repository>
-            <id>spring-milestones</id>
-            <url>https://repo.spring.io/milestone</url>
-            <snapshots><enabled>false</enabled></snapshots>
-        </repository>
-    </repositories>
-
     <dependencies>
         <dependency>
             <groupId>org.atmosphere</groupId>

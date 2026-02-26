@@ -64,7 +64,7 @@ class EmbabelAdapterTest {
         val event = MessageOutputChannelEvent("proc-1", mockMessage("Hello from agent"))
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(String::class.java)
+        val captor = ArgumentCaptor.forClass(Any::class.java)
         verify(broadcaster).broadcast(captor.capture())
 
         val msg = captor.value.toString()
@@ -77,7 +77,7 @@ class EmbabelAdapterTest {
         val event = ContentOutputChannelEvent("proc-1", mockHasContent("Structured content here"))
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(String::class.java)
+        val captor = ArgumentCaptor.forClass(Any::class.java)
         verify(broadcaster).broadcast(captor.capture())
 
         val msg = captor.value.toString()
@@ -90,7 +90,7 @@ class EmbabelAdapterTest {
         val event = ProgressOutputChannelEvent("proc-1", "Thinking...")
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(String::class.java)
+        val captor = ArgumentCaptor.forClass(Any::class.java)
         verify(broadcaster).broadcast(captor.capture())
 
         val msg = captor.value.toString()
@@ -105,7 +105,7 @@ class EmbabelAdapterTest {
         )
         channel.send(event)
 
-        val captor = ArgumentCaptor.forClass(String::class.java)
+        val captor = ArgumentCaptor.forClass(Any::class.java)
         verify(broadcaster).broadcast(captor.capture())
 
         val msg = captor.value.toString()
@@ -149,7 +149,7 @@ class EmbabelAdapterTest {
         ch.send(MessageOutputChannelEvent("proc-1", mockMessage("Final answer")))
         session.complete()
 
-        val captor = ArgumentCaptor.forClass(String::class.java)
+        val captor = ArgumentCaptor.forClass(Any::class.java)
         verify(broadcaster, times(5)).broadcast(captor.capture())
 
         val messages = captor.allValues.map { it.toString() }
@@ -177,7 +177,7 @@ class EmbabelAdapterTest {
 
         assertTrue(channelReceived != null, "Runner should receive a channel")
 
-        val captor = ArgumentCaptor.forClass(String::class.java)
+        val captor = ArgumentCaptor.forClass(Any::class.java)
         // progress ("Starting agent: test-agent...") + token + complete
         verify(broadcaster, times(3)).broadcast(captor.capture())
 
@@ -199,7 +199,7 @@ class EmbabelAdapterTest {
 
         adapter.stream(request, session)
 
-        val captor = ArgumentCaptor.forClass(String::class.java)
+        val captor = ArgumentCaptor.forClass(Any::class.java)
         verify(broadcaster, atLeast(2)).broadcast(captor.capture())
     }
 }
