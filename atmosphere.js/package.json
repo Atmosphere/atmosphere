@@ -1,6 +1,6 @@
 {
   "name": "atmosphere.js",
-  "version": "5.0.1",
+  "version": "5.0.2",
   "description": "Modern TypeScript client for Atmosphere Framework - WebSocket/SSE/Comet support",
   "type": "module",
   "main": "./dist/index.cjs",
