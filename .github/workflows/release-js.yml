@@ -50,4 +50,14 @@ jobs:
         git add atmosphere.js/package.json atmosphere.js/package-lock.json
         git diff --cached --quiet || git commit -m "release(js): atmosphere.js ${{ inputs.js_version }}"
         git tag "js-v${{ inputs.js_version }}"
+
+    - name: Bump to next patch version
+      working-directory: atmosphere.js
+      run: npm version patch --no-git-tag-version
+
+    - name: Commit next dev version
+      run: |
+        NEXT_VERSION=$(node -p "require('./atmosphere.js/package.json').version")
+        git add atmosphere.js/package.json atmosphere.js/package-lock.json
+        git commit -m "chore(js): prepare next development version ${NEXT_VERSION}"
         git push origin main --tags
