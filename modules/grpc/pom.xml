@@ -16,8 +16,6 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.grpc</atmosphere.module.name>
-        <grpc.version>1.71.0</grpc.version>
-        <protobuf.version>3.25.5</protobuf.version>
         <protoc-gen-grpc-java.version>${grpc.version}</protoc-gen-grpc-java.version>
     </properties>
 
@@ -53,7 +51,6 @@
         <dependency>
             <groupId>org.apache.tomcat</groupId>
             <artifactId>annotations-api</artifactId>
-            <version>6.0.53</version>
             <scope>provided</scope>
         </dependency>
 
@@ -95,14 +92,14 @@
             <extension>
                 <groupId>kr.motd.maven</groupId>
                 <artifactId>os-maven-plugin</artifactId>
-                <version>1.7.1</version>
+                <version>${os-maven-plugin.version}</version>
             </extension>
         </extensions>
         <plugins>
             <plugin>
                 <groupId>org.xolstice.maven.plugins</groupId>
                 <artifactId>protobuf-maven-plugin</artifactId>
-                <version>0.6.1</version>
+                <version>${protobuf-maven-plugin.version}</version>
                 <configuration>
                     <protocArtifact>com.google.protobuf:protoc:${protobuf.version}:exe:${os.detected.classifier}</protocArtifact>
                     <pluginId>grpc-java</pluginId>

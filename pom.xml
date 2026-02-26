@@ -591,6 +591,76 @@
                 <artifactId>opentelemetry-api</artifactId>
                 <version>${opentelemetry-api.version}</version>
             </dependency>
+            <dependency>
+                <groupId>jakarta.enterprise</groupId>
+                <artifactId>jakarta.enterprise.cdi-api</artifactId>
+                <version>${jakarta-enterprise-cdi-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.json</groupId>
+                <artifactId>json</artifactId>
+                <version>${json.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.micrometer</groupId>
+                <artifactId>micrometer-core</artifactId>
+                <version>${micrometer.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.mockito.kotlin</groupId>
+                <artifactId>mockito-kotlin</artifactId>
+                <version>${mockito-kotlin.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>testcontainers</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.testcontainers</groupId>
+                <artifactId>kafka</artifactId>
+                <version>${testcontainers.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.awaitility</groupId>
+                <artifactId>awaitility</artifactId>
+                <version>${awaitility.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.tomcat</groupId>
+                <artifactId>annotations-api</artifactId>
+                <version>${tomcat-annotations-api.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-netty-shaded</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-protobuf</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-stub</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-services</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-inprocess</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
+            <dependency>
+                <groupId>io.grpc</groupId>
+                <artifactId>grpc-testing</artifactId>
+                <version>${grpc.version}</version>
+            </dependency>
         </dependencies>
     </dependencyManagement>
     <!-- All dependencies are available on Maven Central. Legacy repositories
@@ -676,6 +746,19 @@
         <junit-jupiter.version>5.11.4</junit-jupiter.version>
         <jackson.version>2.18.3</jackson.version>
         <mockito.version>5.21.0</mockito.version>
+        <mockito-kotlin.version>5.4.0</mockito-kotlin.version>
+        <json.version>20250517</json.version>
+        <micrometer.version>1.14.5</micrometer.version>
+        <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
+        <testcontainers.version>1.20.6</testcontainers.version>
+        <awaitility.version>4.2.2</awaitility.version>
+        <grpc.version>1.71.0</grpc.version>
+        <protobuf.version>3.25.5</protobuf.version>
+        <tomcat-annotations-api.version>6.0.53</tomcat-annotations-api.version>
+        <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
+        <protobuf-maven-plugin.version>0.6.1</protobuf-maven-plugin.version>
+        <maven-shade-plugin.version>3.6.0</maven-shade-plugin.version>
+        <maven-install-plugin.version>3.1.3</maven-install-plugin.version>
         <lettuce.version>6.5.5.RELEASE</lettuce.version>
         <spring-boot.version>4.0.2</spring-boot.version>
         <quarkus.version>3.31.3</quarkus.version>
