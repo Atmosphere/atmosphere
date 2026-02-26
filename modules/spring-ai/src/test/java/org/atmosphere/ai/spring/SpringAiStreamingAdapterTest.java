@@ -303,6 +303,7 @@ public class SpringAiStreamingAdapterTest {
 
         assertSame(request.client(), client);
         assertEquals("my prompt", request.prompt());
+        assertNull(request.customizer());
     }
 
     @Test
@@ -325,6 +326,68 @@ public class SpringAiStreamingAdapterTest {
         var request2 = new SpringAiStreamingAdapter.ChatRequest(client2, "prompt");
 
         assertNotEquals(request2, request1);
+    }
+
+    @Test
+    public void testStreamWithAdvisors() throws Exception {
+        var latch = new CountDownLatch(1);
+        Flux<ChatResponse> flux = Flux.just(chatResponse("advised"))
+                .doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClientWithAdvisors("advisor-test", flux);
+
+        var advisor = mock(org.springframework.ai.chat.client.advisor.api.Advisor.class);
+        when(advisor.getName()).thenReturn("test-advisor");
+
+        adapter.stream(client, "advisor-test", session, advisor);
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(broadcaster, timeout(2000).atLeast(3)).broadcast(captor.capture());
+
+        var messages = captor.getAllValues().stream()
+                .map(Object::toString)
+                .toList();
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"advised\"")),
+                "Should stream tokens with advisor");
+    }
+
+    @Test
+    public void testStreamWithCustomizer() throws Exception {
+        var latch = new CountDownLatch(1);
+        Flux<ChatResponse> flux = Flux.just(chatResponse("customized"))
+                .doOnComplete(latch::countDown);
+
+        ChatClient client = mockChatClientWithAdvisors("customizer-test", flux);
+
+        var customizerCalled = new java.util.concurrent.atomic.AtomicBoolean(false);
+        adapter.stream(client, "customizer-test", session, spec -> {
+            customizerCalled.set(true);
+            spec.system("You are a test assistant");
+        });
+
+        assertTrue(latch.await(5, TimeUnit.SECONDS));
+        assertTrue(customizerCalled.get(), "Customizer should have been called");
+
+        var captor = ArgumentCaptor.forClass(Object.class);
+        verify(broadcaster, timeout(2000).atLeast(3)).broadcast(captor.capture());
+
+        var messages = captor.getAllValues().stream()
+                .map(Object::toString)
+                .toList();
+        assertTrue(messages.stream().anyMatch(m -> m.contains("\"data\":\"customized\"")));
+    }
+
+    @Test
+    public void testChatRequestWithCustomizer() {
+        var client = mock(ChatClient.class);
+        java.util.function.Consumer<ChatClient.ChatClientRequestSpec> customizer = spec -> {};
+        var request = new SpringAiStreamingAdapter.ChatRequest(client, "prompt", customizer);
+
+        assertSame(client, request.client());
+        assertEquals("prompt", request.prompt());
+        assertSame(customizer, request.customizer());
     }
 
     @Test
@@ -458,6 +521,21 @@ public class SpringAiStreamingAdapterTest {
         when(client.prompt(prompt)).thenReturn(promptSpec);
         when(promptSpec.stream()).thenReturn(streamSpec);
         when(streamSpec.chatResponse()).thenReturn(flux);
+
+        return client;
+    }
+
+    private static ChatClient mockChatClientWithAdvisors(String prompt, Flux<ChatResponse> flux) {
+        ChatClient client = mock(ChatClient.class);
+        var promptSpec = mock(ChatClient.ChatClientRequestSpec.class);
+        var streamSpec = mock(ChatClient.StreamResponseSpec.class);
+
+        when(client.prompt(prompt)).thenReturn(promptSpec);
+        when(promptSpec.stream()).thenReturn(streamSpec);
+        when(streamSpec.chatResponse()).thenReturn(flux);
+        // Advisor/customizer methods return self for fluent chaining
+        when(promptSpec.advisors(any(org.springframework.ai.chat.client.advisor.api.Advisor[].class))).thenReturn(promptSpec);
+        when(promptSpec.system(anyString())).thenReturn(promptSpec);
 
         return client;
     }
