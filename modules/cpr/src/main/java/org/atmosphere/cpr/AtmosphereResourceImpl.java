@@ -635,6 +635,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
         }
         logger.trace("Invoking listener {} for {}", listeners, uuid());
 
+        Action.TYPE previousType = action.type();
         try {
             if (event instanceof HeartbeatAtmosphereResourceEvent) {
                 onHeartbeat(event);
@@ -656,7 +657,7 @@ public class AtmosphereResourceImpl implements AtmosphereResource {
                 onBroadcast(event);
             }
 
-            if (action.type() != action.type()) {
+            if (previousType != action.type()) {
                 action().type(Action.TYPE.CREATED);
             }
         } catch (Throwable t) {

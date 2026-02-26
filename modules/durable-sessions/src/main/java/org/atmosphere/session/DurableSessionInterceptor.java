@@ -245,6 +245,8 @@ public class DurableSessionInterceptor extends AtmosphereInterceptorAdapter {
                     token, roomNames, broadcasterIds);
         } catch (Exception e) {
             logger.warn("Failed to save durable session state for {}", token, e);
+        } finally {
+            savedOnDisconnect.remove(r.uuid());
         }
     }
 
