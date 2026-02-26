@@ -94,6 +94,8 @@ public final class McpProtocolHandler {
                 case McpMethod.TOOLS_CALL -> handleToolsCall(idVal, node.get("params"));
                 case McpMethod.RESOURCES_LIST -> handleResourcesList(idVal);
                 case McpMethod.RESOURCES_READ -> handleResourcesRead(idVal, node.get("params"));
+                case McpMethod.RESOURCES_SUBSCRIBE -> handleResourcesSubscribe(resource, idVal, node.get("params"));
+                case McpMethod.RESOURCES_UNSUBSCRIBE -> handleResourcesUnsubscribe(resource, idVal, node.get("params"));
                 case McpMethod.PROMPTS_LIST -> handlePromptsList(idVal);
                 case McpMethod.PROMPTS_GET -> handlePromptsGet(idVal, node.get("params"));
                 default -> JsonRpc.Response.error(idVal, JsonRpc.METHOD_NOT_FOUND,
@@ -191,6 +193,8 @@ public final class McpProtocolHandler {
                         () -> executeToolCall(id, tool, arguments));
             }
             return executeToolCall(id, tool, arguments);
+        } catch (IllegalArgumentException e) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, e.getMessage());
         } catch (InvocationTargetException e) {
             var cause = e.getCause() != null ? e.getCause() : e;
             logger.warn("Tool {} invocation failed", toolName, cause);
@@ -259,31 +263,71 @@ public final class McpProtocolHandler {
         }
 
         var res = resOpt.get();
-        try {
-            Object result;
-            if (res.isDynamic()) {
-                var argMap = bindArgumentsAsMap(res.params(),
-                        params.has("arguments") ? params.get("arguments") : null);
-                result = res.handler().read(argMap);
-            } else {
-                var args = bindArguments(res.method(), res.params(),
-                        params.has("arguments") ? params.get("arguments") : null);
-                result = res.method().invoke(res.instance(), args);
-            }
-            var text = result instanceof String s ? s : mapper.writeValueAsString(result);
+        var arguments = params.has("arguments") ? params.get("arguments") : null;
+        int argCount = arguments != null ? arguments.size() : 0;
 
-            return JsonRpc.Response.success(id, Map.of(
-                    "contents", List.of(Map.of(
-                            "uri", uri,
-                            "mimeType", res.mimeType(),
-                            "text", text
-                    ))
-            ));
+        try {
+            if (tracing != null) {
+                return tracing.traced("resource", uri, argCount,
+                        () -> executeResourceRead(id, res, uri, arguments));
+            }
+            return executeResourceRead(id, res, uri, arguments);
+        } catch (IllegalArgumentException e) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, e.getMessage());
         } catch (Exception e) {
             logger.warn("Resource {} read failed", uri, e);
             return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
                     "Resource read failed: " + e.getMessage());
         }
+    }
+
+    private JsonRpc.Response executeResourceRead(Object id, McpRegistry.ResourceEntry res,
+                                                  String uri, JsonNode arguments) throws Exception {
+        Object result;
+        if (res.isDynamic()) {
+            var argMap = bindArgumentsAsMap(res.params(), arguments);
+            result = res.handler().read(argMap);
+        } else {
+            var args = bindArguments(res.method(), res.params(), arguments);
+            result = res.method().invoke(res.instance(), args);
+        }
+        var text = result instanceof String s ? s : mapper.writeValueAsString(result);
+
+        return JsonRpc.Response.success(id, Map.of(
+                "contents", List.of(Map.of(
+                        "uri", uri,
+                        "mimeType", res.mimeType(),
+                        "text", text
+                ))
+        ));
+    }
+
+    private JsonRpc.Response handleResourcesSubscribe(AtmosphereResource resource,
+                                                       Object id, JsonNode params) {
+        if (params == null || !params.has("uri")) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
+        }
+        var uri = params.get("uri").asText();
+        if (registry.resource(uri).isEmpty()) {
+            return JsonRpc.Response.error(id, JsonRpc.METHOD_NOT_FOUND,
+                    "Unknown resource: " + uri);
+        }
+        var session = getOrCreateSession(resource);
+        session.addSubscription(uri);
+        logger.debug("Client subscribed to resource: {}", uri);
+        return JsonRpc.Response.success(id, Map.of());
+    }
+
+    private JsonRpc.Response handleResourcesUnsubscribe(AtmosphereResource resource,
+                                                         Object id, JsonNode params) {
+        if (params == null || !params.has("uri")) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, "Missing resource URI");
+        }
+        var uri = params.get("uri").asText();
+        var session = getOrCreateSession(resource);
+        session.removeSubscription(uri);
+        logger.debug("Client unsubscribed from resource: {}", uri);
+        return JsonRpc.Response.success(id, Map.of());
     }
 
     // ── Prompts ──────────────────────────────────────────────────────────
@@ -326,35 +370,48 @@ public final class McpProtocolHandler {
         }
 
         var prompt = promptOpt.get();
+        var arguments = params.has("arguments") ? params.get("arguments") : null;
+        int argCount = arguments != null ? arguments.size() : 0;
+
         try {
-            var arguments = params.has("arguments") ? params.get("arguments") : null;
-            Object result;
-            if (prompt.isDynamic()) {
-                var argMap = bindArgumentsAsMap(prompt.params(), arguments);
-                result = prompt.handler().get(argMap);
-            } else {
-                var args = bindArguments(prompt.method(), prompt.params(), arguments);
-                result = prompt.method().invoke(prompt.instance(), args);
+            if (tracing != null) {
+                return tracing.traced("prompt", promptName, argCount,
+                        () -> executePromptGet(id, prompt, arguments));
             }
-
-            // Result should be a List of maps with "role" and "content"
-            Object messages;
-            if (result instanceof List<?> list) {
-                messages = list;
-            } else {
-                messages = List.of(Map.of("role", "user",
-                        "content", Map.of("type", "text", "text", String.valueOf(result))));
-            }
-
-            return JsonRpc.Response.success(id, Map.of(
-                    "description", prompt.description(),
-                    "messages", messages
-            ));
+            return executePromptGet(id, prompt, arguments);
+        } catch (IllegalArgumentException e) {
+            return JsonRpc.Response.error(id, JsonRpc.INVALID_PARAMS, e.getMessage());
         } catch (Exception e) {
             logger.warn("Prompt {} get failed", promptName, e);
             return JsonRpc.Response.error(id, JsonRpc.INTERNAL_ERROR,
                     "Prompt get failed: " + e.getMessage());
         }
+    }
+
+    private JsonRpc.Response executePromptGet(Object id, McpRegistry.PromptEntry prompt,
+                                               JsonNode arguments) throws Exception {
+        Object result;
+        if (prompt.isDynamic()) {
+            var argMap = bindArgumentsAsMap(prompt.params(), arguments);
+            result = prompt.handler().get(argMap);
+        } else {
+            var args = bindArguments(prompt.method(), prompt.params(), arguments);
+            result = prompt.method().invoke(prompt.instance(), args);
+        }
+
+        // Result should be a List of maps with "role" and "content"
+        Object messages;
+        if (result instanceof List<?> list) {
+            messages = list;
+        } else {
+            messages = List.of(Map.of("role", "user",
+                    "content", Map.of("type", "text", "text", String.valueOf(result))));
+        }
+
+        return JsonRpc.Response.success(id, Map.of(
+                "description", prompt.description(),
+                "messages", messages
+        ));
     }
 
     // ── Helpers ──────────────────────────────────────────────────────────
@@ -380,6 +437,9 @@ public final class McpProtocolHandler {
                 var param = paramEntries.get(paramIdx);
                 if (arguments != null && arguments.has(param.name())) {
                     args[i] = convertParam(arguments.get(param.name()), param.type());
+                } else if (param.required()) {
+                    throw new IllegalArgumentException(
+                            "Missing required parameter: " + param.name());
                 } else {
                     args[i] = defaultValue(param.type());
                 }
@@ -440,6 +500,9 @@ public final class McpProtocolHandler {
         for (var param : paramEntries) {
             if (arguments != null && arguments.has(param.name())) {
                 map.put(param.name(), convertParam(arguments.get(param.name()), param.type()));
+            } else if (param.required()) {
+                throw new IllegalArgumentException(
+                        "Missing required parameter: " + param.name());
             } else {
                 map.put(param.name(), defaultValue(param.type()));
             }

@@ -28,6 +28,7 @@ import org.atmosphere.mcp.annotation.McpTool;
 import org.atmosphere.mcp.protocol.McpMessage;
 import org.atmosphere.mcp.registry.McpRegistry;
 import org.atmosphere.mcp.runtime.McpProtocolHandler;
+import org.atmosphere.mcp.runtime.McpSession;
 
 import java.util.List;
 import java.util.Map;
@@ -77,6 +78,14 @@ public class McpProtocolHandlerTest {
                 description = "Server status", mimeType = "application/json")
         public String status() {
             return "{\"status\":\"ok\"}";
+        }
+
+        @McpTool(name = "greet_optional", description = "Greet with optional title")
+        public String greetOptional(
+                @McpParam(name = "name", description = "Person's name") String name,
+                @McpParam(name = "title", description = "Optional title", required = false) String title
+        ) {
+            return title != null ? "Hello, " + title + " " + name + "!" : "Hello, " + name + "!";
         }
 
         @McpPrompt(name = "analyze", description = "Analyze data")
@@ -164,7 +173,7 @@ public class McpProtocolHandlerTest {
         var node = mapper.readTree(handler.handleMessage(resource, request));
         var tools = node.get("result").get("tools");
         assertTrue(tools.isArray());
-        assertEquals(3, tools.size());
+        assertEquals(4, tools.size());
 
         // Find the greet tool
         JsonNode greetTool = null;
@@ -322,7 +331,7 @@ public class McpProtocolHandlerTest {
         var registry = new McpRegistry();
         registry.scan(new TestMcpServer());
 
-        assertEquals(3, registry.tools().size());
+        assertEquals(4, registry.tools().size());
         assertEquals(1, registry.resources().size());
         assertEquals(1, registry.prompts().size());
 
@@ -426,12 +435,208 @@ public class McpProtocolHandlerTest {
         registry.scan(new TestMcpServer());
         registry.registerTool("dynamic_tool", "A dynamic tool", args -> "dynamic result");
 
-        assertEquals(4, registry.tools().size()); // 3 annotation + 1 dynamic
+        assertEquals(5, registry.tools().size()); // 4 annotation + 1 dynamic
 
         var testHandler = new McpProtocolHandler("test", "1.0.0", registry, mock(AtmosphereConfig.class));
         var request = """
                 {"jsonrpc":"2.0","id":1,"method":"tools/list"}""";
         var node = mapper.readTree(testHandler.handleMessage(resource, request));
-        assertEquals(4, node.get("result").get("tools").size());
+        assertEquals(5, node.get("result").get("tools").size());
+    }
+
+    // ── Resource Subscribe / Unsubscribe ─────────────────────────────────
+
+    @Test
+    public void testResourcesSubscribe() throws Exception {
+        // First initialize so a session exists
+        var init = """
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+                    "protocolVersion":"2025-03-26",
+                    "clientInfo":{"name":"test","version":"0.1"},
+                    "capabilities":{}
+                }}""";
+        handler.handleMessage(resource, init);
+
+        var request = """
+                {"jsonrpc":"2.0","id":20,"method":"resources/subscribe","params":{
+                    "uri":"test://data/status"
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        assertNotNull(node.get("result"));
+        assertNull(node.get("error"));
+    }
+
+    @Test
+    public void testResourcesSubscribeMissingUri() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":21,"method":"resources/subscribe","params":{}}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        assertEquals(-32602, node.get("error").get("code").asInt());
+    }
+
+    @Test
+    public void testResourcesSubscribeUnknownResource() throws Exception {
+        var init = """
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+                    "protocolVersion":"2025-03-26",
+                    "clientInfo":{"name":"test","version":"0.1"},
+                    "capabilities":{}
+                }}""";
+        handler.handleMessage(resource, init);
+
+        var request = """
+                {"jsonrpc":"2.0","id":22,"method":"resources/subscribe","params":{
+                    "uri":"test://nonexistent"
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        assertNotNull(node.get("error"));
+        assertEquals(-32601, node.get("error").get("code").asInt());
+    }
+
+    @Test
+    public void testResourcesUnsubscribe() throws Exception {
+        var init = """
+                {"jsonrpc":"2.0","id":1,"method":"initialize","params":{
+                    "protocolVersion":"2025-03-26",
+                    "clientInfo":{"name":"test","version":"0.1"},
+                    "capabilities":{}
+                }}""";
+        handler.handleMessage(resource, init);
+
+        // Subscribe first
+        var sub = """
+                {"jsonrpc":"2.0","id":23,"method":"resources/subscribe","params":{
+                    "uri":"test://data/status"
+                }}""";
+        handler.handleMessage(resource, sub);
+
+        // Unsubscribe
+        var unsub = """
+                {"jsonrpc":"2.0","id":24,"method":"resources/unsubscribe","params":{
+                    "uri":"test://data/status"
+                }}""";
+        var node = mapper.readTree(handler.handleMessage(resource, unsub));
+        assertNotNull(node.get("result"));
+        assertNull(node.get("error"));
+    }
+
+    @Test
+    public void testResourcesUnsubscribeMissingUri() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":25,"method":"resources/unsubscribe"}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        assertEquals(-32602, node.get("error").get("code").asInt());
+    }
+
+    // ── Required Parameter Validation ────────────────────────────────────
+
+    @Test
+    public void testToolCallMissingRequiredParam() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":30,"method":"tools/call","params":{
+                    "name":"greet",
+                    "arguments":{}
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        assertEquals(-32602, node.get("error").get("code").asInt());
+        assertTrue(node.get("error").get("message").asText().contains("Missing required parameter"));
+    }
+
+    @Test
+    public void testToolCallOptionalParamOmitted() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":31,"method":"tools/call","params":{
+                    "name":"greet_optional",
+                    "arguments":{"name":"Alice"}
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        var result = node.get("result");
+        assertFalse(result.get("isError").asBoolean());
+        assertEquals("Hello, Alice!", result.get("content").get(0).get("text").asText());
+    }
+
+    @Test
+    public void testToolCallOptionalParamProvided() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":32,"method":"tools/call","params":{
+                    "name":"greet_optional",
+                    "arguments":{"name":"Alice","title":"Dr."}
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        var result = node.get("result");
+        assertFalse(result.get("isError").asBoolean());
+        assertEquals("Hello, Dr. Alice!", result.get("content").get(0).get("text").asText());
+    }
+
+    @Test
+    public void testPromptGetMissingRequiredParam() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":33,"method":"prompts/get","params":{
+                    "name":"analyze",
+                    "arguments":{}
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        assertEquals(-32602, node.get("error").get("code").asInt());
+        assertTrue(node.get("error").get("message").asText().contains("Missing required parameter"));
+    }
+
+    // ── Session Subscription Tracking ────────────────────────────────────
+
+    @Test
+    public void testSessionSubscriptionTracking() {
+        var session = new McpSession();
+        assertFalse(session.isSubscribed("test://data"));
+        assertTrue(session.subscriptions().isEmpty());
+
+        session.addSubscription("test://data");
+        assertTrue(session.isSubscribed("test://data"));
+        assertEquals(1, session.subscriptions().size());
+
+        session.addSubscription("test://other");
+        assertEquals(2, session.subscriptions().size());
+
+        session.removeSubscription("test://data");
+        assertFalse(session.isSubscribed("test://data"));
+        assertTrue(session.isSubscribed("test://other"));
+        assertEquals(1, session.subscriptions().size());
+
+        session.removeSubscription("test://other");
+        assertTrue(session.subscriptions().isEmpty());
+    }
+
+    @Test
+    public void testSessionSubscriptionIdempotent() {
+        var session = new McpSession();
+        session.addSubscription("test://data");
+        session.addSubscription("test://data");
+        assertEquals(1, session.subscriptions().size());
+
+        session.removeSubscription("test://nonexistent");
+        assertEquals(1, session.subscriptions().size());
+    }
+
+    // ── Initialize advertises subscribe capability ───────────────────────
+
+    @Test
+    public void testInitializeAdvertisesSubscribeCapability() throws Exception {
+        var request = """
+                {"jsonrpc":"2.0","id":40,"method":"initialize","params":{
+                    "protocolVersion":"2025-03-26",
+                    "clientInfo":{"name":"test","version":"0.1"},
+                    "capabilities":{}
+                }}""";
+
+        var node = mapper.readTree(handler.handleMessage(resource, request));
+        var capabilities = node.get("result").get("capabilities");
+        var resources = capabilities.get("resources");
+        assertTrue(resources.get("subscribe").asBoolean());
     }
 }

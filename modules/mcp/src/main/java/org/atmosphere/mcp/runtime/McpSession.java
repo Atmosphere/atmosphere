@@ -17,9 +17,12 @@ package org.atmosphere.mcp.runtime;
 
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Deque;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -54,6 +57,7 @@ public final class McpSession {
     private volatile long lastAccessedAt = System.currentTimeMillis();
     private final int maxPending;
     private final Deque<String> pendingNotifications;
+    private final Set<String> subscriptions = new HashSet<>();
 
     public McpSession() {
         this(DEFAULT_MAX_PENDING);
@@ -145,5 +149,27 @@ public final class McpSession {
     /** Returns the number of buffered pending notifications. */
     public synchronized int pendingCount() {
         return pendingNotifications.size();
+    }
+
+    // ── Resource subscriptions ──────────────────────────────────────────
+
+    /** Subscribe to notifications for the given resource URI. */
+    public synchronized void addSubscription(String uri) {
+        subscriptions.add(uri);
+    }
+
+    /** Unsubscribe from notifications for the given resource URI. */
+    public synchronized void removeSubscription(String uri) {
+        subscriptions.remove(uri);
+    }
+
+    /** Returns true if this session is subscribed to the given resource URI. */
+    public synchronized boolean isSubscribed(String uri) {
+        return subscriptions.contains(uri);
+    }
+
+    /** Returns an unmodifiable view of all subscribed resource URIs. */
+    public synchronized Set<String> subscriptions() {
+        return Collections.unmodifiableSet(new HashSet<>(subscriptions));
     }
 }
