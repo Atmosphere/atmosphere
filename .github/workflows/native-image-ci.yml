@@ -35,7 +35,7 @@ jobs:
         cache: 'maven'
 
     - name: Install Atmosphere Modules
-      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/spring-boot-starter -am
+      run: ./mvnw -B install -DskipTests -Dgpg.skip=true -pl buildtools,modules/cpr,modules/spring-boot-starter,modules/wasync -am
 
     - name: Build Spring Boot Native Image
       run: ./mvnw -B -Pnative package -DskipTests -Dgpg.skip=true -pl samples/spring-boot-chat
