@@ -24,7 +24,6 @@ jobs:
       uses: actions/setup-node@v4
       with:
         node-version: 20
-        registry-url: 'https://registry.npmjs.org'
         cache: 'npm'
         cache-dependency-path: atmosphere.js/package-lock.json
 
@@ -40,7 +39,7 @@ jobs:
         npm run test:ci
         npm run build
         npm version ${{ inputs.js_version }} --no-git-tag-version --allow-same-version
-        npm publish --provenance --access public
+        npm publish --provenance --access public --registry https://registry.npmjs.org
 
     - name: Commit and tag JS release
       run: |
