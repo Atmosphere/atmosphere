@@ -33,16 +33,17 @@ jobs:
         git config user.name "GitHub Actions"
         git config user.email "actions@github.com"
 
-    - name: Install, test, build, and publish
+    - name: Install, test, and build
       working-directory: atmosphere.js
       run: |
         npm ci
         npm run test:ci
         npm run build
         npm version ${{ inputs.js_version }} --no-git-tag-version --allow-same-version
-        npm publish --provenance --access public
-      env:
-        NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+
+    - name: Publish to NPM (Trusted Publishing / OIDC)
+      working-directory: atmosphere.js
+      run: npm publish --provenance --access public
 
     - name: Commit and tag JS release
       run: |
