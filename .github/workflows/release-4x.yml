@@ -20,7 +20,7 @@ on:
         description: 'atmosphere.js version (e.g., 5.0.0) — only if publishing JS'
         required: false
         type: string
-        default: '5.0.1'
+        default: '5.0.2'
       dry_run:
         description: 'Dry run — build and verify without publishing'
         required: true
