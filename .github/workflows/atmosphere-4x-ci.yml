@@ -74,8 +74,6 @@ jobs:
 
     - name: Run E2E Tests
       working-directory: modules/integration-tests
-      env:
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: npx playwright test
 
     - name: Upload Playwright Report

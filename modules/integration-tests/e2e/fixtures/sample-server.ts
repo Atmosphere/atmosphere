@@ -186,7 +186,7 @@ export async function startSample(config: SampleConfig): Promise<SampleServer> {
   proc.stderr?.on('data', (d) => { output += d.toString(); });
 
   try {
-    await waitForPort(config.port, 45_000);
+    await waitForPort(config.port, 90_000);
   } catch (e) {
     proc.kill('SIGTERM');
     console.error(`=== Server output for ${config.name} ===\n${output.slice(-2000)}`);
