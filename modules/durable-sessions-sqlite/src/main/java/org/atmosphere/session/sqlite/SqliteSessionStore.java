@@ -69,9 +69,23 @@ public class SqliteSessionStore implements SessionStore {
 
     /**
      * Create a store at the given file path.
+     * Parent directories are created automatically if they do not exist.
      */
     public SqliteSessionStore(Path dbPath) {
-        this("jdbc:sqlite:" + dbPath.toAbsolutePath());
+        this(ensureParentDirs(dbPath));
+    }
+
+    private static String ensureParentDirs(Path dbPath) {
+        var abs = dbPath.toAbsolutePath();
+        var parent = abs.getParent();
+        if (parent != null) {
+            try {
+                java.nio.file.Files.createDirectories(parent);
+            } catch (java.io.IOException e) {
+                throw new IllegalStateException("Cannot create directory: " + parent, e);
+            }
+        }
+        return "jdbc:sqlite:" + abs;
     }
 
     /**
