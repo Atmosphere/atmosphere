@@ -7,16 +7,18 @@ A demonstration of Atmosphere's MCP (Model Context Protocol) server module. AI a
 The `DemoMcpServer` exposes:
 
 **Tools** (agents can call these):
-- `get_time` — returns the current server time in any timezone
-- `save_note` / `list_notes` — simple note storage
-- `calculate` — basic arithmetic
+- `list_users` — list all users currently connected to the chat
+- `ban_user` — disconnect and ban a user from the chat by UUID
+- `broadcast_message` — send a message to all connected chat users
+- `send_message` — send a private message to a specific user by UUID
+- `atmosphere_version` — return the Atmosphere framework version and runtime info
 
 **Resources** (agents can read these):
 - `atmosphere://server/status` — server status and uptime
 - `atmosphere://server/capabilities` — what the server can do
 
 **Prompts** (reusable prompt templates):
-- `summarize_notes` — summarize all saved notes
+- `chat_summary` — summarize current chat status
 - `analyze_topic` — analyze a topic with configurable depth
 
 ## Running
@@ -114,7 +116,7 @@ curl -s -X POST http://localhost:8083/atmosphere/mcp \
 # Call a tool
 curl -s -X POST http://localhost:8083/atmosphere/mcp \
   -H "Content-Type: application/json" \
-  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_time","arguments":{"timezone":"UTC"}}}'
+  -d '{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"list_users","arguments":{}}}'
 ```
 
 ## Server Code
@@ -125,14 +127,18 @@ The entire server is a single annotated class — see [DemoMcpServer.java](src/m
 @McpServer(name = "atmosphere-demo", path = "/atmosphere/mcp")
 public class DemoMcpServer {
 
-    @McpTool(name = "get_time", description = "Get the current server time")
-    public String getTime(@McpParam(name = "timezone", ...) String tz) { ... }
+    @McpTool(name = "list_users", description = "List all users connected to the chat")
+    public List<Map<String, String>> listUsers() { ... }
+
+    @McpTool(name = "broadcast_message", description = "Send a message to all chat users")
+    public Map<String, Object> broadcastMessage(
+            @McpParam(name = "message") String message) { ... }
 
     @McpResource(uri = "atmosphere://server/status", ...)
     public String serverStatus() { ... }
 
-    @McpPrompt(name = "summarize_notes", ...)
-    public List<McpMessage> summarizeNotes() { ... }
+    @McpPrompt(name = "chat_summary", ...)
+    public List<McpMessage> chatSummary() { ... }
 }
 ```
 
