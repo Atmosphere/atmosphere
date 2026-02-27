@@ -22,7 +22,10 @@ import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 
 /**
@@ -51,6 +54,8 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
     private static final Logger logger = LoggerFactory.getLogger(AiResponseCacheListener.class);
 
     private final ConcurrentHashMap<String, AtomicInteger> tokenCounts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<String, Long> sessionStartTimes = new ConcurrentHashMap<>();
+    private final List<CoalescedCacheEventListener> coalescedListeners = new CopyOnWriteArrayList<>();
 
     @Override
     public void onAddCache(String broadcasterId, CacheMessage cacheMessage) {
@@ -75,10 +80,23 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
 
         if ("token".equals(type)) {
             tokenCounts.computeIfAbsent(sessionId, k -> new AtomicInteger()).incrementAndGet();
+            sessionStartTimes.computeIfAbsent(sessionId, k -> System.nanoTime());
         } else if ("complete".equals(type) || "error".equals(type)) {
             var count = tokenCounts.remove(sessionId);
+            var startNanos = sessionStartTimes.remove(sessionId);
+            var totalTokens = count != null ? count.get() : 0;
+            var elapsedMs = startNanos != null
+                    ? TimeUnit.NANOSECONDS.toMillis(System.nanoTime() - startNanos)
+                    : 0L;
+
             logger.debug("AI session {} cached: {} tokens (broadcaster: {})",
-                    sessionId, count != null ? count.get() : 0, broadcasterId);
+                    sessionId, totalTokens, broadcasterId);
+
+            if (!coalescedListeners.isEmpty()) {
+                var event = new CoalescedCacheEvent(
+                        sessionId, broadcasterId, totalTokens, type, elapsedMs);
+                fireCoalescedEvent(event);
+            }
         }
     }
 
@@ -96,6 +114,35 @@ public class AiResponseCacheListener implements BroadcasterCacheListener {
     public int getCachedTokenCount(String sessionId) {
         var count = tokenCounts.get(sessionId);
         return count != null ? count.get() : 0;
+    }
+
+    /**
+     * Register a coalesced event listener.
+     *
+     * @param listener the listener to add
+     */
+    public void addCoalescedListener(CoalescedCacheEventListener listener) {
+        coalescedListeners.add(listener);
+    }
+
+    /**
+     * Remove a previously registered coalesced event listener.
+     *
+     * @param listener the listener to remove
+     */
+    public void removeCoalescedListener(CoalescedCacheEventListener listener) {
+        coalescedListeners.remove(listener);
+    }
+
+    private void fireCoalescedEvent(CoalescedCacheEvent event) {
+        for (var listener : coalescedListeners) {
+            try {
+                listener.onCoalescedEvent(event);
+            } catch (Exception e) {
+                logger.warn("Coalesced listener threw exception for session {}",
+                        event.sessionId(), e);
+            }
+        }
     }
 
     /**

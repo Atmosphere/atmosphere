@@ -90,5 +90,17 @@ export default defineConfig({
       name: 'ai-budget',
       testMatch: /ai-budget\.spec\.ts/,
     },
+    {
+      name: 'ai-cache-coalescing',
+      testMatch: /ai-cache-coalescing\.spec\.ts/,
+    },
+    {
+      name: 'ai-cost-routing',
+      testMatch: /ai-cost-routing\.spec\.ts/,
+    },
+    {
+      name: 'ai-combined-cost-cache',
+      testMatch: /ai-combined-cost-cache\.spec\.ts/,
+    },
   ],
 });

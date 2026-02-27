@@ -19,8 +19,10 @@ import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.llm.ChatCompletionRequest;
 import org.atmosphere.ai.llm.LlmClient;
 import org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule;
+import org.atmosphere.ai.routing.RoutingLlmClient.RoutingRule.ModelOption;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.concurrent.atomic.AtomicReference;
 
 import static org.junit.jupiter.api.Assertions.*;
@@ -122,5 +124,56 @@ public class RoutingLlmClientTest {
         router.streamChatCompletion(ChatCompletionRequest.of("any", "hello"), session);
 
         verify(session).sendMetadata("routing.model", "default-model");
+    }
+
+    @Test
+    public void testMixedRuleChainContentThenCost() {
+        var capturedCode = new AtomicReference<String>();
+        var capturedCost = new AtomicReference<String>();
+
+        var router = RoutingLlmClient.builder(capturingClient(new AtomicReference<>()), "default")
+                .route(RoutingRule.contentBased(
+                        prompt -> prompt.contains("code"),
+                        capturingClient(capturedCode), "code-model"))
+                .route(RoutingRule.costBased(10.0, List.of(
+                        new ModelOption(capturingClient(capturedCost), "cheap", 0.001, 100, 5)
+                )))
+                .build();
+
+        // "code" prompt should match content rule first
+        var session1 = mock(StreamingSession.class);
+        router.streamChatCompletion(ChatCompletionRequest.of("any", "write code"), session1);
+        assertEquals("code-model", capturedCode.get());
+        assertNull(capturedCost.get());
+
+        // Non-code prompt should fall through to cost rule
+        var session2 = mock(StreamingSession.class);
+        router.streamChatCompletion(ChatCompletionRequest.of("any", "hello"), session2);
+        assertEquals("cheap", capturedCost.get());
+    }
+
+    @Test
+    public void testMixedRuleChainCostThenLatency() {
+        var capturedCost = new AtomicReference<String>();
+        var capturedLatency = new AtomicReference<String>();
+        var capturedDefault = new AtomicReference<String>();
+
+        var router = RoutingLlmClient.builder(capturingClient(capturedDefault), "default")
+                .route(RoutingRule.costBased(0.001, List.of(
+                        // Very tight budget — only free models pass
+                        new ModelOption(capturingClient(capturedCost), "expensive", 0.01, 100, 10)
+                )))
+                .route(RoutingRule.latencyBased(200, List.of(
+                        new ModelOption(capturingClient(capturedLatency), "fast", 0.01, 50, 5)
+                )))
+                .build();
+
+        // Cost rule fails (0.01 * 2048 > 0.001), latency rule matches (50 <= 200)
+        var session = mock(StreamingSession.class);
+        router.streamChatCompletion(ChatCompletionRequest.of("any", "hello"), session);
+
+        assertNull(capturedCost.get());
+        assertEquals("fast", capturedLatency.get());
+        assertNull(capturedDefault.get());
     }
 }

@@ -22,6 +22,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.function.Predicate;
 
@@ -71,7 +72,25 @@ public final class RoutingLlmClient implements LlmClient {
      * A routing rule that determines which client and model to use.
      */
     public sealed interface RoutingRule
-            permits RoutingRule.ContentBased, RoutingRule.ModelBased {
+            permits RoutingRule.ContentBased, RoutingRule.ModelBased,
+                    RoutingRule.CostBased, RoutingRule.LatencyBased {
+
+        /**
+         * A model option with cost/latency metadata for budget and latency-aware routing.
+         *
+         * @param client           the LLM client for this model
+         * @param model            model name
+         * @param costPerToken     cost per token (in arbitrary units)
+         * @param averageLatencyMs average response latency in milliseconds
+         * @param capability       capability score (higher = more capable); used for tie-breaking
+         */
+        record ModelOption(
+                LlmClient client,
+                String model,
+                double costPerToken,
+                long averageLatencyMs,
+                int capability
+        ) {}
 
         /**
          * Route based on the content of the user's prompt.
@@ -91,6 +110,24 @@ public final class RoutingLlmClient implements LlmClient {
         record ModelBased(Predicate<String> modelPattern, LlmClient target) implements RoutingRule {}
 
         /**
+         * Route based on cost constraints. Selects the highest-capability model
+         * whose total cost (costPerToken * maxTokens) fits within the budget.
+         *
+         * @param maxCost the maximum allowed total cost
+         * @param models  available model options with cost metadata
+         */
+        record CostBased(double maxCost, List<ModelOption> models) implements RoutingRule {}
+
+        /**
+         * Route based on latency constraints. Selects the highest-capability model
+         * whose average latency is within the threshold.
+         *
+         * @param maxLatencyMs the maximum allowed average latency in milliseconds
+         * @param models       available model options with latency metadata
+         */
+        record LatencyBased(long maxLatencyMs, List<ModelOption> models) implements RoutingRule {}
+
+        /**
          * Create a content-based routing rule.
          */
         static ContentBased contentBased(Predicate<String> matcher, LlmClient target, String model) {
@@ -102,6 +139,20 @@ public final class RoutingLlmClient implements LlmClient {
          */
         static ModelBased modelBased(Predicate<String> modelPattern, LlmClient target) {
             return new ModelBased(modelPattern, target);
+        }
+
+        /**
+         * Create a cost-based routing rule.
+         */
+        static CostBased costBased(double maxCost, List<ModelOption> models) {
+            return new CostBased(maxCost, List.copyOf(models));
+        }
+
+        /**
+         * Create a latency-based routing rule.
+         */
+        static LatencyBased latencyBased(long maxLatencyMs, List<ModelOption> models) {
+            return new LatencyBased(maxLatencyMs, List.copyOf(models));
         }
     }
 
@@ -131,6 +182,38 @@ public final class RoutingLlmClient implements LlmClient {
                         logger.debug("Routing model {} to dedicated client", request.model());
                         session.sendMetadata("routing.model", request.model());
                         target.streamChatCompletion(request, session);
+                        return;
+                    }
+                }
+                case RoutingRule.CostBased(var maxCost, var models) -> {
+                    var selected = models.stream()
+                            .filter(m -> m.costPerToken() * request.maxTokens() <= maxCost)
+                            .max(Comparator.comparingInt(RoutingRule.ModelOption::capability));
+                    if (selected.isPresent()) {
+                        var opt = selected.get();
+                        logger.debug("Routing to model {} based on cost (budget: {})", opt.model(), maxCost);
+                        var routed = new ChatCompletionRequest(opt.model(), request.messages(),
+                                request.temperature(), request.maxTokens());
+                        session.sendMetadata("routing.model", opt.model());
+                        session.sendMetadata("routing.cost",
+                                opt.costPerToken() * request.maxTokens());
+                        opt.client().streamChatCompletion(routed, session);
+                        return;
+                    }
+                }
+                case RoutingRule.LatencyBased(var maxLatencyMs, var models) -> {
+                    var selected = models.stream()
+                            .filter(m -> m.averageLatencyMs() <= maxLatencyMs)
+                            .max(Comparator.comparingInt(RoutingRule.ModelOption::capability));
+                    if (selected.isPresent()) {
+                        var opt = selected.get();
+                        logger.debug("Routing to model {} based on latency (max: {}ms)",
+                                opt.model(), maxLatencyMs);
+                        var routed = new ChatCompletionRequest(opt.model(), request.messages(),
+                                request.temperature(), request.maxTokens());
+                        session.sendMetadata("routing.model", opt.model());
+                        session.sendMetadata("routing.latency", opt.averageLatencyMs());
+                        opt.client().streamChatCompletion(routed, session);
                         return;
                     }
                 }

@@ -45,9 +45,13 @@ public class AiFeatureTestServer {
         framework.addAtmosphereHandler("/ai/cache", new CacheTestHandler());
         framework.addAtmosphereHandler("/ai/routing", new RoutingTestHandler());
         framework.addAtmosphereHandler("/ai/budget", new BudgetTestHandler());
+        framework.addAtmosphereHandler("/ai/cache-coalescing", new CacheCoalescingTestHandler());
+        framework.addAtmosphereHandler("/ai/cost-routing", new CostLatencyRoutingTestHandler());
+        framework.addAtmosphereHandler("/ai/combined-cost-cache", new CombinedCostCacheTestHandler());
 
         logger.info("AI Feature Test Server started on port {}", server.getPort());
-        logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget");
+        logger.info("Endpoints: /ai/filters, /ai/fanout, /ai/cache, /ai/routing, /ai/budget, "
+                + "/ai/cache-coalescing, /ai/cost-routing, /ai/combined-cost-cache");
 
         Runtime.getRuntime().addShutdownHook(new Thread(() -> {
             try {
