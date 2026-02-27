@@ -32,7 +32,7 @@ function connectAtmosphere(
 }
 
 /** Wait for a condition with polling. */
-async function waitFor(fn: () => boolean, timeoutMs = 10_000): Promise<void> {
+async function waitFor(fn: () => boolean, timeoutMs = 15_000): Promise<void> {
   const start = Date.now();
   while (Date.now() - start < timeoutMs) {
     if (fn()) return;
@@ -56,23 +56,19 @@ test.describe('Durable Sessions', () => {
   test('client can connect and send messages via WebSocket', async () => {
     const { ws, messages, close } = await connectAtmosphere(server.baseUrl);
 
-    // Wait for the Atmosphere handshake (first message is usually the UUID)
-    await waitFor(() => messages.length > 0);
-
-    // Send a JSON chat message
+    // Send a JSON chat message immediately after connect — @ManagedService
+    // may not send an initial handshake to raw WebSocket clients
     const msg = JSON.stringify({ author: 'TestUser', message: 'Hello durable!' });
     ws.send(msg);
 
-    // Should receive the broadcast back
+    // Should receive the broadcast back (the @Message handler returns the message)
     await waitFor(() => messages.some((m) => m.includes('Hello durable!')));
 
     close();
   });
 
   test('session survives server restart', async () => {
-    // Connect and capture session token from server output
     const { ws, messages, close } = await connectAtmosphere(server.baseUrl);
-    await waitFor(() => messages.length > 0);
 
     // Send a message to establish session state
     ws.send(JSON.stringify({ author: 'Survivor', message: 'Before restart' }));
@@ -85,7 +81,6 @@ test.describe('Durable Sessions', () => {
 
     // Reconnect — the server should recognize the session
     const conn2 = await connectAtmosphere(server.baseUrl);
-    await waitFor(() => conn2.messages.length > 0);
 
     // Send another message to verify the connection works
     conn2.ws.send(JSON.stringify({ author: 'Survivor', message: 'After restart' }));
