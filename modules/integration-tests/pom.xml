@@ -53,6 +53,13 @@
             <version>${project.version}</version>
         </dependency>
 
+        <!-- Atmosphere AI (for AI feature E2E tests) -->
+        <dependency>
+            <groupId>org.atmosphere</groupId>
+            <artifactId>atmosphere-ai</artifactId>
+            <version>${project.version}</version>
+        </dependency>
+
         <!-- Atmosphere gRPC -->
         <dependency>
             <groupId>org.atmosphere</groupId>

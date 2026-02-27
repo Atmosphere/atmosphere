@@ -70,5 +70,25 @@ export default defineConfig({
       name: 'grpc-browser',
       testMatch: /grpc-browser\.spec\.ts/,
     },
+    {
+      name: 'ai-filters',
+      testMatch: /ai-filters\.spec\.ts/,
+    },
+    {
+      name: 'ai-fanout',
+      testMatch: /ai-fanout\.spec\.ts/,
+    },
+    {
+      name: 'ai-cache',
+      testMatch: /ai-cache\.spec\.ts/,
+    },
+    {
+      name: 'ai-routing',
+      testMatch: /ai-routing\.spec\.ts/,
+    },
+    {
+      name: 'ai-budget',
+      testMatch: /ai-budget\.spec\.ts/,
+    },
   ],
 });
