@@ -8,7 +8,7 @@
     <modelVersion>4.0.0</modelVersion>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-buildtools</artifactId>
-    <version>4.0.6</version>
+    <version>4.0.7-SNAPSHOT</version>
     <name>atmosphere-buildtools</name>
     <description>Build tools for Atmosphere Framework</description>
     <url>https://github.com/Atmosphere/atmosphere</url>
