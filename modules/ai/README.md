@@ -44,6 +44,8 @@ The `@AiEndpoint` annotation replaces the boilerplate of `@ManagedService` + `@R
 | `OpenAiCompatibleClient` | Built-in HTTP client for OpenAI-compatible APIs (JDK HttpClient, no extra deps) |
 | `AiConfig` | Configuration via environment variables or init-params |
 | `ChatCompletionRequest` | Builder for chat completion requests |
+| `RoutingLlmClient` | Routes prompts to different LLM backends based on content, model, cost, or latency rules |
+| `AiResponseCacheListener` | Tracks cached tokens per session; supports coalesced aggregate events |
 
 ## Configuration
 
@@ -73,6 +75,52 @@ The client receives JSON messages over WebSocket/SSE:
 - `{"type":"progress","message":"Thinking..."}` -- status update
 - `{"type":"complete"}` -- stream finished
 - `{"type":"error","message":"..."}` -- stream failed
+
+## Cache Listener Coalescing
+
+The `AiResponseCacheListener` fires per-token by default, which can be noisy under load. Coalesced listeners fire **once per session** when it completes or errors, providing aggregate metrics.
+
+```java
+var listener = new AiResponseCacheListener();
+listener.addCoalescedListener(event -> {
+    log.info("Session {} finished: {} tokens in {}ms (status: {})",
+            event.sessionId(), event.totalTokens(),
+            event.elapsedMs(), event.status());
+});
+broadcaster.getBroadcasterConfig()
+        .getBroadcasterCache()
+        .addBroadcasterCacheListener(listener);
+```
+
+| Class | Description |
+|-------|-------------|
+| `CoalescedCacheEvent` | Record: `sessionId`, `broadcasterId`, `totalTokens`, `status`, `elapsedMs` |
+| `CoalescedCacheEventListener` | `@FunctionalInterface` — receives one event per completed session |
+
+Per-token tracking is unchanged; coalesced events are purely additive. Listener exceptions are isolated — a failing listener does not prevent others from firing.
+
+## Cost and Latency Routing
+
+`RoutingLlmClient` supports cost-based and latency-based routing rules alongside the existing content-based and model-based rules. Each rule uses `ModelOption` records that carry cost, latency, and capability metadata.
+
+```java
+var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
+        // Route expensive requests to the cheapest model that fits the budget
+        .route(RoutingRule.costBased(5.0, List.of(
+                new ModelOption(openaiClient, "gpt-4o", 0.01, 200, 10),
+                new ModelOption(geminiClient, "gemini-flash", 0.001, 50, 5))))
+        // Route latency-sensitive requests to the fastest capable model
+        .route(RoutingRule.latencyBased(100, List.of(
+                new ModelOption(ollamaClient, "llama3.2", 0.0, 30, 3),
+                new ModelOption(openaiClient, "gpt-4o-mini", 0.005, 80, 7))))
+        .build();
+```
+
+**CostBased** filters models where `costPerToken * request.maxTokens() <= maxCost`, then picks the highest-capability model. Sends `routing.model` and `routing.cost` metadata.
+
+**LatencyBased** filters models where `averageLatencyMs <= maxLatencyMs`, then picks the highest-capability model. Sends `routing.model` and `routing.latency` metadata.
+
+Rules are evaluated in order; first match wins. If no model fits the constraint, the rule is skipped and the next rule is tried.
 
 ## Sample
 
