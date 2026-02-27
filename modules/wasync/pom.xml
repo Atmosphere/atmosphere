@@ -16,7 +16,7 @@
 
     <properties>
         <atmosphere.module.name>org.atmosphere.wasync</atmosphere.module.name>
-        <grpc.version>1.71.0</grpc.version>
+        <grpc.version>1.79.0</grpc.version>
     </properties>
 
     <dependencies>

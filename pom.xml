@@ -752,7 +752,7 @@
         <jakarta-enterprise-cdi-api.version>4.1.0</jakarta-enterprise-cdi-api.version>
         <testcontainers.version>1.20.6</testcontainers.version>
         <awaitility.version>4.2.2</awaitility.version>
-        <grpc.version>1.71.0</grpc.version>
+        <grpc.version>1.79.0</grpc.version>
         <protobuf.version>3.25.5</protobuf.version>
         <tomcat-annotations-api.version>6.0.53</tomcat-annotations-api.version>
         <os-maven-plugin.version>1.7.1</os-maven-plugin.version>
