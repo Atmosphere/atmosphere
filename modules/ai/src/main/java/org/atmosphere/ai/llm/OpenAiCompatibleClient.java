@@ -134,7 +134,10 @@ public class OpenAiCompatibleClient implements LlmClient {
                         break;
                     }
 
-                    var errorBody = new String(response.body().readAllBytes(), StandardCharsets.UTF_8);
+                    String errorBody;
+                    try (var errorStream = response.body()) {
+                        errorBody = new String(errorStream.readAllBytes(), StandardCharsets.UTF_8);
+                    }
 
                     if (!isRetryable(response.statusCode()) || attempt == maxRetries) {
                         logger.error("LLM API error ({}): {}", response.statusCode(), errorBody);
@@ -154,8 +157,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                         break;
                     }
                     var delay = computeRetryDelay(attempt, null);
-                    logger.warn("LLM request timeout, retrying in {}ms (attempt {}/{})",
-                            delay.toMillis(), attempt + 1, maxRetries, e);
+                    logger.warn("LLM request timeout, retrying in {}ms (attempt {}/{}): {}",
+                            delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
                     Thread.sleep(delay.toMillis());
                 } catch (java.io.IOException e) {
                     lastException = e;
@@ -163,8 +166,8 @@ public class OpenAiCompatibleClient implements LlmClient {
                         break;
                     }
                     var delay = computeRetryDelay(attempt, null);
-                    logger.warn("LLM connection error, retrying in {}ms (attempt {}/{})",
-                            delay.toMillis(), attempt + 1, maxRetries, e);
+                    logger.warn("LLM connection error, retrying in {}ms (attempt {}/{}): {}",
+                            delay.toMillis(), attempt + 1, maxRetries, e.getMessage());
                     Thread.sleep(delay.toMillis());
                 }
             }

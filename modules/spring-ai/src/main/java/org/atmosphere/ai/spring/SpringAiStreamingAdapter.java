@@ -49,8 +49,13 @@ public class SpringAiStreamingAdapter implements AiStreamingAdapter<SpringAiStre
     }
 
     @Override
-    @SuppressWarnings("null")
     public void stream(ChatRequest request, StreamingSession session) {
+        if (request.client() == null) {
+            throw new IllegalArgumentException("ChatClient must not be null");
+        }
+        if (request.prompt() == null) {
+            throw new IllegalArgumentException("Prompt must not be null");
+        }
         session.progress("Connecting to AI model...");
 
         var promptSpec = request.client().prompt(request.prompt());

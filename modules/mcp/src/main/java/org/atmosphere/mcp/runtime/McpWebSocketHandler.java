@@ -45,7 +45,7 @@ public final class McpWebSocketHandler implements WebSocketHandler {
 
     @Override
     public void onByteMessage(WebSocket webSocket, byte[] data, int offset, int length) throws IOException {
-        onTextMessage(webSocket, new String(data, offset, length));
+        onTextMessage(webSocket, new String(data, offset, length, java.nio.charset.StandardCharsets.UTF_8));
     }
 
     @Override
@@ -65,6 +65,10 @@ public final class McpWebSocketHandler implements WebSocketHandler {
     @Override
     public void onOpen(WebSocket webSocket) throws IOException {
         var resource = webSocket.resource();
+        if (resource == null) {
+            logger.warn("MCP WebSocket opened but no AtmosphereResource attached");
+            return;
+        }
         logger.debug("MCP WebSocket opened: {}", resource.uuid());
 
         // Restore session from Mcp-Session-Id header if present

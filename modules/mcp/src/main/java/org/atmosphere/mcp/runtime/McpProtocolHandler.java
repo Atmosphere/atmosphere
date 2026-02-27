@@ -43,6 +43,7 @@ public final class McpProtocolHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(McpProtocolHandler.class);
     private static final ObjectMapper mapper = new ObjectMapper();
+    private static final String PROTOCOL_VERSION = "2025-03-26";
 
     private final String serverName;
     private final String serverVersion;
@@ -140,7 +141,7 @@ public final class McpProtocolHandler {
         }
 
         var result = new LinkedHashMap<String, Object>();
-        result.put("protocolVersion", "2025-03-26");
+        result.put("protocolVersion", PROTOCOL_VERSION);
         result.put("capabilities", serverCapabilities);
         result.put("serverInfo", Map.of("name", serverName, "version", serverVersion));
 
@@ -464,8 +465,8 @@ public final class McpProtocolHandler {
         }
         if (type == Broadcaster.class) {
             if (topic == null) {
-                logger.warn("Broadcaster injection requires a 'topic' argument");
-                return null;
+                throw new IllegalArgumentException(
+                        "Broadcaster injection requires a 'topic' @McpParam argument");
             }
             return config.getBroadcasterFactory().lookup(topic, true);
         }
@@ -474,8 +475,8 @@ public final class McpProtocolHandler {
             var streamingSessionClass = Class.forName("org.atmosphere.ai.StreamingSession");
             if (streamingSessionClass.isAssignableFrom(type)) {
                 if (topic == null) {
-                    logger.warn("StreamingSession injection requires a 'topic' argument");
-                    return null;
+                    throw new IllegalArgumentException(
+                            "StreamingSession injection requires a 'topic' @McpParam argument");
                 }
                 var broadcaster = config.getBroadcasterFactory().lookup(topic, true);
                 // Use StreamingSessions.start(Broadcaster) via reflection to avoid hard compile dependency
@@ -484,11 +485,11 @@ public final class McpProtocolHandler {
                 return startMethod.invoke(null, broadcaster);
             }
         } catch (ClassNotFoundException ignored) {
-            // atmosphere-ai not on classpath
+            // atmosphere-ai not on classpath — fall through
         } catch (Exception e) {
-            logger.warn("Failed to create StreamingSession for topic {}", topic, e);
+            throw new IllegalStateException("Failed to create StreamingSession for topic " + topic, e);
         }
-        return null;
+        throw new IllegalArgumentException("Unsupported injectable type: " + type.getName());
     }
 
     /**

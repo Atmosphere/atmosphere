@@ -135,6 +135,8 @@ public final class AiConfig {
         var builder = OpenAiCompatibleClient.builder().baseUrl(resolvedUrl);
         if (apiKey != null && !apiKey.isBlank()) {
             builder.apiKey(apiKey);
+        } else if (!"local".equalsIgnoreCase(mode)) {
+            logger.warn("No API key configured for remote mode. Set LLM_API_KEY or GEMINI_API_KEY environment variable.");
         }
 
         instance = new LlmSettings(builder.build(), model, mode, resolvedUrl);

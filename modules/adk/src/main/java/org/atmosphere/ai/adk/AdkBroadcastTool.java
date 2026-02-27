@@ -119,7 +119,8 @@ public class AdkBroadcastTool extends BaseTool {
 
     @Override
     public Single<Map<String, Object>> runAsync(Map<String, Object> args, ToolContext toolContext) {
-        var message = (String) args.get("message");
+        var rawMessage = args != null ? args.get("message") : null;
+        var message = rawMessage instanceof String s ? s : (rawMessage != null ? rawMessage.toString() : null);
         if (message == null || message.isBlank()) {
             return Single.just(Map.of("status", "error", "error", "message is required"));
         }
@@ -144,7 +145,8 @@ public class AdkBroadcastTool extends BaseTool {
             return fixedBroadcaster;
         }
 
-        var topic = (String) args.get("topic");
+        var rawTopic = args.get("topic");
+        var topic = rawTopic instanceof String s ? s : (rawTopic != null ? rawTopic.toString() : null);
         if (topic == null && defaultTopic != null) {
             topic = defaultTopic;
         }
