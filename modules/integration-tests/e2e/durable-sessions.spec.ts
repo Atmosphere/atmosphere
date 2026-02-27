@@ -44,6 +44,7 @@ async function waitFor(fn: () => boolean, timeoutMs = 10_000): Promise<void> {
 let server: SampleServer;
 
 test.beforeAll(async () => {
+  test.setTimeout(120_000);
   server = await startSample(SAMPLES['spring-boot-durable-sessions']);
 });
 

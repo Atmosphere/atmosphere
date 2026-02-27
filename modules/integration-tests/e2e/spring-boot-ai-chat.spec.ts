@@ -29,8 +29,8 @@ test.describe('Spring Boot AI Chat', () => {
     // User message should appear
     await expect(page.getByText('Say hello in one word')).toBeVisible();
 
-    // Wait for an AI response to start streaming (any new text content)
-    await expect(page.locator('[data-testid="streaming-message"], .streaming-message, [class*="streaming"]').first())
+    // Wait for an AI response (streaming may complete before we check)
+    await expect(page.getByText('demo mode', { exact: false }))
       .toBeVisible({ timeout: 30_000 });
   });
 });

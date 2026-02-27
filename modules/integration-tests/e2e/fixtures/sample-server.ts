@@ -80,7 +80,7 @@ export const SAMPLES: Record<string, SampleConfig> = {
   'spring-boot-durable-sessions': {
     name: 'spring-boot-durable-sessions',
     dir: 'spring-boot-durable-sessions',
-    port: 8080,
+    port: 8084,
     type: 'spring-boot',
   },
 };

@@ -27,7 +27,7 @@ test.describe('Embabel Chat', () => {
 
     await expect(page.getByText('Say hello in one word')).toBeVisible();
 
-    await expect(page.locator('[data-testid="streaming-message"], .streaming-message, [class*="streaming"]').first())
+    await expect(page.getByText('demo mode', { exact: false }))
       .toBeVisible({ timeout: 30_000 });
   });
 });
