@@ -21,6 +21,36 @@
 export type StreamingMessageType = 'token' | 'complete' | 'error' | 'progress' | 'metadata';
 
 /**
+ * Aggregated statistics for a streaming session, computed client-side
+ * from coalesced cache events.
+ */
+export interface SessionStats {
+  totalTokens: number;
+  elapsedMs: number;
+  status: 'streaming' | 'complete' | 'error';
+  tokensPerSecond: number;
+}
+
+/**
+ * Routing information extracted from {@code routing.*} metadata keys
+ * sent by the server's cost/latency routing layer.
+ */
+export interface RoutingInfo {
+  model?: string;
+  cost?: number;
+  latency?: number;
+}
+
+/**
+ * Optional hints sent alongside a prompt to influence server-side
+ * cost/latency routing decisions.
+ */
+export interface SendOptions {
+  maxCost?: number;
+  maxLatencyMs?: number;
+}
+
+/**
  * A single streaming wire-protocol message as sent by the Java
  * {@code DefaultStreamingSession}.
  *
@@ -52,6 +82,8 @@ export interface StreamingHandlers {
   onError?: (error: string) => void;
   /** Called on metadata events (model name, token count, etc.). */
   onMetadata?: (key: string, value: unknown) => void;
+  /** Called when the session completes or errors, with aggregated stats and routing info. */
+  onSessionComplete?: (stats: SessionStats, routing: RoutingInfo) => void;
 }
 
 /**
@@ -61,7 +93,7 @@ export interface StreamingHandle {
   /** The session ID assigned by the server. */
   readonly sessionId: string | null;
   /** Send a prompt/message to the server to start or continue streaming. */
-  send(message: string | object): void;
+  send(message: string | object, options?: SendOptions): void;
   /** Close the streaming session. */
   close(): Promise<void>;
 }

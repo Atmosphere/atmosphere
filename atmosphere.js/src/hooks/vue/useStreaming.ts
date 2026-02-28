@@ -16,7 +16,7 @@
 
 import { ref, computed, onUnmounted, type Ref, type ComputedRef } from 'vue';
 import type { AtmosphereRequest } from '../../types';
-import type { StreamingHandle } from '../../streaming/types';
+import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { Atmosphere } from '../../core/atmosphere';
 
@@ -48,6 +48,8 @@ export function useStreaming(
   const isStreaming: Ref<boolean> = ref(false);
   const progress: Ref<string | null> = ref(null);
   const metadata: Ref<Record<string, unknown>> = ref({});
+  const stats: Ref<SessionStats | null> = ref(null);
+  const routing: Ref<RoutingInfo> = ref({});
   const error: Ref<string | null> = ref(null);
 
   const fullText: ComputedRef<string> = computed(() => tokens.value.join(''));
@@ -73,6 +75,14 @@ export function useStreaming(
         },
         onMetadata: (key, value) => {
           metadata.value = { ...metadata.value, [key]: value };
+          if (key.startsWith('routing.')) {
+            const field = key.substring('routing.'.length);
+            routing.value = { ...routing.value, [field]: value };
+          }
+        },
+        onSessionComplete: (s, r) => {
+          stats.value = s;
+          routing.value = r;
         },
       });
     } catch (err) {
@@ -80,10 +90,10 @@ export function useStreaming(
     }
   };
 
-  const send = (message: string | object) => {
+  const send = (message: string | object, options?: SendOptions) => {
     isStreaming.value = true;
     error.value = null;
-    handle?.send(message);
+    handle?.send(message, options);
   };
 
   const reset = () => {
@@ -91,6 +101,8 @@ export function useStreaming(
     isStreaming.value = false;
     progress.value = null;
     metadata.value = {};
+    stats.value = null;
+    routing.value = {};
     error.value = null;
   };
 
@@ -100,5 +112,5 @@ export function useStreaming(
     handle?.close();
   });
 
-  return { fullText, tokens, isStreaming, progress, metadata, error, send, reset };
+  return { fullText, tokens, isStreaming, progress, metadata, stats, routing, error, send, reset };
 }

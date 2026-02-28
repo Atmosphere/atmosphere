@@ -15,7 +15,7 @@
  */
 
 import type { AtmosphereRequest } from '../../types';
-import type { StreamingHandle } from '../../streaming/types';
+import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { Atmosphere } from '../../core/atmosphere';
 import type { Readable } from './atmosphere';
@@ -29,6 +29,8 @@ export interface StreamingStoreState {
   isStreaming: boolean;
   progress: string | null;
   metadata: Record<string, unknown>;
+  stats: SessionStats | null;
+  routing: RoutingInfo;
   error: string | null;
 }
 
@@ -62,6 +64,8 @@ export function createStreamingStore(
     isStreaming: false,
     progress: null,
     metadata: {},
+    stats: null,
+    routing: {},
     error: null,
   };
 
@@ -99,6 +103,13 @@ export function createStreamingStore(
         },
         onMetadata: (key, value) => {
           update({ metadata: { ...current.metadata, [key]: value } });
+          if (key.startsWith('routing.')) {
+            const field = key.substring('routing.'.length);
+            update({ routing: { ...current.routing, [field]: value } });
+          }
+        },
+        onSessionComplete: (s, r) => {
+          update({ stats: s, routing: r });
         },
       });
     } catch (err) {
@@ -126,9 +137,9 @@ export function createStreamingStore(
     },
   };
 
-  function send(message: string | object) {
+  function send(message: string | object, options?: SendOptions) {
     update({ isStreaming: true, error: null });
-    handle?.send(message);
+    handle?.send(message, options);
   }
 
   function reset() {
@@ -138,6 +149,8 @@ export function createStreamingStore(
       isStreaming: false,
       progress: null,
       metadata: {},
+      stats: null,
+      routing: {},
       error: null,
     });
   }

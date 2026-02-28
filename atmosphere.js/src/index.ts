@@ -37,7 +37,7 @@ export { AtmosphereRooms } from './room/rooms';
 
 // Export AI streaming support
 export { subscribeStreaming } from './streaming';
-export type { StreamingMessage, StreamingHandlers, StreamingHandle } from './streaming/types';
+export type { StreamingMessage, StreamingHandlers, StreamingHandle, SessionStats, RoutingInfo, SendOptions } from './streaming/types';
 
 // Export logger for configuration
 export { logger } from './utils/logger';

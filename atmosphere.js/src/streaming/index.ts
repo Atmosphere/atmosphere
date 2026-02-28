@@ -15,7 +15,7 @@
  */
 
 import type { AtmosphereRequest, Subscription } from '../types';
-import type { StreamingHandlers, StreamingHandle, StreamingMessage } from './types';
+import type { StreamingHandlers, StreamingHandle, StreamingMessage, SessionStats, RoutingInfo, SendOptions } from './types';
 import { parseStreamingMessage } from './decoder';
 import { Atmosphere } from '../core/atmosphere';
 
@@ -49,6 +49,11 @@ export async function subscribeStreaming(
   let sessionId: string | null = null;
   let lastSeq = -1;
 
+  // Session stats tracking (reset between sends)
+  let tokenCount = 0;
+  let startTime: number | null = null;
+  let routing: RoutingInfo = {};
+
   const sub: Subscription = await atmosphere.subscribe<string>(request, {
     message: (response) => {
       const raw = response.responseBody;
@@ -64,7 +69,11 @@ export async function subscribeStreaming(
       if (msg.seq <= lastSeq) return;
       lastSeq = msg.seq;
 
-      dispatch(msg, handlers);
+      dispatch(msg, handlers, { tokenCount, startTime, routing }, (tc, st, rt) => {
+        tokenCount = tc;
+        startTime = st;
+        routing = rt;
+      });
     },
     error: (err) => {
       handlers.onError?.(err.message);
@@ -75,8 +84,16 @@ export async function subscribeStreaming(
     get sessionId() {
       return sessionId;
     },
-    send(message: string | object) {
-      sub.push(message);
+    send(message: string | object, options?: SendOptions) {
+      // Reset tracking state for new session
+      tokenCount = 0;
+      startTime = null;
+      routing = {};
+
+      const payload = options && (options.maxCost !== undefined || options.maxLatencyMs !== undefined)
+        ? { prompt: message, hints: { maxCost: options.maxCost, maxLatencyMs: options.maxLatencyMs } }
+        : message;
+      sub.push(payload);
     },
     async close() {
       await sub.close();
@@ -84,22 +101,78 @@ export async function subscribeStreaming(
   };
 }
 
-function dispatch(msg: StreamingMessage, handlers: StreamingHandlers): void {
+interface TrackingState {
+  tokenCount: number;
+  startTime: number | null;
+  routing: RoutingInfo;
+}
+
+function extractRouting(key: string, value: unknown, routing: RoutingInfo): boolean {
+  if (!key.startsWith('routing.')) return false;
+  const field = key.substring('routing.'.length);
+  switch (field) {
+    case 'model':
+      routing.model = value as string;
+      return true;
+    case 'cost':
+      routing.cost = value as number;
+      return true;
+    case 'latency':
+      routing.latency = value as number;
+      return true;
+    default:
+      return false;
+  }
+}
+
+function dispatch(
+  msg: StreamingMessage,
+  handlers: StreamingHandlers,
+  state: TrackingState,
+  updateState: (tokenCount: number, startTime: number | null, routing: RoutingInfo) => void,
+): void {
   switch (msg.type) {
     case 'token':
-      if (msg.data !== undefined) handlers.onToken?.(msg.data, msg.seq);
+      if (msg.data !== undefined) {
+        handlers.onToken?.(msg.data, msg.seq);
+        state.tokenCount++;
+        if (!state.startTime) state.startTime = Date.now();
+        updateState(state.tokenCount, state.startTime, state.routing);
+      }
       break;
     case 'progress':
       if (msg.data !== undefined) handlers.onProgress?.(msg.data, msg.seq);
       break;
-    case 'complete':
+    case 'complete': {
       handlers.onComplete?.(msg.data);
+      const elapsed = state.startTime ? Date.now() - state.startTime : 0;
+      const stats: SessionStats = {
+        totalTokens: state.tokenCount,
+        elapsedMs: elapsed,
+        status: 'complete',
+        tokensPerSecond: elapsed > 0 ? (state.tokenCount / elapsed) * 1000 : 0,
+      };
+      handlers.onSessionComplete?.(stats, { ...state.routing });
       break;
-    case 'error':
+    }
+    case 'error': {
       handlers.onError?.(msg.data ?? 'Unknown error');
+      const elapsed = state.startTime ? Date.now() - state.startTime : 0;
+      const stats: SessionStats = {
+        totalTokens: state.tokenCount,
+        elapsedMs: elapsed,
+        status: 'error',
+        tokensPerSecond: elapsed > 0 ? (state.tokenCount / elapsed) * 1000 : 0,
+      };
+      handlers.onSessionComplete?.(stats, { ...state.routing });
       break;
+    }
     case 'metadata':
-      if (msg.key !== undefined) handlers.onMetadata?.(msg.key, msg.value);
+      if (msg.key !== undefined) {
+        extractRouting(msg.key, msg.value, state.routing);
+        updateState(state.tokenCount, state.startTime, state.routing);
+        handlers.onMetadata?.(msg.key, msg.value);
+      }
       break;
   }
 }

@@ -16,7 +16,7 @@
 
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import type { AtmosphereRequest } from '../../types';
-import type { StreamingHandle } from '../../streaming/types';
+import type { StreamingHandle, SessionStats, RoutingInfo, SendOptions } from '../../streaming/types';
 import { subscribeStreaming } from '../../streaming';
 import { useAtmosphereContext } from './provider';
 
@@ -44,10 +44,14 @@ export interface UseStreamingResult {
   progress: string | null;
   /** Metadata received from the server (model name, token counts, etc.). */
   metadata: Record<string, unknown>;
+  /** Aggregated session statistics (available after session completes). */
+  stats: SessionStats | null;
+  /** Routing information extracted from server metadata. */
+  routing: RoutingInfo;
   /** Error message, if any. */
   error: string | null;
   /** Send a prompt to the server to start streaming. */
-  send: (message: string | object) => void;
+  send: (message: string | object, options?: SendOptions) => void;
   /** Reset the accumulated state for a new conversation turn. */
   reset: () => void;
   /** Close the streaming connection. */
@@ -81,6 +85,8 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const [isStreaming, setIsStreaming] = useState(false);
   const [progress, setProgress] = useState<string | null>(null);
   const [metadata, setMetadata] = useState<Record<string, unknown>>({});
+  const [stats, setStats] = useState<SessionStats | null>(null);
+  const [routing, setRouting] = useState<RoutingInfo>({});
   const [error, setError] = useState<string | null>(null);
 
   const handleRef = useRef<StreamingHandle | null>(null);
@@ -111,7 +117,19 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
             }
           },
           onMetadata: (key, value) => {
-            if (!cancelled) setMetadata((prev) => ({ ...prev, [key]: value }));
+            if (!cancelled) {
+              setMetadata((prev) => ({ ...prev, [key]: value }));
+              if (key.startsWith('routing.')) {
+                const field = key.substring('routing.'.length);
+                setRouting((prev) => ({ ...prev, [field]: value }));
+              }
+            }
+          },
+          onSessionComplete: (s, r) => {
+            if (!cancelled) {
+              setStats(s);
+              setRouting(r);
+            }
           },
         });
 
@@ -135,10 +153,10 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [atmosphere, request.url, request.transport, enabled]);
 
-  const send = useCallback((message: string | object) => {
+  const send = useCallback((message: string | object, options?: SendOptions) => {
     setIsStreaming(true);
     setError(null);
-    handleRef.current?.send(message);
+    handleRef.current?.send(message, options);
   }, []);
 
   const reset = useCallback(() => {
@@ -146,6 +164,8 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
     setIsStreaming(false);
     setProgress(null);
     setMetadata({});
+    setStats(null);
+    setRouting({});
     setError(null);
   }, []);
 
@@ -157,7 +177,7 @@ export function useStreaming(options: UseStreamingOptions): UseStreamingResult {
   const fullText = useMemo(() => tokens.join(''), [tokens]);
 
   return useMemo(
-    () => ({ fullText, tokens, isStreaming, progress, metadata, error, send, reset, close }),
-    [fullText, tokens, isStreaming, progress, metadata, error, send, reset, close],
+    () => ({ fullText, tokens, isStreaming, progress, metadata, stats, routing, error, send, reset, close }),
+    [fullText, tokens, isStreaming, progress, metadata, stats, routing, error, send, reset, close],
   );
 }

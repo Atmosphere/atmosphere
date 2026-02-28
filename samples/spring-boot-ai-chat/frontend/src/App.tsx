@@ -34,7 +34,7 @@ export function App() {
     [],
   );
 
-  const { fullText, isStreaming, progress, metadata, error, send, reset } =
+  const { fullText, isStreaming, progress, metadata, stats, routing, error, send, reset } =
     useStreaming({ request });
 
   // When streaming text updates, update/append the assistant message
@@ -69,28 +69,39 @@ export function App() {
   const handleSend = (text: string) => {
     setMessages((prev) => [...prev, { role: 'user', text }]);
     reset();
-    send(text);
+    send(text, { maxCost: 0.10, maxLatencyMs: 5000 });
   };
 
-  const modelBadge = metadata.model
-    ? createElement('div', {
-        style: {
-          fontSize: 11,
-          background: 'rgba(255,255,255,0.15)',
-          padding: '3px 10px',
-          borderRadius: 10,
-          marginTop: 6,
-          display: 'inline-block',
-        },
-      }, String(metadata.model))
-    : null;
+  const displayModel = routing.model ?? (metadata.model as string | undefined);
+
+  const badgeStyle = {
+    fontSize: 11,
+    background: 'rgba(255,255,255,0.15)',
+    padding: '3px 10px',
+    borderRadius: 10,
+    display: 'inline-block',
+  };
+
+  const headerBadges = createElement('div', {
+    style: { display: 'flex', gap: 6, marginTop: 6, flexWrap: 'wrap' as const },
+  },
+    displayModel
+      ? createElement('div', { style: badgeStyle }, displayModel)
+      : null,
+    routing.cost !== undefined
+      ? createElement('div', { style: badgeStyle }, `$${routing.cost.toFixed(2)}`)
+      : null,
+    routing.latency !== undefined
+      ? createElement('div', { style: badgeStyle }, `${routing.latency}ms`)
+      : null,
+  );
 
   return (
     <ChatLayout
       title={<><img src="/logo.png" alt="" style={{ height: '1.2em', verticalAlign: 'middle', marginRight: 8 }} />Atmosphere AI Chat</>}
       subtitle="Real-time streaming via WebSocket"
       theme="ai"
-      headerExtra={modelBadge}
+      headerExtra={headerBadges}
     >
       <div style={{
         flex: 1,
@@ -126,6 +137,22 @@ export function App() {
         {error && createElement(StreamingError, { message: error })}
         <div ref={endRef} />
       </div>
+      {stats && !isStreaming && (
+        <div style={{
+          fontSize: 11,
+          color: 'rgba(255,255,255,0.5)',
+          padding: '4px 16px',
+          background: '#16213e',
+          display: 'flex',
+          gap: 8,
+        }}>
+          <span>{stats.totalTokens} tokens</span>
+          <span>&middot;</span>
+          <span>{stats.elapsedMs}ms</span>
+          <span>&middot;</span>
+          <span>{stats.tokensPerSecond.toFixed(1)} tok/s</span>
+        </div>
+      )}
       <ChatInput
         onSend={handleSend}
         placeholder="Ask me anything…"
