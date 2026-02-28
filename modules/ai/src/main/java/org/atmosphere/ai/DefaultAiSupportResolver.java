@@ -55,7 +55,8 @@ public final class DefaultAiSupportResolver {
                 .max(Comparator.comparingInt(AiSupport::priority));
 
         if (best.isPresent()) {
-            logger.info("Resolved AiSupport: {} (priority={})",
+            logger.info("Auto-detected AiSupport: {} (priority={}). "
+                    + "Remove its JAR from the classpath to use a different provider.",
                     best.get().name(), best.get().priority());
             return best.get();
         }

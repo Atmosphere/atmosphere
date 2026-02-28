@@ -64,7 +64,28 @@ public class LangChain4jAiSupport implements AiSupport {
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        // Model is configured externally
+        if (model != null) {
+            return;
+        }
+
+        var apiKey = settings.client().apiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            return;
+        }
+
+        try {
+            Class.forName("dev.langchain4j.model.openai.OpenAiStreamingChatModel");
+        } catch (ClassNotFoundException e) {
+            logger.info("langchain4j-open-ai not on classpath; add it or call setModel() manually");
+            return;
+        }
+
+        setModel(dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
+                .baseUrl(settings.baseUrl())
+                .apiKey(apiKey)
+                .modelName(settings.model())
+                .build());
+        logger.info("LangChain4j auto-configured: model={}, endpoint={}", settings.model(), settings.baseUrl());
     }
 
     /**
@@ -77,6 +98,14 @@ public class LangChain4jAiSupport implements AiSupport {
     @Override
     public void stream(AiRequest request, StreamingSession session) {
         var streamingModel = model;
+        if (streamingModel == null) {
+            var settings = AiConfig.get();
+            if (settings == null) {
+                settings = AiConfig.fromEnvironment();
+            }
+            configure(settings);
+            streamingModel = model;
+        }
         if (streamingModel == null) {
             throw new IllegalStateException(
                     "LangChain4jAiSupport: StreamingChatLanguageModel not configured. "

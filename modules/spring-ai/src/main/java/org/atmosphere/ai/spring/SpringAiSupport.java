@@ -19,6 +19,8 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import reactor.core.publisher.Flux;
@@ -31,6 +33,8 @@ import reactor.core.publisher.Flux;
  * done by {@link AtmosphereSpringAiAutoConfiguration}.</p>
  */
 public class SpringAiSupport implements AiSupport {
+
+    private static final Logger logger = LoggerFactory.getLogger(SpringAiSupport.class);
 
     private static volatile ChatClient chatClient;
 
@@ -56,7 +60,35 @@ public class SpringAiSupport implements AiSupport {
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        // ChatClient is configured externally via Spring auto-configuration
+        if (chatClient != null) {
+            return;
+        }
+
+        var apiKey = settings.client().apiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            return;
+        }
+
+        try {
+            Class.forName("org.springframework.ai.openai.OpenAiChatModel");
+        } catch (ClassNotFoundException e) {
+            logger.info("spring-ai-openai not on classpath; add it or provide a ChatClient bean");
+            return;
+        }
+
+        var api = org.springframework.ai.openai.api.OpenAiApi.builder()
+                .baseUrl(settings.baseUrl())
+                .apiKey(apiKey)
+                .build();
+        var options = org.springframework.ai.openai.OpenAiChatOptions.builder()
+                .model(settings.model())
+                .build();
+        var chatModel = org.springframework.ai.openai.OpenAiChatModel.builder()
+                .openAiApi(api)
+                .defaultOptions(options)
+                .build();
+        chatClient = ChatClient.create(chatModel);
+        logger.info("Spring AI auto-configured: model={}, endpoint={}", settings.model(), settings.baseUrl());
     }
 
     /**
@@ -70,6 +102,14 @@ public class SpringAiSupport implements AiSupport {
     @Override
     public void stream(AiRequest request, StreamingSession session) {
         var client = chatClient;
+        if (client == null) {
+            var settings = AiConfig.get();
+            if (settings == null) {
+                settings = AiConfig.fromEnvironment();
+            }
+            configure(settings);
+            client = chatClient;
+        }
         if (client == null) {
             throw new IllegalStateException(
                     "SpringAiSupport: ChatClient not configured. "

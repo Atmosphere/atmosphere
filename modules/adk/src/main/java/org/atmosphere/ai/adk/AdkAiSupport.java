@@ -15,6 +15,9 @@
  */
 package org.atmosphere.ai.adk;
 
+import com.google.adk.agents.LlmAgent;
+import com.google.adk.models.Gemini;
+import com.google.adk.runner.InMemoryRunner;
 import com.google.adk.runner.Runner;
 import com.google.genai.types.Content;
 import com.google.genai.types.Part;
@@ -62,7 +65,29 @@ public class AdkAiSupport implements AiSupport {
 
     @Override
     public void configure(AiConfig.LlmSettings settings) {
-        // Runner is configured externally
+        if (runner != null) {
+            return;
+        }
+
+        var apiKey = settings.client().apiKey();
+        if (apiKey == null || apiKey.isBlank()) {
+            return;
+        }
+
+        if (settings.model() != null && !settings.model().startsWith("gemini")) {
+            logger.warn("ADK only supports Gemini models natively. '{}' may not work. "
+                    + "Consider atmosphere-spring-ai or atmosphere-langchain4j for other providers.",
+                    settings.model());
+        }
+
+        var gemini = new Gemini(settings.model(), apiKey);
+        var agent = LlmAgent.builder()
+                .name("atmosphere-agent")
+                .model(gemini)
+                .instruction("You are a helpful assistant.")
+                .build();
+        setRunner(new InMemoryRunner(agent, "atmosphere"));
+        logger.info("ADK auto-configured: model={}", settings.model());
     }
 
     /**
@@ -83,6 +108,14 @@ public class AdkAiSupport implements AiSupport {
     @Override
     public void stream(AiRequest request, StreamingSession session) {
         var adkRunner = runner;
+        if (adkRunner == null) {
+            var settings = AiConfig.get();
+            if (settings == null) {
+                settings = AiConfig.fromEnvironment();
+            }
+            configure(settings);
+            adkRunner = runner;
+        }
         if (adkRunner == null) {
             throw new IllegalStateException(
                     "AdkAiSupport: Runner not configured. "

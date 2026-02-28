@@ -133,9 +133,10 @@ public class AiEndpointProcessor implements Processor<Object> {
     private AiSupport resolveAiSupport() {
         var support = DefaultAiSupportResolver.resolve();
         var settings = AiConfig.get();
-        if (settings != null) {
-            support.configure(settings);
+        if (settings == null) {
+            settings = AiConfig.fromEnvironment();
         }
+        support.configure(settings);
         return support;
     }
 

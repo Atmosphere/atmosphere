@@ -40,7 +40,7 @@ import org.slf4j.LoggerFactory;
  *   <tr><th>Variable</th><th>Description</th><th>Default</th></tr>
  *   <tr><td>{@code LLM_MODE}</td><td>{@code remote} (cloud API) or {@code local} (Ollama)</td><td>{@code remote}</td></tr>
  *   <tr><td>{@code LLM_MODEL}</td><td>Model name (e.g. {@code gemini-2.5-flash}, {@code gpt-4o}, {@code llama3.2})</td><td>{@code gemini-2.5-flash}</td></tr>
- *   <tr><td>{@code LLM_API_KEY} or {@code GEMINI_API_KEY}</td><td>API key for the provider</td><td>(none)</td></tr>
+ *   <tr><td>{@code LLM_API_KEY}, {@code OPENAI_API_KEY}, or {@code GEMINI_API_KEY}</td><td>API key for the provider</td><td>(none)</td></tr>
  *   <tr><td>{@code LLM_BASE_URL}</td><td>Override the API endpoint (auto-detected if omitted)</td><td>(auto)</td></tr>
  * </table>
  */
@@ -145,14 +145,14 @@ public final class AiConfig {
 
     /**
      * Configure from environment variables ({@code LLM_MODE}, {@code LLM_MODEL},
-     * {@code LLM_API_KEY}/{@code GEMINI_API_KEY}, {@code LLM_BASE_URL}).
+     * {@code LLM_API_KEY}/{@code OPENAI_API_KEY}/{@code GEMINI_API_KEY}, {@code LLM_BASE_URL}).
      *
      * @return the resolved settings
      */
     public static LlmSettings fromEnvironment() {
         var mode = env("LLM_MODE", DEFAULT_MODE);
         var model = env("LLM_MODEL", DEFAULT_MODEL);
-        var apiKey = env("LLM_API_KEY", env("GEMINI_API_KEY", ""));
+        var apiKey = env("LLM_API_KEY", env("OPENAI_API_KEY", env("GEMINI_API_KEY", "")));
         var baseUrl = env("LLM_BASE_URL", "");
         return configure(mode, model, apiKey, baseUrl.isBlank() ? null : baseUrl);
     }

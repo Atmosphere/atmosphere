@@ -66,7 +66,14 @@ class EmbabelAiSupport : AiSupport {
     override fun priority(): Int = 100
 
     override fun configure(settings: AiConfig.LlmSettings) {
-        // AgentPlatform is configured externally
+        if (agentPlatform != null) {
+            return
+        }
+        logger.info(
+            "Embabel adapter active but requires an AgentPlatform bean with deployed @Agent classes. " +
+                "Auto-configuration from credentials alone is not supported. " +
+                "Ensure embabel-agent-spring-boot-starter is on the classpath."
+        )
     }
 
     override fun stream(request: AiRequest, session: StreamingSession) {

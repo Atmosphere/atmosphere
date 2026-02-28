@@ -15,7 +15,9 @@
  */
 package org.atmosphere.ai.spring;
 
+import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
 import org.springframework.context.annotation.Bean;
@@ -23,6 +25,10 @@ import org.springframework.context.annotation.Bean;
 /**
  * Auto-configuration for the Spring AI streaming adapter.
  * Activates when {@code spring-ai-model} is on the classpath.
+ *
+ * <p>Bridges the Spring-managed {@link ChatClient} bean to the
+ * {@link SpringAiSupport} SPI so that {@code @AiEndpoint} methods
+ * can stream via {@code session.stream(message)}.</p>
  */
 @AutoConfiguration
 @ConditionalOnClass(name = "org.springframework.ai.chat.client.ChatClient")
@@ -32,5 +38,12 @@ public class AtmosphereSpringAiAutoConfiguration {
     @ConditionalOnMissingBean
     public SpringAiStreamingAdapter springAiStreamingAdapter() {
         return new SpringAiStreamingAdapter();
+    }
+
+    @Bean
+    @ConditionalOnBean(ChatClient.class)
+    SpringAiSupport springAiSupportBridge(ChatClient chatClient) {
+        SpringAiSupport.setChatClient(chatClient);
+        return new SpringAiSupport();
     }
 }
