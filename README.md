@@ -2,22 +2,27 @@
   <img src="logo.png" alt="Atmosphere" width="120"/>
 </p>
 
-# Atmosphere
+<h1 align="center">Atmosphere</h1>
 
-A transport-agnostic real-time framework for the JVM built around two core abstractions: **Broadcaster** (a named pub/sub channel that fans out messages to subscribers) and **AtmosphereResource** (a connection, regardless of transport). Application code publishes to a Broadcaster; the framework delivers over WebSocket, SSE, Long-Polling, gRPC, or MCP — the transport is pluggable and transparent. Rewritten for JDK 21 virtual threads.
+<p align="center">
+  <strong>The transport-agnostic real-time framework for the JVM.</strong><br/>
+  WebSocket, SSE, Long-Polling, gRPC, MCP — one API, any transport.
+</p>
 
-[![Maven Central](https://img.shields.io/maven-central/v/org.atmosphere/atmosphere-runtime?label=Maven%20Central&color=blue)](https://central.sonatype.com/artifact/org.atmosphere/atmosphere-runtime)
-[![npm](https://img.shields.io/npm/v/atmosphere.js?label=atmosphere.js&color=blue)](https://www.npmjs.com/package/atmosphere.js)
-[![Atmosphere CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml)
-[![Atmosphere.js CI](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml/badge.svg?branch=main)](https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml)
+<p align="center">
+  <a href="https://central.sonatype.com/artifact/org.atmosphere/atmosphere-runtime"><img src="https://img.shields.io/maven-central/v/org.atmosphere/atmosphere-runtime?label=Maven%20Central&color=blue" alt="Maven Central"/></a>
+  <a href="https://www.npmjs.com/package/atmosphere.js"><img src="https://img.shields.io/npm/v/atmosphere.js?label=atmosphere.js&color=blue" alt="npm"/></a>
+  <a href="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml"><img src="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-4x-ci.yml/badge.svg?branch=main" alt="Atmosphere CI"/></a>
+  <a href="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml"><img src="https://github.com/Atmosphere/atmosphere/actions/workflows/atmosphere-js-ci.yml/badge.svg?branch=main" alt="Atmosphere.js CI"/></a>
+</p>
 
-## Core Concepts
+---
 
-**Broadcaster** — a named channel. Call `broadcaster.broadcast(message)` and every subscribed resource receives it, regardless of transport. Broadcasters support caching, filtering, and clustering (Redis, Kafka) out of the box.
+Atmosphere was built on one idea: **your application code shouldn't care how the client is connected.** Write to a Broadcaster, and the framework delivers to every subscriber — whether they're on a WebSocket, an SSE stream, a long-polling loop, a gRPC channel, or an MCP session. The transport is pluggable and transparent.
 
-**AtmosphereResource** — represents a single connection. It wraps the underlying transport (WebSocket frame, SSE event stream, HTTP response, or gRPC stream) behind a uniform API. Resources subscribe to Broadcasters.
+That transport-agnostic design made Atmosphere one of the most widely deployed WebSocket frameworks on the JVM. Over the years, as we ran it in production and saw what developers kept building on top, we extracted those patterns into first-class modules — rooms with presence, AI/LLM streaming, durable sessions, clustering, observability, and more. The core hasn't changed: Broadcaster + AtmosphereResource. Everything else layers on top.
 
-**Transport** — the wire protocol. Atmosphere ships with WebSocket, SSE, Long-Polling, gRPC, and MCP transports. The transport is selected per-connection and can fall back automatically (e.g., WebSocket → SSE → Long-Polling).
+## Quick Start
 
 ```java
 @ManagedService(path = "/chat")
@@ -37,17 +42,78 @@ public class Chat {
 }
 ```
 
-## AI/LLM Token Streaming
+## Installation
 
-Atmosphere also serves as a transport layer for AI applications. Frameworks like Spring AI, LangChain4j, and Embabel handle LLM communication; Atmosphere delivers tokens to the browser in real time over any supported transport.
+**Maven:**
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-runtime</artifactId>
+    <version>4.0.6</version>
+</dependency>
+```
 
-### What you get
+**Spring Boot:**
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-spring-boot-starter</artifactId>
+    <version>4.0.6</version>
+</dependency>
+```
 
-- **`@AiEndpoint` + `@Prompt`** — annotate a class, receive prompts, stream tokens.
-- **Built-in LLM client** — zero-dependency `OpenAiCompatibleClient` that talks to OpenAI, Gemini, Ollama, or any OpenAI-compatible API.
-- **Adapter SPI** — plug in Spring AI, LangChain4j, or Embabel. Your framework generates tokens; Atmosphere delivers them over the Broadcaster.
-- **AI as a room participant** — `LlmRoomMember` joins a Room like any user. The LLM subscribes to the same Broadcaster as human participants.
-- **Client hooks** — `useStreaming()` for React/Vue/Svelte.
+**Quarkus:**
+```xml
+<dependency>
+    <groupId>org.atmosphere</groupId>
+    <artifactId>atmosphere-quarkus-extension</artifactId>
+    <version>4.0.6</version>
+</dependency>
+```
+
+**Gradle:**
+```groovy
+implementation 'org.atmosphere:atmosphere-runtime:4.0.6'
+```
+
+**Browser client:**
+```bash
+npm install atmosphere.js
+```
+
+## Core Concepts
+
+**Broadcaster** — a named pub/sub channel. Call `broadcaster.broadcast(message)` and every subscribed resource receives it. Broadcasters support caching, filtering, and clustering (Redis, Kafka) out of the box.
+
+**AtmosphereResource** — a single connection. It wraps the underlying transport (WebSocket frame, SSE event stream, HTTP response, gRPC stream) behind a uniform API. Resources subscribe to Broadcasters.
+
+**Transport** — the wire protocol. Atmosphere ships with WebSocket, SSE, Long-Polling, gRPC, and MCP transports. The transport is selected per-connection and can fall back automatically (WebSocket → SSE → Long-Polling).
+
+## Modules
+
+The core runtime handles transport-agnostic real-time messaging. Everything below was extracted from patterns we kept seeing in production.
+
+| Module | Artifact | What it does |
+|--------|----------|--------------|
+| **Core** | `atmosphere-runtime` | WebSocket, SSE, Long-Polling (Servlet 6.0+) |
+| **gRPC** | `atmosphere-grpc` | Bidirectional streaming transport (grpc-java 1.71) |
+| **Spring Boot** | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0+ |
+| **Quarkus** | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
+| **AI streaming** | `atmosphere-ai` | Real-time LLM response streaming with session stats and cost/latency routing |
+| **Spring AI adapter** | `atmosphere-spring-ai` | Spring AI `ChatClient` integration |
+| **LangChain4j adapter** | `atmosphere-langchain4j` | LangChain4j streaming integration |
+| **MCP server** | `atmosphere-mcp` | Model Context Protocol server over WebSocket |
+| **Rooms** | built into core | Room management with join/leave and presence |
+| **Redis clustering** | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
+| **Kafka clustering** | `atmosphere-kafka` | Cross-node broadcasting via Kafka |
+| **Durable sessions** | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
+| **Kotlin DSL** | `atmosphere-kotlin` | Builder API and coroutine extensions |
+| **TypeScript client** | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte hooks |
+| **Java client** | `atmosphere-wasync` | Async Java client — WebSocket, SSE, streaming, long-polling, gRPC (JDK 21+) |
+
+## AI/LLM Streaming
+
+Atmosphere doesn't replace your AI framework — it gives it a transport. Spring AI, LangChain4j, and Embabel handle LLM communication; Atmosphere streams responses to the browser in real time over any supported transport, with built-in session stats and cost/latency routing.
 
 ### Server — 5 lines with the built-in client
 
@@ -74,9 +140,7 @@ Configure with environment variables — no code changes to switch providers:
 | `LLM_API_KEY` | API key (or `GEMINI_API_KEY` for Gemini) | — |
 | `LLM_BASE_URL` | Override endpoint (auto-detected from model name) | auto |
 
-### Server — with Spring AI, LangChain4j, or Embabel
-
-Atmosphere doesn't replace your AI framework. It gives it a transport:
+### Server — with your AI framework
 
 <details>
 <summary>Spring AI adapter</summary>
@@ -86,7 +150,7 @@ Atmosphere doesn't replace your AI framework. It gives it a transport:
 public void onMessage(String prompt) {
     StreamingSession session = StreamingSessions.start(resource);
     springAiAdapter.stream(chatClient, prompt, session);
-    // Spring AI's Flux<ChatResponse> → session.send(token) → WebSocket frame
+    // Spring AI Flux → session → WebSocket frame
 }
 ```
 
@@ -101,7 +165,7 @@ public void onMessage(String prompt) {
     StreamingSession session = StreamingSessions.start(resource);
     model.chat(ChatMessage.userMessage(prompt),
         new AtmosphereStreamingResponseHandler(session));
-    // LangChain4j callbacks → session.send(token) → WebSocket frame
+    // LangChain4j callbacks → session → WebSocket frame
 }
 ```
 
@@ -117,7 +181,7 @@ fun onMessage(prompt: String) {
     embabelAdapter.stream(AgentRequest("assistant") { channel ->
         agentPlatform.run(prompt, channel)
     }, session)
-    // Embabel agent events → session.send(token) / session.progress() → WebSocket frame
+    // Embabel agent events → session → WebSocket frame
 }
 ```
 
@@ -129,7 +193,7 @@ fun onMessage(prompt: String) {
 import { useStreaming } from 'atmosphere.js/react';
 
 function AiChat() {
-  const { fullText, isStreaming, progress, send } = useStreaming({
+  const { fullText, isStreaming, stats, routing, send } = useStreaming({
     request: { url: '/ai/chat', transport: 'websocket' },
   });
 
@@ -138,8 +202,9 @@ function AiChat() {
       <button onClick={() => send('Explain WebSockets')} disabled={isStreaming}>
         Ask
       </button>
-      {progress && <p className="muted">{progress}</p>}
       <p>{fullText}</p>
+      {stats && <small>{stats.totalTokens} tokens · {stats.tokensPerSecond.toFixed(1)} tok/s</small>}
+      {routing.model && <small>Model: {routing.model}</small>}
     </div>
   );
 }
@@ -158,72 +223,6 @@ room.joinVirtual(assistant);
 ```
 
 See the [AI / LLM Streaming wiki](https://github.com/Atmosphere/atmosphere/wiki/AI-LLM-Streaming) for the full guide.
-
-## Installation
-
-### Maven
-
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-runtime</artifactId>
-    <version>4.0.5</version>
-</dependency>
-```
-
-For Spring Boot:
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-spring-boot-starter</artifactId>
-    <version>4.0.5</version>
-</dependency>
-```
-
-For Quarkus:
-```xml
-<dependency>
-    <groupId>org.atmosphere</groupId>
-    <artifactId>atmosphere-quarkus-extension</artifactId>
-    <version>4.0.5</version>
-</dependency>
-```
-
-### Gradle
-
-```groovy
-implementation 'org.atmosphere:atmosphere-runtime:4.0.5'
-// or
-implementation 'org.atmosphere:atmosphere-spring-boot-starter:4.0.5'
-// or
-implementation 'org.atmosphere:atmosphere-quarkus-extension:4.0.5'
-```
-
-### npm (TypeScript/JavaScript client)
-
-```bash
-npm install atmosphere.js
-```
-
-## Modules
-
-| Module | Artifact | Description |
-|--------|----------|-------------|
-| Core runtime | `atmosphere-runtime` | WebSocket, SSE, Long-Polling transport layer (Servlet 6.0+) |
-| gRPC transport | `atmosphere-grpc` | gRPC bidirectional streaming transport (grpc-java 1.71) |
-| Spring Boot starter | `atmosphere-spring-boot-starter` | Auto-configuration for Spring Boot 4.0.2+ (includes optional gRPC) |
-| Quarkus extension | `atmosphere-quarkus-extension` | Build-time processing for Quarkus 3.21+ |
-| AI streaming | `atmosphere-ai` | Token-by-token LLM response streaming |
-| Spring AI adapter | `atmosphere-spring-ai` | Spring AI `ChatClient` integration |
-| LangChain4j adapter | `atmosphere-langchain4j` | LangChain4j streaming integration |
-| MCP server | `atmosphere-mcp` | Model Context Protocol server over WebSocket |
-| Rooms | built into `atmosphere-runtime` | Room management with join/leave and presence |
-| Redis clustering | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
-| Kafka clustering | `atmosphere-kafka` | Cross-node broadcasting via Kafka |
-| Durable sessions | `atmosphere-durable-sessions` | Session persistence across restarts (SQLite / Redis) |
-| Kotlin DSL | `atmosphere-kotlin` | Builder API and coroutine extensions |
-| TypeScript client | `atmosphere.js` (npm) | Browser client with React, Vue, and Svelte bindings |
-| Java client | `atmosphere-wasync` | Async Java client — WebSocket, SSE, streaming, long-polling, and gRPC (JDK 21+) |
 
 ## Rooms & Presence
 
@@ -244,7 +243,7 @@ lobby.onPresence(event -> log.info("{} {} room '{}'",
 
 ### Spring Boot
 
-The starter provides auto-configuration for Spring Boot 4.0.2+.
+Auto-configuration for Spring Boot 4.0.2+:
 
 ```yaml
 atmosphere:
@@ -323,7 +322,7 @@ Requires GraalVM JDK 25+ (Spring Boot 4.0 / Spring Framework 7 baseline).
 
 ### Quarkus
 
-The extension provides build-time annotation scanning for Quarkus 3.21+.
+Build-time annotation scanning for Quarkus 3.21+:
 
 ```properties
 quarkus.atmosphere.packages=com.example.chat
@@ -374,7 +373,7 @@ try (var server = AtmosphereGrpcServer.builder()
 }
 ```
 
-Clients connect using Protocol Buffers over HTTP/2. Test with [grpcurl](https://github.com/fullstorydev/grpcurl):
+Test with [grpcurl](https://github.com/fullstorydev/grpcurl):
 
 ```bash
 grpcurl -plaintext -d '{"type":"SUBSCRIBE","topic":"/chat"}' \
@@ -383,9 +382,9 @@ grpcurl -plaintext -d '{"type":"SUBSCRIBE","topic":"/chat"}' \
 
 See the [gRPC chat sample](samples/grpc-chat/) for a complete example.
 
-## Framework client bindings
+## Client Bindings
 
-atmosphere.js includes bindings for React, Vue, and Svelte:
+atmosphere.js includes hooks for React, Vue, and Svelte:
 
 <details>
 <summary>React</summary>
@@ -534,7 +533,7 @@ Redis and Kafka broadcasters for multi-node deployments. Messages broadcast on o
 <details>
 <summary>Redis</summary>
 
-Add `atmosphere-redis` to your dependencies. Configuration:
+Add `atmosphere-redis` to your dependencies:
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -546,7 +545,7 @@ Add `atmosphere-redis` to your dependencies. Configuration:
 <details>
 <summary>Kafka</summary>
 
-Add `atmosphere-kafka` to your dependencies. Configuration:
+Add `atmosphere-kafka` to your dependencies:
 
 | Property | Default | Description |
 |----------|---------|-------------|
@@ -631,6 +630,8 @@ framework.interceptor(new BackpressureInterceptor());
 |------|-------------|---------|
 | 21+  | 4.0.2+      | 3.21+   |
 
+JDK 21 virtual threads are used by default.
+
 ## Documentation
 
 - [Samples](https://github.com/Atmosphere/atmosphere/tree/main/samples)
@@ -647,12 +648,12 @@ framework.interceptor(new BackpressureInterceptor());
 ## Client Libraries
 
 - **TypeScript/JavaScript**: [atmosphere.js](https://github.com/Atmosphere/atmosphere/tree/main/atmosphere.js) 5.0 (included in this repository)
-- **Java**: [wAsync](modules/wasync/) 4.x — fluent async client powered by `java.net.http` (JDK 21+), supports WebSocket, SSE, streaming, long-polling, and gRPC
+- **Java**: [wAsync](modules/wasync/) 4.x — fluent async client powered by `java.net.http` (JDK 21+)
 
 ## Commercial Support
 
 Available via [Async-IO.org](https://async-io.org)
 
----
+## License
 
-@Copyright 2008-2026 [Async-IO.org](https://async-io.org)
+Apache 2.0 — @Copyright 2008-2026 [Async-IO.org](https://async-io.org)
