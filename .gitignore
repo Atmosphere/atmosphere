@@ -31,3 +31,4 @@ copilot_plan/
 node_modules/
 website-astro/
 .copilot/
+claude_docs/
