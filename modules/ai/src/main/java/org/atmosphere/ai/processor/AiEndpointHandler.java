@@ -83,30 +83,13 @@ public class AiEndpointHandler implements AtmosphereHandler {
         var method = resource.getRequest().getMethod();
 
         // WebSocket frames arrive as POST requests via SimpleHttpProtocol.
-        // Read the message body and dispatch to the @Prompt method.
+        // Broadcast the message so it reaches onStateChange on the suspended resource.
         if ("POST".equalsIgnoreCase(method)) {
-            // Read body directly from the request — IOUtils.readEntirely() checks the
-            // internal request method (GET for WebSocket upgrades) and blocks the read.
             AtmosphereRequestImpl.Body body = resource.getRequest().body();
-            if (body.isEmpty()) {
-                return;
+            if (!body.isEmpty()) {
+                var msg = body.hasString() ? body.asString() : new String(body.asBytes());
+                resource.getBroadcaster().broadcast(msg);
             }
-
-            var userMessage = body.hasString() ? body.asString() : new String(body.asBytes());
-            logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
-
-            var delegate = StreamingSessions.start(resource);
-            var session = new AiStreamingSession(delegate, aiSupport,
-                    systemPrompt, null, interceptors, resource);
-
-            Thread.startVirtualThread(() -> {
-                try {
-                    invokePrompt(userMessage, session, resource);
-                } catch (Exception e) {
-                    logger.error("Error invoking @Prompt method", e);
-                    session.error(e);
-                }
-            });
             return;
         }
 
@@ -141,15 +124,32 @@ public class AiEndpointHandler implements AtmosphereHandler {
             return;
         }
 
-        // Unwrap RawMessage (broadcast from StreamingSession — tokens, progress, etc.)
+        // RawMessage = broadcast from StreamingSession (tokens, progress, complete, error).
+        // Write directly to the response to deliver tokens to the client.
         if (message instanceof RawMessage raw) {
-            message = raw.message();
+            var response = resource.getResponse();
+            response.write(raw.message().toString());
+            response.flushBuffer();
+            return;
         }
 
-        // Write broadcast content to the response (delivers tokens to the client).
-        var response = resource.getResponse();
-        response.write(message.toString());
-        response.flushBuffer();
+        // Plain String = user prompt (broadcast from onRequest POST handler).
+        // Dispatch to the @Prompt method on a virtual thread.
+        var userMessage = message.toString();
+        logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
+
+        var delegate = StreamingSessions.start(resource);
+        var session = new AiStreamingSession(delegate, aiSupport,
+                systemPrompt, null, interceptors, resource);
+
+        Thread.startVirtualThread(() -> {
+            try {
+                invokePrompt(userMessage, session, resource);
+            } catch (Exception e) {
+                logger.error("Error invoking @Prompt method", e);
+                session.error(e);
+            }
+        });
     }
 
     @Override
