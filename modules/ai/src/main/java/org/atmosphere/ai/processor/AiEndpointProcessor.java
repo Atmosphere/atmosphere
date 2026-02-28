@@ -22,14 +22,17 @@ import org.atmosphere.ai.DefaultAiSupportResolver;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
 import org.atmosphere.cpr.AtmosphereFramework;
+import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.LinkedList;
 import java.util.List;
 
 /**
@@ -66,7 +69,9 @@ public class AiEndpointProcessor implements Processor<Object> {
             var handler = new AiEndpointHandler(instance, promptMethod,
                     annotation.timeout(), systemPrompt, aiSupport, interceptors);
 
-            framework.addAtmosphereHandler(annotation.path(), handler, new ArrayList<>());
+            List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
+            AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
+            framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
 
             logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, timeout: {}ms)",
                     annotation.path(), annotatedClass.getSimpleName(),
