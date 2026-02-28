@@ -158,8 +158,12 @@ public class AtmosphereAutoConfiguration {
 
         Set<Class<?>> classes = new HashSet<>();
 
-        // Scan Atmosphere's annotation processor package
-        scanPackage(scanner, "org.atmosphere.annotation", classes);
+        // Scan Atmosphere's annotation processor packages.
+        // The core processors live in org.atmosphere.annotation; extension modules
+        // (e.g. atmosphere-ai) place their processors in org.atmosphere.ai.processor etc.
+        // Scanning the root org.atmosphere package ensures all framework-provided
+        // @AtmosphereAnnotation processors are discovered regardless of module.
+        scanPackage(scanner, "org.atmosphere", classes);
 
         // Scan user-configured packages
         var userPackages = new java.util.ArrayList<String>();
