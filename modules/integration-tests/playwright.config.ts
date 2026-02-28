@@ -102,5 +102,13 @@ export default defineConfig({
       name: 'ai-combined-cost-cache',
       testMatch: /ai-combined-cost-cache\.spec\.ts/,
     },
+    {
+      name: 'ai-classroom',
+      testMatch: /ai-classroom\.spec\.ts/,
+    },
+    {
+      name: 'spring-boot-ai-classroom',
+      testMatch: /spring-boot-ai-classroom\.spec\.ts/,
+    },
   ],
 });

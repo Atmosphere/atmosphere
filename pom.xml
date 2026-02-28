@@ -514,6 +514,7 @@
         <module>samples/spring-boot-langchain4j-chat</module>
         <module>samples/spring-boot-embabel-chat</module>
         <module>samples/spring-boot-ai-chat</module>
+        <module>samples/spring-boot-ai-classroom</module>
         <module>samples/spring-boot-adk-chat</module>
         <module>samples/spring-boot-spring-ai-chat</module>
         <module>samples/spring-boot-otel-chat</module>

@@ -1,0 +1,14 @@
+# Atmosphere AI Classroom - Configuration
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.aiclassroom
+
+# LLM Configuration (same as spring-boot-ai-chat)
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+server:
+  port: 8080

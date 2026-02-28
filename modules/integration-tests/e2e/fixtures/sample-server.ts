@@ -77,6 +77,12 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8083,
     type: 'spring-boot',
   },
+  'spring-boot-ai-classroom': {
+    name: 'spring-boot-ai-classroom',
+    dir: 'spring-boot-ai-classroom',
+    port: 8085,
+    type: 'spring-boot',
+  },
   'spring-boot-durable-sessions': {
     name: 'spring-boot-durable-sessions',
     dir: 'spring-boot-durable-sessions',
