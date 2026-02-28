@@ -102,6 +102,7 @@ The core runtime handles transport-agnostic real-time messaging. Everything belo
 | **AI streaming** | `atmosphere-ai` | Real-time LLM response streaming with session stats and cost/latency routing |
 | **Spring AI adapter** | `atmosphere-spring-ai` | Spring AI `ChatClient` integration |
 | **LangChain4j adapter** | `atmosphere-langchain4j` | LangChain4j streaming integration |
+| **Google ADK adapter** | `atmosphere-adk` | Google Agent Development Kit streaming integration |
 | **MCP server** | `atmosphere-mcp` | Model Context Protocol server over WebSocket |
 | **Rooms** | built into core | Room management with join/leave and presence |
 | **Redis clustering** | `atmosphere-redis` | Cross-node broadcasting via Redis pub/sub |
@@ -166,6 +167,21 @@ public void onMessage(String prompt) {
     model.chat(ChatMessage.userMessage(prompt),
         new AtmosphereStreamingResponseHandler(session));
     // LangChain4j callbacks → session → WebSocket frame
+}
+```
+
+</details>
+
+<details>
+<summary>Google ADK adapter</summary>
+
+```java
+@Message
+public void onMessage(String prompt) {
+    StreamingSession session = StreamingSessions.start(resource);
+    adkAdapter.stream(
+        new AdkRequest(runner, userId, sessionId, prompt), session);
+    // ADK Runner events → session → WebSocket frame
 }
 ```
 
