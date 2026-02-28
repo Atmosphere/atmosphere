@@ -15,101 +15,37 @@
  */
 package org.atmosphere.samples.springboot.langchain4jchat;
 
-import dev.langchain4j.data.message.SystemMessage;
-import dev.langchain4j.data.message.UserMessage;
-import dev.langchain4j.model.chat.StreamingChatLanguageModel;
-import dev.langchain4j.model.chat.request.ChatRequest;
-import jakarta.inject.Inject;
 import org.atmosphere.ai.AiConfig;
-import org.atmosphere.ai.PromptLoader;
-import org.atmosphere.ai.StreamingSessions;
-import org.atmosphere.ai.langchain4j.LangChain4jStreamingAdapter;
-import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Ready;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AiEndpoint;
+import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.List;
-
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
-import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-
 /**
- * Atmosphere managed service that handles AI chat via LangChain4j streaming.
- * Uses {@link LangChain4jStreamingAdapter} to bridge LangChain4j's callback-based
- * streaming to Atmosphere's real-time transport.
+ * AI chat endpoint powered by LangChain4j (auto-detected via classpath).
+ *
+ * <p>The {@code @AiEndpoint} annotation + {@code session.stream(message)} pattern
+ * means this code is transport-agnostic AND AI-framework-agnostic. LangChain4j is
+ * auto-detected because {@code atmosphere-langchain4j} is on the classpath, which
+ * registers {@link org.atmosphere.ai.langchain4j.LangChain4jAiSupport} via ServiceLoader.</p>
  */
-@ManagedService(path = "/atmosphere/langchain4j-chat", atmosphereConfig = {
-        MAX_INACTIVE + "=120000",
-        BROADCASTER_CACHE + "=org.atmosphere.cache.DefaultBroadcasterCache"
-})
+@AiEndpoint(path = "/atmosphere/langchain4j-chat",
+        systemPromptResource = "prompts/system-prompt.md")
 public class LangChain4jChat {
 
     private static final Logger logger = LoggerFactory.getLogger(LangChain4jChat.class);
-    private static final String SYSTEM_PROMPT = PromptLoader.load("prompts/system-prompt.md");
 
-    private final LangChain4jStreamingAdapter adapter = new LangChain4jStreamingAdapter();
-
-    @Inject
-    private AtmosphereResource resource;
-
-    @Inject
-    private AtmosphereResourceEvent event;
-
-    @Ready
-    public void onReady() {
-        logger.info("Client {} connected to LangChain4j chat", resource.uuid());
-    }
-
-    @Disconnect
-    public void onDisconnect() {
-        if (event.isCancelled()) {
-            logger.info("Client {} unexpectedly disconnected", event.getResource().uuid());
-        } else {
-            logger.info("Client {} disconnected", event.getResource().uuid());
-        }
-    }
-
-    @org.atmosphere.config.service.Message
-    public void onMessage(String userMessage) {
-        logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        logger.info("Received prompt: {}", message);
 
         var settings = AiConfig.get();
-        var session = StreamingSessions.start(resource);
-
-        if (settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
-            Thread.startVirtualThread(() -> DemoResponseProducer.stream(userMessage, session));
+        if (settings == null || settings.client().apiKey() == null || settings.client().apiKey().isBlank()) {
+            DemoResponseProducer.stream(message, session);
             return;
         }
 
-        var chatRequest = ChatRequest.builder()
-                .messages(List.of(
-                        SystemMessage.from(SYSTEM_PROMPT),
-                        UserMessage.from(userMessage)
-                ))
-                .build();
-
-        // Stream on a virtual thread to avoid blocking the Atmosphere thread pool
-        Thread.startVirtualThread(() -> {
-            try {
-                // Get the model from Spring context via static accessor
-                var model = getStreamingModel(settings);
-                adapter.stream(model, chatRequest, session);
-            } catch (Exception e) {
-                logger.error("Failed to stream LangChain4j response", e);
-                session.error(e);
-            }
-        });
-    }
-
-    private StreamingChatLanguageModel getStreamingModel(AiConfig.LlmSettings settings) {
-        return dev.langchain4j.model.openai.OpenAiStreamingChatModel.builder()
-                .baseUrl(settings.baseUrl())
-                .apiKey(settings.client().apiKey())
-                .modelName(settings.model())
-                .build();
+        session.stream(message);
     }
 }

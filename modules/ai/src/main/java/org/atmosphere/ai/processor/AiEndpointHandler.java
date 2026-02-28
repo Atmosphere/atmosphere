@@ -15,6 +15,9 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.AiInterceptor;
+import org.atmosphere.ai.AiStreamingSession;
+import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereHandler;
@@ -26,6 +29,7 @@ import org.slf4j.LoggerFactory;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.util.List;
 
 /**
  * {@link AtmosphereHandler} that bridges an {@link org.atmosphere.ai.annotation.AiEndpoint}
@@ -48,19 +52,27 @@ public class AiEndpointHandler implements AtmosphereHandler {
     private final int paramCount;
     private final long suspendTimeout;
     private final String systemPrompt;
+    private final AiSupport aiSupport;
+    private final List<AiInterceptor> interceptors;
 
     /**
      * @param target       the user's @AiEndpoint instance
      * @param promptMethod the @Prompt-annotated method
      * @param timeout      per-resource suspend timeout in milliseconds
      * @param systemPrompt the system prompt from the @AiEndpoint annotation (may be empty)
+     * @param aiSupport    the resolved AI support implementation
+     * @param interceptors the interceptor chain
      */
-    public AiEndpointHandler(Object target, Method promptMethod, long timeout, String systemPrompt) {
+    public AiEndpointHandler(Object target, Method promptMethod, long timeout,
+                             String systemPrompt, AiSupport aiSupport,
+                             List<AiInterceptor> interceptors) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
         this.suspendTimeout = timeout;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
+        this.aiSupport = aiSupport;
+        this.interceptors = interceptors != null ? interceptors : List.of();
         this.promptMethod.setAccessible(true);
     }
 
@@ -99,7 +111,9 @@ public class AiEndpointHandler implements AtmosphereHandler {
         var userMessage = message.toString();
         logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
-        var session = StreamingSessions.start(resource);
+        var delegate = StreamingSessions.start(resource);
+        var session = new AiStreamingSession(delegate, aiSupport,
+                systemPrompt, null, interceptors, resource);
 
         Thread.startVirtualThread(() -> {
             try {
@@ -140,5 +154,13 @@ public class AiEndpointHandler implements AtmosphereHandler {
 
     String systemPrompt() {
         return systemPrompt;
+    }
+
+    AiSupport aiSupport() {
+        return aiSupport;
+    }
+
+    List<AiInterceptor> interceptors() {
+        return interceptors;
     }
 }

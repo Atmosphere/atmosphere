@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.AiInterceptor;
+import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
@@ -212,7 +214,64 @@ public class AiEndpointProcessorTest {
         verify(framework, never()).addAtmosphereHandler(anyString(), any(AtmosphereHandler.class), any(List.class));
     }
 
+    @Test
+    public void testHandlerHasAiSupport() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertNotNull(handler.aiSupport());
+    }
+
+    @Test
+    public void testHandlerHasInterceptors() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new InterceptorEndpoint());
+
+        processor.handle(framework, (Class) InterceptorEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertEquals(1, handler.interceptors().size());
+        assertTrue(handler.interceptors().get(0) instanceof TestInterceptor);
+    }
+
+    @Test
+    public void testHandlerHasEmptyInterceptorsWhenNoneSpecified() throws Exception {
+        when(framework.newClassInstance(eq(Object.class), any()))
+                .thenReturn(new ValidEndpoint());
+
+        processor.handle(framework, (Class) ValidEndpoint.class);
+
+        var handlerCaptor = ArgumentCaptor.forClass(AtmosphereHandler.class);
+        verify(framework).addAtmosphereHandler(anyString(), handlerCaptor.capture(), any(List.class));
+        var handler = (AiEndpointHandler) handlerCaptor.getValue();
+        assertTrue(handler.interceptors().isEmpty());
+    }
+
     // ---- Test fixture classes ----
+
+    /**
+     * Test interceptor that augments the message.
+     */
+    public static class TestInterceptor implements AiInterceptor {
+        @Override
+        public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+            return request.withMessage("[augmented] " + request.message());
+        }
+    }
+
+    @AiEndpoint(path = "/atmosphere/interceptor-test", interceptors = {TestInterceptor.class})
+    public static class InterceptorEndpoint {
+        @Prompt
+        public void onPrompt(String message, StreamingSession session) {
+        }
+    }
 
     @AiEndpoint(path = "/atmosphere/test-ai")
     public static class ValidEndpoint {

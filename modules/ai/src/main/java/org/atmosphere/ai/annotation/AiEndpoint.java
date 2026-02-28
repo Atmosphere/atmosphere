@@ -15,6 +15,8 @@
  */
 package org.atmosphere.ai.annotation;
 
+import org.atmosphere.ai.AiInterceptor;
+
 import java.lang.annotation.Documented;
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;
@@ -92,4 +94,17 @@ public @interface AiEndpoint {
      * <p>Example: {@code systemPromptResource = "prompts/system-prompt.md"}</p>
      */
     String systemPromptResource() default "";
+
+    /**
+     * {@link AiInterceptor} classes to apply to every prompt handled by this endpoint.
+     * Interceptors are executed in declaration order for {@code preProcess} (FIFO)
+     * and in reverse order for {@code postProcess} (LIFO).
+     *
+     * <p>Example:</p>
+     * <pre>{@code
+     * @AiEndpoint(path = "/ai-chat",
+     *             interceptors = {RagInterceptor.class, LoggingInterceptor.class})
+     * }</pre>
+     */
+    Class<? extends AiInterceptor>[] interceptors() default {};
 }

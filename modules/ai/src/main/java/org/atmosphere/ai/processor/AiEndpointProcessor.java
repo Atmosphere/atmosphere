@@ -15,6 +15,10 @@
  */
 package org.atmosphere.ai.processor;
 
+import org.atmosphere.ai.AiConfig;
+import org.atmosphere.ai.AiInterceptor;
+import org.atmosphere.ai.AiSupport;
+import org.atmosphere.ai.DefaultAiSupportResolver;
 import org.atmosphere.ai.PromptLoader;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
@@ -26,6 +30,7 @@ import org.slf4j.LoggerFactory;
 
 import java.lang.reflect.Method;
 import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Annotation processor for {@link AiEndpoint}. Discovered by Atmosphere's annotation
@@ -56,13 +61,16 @@ public class AiEndpointProcessor implements Processor<Object> {
 
             var instance = framework.newClassInstance(Object.class, annotatedClass);
             var systemPrompt = resolveSystemPrompt(annotation);
+            var aiSupport = resolveAiSupport();
+            var interceptors = instantiateInterceptors(annotation.interceptors());
             var handler = new AiEndpointHandler(instance, promptMethod,
-                    annotation.timeout(), systemPrompt);
+                    annotation.timeout(), systemPrompt, aiSupport, interceptors);
 
             framework.addAtmosphereHandler(annotation.path(), handler, new ArrayList<>());
 
-            logger.info("AI endpoint registered at {} (class: {}, timeout: {}ms)",
-                    annotation.path(), annotatedClass.getSimpleName(), annotation.timeout());
+            logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, timeout: {}ms)",
+                    annotation.path(), annotatedClass.getSimpleName(),
+                    aiSupport.name(), interceptors.size(), annotation.timeout());
 
         } catch (Exception e) {
             logger.error("Failed to register AI endpoint from {}", annotatedClass.getName(), e);
@@ -115,5 +123,26 @@ public class AiEndpointProcessor implements Processor<Object> {
             throw new IllegalArgumentException(
                     "@Prompt method third parameter must be AtmosphereResource. Found " + params[2].getName());
         }
+    }
+
+    private AiSupport resolveAiSupport() {
+        var support = DefaultAiSupportResolver.resolve();
+        var settings = AiConfig.get();
+        if (settings != null) {
+            support.configure(settings);
+        }
+        return support;
+    }
+
+    private List<AiInterceptor> instantiateInterceptors(Class<? extends AiInterceptor>[] classes) {
+        var interceptors = new ArrayList<AiInterceptor>();
+        for (var clazz : classes) {
+            try {
+                interceptors.add(clazz.getDeclaredConstructor().newInstance());
+            } catch (Exception e) {
+                logger.error("Failed to instantiate AiInterceptor: {}", clazz.getName(), e);
+            }
+        }
+        return List.copyOf(interceptors);
     }
 }

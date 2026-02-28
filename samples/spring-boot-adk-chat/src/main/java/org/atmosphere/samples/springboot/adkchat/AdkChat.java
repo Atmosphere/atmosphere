@@ -15,69 +15,36 @@
  */
 package org.atmosphere.samples.springboot.adkchat;
 
-import jakarta.inject.Inject;
-import org.atmosphere.ai.StreamingSessions;
+import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.adk.AdkEventAdapter;
-import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.Heartbeat;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Ready;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.ai.annotation.AiEndpoint;
+import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-
 /**
- * Atmosphere managed service that bridges ADK agent responses to WebSocket clients.
+ * AI chat endpoint powered by Google ADK (auto-detected via classpath).
  *
- * <p>When a user sends a message, a simulated ADK event stream is created and
- * bridged to all connected clients via {@link AdkEventAdapter}. Each streaming
- * token is broadcast through the Broadcaster so every browser sees the
- * conversation in real-time — just like the spring-boot-chat sample.</p>
+ * <p>The {@code @AiEndpoint} annotation + {@code session.stream(message)} pattern
+ * means this code is transport-agnostic AND AI-framework-agnostic. Google ADK is
+ * auto-detected because {@code atmosphere-adk} is on the classpath, which
+ * registers {@link org.atmosphere.ai.adk.AdkAiSupport} via ServiceLoader.</p>
+ *
+ * <p>In demo mode (no ADK Runner configured), falls back to simulated ADK events
+ * via {@link DemoEventProducer}.</p>
  */
-@ManagedService(path = "/atmosphere/adk-chat", atmosphereConfig = {
-        MAX_INACTIVE + "=120000"
-})
+@AiEndpoint(path = "/atmosphere/adk-chat",
+        systemPrompt = "You are a helpful assistant.")
 public class AdkChat {
 
     private static final Logger logger = LoggerFactory.getLogger(AdkChat.class);
 
-    @Inject
-    private AtmosphereResource resource;
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        logger.info("Received prompt: {}", message);
 
-    @Inject
-    private AtmosphereResourceEvent event;
-
-    @Heartbeat
-    public void onHeartbeat(final AtmosphereResourceEvent event) {
-        logger.trace("Heartbeat from {}", event.getResource());
-    }
-
-    @Ready
-    public void onReady() {
-        logger.info("Client {} connected to ADK chat", resource.uuid());
-    }
-
-    @Disconnect
-    public void onDisconnect() {
-        if (event.isCancelled()) {
-            logger.info("Client {} unexpectedly disconnected", event.getResource().uuid());
-        } else {
-            logger.info("Client {} disconnected", event.getResource().uuid());
-        }
-    }
-
-    @org.atmosphere.config.service.Message
-    public void onMessage(String userMessage) {
-        logger.info("Received from {}: {}", resource.uuid(), userMessage);
-
-        // Broadcast streaming tokens to ALL connected clients via the Broadcaster,
-        // same pattern as the spring-boot-chat sample.
-        var session = StreamingSessions.start(resource);
-
-        var events = DemoEventProducer.stream(userMessage);
+        // In demo mode, stream simulated ADK events
+        var events = DemoEventProducer.stream(message);
         AdkEventAdapter.bridge(events, session);
     }
 }

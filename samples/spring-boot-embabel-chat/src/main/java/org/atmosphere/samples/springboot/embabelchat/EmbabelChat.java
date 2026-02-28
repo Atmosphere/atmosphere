@@ -15,35 +15,24 @@
  */
 package org.atmosphere.samples.springboot.embabelchat;
 
-import com.embabel.agent.core.AgentPlatform;
-import org.atmosphere.ai.StreamingSessions;
-import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Ready;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AiEndpoint;
+import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import jakarta.inject.Inject;
-
-import static org.atmosphere.cpr.ApplicationConfig.BROADCASTER_CACHE;
-import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
-
 /**
- * Atmosphere managed service for Embabel agent chat.
- * In demo mode (no {@code OPENAI_API_KEY}), streams simulated responses.
- * When a real API key is configured, delegates to {@link AgentRunner} which
- * uses the Embabel {@code AgentPlatform}.
+ * AI chat endpoint powered by Embabel Agent Platform (auto-detected via classpath).
  *
- * <p>{@code @Inject} works for both Atmosphere-managed objects ({@code AtmosphereResource})
- * and Spring beans ({@code AgentPlatform}) thanks to
- * {@code SpringAtmosphereObjectFactory}'s hybrid injection.</p>
+ * <p>The {@code @AiEndpoint} annotation + {@code session.stream(message)} pattern
+ * means this code is transport-agnostic AND AI-framework-agnostic. Embabel is
+ * auto-detected because {@code atmosphere-embabel} is on the classpath, which
+ * registers {@link org.atmosphere.ai.embabel.EmbabelAiSupport} via ServiceLoader.</p>
+ *
+ * <p>In demo mode (no {@code OPENAI_API_KEY}), falls back to simulated streaming.</p>
  */
-@ManagedService(path = "/atmosphere/embabel-chat", atmosphereConfig = {
-        MAX_INACTIVE + "=120000",
-        BROADCASTER_CACHE + "=org.atmosphere.cache.DefaultBroadcasterCache"
-})
+@AiEndpoint(path = "/atmosphere/embabel-chat",
+        systemPrompt = "You are a helpful assistant.")
 public class EmbabelChat {
 
     private static final Logger logger = LoggerFactory.getLogger(EmbabelChat.class);
@@ -58,41 +47,15 @@ public class EmbabelChat {
         DEMO_MODE = (key == null || key.isBlank());
     }
 
-    // Atmosphere-managed — injected per-request
-    @Inject
-    private AtmosphereResource resource;
-
-    @Inject
-    private AtmosphereResourceEvent event;
-
-    // Spring-managed — injected at creation time by SpringAtmosphereObjectFactory
-    @Inject
-    private AgentPlatform agentPlatform;
-
-    @Ready
-    public void onReady() {
-        logger.info("Client {} connected to Embabel agent chat (demo={})",
-                resource.uuid(), DEMO_MODE);
-    }
-
-    @Disconnect
-    public void onDisconnect() {
-        if (event.isCancelled()) {
-            logger.info("Client {} unexpectedly disconnected", event.getResource().uuid());
-        } else {
-            logger.info("Client {} disconnected", event.getResource().uuid());
-        }
-    }
-
-    @org.atmosphere.config.service.Message
-    public void onMessage(String userMessage) {
-        logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        logger.info("Received prompt (demo={}): {}", DEMO_MODE, message);
 
         if (DEMO_MODE) {
-            var session = StreamingSessions.start(resource);
-            Thread.startVirtualThread(() -> DemoResponseProducer.stream(userMessage, session));
-        } else {
-            AgentRunner.run(userMessage, resource, agentPlatform);
+            DemoResponseProducer.stream(message, session);
+            return;
         }
+
+        session.stream(message);
     }
 }

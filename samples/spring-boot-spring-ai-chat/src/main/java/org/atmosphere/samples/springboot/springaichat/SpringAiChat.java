@@ -15,35 +15,24 @@
  */
 package org.atmosphere.samples.springboot.springaichat;
 
-import jakarta.inject.Inject;
-import org.atmosphere.ai.StreamingSessions;
-import org.atmosphere.ai.spring.SpringAiStreamingAdapter;
-import org.atmosphere.config.service.Disconnect;
-import org.atmosphere.config.service.ManagedService;
-import org.atmosphere.config.service.Ready;
-import org.atmosphere.cpr.AtmosphereResource;
-import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.ai.StreamingSession;
+import org.atmosphere.ai.annotation.AiEndpoint;
+import org.atmosphere.ai.annotation.Prompt;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.ai.chat.client.ChatClient;
-
-import static org.atmosphere.cpr.ApplicationConfig.MAX_INACTIVE;
 
 /**
- * Atmosphere managed service that streams Spring AI responses over WebSocket.
+ * AI chat endpoint powered by Spring AI (auto-detected via classpath).
  *
- * <p>This sample demonstrates the {@link SpringAiStreamingAdapter} — the bridge
- * between Spring AI's {@link ChatClient} and Atmosphere's {@link org.atmosphere.ai.StreamingSession}.
- * Users keep their Spring AI code (ChatClient, Advisors) and get real-time
- * WebSocket push for free.</p>
+ * <p>The {@code @AiEndpoint} annotation + {@code session.stream(message)} pattern
+ * means this code is transport-agnostic AND AI-framework-agnostic. Spring AI is
+ * auto-detected because {@code atmosphere-spring-ai} is on the classpath, which
+ * registers {@link org.atmosphere.ai.spring.SpringAiSupport} via ServiceLoader.</p>
  *
- * <p>{@code @Inject} works for both Atmosphere-managed objects ({@code AtmosphereResource})
- * and Spring beans ({@code ChatClient.Builder}, {@code SpringAiStreamingAdapter}) thanks to
- * {@code SpringAtmosphereObjectFactory}'s hybrid injection.</p>
+ * <p>In demo mode (no {@code OPENAI_API_KEY}), falls back to simulated streaming.</p>
  */
-@ManagedService(path = "/atmosphere/spring-ai-chat", atmosphereConfig = {
-        MAX_INACTIVE + "=120000"
-})
+@AiEndpoint(path = "/atmosphere/spring-ai-chat",
+        systemPrompt = "You are a helpful assistant.")
 public class SpringAiChat {
 
     private static final Logger logger = LoggerFactory.getLogger(SpringAiChat.class);
@@ -55,47 +44,15 @@ public class SpringAiChat {
         DEMO_MODE = apiKey == null || apiKey.isBlank() || "demo".equals(apiKey);
     }
 
-    // Atmosphere-managed — injected per-request
-    @Inject
-    private AtmosphereResource resource;
-
-    @Inject
-    private AtmosphereResourceEvent event;
-
-    // Spring-managed — injected at creation time by SpringAtmosphereObjectFactory
-    @Inject
-    private ChatClient.Builder chatClientBuilder;
-
-    @Inject
-    private SpringAiStreamingAdapter adapter;
-
-    @Ready
-    public void onReady() {
-        logger.info("Client {} connected to Spring AI chat", resource.uuid());
-    }
-
-    @Disconnect
-    public void onDisconnect() {
-        if (event.isCancelled()) {
-            logger.info("Client {} unexpectedly disconnected", event.getResource().uuid());
-        } else {
-            logger.info("Client {} disconnected", event.getResource().uuid());
-        }
-    }
-
-    @org.atmosphere.config.service.Message
-    public void onMessage(String userMessage) {
-        logger.info("Received from {}: {}", resource.uuid(), userMessage);
-
-        var session = StreamingSessions.start(resource);
+    @Prompt
+    public void onPrompt(String message, StreamingSession session) {
+        logger.info("Received prompt: {}", message);
 
         if (DEMO_MODE) {
-            Thread.startVirtualThread(() -> DemoResponseProducer.stream(userMessage, session));
+            DemoResponseProducer.stream(message, session);
             return;
         }
 
-        // Use Spring AI's ChatClient via the SpringAiStreamingAdapter.
-        // Both beans are injected via @Inject — no manual bean lookup needed.
-        Thread.startVirtualThread(() -> adapter.stream(chatClientBuilder.build(), userMessage, session));
+        session.stream(message);
     }
 }
