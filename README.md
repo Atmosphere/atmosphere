@@ -114,7 +114,7 @@ The core runtime handles transport-agnostic real-time messaging. Everything belo
 
 ## AI/LLM Streaming
 
-Atmosphere doesn't replace your AI framework — it gives it a transport. Spring AI, LangChain4j, and Embabel handle LLM communication; Atmosphere streams responses to the browser in real time over any supported transport, with built-in session stats and cost/latency routing.
+Atmosphere doesn't replace your AI framework — it gives it a transport. Spring AI, LangChain4j, Google ADK, and Embabel handle LLM communication; Atmosphere streams responses to the browser in real time over any supported transport, with built-in session stats and cost/latency routing.
 
 ### Server — 5 lines with the built-in client
 
@@ -184,6 +184,8 @@ public void onMessage(String prompt) {
     // ADK Runner events → session → WebSocket frame
 }
 ```
+
+See the [ADK chat sample](samples/spring-boot-adk-chat/) for a complete example.
 
 </details>
 
