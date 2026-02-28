@@ -23,6 +23,7 @@ import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.RawMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -105,6 +106,15 @@ public class AiEndpointHandler implements AtmosphereHandler {
 
         var message = event.getMessage();
         if (message == null) {
+            return;
+        }
+
+        // RawMessage = broadcast from StreamingSession (tokens, progress, etc.)
+        // Write directly to the response — do NOT treat as a user prompt.
+        if (message instanceof RawMessage raw) {
+            var response = resource.getResponse();
+            response.write(raw.message().toString());
+            response.flushBuffer();
             return;
         }
 
