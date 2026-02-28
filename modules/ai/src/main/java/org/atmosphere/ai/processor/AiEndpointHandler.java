@@ -23,8 +23,8 @@ import org.atmosphere.ai.StreamingSessions;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
+import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.RawMessage;
-import org.atmosphere.util.IOUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -85,12 +85,14 @@ public class AiEndpointHandler implements AtmosphereHandler {
         // WebSocket frames arrive as POST requests via SimpleHttpProtocol.
         // Read the message body and dispatch to the @Prompt method.
         if ("POST".equalsIgnoreCase(method)) {
-            Object body = IOUtils.readEntirely(resource);
-            if (body == null || IOUtils.isBodyEmpty(body)) {
+            // Read body directly from the request — IOUtils.readEntirely() checks the
+            // internal request method (GET for WebSocket upgrades) and blocks the read.
+            AtmosphereRequestImpl.Body body = resource.getRequest().body();
+            if (body.isEmpty()) {
                 return;
             }
 
-            var userMessage = body.toString();
+            var userMessage = body.hasString() ? body.asString() : new String(body.asBytes());
             logger.info("Received prompt from {}: {}", resource.uuid(), userMessage);
 
             var delegate = StreamingSessions.start(resource);
