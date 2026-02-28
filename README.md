@@ -116,7 +116,7 @@ The core runtime handles transport-agnostic real-time messaging. Everything belo
 
 Atmosphere doesn't replace your AI framework — it gives it a transport. Spring AI, LangChain4j, Google ADK, and Embabel handle LLM communication; Atmosphere streams responses to the browser in real time over any supported transport, with built-in session stats and cost/latency routing.
 
-### Server — 5 lines with the built-in client
+### Server — 3 lines, any AI framework
 
 ```java
 @AiEndpoint(path = "/ai/chat", systemPrompt = "You are a helpful assistant")
@@ -124,15 +124,22 @@ public class MyChatBot {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
-        AiConfig.get().client().streamChatCompletion(
-            ChatCompletionRequest.builder(AiConfig.get().model())
-                .user(message).build(),
-            session);
+        session.stream(message);  // auto-detects Spring AI, LangChain4j, ADK, Embabel, or built-in
     }
 }
 ```
 
-Configure with environment variables — no code changes to switch providers:
+Drop an adapter JAR on the classpath and the framework auto-detects it via `ServiceLoader` — same pattern as `AsyncSupport` for transports. No code changes needed to switch AI providers:
+
+| Classpath JAR | Auto-detected `AiSupport` |
+|---------------|--------------------------|
+| `atmosphere-ai` (default) | Built-in `OpenAiCompatibleClient` (Gemini, OpenAI, Ollama) |
+| `atmosphere-spring-ai` | Spring AI `ChatClient` |
+| `atmosphere-langchain4j` | LangChain4j `StreamingChatLanguageModel` |
+| `atmosphere-adk` | Google ADK `Runner` |
+| `atmosphere-embabel` | Embabel `AgentPlatform` |
+
+Configure the built-in client with environment variables:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -141,18 +148,33 @@ Configure with environment variables — no code changes to switch providers:
 | `LLM_API_KEY` | API key (or `GEMINI_API_KEY` for Gemini) | — |
 | `LLM_BASE_URL` | Override endpoint (auto-detected from model name) | auto |
 
-### Server — with your AI framework
+### Customization — AiInterceptor
+
+Cross-cutting concerns (RAG, guardrails, logging) go through `AiInterceptor`, not subclassing:
+
+```java
+@AiEndpoint(path = "/ai/chat", interceptors = {RagInterceptor.class, LoggingInterceptor.class})
+public class MyChat { ... }
+
+public class RagInterceptor implements AiInterceptor {
+    @Override
+    public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+        String context = vectorStore.search(request.message());
+        return request.withMessage(context + "\n\n" + request.message());
+    }
+}
+```
+
+### Direct adapter usage
+
+You can still use adapters directly for full control:
 
 <details>
 <summary>Spring AI adapter</summary>
 
 ```java
-@Message
-public void onMessage(String prompt) {
-    StreamingSession session = StreamingSessions.start(resource);
-    springAiAdapter.stream(chatClient, prompt, session);
-    // Spring AI Flux → session → WebSocket frame
-}
+var session = StreamingSessions.start(resource);
+springAiAdapter.stream(chatClient, prompt, session);
 ```
 
 </details>
@@ -161,13 +183,9 @@ public void onMessage(String prompt) {
 <summary>LangChain4j adapter</summary>
 
 ```java
-@Message
-public void onMessage(String prompt) {
-    StreamingSession session = StreamingSessions.start(resource);
-    model.chat(ChatMessage.userMessage(prompt),
-        new AtmosphereStreamingResponseHandler(session));
-    // LangChain4j callbacks → session → WebSocket frame
-}
+var session = StreamingSessions.start(resource);
+model.chat(ChatMessage.userMessage(prompt),
+    new AtmosphereStreamingResponseHandler(session));
 ```
 
 </details>
@@ -176,13 +194,8 @@ public void onMessage(String prompt) {
 <summary>Google ADK adapter</summary>
 
 ```java
-@Message
-public void onMessage(String prompt) {
-    StreamingSession session = StreamingSessions.start(resource);
-    adkAdapter.stream(
-        new AdkRequest(runner, userId, sessionId, prompt), session);
-    // ADK Runner events → session → WebSocket frame
-}
+var session = StreamingSessions.start(resource);
+adkAdapter.stream(new AdkRequest(runner, userId, sessionId, prompt), session);
 ```
 
 See the [ADK chat sample](samples/spring-boot-adk-chat/) for a complete example.
@@ -193,14 +206,10 @@ See the [ADK chat sample](samples/spring-boot-adk-chat/) for a complete example.
 <summary>Embabel adapter</summary>
 
 ```kotlin
-@Message
-fun onMessage(prompt: String) {
-    val session = StreamingSessions.start(resource)
-    embabelAdapter.stream(AgentRequest("assistant") { channel ->
-        agentPlatform.run(prompt, channel)
-    }, session)
-    // Embabel agent events → session → WebSocket frame
-}
+val session = StreamingSessions.start(resource)
+embabelAdapter.stream(AgentRequest("assistant") { channel ->
+    agentPlatform.run(prompt, channel)
+}, session)
 ```
 
 </details>

@@ -1,6 +1,6 @@
 # Atmosphere AI
 
-AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `StreamingSession`, and a built-in `OpenAiCompatibleClient` that works with Gemini, OpenAI, Ollama, and any OpenAI-compatible API.
+AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `StreamingSession`, the `AiSupport` SPI for auto-detected AI framework adapters, and a built-in `OpenAiCompatibleClient` that works with Gemini, OpenAI, Ollama, and any OpenAI-compatible API.
 
 ## Maven Coordinates
 
@@ -8,7 +8,7 @@ AI/LLM streaming module for Atmosphere. Provides `@AiEndpoint`, `@Prompt`, `Stre
 <dependency>
     <groupId>org.atmosphere</groupId>
     <artifactId>atmosphere-ai</artifactId>
-    <version>4.0.2</version>
+    <version>4.0.7-SNAPSHOT</version>
 </dependency>
 ```
 
@@ -21,24 +21,55 @@ public class MyAiChat {
 
     @Prompt
     public void onPrompt(String message, StreamingSession session) {
-        var settings = AiConfig.get();
-        var request = ChatCompletionRequest.builder(settings.model())
-                .system("You are a helpful assistant.")
-                .user(message)
-                .build();
-        settings.client().streamChatCompletion(request, session);
+        session.stream(message);  // auto-detects AI framework from classpath
     }
 }
 ```
 
 The `@AiEndpoint` annotation replaces the boilerplate of `@ManagedService` + `@Ready` + `@Disconnect` + `@Message` for AI streaming use cases. The `@Prompt` method runs on a virtual thread, so blocking LLM API calls do not block Atmosphere's thread pool.
 
+`session.stream(message)` auto-detects the best available `AiSupport` implementation via `ServiceLoader` — drop an adapter JAR on the classpath and it just works, analogous to `AsyncSupport` for transports.
+
+## AiSupport SPI
+
+The `AiSupport` interface is the AI-layer equivalent of `AsyncSupport`. Implementations are discovered via `ServiceLoader`, filtered by `isAvailable()`, and the highest `priority()` wins.
+
+| Adapter JAR | `AiSupport` implementation | Priority |
+|-------------|---------------------------|----------|
+| `atmosphere-ai` (built-in) | `BuiltInAiSupport` (OpenAI-compatible) | 0 |
+| `atmosphere-spring-ai` | `SpringAiSupport` | 100 |
+| `atmosphere-langchain4j` | `LangChain4jAiSupport` | 100 |
+| `atmosphere-adk` | `AdkAiSupport` | 100 |
+| `atmosphere-embabel` | `EmbabelAiSupport` | 100 |
+
+### AiInterceptor
+
+Cross-cutting concerns go through `AiInterceptor`, not subclassing. Interceptors are declared on `@AiEndpoint` and executed in FIFO order for `preProcess`, LIFO for `postProcess` (matching the `AtmosphereInterceptor` convention):
+
+```java
+@AiEndpoint(path = "/ai/chat",
+            interceptors = {RagInterceptor.class, GuardrailInterceptor.class})
+public class MyChat { ... }
+
+public class RagInterceptor implements AiInterceptor {
+    @Override
+    public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
+        String context = vectorStore.search(request.message());
+        return request.withMessage(context + "\n\n" + request.message());
+    }
+}
+```
+
 ## Key Components
 
 | Class | Description |
 |-------|-------------|
-| `@AiEndpoint` | Marks a class as an AI chat endpoint with a path and optional system prompt |
+| `@AiEndpoint` | Marks a class as an AI chat endpoint with a path, system prompt, and interceptors |
 | `@Prompt` | Marks the method that handles user messages |
+| `AiSupport` | SPI for AI framework backends (ServiceLoader-discovered) |
+| `AiRequest` | Framework-agnostic request record (message, systemPrompt, model, hints) |
+| `AiInterceptor` | Pre/post processing hooks for RAG, guardrails, logging |
+| `AiStreamingSession` | `StreamingSession` wrapper that adds `stream(String)` with interceptor chain |
 | `StreamingSession` | Streams tokens, progress updates, and metadata to the client |
 | `StreamingSessions` | Factory for creating `StreamingSession` instances |
 | `OpenAiCompatibleClient` | Built-in HTTP client for OpenAI-compatible APIs (JDK HttpClient, no extra deps) |
@@ -122,9 +153,13 @@ var router = RoutingLlmClient.builder(defaultClient, "gemini-2.5-flash")
 
 Rules are evaluated in order; first match wins. If no model fits the constraint, the rule is skipped and the next rule is tried.
 
-## Sample
+## Samples
 
-- [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- streaming LLM responses with Gemini/OpenAI/Ollama
+- [Spring Boot AI Chat](../../samples/spring-boot-ai-chat/) -- built-in client with Gemini/OpenAI/Ollama
+- [Spring Boot Spring AI Chat](../../samples/spring-boot-spring-ai-chat/) -- Spring AI adapter
+- [Spring Boot LangChain4j Chat](../../samples/spring-boot-langchain4j-chat/) -- LangChain4j adapter
+- [Spring Boot ADK Chat](../../samples/spring-boot-adk-chat/) -- Google ADK adapter
+- [Spring Boot Embabel Chat](../../samples/spring-boot-embabel-chat/) -- Embabel agent adapter
 
 ## AI-MCP Bridge
 
