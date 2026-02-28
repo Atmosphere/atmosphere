@@ -25,6 +25,7 @@ import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
 import org.atmosphere.cpr.RawMessage;
+import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,8 +38,13 @@ import java.util.List;
  * {@link AtmosphereHandler} that bridges an {@link org.atmosphere.ai.annotation.AiEndpoint}
  * annotated class to Atmosphere's lifecycle. Handles connect, disconnect, and message
  * events — delegating prompt handling to the user's {@code @Prompt} method on a virtual thread.
+ *
+ * <p>Extends {@link AbstractReflectorAtmosphereHandler} so that broadcast responses
+ * (tokens, progress, completion) are written through the standard output path, which
+ * honours the {@code AsyncIOWriter} interceptor chain (including
+ * {@code TrackMessageSizeInterceptor}).</p>
  */
-public class AiEndpointHandler implements AtmosphereHandler {
+public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     /**
      * Request attribute key for the system prompt configured on the {@code @AiEndpoint}.
@@ -125,11 +131,11 @@ public class AiEndpointHandler implements AtmosphereHandler {
         }
 
         // RawMessage = broadcast from StreamingSession (tokens, progress, complete, error).
-        // Write directly to the response to deliver tokens to the client.
+        // Unwrap and delegate to AbstractReflectorAtmosphereHandler which writes through
+        // the AsyncIOWriter chain (TrackMessageSizeInterceptor adds length-prefix).
         if (message instanceof RawMessage raw) {
-            var response = resource.getResponse();
-            response.write(raw.message().toString());
-            response.flushBuffer();
+            event.setMessage(raw.message());
+            super.onStateChange(event);
             return;
         }
 
@@ -150,11 +156,6 @@ public class AiEndpointHandler implements AtmosphereHandler {
                 session.error(e);
             }
         });
-    }
-
-    @Override
-    public void destroy() {
-        // no-op
     }
 
     private void invokePrompt(String message, StreamingSession session, AtmosphereResource resource)
