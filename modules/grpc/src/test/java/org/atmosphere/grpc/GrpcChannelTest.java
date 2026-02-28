@@ -15,7 +15,6 @@
  */
 package org.atmosphere.grpc;
 
-import com.google.protobuf.ByteString;
 import io.grpc.stub.StreamObserver;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.grpc.proto.AtmosphereMessage;

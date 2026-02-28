@@ -15,15 +15,10 @@
  */
 package org.atmosphere.wasync.impl;
 
-import org.atmosphere.wasync.Event;
-import org.atmosphere.wasync.Function;
-import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.Socket;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.TimeUnit;
 
 /**
  * {@link Socket} implementation with Atmosphere-specific close handling.

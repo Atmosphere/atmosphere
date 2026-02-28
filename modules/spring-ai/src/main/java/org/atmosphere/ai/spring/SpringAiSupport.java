@@ -19,8 +19,6 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.AiRequest;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.ai.chat.model.ChatResponse;
 import reactor.core.publisher.Flux;
@@ -33,8 +31,6 @@ import reactor.core.publisher.Flux;
  * done by {@link AtmosphereSpringAiAutoConfiguration}.</p>
  */
 public class SpringAiSupport implements AiSupport {
-
-    private static final Logger logger = LoggerFactory.getLogger(SpringAiSupport.class);
 
     private static volatile ChatClient chatClient;
 

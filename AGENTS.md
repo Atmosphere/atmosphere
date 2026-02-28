@@ -38,6 +38,7 @@ This enables pre-commit and commit-msg hooks. Sessions get archived/revived, so 
 
 **NEVER use `--no-verify` when committing or pushing.** The hooks enforce:
 - Apache 2.0 copyright headers on all Java source files
+- No unused or duplicate imports in staged Java files
 - Commit message format (max 2 lines, conventional commits recommended)
 - No AI-generated commit signatures
 
@@ -145,9 +146,12 @@ All Java source files must start with:
 - All tests use JUnit 5 (`org.junit.jupiter`)
 
 ### Build Enforcement
-- Checkstyle: runs in `validate` phase (failsOnError=true)
-- PMD: runs in `validate` phase (failsOnError=true)
-- Both can be skipped with `-Pfastinstall` for local iteration
+- **Compiler**: `javac -Xlint:all,-processing,-serial` is enabled — the compiler flags unused imports, unchecked casts, deprecation usage, raw types, and other issues as warnings. **Zero compiler warnings are required.**
+- **Checkstyle**: runs in `validate` phase (failsOnError=true). Enforces `UnusedImports` and `RedundantImport` rules — the build fails if unused or duplicate imports are present.
+- **PMD**: runs in `validate` phase (failsOnError=true)
+- **Pre-commit hook**: blocks commits containing unused or duplicate imports in staged Java files
+- All checks can be skipped with `-Pfastinstall` for local iteration, but **you MUST run a full `./mvnw compile` (without `-Pfastinstall`) before committing** to verify zero warnings.
+- **Do NOT introduce new `@SuppressWarnings` annotations** without justification. If a suppression is necessary (e.g., unavoidable raw type from a third-party API), add a comment explaining why.
 
 ## Testing
 
@@ -188,14 +192,17 @@ All Java source files must start with:
 
 ### Before Committing
 ```bash
-# 1. Full build of changed module with tests
+# 1. Compile and verify ZERO warnings (mandatory — do not skip)
+./mvnw compile -pl modules/cpr
+
+# 2. Full build of changed module with tests
 ./mvnw install -pl modules/cpr
 
-# 2. Verify checkstyle and PMD pass
+# 3. Verify checkstyle and PMD pass
 ./mvnw checkstyle:checkstyle pmd:check -pl modules/cpr
 ```
 
-**Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing.
+**Do NOT commit or push if the build produces warnings.** Treat compiler warnings, deprecation warnings, and static analysis warnings as errors. Fix them before committing. The compiler runs with `-Xlint:all,-processing,-serial` and Checkstyle enforces `UnusedImports`/`RedundantImport` — both will catch common issues.
 
 ### Before Merging / PR
 ```bash

@@ -18,7 +18,6 @@ package org.atmosphere.wasync;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.atmosphere.wasync.impl.AtmosphereClient;
 import org.atmosphere.wasync.impl.AtmosphereRequestBuilder;
-import org.atmosphere.wasync.impl.DefaultOptionsBuilder;
 import org.eclipse.jetty.ee10.servlet.ServletContextHandler;
 import org.eclipse.jetty.ee10.servlet.ServletHolder;
 import org.eclipse.jetty.ee10.websocket.jakarta.server.config.JakartaWebSocketServletContainerInitializer;

@@ -79,6 +79,10 @@
                 <version>3.13.0</version>
                 <configuration>
                     <release>21</release>
+                    <showWarnings>true</showWarnings>
+                    <compilerArgs>
+                        <arg>-Xlint:all,-processing,-serial</arg>
+                    </compilerArgs>
                 </configuration>
             </plugin>
             <plugin>

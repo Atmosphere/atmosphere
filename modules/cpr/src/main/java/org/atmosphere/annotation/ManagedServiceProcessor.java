@@ -40,6 +40,7 @@ public class ManagedServiceProcessor implements Processor<Object> {
     private static final Logger logger = LoggerFactory.getLogger(ManagedServiceProcessor.class);
 
     @Override
+    @SuppressWarnings("removal")
     public void handle(AtmosphereFramework framework, Class<Object> annotatedClass) {
         try {
             ManagedService a = annotatedClass.getAnnotation(ManagedService.class);

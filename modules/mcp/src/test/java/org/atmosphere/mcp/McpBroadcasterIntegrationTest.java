@@ -26,7 +26,6 @@ import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereResourceImpl;
 import org.atmosphere.cpr.AtmosphereResponseImpl;
 import org.atmosphere.cpr.Broadcaster;
-import org.atmosphere.cpr.BroadcasterFactory;
 import org.atmosphere.cpr.DefaultBroadcaster;
 import org.atmosphere.cpr.DefaultBroadcasterFactory;
 import org.atmosphere.mcp.annotation.McpParam;
@@ -139,14 +138,17 @@ public class McpBroadcasterIntegrationTest {
         }
     }
 
+    @SuppressWarnings("deprecation")
     private AtmosphereResource createSubscriber(Broadcaster broadcaster,
                                                  MessageCapture handler) throws Exception {
+        @SuppressWarnings("unchecked")
+        var asyncSupport = (org.atmosphere.cpr.AsyncSupport<AtmosphereResourceImpl>) mock(org.atmosphere.cpr.AsyncSupport.class);
         var resource = new AtmosphereResourceImpl(
                 config,
                 broadcaster,
                 AtmosphereRequestImpl.newInstance(),
                 AtmosphereResponseImpl.newInstance(),
-                mock(org.atmosphere.cpr.AsyncSupport.class),
+                asyncSupport,
                 handler
         );
         broadcaster.addAtmosphereResource(resource);

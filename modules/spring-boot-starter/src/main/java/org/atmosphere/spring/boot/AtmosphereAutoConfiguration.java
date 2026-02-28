@@ -79,7 +79,7 @@ public class AtmosphereAutoConfiguration {
 
     private static final Logger logger = LoggerFactory.getLogger(AtmosphereAutoConfiguration.class);
 
-    @SuppressWarnings("unchecked")
+    @SuppressWarnings({"unchecked", "rawtypes"})
     private static final Class<? extends Annotation>[] ATMOSPHERE_ANNOTATIONS = new Class[]{
             AtmosphereHandlerService.class,
             BroadcasterCacheService.class,

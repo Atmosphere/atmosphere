@@ -224,10 +224,8 @@ public class ContentSafetyFilter extends AiStreamBroadcastFilter {
             try {
                 Thread.sleep(50);
                 if (factory != null) {
-                    var broadcaster = factory.lookup(broadcasterId);
-                    if (broadcaster != null) {
-                        broadcaster.broadcast(message);
-                    }
+                    factory.findBroadcaster(broadcasterId)
+                            .ifPresent(b -> b.broadcast(message));
                 }
             } catch (Exception e) {
                 logger.warn("Failed to emit deferred stream-end message: {}", e.getMessage());

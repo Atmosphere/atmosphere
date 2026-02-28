@@ -17,8 +17,6 @@ package org.atmosphere.wasync.impl;
 
 import org.atmosphere.wasync.Client;
 import org.atmosphere.wasync.Options;
-import org.atmosphere.wasync.OptionsBuilder;
-import org.atmosphere.wasync.RequestBuilder;
 import org.atmosphere.wasync.Socket;
 
 /**

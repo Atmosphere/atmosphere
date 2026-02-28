@@ -49,6 +49,50 @@ check_copyright_headers() {
     return 0
 }
 
+# Check for unused imports in staged Java files
+check_unused_imports() {
+    local java_files=$(git diff --cached --name-only --diff-filter=ACM | grep -E '\.java$' | grep -v '/target/' || true)
+    local has_warnings=false
+
+    for file in $java_files; do
+        if [ ! -f "$file" ]; then
+            continue
+        fi
+
+        # Check for duplicate imports
+        local dup_imports=$(grep '^import ' "$file" | sort | uniq -d)
+        if [ -n "$dup_imports" ]; then
+            echo "WARNING: Duplicate imports in $file:"
+            echo "$dup_imports" | sed 's/^/  /'
+            has_warnings=true
+        fi
+
+        # Check for unused imports (non-wildcard, non-static)
+        while IFS= read -r import_line; do
+            # Extract the class name (last component of the import)
+            local class_name=$(echo "$import_line" | sed 's/import \(static \)\?//;s/;$//' | awk -F. '{print $NF}')
+            # Skip wildcard imports
+            if [ "$class_name" = "*" ]; then
+                continue
+            fi
+            # Count occurrences outside import/package lines
+            local usage_count=$(grep -v '^\s*import ' "$file" | grep -v '^\s*package ' | grep -c "\b${class_name}\b" 2>/dev/null || true)
+            if [ "$usage_count" -eq 0 ]; then
+                echo "WARNING: Unused import in $file: $import_line"
+                has_warnings=true
+            fi
+        done < <(grep '^import [^s]' "$file" | grep -v '\.\*;$')
+    done
+
+    if [ "$has_warnings" = true ]; then
+        echo ""
+        echo "ERROR: Commit blocked - Java warnings detected."
+        echo "Please fix the warnings listed above before committing."
+        return 1
+    fi
+    return 0
+}
+
 # Main execution
 main() {
     local checks_passed=true
@@ -58,6 +102,10 @@ main() {
     fi
 
     if ! check_copyright_headers; then
+        checks_passed=false
+    fi
+
+    if ! check_unused_imports; then
         checks_passed=false
     fi
 

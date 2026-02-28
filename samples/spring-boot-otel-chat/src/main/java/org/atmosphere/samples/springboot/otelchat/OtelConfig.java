@@ -16,7 +16,6 @@
 package org.atmosphere.samples.springboot.otelchat;
 
 import io.opentelemetry.api.OpenTelemetry;
-import io.opentelemetry.api.trace.Tracer;
 import io.opentelemetry.sdk.autoconfigure.AutoConfiguredOpenTelemetrySdk;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;

@@ -15,14 +15,12 @@
  */
 package org.atmosphere.wasync;
 
-import org.atmosphere.wasync.impl.DefaultClient;
 import org.atmosphere.wasync.impl.DefaultOptionsBuilder;
 import org.atmosphere.wasync.impl.DefaultRequestBuilder;
 import org.junit.jupiter.api.Test;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.CompletableFuture;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;

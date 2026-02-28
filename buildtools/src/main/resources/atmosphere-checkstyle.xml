@@ -13,4 +13,9 @@ Checks the code meets the Atmosphere's coding guidelines.
         <property name="fileExtensions" value="java"/>
     </module>
 
+    <module name="TreeWalker">
+        <module name="UnusedImports"/>
+        <module name="RedundantImport"/>
+    </module>
+
 </module>

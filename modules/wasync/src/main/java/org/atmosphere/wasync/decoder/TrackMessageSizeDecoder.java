@@ -17,8 +17,6 @@ package org.atmosphere.wasync.decoder;
 
 import org.atmosphere.wasync.Decoder;
 import org.atmosphere.wasync.Event;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /**
  * Decoder that handles Atmosphere's message-length protocol.
@@ -28,8 +26,6 @@ import org.slf4j.LoggerFactory;
  * buffers partial messages, and emits complete messages.</p>
  */
 public class TrackMessageSizeDecoder implements Decoder<String, String> {
-
-    private static final Logger logger = LoggerFactory.getLogger(TrackMessageSizeDecoder.class);
 
     private final String delimiter;
     private final StringBuilder buffer = new StringBuilder();
@@ -55,7 +51,6 @@ public class TrackMessageSizeDecoder implements Decoder<String, String> {
     }
 
     @Override
-    @SuppressWarnings("unchecked")
     public String decode(Event event, String message) {
         if (event != Event.MESSAGE || message == null) {
             return message;
@@ -101,9 +96,7 @@ public class TrackMessageSizeDecoder implements Decoder<String, String> {
                 if (!buffer.isEmpty()) {
                     return extractMessage();
                 }
-                @SuppressWarnings("rawtypes")
-                Decoded abort = Decoded.ABORT;
-                return ((Decoded<String>) abort).decoded();
+                return null;
             }
 
             return msg;

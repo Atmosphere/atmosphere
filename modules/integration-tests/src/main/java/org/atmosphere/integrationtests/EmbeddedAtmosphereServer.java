@@ -30,6 +30,7 @@ import java.util.Map;
  * Embedded Jetty server for integration testing.
  * Starts Atmosphere on a random port with configurable properties.
  */
+@SuppressWarnings("try")
 public class EmbeddedAtmosphereServer implements AutoCloseable {
 
     private final Server server;

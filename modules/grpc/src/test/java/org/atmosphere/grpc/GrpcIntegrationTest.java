@@ -19,7 +19,6 @@ import io.grpc.ManagedChannel;
 import io.grpc.inprocess.InProcessChannelBuilder;
 import io.grpc.inprocess.InProcessServerBuilder;
 import io.grpc.stub.StreamObserver;
-import io.grpc.testing.GrpcCleanupRule;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.grpc.proto.AtmosphereMessage;
 import org.atmosphere.grpc.proto.AtmosphereServiceGrpc;
@@ -45,7 +44,6 @@ class GrpcIntegrationTest {
     private final CopyOnWriteArrayList<GrpcChannel> openedChannels = new CopyOnWriteArrayList<>();
     private final CopyOnWriteArrayList<GrpcChannel> closedChannels = new CopyOnWriteArrayList<>();
 
-    @SuppressWarnings("deprecation")
     @BeforeEach
     void setUp() throws Exception {
         var framework = new AtmosphereFramework();
@@ -127,8 +125,6 @@ class GrpcIntegrationTest {
 
     @Test
     void clientSendsMessageAndHandlerReceivesIt() throws Exception {
-        var latch = new CountDownLatch(1);
-
         var stub = AtmosphereServiceGrpc.newStub(clientChannel);
         var requestObserver = stub.stream(new StreamObserver<>() {
             @Override

@@ -19,9 +19,6 @@ import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.grpc.AtmosphereGrpcServer;
 import org.atmosphere.grpc.GrpcHandler;
 import org.atmosphere.grpc.GrpcHandlerAdapter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.boot.autoconfigure.AutoConfiguration;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnClass;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnMissingBean;
@@ -42,8 +39,6 @@ import java.io.IOException;
 @ConditionalOnProperty(name = "atmosphere.grpc.enabled", havingValue = "true")
 @EnableConfigurationProperties(AtmosphereProperties.class)
 public class AtmosphereGrpcAutoConfiguration {
-
-    private static final Logger logger = LoggerFactory.getLogger(AtmosphereGrpcAutoConfiguration.class);
 
     @Bean
     @ConditionalOnMissingBean

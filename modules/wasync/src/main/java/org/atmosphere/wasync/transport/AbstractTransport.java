@@ -18,7 +18,6 @@ package org.atmosphere.wasync.transport;
 import org.atmosphere.wasync.Decoder;
 import org.atmosphere.wasync.Event;
 import org.atmosphere.wasync.FunctionBinding;
-import org.atmosphere.wasync.Request;
 import org.atmosphere.wasync.Socket;
 import org.atmosphere.wasync.Transport;
 import org.slf4j.Logger;
