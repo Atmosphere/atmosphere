@@ -9,9 +9,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "atmosphere.js": "file:../../../atmosphere.js",
+    "marked": "^17.0.3",
     "react": "^19.2.4",
-    "react-dom": "^19.2.4",
-    "atmosphere.js": "file:../../../atmosphere.js"
+    "react-dom": "^19.2.4"
   },
   "devDependencies": {
     "@types/react": "^19.2.14",

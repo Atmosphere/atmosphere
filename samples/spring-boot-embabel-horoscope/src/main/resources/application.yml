@@ -1,0 +1,17 @@
+# Atmosphere Embabel Horoscope Configuration
+# Multi-step agent: extract sign → find events → generate horoscope
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.embabelhoroscope
+
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:${LLM_API_KEY:demo}}
+      base-url: ${LLM_BASE_URL:https://api.openai.com}
+      chat:
+        options:
+          model: ${LLM_MODEL:gpt-4o-mini}
+
+server:
+  port: 8089

@@ -503,11 +503,15 @@
         <module>samples/spring-boot-chat</module>
         <module>samples/quarkus-chat</module>
         <module>samples/spring-boot-langchain4j-chat</module>
+        <module>samples/spring-boot-langchain4j-tools</module>
         <module>samples/spring-boot-embabel-chat</module>
+        <module>samples/spring-boot-embabel-horoscope</module>
         <module>samples/spring-boot-ai-chat</module>
         <module>samples/spring-boot-ai-classroom</module>
         <module>samples/spring-boot-adk-chat</module>
+        <module>samples/spring-boot-adk-tools</module>
         <module>samples/spring-boot-spring-ai-chat</module>
+        <module>samples/spring-boot-spring-ai-routing</module>
         <module>samples/spring-boot-otel-chat</module>
         <module>samples/spring-boot-mcp-server</module>
         <module>samples/spring-boot-durable-sessions</module>

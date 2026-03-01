@@ -21,7 +21,6 @@ import org.atmosphere.config.service.Disconnect;
 import org.atmosphere.config.service.Get;
 import org.atmosphere.config.service.Heartbeat;
 import org.atmosphere.config.service.Message;
-import org.atmosphere.config.service.PathParam;
 import org.atmosphere.config.service.Post;
 import org.atmosphere.config.service.Put;
 import org.atmosphere.config.service.Ready;
@@ -47,7 +46,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.Reader;
 import java.lang.annotation.Annotation;
-import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -255,21 +253,11 @@ public class ManagedAtmosphereHandler extends AbstractReflectorAtmosphereHandler
     }
 
     protected boolean pathParams(Object o) {
-        for (Field field : o.getClass().getDeclaredFields()) {
-            if (field.isAnnotationPresent(PathParam.class)) {
-                return true;
-            }
-        }
-        return false;
+        return AnnotatedLifecycle.hasPathParamFields(o.getClass());
     }
 
     protected Method populate(Object c, Class<? extends Annotation> annotation) {
-        for (Method m : c.getClass().getMethods()) {
-            if (m.isAnnotationPresent(annotation)) {
-                return m;
-            }
-        }
-        return null;
+        return AnnotatedLifecycle.findMethod(c.getClass(), annotation);
     }
 
     protected List<MethodInfo> populateMessage(Object c) {

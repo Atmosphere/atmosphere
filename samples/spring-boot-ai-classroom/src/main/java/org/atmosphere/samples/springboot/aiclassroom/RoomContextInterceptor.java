@@ -17,13 +17,19 @@ package org.atmosphere.samples.springboot.aiclassroom;
 
 import org.atmosphere.ai.AiInterceptor;
 import org.atmosphere.ai.AiRequest;
+import org.atmosphere.ai.processor.AiEndpointHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 
 import java.util.Map;
 
 /**
- * Sets the AI system prompt based on the {@code ?room=} query parameter.
+ * Sets the AI system prompt based on the {@code {room}} path parameter.
  * Each room gets a different persona — math tutor, code mentor, or science educator.
+ *
+ * <p>The path parameter is extracted automatically by {@link AiEndpointHandler}
+ * from the {@code @AiEndpoint(path = "/atmosphere/classroom/{room}")} template.
+ * Each unique room path also gets its own Atmosphere broadcaster, so messages
+ * in the math room are isolated from the code and science rooms.</p>
  *
  * <p>This demonstrates the {@link AiInterceptor} pattern: cross-cutting concerns
  * (persona selection, guardrails, RAG) without modifying the {@code @Prompt} method.</p>
@@ -48,7 +54,7 @@ public class RoomContextInterceptor implements AiInterceptor {
 
     @Override
     public AiRequest preProcess(AiRequest request, AtmosphereResource resource) {
-        var room = resource.getRequest().getParameter("room");
+        var room = AiEndpointHandler.pathParam(resource, "room");
         if (room == null || room.isBlank()) {
             room = "general";
         }

@@ -21,10 +21,12 @@ import org.atmosphere.ai.AiStreamingSession;
 import org.atmosphere.ai.AiSupport;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.StreamingSessions;
+import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.cpr.AtmosphereHandler;
 import org.atmosphere.cpr.AtmosphereResource;
 import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.atmosphere.cpr.AtmosphereRequestImpl;
+import org.atmosphere.cpr.Broadcaster;
 import org.atmosphere.cpr.RawMessage;
 import org.atmosphere.handler.AbstractReflectorAtmosphereHandler;
 import org.slf4j.Logger;
@@ -44,6 +46,21 @@ import java.util.List;
  * (tokens, progress, completion) are written through the standard output path, which
  * honours the {@code AsyncIOWriter} interceptor chain (including
  * {@code TrackMessageSizeInterceptor}).</p>
+ *
+ * <h3>Shared injection framework</h3>
+ * <p>{@code @AiEndpoint} reuses the same injection infrastructure as
+ * {@link org.atmosphere.config.service.ManagedService} via the shared
+ * {@link AnnotatedLifecycle} class — no scanning or injection logic is
+ * duplicated:</p>
+ * <ul>
+ *   <li>{@link org.atmosphere.config.service.PathParam @PathParam} fields are
+ *       injected per-request via {@link InjectableObjectFactory#requestScoped}</li>
+ *   <li>{@link jakarta.inject.Inject @Inject} fields (e.g. {@code Broadcaster},
+ *       {@code AtmosphereConfig}) are injected once at registration time</li>
+ *   <li>{@link org.atmosphere.config.service.Ready @Ready} and
+ *       {@link org.atmosphere.config.service.Disconnect @Disconnect} lifecycle
+ *       methods are discovered and invoked on connect/disconnect</li>
+ * </ul>
  */
 public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
@@ -56,14 +73,24 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     private static final Logger logger = LoggerFactory.getLogger(AiEndpointHandler.class);
 
+    /**
+     * Request attribute prefix for path parameters extracted from the
+     * {@code @AiEndpoint} path template. For example, a path template
+     * {@code /atmosphere/chat/{room}} sets the attribute
+     * {@code org.atmosphere.ai.pathParam.room} on each request.
+     */
+    public static final String PATH_PARAM_ATTRIBUTE_PREFIX = "org.atmosphere.ai.pathParam.";
+
     private final Object target;
     private final Method promptMethod;
     private final int paramCount;
     private final long suspendTimeout;
     private final String systemPrompt;
+    private final String pathTemplate;
     private final AiSupport aiSupport;
     private final List<AiInterceptor> interceptors;
     private final AiConversationMemory memory;
+    private final AnnotatedLifecycle lifecycle;
 
     /**
      * @param target       the user's @AiEndpoint instance
@@ -76,7 +103,8 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
                              String systemPrompt, AiSupport aiSupport,
                              List<AiInterceptor> interceptors) {
-        this(target, promptMethod, timeout, systemPrompt, aiSupport, interceptors, null);
+        this(target, promptMethod, timeout, systemPrompt, null, aiSupport, interceptors,
+                null, AnnotatedLifecycle.scan(target.getClass()));
     }
 
     /**
@@ -84,22 +112,28 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
      * @param promptMethod the @Prompt-annotated method
      * @param timeout      per-resource suspend timeout in milliseconds
      * @param systemPrompt the system prompt from the @AiEndpoint annotation (may be empty)
+     * @param pathTemplate the path template from the @AiEndpoint annotation (e.g. "/chat/{room}")
      * @param aiSupport    the resolved AI support implementation
      * @param interceptors the interceptor chain
      * @param memory       conversation memory (may be null if disabled)
+     * @param lifecycle    the shared lifecycle descriptor from {@link AnnotatedLifecycle#scan}
      */
     public AiEndpointHandler(Object target, Method promptMethod, long timeout,
-                             String systemPrompt, AiSupport aiSupport,
+                             String systemPrompt, String pathTemplate,
+                             AiSupport aiSupport,
                              List<AiInterceptor> interceptors,
-                             AiConversationMemory memory) {
+                             AiConversationMemory memory,
+                             AnnotatedLifecycle lifecycle) {
         this.target = target;
         this.promptMethod = promptMethod;
         this.paramCount = promptMethod.getParameterCount();
         this.suspendTimeout = timeout;
         this.systemPrompt = systemPrompt != null ? systemPrompt : "";
+        this.pathTemplate = pathTemplate;
         this.aiSupport = aiSupport;
         this.interceptors = interceptors != null ? interceptors : List.of();
         this.memory = memory;
+        this.lifecycle = lifecycle;
         this.promptMethod.setAccessible(true);
     }
 
@@ -108,12 +142,15 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         var method = resource.getRequest().getMethod();
 
         // WebSocket frames arrive as POST requests via SimpleHttpProtocol.
-        // Broadcast the message so it reaches onStateChange on the suspended resource.
+        // The framework creates a temporary resource for each frame with the handler's
+        // default broadcaster — NOT the per-path broadcaster assigned during connection.
+        // We must look up the per-path broadcaster by URI so the broadcast reaches
+        // the suspended resource(s) in the correct room.
         if ("POST".equalsIgnoreCase(method)) {
             AtmosphereRequestImpl.Body body = resource.getRequest().body();
             if (!body.isEmpty()) {
                 var msg = body.hasString() ? body.asString() : new String(body.asBytes());
-                resource.getBroadcaster().broadcast(msg);
+                resolvePerPathBroadcaster(resource).broadcast(msg);
             }
             return;
         }
@@ -122,11 +159,17 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
         if (resource.transport() == AtmosphereResource.TRANSPORT.WEBSOCKET
                 || resource.transport() == AtmosphereResource.TRANSPORT.SSE
                 || resource.transport() == AtmosphereResource.TRANSPORT.LONG_POLLING) {
+            assignPerPathBroadcaster(resource);
             resource.suspend(suspendTimeout);
             if (!systemPrompt.isEmpty()) {
                 resource.getRequest().setAttribute(SYSTEM_PROMPT_ATTRIBUTE, systemPrompt);
             }
-            logger.info("Client {} connected to AI endpoint", resource.uuid());
+            extractPathParams(resource);
+            lifecycle.injectPathParams(target, resource, pathTemplate,
+                    resource.getAtmosphereConfig());
+            lifecycle.onReady(target, resource);
+            logger.info("Client {} connected to AI endpoint (broadcaster: {})",
+                    resource.uuid(), resource.getBroadcaster().getID());
         }
     }
 
@@ -138,6 +181,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
             if (memory != null) {
                 memory.clear(resource.uuid());
             }
+            lifecycle.onDisconnect(target, event);
             logger.info("Client {} disconnected from AI endpoint", resource.uuid());
             return;
         }
@@ -146,6 +190,7 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
             if (memory != null) {
                 memory.clear(resource.uuid());
             }
+            lifecycle.onDisconnect(target, event);
             logger.info("Client {} unexpectedly disconnected from AI endpoint", resource.uuid());
             return;
         }
@@ -219,5 +264,86 @@ public class AiEndpointHandler extends AbstractReflectorAtmosphereHandler {
 
     AiConversationMemory memory() {
         return memory;
+    }
+
+    AnnotatedLifecycle lifecycle() {
+        return lifecycle;
+    }
+
+    /**
+     * Resolves the correct broadcaster for a WebSocket frame dispatch. When the
+     * path template contains parameters, the suspended resource's per-path
+     * broadcaster is looked up by request URI. Falls back to the resource's
+     * current broadcaster when no path template is configured.
+     */
+    private Broadcaster resolvePerPathBroadcaster(AtmosphereResource resource) {
+        if (pathTemplate != null && pathTemplate.contains("{")) {
+            var requestUri = resource.getRequest().getRequestURI();
+            if (requestUri != null) {
+                var factory = resource.getAtmosphereConfig().getBroadcasterFactory();
+                var broadcaster = factory.lookup(requestUri, false);
+                if (broadcaster != null) {
+                    return broadcaster;
+                }
+            }
+        }
+        return resource.getBroadcaster();
+    }
+
+    /**
+     * When the path template contains {@code {param}} placeholders, each unique
+     * request path (e.g. {@code /classroom/math} vs {@code /classroom/code})
+     * gets its own {@link org.atmosphere.cpr.Broadcaster}. This provides
+     * per-path message isolation — messages broadcast in one room stay in that room.
+     */
+    private void assignPerPathBroadcaster(AtmosphereResource resource) {
+        if (pathTemplate == null || !pathTemplate.contains("{")) {
+            return;
+        }
+        var requestUri = resource.getRequest().getRequestURI();
+        if (requestUri == null || requestUri.equals(pathTemplate)) {
+            return;
+        }
+        var factory = resource.getAtmosphereConfig().getBroadcasterFactory();
+        var broadcaster = factory.lookup(requestUri, true);
+        resource.setBroadcaster(broadcaster);
+    }
+
+    /**
+     * Extracts path parameters from the request URI by matching it against the
+     * {@link #pathTemplate}. Each {@code {param}} placeholder is resolved and
+     * stored as a request attribute under the key
+     * {@code org.atmosphere.ai.pathParam.<name>}.
+     */
+    private void extractPathParams(AtmosphereResource resource) {
+        if (pathTemplate == null || !pathTemplate.contains("{")) {
+            return;
+        }
+        var requestUri = resource.getRequest().getRequestURI();
+        if (requestUri == null) {
+            return;
+        }
+        var templateParts = pathTemplate.split("/");
+        var uriParts = requestUri.split("/");
+        var len = Math.min(templateParts.length, uriParts.length);
+        for (var i = 0; i < len; i++) {
+            var tpl = templateParts[i];
+            if (tpl.startsWith("{") && tpl.endsWith("}")) {
+                var name = tpl.substring(1, tpl.length() - 1);
+                resource.getRequest().setAttribute(PATH_PARAM_ATTRIBUTE_PREFIX + name, uriParts[i]);
+            }
+        }
+    }
+
+    /**
+     * Convenience method for {@link AiInterceptor} implementations to retrieve
+     * a path parameter set by this handler.
+     *
+     * @param resource the current atmosphere resource
+     * @param name     the parameter name (e.g. "room")
+     * @return the parameter value, or {@code null} if not present
+     */
+    public static String pathParam(AtmosphereResource resource, String name) {
+        return (String) resource.getRequest().getAttribute(PATH_PARAM_ATTRIBUTE_PREFIX + name);
     }
 }

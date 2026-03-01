@@ -83,6 +83,30 @@ export const SAMPLES: Record<string, SampleConfig> = {
     port: 8085,
     type: 'spring-boot',
   },
+  'spring-boot-langchain4j-tools': {
+    name: 'spring-boot-langchain4j-tools',
+    dir: 'spring-boot-langchain4j-tools',
+    port: 8086,
+    type: 'spring-boot',
+  },
+  'spring-boot-adk-tools': {
+    name: 'spring-boot-adk-tools',
+    dir: 'spring-boot-adk-tools',
+    port: 8087,
+    type: 'spring-boot',
+  },
+  'spring-boot-spring-ai-routing': {
+    name: 'spring-boot-spring-ai-routing',
+    dir: 'spring-boot-spring-ai-routing',
+    port: 8088,
+    type: 'spring-boot',
+  },
+  'spring-boot-embabel-horoscope': {
+    name: 'spring-boot-embabel-horoscope',
+    dir: 'spring-boot-embabel-horoscope',
+    port: 8089,
+    type: 'spring-boot',
+  },
   'spring-boot-durable-sessions': {
     name: 'spring-boot-durable-sessions',
     dir: 'spring-boot-durable-sessions',

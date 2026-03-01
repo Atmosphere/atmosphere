@@ -19,29 +19,53 @@ import org.atmosphere.ai.AiConfig;
 import org.atmosphere.ai.StreamingSession;
 import org.atmosphere.ai.annotation.AiEndpoint;
 import org.atmosphere.ai.annotation.Prompt;
+import org.atmosphere.config.service.Disconnect;
+import org.atmosphere.config.service.PathParam;
+import org.atmosphere.config.service.Ready;
 import org.atmosphere.cpr.AtmosphereResource;
+import org.atmosphere.cpr.AtmosphereResourceEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Collaborative AI classroom endpoint. All clients connected to this path
- * share the same broadcaster — when one student asks a question, every
- * student sees the AI response stream token-by-token in real time.
+ * Collaborative AI classroom endpoint. All clients connected to the same
+ * room share a broadcaster — when one student asks a question, every
+ * student in that room sees the AI response stream token-by-token.
  *
- * <p>The {@link RoomContextInterceptor} reads the {@code ?room=} query
+ * <p>Demonstrates standard Atmosphere annotations with {@code @AiEndpoint}:</p>
+ * <ul>
+ *   <li>{@link PathParam @PathParam} — injects the {@code {room}} path variable</li>
+ *   <li>{@link Ready @Ready} — invoked when a client connects and is suspended</li>
+ *   <li>{@link Disconnect @Disconnect} — invoked when a client disconnects</li>
+ * </ul>
+ *
+ * <p>The {@link RoomContextInterceptor} reads the {@code {room}} path
  * parameter and sets a room-specific system prompt (math tutor, code mentor,
  * science educator).</p>
  */
-@AiEndpoint(path = "/atmosphere/classroom",
+@AiEndpoint(path = "/atmosphere/classroom/{room}",
         systemPromptResource = "prompts/classroom-prompt.md",
         interceptors = { RoomContextInterceptor.class })
 public class AiClassroom {
 
     private static final Logger logger = LoggerFactory.getLogger(AiClassroom.class);
 
+    @PathParam("room")
+    private String room;
+
+    @Ready
+    public void onReady(AtmosphereResource resource) {
+        logger.info("Student {} joined room '{}' (broadcaster: {})",
+                resource.uuid(), room, resource.getBroadcaster().getID());
+    }
+
+    @Disconnect
+    public void onDisconnect(AtmosphereResourceEvent event) {
+        logger.info("Student {} left room '{}'", event.getResource().uuid(), room);
+    }
+
     @Prompt
     public void onPrompt(String message, StreamingSession session, AtmosphereResource resource) {
-        var room = (String) resource.getRequest().getAttribute("classroom.room");
         logger.info("Classroom prompt in room '{}': {}", room, message);
 
         var settings = AiConfig.get();

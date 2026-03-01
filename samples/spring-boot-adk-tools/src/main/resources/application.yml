@@ -1,0 +1,8 @@
+# Atmosphere ADK Tools Configuration
+# Ported from adk-java/tutorials/city-time-weather, augmented with token budgets and caching
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.adktools
+
+server:
+  port: 8087

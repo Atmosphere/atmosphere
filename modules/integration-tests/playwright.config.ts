@@ -114,5 +114,21 @@ export default defineConfig({
       name: 'ai-memory',
       testMatch: /ai-memory\.spec\.ts/,
     },
+    {
+      name: 'langchain4j-tools',
+      testMatch: /langchain4j-tools\.spec\.ts/,
+    },
+    {
+      name: 'adk-tools',
+      testMatch: /adk-tools\.spec\.ts/,
+    },
+    {
+      name: 'spring-ai-routing',
+      testMatch: /spring-ai-routing\.spec\.ts/,
+    },
+    {
+      name: 'embabel-horoscope',
+      testMatch: /embabel-horoscope\.spec\.ts/,
+    },
   ],
 });

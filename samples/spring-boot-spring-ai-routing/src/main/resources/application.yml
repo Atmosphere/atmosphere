@@ -1,0 +1,16 @@
+# Atmosphere + Spring AI Routing Configuration
+# Ported from spring-ai-examples/agentic-patterns/routing-workflow
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.springairouting
+
+spring:
+  ai:
+    openai:
+      api-key: ${OPENAI_API_KEY:demo}
+      chat:
+        options:
+          model: ${SPRING_AI_OPENAI_CHAT_OPTIONS_MODEL:gpt-4o-mini}
+
+server:
+  port: 8088

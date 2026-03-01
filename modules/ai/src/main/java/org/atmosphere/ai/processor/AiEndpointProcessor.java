@@ -27,6 +27,7 @@ import org.atmosphere.ai.annotation.Prompt;
 import org.atmosphere.annotation.AnnotationUtil;
 import org.atmosphere.annotation.Processor;
 import org.atmosphere.config.AtmosphereAnnotation;
+import org.atmosphere.config.managed.AnnotatedLifecycle;
 import org.atmosphere.cpr.AtmosphereFramework;
 import org.atmosphere.cpr.AtmosphereInterceptor;
 import org.slf4j.Logger;
@@ -42,6 +43,20 @@ import java.util.List;
  * scanning infrastructure via {@link AtmosphereAnnotation}. Scans the annotated class
  * for a {@link Prompt} method, validates the signature, and registers an
  * {@link AiEndpointHandler} at the configured path.
+ *
+ * <h3>Shared injection framework</h3>
+ * <p>This processor delegates to the shared {@link AnnotatedLifecycle} class
+ * for annotation scanning and field injection — the same infrastructure
+ * used by {@link org.atmosphere.config.service.ManagedService @ManagedService}:</p>
+ * <ul>
+ *   <li>{@link jakarta.inject.Inject @Inject} fields are injected once at registration
+ *       time via {@link AnnotatedLifecycle#injectFields}</li>
+ *   <li>{@link org.atmosphere.config.service.PathParam @PathParam} fields are detected
+ *       for per-request injection</li>
+ *   <li>{@link org.atmosphere.config.service.Ready @Ready} and
+ *       {@link org.atmosphere.config.service.Disconnect @Disconnect} lifecycle methods
+ *       are discovered and delegated to the handler</li>
+ * </ul>
  */
 @AtmosphereAnnotation(AiEndpoint.class)
 public class AiEndpointProcessor implements Processor<Object> {
@@ -65,6 +80,10 @@ public class AiEndpointProcessor implements Processor<Object> {
             validatePromptSignature(promptMethod);
 
             var instance = framework.newClassInstance(Object.class, annotatedClass);
+
+            // Inject @Inject-annotated fields (Broadcaster, AtmosphereConfig, etc.)
+            AnnotatedLifecycle.injectFields(framework, instance);
+
             var systemPrompt = resolveSystemPrompt(annotation);
             var aiSupport = resolveAiSupport();
             var interceptors = instantiateInterceptors(annotation.interceptors());
@@ -72,18 +91,27 @@ public class AiEndpointProcessor implements Processor<Object> {
             if (annotation.conversationMemory()) {
                 memory = new InMemoryConversationMemory(annotation.maxHistoryMessages());
             }
+
+            // Shared lifecycle scanning — same infrastructure as @ManagedService
+            var lifecycle = AnnotatedLifecycle.scan(annotatedClass);
+
             var handler = new AiEndpointHandler(instance, promptMethod,
-                    annotation.timeout(), systemPrompt, aiSupport, interceptors, memory);
+                    annotation.timeout(), systemPrompt, annotation.path(),
+                    aiSupport, interceptors, memory, lifecycle);
 
             List<AtmosphereInterceptor> frameworkInterceptors = new LinkedList<>();
             AnnotationUtil.defaultManagedServiceInterceptors(framework, frameworkInterceptors);
             framework.addAtmosphereHandler(annotation.path(), handler, frameworkInterceptors);
 
-            logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, memory: {}, timeout: {}ms)",
+            logger.info("AI endpoint registered at {} (class: {}, aiSupport: {}, interceptors: {}, "
+                            + "memory: {}, timeout: {}ms, @Ready: {}, @Disconnect: {}, @PathParam: {})",
                     annotation.path(), annotatedClass.getSimpleName(),
                     aiSupport.name(), interceptors.size(),
                     memory != null ? "on(max=" + memory.maxMessages() + ")" : "off",
-                    annotation.timeout());
+                    annotation.timeout(),
+                    lifecycle.readyMethod() != null ? lifecycle.readyMethod().getName() : "none",
+                    lifecycle.disconnectMethod() != null ? lifecycle.disconnectMethod().getName() : "none",
+                    lifecycle.hasPathParams() ? "yes" : "no");
 
         } catch (Exception e) {
             logger.error("Failed to register AI endpoint from {}", annotatedClass.getName(), e);

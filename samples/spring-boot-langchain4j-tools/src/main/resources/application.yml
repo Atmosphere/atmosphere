@@ -1,0 +1,14 @@
+# Atmosphere LangChain4j Tools Configuration
+# Ported from langchain4j-examples/spring-boot-example, augmented with AI filters
+
+atmosphere:
+  packages: org.atmosphere.samples.springboot.langchain4jtools
+
+llm:
+  mode: ${LLM_MODE:remote}
+  model: ${LLM_MODEL:gemini-2.5-flash}
+  base-url: ${LLM_BASE_URL:}
+  api-key: ${LLM_API_KEY:${GEMINI_API_KEY:}}
+
+server:
+  port: 8086
