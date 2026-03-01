@@ -32,9 +32,9 @@ echo ""
 
 # Determine build mode
 if [ "$1" = "--fast" ]; then
-    echo "⚡ Fast mode: compile only (no tests)"
+    echo "⚡ Fast mode: install without tests"
     echo ""
-    BUILD_CMD="./mvnw compile -q"
+    BUILD_CMD="./mvnw install -DskipTests -q"
 else
     echo "🔨 Full mode: compile + tests"
     echo ""
